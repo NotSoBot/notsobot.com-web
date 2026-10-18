@@ -48,9 +48,11 @@ export function TagAssetsPanel({ tagId, assets, onArchived, className = 'mt-4' }
 
   return (
     <div className={className}>
-      <h3 className='section-label mb-1.5'>
-        Tag assets <span className='normal-case tracking-normal text-subtle'>(permanent copies on cdn.nsb.gg)</span>
-      </h3>
+      <div className='mb-1 flex min-h-8 items-center'>
+        <h3 className='section-label'>
+          Tag assets <span className='normal-case tracking-normal text-subtle'>(permanent copies on cdn.nsb.gg)</span>
+        </h3>
+      </div>
 
       {(assets.length) ? (
         <ul className='mb-2 space-y-1.5'>

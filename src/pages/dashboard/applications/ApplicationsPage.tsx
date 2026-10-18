@@ -172,7 +172,7 @@ export function ApplicationsPage() {
         />
       ) : (dialog?.kind === 'rename') ? (
         <ApplicationNameDialog
-          title='Rename application'
+          title={`Rename ${dialog.application.name}`}
           initialName={dialog.application.name}
           submitLabel='Save'
           pending={rename.isPending}

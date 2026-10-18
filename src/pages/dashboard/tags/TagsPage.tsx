@@ -1,11 +1,11 @@
 import { BookOpen, Tags as TagsIcon } from 'lucide-react';
-import { useCallback, useLayoutEffect, useMemo, useRef } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useMatch, useNavigate, useSearchParams } from 'react-router';
 
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Routes } from '@/config';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
-import { useAuth } from '@/auth';
+import { isStaff, useAuth } from '@/auth';
 import { errorMessage, ME_TAGS_PAGE_SIZE, useMeGuildsQuery, useMeTagsQuery } from '@/lib/api/dashboardQueries';
 import { TagDirectoryVerificationStates, type MeTagsDirectoryFilter, type MeTagsSortBy, type Tag, type UserMe } from '@/lib/api';
 import { cn, formatDate } from '@/lib/utils';
@@ -14,10 +14,11 @@ import { NsfwBadge, tagDirectoryItemPath } from '@/pages/tags/tagDirectory';
 import { Pagination, useStepBackFromEmptyPage } from '../admin/adminUi';
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from '../ui';
 import { ServerFilterChip } from '../servers/ServerFilterChip';
+import { DeleteMeTagDialog } from './DeleteMeTagDialog';
 import { TagDetailsModal } from './TagDetailsModal';
 import { TagEditorModal } from './TagEditorModal';
 import { readTagListState, writeTagListState } from './tagListState';
-import { dashboardTagEditPath, dashboardTagPath, tagLocation, TagLocationChip, tagServerPath, TagStatusBadges } from './tagMeta';
+import { dashboardTagEditPath, dashboardTagPath, TagCardDeleteButton, tagLocation, TagLocationChip, tagServerPath, TagStatusBadges } from './tagMeta';
 
 
 const SORTS: Array<{value: MeTagsSortBy, label: string}> = [
@@ -62,6 +63,7 @@ export function TagsPage() {
 
   // server names for the picker, when the dashboard can see the caller's servers (it's fine if it can't)
   const { user } = useAuth();
+  const [ deleting, setDeleting ] = useState<Tag | null>(null);
   const { data: guilds } = useMeGuildsQuery();
   const guildNames = useMemo(() => new Map((guilds ?? []).map((guild) => [guild.id, guild.name])), [guilds]);
 
@@ -245,7 +247,7 @@ export function TagsPage() {
       ) : (
         <>
           <ul className={cn('grid grid-cols-1 gap-3 transition-opacity sm:grid-cols-2 xl:grid-cols-3', isPlaceholderData && 'opacity-60')}>
-            {items.map((tag) => <TagCard key={tag.id} tag={tag} user={user} guildNames={guildNames} onOpen={openTag}/>)}
+            {items.map((tag) => <TagCard key={tag.id} tag={tag} user={user} guildNames={guildNames} onOpen={openTag} onDelete={setDeleting}/>)}
           </ul>
           <Pagination page={page} count={count} pageSize={ME_TAGS_PAGE_SIZE} onChange={setPage} fetching={isFetching && isPlaceholderData}/>
         </>
@@ -265,6 +267,8 @@ export function TagsPage() {
       ) : null}
 
       {(editingId) ? <TagEditorModal tagId={editingId} onBack={backToTag} onClose={closeEditor}/> : null}
+
+      {(deleting) ? <DeleteMeTagDialog tag={deleting} onClose={() => setDeleting(null)}/> : null}
     </>
   );
 }
@@ -272,11 +276,12 @@ export function TagsPage() {
 
 // laid out like the directory's cards: NSFW by the name, the states stacked top-right, aliases as a subtitle, the location pinned above the footer.
 // Just enough to spot the tag, the content and the rest of its details are a click away (`TagDetailsModal`)
-function TagCard({ tag, user, guildNames, onOpen }: {
+function TagCard({ tag, user, guildNames, onOpen, onDelete }: {
   tag: Tag,
   user: UserMe | null,
   guildNames: Map<string, string>,
   onOpen: (id: string) => void,
+  onDelete: (tag: Tag) => void,
 }) {
   const location = tagLocation(tag, user, guildNames);
   return (
@@ -309,7 +314,11 @@ function TagCard({ tag, user, guildNames, onOpen }: {
       </div>
       <div className='flex items-center justify-between gap-3 border-t border-line pt-3 text-xs text-subtle'>
         <span className='tabular-nums'>{tag.uses.toLocaleString()} uses</span>
-        <span>{(tag.edited) ? `Edited ${formatDate(tag.edited)}` : `Created ${formatDate(tag.created)}`}</span>
+        <span className='flex items-center gap-1'>
+          {(tag.edited) ? `Edited ${formatDate(tag.edited)}` : `Created ${formatDate(tag.created)}`}
+          {/* like the editor's: locked tags (pending/verified in the directory) are staff only */}
+          {(!tag.locked || isStaff(user)) ? <TagCardDeleteButton name={tag.name} onClick={() => onDelete(tag)}/> : null}
+        </span>
       </div>
     </li>
   );

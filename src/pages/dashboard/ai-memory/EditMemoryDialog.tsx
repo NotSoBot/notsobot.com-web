@@ -1,5 +1,4 @@
 import type { UseMutationResult } from '@tanstack/react-query';
-import { Save } from 'lucide-react';
 import { useEffect, useId, useState } from 'react';
 
 import { Modal } from '@/components/ui/Modal';
@@ -56,6 +55,7 @@ export function EditMemoryDialog({ memory, mutation, onClose }: {
         }}
       >
         <h2 id={titleId} className='pr-10 text-lg font-semibold text-white'>Edit memory</h2>
+        <p className='mt-2 text-sm text-muted'>It’s added to your NotSoAI prompts exactly as written here.</p>
 
         <Field
           className='mt-4'
@@ -84,7 +84,7 @@ export function EditMemoryDialog({ memory, mutation, onClose }: {
         <div className='mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
           <button type='button' className='btn btn-secondary' onClick={onClose} disabled={mutation.isPending}>Cancel</button>
           <button type='submit' className='btn btn-primary' disabled={mutation.isPending || tooLong || !changed}>
-            {(mutation.isPending) ? <Spinner className='size-4 border-white/40 border-t-white'/> : <Save className='size-4'/>}
+            {(mutation.isPending) ? <Spinner className='size-4 border-white/40 border-t-white'/> : null}
             Save
           </button>
         </div>

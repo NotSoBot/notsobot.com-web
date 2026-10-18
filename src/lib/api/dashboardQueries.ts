@@ -1330,6 +1330,8 @@ export interface AdminUsersFilters {
   onlyFlagged: boolean,
   // hours, null for any time
   flaggedWithin: number | null,
+  // null for either
+  blocked: boolean | null,
   page: number,
 }
 
@@ -1354,6 +1356,7 @@ export function useAdminUsersQuery(filters: AdminUsersFilters) {
       sortBy: filters.sortBy,
       onlyFlagged: filters.onlyFlagged,
       flaggedWithin: filters.flaggedWithin,
+      blocked: filters.blocked,
       offset: filters.page * ADMIN_PAGE_SIZE,
       limit: ADMIN_PAGE_SIZE,
     }, signal),
@@ -1424,6 +1427,37 @@ export function useMergeAdminTagMutation() {
 }
 
 
+// other tags with the exact same content, the options of `useDeleteAdminTagMutation`
+export function useAdminTagDuplicatesQuery(tagId: string) {
+  const { token } = useAuth();
+  return useQuery({
+    queryKey: [...queryKeys.admin(token), 'tag-duplicates', tagId],
+    queryFn: ({ signal }) => api.fetchAdminTagDuplicates(tagId, signal),
+    enabled: !!token,
+    retry: false,
+    // it's what's about to be confirmed, so never an old count
+    gcTime: 0,
+  });
+}
+
+
+export function useDeleteAdminTagMutation() {
+  const { token } = useAuth();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ tagId, userDuplicates, globalDuplicates }: {tagId: string, userDuplicates: boolean, globalDuplicates: boolean}) => (
+      api.deleteAdminTag(tagId, {userDuplicates, globalDuplicates})
+    ),
+    // both admin tag lists (its aliases go too), and the public directory if it was listed
+    onSettled: () => Promise.all([
+      queryClient.invalidateQueries({queryKey: [...queryKeys.admin(token), 'all-tags']}),
+      queryClient.invalidateQueries({queryKey: [...queryKeys.admin(token), 'tags']}),
+      queryClient.invalidateQueries({queryKey: ['tags', 'directory']}),
+    ]),
+  });
+}
+
+
 export function useDeleteAdminUserTagsMutation() {
   const { token } = useAuth();
   const queryClient = useQueryClient();
@@ -1449,6 +1483,7 @@ export interface AdminContentFlagsFilters {
   category: string,
   needsHumanReview: boolean | null,
   autoConfirmed: boolean | null,
+  promptHash: string,
   type: ContentFlagType | null,
   includeBlocked: boolean,
   search: string,
@@ -1479,6 +1514,7 @@ export function useAdminContentFlagsQuery(filters: AdminContentFlagsFilters) {
       category: filters.category,
       needsHumanReview: filters.needsHumanReview,
       autoConfirmed: filters.autoConfirmed,
+      promptHash: filters.promptHash,
       type: filters.type,
       includeBlocked: filters.includeBlocked,
       search: filters.search,
@@ -1725,6 +1761,16 @@ export interface AdminApplicationsFilters {
   userId: string,
   disabled: boolean | null,
   page: number,
+}
+
+// one application with its recent usage, for its modal (refreshed with the lists by `useInvalidateAdminApplications`)
+export function useAdminApplicationQuery(applicationId: string | null) {
+  const { token } = useAuth();
+  return useQuery({
+    queryKey: queryKeys.adminApplication(token, applicationId ?? ''),
+    queryFn: ({ signal }) => api.fetchAdminApplication(applicationId!, signal),
+    enabled: !!applicationId,
+  });
 }
 
 export function useAdminApplicationsQuery(filters: AdminApplicationsFilters) {

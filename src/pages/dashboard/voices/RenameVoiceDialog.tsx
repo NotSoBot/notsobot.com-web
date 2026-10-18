@@ -1,5 +1,4 @@
 import type { UseMutationResult } from '@tanstack/react-query';
-import { Save } from 'lucide-react';
 import { useEffect, useId, useState } from 'react';
 
 import { Modal } from '@/components/ui/Modal';
@@ -55,12 +54,12 @@ export function RenameVoiceDialog({ voice, mutation, onClose }: {
           }
         }}
       >
-        <h2 id={titleId} className='pr-10 text-lg font-semibold text-white'>Rename voice</h2>
+        <h2 id={titleId} className='pr-10 text-lg font-semibold break-words text-white'>Rename {voice.name}</h2>
+        <p className='mt-2 text-sm text-muted'>It’s the name you pick the voice by in the bot’s voice commands.</p>
 
         <Field
           className='mt-4'
           label='Name'
-          hint='This is the name you pick the voice by in the bot’s voice commands.'
           error={(tooLong) ? `Names can be up to ${VOICE_NAME_MAX_LENGTH} characters.` : undefined}
           counter={<CharCounter length={trimmed.length} max={VOICE_NAME_MAX_LENGTH}/>}
         >
@@ -86,7 +85,7 @@ export function RenameVoiceDialog({ voice, mutation, onClose }: {
         <div className='mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
           <button type='button' className='btn btn-secondary' onClick={onClose} disabled={mutation.isPending}>Cancel</button>
           <button type='submit' className='btn btn-primary' disabled={mutation.isPending || !valid || !changed}>
-            {(mutation.isPending) ? <Spinner className='size-4 border-white/40 border-t-white'/> : <Save className='size-4'/>}
+            {(mutation.isPending) ? <Spinner className='size-4 border-white/40 border-t-white'/> : null}
             Save
           </button>
         </div>

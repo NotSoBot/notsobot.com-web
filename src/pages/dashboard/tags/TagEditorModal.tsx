@@ -3,19 +3,22 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState, type Keyboard
 import { Link, useNavigate, useSearchParams } from 'react-router';
 
 import { isStaff, useAuth } from '@/auth';
-import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { ModalFooter } from '@/components/ui/DetailModal';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 import { Routes } from '@/config';
 import { ApiErrorCodes, ApiRequestError, type Tag, type TagStorageScope } from '@/lib/api';
-import { errorMessage, useDeleteMeTagMutation, useMeGuildsQuery, useMeTagDirectoryQuery, useMeTagQuery, usePatchMeTagMutation } from '@/lib/api/dashboardQueries';
+import { errorMessage, useMeGuildsQuery, useMeTagDirectoryQuery, useMeTagQuery, usePatchMeTagMutation } from '@/lib/api/dashboardQueries';
 import { cn, formatDate, formatDateTime } from '@/lib/utils';
 
+import { ExactDate } from '../admin/adminUi';
 import { CharCounter, Field, InlineError, Panel, PanelSkeleton, ReadOnlyNote, SaveBar, Skeleton, Toggle, UnsavedChangesGuard } from '../ui';
 import { CodeEditor } from './CodeEditor';
+import { DeleteMeTagDialog } from './DeleteMeTagDialog';
+import { TagLocationStrip, TagModalHeader } from './TagDetailsModal';
 import { TagBlobsEditor } from './TagBlobsEditor';
 import { TagDirectoryPanel } from './TagDirectoryPanel';
-import { dashboardTagEditPath, TAG_CONTENT_MAX, TAG_NAME_MAX, TagBadges, tagLocation, TagLocationChip, tagServerPath } from './tagMeta';
+import { dashboardTagEditPath, TAG_CONTENT_MAX, TAG_NAME_MAX } from './tagMeta';
 import { StorageScopeForm } from './StorageScopeForm';
 import { TagVariablesEditor } from './TagVariablesEditor';
 
@@ -39,7 +42,7 @@ export function TagEditorModal({ tagId, onBack, onClose }: {tagId: string, onBac
   const notFound = error instanceof ApiRequestError && (error.status === 404 || error.code === ApiErrorCodes.UNKNOWN_TAG);
 
   return (
-    <Modal labelledBy={TITLE_ID} onClose={onClose}>
+    <Modal labelledBy={TITLE_ID} onClose={onClose} stickyClose={!!tag}>
       {(tag) ? (
         // keyed so switching tags starts with a clean form
         <TagEditor key={tag.id} tag={tag} onBack={onBack}/>
@@ -109,37 +112,27 @@ function TagEditor({ tag, onBack }: {tag: Tag, onBack: (id: string) => void}) {
   const { data: directory } = useMeTagDirectoryQuery(tag.id);
   const { data: guilds } = useMeGuildsQuery();
   const guildNames = useMemo(() => new Map((guilds ?? []).map((guild) => [guild.id, guild.name])), [guilds]);
-  const location = tagLocation(tag, user, guildNames);
 
   return (
     <>
-      <header className='rounded-t-xl border-b border-line bg-surface px-6 pt-6 sm:pr-14'>
-        <p className='section-label pr-8 sm:pr-0'>Editing</p>
-        <div className='mt-1 flex flex-wrap items-center gap-2 pr-8 sm:pr-0'>
-          <h2 id={TITLE_ID} className='min-w-0 text-2xl font-bold break-all text-white'>{tag.name}</h2>
-          <TagBadges tag={tag}/>
-          <div className='flex flex-wrap gap-2 sm:ml-auto'>
-            <button type='button' className='btn btn-ghost btn-sm' onClick={() => onBack(tag.id)}>
-              <ArrowLeft className='size-3.5'/>
-              Back to tag
-            </button>
-            {(directory !== undefined && !tag.reference_tag) ? (
-              <button type='button' className='btn btn-secondary btn-sm' onClick={() => setTab('directory')}>
-                {(directory) ? <BookOpen className='size-3.5'/> : <Upload className='size-3.5'/>}
-                {(directory) ? 'Directory listing' : 'Publish to directory'}
-              </button>
-            ) : null}
-          </div>
-        </div>
-        <div className='mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-subtle'>
-          <TagLocationChip location={location} to={tagServerPath(location)}/>
-          <span className='tabular-nums'>{tag.uses.toLocaleString()} uses</span>
-          <span title={formatDateTime(tag.created)}>Created {formatDate(tag.created)}</span>
-          {(tag.edited) ? <span title={formatDateTime(tag.edited)}>Edited {formatDate(tag.edited)}</span> : null}
-          {(tag.last_used) ? <span title={formatDateTime(tag.last_used)}>Last used {formatDate(tag.last_used)}</span> : null}
-        </div>
+      <TagModalHeader
+        tag={tag}
+        titleId={TITLE_ID}
+        title={<><span className='sr-only'>Editing </span>{tag.name}</>}
+        meta={(
+          <>
+            Editing · created <ExactDate value={tag.created} format={formatDate}/>
+            {(tag.edited) ? <> · edited <ExactDate value={tag.edited} format={formatDate}/></> : null}
+          </>
+        )}
+      />
+      <TagLocationStrip tag={tag} guildNames={guildNames}>
+        <span className='tabular-nums'>{tag.uses.toLocaleString()} {(tag.uses === 1) ? 'use' : 'uses'}</span>
+        {(tag.last_used) ? <span>Last used <ExactDate value={tag.last_used} format={formatDateTime}/></span> : null}
+      </TagLocationStrip>
 
-        <div role='tablist' aria-label='Tag sections' onKeyDown={onTabKeyDown} className='-mb-px mt-4 flex gap-1 overflow-x-auto'>
+      <div className='border-b border-line px-4 sm:px-6'>
+        <div role='tablist' aria-label='Tag sections' onKeyDown={onTabKeyDown} className='-mb-px mt-1 flex gap-1 overflow-x-auto'>
           {TABS.map((item) => {
             const dirty = {content: contentDirty, variables: variablesDirty, blobs: blobsDirty, directory: directoryDirty}[item.id];
             return (
@@ -163,9 +156,9 @@ function TagEditor({ tag, onBack }: {tag: Tag, onBack: (id: string) => void}) {
             );
           })}
         </div>
-      </header>
+      </div>
 
-      <div className='p-4 sm:p-6'>
+      <div className='px-4 pt-4 pb-5 sm:px-6'>
         {/* panels stay mounted so unsaved edits survive switching tabs */}
         <div id={`${tabsId}-content-panel`} role='tabpanel' aria-labelledby={`${tabsId}-content`} hidden={tab !== 'content'}>
           <TagContentForm tag={tag} readOnly={readOnly} onDirtyChange={setContentDirty}/>
@@ -196,7 +189,54 @@ function TagEditor({ tag, onBack }: {tag: Tag, onBack: (id: string) => void}) {
         </div>
       </div>
 
+      {/* back to the details where the admin modals' Previous is, and the tag's own actions in the middle: the directory
+          listing, and deleting set apart after a divider. Saving stays with each tab's form (their save bars) */}
+      <ModalFooter
+        start={(
+          <button type='button' className='btn btn-ghost shrink-0 px-2' title='Back to the tag’s details' onClick={() => onBack(tag.id)}>
+            <ArrowLeft aria-hidden className='size-4'/>
+            <span className='sm:hidden'>Back</span>
+            <span className='hidden sm:inline'>Back to tag</span>
+          </button>
+        )}
+      >
+        {(directory !== undefined && !tag.reference_tag) ? (
+          <button type='button' className='btn btn-secondary min-w-0 flex-1 px-2 sm:flex-none sm:px-3' onClick={() => setTab('directory')}>
+            {(directory) ? <BookOpen aria-hidden className='hidden size-4 shrink-0 sm:block'/> : <Upload aria-hidden className='hidden size-4 shrink-0 sm:block'/>}
+            <span className='truncate sm:hidden'>{(directory) ? 'Listing' : 'Publish'}</span>
+            <span className='hidden sm:inline'>{(directory) ? 'Directory listing' : 'Publish to directory'}</span>
+          </button>
+        ) : null}
+        {(!readOnly) ? <DeleteTagButton tag={tag} divider={directory !== undefined && !tag.reference_tag}/> : null}
+      </ModalFooter>
+
       <UnsavedChangesGuard when={contentDirty || variablesDirty || blobsDirty || directoryDirty}/>
+    </>
+  );
+}
+
+
+// deleting the tag, from the footer (`divider` sets it apart from the buttons before it)
+function DeleteTagButton({ tag, divider }: {tag: Tag, divider: boolean}) {
+  const navigate = useNavigate();
+  const [ confirming, setConfirming ] = useState(false);
+
+  return (
+    <>
+      {(divider) ? <span aria-hidden className='mx-0.5 h-6 w-px shrink-0 self-center bg-line-strong sm:mx-1'/> : null}
+      <button type='button' className='btn btn-ghost min-w-0 flex-1 px-2 text-danger hover:text-danger sm:flex-none sm:px-3' onClick={() => setConfirming(true)}>
+        <Trash2 aria-hidden className='hidden size-4 shrink-0 sm:block'/>
+        <span className='truncate sm:hidden'>Delete</span>
+        <span className='hidden sm:inline'>Delete tag</span>
+      </button>
+      {(confirming) ? (
+        <DeleteMeTagDialog
+          tag={tag}
+          // replace: the tag's page doesn't exist anymore, Back shouldn't return to it
+          onDeleted={() => navigate(Routes.DASHBOARD_TAGS, {replace: true, preventScrollReset: true, state: {skipUnsavedGuard: true}})}
+          onClose={() => setConfirming(false)}
+        />
+      ) : null}
     </>
   );
 }
@@ -228,10 +268,7 @@ interface Draft {
 
 function TagContentForm({ tag, readOnly, onDirtyChange }: {tag: Tag, readOnly: boolean, onDirtyChange: (dirty: boolean) => void}) {
   const toast = useToast();
-  const navigate = useNavigate();
   const patch = usePatchMeTagMutation(tag.id);
-  const remove = useDeleteMeTagMutation(tag.id);
-  const [ confirmingDelete, setConfirmingDelete ] = useState(false);
 
   // null = showing the saved tag; edits create a draft, saving/discarding drops it
   const [ draft, setDraft ] = useState<Draft | null>(null);
@@ -287,114 +324,77 @@ function TagContentForm({ tag, readOnly, onDirtyChange }: {tag: Tag, readOnly: b
   saveRef.current = save;
   const onEditorSave = useCallback(() => saveRef.current(), []);
 
-  const confirmDelete = () => {
-    remove.mutate(undefined, {
-      onSuccess: () => {
-        toast(`Deleted “${tag.name}”`);
-        // replace: the tag's page doesn't exist anymore, Back shouldn't return to it
-        navigate(Routes.DASHBOARD_TAGS, {replace: true, preventScrollReset: true, state: {skipUnsavedGuard: true}});
-      },
-    });
-  };
-
   return (
-    <>
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          save();
-        }}
-      >
-        <Panel
-          title='Tag'
-          accent='#3ba55c'
-          actions={(!readOnly) ? (
-            <button type='button' className='btn btn-ghost btn-sm text-danger hover:text-danger' onClick={() => setConfirmingDelete(true)}>
-              <Trash2 aria-hidden className='size-4'/>
-              Delete
-            </button>
-          ) : null}
-        >
-          {(readOnly) ? (
-            <ReadOnlyNote>This tag is locked, so it can’t be edited or deleted right now. Ask in the support server if you think that’s a mistake.</ReadOnlyNote>
-          ) : (tag.locked) ? (
-            <ReadOnlyNote>This tag is locked, you can edit it because you’re staff.</ReadOnlyNote>
-          ) : null}
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        save();
+      }}
+    >
+      <Panel title='Tag' accent='#3ba55c'>
+        {(readOnly) ? (
+          <ReadOnlyNote>This tag is locked, so it can’t be edited or deleted right now. Ask in the support server if you think that’s a mistake.</ReadOnlyNote>
+        ) : (tag.locked) ? (
+          <ReadOnlyNote>This tag is locked, you can edit it because you’re staff.</ReadOnlyNote>
+        ) : null}
 
-          <div className='space-y-5'>
-            <Field
-              label='Name'
-              counter={<CharCounter length={trimmedName.length} max={TAG_NAME_MAX}/>}
-              hint='Names are saved in lowercase and must be unique where the tag lives.'
-              error={(draft) ? nameError : null}
-            >
-              {(props) => (
-                <input
-                  {...props}
-                  value={values.name}
-                  onChange={(event) => update({name: event.target.value.replace(/[\r\n]/g, '')})}
-                  disabled={readOnly}
-                  autoComplete='off'
-                  spellCheck={false}
-                  className='input font-mono'
-                />
-              )}
-            </Field>
+        <div className='space-y-5'>
+          <Field
+            label='Name'
+            counter={<CharCounter length={trimmedName.length} max={TAG_NAME_MAX}/>}
+            hint='Names are saved in lowercase and must be unique where the tag lives.'
+            error={(draft) ? nameError : null}
+          >
+            {(props) => (
+              <input
+                {...props}
+                value={values.name}
+                onChange={(event) => update({name: event.target.value.replace(/[\r\n]/g, '')})}
+                disabled={readOnly}
+                autoComplete='off'
+                spellCheck={false}
+                className='input font-mono'
+              />
+            )}
+          </Field>
 
-            <Field
-              label='Content'
-              counter={<CharCounter length={values.content.length} max={TAG_CONTENT_MAX}/>}
-              error={contentError}
-              hint={(tag.reference_tag) ? `This tag is an alias of “${tag.reference_tag.name}”. Saving content here turns it into a normal tag.` : 'Tag script is supported. Ctrl/⌘ + S saves.'}
-            >
-              {(props) => (
-                <CodeEditor
-                  {...props}
-                  value={values.content}
-                  onChange={(content) => update({content})}
-                  onSave={onEditorSave}
-                  readOnly={readOnly}
-                  maxLength={TAG_CONTENT_MAX}
-                />
-              )}
-            </Field>
+          <Field
+            label='Content'
+            counter={<CharCounter length={values.content.length} max={TAG_CONTENT_MAX}/>}
+            error={contentError}
+            hint={(tag.reference_tag) ? `This tag is an alias of “${tag.reference_tag.name}”. Saving content here turns it into a normal tag.` : 'Tag script is supported. Ctrl/⌘ + S saves.'}
+          >
+            {(props) => (
+              <CodeEditor
+                {...props}
+                value={values.content}
+                onChange={(content) => update({content})}
+                onSave={onEditorSave}
+                readOnly={readOnly}
+                maxLength={TAG_CONTENT_MAX}
+              />
+            )}
+          </Field>
 
-            <Toggle
-              label='NSFW'
-              description='NSFW tags only run in age-restricted channels.'
-              checked={values.nsfw}
-              onChange={(nsfw) => update({nsfw})}
-              disabled={readOnly}
-            />
-          </div>
+          <Toggle
+            label='NSFW'
+            description='NSFW tags only run in age-restricted channels.'
+            checked={values.nsfw}
+            onChange={(nsfw) => update({nsfw})}
+            disabled={readOnly}
+          />
+        </div>
 
-          {(patch.isError && !nameError) ? <InlineError>{errorMessage(patch.error, 'Couldn’t save the tag.')}</InlineError> : null}
+        {(patch.isError && !nameError) ? <InlineError>{errorMessage(patch.error, 'Couldn’t save the tag.')}</InlineError> : null}
 
-          {(!readOnly) ? (
-            <SaveBar dirty={dirty} pending={patch.isPending} disabled={invalid} onDiscard={() => {
-              patch.reset();
-              setDraft(null);
-            }}/>
-          ) : null}
-        </Panel>
-      </form>
-
-      {/* outside the form: the dialog has its own */}
-      {(confirmingDelete) ? (
-        <ConfirmDialog
-          title={`Delete “${tag.name}”?`}
-          description='This deletes the tag along with its variables and blobs. It can’t be undone.'
-          confirmLabel='Delete tag'
-          pending={remove.isPending}
-          error={(remove.isError) ? errorMessage(remove.error, 'Couldn’t delete the tag.') : null}
-          onConfirm={confirmDelete}
-          onClose={() => {
-            remove.reset();
-            setConfirmingDelete(false);
-          }}
-        />
-      ) : null}
-    </>
+        {(!readOnly) ? (
+          <SaveBar dirty={dirty} pending={patch.isPending} disabled={invalid} onDiscard={() => {
+            patch.reset();
+            setDraft(null);
+          }}/>
+        ) : null}
+      </Panel>
+    </form>
   );
 }
 
@@ -403,12 +403,14 @@ function TagEditorSkeleton() {
   return (
     <div aria-busy='true'>
       <h2 id={TITLE_ID} className='sr-only'>Loading tag</h2>
-      <div className='border-b border-line px-6 pt-6 pb-4'>
-        <Skeleton className='h-8 w-48'/>
-        <Skeleton className='mt-3 h-4 w-72 max-w-full bg-surface-2'/>
-        <Skeleton className='mt-5 h-7 w-64 bg-surface-2'/>
+      {/* the header's name and date, the location strip and the tabs */}
+      <div className='px-4 pt-4 pb-3 sm:px-6 sm:pt-5'>
+        <Skeleton className='h-7 w-48'/>
+        <Skeleton className='mt-1 h-4 w-40 bg-surface-2'/>
       </div>
-      <div className='p-6'><PanelSkeleton rows={4}/></div>
+      <div className='border-y border-line bg-surface-2 px-4 py-2.5 sm:px-6'><Skeleton className='h-6 w-56 max-w-full bg-surface-3'/></div>
+      <div className='border-b border-line px-4 py-2 sm:px-6'><Skeleton className='h-7 w-64 bg-surface-2'/></div>
+      <div className='px-4 pt-4 pb-5 sm:px-6'><PanelSkeleton rows={4}/></div>
     </div>
   );
 }

@@ -133,6 +133,7 @@ const TAG_CATEGORY_LABELS: Record<TagDirectoryCategory, string> = {
   [TagDirectoryCategories.GAMES]: 'Games',
   [TagDirectoryCategories.MEMES]: 'Memes',
   [TagDirectoryCategories.UTILITY]: 'Utility',
+  [TagDirectoryCategories.LOGO_EDITING]: 'Logo Editing',
 };
 
 const TAG_VERIFICATION_LABELS: Record<number, string> = {

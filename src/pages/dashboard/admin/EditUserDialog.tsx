@@ -1,4 +1,3 @@
-import { Save } from 'lucide-react';
 import { useId, useState } from 'react';
 
 import { Modal } from '@/components/ui/Modal';
@@ -25,6 +24,7 @@ const PREMIUM_TYPES = Object.values(UserPremiumTypes);
 export function EditUserDialog({ user, onClose }: {user: AdminUser, onClose: () => void}) {
   const titleId = useId();
   const premiumId = useId();
+  const flagsId = useId();
   const toast = useToast();
   const mutation = usePatchAdminUserMutation();
   const [ flags, setFlags ] = useState(user.flags);
@@ -52,25 +52,28 @@ export function EditUserDialog({ user, onClose }: {user: AdminUser, onClose: () 
           }
         }}
       >
-        <h2 id={titleId} className='pr-10 text-lg font-semibold text-white'>Edit {user.username}</h2>
+        <h2 id={titleId} className='pr-10 text-lg font-semibold break-words text-white'>Edit {user.username}</h2>
+        <p className='mt-2 text-sm text-muted'>Their premium and flags change as soon as this is saved.</p>
 
         <div className='mt-3 rounded-md border border-line bg-deep p-3'>
           <UserCell user={user}/>
         </div>
 
-        <label htmlFor={premiumId} className='mt-4 mb-1.5 block text-sm text-muted'>Premium</label>
-        <select
-          id={premiumId}
-          className='input'
-          value={premiumType}
-          disabled={mutation.isPending}
-          onChange={(event) => setPremiumType(Number(event.target.value))}
-        >
-          {PREMIUM_TYPES.map((value) => <option key={value} value={value}>{premiumLabel(value)}</option>)}
-        </select>
+        <div className='mt-4'>
+          <label htmlFor={premiumId} className='mb-1.5 block text-sm text-muted'>Premium</label>
+          <select
+            id={premiumId}
+            className='input'
+            value={premiumType}
+            disabled={mutation.isPending}
+            onChange={(event) => setPremiumType(Number(event.target.value))}
+          >
+            {PREMIUM_TYPES.map((value) => <option key={value} value={value}>{premiumLabel(value)}</option>)}
+          </select>
+        </div>
 
-        <h3 className='mt-5 mb-2 text-sm text-muted'>Flags</h3>
-        <div className='space-y-3 rounded-md border border-line bg-surface p-3'>
+        <h3 id={flagsId} className='mt-4 mb-1.5 text-sm text-muted'>Flags</h3>
+        <div role='group' aria-labelledby={flagsId} className='space-y-3 rounded-md border border-line p-3 text-sm'>
           <Toggle
             label='Owner'
             description='Can only be changed in the database.'
@@ -99,7 +102,7 @@ export function EditUserDialog({ user, onClose }: {user: AdminUser, onClose: () 
         <div className='mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
           <button type='button' className='btn btn-secondary' onClick={onClose} disabled={mutation.isPending}>Cancel</button>
           <button type='submit' className='btn btn-primary' disabled={mutation.isPending || !changed}>
-            {(mutation.isPending) ? <Spinner className='size-4 border-white/40 border-t-white'/> : <Save className='size-4'/>}
+            {(mutation.isPending) ? <Spinner className='size-4 border-white/40 border-t-white'/> : null}
             Save
           </button>
         </div>

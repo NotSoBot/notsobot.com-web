@@ -1,8 +1,8 @@
 import { Ban, ChevronRight, Flag, MessageSquareWarning, Server, Tags as TagsIcon, type LucideIcon } from 'lucide-react';
+import { useState } from 'react';
 import { Link } from 'react-router';
 
 import { SearchInput } from '@/components/ui/SearchInput';
-import { Segmented } from '@/components/ui/Segmented';
 import { Routes } from '@/config';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import type { AdminGuildSummary, AdminGuildsSortBy } from '@/lib/api';
@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 import { GuildIcon } from '../servers/GuildIcon';
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from '../ui';
 import { AdminServerModal, BotChip } from './AdminServerModal';
-import { adminServerPath, Chip, FLAGGED_WITHIN, Pagination, useSearchParamState, useStepBackFromEmptyPage } from './adminUi';
+import { adminServerPath, BLOCKED_FILTERS, Chip, FiltersButton, FLAGGED_WITHIN, Hint, Pagination, useSearchParamState, useStepBackFromEmptyPage } from './adminUi';
 import { useOpenListItem } from './AdminTagModal';
 
 
@@ -34,12 +34,6 @@ const BOT_FILTERS = [
   {value: 'out', label: 'Bot not in server', inBot: false},
 ] as const;
 
-const BLOCKED_FILTERS = [
-  {value: 'any', label: 'Any', blocked: null},
-  {value: 'blocked', label: 'Blocked', blocked: true},
-  {value: 'not', label: 'Not blocked', blocked: false},
-] as const;
-
 
 export function AdminServersPage() {
   const { searchParams, page, update, setPage } = useSearchParamState();
@@ -49,6 +43,9 @@ export function AdminServersPage() {
   const flaggedWithin = FLAGGED_WITHIN.find((item) => item.value === searchParams.get('within')) ?? FLAGGED_WITHIN[0];
   const query = searchParams.get('q') || '';
   const debouncedQuery = useDebouncedValue(query.trim(), 300);
+  const [ filtersOpen, setFiltersOpen ] = useState(false);
+  // the ones in the collapsible panel set to something other than their default
+  const activeFilters = [ bot.inBot !== null, flaggedWithin.hours, blocked.blocked !== null, sortBy !== 'newest' ].filter(Boolean).length;
 
   const { data, isPending, isError, error, isPlaceholderData, isFetching, isRefetching, refetch } = useAdminGuildsQuery({
     query: debouncedQuery,
@@ -79,46 +76,43 @@ export function AdminServersPage() {
         description='Every server NotSoBot knows about: ones it’s in now and ones that saved settings before it left. Open one to manage its settings.'
       />
 
-      <div className='mb-4 space-y-3'>
+      <div className='mb-4 flex gap-2'>
         <SearchInput
+          className='min-w-0 flex-1'
           value={query}
           onValueChange={(value) => update({q: value})}
           placeholder='Search by name or id...'
           aria-label='Search servers'
         />
-        <div className='flex flex-wrap items-center gap-3'>
-          <div className='max-w-full overflow-x-auto'>
-            <Segmented
-              label='Bot membership'
-              value={bot.value}
-              options={BOT_FILTERS.map(({ value, label }) => ({value, label}))}
-              onChange={(value) => update({bot: (value === 'any') ? null : value})}
-            />
-          </div>
-          <div className='flex max-w-full items-center gap-2 text-sm text-muted'>
-            <span aria-hidden>Last flagged</span>
-            <div className='overflow-x-auto'>
-              <Segmented
-                label='Last flagged within'
-                value={flaggedWithin.value}
-                options={FLAGGED_WITHIN.map(({ value, label }) => ({value, label}))}
-                onChange={(value) => update({within: (value === 'any') ? null : value})}
-              />
-            </div>
-          </div>
-          <label className='flex items-center gap-2 text-sm text-muted'>
-            Blocked
-            <select className='input w-36' value={blocked.value} onChange={(event) => update({blocked: (event.target.value === 'any') ? null : event.target.value})}>
-              {BLOCKED_FILTERS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-            </select>
-          </label>
-          <label className='flex items-center gap-2 text-sm text-muted sm:ml-auto'>
-            Sort
-            <select className='input w-40' value={sortBy} onChange={(event) => update({sort: (event.target.value === 'newest') ? null : event.target.value})}>
-              {SORTS.map((sort) => <option key={sort.value} value={sort.value}>{sort.label}</option>)}
-            </select>
-          </label>
-        </div>
+        <FiltersButton open={filtersOpen} onToggle={() => setFiltersOpen((value) => !value)} active={activeFilters} controls='admin-server-filters'/>
+      </div>
+
+      {/* hidden until asked for, like the content flags page's: one labelled select each */}
+      <div id='admin-server-filters' hidden={!filtersOpen} className='card mb-4 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4'>
+        <label className='text-sm'>
+          <span className='mb-1 block text-subtle'>Bot</span>
+          <select className='input' value={bot.value} onChange={(event) => update({bot: (event.target.value === 'any') ? null : event.target.value})}>
+            {BOT_FILTERS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+          </select>
+        </label>
+        <label className='text-sm'>
+          <span className='mb-1 block text-subtle'>Last flagged</span>
+          <select className='input' value={flaggedWithin.value} onChange={(event) => update({within: (event.target.value === 'any') ? null : event.target.value})}>
+            {FLAGGED_WITHIN.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+          </select>
+        </label>
+        <label className='text-sm'>
+          <span className='mb-1 block text-subtle'>Blocked</span>
+          <select className='input' value={blocked.value} onChange={(event) => update({blocked: (event.target.value === 'any') ? null : event.target.value})}>
+            {BLOCKED_FILTERS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+          </select>
+        </label>
+        <label className='text-sm'>
+          <span className='mb-1 block text-subtle'>Sort</span>
+          <select className='input' value={sortBy} onChange={(event) => update({sort: (event.target.value === 'newest') ? null : event.target.value})}>
+            {SORTS.map((sort) => <option key={sort.value} value={sort.value}>{sort.label}</option>)}
+          </select>
+        </label>
       </div>
 
       {(isPending || steppingBack) ? (
@@ -205,18 +199,17 @@ function ServerCounts({ counts, className }: {counts: AdminGuildSummary['counts'
         const value = counts[key];
         const text = `${value.toLocaleString()} ${label}`;
         return (
-          <span
+          <Hint
             key={key}
-            title={text}
+            text={text}
             className={cn(
               'inline-flex items-center gap-1 sm:min-w-12',
               (!value) ? 'text-subtle/60' : (alert) ? 'text-warning' : 'text-muted',
             )}
           >
-            <Icon aria-hidden className='size-3.5 shrink-0'/>
-            <span aria-hidden>{value.toLocaleString()}</span>
-            <span className='sr-only'>{text}</span>
-          </span>
+            <Icon className='size-3.5 shrink-0'/>
+            <span>{value.toLocaleString()}</span>
+          </Hint>
         );
       })}
     </div>

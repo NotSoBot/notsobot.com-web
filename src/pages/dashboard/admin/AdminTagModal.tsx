@@ -1,10 +1,8 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 
+import { ModalFooter } from '@/components/ui/DetailModal';
 import { Modal, openModalCount } from '@/components/ui/Modal';
-import { useToastClearance } from '@/components/ui/Toast';
-import { cn } from '@/lib/utils';
 
 
 // Which of a page's items is open in its modal, and the ones either side of it for ← / →. The open item is kept
@@ -299,9 +297,8 @@ export function AdminTagModal({ labelledBy, previousId, nextId, onNavigate, onCl
 }
 
 
-// Previous / Next for `AdminTagModal`. With `children` (the item's actions) they go between the two and the footer
-// stays at the bottom of the window while scrolling, so the actions and the next item are always a click away. The
-// negative `bottom` is `Modal`'s bottom padding, which sticky positioning would otherwise leave as a gap under it.
+// `ModalFooter` for `AdminTagModal`, whose Previous / Next go through the modal so they slide too. With `children` (the
+// item's actions) they go between the two and the footer stays at the bottom of the window while scrolling.
 export function AdminModalFooter({ previousId, nextId, onNavigate, children }: {
   previousId: string | null,
   nextId: string | null,
@@ -309,48 +306,5 @@ export function AdminModalFooter({ previousId, nextId, onNavigate, children }: {
   children?: ReactNode,
 }) {
   const slide = useContext(SlideNavigation);
-  const navigate = slide ?? onNavigate;
-  const ref = useRef<HTMLElement>(null);
-  // toasts (e.g. a status change's undo) would otherwise land on top of Next
-  useToastClearance(ref);
-  if (!children && !previousId && !nextId) {
-    return null;
-  }
-  return (
-    <footer
-      ref={ref}
-      className={cn(
-        'flex items-center justify-between gap-3 border-t border-line',
-        (children) ? 'sticky -bottom-6 z-10 rounded-b-xl bg-bg/95 px-3 py-3 backdrop-blur sm:-bottom-10 sm:px-4' : 'px-6 py-3',
-      )}
-    >
-      <button
-        type='button'
-        className='btn btn-ghost shrink-0 px-2'
-        aria-label='Previous'
-        title='Previous (←)'
-        disabled={!previousId}
-        onClick={() => previousId && navigate(previousId)}
-      >
-        <ChevronLeft className='size-4'/>
-        <span className={cn(children && 'hidden lg:inline')}>Previous</span>
-      </button>
-      {(children) ? (
-        <div className='flex min-w-0 flex-1 justify-center gap-2'>{children}</div>
-      ) : (
-        <span className='hidden text-xs text-subtle sm:block'>Use ← → to browse this page</span>
-      )}
-      <button
-        type='button'
-        className='btn btn-ghost shrink-0 px-2'
-        aria-label='Next'
-        title='Next (→)'
-        disabled={!nextId}
-        onClick={() => nextId && navigate(nextId)}
-      >
-        <span className={cn(children && 'hidden lg:inline')}>Next</span>
-        <ChevronRight className='size-4'/>
-      </button>
-    </footer>
-  );
+  return <ModalFooter previousId={previousId} nextId={nextId} onNavigate={slide ?? onNavigate}>{children}</ModalFooter>;
 }

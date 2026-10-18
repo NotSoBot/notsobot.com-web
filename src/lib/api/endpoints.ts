@@ -63,6 +63,8 @@ export const ApiEndpoints = Object.freeze({
   ADMIN_APPLICATION_ACCESS_USER: (userId: string) => `/admin/applications/access/${userId}`,
   ADMIN_TAGS: '/admin/tags',
   ADMIN_TAGS_DIRECTORY: '/admin/tags/directory',
+  ADMIN_TAG: (tagId: string) => `/admin/tags/${tagId}`,
+  ADMIN_TAG_DUPLICATES: (tagId: string) => `/admin/tags/${tagId}/duplicates`,
   ADMIN_TAG_DIRECTORY: (tagId: string) => `/admin/tags/directory/${tagId}`,
   ADMIN_TAG_DIRECTORY_EDIT_REQUEST_APPROVE: (tagId: string) => `/admin/tags/directory/${tagId}/edit-request/approve`,
   ADMIN_TAG_DIRECTORY_EDIT_REQUEST_REJECT: (tagId: string) => `/admin/tags/directory/${tagId}/edit-request/reject`,

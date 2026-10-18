@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronUp, Database } from 'lucide-react';
-import { useState, type CSSProperties } from 'react';
+import { useId, useState, type CSSProperties } from 'react';
 
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Segmented } from '@/components/ui/Segmented';
@@ -25,20 +25,33 @@ type Kind = 'variables' | 'blobs';
 // shows one scope at a time). Collapsed by default so the lists don't fetch it for every card.
 export function TagStoragePanel({ tagId, className }: {tagId: string, className?: string}) {
   const [ open, setOpen ] = useState(false);
+  const titleId = useId();
+  const panelId = useId();
   return (
     <div className={className}>
-      <button type='button' className='btn btn-ghost btn-sm -ml-2' onClick={() => setOpen((value) => !value)} aria-expanded={open}>
-        <Database aria-hidden className='size-4'/>
-        Variables &amp; blobs
-        {(open) ? <ChevronUp aria-hidden className='size-4'/> : <ChevronDown aria-hidden className='size-4'/>}
-      </button>
-      {(open) ? <StorageBrowser tagId={tagId}/> : null}
+      {/* a section header like the admin modals' others, with its show/hide in the actions spot */}
+      <div className='mb-1 flex min-h-8 items-center justify-between gap-2'>
+        <h3 id={titleId} className='section-label'>Variables &amp; blobs</h3>
+        <button
+          type='button'
+          className='btn btn-ghost btn-sm'
+          onClick={() => setOpen((value) => !value)}
+          aria-expanded={open}
+          aria-controls={panelId}
+          aria-describedby={titleId}
+        >
+          <Database aria-hidden className='size-4'/>
+          {(open) ? 'Hide' : 'Show'}
+          {(open) ? <ChevronUp aria-hidden className='size-4'/> : <ChevronDown aria-hidden className='size-4'/>}
+        </button>
+      </div>
+      {(open) ? <StorageBrowser id={panelId} tagId={tagId}/> : null}
     </div>
   );
 }
 
 
-function StorageBrowser({ tagId }: {tagId: string}) {
+function StorageBrowser({ id, tagId }: {id: string, tagId: string}) {
   const [ kind, setKind ] = useState<Kind>('variables');
   const [ storageType, setStorageType ] = useState<TagStorageType | null>(null);
   const [ search, setSearch ] = useState('');
@@ -72,7 +85,7 @@ function StorageBrowser({ tagId }: {tagId: string}) {
   };
 
   return (
-    <div className='mt-2 rounded-md border border-line bg-surface-2 p-3'>
+    <div id={id} className='rounded-md border border-line bg-surface-2 p-3'>
       <div className='flex flex-wrap items-center gap-3'>
         <Segmented
           label='Storage kind'

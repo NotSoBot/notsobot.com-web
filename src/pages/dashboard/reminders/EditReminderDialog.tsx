@@ -1,5 +1,4 @@
 import type { UseMutationResult } from '@tanstack/react-query';
-import { Save } from 'lucide-react';
 import { useEffect, useId, useState } from 'react';
 
 import { Modal } from '@/components/ui/Modal';
@@ -7,6 +6,7 @@ import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
 import type { Reminder } from '@/lib/api';
 import { errorMessage, type ReminderEdit } from '@/lib/api/dashboardQueries';
+import { formatDate, formatDateTime, formatExactDateTime } from '@/lib/utils';
 
 import { CharCounter, Field, Toggle } from '../ui';
 
@@ -64,7 +64,18 @@ export function EditReminderDialog({ reminder, where, mutation, onClose }: {
           }
         }}
       >
-        <h2 id={titleId} className='pr-10 text-lg font-semibold text-white'>Edit reminder</h2>
+        <h2 id={titleId} className='pr-10 text-lg font-semibold text-white'>Edit reminder #{reminder.position}</h2>
+        <p className='mt-2 text-sm text-muted'>Its time can only be changed with the bot.</p>
+
+        <div className='mt-3 rounded-md border border-line bg-deep p-3 text-sm'>
+          <div className='font-medium text-white' title={formatExactDateTime(reminder.timestamp_start)}>
+            {(reminder.is_all_day) ? formatDate(reminder.timestamp_start) : formatDateTime(reminder.timestamp_start)}
+            {(reminder.timestamp_end) ? (
+              <span className='text-muted'> – {(reminder.is_all_day) ? formatDate(reminder.timestamp_end) : formatDateTime(reminder.timestamp_end)}</span>
+            ) : null}
+          </div>
+          <div className='mt-0.5 text-muted'>Sent in {where}</div>
+        </div>
 
         <Field
           className='mt-4'
@@ -85,7 +96,7 @@ export function EditReminderDialog({ reminder, where, mutation, onClose }: {
         </Field>
 
         {(reminder.guild_id) ? (
-          <div className='mt-5'>
+          <div className='mt-3 rounded-md border border-line p-3 text-sm'>
             <Toggle
               checked={moveToDms}
               onChange={setMoveToDms}
@@ -105,7 +116,7 @@ export function EditReminderDialog({ reminder, where, mutation, onClose }: {
         <div className='mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
           <button type='button' className='btn btn-secondary' onClick={onClose} disabled={mutation.isPending}>Cancel</button>
           <button type='submit' className='btn btn-primary' disabled={mutation.isPending || tooLong || !changed}>
-            {(mutation.isPending) ? <Spinner className='size-4 border-white/40 border-t-white'/> : <Save className='size-4'/>}
+            {(mutation.isPending) ? <Spinner className='size-4 border-white/40 border-t-white'/> : null}
             Save
           </button>
         </div>

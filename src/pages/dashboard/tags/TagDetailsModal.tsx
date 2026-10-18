@@ -1,23 +1,23 @@
-import { AlertTriangle, ArrowUpRight, BarChart3, Calendar, ChevronLeft, ChevronRight, Clock, Pencil, PencilLine, type LucideIcon } from 'lucide-react';
+import { AlertTriangle, ArrowUpRight, Lock, Pencil } from 'lucide-react';
 import { useEffect, useRef, type ReactNode } from 'react';
 import { Link } from 'react-router';
 
 import { useAuth } from '@/auth';
+import { DetailModalHeader, DetailModalStrip, ModalFooter } from '@/components/ui/DetailModal';
 import { stripMarkdown } from '@/components/ui/Markdown';
 import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
 import type { Tag } from '@/lib/api';
 import { errorMessage, useMeTagDirectoryQuery, useMeTagQuery } from '@/lib/api/dashboardQueries';
-import { formatDate, formatDateTime } from '@/lib/utils';
+import { formatDateTime } from '@/lib/utils';
 import { tagDirectoryItemPath, VerificationBadge } from '@/pages/tags/tagDirectory';
 import { MediaSection } from '@/pages/tags/TagMedia';
 
-import { CopyButton } from '../admin/adminUi';
-import { TagBadges, tagLocation, TagLocationChip, tagServerPath } from './tagMeta';
+import { Chip, CopyableValue, CopyButton, DETAIL_LIST_STACKED, DetailList, ExactDate, selectAllScope } from '../admin/adminUi';
+import { tagLocation, TagLocationChip, tagServerPath } from './tagMeta';
 
 
 const TITLE_ID = 'dashboard-tag-modal-title';
-
 
 // One of your tags over the tag list, like the public directory's modal: the full content and details, with the editor
 // a click away. ← / → step through the tags loaded behind it.
@@ -52,10 +52,12 @@ export function TagDetailsModal({ tagId, guildNames, previousId, nextId, onNavig
     return () => document.removeEventListener('keydown', onKeyDown);
   }, []);
 
+  const browsing = !!(previousId || nextId);
+
   return (
-    <Modal labelledBy={TITLE_ID} onClose={onClose}>
+    <Modal labelledBy={TITLE_ID} onClose={onClose} stickyClose={!!tag}>
       {(tag) ? (
-        <TagDetails tag={tag} guildNames={guildNames} onEdit={onEdit}/>
+        <TagDetails tag={tag} guildNames={guildNames}/>
       ) : (isPending) ? (
         <div className='flex h-80 items-center justify-center'>
           <h2 id={TITLE_ID} className='sr-only'>Loading tag</h2>
@@ -70,95 +72,116 @@ export function TagDetailsModal({ tagId, guildNames, previousId, nextId, onNavig
         </div>
       )}
 
-      {(previousId || nextId) ? (
-        <footer className='flex items-center justify-between gap-3 border-t border-line px-6 py-3'>
-          <button type='button' className='btn btn-ghost px-2' disabled={!previousId} onClick={() => previousId && onNavigate(previousId)}>
-            <ChevronLeft className='size-4'/>
-            Previous
+      {/* without a tag (still loading, or it failed) only the browsing is left */}
+      <ModalFooter previousId={previousId} nextId={nextId} onNavigate={(browsing) ? onNavigate : undefined}>
+        {(tag) ? (
+          <button type='button' className='btn btn-primary min-w-0 flex-1 px-2 sm:flex-none sm:px-3' onClick={() => onEdit(tag.id)}>
+            <Pencil aria-hidden className='hidden size-4 shrink-0 sm:block'/>
+            <span className='truncate sm:hidden'>Edit</span>
+            <span className='hidden sm:inline'>Edit tag</span>
           </button>
-          <span className='hidden text-xs text-subtle sm:block'>Use ← → to browse</span>
-          <button type='button' className='btn btn-ghost px-2' disabled={!nextId} onClick={() => nextId && onNavigate(nextId)}>
-            Next
-            <ChevronRight className='size-4'/>
-          </button>
-        </footer>
-      ) : null}
+        ) : null}
+      </ModalFooter>
     </Modal>
   );
 }
 
 
-function TagDetails({ tag, guildNames, onEdit }: {tag: Tag, guildNames: Map<string, string>, onEdit: (id: string) => void}) {
+// the tag's header, shared with its editor: `title` is the h2's content, `meta` the line under it
+export function TagModalHeader({ tag, titleId, title, meta }: {tag: Tag, titleId: string, title: ReactNode, meta: ReactNode}) {
+  return (
+    <DetailModalHeader
+      titleId={titleId}
+      leading={<Chip className='w-12 shrink-0 justify-center'>{(tag.reference_tag) ? 'alias' : 'tag'}</Chip>}
+      title={title}
+      titleTooltip={tag.name}
+      mono
+      meta={meta}
+      states={[
+        (tag.locked) ? <Chip key='locked' tone='warning' title='Locked: it can’t be edited or deleted right now' className='gap-1'><Lock aria-hidden className='size-3'/>locked</Chip> : null,
+        (tag.nsfw) ? <Chip key='nsfw' tone='danger' title='Only runs in age-restricted channels'>NSFW</Chip> : null,
+        (tag.is_command) ? <Chip key='command' tone='brand' title='Runs as a command of its own'>command</Chip> : null,
+        (tag.is_on_directory) ? <Chip key='directory' tone='success' title='Listed on the tag directory'>directory</Chip> : null,
+      ]}
+    />
+  );
+}
+
+
+// where the tag lives, in the strip under the header. `children` go on the right
+export function TagLocationStrip({ tag, guildNames, children }: {tag: Tag, guildNames: Map<string, string>, children?: ReactNode}) {
+  const { user } = useAuth();
+  const location = tagLocation(tag, user, guildNames);
+  return (
+    <DetailModalStrip className='flex flex-wrap items-center gap-x-3 gap-y-1.5'>
+      <TagLocationChip location={location} to={tagServerPath(location)}/>
+      {(children) ? <div className='ml-auto flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-subtle'>{children}</div> : null}
+    </DetailModalStrip>
+  );
+}
+
+
+function TagDetails({ tag, guildNames }: {tag: Tag, guildNames: Map<string, string>}) {
   const { user } = useAuth();
   const location = tagLocation(tag, user, guildNames);
 
   return (
     <>
-      <header className='rounded-t-xl border-b border-line bg-surface px-6 pt-6 pb-5 sm:pr-14'>
-        <div className='flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
-          <div className='min-w-0 flex-1'>
-            <div className='flex flex-wrap items-center gap-2 pr-8 sm:pr-0'>
-              <h2 id={TITLE_ID} className='text-2xl font-bold break-words text-white sm:text-3xl'>{tag.name}</h2>
-              <TagBadges tag={tag}/>
-            </div>
-            <div className='mt-2 flex min-w-0'>
-              <TagLocationChip location={location} to={tagServerPath(location)}/>
-            </div>
-          </div>
-          <button type='button' className='btn btn-primary w-full justify-center sm:w-auto' onClick={() => onEdit(tag.id)}>
-            <Pencil className='size-4'/>
-            Edit tag
-          </button>
-        </div>
-      </header>
+      <TagModalHeader
+        tag={tag}
+        titleId={TITLE_ID}
+        title={tag.name}
+        meta={<>Created <ExactDate value={tag.created} format={formatDateTime}/></>}
+      />
+      <TagLocationStrip tag={tag} guildNames={guildNames}/>
 
-      <div className='grid gap-6 p-6 md:grid-cols-[minmax(0,1fr)_260px]'>
-        <div className='min-w-0 space-y-5'>
-          <section>
-            <div className='mb-2 flex items-center justify-between gap-3'>
-              <h3 className='section-label'>Content</h3>
-              {(!tag.reference_tag && tag.content) ? <CopyButton value={tag.content} label='Copy'/> : null}
-            </div>
-            {(tag.reference_tag) ? (
-              <p className='rounded-md border border-line bg-deep p-3 text-sm text-muted'>
-                An alias of <span className='font-medium text-white'>{tag.reference_tag.name}</span>, it runs that tag’s content.
-              </p>
-            ) : (
-              <pre className='max-h-96 overflow-auto rounded-md border border-line bg-deep p-3 font-mono text-sm whitespace-pre-wrap break-words text-fg'>
-                {tag.content || <span className='text-subtle italic'>(empty)</span>}
-              </pre>
-            )}
-          </section>
-
-          {(tag.is_on_directory) ? <DirectorySection tag={tag}/> : null}
-
-          <div className='grid grid-cols-2 gap-3'>
-            <StatTile icon={BarChart3} label='Uses'><span className='text-2xl font-bold'>{tag.uses.toLocaleString()}</span></StatTile>
-            <StatTile icon={Clock} label='Last used'><span className='text-sm font-medium'>{(tag.last_used) ? formatDate(tag.last_used) : 'Never'}</span></StatTile>
-            <StatTile icon={Calendar} label='Created'><span className='text-sm font-medium'>{formatDate(tag.created)}</span></StatTile>
-            <StatTile icon={PencilLine} label='Edited'><span className='text-sm font-medium'>{(tag.edited) ? formatDate(tag.edited) : 'Never'}</span></StatTile>
-          </div>
+      <div className='px-4 pt-4 pb-5 sm:px-6'>
+        {/* side by side once there's room. Stacked on phones, both lists share one label column (subgrid) so their values
+            line up */}
+        <div className='grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-4 sm:grid-cols-2'>
+          <DetailList
+            className={DETAIL_LIST_STACKED}
+            items={[
+              // phones only, the title's can be cut off there
+              ['Name', <CopyableValue value={tag.name} truncate={0}/>, 'sm:hidden'],
+              ['Uses', <span className='tabular-nums'>{tag.uses.toLocaleString()}</span>],
+              ['Last used', (tag.last_used) ? <ExactDate value={tag.last_used} format={formatDateTime}/> : 'Never'],
+              ['Created', <ExactDate value={tag.created} format={formatDateTime}/>],
+              ['Edited', (tag.edited) ? <ExactDate value={tag.edited} format={formatDateTime}/> : 'Never'],
+            ]}
+          />
+          <DetailList
+            className={DETAIL_LIST_STACKED}
+            items={[
+              ['Tag', <CopyableValue value={tag.id} truncate={0}/>],
+              (location.id) ? [(location.kind === 'server') ? 'Server' : 'Channel', <CopyableValue value={location.id} truncate={0}/>] : null,
+              ['Locked', (tag.locked) ? 'Yes' : 'No'],
+              ['Command tag', (tag.is_command) ? 'Yes' : 'No'],
+              ['NSFW', (tag.nsfw) ? 'Yes' : 'No'],
+            ]}
+          />
         </div>
 
-        <aside>
-          <section className='card p-5'>
-            <h3 className='section-label mb-1'>Details</h3>
-            <dl className='divide-y divide-line'>
-              <InfoRow label='Tag ID'><span className='font-mono text-xs'>{tag.id}</span></InfoRow>
-              <InfoRow label='Location'>
-                {(tagServerPath(location)) ? (
-                  <Link to={tagServerPath(location)!} className='text-brand hover:underline'>{location.label}</Link>
-                ) : location.label}
-              </InfoRow>
-              {(location.id) ? <InfoRow label='Server ID'><span className='font-mono text-xs'>{location.id}</span></InfoRow> : null}
-              <InfoRow label='Created'>{formatDateTime(tag.created)}</InfoRow>
-              {(tag.last_used) ? <InfoRow label='Last used'>{formatDateTime(tag.last_used)}</InfoRow> : null}
-              <InfoRow label='Locked'>{(tag.locked) ? 'Yes' : 'No'}</InfoRow>
-              <InfoRow label='Command tag'>{(tag.is_command) ? 'Yes' : 'No'}</InfoRow>
-              <InfoRow label='NSFW'>{(tag.nsfw) ? 'Yes' : 'No'}</InfoRow>
-            </dl>
-          </section>
-        </aside>
+        <div className='mt-4'>
+          <div className='mb-1 flex min-h-8 items-center justify-between gap-2'>
+            <h3 className='section-label'>Content</h3>
+            {(!tag.reference_tag && tag.content) ? <CopyButton value={tag.content} label='Copy'/> : null}
+          </div>
+          {(tag.reference_tag) ? (
+            <p className='rounded-md border border-line bg-deep px-3 py-2 text-sm text-muted'>
+              An alias of <span className='font-medium text-white'>{tag.reference_tag.name}</span>, it runs that tag’s content.
+            </p>
+          ) : (
+            <pre
+              className='max-h-96 overflow-auto rounded-md border border-line bg-deep px-3 py-2 font-mono text-sm whitespace-pre-wrap break-words text-fg focus:border-line-strong focus:outline-none'
+              {...selectAllScope}
+            >
+              {tag.content || <span className='text-subtle italic'>(empty)</span>}
+            </pre>
+          )}
+        </div>
+
+        {(tag.is_on_directory) ? <DirectorySection tag={tag}/> : null}
       </div>
     </>
   );
@@ -169,15 +192,15 @@ function TagDetails({ tag, guildNames, onEdit }: {tag: Tag, guildNames: Map<stri
 function DirectorySection({ tag }: {tag: Tag}) {
   const { data: directory, isPending } = useMeTagDirectoryQuery(tag.id);
   return (
-    <section>
-      <div className='mb-2 flex items-baseline justify-between gap-3'>
+    <div className='mt-4'>
+      <div className='mb-1 flex min-h-8 items-center justify-between gap-2'>
         <h3 className='section-label'>Tag directory</h3>
-        <Link to={tagDirectoryItemPath(tag.id)} className='inline-flex items-center gap-1 text-xs text-brand hover:underline'>
+        <Link to={tagDirectoryItemPath(tag.id)} className='btn btn-ghost btn-sm'>
           View in directory
-          <ArrowUpRight className='size-3'/>
+          <ArrowUpRight aria-hidden className='size-4'/>
         </Link>
       </div>
-      <div className='space-y-4 rounded-md border border-line bg-deep p-3'>
+      <div className='space-y-4 rounded-md border border-line bg-deep px-3 py-2'>
         {(isPending) ? (
           <div className='flex h-10 items-center justify-center'><Spinner className='size-4'/></div>
         ) : (directory) ? (
@@ -193,29 +216,6 @@ function DirectorySection({ tag }: {tag: Tag}) {
           <p className='text-sm text-muted'>Listed on the tag directory.</p>
         )}
       </div>
-    </section>
-  );
-}
-
-
-function StatTile({ icon: Icon, label, children }: {icon: LucideIcon, label: string, children: ReactNode}) {
-  return (
-    <div className='min-w-0 rounded-lg bg-deep p-4'>
-      <div className='mb-2 flex items-center gap-2 text-muted'>
-        <Icon className='size-4'/>
-        <span className='text-xs'>{label}</span>
-      </div>
-      <div className='text-white tabular-nums'>{children}</div>
-    </div>
-  );
-}
-
-
-function InfoRow({ label, children }: {label: string, children: ReactNode}) {
-  return (
-    <div className='flex items-start justify-between gap-4 py-2.5 text-sm'>
-      <dt className='shrink-0 text-muted'>{label}</dt>
-      <dd className='min-w-0 text-right break-words text-white'>{children}</dd>
     </div>
   );
 }

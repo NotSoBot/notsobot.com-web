@@ -1,6 +1,7 @@
 import { Check, Clock, Music, Pencil, ShieldCheck, ShieldX, Trash2, X } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 
+import { DetailModalHeader } from '@/components/ui/DetailModal';
 import { Markdown, stripMarkdown } from '@/components/ui/Markdown';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Segmented } from '@/components/ui/Segmented';
@@ -28,14 +29,15 @@ import {
   useAdminTagDirectoryQuery,
   usePatchAdminTagDirectoryMutation,
 } from '@/lib/api/dashboardQueries';
-import { cn, formatDate, formatMemory, NO_AUTOFILL } from '@/lib/utils';
+import { cn, formatDate, formatDateTime, formatMemory, NO_AUTOFILL } from '@/lib/utils';
 import { TAG_NAME_MAX } from '@/pages/dashboard/tags/tagMeta';
-import { CategoryBadge, categoryOptionFromParam, CategorySelect, DescriptionEditor, NsfwBadge, TAG_DIRECTORY_CATEGORY_OPTIONS, VerificationBadge, verificationRequirement } from '@/pages/tags/tagDirectory';
+import { CategoryBadge, categoryLabel, categoryOptionFromParam, CategorySelect, DescriptionEditor, NsfwBadge, TAG_DIRECTORY_CATEGORY_OPTIONS, VerificationBadge, verificationRequirement } from '@/pages/tags/tagDirectory';
 
 import { CharCounter, DashboardHeader, EmptyState, ErrorPanel, Field, Skeleton, Toggle } from '../ui';
 import { AdminModalFooter, AdminTagModal, useOpenListItem } from './AdminTagModal';
-import { Chip, CopyableValue, CopyButton, DetailList, ExactDate, Pagination, selectAllScope, useSearchParamState, useStepBackFromEmptyPage, UserCell } from './adminUi';
+import { adminUserPath, Chip, CopyableValue, CopyButton, DETAIL_LIST_STACKED, DetailList, ExactDate, Pagination, selectAllScope, useSearchParamState, useStepBackFromEmptyPage, UserCell } from './adminUi';
 import { DeleteDirectoryTagFlow } from './DeleteDirectoryTagFlow';
+import { TagOwnerStrip } from './DeleteUserTagsDialog';
 import { TagAssetsPanel } from './TagAssetsPanel';
 import { TagStoragePanel } from './TagStoragePanel';
 
@@ -171,7 +173,7 @@ export function AdminTagsPage() {
       )}
 
       {(openItem) ? (
-        <AdminTagModal labelledBy={TITLE_ID} previousId={previousId} nextId={nextId} onNavigate={open} onClose={close} footer={false}>
+        <AdminTagModal labelledBy={TITLE_ID} previousId={previousId} nextId={nextId} onNavigate={open} onClose={close} footer={false} stickyClose>
           <DirectoryTagDetails
             key={openItem.id}
             item={openItem}
@@ -193,6 +195,7 @@ export function AdminTagsPage() {
 // laid out like the dashboard's own tag cards: just enough to triage, the review tools are in `DirectoryTagDetails`
 function DirectoryTagCard({ item, onOpen }: {item: AdminTagDirectoryItem, onOpen: (id: string) => void}) {
   const { tag } = item;
+  const ownerId = item.user?.id ?? tag.user_id ?? null;
   return (
     <li className='group relative flex min-w-0 flex-col rounded-lg border border-line bg-surface p-4 transition-colors hover:border-brand'>
       <div className='mb-3 flex items-start justify-between gap-3'>
@@ -225,7 +228,7 @@ function DirectoryTagCard({ item, onOpen }: {item: AdminTagDirectoryItem, onOpen
         <p className='mb-3 text-sm text-subtle italic'>No description</p>
       )}
       <div className='mb-3'>
-        <UserCell user={item.user} fallbackId={tag.user_id ?? null} size='sm'/>
+        <UserCell user={item.user} fallbackId={ownerId} size='sm' to={(ownerId) ? adminUserPath(ownerId) : undefined}/>
       </div>
       <div className='mt-auto flex items-center justify-between gap-3 border-t border-line pt-3 text-xs text-subtle'>
         <span className='tabular-nums'>
@@ -251,6 +254,7 @@ function DirectoryTagDetails({ item, navigation, onDelete }: {
   onDelete: () => void,
 }) {
   const { tag } = item;
+  const ownerId = item.user?.id ?? tag.user_id ?? null;
   const toast = useToast();
   const mutation = usePatchAdminTagDirectoryMutation();
   // separate instance so saving content doesn't show up as a pending verification change
@@ -332,134 +336,154 @@ function DirectoryTagDetails({ item, navigation, onDelete }: {
 
   return (
     <>
-      <div className='p-4 sm:p-6'>
-        <div className='flex flex-wrap items-start justify-between gap-3 pr-10'>
-          <div className='min-w-0 flex-1'>
-            <div className='flex flex-wrap items-center gap-2'>
-              <h2 id={TITLE_ID} className='truncate text-xl font-semibold text-white'>{item.title || <span className='text-subtle italic'>Untitled</span>}</h2>
-              <VerificationBadge verified={item.verified}/>
-              <CategoryBadge category={item.category}/>
-              {(tag.nsfw) ? <NsfwBadge/> : null}
-              {(tag.locked) ? <Chip tone='warning'>Locked</Chip> : null}
-            </div>
-            <p className='mt-0.5 font-mono text-sm text-code'>{tag.name}</p>
+      <DetailModalHeader
+        titleId={TITLE_ID}
+        leading={<Chip className='min-w-16 shrink-0 justify-center'>{categoryLabel(item.category)}</Chip>}
+        // can be cut off on phones, so there the name's in the details below with a copy button too
+        title={item.title || <span className='text-subtle italic'>Untitled</span>}
+        meta={
+          <div className='flex min-w-0 items-center gap-1.5'>
+            <span className='min-w-0 truncate font-mono text-code'>{tag.name}</span>
+            <span aria-hidden>·</span>
+            <span className='shrink-0 whitespace-nowrap'>
+              {(item.created) ? <>Listed <ExactDate value={item.created} format={formatDateTime}/></> : <>Created <ExactDate value={tag.created} format={formatDateTime}/></>}
+            </span>
           </div>
-        </div>
+        }
+        states={[
+          (tag.nsfw) ? <NsfwBadge key='nsfw'/> : null,
+          (tag.locked) ? <Chip key='locked' tone='warning'>Locked</Chip> : null,
+          (item.edit_request) ? <Chip key='request' tone='brand'>Change request</Chip> : null,
+        ]}
+        status={<VerificationBadge verified={item.verified}/>}
+      />
 
-        <div className='mt-3'>
-          <UserCell user={item.user} fallbackId={tag.user_id ?? null}/>
-        </div>
+      <TagOwnerStrip user={item.user} fallbackId={ownerId} blockReason={`Tag directory: \`${tag.name}\` #${tag.id}`}/>
 
-        {(item.edit_request) ? <EditRequestReview item={item} request={item.edit_request}/> : null}
-
-        {(listingDraft !== null) ? (
-          <div className='mt-3 space-y-3'>
-            <Field
-              label='Tag name'
-              counter={<CharCounter length={draftName.length} max={TAG_NAME_MAX}/>}
-              error={(!draftName) ? 'A tag needs a name.' : (nameTaken) ? 'The owner already has a tag with this name there.' : null}
-            >
-              {(props) => (
-                <input
-                  {...props}
-                  className='input font-mono'
-                  value={listingDraft.name}
-                  disabled={listingMutation.isPending}
-                  autoComplete='off'
-                  {...NO_AUTOFILL}
-                  spellCheck={false}
-                  onChange={(event) => {
-                    listingMutation.reset();
-                    setListingDraft({...listingDraft, name: event.target.value.replace(/[\r\n]/g, '')});
-                  }}
-                />
-              )}
-            </Field>
-            <Field label='Title' counter={<CharCounter length={listingDraft.title.length} max={TITLE_MAX}/>}>
-              {(props) => (
-                <input
-                  {...props}
-                  className='input'
-                  value={listingDraft.title}
-                  disabled={listingMutation.isPending}
-                  autoComplete='off'
-                  {...NO_AUTOFILL}
-                  onChange={(event) => setListingDraft({...listingDraft, title: event.target.value})}
-                />
-              )}
-            </Field>
-            <Field label='Description' counter={<CharCounter length={listingDraft.description.length} max={DESCRIPTION_MAX}/>}>
-              {(props) => (
-                <DescriptionEditor
-                  {...props}
-                  className='input resize-y leading-relaxed'
-                  rows={Math.min(12, Math.max(3, listingDraft.description.split('\n').length + 1))}
-                  value={listingDraft.description}
-                  disabled={listingMutation.isPending}
-                  onChange={(value) => setListingDraft({...listingDraft, description: value})}
-                />
-              )}
-            </Field>
-            <Field label='Category'>
-              {(props) => (
-                <CategorySelect
-                  {...props}
-                  value={listingDraft.category}
-                  disabled={listingMutation.isPending}
-                  onChange={(value) => setListingDraft({...listingDraft, category: value})}
-                />
-              )}
-            </Field>
-            <div className='flex flex-wrap items-center gap-2'>
-              <ActionButton
-                label='Save listing'
-                icon={<Pencil className='size-4'/>}
-                className='btn-primary'
-                disabled={listingMutation.isPending || !listingChanged || listingInvalid}
-                pending={listingMutation.isPending}
-                onClick={saveListing}
-              />
-              <button type='button' className='btn btn-sm btn-ghost' disabled={listingMutation.isPending} onClick={() => {
-                listingMutation.reset();
-                setListingDraft(null);
-              }}>Cancel</button>
-              <span className='text-xs text-subtle'>Works on locked, pending and verified tags too, the owner isn’t notified.</span>
-            </div>
-          </div>
-        ) : (
-          <div className='mt-3 flex items-start justify-between gap-2'>
-            {(item.description) ? (
-              <Markdown text={item.description} className='text-sm text-muted'/>
-            ) : (
-              <p className='text-sm text-subtle italic'>No description</p>
-            )}
-            <button
-              type='button'
-              className='btn btn-ghost btn-sm shrink-0'
-              onClick={() => setListingDraft({name: tag.name, title: item.title ?? '', description: item.description ?? '', category: item.category ?? 0})}
-            >
-              <Pencil className='size-4'/>
-              Edit listing
-            </button>
-          </div>
-        )}
-
-        <div className='mt-3'>
+      <div className='px-4 pt-4 pb-5 sm:px-6'>
+        {/* side by side once there's room, stacked on phones with one shared label column (subgrid) */}
+        <div className='grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-4 sm:grid-cols-2'>
           <DetailList
+            className={DETAIL_LIST_STACKED}
             items={[
-              ['Tag id', <CopyableValue value={tag.id} truncate={0}/>],
-              ['Uses', (tag.uses ?? 0).toLocaleString()],
-              ['Servers', (item.server_count ?? 0).toLocaleString()],
-              ['Created', <ExactDate value={tag.created}/>],
-              (tag.edited) ? ['Edited', <ExactDate value={tag.edited}/>] : null,
-              (item.created) ? ['Listed', <ExactDate value={item.created}/>] : null,
-              (tag.server_id) ? ['Server id', <span className='font-mono'>{tag.server_id}</span>] : null,
+              // phones only, the header's can be cut off there
+              ['Name', <CopyableValue value={tag.name} truncate={0}/>, 'sm:hidden'],
+              ['Tag', <CopyableValue value={tag.id} truncate={0}/>],
+              ['Uses', <span className='tabular-nums'>{(tag.uses ?? 0).toLocaleString()}</span>],
+              ['Servers', <span className='tabular-nums'>{(item.server_count ?? 0).toLocaleString()}</span>],
+            ]}
+          />
+          <DetailList
+            className={DETAIL_LIST_STACKED}
+            items={[
+              // the header has the listed date, or the created one when there isn't one
+              (item.created) ? ['Created', <ExactDate value={tag.created}/>] : null,
+              ['Edited', (tag.edited) ? <ExactDate value={tag.edited}/> : '—'],
+              (tag.server_id) ? ['Server', <CopyableValue value={tag.server_id} truncate={0}/>] : null,
             ]}
           />
         </div>
 
+        {(item.edit_request) ? <EditRequestReview item={item} request={item.edit_request}/> : null}
+
         <div className='mt-4'>
-          <div className='mb-1.5 flex items-center justify-between gap-2'>
+          <div className='mb-1 flex min-h-8 items-center justify-between gap-2'>
+            <h3 className='section-label'>Listing</h3>
+            {(listingDraft === null) ? (
+              <button
+                type='button'
+                className='btn btn-ghost btn-sm'
+                onClick={() => setListingDraft({name: tag.name, title: item.title ?? '', description: item.description ?? '', category: item.category ?? 0})}
+              >
+                <Pencil className='size-4'/>
+                Edit listing
+              </button>
+            ) : null}
+          </div>
+          {(listingDraft !== null) ? (
+            <div className='space-y-3'>
+              <Field
+                label='Tag name'
+                counter={<CharCounter length={draftName.length} max={TAG_NAME_MAX}/>}
+                error={(!draftName) ? 'A tag needs a name.' : (nameTaken) ? 'The owner already has a tag with this name there.' : null}
+              >
+                {(props) => (
+                  <input
+                    {...props}
+                    className='input font-mono'
+                    value={listingDraft.name}
+                    disabled={listingMutation.isPending}
+                    autoComplete='off'
+                    {...NO_AUTOFILL}
+                    spellCheck={false}
+                    onChange={(event) => {
+                      listingMutation.reset();
+                      setListingDraft({...listingDraft, name: event.target.value.replace(/[\r\n]/g, '')});
+                    }}
+                  />
+                )}
+              </Field>
+              <Field label='Title' counter={<CharCounter length={listingDraft.title.length} max={TITLE_MAX}/>}>
+                {(props) => (
+                  <input
+                    {...props}
+                    className='input'
+                    value={listingDraft.title}
+                    disabled={listingMutation.isPending}
+                    autoComplete='off'
+                    {...NO_AUTOFILL}
+                    onChange={(event) => setListingDraft({...listingDraft, title: event.target.value})}
+                  />
+                )}
+              </Field>
+              <Field label='Description' counter={<CharCounter length={listingDraft.description.length} max={DESCRIPTION_MAX}/>}>
+                {(props) => (
+                  <DescriptionEditor
+                    {...props}
+                    className='input resize-y leading-relaxed'
+                    rows={Math.min(12, Math.max(3, listingDraft.description.split('\n').length + 1))}
+                    value={listingDraft.description}
+                    disabled={listingMutation.isPending}
+                    onChange={(value) => setListingDraft({...listingDraft, description: value})}
+                  />
+                )}
+              </Field>
+              <Field label='Category'>
+                {(props) => (
+                  <CategorySelect
+                    {...props}
+                    value={listingDraft.category}
+                    disabled={listingMutation.isPending}
+                    onChange={(value) => setListingDraft({...listingDraft, category: value})}
+                  />
+                )}
+              </Field>
+              <div className='flex flex-wrap items-center gap-2'>
+                <ActionButton
+                  label='Save listing'
+                  icon={<Pencil className='size-4'/>}
+                  className='btn-primary'
+                  disabled={listingMutation.isPending || !listingChanged || listingInvalid}
+                  pending={listingMutation.isPending}
+                  onClick={saveListing}
+                />
+                <button type='button' className='btn btn-sm btn-ghost' disabled={listingMutation.isPending} onClick={() => {
+                  listingMutation.reset();
+                  setListingDraft(null);
+                }}>Cancel</button>
+                <span className='text-xs text-subtle'>Works on locked, pending and verified tags too, the owner isn’t notified.</span>
+              </div>
+            </div>
+          ) : (item.description) ? (
+            <Markdown text={item.description} className='text-sm text-muted'/>
+          ) : (
+            <p className='text-sm text-subtle italic'>No description</p>
+          )}
+
+        </div>
+
+        <div className='mt-4'>
+          <div className='mb-1 flex min-h-8 items-center justify-between gap-2'>
             <h3 className='section-label'>Content</h3>
             <div className='flex items-center gap-1'>
               <span className='mr-1 text-xs text-subtle tabular-nums'><CharCounter length={(draft ?? content).length} max={CONTENT_MAX}/></span>
@@ -497,7 +521,7 @@ function DirectoryTagDetails({ item, navigation, onDelete }: {
             </div>
           ) : (
             <pre
-              className='max-h-96 overflow-auto rounded-md border border-line bg-deep p-3 font-mono text-sm whitespace-pre-wrap break-words text-fg focus:border-line-strong focus:outline-none'
+              className='max-h-96 overflow-auto rounded-md border border-line bg-deep px-3 py-2 font-mono text-sm whitespace-pre-wrap break-words text-fg focus:border-line-strong focus:outline-none'
               {...selectAllScope}
             >
               {content || <span className='text-subtle italic'>(empty)</span>}
@@ -511,7 +535,7 @@ function DirectoryTagDetails({ item, navigation, onDelete }: {
 
         {(item.thumbnail) ? (
           <div className='mt-4'>
-            <h3 className='section-label mb-1.5'>Listing thumbnail</h3>
+            <h3 className='section-label mb-1'>Listing thumbnail</h3>
             <a href={item.thumbnail.urls.cdn} target='_blank' rel='noreferrer noopener' className='inline-block'>
               <img src={item.thumbnail.urls.cdn} alt='' loading='lazy' className='size-16 rounded-md border border-line object-cover'/>
             </a>
@@ -520,7 +544,7 @@ function DirectoryTagDetails({ item, navigation, onDelete }: {
 
         {(item.assets?.length) ? (
           <div className='mt-4'>
-            <h3 className='section-label mb-1.5'>Listing assets</h3>
+            <h3 className='section-label mb-1'>Listing assets</h3>
             <ul className='space-y-1'>
               {item.assets.map((asset) => <AssetRow key={asset.id} asset={asset}/>)}
             </ul>
@@ -739,7 +763,11 @@ function EditRequestReview({ item, request }: {item: AdminTagDirectoryItem, requ
           </div>
         </div>
       ) : null}
-      {(mutation.isError) ? <p className='mt-2 text-sm text-danger'>{errorMessage(mutation.error, 'Couldn’t update the change request.')}</p> : null}
+      {(mutation.isError) ? (
+        <p role='alert' className='mt-3 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-fg'>
+          {errorMessage(mutation.error, 'Couldn’t update the change request.')}
+        </p>
+      ) : null}
     </section>
   );
 }

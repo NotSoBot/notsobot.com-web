@@ -1,4 +1,4 @@
-import { ArrowUpRight, Check, ChevronDown, ChevronLeft, ChevronRight, Copy, Filter, X } from 'lucide-react';
+import { ArrowUpRight, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Copy, Filter, SlidersHorizontal, X } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useSearchParams } from 'react-router';
@@ -6,7 +6,7 @@ import { Link, useSearchParams } from 'react-router';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { Routes } from '@/config';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
-import type { AdminUserRef } from '@/lib/api';
+import type { AdminUserContentFlags, AdminUserRef } from '@/lib/api';
 import { userDisplayTag } from '@/lib/discord';
 import { cn, formatDate, formatExactDateTime, NO_AUTOFILL, toDate } from '@/lib/utils';
 
@@ -40,6 +40,35 @@ export const FLAGGED_WITHIN = [
   {value: '7d', label: '7 days', hours: 24 * 7},
   {value: '30d', label: '30 days', hours: 24 * 30},
 ] as const;
+
+// `?blocked=`: only blocked users/servers, or only ones that aren't (users and servers)
+export const BLOCKED_FILTERS = [
+  {value: 'any', label: 'Any', blocked: null},
+  {value: 'blocked', label: 'Blocked', blocked: true},
+  {value: 'not', label: 'Not blocked', blocked: false},
+] as const;
+
+
+// Shows and hides a page's filter panel (`controls` is the panel's id), next to its search box. `active` is how many of
+// the panel's filters aren't on their default, so they're noticed while it's closed.
+export function FiltersButton({ open, onToggle, active, controls }: {open: boolean, onToggle: () => void, active: number, controls: string}) {
+  return (
+    <button
+      type='button'
+      className='btn btn-secondary h-12 shrink-0 px-3 sm:px-4'
+      aria-expanded={open}
+      aria-controls={controls}
+      onClick={onToggle}
+    >
+      <SlidersHorizontal aria-hidden className='size-4'/>
+      <span className='max-sm:sr-only'>Filters</span>
+      {(active) ? (
+        <span className='rounded-full bg-brand px-1.5 text-xs leading-5 text-white' aria-label={`${active} active`}>{active}</span>
+      ) : null}
+      {(open) ? <ChevronUp aria-hidden className='size-4'/> : <ChevronDown aria-hidden className='size-4'/>}
+    </button>
+  );
+}
 
 
 export function useSearchParamState() {
@@ -128,15 +157,9 @@ export function Pagination({ page, count, pageSize, onChange, fetching = false, 
 
 // a date that shows the exact time, to the second, on hover or focus. A real popup rather than `title`, which
 // takes a second to show up (or never does, e.g. on touch) and left only the help cursor
-export function ExactDate({ value, format = formatDate, className }: {
-  value: string | number,
-  format?: (value: string | number) => string,
-  className?: string,
-}) {
+// a tooltip that shows right away on hover or focus (unlike `title`), for the element `handlers` are spread on
+function useFloatingTooltip() {
   const [ rect, setRect ] = useState<DOMRect | null>(null);
-  const date = toDate(value);
-  const valid = !Number.isNaN(date.getTime());
-  const show = (event: { currentTarget: HTMLElement }) => setRect(event.currentTarget.getBoundingClientRect());
   const hide = () => setRect(null);
 
   useEffect(() => {
@@ -148,15 +171,26 @@ export function ExactDate({ value, format = formatDate, className }: {
     return () => window.removeEventListener('scroll', hide, {capture: true});
   }, [rect]);
 
+  const show = (event: { currentTarget: HTMLElement }) => setRect(event.currentTarget.getBoundingClientRect());
+  return {rect, handlers: {onMouseEnter: show, onMouseLeave: hide, onFocus: show, onBlur: hide}};
+}
+
+
+export function ExactDate({ value, format = formatDate, className }: {
+  value: string | number,
+  format?: (value: string | number) => string,
+  className?: string,
+}) {
+  const { rect, handlers } = useFloatingTooltip();
+  const date = toDate(value);
+  const valid = !Number.isNaN(date.getTime());
+
   return (
     <>
       <time
         dateTime={(valid) ? date.toISOString() : undefined}
         tabIndex={(valid) ? 0 : undefined}
-        onMouseEnter={(valid) ? show : undefined}
-        onMouseLeave={hide}
-        onFocus={(valid) ? show : undefined}
-        onBlur={hide}
+        {...((valid) ? handlers : {})}
         className={cn(
           (valid) && 'cursor-default underline decoration-line-strong decoration-dotted underline-offset-2 hover:decoration-muted focus:outline-none focus-visible:decoration-brand',
           className,
@@ -164,16 +198,32 @@ export function ExactDate({ value, format = formatDate, className }: {
       >
         {format(value)}
       </time>
-      {(rect) ? createPortal(<ExactDateTooltip rect={rect} text={formatExactDateTime(value)}/>, document.body) : null}
+      {(rect) ? createPortal(<FloatingTooltip rect={rect} text={formatExactDateTime(value)}/>, document.body) : null}
     </>
   );
 }
 
 
-function ExactDateTooltip({ rect, text }: {rect: DOMRect, text: string}) {
+// Says what something is on hover, like the dates' exact time (e.g. what an icon count counts). `text` is also read out
+// to screen readers in place of what's shown.
+export function Hint({ text, className, children }: {text: string, className?: string, children: ReactNode}) {
+  const { rect, handlers } = useFloatingTooltip();
+  return (
+    <>
+      <span {...handlers} className={className}>
+        <span aria-hidden className='contents'>{children}</span>
+        <span className='sr-only'>{text}</span>
+      </span>
+      {(rect) ? createPortal(<FloatingTooltip rect={rect} text={text}/>, document.body) : null}
+    </>
+  );
+}
+
+
+function FloatingTooltip({ rect, text }: {rect: DOMRect, text: string}) {
   const ref = useRef<HTMLDivElement>(null);
   const [ left, setLeft ] = useState<number | null>(null);
-  // centered over the date but kept inside the viewport, which needs its own width; hidden until measured
+  // centered over what it's for but kept inside the viewport, which needs its own width; hidden until measured
   useLayoutEffect(() => {
     const width = ref.current?.offsetWidth ?? 0;
     const centered = rect.left + rect.width / 2 - width / 2;
@@ -237,7 +287,7 @@ export function UserCell({ user, fallbackId, size = 'md', to }: {user: AdminUser
     return (
       <span className='text-sm text-subtle'>
         Unknown user{(fallbackId) ? (
-          <> · {(to) ? <CopyableValue value={fallbackId} truncate={0} to={to} linkTitle='Open in users'/> : <span className='font-mono'>{fallbackId}</span>}</>
+          <> · {(to) ? <CopyableValue value={fallbackId} truncate={0} to={to} linkTitle='Open in users' className='relative z-10'/> : <span className='font-mono'>{fallbackId}</span>}</>
         ) : null}
       </span>
     );
@@ -254,13 +304,13 @@ export function UserCell({ user, fallbackId, size = 'md', to }: {user: AdminUser
   if (to) {
     return (
       <span className='flex min-w-0 items-center gap-2'>
-        <Link to={to} tabIndex={-1} aria-hidden className='shrink-0'>{avatar}</Link>
+        <Link to={to} tabIndex={-1} aria-hidden className='relative z-10 shrink-0'>{avatar}</Link>
         <span className='min-w-0'>
-          <Link to={to} title='Open in users' className='group/user flex min-w-0 items-center gap-1 text-sm font-medium text-white underline-offset-2 hover:underline'>
+          <Link to={to} title='Open in users' className='group/user relative z-10 flex min-w-0 items-center gap-1 text-sm font-medium text-white underline-offset-2 hover:underline'>
             <span className='truncate'>{name}</span>
             <ArrowUpRight aria-hidden className='size-3.5 shrink-0 text-subtle transition-colors group-hover/user:text-brand'/>
           </Link>
-          <CopyableValue value={user.id} truncate={0} className='max-w-full'/>
+          <CopyableValue value={user.id} truncate={0} className='relative z-10 max-w-full'/>
         </span>
       </span>
     );
@@ -404,6 +454,11 @@ export function CollapseButton({ onClick }: {onClick: () => void}) {
 }
 
 
+// for a modal's two `DetailList`s side by side from sm up, in a `grid grid-cols-[max-content_minmax(0,1fr)] sm:grid-cols-2`
+// parent: stacked below sm, each spans both columns of the parent and reuses them, so the labels of both lists share one
+// width. max-sm so these don't fight the list's own grid-cols once side by side
+export const DETAIL_LIST_STACKED = 'max-sm:col-span-2 max-sm:grid-cols-subgrid';
+
 // label/value pairs in a compact grid
 // an item's optional third value is a class for both its label and value (e.g. `sm:hidden` for a phones-only row)
 export function DetailList({ className, items }: {className?: string, items: Array<[ReactNode, ReactNode, string?] | null | false>}) {
@@ -417,6 +472,93 @@ export function DetailList({ className, items }: {className?: string, items: Arr
         </div>
       ))}
     </dl>
+  );
+}
+
+
+// A count tile in an item's modal (a user's, a server's), linking to the list behind it when there is one (`to`), or
+// doing something else on click (`onClick`, e.g. switching tabs). Muted when it's 0; `title` explains it on hover.
+export function StatTile({ className, label, value, to, onClick, tone = 'text-white', title }: {
+  className?: string,
+  label: string,
+  value: string,
+  to?: string,
+  onClick?: () => void,
+  tone?: string,
+  title?: string,
+}) {
+  const content = (
+    <>
+      <p className='text-xs text-subtle'>{label}</p>
+      <p className={cn('mt-0.5 text-sm font-semibold tabular-nums', (to || onClick) && 'group-hover/stat:underline', (value === '0') ? 'text-subtle' : tone)}>{value}</p>
+    </>
+  );
+  if (onClick) {
+    return (
+      <button
+        type='button'
+        title={title}
+        onClick={onClick}
+        className={cn('group/stat cursor-pointer rounded-md border border-line bg-deep px-3 py-2 text-left transition-colors hover:border-brand', className)}
+      >
+        {content}
+      </button>
+    );
+  }
+  if (to) {
+    return (
+      <Link to={to} title={title} className={cn('group/stat rounded-md border border-line bg-deep px-3 py-2 transition-colors hover:border-brand', className)}>
+        {content}
+      </Link>
+    );
+  }
+  return <div title={title} className={cn('rounded-md border border-line bg-deep px-3 py-2', title && 'cursor-help', className)}>{content}</div>;
+}
+
+// a date tile next to `StatTile`s (exact time on hover)
+export function DateTile({ className, label, value, empty = '—', title }: {
+  className?: string,
+  label: string,
+  value: string | number | null,
+  empty?: string,
+  title?: string,
+}) {
+  return (
+    <div title={title} className={cn('rounded-md border border-line bg-deep px-3 py-2', title && 'cursor-help', className)}>
+      <p className='text-xs text-subtle'>{label}</p>
+      <p className='mt-0.5 text-sm text-fg'>{(value) ? <ExactDate value={value}/> : <span className='text-subtle'>{empty}</span>}</p>
+    </div>
+  );
+}
+
+
+// what the safety scan found (`flagged` is hits it was sure about, the rest of `total` only asked for a human to look)
+export const FLAGGED_TITLE = 'Scanner hits it was sure about (like nudity or child safety)';
+export const BORDERLINE_TITLE = 'Scanner hits that weren’t flagged outright, only sent for a human to look at';
+// how staff reviewed those hits, by content flag status
+export const FLAG_STATUS_TITLES: Record<string, string> = {
+  '0': 'Not reviewed by staff yet',
+  '1': 'Staff agreed it was bad content',
+  '2': 'Staff decided it was fine (a false positive)',
+  '3': 'Reported outside NotSoBot (like Discord Trust & Safety or NCMEC). Only a marker, it counts as confirmed.',
+};
+
+// The "Content flags" tiles of a user's or server's modal: what the safety scan found on the first row, how staff
+// reviewed it on the second. `flagsPath` is the content flags list for a status (`all` for every one).
+export function ContentFlagTiles({ flags, flagsPath }: {flags: AdminUserContentFlags, flagsPath: (status: string) => string}) {
+  return (
+    <section>
+      <h3 className='section-label mb-2'>Content flags</h3>
+      <div className='grid grid-cols-2 gap-2 sm:grid-cols-4'>
+        <StatTile label='Flagged' to={flagsPath('all')} value={flags.flagged.toLocaleString()} title={FLAGGED_TITLE}/>
+        <StatTile label='Borderline' value={(flags.total - flags.flagged).toLocaleString()} title={BORDERLINE_TITLE}/>
+        <DateTile className='col-span-2' label='Last flagged' value={flags.last_flagged_at}/>
+        <StatTile label='To review' to={flagsPath('0')} value={flags.pending.toLocaleString()} tone='text-warning' title={FLAG_STATUS_TITLES['0']}/>
+        <StatTile label='Confirmed' to={flagsPath('1')} value={flags.confirmed.toLocaleString()} tone='text-danger' title={FLAG_STATUS_TITLES['1']}/>
+        <StatTile label='Cleared' to={flagsPath('2')} value={flags.dismissed.toLocaleString()} tone='text-muted' title={FLAG_STATUS_TITLES['2']}/>
+        <StatTile label='Reported' to={flagsPath('3')} value={flags.reported.toLocaleString()} tone='text-[#aab2ff]' title={FLAG_STATUS_TITLES['3']}/>
+      </div>
+    </section>
   );
 }
 

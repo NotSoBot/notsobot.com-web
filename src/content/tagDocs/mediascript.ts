@@ -358,12 +358,13 @@ export const MEDIASCRIPT_GUIDE: Array<TagDocGuideSection> = [
       rows: [
         ['`magick hald:4 -modulate ...` + `movie=x.ppm,[in]haldclut`', '`hue=h=DEGREES`, or build the CLUT in the graph: `haldclutsrc=4,hue=h=54[h];[0:v][h]haldclut`'],
         ['`multipitch in.wav out.wav 0,7,12 --no-normalize`', '`multipitch KEY 0,7,12`'],
-        ['The TV simulator (`movie=$(curl .../Project%20Name%209.mp4)` + `displace`)', '`tvsimulator KEY LINE_SYNC DETAIL_ZOOM`'],
+        ['`wine autotune.exe -b 75 voice.wav music.wav out.wav` (the "autotune" vocoder)', '`load URL song`, then `vocoder KEY song 75`'],
+        ['The TV simulator (`movie=$(curl .../Project%20Name%209.mp4)` + `displace`)', '`tvsimulator KEY LINE_SYNC DETAIL_ZOOM VERTICAL`'],
         ['`movie=$(curl ...)` or a second downloaded video', '`load URL other`, then `ffmpeg KEY -i other -filter_complex "[0:v][1:v]..."`'],
         ['`lut3d=./input/x.cube`', '`loadcube URL x`, then `applylut KEY x` (or `lut3d=x.cube` inside `ffmpeg`)'],
         ['a loop of exports + concat + `.t sync+`', '`reexport KEY AMOUNT LENGTH CODE`'],
         ['`ffmpeg -i "concat:a.avi|b.avi|..."`', '`concatmultiple`'],
-        ['a `.veg` renderer (`tvdoubled`/tved) with `--all-media`', '`loadveg URL p`, then `vegrender KEY p`'],
+        ['a `.veg` renderer (`tvdoubled`/tved) with `--all-media`', '`loadveg URL p`, then `vegrender MEDIA_KEY p`'],
         ['4orm and other downloaded programs', 'Not supported'],
       ],
     },
@@ -407,7 +408,7 @@ export const MEDIASCRIPT_GUIDE: Array<TagDocGuideSection> = [
     id: 'ms-vegas',
     title: 'Vegas projects (.veg)',
     body: [
-      '`loadveg URL KEY` reads a Vegas Pro project, and `vegrender MEDIA_KEY KEY` plays it back with every video and sound in it replaced by your media, the way the `.veg` renderers in effect tags do (tved with `--all-media`). The project is rebuilt from what Vegas saved in the `.veg`: its timeline, its Pan/Crop and track motion, and its generated media. Vegas itself never runs, so effects that only Vegas can draw are skipped and the result says nothing about them; check the table before you build a tag around a project.',
+      '`loadveg URL VEG_KEY` reads a Vegas Pro project, and `vegrender MEDIA_KEY VEG_KEY` plays it back with every video and sound in it replaced by your media, the way the `.veg` renderers in effect tags do (tved with `--all-media`). The project is rebuilt from what Vegas saved in the `.veg`: its timeline, fades, Pan/Crop and track motion, its generated media, and the video effects in the table (on events and on whole tracks). Vegas itself never runs: the effects are redrawn with ffmpeg, so they come out close to Vegas but not exactly the same, and effects not in the table are skipped without a word. Check the table before you build a tag around a project. Projects from older Vegas versions (like the 2012-2013 YTP collabs) are read too.',
       'Which clips get your media: a video event whose source file was a video (mp4, mov, mkv, avi, wmv, m4v, mpg, mpeg, mts, m2ts, webm, 3gp, ts or flv), and an audio event whose source was a video or a sound (wav, mp3, m4a, aac, flac, ogg, wma or opus). The file names come from the paths saved in the project, in any language. Events on still images (png, jpg, bmp, gif) are left out. With an image as your media, every video event shows it and there is no sound; with an audio file, only the audio events play (solid colors, text and noise still show).',
       'Every event plays from the same spot of your media it played from in its own source, and your media loops when the project reaches past its end. With `CUTOFF=true` (the default) an event that starts on a track ends the one before it on that track, like Vegas does; `CUTOFF=false` lets them overlap.',
       'Limits: projects up to 32mb, 4 per script, 20000 events and 512 tracks. The render is at most 10 minutes long and scaled to fit 1280x720, shows at most 32 clips at once (and plays 32 sounds at once), and has at most 1024 clips in any 2 seconds. It counts as one `ffmpeg` run, shares its time limit, and stops as soon as the file is sure to be too big to send.',
@@ -424,12 +425,27 @@ export const MEDIASCRIPT_GUIDE: Array<TagDocGuideSection> = [
         ['Text', 'Partly', 'The text and its size, in white with a black border, centered. Fonts, colors, position and animation are not. Any language works; emoji show only if the font has them'],
         ['Noise Texture', 'Partly', 'Gray static (found in Japanese Vegas projects, where it is named ノイズ)'],
         ['Compositing', 'Partly', 'Add and Subtract on solid colors and noise. Video events always draw normally, and a track with a compositing plugin hides its generated media'],
+        ['Event fades', 'Yes', 'Fade in and out on video (opacity, showing what is under it) and sound (volume), drawn as straight ramps. Fade curve types are not'],
+        ['Transitions', 'Partly', 'A crossfade plays as the two events fading (use `CUTOFF=false` so both are there while they overlap). Transition effects like wipes are not'],
+        ['Track FX', 'Yes', 'Effects on a whole track are put on every clip on it, after the clip\'s own'],
         ['Black and White', 'Yes', 'Including partial amounts'],
-        ['Other video FX', 'No', 'Swirl, TV simulator, pinch/bulge, glow...'],
-        ['Transitions', 'No', 'Crossfades and event fades too, every cut is hard'],
+        ['Invert', 'Yes', 'Including partial amounts, and keyframes (flashing inverts play frame by frame)'],
+        ['HSL Adjust', 'Yes', 'Hue, saturation and luminance'],
+        ['Color Corrector (Secondary)', 'Partly', 'Hue rotation, saturation, gamma and gain over the whole picture. Its luminance/saturation/hue limits and masks are not'],
+        ['Color Curves', 'Yes', 'Red, green and blue curves'],
+        ['Convolution Kernel', 'Yes', 'The 3x3 kernel with its scale and bias (emboss, edges, sharpen...)'],
+        ['Linear Blur', 'Yes', 'Blur along its angle'],
+        ['Mirror', 'Partly', 'Left/right or up/down through the middle. Other angles are not'],
+        ['Swirl', 'Yes', 'Clockwise or counter clockwise, around the middle'],
+        ['Pinch/Punch and Spherize', 'Yes', 'Bulging out or pinching in, around the middle'],
+        ['Cookie Cutter', 'Partly', 'Horizontal bars only. Other shapes are not'],
+        ['Chroma Keyer', 'Partly', 'The key color with its threshold and blur, close to Vegas'],
+        ['Effect keyframes', 'Partly', 'Invert follows its keyframes; the other effects keep their first one'],
+        ['Other video FX', 'No', 'TV simulator, wave, glow, Gaussian blur, pixelate, OFX plugins from other companies...'],
         ['Envelopes', 'No', 'Volume, pan, opacity and velocity'],
         ['Audio FX', 'No', 'Skipped'],
-        ['Reverse', 'No', 'Reversed events play forward'],
+        ['Reverse', 'Yes', 'Reversed events play backwards, their sound too'],
+        ['Subclips', 'Yes', 'A part of a file cut in Vegas plays from its own spot'],
         ['Takes', 'Partly', 'An event with several takes uses the last one'],
         ['Masks', 'No', 'Parent/child tracks and nested projects too'],
       ],
@@ -546,9 +562,10 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
       {code: '{mediascript:load {iv} logo\nloadveg https://example.com/preview1280.veg p\nvegrender logo p\nrender logo}', result: 'The project rebuilt with the last image or video in every clip.'},
     ],
     notes: [
-      'Rebuilt: the timeline (cuts, tracks, speed), pitch changes, Pan/Crop zooms, moves, turns and flips, track motion, solid colors, text, noise and Black and White. Other Vegas effects (swirl, TV simulator, pinch/bulge...), transitions, fades and envelopes are not, so a project that uses them will look different. The full list is in the Vegas projects section.',
+      'Rebuilt: the timeline (cuts, tracks, speed, reversed events and subclips), pitch changes, event fades, Pan/Crop zooms, moves, turns and flips, track motion, solid colors, text, noise, and these effects on events and tracks: Black and White, Invert, HSL Adjust, Color Corrector (Secondary), Color Curves, Convolution Kernel, Linear Blur, Mirror, Swirl, Pinch/Punch, Spherize, Cookie Cutter and Chroma Keyer. Other effects (TV simulator, wave, glow...), transition effects and envelopes are not, so a project that uses them will look different. The full list is in the Vegas projects section.',
       'Video events on video files and audio events on video or sound files get your media; events on still images are left out. A still image is shown for the whole project.',
       'At most 10 minutes, scaled down to fit 1280x720, with at most 32 clips on screen (and 32 heard) at once. Counts toward the `ffmpeg` limit.',
+      'Outside of tags, the bot has the same thing as the `.veg` command (the .veg attached or its url first, then the media, `-nocutoff` for `CUTOFF=false`) and `/media-aiv veg`.',
     ],
   },
   {
@@ -558,7 +575,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     syntax: 'loadcube URL CUBE_KEY',
     args: [
       {name: 'URL', description: 'link to the `.cube` file, or `FILE_1`, `FILE_2`... for attached files'},
-      {name: 'CUBE_KEY', description: 'name to use it by, a-z, 0-9 and _ only'},
+      {name: 'CUBE_KEY', description: 'name to use it by, letters, numbers and _ only'},
     ],
     examples: [
       {
@@ -2129,16 +2146,18 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
   {
     name: 'tvsimulator',
     category: 'distort',
-    summary: 'An analog TV losing line sync: the picture tears and wobbles sideways (the TV simulator from Preview 1280 effects).',
-    syntax: 'tvsimulator MEDIA_KEY LINE_SYNC=0.75 DETAIL_ZOOM=1',
+    summary: 'An analog TV losing line sync: the picture tears and wobbles sideways, or up and down (the TV simulator from Preview 1280 effects).',
+    syntax: 'tvsimulator MEDIA_KEY LINE_SYNC=0.75 DETAIL_ZOOM=1 VERTICAL=false',
     args: [
       media(),
       {name: 'LINE_SYNC', default: '0.75', range: '0..1', description: 'how well the TV holds the picture, 1 is clean and lower tears more'},
       {name: 'DETAIL_ZOOM', default: '1', range: '1..8', description: 'zooms into the distortion, higher gives bigger, slower waves'},
+      {name: 'VERTICAL', default: 'false', description: 'tears the picture up and down instead of sideways'},
     ],
     examples: [
       {code: '{mediascript:load {video} clip\ntvsimulator clip\nrender clip}', result: 'A mild TV wobble.'},
       {code: '{mediascript:load {video} clip\ntvsimulator clip 0.2 3\nrender clip}', result: 'A badly tuned TV with big, slow tears.'},
+      {code: '{mediascript:load {video} clip\ntvsimulator clip 0.5 1 true\nrender clip}', result: 'The picture rolls and tears up and down instead.'},
     ],
     notes: [
       'Uses a built-in displacement video that loops for clips longer than its 60 seconds. The audio is kept as it is.',
@@ -2447,6 +2466,25 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     notes: [
       'Uses Bungee, the pitch shifter the multipitch program is built on, with every pitch made at the same time.',
       'Without NORMALIZE the copies add up, like `--no-normalize` in tags, so big chords get loud. Counts toward the `ffmpeg` limit.',
+    ],
+  },
+  {
+    name: 'vocoder',
+    category: 'audio',
+    summary: 'Makes the voice in your media sing another media\'s music: the music plays shaped by how the voice sounds, like the "autotune" (autotune.exe) vocoder in effect tags.',
+    syntax: 'vocoder MEDIA_KEY CARRIER_KEY BANDS=75',
+    args: [
+      media('the media with the voice (it keeps its video)'),
+      {name: 'CARRIER_KEY', description: 'the media whose sound the voice is played on, usually music. It loops to the voice\'s length'},
+      {name: 'BANDS', default: '75', range: '1..512', description: 'how many frequency bands the voice is split into: fewer sounds more robotic, more sounds clearer'},
+    ],
+    examples: [
+      {code: '{mediascript:load {video} clip\nload https://example.com/song.mp3 song\nvocoder clip song\nrender clip}', result: 'The clip\'s voice singing the song, the video stays the same.'},
+      {code: '{mediascript:load {audio} voice\nload https://example.com/synth.mp3 synth\nvocoder voice synth 16\nrender voice}', result: 'A robotic 16 band vocoder.'},
+    ],
+    notes: [
+      'A channel vocoder like the Zerius Vocoder that autotune.exe is: about 1/15 second windows, split into BANDS bands, with the music\'s bands made as loud as the voice\'s and the result as loud as the music. It is not pitch correction.',
+      'The result is mono. Counts toward the `ffmpeg` limit. Outside of tags, the bot has the same thing as the `.vocoder` command (voice first, then the music) and `/media-av audio vocoder`.',
     ],
   },
   {

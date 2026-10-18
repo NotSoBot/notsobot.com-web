@@ -1,10 +1,11 @@
 // Bug, user, server, message and tag reports sent with the bot's `report` commands (prefixed, slash and context menus).
 // `content` is whatever the reporter typed, so it's only ever rendered as plain text.
 
-import { ExternalLink, Inbox, MessagesSquare } from 'lucide-react';
+import { ArrowUpRight, Check, ExternalLink, Inbox, type LucideIcon, MessagesSquare, RotateCcw, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 
+import { DetailModalHeader, DetailModalStrip } from '@/components/ui/DetailModal';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
 import { Routes } from '@/config';
@@ -23,8 +24,8 @@ import { cn, formatDateTime } from '@/lib/utils';
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from '../ui';
 import { REPORT_TYPES, type ReportTone, reportJumpUrl, reportTypeInfo } from '../reports/reportLabels';
 import { ReportThread } from '../reports/ReportThread';
-import { AdminTagModal, useOpenListItem } from './AdminTagModal';
-import { adminServerPath, Chip, CopyableValue, DetailList, ExactDate, FilterButton, IdFilter, Pagination, useSearchParamState, useStepBackFromEmptyPage, UserCell } from './adminUi';
+import { AdminModalFooter, AdminTagModal, useOpenListItem } from './AdminTagModal';
+import { adminServerPath, adminUserPath, Chip, CopyableValue, CopyButton, DETAIL_LIST_STACKED, DetailList, ExactDate, FilterButton, IdFilter, Pagination, selectAllScope, useSearchParamState, useStepBackFromEmptyPage, UserCell } from './adminUi';
 
 
 type Tone = ReportTone;
@@ -77,6 +78,19 @@ function awaitingReply(report: Report): boolean {
 
 // the slot each status button sits in; once the report is in that status, the slot turns into Reopen
 const ACTION_SLOTS: Array<ReportStatus> = [ReportStatuses.RESOLVED, ReportStatuses.DISMISSED];
+
+// the footer's status buttons, by the status they set
+const STATUS_BUTTON_CLASSES: Record<number, string> = {
+  [ReportStatuses.OPEN]: 'border border-warning/40 bg-warning/15 text-warning hover:bg-warning/25',
+  [ReportStatuses.RESOLVED]: 'btn-primary',
+  [ReportStatuses.DISMISSED]: 'btn-secondary',
+};
+
+const STATUS_ICONS: Record<number, LucideIcon> = {
+  [ReportStatuses.OPEN]: RotateCcw,
+  [ReportStatuses.RESOLVED]: Check,
+  [ReportStatuses.DISMISSED]: X,
+};
 
 
 export function AdminReportsPage() {
@@ -200,12 +214,13 @@ export function AdminReportsPage() {
       )}
 
       {(openItem) ? (
-        <AdminTagModal labelledBy={TITLE_ID} previousId={previousId} nextId={nextId} onNavigate={open} onClose={close}>
+        <AdminTagModal labelledBy={TITLE_ID} previousId={previousId} nextId={nextId} onNavigate={open} onClose={close} footer={false} stickyClose>
           <ReportDetails
             key={openItem.id}
             report={openItem}
             onFilterReporter={(value) => filterBy({user_id: value})}
             onFilterTarget={(value) => filterBy({target_id: value})}
+            navigation={{previousId, nextId, onNavigate: open}}
           />
         </AdminTagModal>
       ) : null}
@@ -216,8 +231,8 @@ export function AdminReportsPage() {
 
 // one line per report, just enough to triage from; the rest is in `ReportDetails` a click away.
 // Plain content only inside (no buttons, links or focusable dates), since the whole row is a button.
-// From sm up it's one line of fixed width columns. On phones it's stacked instead: the type and id with the status across
-// from them, the reporter under them, then the report and the date in the bottom right.
+// The type and id in the top left with the reporter under them, the status in the top right with the date under it, and
+// what they wrote across the bottom.
 function ReportRow({ report, onOpen }: {report: Report, onOpen: (id: string) => void}) {
   const status = statusInfo(report.status);
   const type = typeInfo(report.type);
@@ -225,17 +240,18 @@ function ReportRow({ report, onOpen }: {report: Report, onOpen: (id: string) => 
     <li>
       <button
         type='button'
-        className='grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 px-4 py-2.5 text-left first:rounded-t-[inherit] last:rounded-b-[inherit] hover:bg-surface-2 sm:flex sm:flex-wrap sm:px-5'
+        className='grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-4 py-3 text-left first:rounded-t-[inherit] last:rounded-b-[inherit] hover:bg-surface-2 sm:gap-x-4 sm:px-5'
         onClick={() => onOpen(report.id)}
       >
-        {/* fixed widths from sm up so every row lines up in columns; this wrapper drops out of the layout there */}
-        <span className='col-start-1 row-start-1 flex min-w-0 items-center gap-2 sm:contents'>
-          <Chip tone={type.tone} className='shrink-0 justify-center sm:order-2 sm:w-16'>{type.label}</Chip>
-          <span className='min-w-0 truncate font-mono text-sm text-white sm:order-1 sm:w-44'>#{report.id}</span>
+        {/* what it is and its id (fixed widths, so rows line up) */}
+        <span className='col-start-1 row-start-1 flex min-w-0 items-center gap-3'>
+          <Chip tone={type.tone} className='w-16 shrink-0 justify-center'>{type.label}</Chip>
+          <span className='min-w-0 truncate font-mono text-sm leading-5 text-white'>#{report.id}</span>
         </span>
-        <Chip tone={status.tone} className='col-start-2 row-start-1 justify-center justify-self-end sm:order-3 sm:w-20'>{status.label}</Chip>
-        <span className='col-span-2 min-w-0 sm:order-4 sm:w-52'><UserCell user={report.user} size='sm'/></span>
-        <span className='col-span-2 flex min-w-0 items-center gap-2 text-sm text-muted sm:order-5 sm:flex-1 sm:basis-40'>
+        {/* who sent it, under the type */}
+        <span className='col-start-1 row-start-2 min-w-0'><UserCell user={report.user} size='sm'/></span>
+        {/* what they wrote, across the bottom in a code box like the modal's */}
+        <span className='col-span-2 row-start-3 flex min-w-0 items-center gap-2 text-sm text-muted'>
           {(report.replies) ? (
             <span
               className={cn('inline-flex shrink-0 items-center gap-1 text-xs', (awaitingReply(report)) ? 'font-medium text-warning' : 'text-subtle')}
@@ -245,19 +261,23 @@ function ReportRow({ report, onOpen }: {report: Report, onOpen: (id: string) => 
               {report.replies}
             </span>
           ) : null}
-          <span className='min-w-0 truncate'>{report.content}</span>
+          <span className='min-w-0 flex-1 truncate rounded-md border border-line bg-deep px-2.5 py-1 font-mono text-xs text-fg'>{report.content}</span>
         </span>
-        <span className='col-span-2 justify-self-end text-xs text-subtle sm:order-6 sm:ml-auto'>{formatDateTime(report.created)}</span>
+        {/* the status in the top right, when it was sent under it */}
+        <Chip tone={status.tone} className='col-start-2 row-start-1 w-20 justify-center justify-self-end'>{status.label}</Chip>
+        <span className='col-start-2 row-start-2 justify-self-end text-xs whitespace-nowrap text-subtle'>{formatDateTime(report.created)}</span>
       </button>
     </li>
   );
 }
 
 
-function ReportDetails({ report, onFilterReporter, onFilterTarget }: {
+// `navigation` is the modal's Previous / Next, the status actions go between them
+function ReportDetails({ report, onFilterReporter, onFilterTarget, navigation }: {
   report: Report,
   onFilterReporter: (userId: string) => void,
   onFilterTarget: (targetId: string) => void,
+  navigation: {previousId: string | null, nextId: string | null, onNavigate: (id: string) => void},
 }) {
   const toast = useToast();
   const mutation = usePatchAdminReportMutation();
@@ -291,144 +311,183 @@ function ReportDetails({ report, onFilterReporter, onFilterTarget }: {
   // where the report command was used, or the reported message for message reports; a DM has no guild
   const isMessageReport = report.type === ReportTypes.MESSAGE;
   const jumpUrl = reportJumpUrl(report);
+  const { user } = report;
+  // the target id opens whatever it is: the user, the tag (searched in tags) or the server
+  const targetLink = (!report.target_id) ? {} :
+    (report.type === ReportTypes.USER || report.type === ReportTypes.MESSAGE) ? {to: adminUserPath(report.target_id), linkTitle: 'Open this user'} :
+    (report.type === ReportTypes.TAG) ? {to: `${Routes.DASHBOARD_ADMIN_TAGS}?q=${report.target_id}`, linkTitle: 'Find this tag in tags'} :
+    (report.type === ReportTypes.SERVER) ? {to: adminServerPath(report.target_id), linkTitle: 'Open this server'} :
+    {};
 
   return (
-    <div className='p-4 pr-14 sm:p-6 sm:pr-14'>
-      <div className='flex flex-wrap items-start justify-between gap-3'>
-        <div className='min-w-0'>
-          <div className='flex flex-wrap items-center gap-2'>
-            <h2 id={TITLE_ID} className='font-mono text-lg font-semibold text-white'>Report #{report.id}</h2>
-            <Chip tone={type.tone}>{type.label}</Chip>
-            <Chip tone={status.tone}>{status.label}</Chip>
-          </div>
-          <p className='mt-1 text-xs text-subtle'><ExactDate value={report.created} format={formatDateTime}/></p>
-        </div>
-        <div className='flex flex-wrap gap-2'>
-          {ACTION_SLOTS.map((slot) => {
-            // a resolved report has Reopen where Resolve was, a dismissed one has it where Dismiss was
-            const value = (report.status === slot) ? ReportStatuses.OPEN : slot;
-            return (
-              <button
-                key={slot}
-                type='button'
-                className={cn('btn btn-sm', (value === ReportStatuses.RESOLVED) ? 'btn-primary' : 'btn-secondary')}
-                disabled={mutation.isPending}
-                onClick={() => setStatus(value)}
-              >
-                {(pendingStatus === value) ? <Spinner className='size-3.5'/> : null}
-                {statusInfo(value).action}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+    <div>
+      {/* the title can be cut off on phones, so there it's in the details below with a copy button too */}
+      <DetailModalHeader
+        titleId={TITLE_ID}
+        leading={<Chip tone={type.tone} className='w-16 shrink-0 justify-center'>{type.label}</Chip>}
+        title={<><span className='sr-only'>Report </span>#{report.id}</>}
+        mono
+        meta={<ExactDate value={report.created} format={formatDateTime}/>}
+        states={(awaitingReply(report)) ? <Chip tone='warning' title='The reporter replied last, waiting on staff'>waiting on staff</Chip> : null}
+        status={<Chip tone={status.tone} className='w-20 justify-center'>{status.label}</Chip>}
+      />
 
-      <div className='mt-4 grid gap-4 lg:grid-cols-2'>
-        <div>
-          <h3 className='section-label mb-1'>Reporter</h3>
-          <div className='flex items-center gap-2'>
-            <UserCell user={report.user}/>
-            <FilterButton label='Show reports from this user' onClick={() => onFilterReporter(report.user.id)}/>
-            {(report.user.blocked) ? <Chip tone='danger' title={report.user.blocked_reason ?? undefined}>blocked</Chip> : null}
-          </div>
+      {/* who sent it and what it's about. The reporter links to their admin page, the target id to whatever it is */}
+      <DetailModalStrip className='grid grid-cols-[max-content_minmax(0,1fr)] items-center gap-x-3 gap-y-1'>
+        <span className='text-xs text-subtle'>Reporter</span>
+        <div className='flex min-h-8 min-w-0 items-center gap-2'>
+          <Link
+            to={adminUserPath(user.id)}
+            title='Open in users'
+            className='group/user -ml-1.5 flex min-w-0 items-center gap-1.5 rounded-md py-1 pr-2 pl-1.5 transition-colors hover:bg-surface-3'
+          >
+            <UserCell user={user} size='sm'/>
+            <ArrowUpRight aria-hidden className='size-3.5 shrink-0 text-subtle transition-colors group-hover/user:text-brand'/>
+          </Link>
+          <FilterButton label='Show reports from this user' onClick={() => onFilterReporter(user.id)}/>
+          {(user.blocked) ? <Chip tone='danger' title={user.blocked_reason ?? undefined}>Blocked</Chip> : null}
         </div>
         {(report.type !== ReportTypes.BUG) ? (
-          <div>
-            <h3 className='section-label mb-1'>Reported {TARGET_LABELS[report.type] ?? 'target'}</h3>
-            {(report.target_id) ? (
-              <div className='flex flex-wrap items-center gap-2'>
-                {/* the id opens whatever it is: the user, the tag (searched in tags) or the server */}
-                <CopyableValue
-                  value={report.target_id}
-                  truncate={0}
-                  {...((report.type === ReportTypes.USER || report.type === ReportTypes.MESSAGE) ? {to: `${Routes.DASHBOARD_ADMIN_USERS}/${report.target_id}`, linkTitle: 'Open this user'}
-                    : (report.type === ReportTypes.TAG) ? {to: `${Routes.DASHBOARD_ADMIN_TAGS}?q=${report.target_id}`, linkTitle: 'Find this tag in tags'}
-                    : (report.type === ReportTypes.SERVER) ? {to: adminServerPath(report.target_id), linkTitle: 'Open this server'}
-                    : {})}
-                />
-                <FilterButton label='Show reports about this target' onClick={() => onFilterTarget(report.target_id!)}/>
-              </div>
-            ) : (
-              <p className='text-sm text-subtle'>Not given</p>
-            )}
-          </div>
-        ) : null}
-        {(isMessageReport && report.tag_id) ? (
-          <div>
-            <h3 className='section-label mb-1'>Reported tag</h3>
-            <div className='flex flex-wrap items-center gap-2'>
-              <CopyableValue value={report.tag_id} truncate={0} to={`${Routes.DASHBOARD_ADMIN_TAGS}?q=${report.tag_id}`} linkTitle='Find this tag in tags'/>
+          <>
+            <span className='text-xs text-subtle'>Reported {TARGET_LABELS[report.type] ?? 'target'}</span>
+            <div className='flex min-h-8 min-w-0 items-center gap-2'>
+              {(report.target_id) ? (
+                <>
+                  <CopyableValue value={report.target_id} truncate={0} {...targetLink}/>
+                  <FilterButton label='Show reports about this target' onClick={() => onFilterTarget(report.target_id!)}/>
+                </>
+              ) : (
+                <span className='text-sm text-subtle'>Not given</span>
+              )}
             </div>
-          </div>
+          </>
         ) : null}
-      </div>
+      </DetailModalStrip>
 
-      <div className='mt-4'>
-        <h3 className='section-label mb-1'>Report</h3>
-        <p className='rounded-md border border-line bg-deep px-3 py-2 text-sm whitespace-pre-wrap break-words text-fg'>{report.content}</p>
-      </div>
+      <div className='px-4 pt-4 pb-5 sm:px-6'>
+        {/* side by side once there's room. Stacked on phones, both lists share one label column (subgrid) so their values
+            line up */}
+        <div className='grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-4 sm:grid-cols-2'>
+          {/* where the report command was used, or where the reported message is for message reports */}
+          <DetailList
+            className={DETAIL_LIST_STACKED}
+            items={[
+              ['Server', (report.guild_id) ? (
+                <CopyableValue value={report.guild_id} truncate={0} to={adminServerPath(report.guild_id)} linkTitle='Open this server'/>
+              ) : <span className='text-subtle'>None, {(isMessageReport) ? 'it’s in' : 'sent in'} DMs</span>],
+              ['Channel', (report.channel_id) ? <CopyableValue value={report.channel_id} truncate={0}/> : '—'],
+              [(isMessageReport) ? 'Reported message' : 'Message', (report.message_id) ? (
+                <span className='inline-flex flex-wrap items-center gap-x-2'>
+                  <CopyableValue value={report.message_id} truncate={0}/>
+                  {(jumpUrl) ? (
+                    <a href={jumpUrl} target='_blank' rel='noopener noreferrer' className='inline-flex items-center gap-1 text-xs text-code hover:underline'>
+                      Open in Discord
+                      <ExternalLink aria-hidden className='size-3'/>
+                    </a>
+                  ) : null}
+                </span>
+              ) : '—'],
+            ]}
+          />
+          <DetailList
+            className={DETAIL_LIST_STACKED}
+            items={[
+              // phones only, the title's can be cut off there
+              ['Report', <CopyableValue value={report.id} truncate={0}/>, 'sm:hidden'],
+              ['Replies', (report.replies) ? (
+                <span>
+                  {report.replies.toLocaleString()}
+                  {(report.last_reply) ? (
+                    <span className='text-subtle'>
+                      {' '}• last from {(report.last_reply.author === 'reporter') ? 'the reporter' : 'staff'}{' '}
+                      <ExactDate value={report.last_reply.created} format={formatDateTime}/>
+                    </span>
+                  ) : null}
+                </span>
+              ) : 'None'],
+              // message reports of a tag's output
+              (isMessageReport && report.tag_id) ? ['Tag', <CopyableValue value={report.tag_id} truncate={0} to={`${Routes.DASHBOARD_ADMIN_TAGS}?q=${report.tag_id}`} linkTitle='Find this tag in tags'/>] : null,
+            ]}
+          />
+        </div>
 
-      <div className='mt-4'>
-        <h3 className='section-label mb-1'>{(isMessageReport) ? 'Reported message' : 'Sent from'}</h3>
-        <DetailList
-          items={[
-            ['Server', (report.guild_id) ? (
-              <CopyableValue value={report.guild_id} truncate={0} to={adminServerPath(report.guild_id)} linkTitle='Open this server'/>
-            ) : 'Direct messages'],
-            ['Channel', (report.channel_id) ? <CopyableValue value={report.channel_id} truncate={0}/> : '—'],
-            ['Message', (report.message_id) ? (
-              <span className='inline-flex flex-wrap items-center gap-2'>
-                <CopyableValue value={report.message_id} truncate={0}/>
-                {(jumpUrl) ? (
-                  <a href={jumpUrl} target='_blank' rel='noopener noreferrer' className='inline-flex items-center gap-1 text-xs text-code hover:underline'>
-                    Open in Discord
-                    <ExternalLink aria-hidden className='size-3'/>
-                  </a>
+        <div className='mt-4'>
+          <div className='mb-1 flex min-h-8 items-center justify-between gap-2'>
+            <h3 className='section-label'>Report</h3>
+            <CopyButton value={report.content} label='Copy'/>
+          </div>
+          {/* monospaced like the flag modal's prompts and the list's rows, reports often quote commands and output */}
+          <p className='rounded-md border border-line bg-deep px-3 py-2 font-mono text-sm whitespace-pre-wrap break-words text-fg focus:border-line-strong focus:outline-none' {...selectAllScope}>{report.content}</p>
+        </div>
+
+        <form
+          className='mt-4'
+          onSubmit={(event) => {
+            event.preventDefault();
+            saveNotes();
+          }}
+        >
+          {/* who reviewed it sits with the notes, since that's what they'd explain */}
+          <div className='mb-1 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5'>
+            <label htmlFor={`report-notes-${report.id}`} className='section-label'>Notes</label>
+            {(report.reviewed_at || report.reviewed_by) ? (
+              <p className='text-xs text-subtle'>
+                Reviewed
+                {(report.reviewed_at) ? <> <ExactDate value={report.reviewed_at} format={formatDateTime}/></> : null}
+                {(report.reviewed_by) ? (
+                  <> by <Link to={adminUserPath(report.reviewed_by)} title='Open in users' className='font-mono text-code underline-offset-2 hover:underline'>{report.reviewed_by}</Link></>
                 ) : null}
-              </span>
-            ) : '—'],
-            (report.reviewed_at || report.reviewed_by) ? ['Reviewed', (
-              <span>
-                {(report.reviewed_at) ? <ExactDate value={report.reviewed_at} format={formatDateTime}/> : null}
-                {(report.reviewed_by) ? <> by <span className='font-mono'>{report.reviewed_by}</span></> : null}
-              </span>
-            )] : null,
-          ]}
-        />
-      </div>
-
-      <form
-        className='mt-4'
-        onSubmit={(event) => {
-          event.preventDefault();
-          saveNotes();
-        }}
-      >
-        <label htmlFor={`report-notes-${report.id}`} className='section-label mb-1 block'>Notes</label>
-        <textarea
-          id={`report-notes-${report.id}`}
-          className='input min-h-16 resize-y'
-          rows={2}
-          maxLength={2000}
-          value={notes}
-          placeholder='Add a note for other reviewers (saved with the next status change too)...'
-          onChange={(event) => setNotes(event.target.value)}
-        />
-        {(notesDirty) ? (
-          <div className='mt-2 flex justify-end gap-2'>
-            <button type='button' className='btn btn-ghost btn-sm' disabled={mutation.isPending} onClick={() => setNotes(report.notes ?? '')}>Discard</button>
-            <button type='submit' className='btn btn-primary btn-sm' disabled={mutation.isPending}>
-              {(savingNotes) ? <Spinner className='size-3.5 border-white/40 border-t-white'/> : null}
-              Save notes
-            </button>
+              </p>
+            ) : null}
           </div>
-        ) : null}
-      </form>
+          <textarea
+            id={`report-notes-${report.id}`}
+            className='input min-h-16 resize-y'
+            rows={2}
+            maxLength={2000}
+            value={notes}
+            placeholder='Add a note for other reviewers (saved with the next status change too)...'
+            onChange={(event) => setNotes(event.target.value)}
+          />
+          {(notesDirty) ? (
+            <div className='mt-2 flex justify-end gap-2'>
+              <button type='button' className='btn btn-ghost btn-sm' disabled={mutation.isPending} onClick={() => setNotes(report.notes ?? '')}>Discard</button>
+              <button type='submit' className='btn btn-primary btn-sm' disabled={mutation.isPending}>
+                {(savingNotes) ? <Spinner className='size-3.5 border-white/40 border-t-white'/> : null}
+                Save notes
+              </button>
+            </div>
+          ) : null}
+        </form>
 
-      <div className='mt-4'>
-        <h3 className='section-label mb-2'>Conversation with the reporter</h3>
-        <ReportConversation report={report}/>
+        <div className='mt-4'>
+          <div className='mb-1 flex min-h-8 items-center'>
+            <h3 className='section-label'>Conversation with the reporter</h3>
+          </div>
+          <ReportConversation report={report}/>
+        </div>
       </div>
+
+      {/* resolve on the left, dismiss on the right. The current status' slot turns into Reopen, so the buttons never move
+          around */}
+      <AdminModalFooter {...navigation}>
+        {ACTION_SLOTS.map((slot) => {
+          const value = (report.status === slot) ? ReportStatuses.OPEN : slot;
+          const Icon = STATUS_ICONS[value] ?? RotateCcw;
+          return (
+            <button
+              key={slot}
+              type='button'
+              className={cn('btn min-w-0 flex-1 px-2 sm:flex-none sm:px-3', STATUS_BUTTON_CLASSES[value])}
+              disabled={mutation.isPending}
+              onClick={() => setStatus(value)}
+            >
+              {(pendingStatus === value) ? <Spinner className='size-4'/> : <Icon aria-hidden className='hidden size-4 shrink-0 sm:block'/>}
+              <span className='truncate'>{statusInfo(value).action}</span>
+            </button>
+          );
+        })}
+      </AdminModalFooter>
     </div>
   );
 }

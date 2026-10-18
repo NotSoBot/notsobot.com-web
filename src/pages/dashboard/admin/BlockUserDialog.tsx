@@ -1,16 +1,23 @@
-import { Ban, ShieldCheck } from 'lucide-react';
 import { useId, useState } from 'react';
 
 import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
-import type { AdminUserRef } from '@/lib/api';
+import { type AdminUserRef, UserFlags } from '@/lib/api';
 import { errorMessage, usePatchAdminUserMutation } from '@/lib/api/dashboardQueries';
+import { cn } from '@/lib/utils';
 
 import { UserCell } from './adminUi';
 
 
 export const BLOCK_REASON_MAX = 2000;
+
+// owners can't be blocked, and only owners can block moderators
+export function canBlockUser(user: {flags: number}, viewerIsOwner: boolean): boolean {
+  const owner = (user.flags & UserFlags.OWNER) === UserFlags.OWNER;
+  const moderator = (user.flags & UserFlags.MODERATOR) === UserFlags.MODERATOR;
+  return !owner && (viewerIsOwner || !moderator);
+}
 
 
 // Blocks (with a reason) or unblocks someone from NotSoBot. `blocked` is the user's current state, so the
@@ -49,9 +56,12 @@ export function BlockUserDialog({ user, blocked, blockedReason, defaultReason = 
           }
         }}
       >
-        <h2 id={titleId} className='pr-10 text-lg font-semibold text-white'>
+        <h2 id={titleId} className='pr-10 text-lg font-semibold break-words text-white'>
           {(blocked) ? `Unblock ${user.username}?` : `Block ${user.username} from NotSoBot?`}
         </h2>
+        <p className='mt-2 text-sm text-muted'>
+          {(blocked) ? 'They’ll be able to use NotSoBot again.' : 'Stops them from using NotSoBot anywhere.'}
+        </p>
 
         <div className='mt-3 rounded-md border border-line bg-deep p-3'>
           <UserCell user={user}/>
@@ -60,12 +70,9 @@ export function BlockUserDialog({ user, blocked, blockedReason, defaultReason = 
           ) : null}
         </div>
 
-        {(blocked) ? (
-          <p className='mt-3 text-sm text-muted'>They’ll be able to use NotSoBot again.</p>
-        ) : (
-          <>
-            <p className='mt-3 text-sm text-muted'>Stops them from using NotSoBot anywhere.</p>
-            <label htmlFor={reasonId} className='mt-3 mb-1.5 block text-sm text-muted'>Block reason</label>
+        {(!blocked) ? (
+          <div className='mt-4'>
+            <label htmlFor={reasonId} className='mb-1.5 block text-sm text-muted'>Block reason</label>
             <textarea
               id={reasonId}
               value={reason}
@@ -76,8 +83,8 @@ export function BlockUserDialog({ user, blocked, blockedReason, defaultReason = 
               className='input'
               autoFocus
             />
-          </>
-        )}
+          </div>
+        ) : null}
 
         {(mutation.isError) ? (
           <p role='alert' className='mt-4 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-fg'>
@@ -87,8 +94,8 @@ export function BlockUserDialog({ user, blocked, blockedReason, defaultReason = 
 
         <div className='mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
           <button type='button' className='btn btn-secondary' onClick={onClose} disabled={mutation.isPending}>Cancel</button>
-          <button type='submit' className={(blocked) ? 'btn btn-primary' : 'btn btn-danger'} disabled={mutation.isPending}>
-            {(mutation.isPending) ? <Spinner className='size-4 border-white/40 border-t-white'/> : (blocked) ? <ShieldCheck className='size-4'/> : <Ban className='size-4'/>}
+          <button type='submit' className={cn('btn', (blocked) ? 'btn-primary' : 'btn-danger')} disabled={mutation.isPending}>
+            {(mutation.isPending) ? <Spinner className='size-4 border-white/40 border-t-white'/> : null}
             {(blocked) ? 'Unblock' : 'Block'}
           </button>
         </div>

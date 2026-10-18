@@ -9,7 +9,7 @@ import type { AdminTagDirectoryItem } from '@/lib/api';
 import { errorMessage, useDeleteAdminTagDirectoryMutation, useDeleteAdminUserTagsMutation, usePatchAdminUserMutation } from '@/lib/api/dashboardQueries';
 import { NsfwBadge, VerificationBadge } from '@/pages/tags/tagDirectory';
 
-import { selectAllScope } from './adminUi';
+import { selectAllScope, UserCell } from './adminUi';
 import { BLOCK_REASON_MAX } from './BlockUserDialog';
 import { ConfirmDeleteUserTags, tagCountLabel, useUserTagCount } from './DeleteUserTagsDialog';
 
@@ -112,7 +112,7 @@ export function DeleteDirectoryTagFlow({ item, onClose }: {item: AdminTagDirecto
 
   return (
     <>
-      <Modal labelledBy={titleId} onClose={() => !pending && !confirmingAll && onClose()} className='max-w-xl'>
+      <Modal labelledBy={titleId} onClose={() => !pending && !confirmingAll && onClose()} className='max-w-lg'>
         <form
           className='p-5 sm:p-6'
           onSubmit={(event) => {
@@ -127,34 +127,31 @@ export function DeleteDirectoryTagFlow({ item, onClose }: {item: AdminTagDirecto
             }
           }}
         >
-          <h2 id={titleId} className='pr-10 text-lg font-semibold text-white'>Delete “{name}” from the directory?</h2>
-
-          {/* what's being deleted, so the block reason can be decided with it in front of you */}
-          <section aria-label='Tag' className='mt-3 rounded-md border border-line bg-deep p-3'>
-            <div className='flex flex-wrap items-center gap-2'>
-              <span className='font-semibold text-white'>{item.title || <span className='text-subtle italic'>Untitled</span>}</span>
-              <VerificationBadge verified={item.verified}/>
-              {(tag.nsfw) ? <NsfwBadge/> : null}
-            </div>
-            <p className='mt-0.5 text-sm'>
-              <span className='font-mono text-code'>{tag.name}</span>
-              <span className='text-subtle'> · by </span>
-              <span className='text-fg'>{user?.username ?? tag.user_id ?? 'unknown'}</span>
-              {(user) ? <span className='font-mono text-xs text-subtle'> ({user.id})</span> : null}
-            </p>
-            {(item.description) ? <Markdown text={item.description} className='mt-2 text-sm text-muted'/> : null}
-            <pre className='mt-2 max-h-48 overflow-auto rounded border border-line bg-surface p-2 font-mono text-xs whitespace-pre-wrap break-words text-fg focus:border-line-strong focus:outline-none' {...selectAllScope}>
-              {content || <span className='text-subtle italic'>(empty)</span>}
-            </pre>
-          </section>
-
-          <p className='mt-3 text-sm text-muted'>
+          <h2 id={titleId} className='pr-10 text-lg font-semibold break-words text-white'>Delete “{name}” from the directory?</h2>
+          <p className='mt-2 text-sm text-muted'>
             {(deleteTag || deleteAll) ? (
               <>The listing is removed and <span className='font-mono text-white'>{tag.name}</span> is deleted.</>
             ) : (
               <>The listing is removed and <span className='font-mono text-white'>{tag.name}</span> goes back to being a normal tag its owner can edit.</>
             )}
           </p>
+
+          {/* what's being deleted, so the block reason can be decided with it in front of you */}
+          <section aria-label='Tag' className='mt-3 rounded-md border border-line bg-deep p-3'>
+            <div className='flex flex-wrap items-center gap-2'>
+              <span className='min-w-0 font-semibold break-words text-white'>{item.title || <span className='text-subtle italic'>Untitled</span>}</span>
+              <VerificationBadge verified={item.verified}/>
+              {(tag.nsfw) ? <NsfwBadge/> : null}
+            </div>
+            <p className='mt-0.5 truncate font-mono text-sm text-code'>{tag.name}</p>
+            <div className='mt-2'>
+              <UserCell user={user} fallbackId={tag.user_id ?? null} size='sm'/>
+            </div>
+            {(item.description) ? <Markdown text={item.description} className='mt-2 text-sm text-muted'/> : null}
+            <pre className='mt-2 max-h-48 overflow-auto rounded border border-line bg-surface p-2 font-mono text-xs whitespace-pre-wrap break-words text-fg focus:border-line-strong focus:outline-none' {...selectAllScope}>
+              {content || <span className='text-subtle italic'>(empty)</span>}
+            </pre>
+          </section>
 
           <label htmlFor={deleteTagId} className='mt-3 flex cursor-pointer items-start gap-2 rounded-md border border-line p-3 text-sm'>
             <input

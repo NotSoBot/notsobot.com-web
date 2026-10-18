@@ -1,4 +1,4 @@
-import { ArrowRight, Replace } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { useId, useState, type ReactNode } from 'react';
 
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -11,7 +11,6 @@ import { errorMessage, useAdminTagMergePreviewQuery, useMergeAdminTagMutation } 
 import { NO_AUTOFILL } from '@/lib/utils';
 import { tagLocation, TagLocationLabel } from '@/pages/dashboard/tags/tagMeta';
 
-import { Field } from '../ui';
 import { UserCell } from './adminUi';
 
 
@@ -32,6 +31,8 @@ export function ReplaceTagDialog({ tag, onReplaced, onClose }: {
   onClose: () => void,
 }) {
   const titleId = useId();
+  const inputId = useId();
+  const errorId = useId();
   const toast = useToast();
   const [ input, setInput ] = useState('');
   // the preview being confirmed, so what's replaced is always what was shown
@@ -42,6 +43,7 @@ export function ReplaceTagDialog({ tag, onReplaced, onClose }: {
   const mutation = useMergeAdminTagMutation();
   const summary = (targetId && preview.data && !preview.isFetching) ? preview.data : null;
   const invalid = !!input.trim() && !TARGET_ID.test(input);
+  const inputError = (invalid) ? 'Paste a tag id, or id:<tag id>' : (targetId && preview.isError) ? errorMessage(preview.error) : null;
 
   const submit = (target: AdminDirectoryTag) => {
     mutation.mutate({tagId: tag.id, targetId: target.id}, {
@@ -64,7 +66,7 @@ export function ReplaceTagDialog({ tag, onReplaced, onClose }: {
             }
           }}
         >
-          <h2 id={titleId} className='pr-10 text-lg font-semibold text-white'>
+          <h2 id={titleId} className='pr-10 text-lg font-semibold break-words text-white'>
             Replace <span className='font-mono text-code'>{tag.name}</span> with another tag
           </h2>
           <p className='mt-2 text-sm text-muted'>
@@ -72,27 +74,26 @@ export function ReplaceTagDialog({ tag, onReplaced, onClose }: {
             over to it. Then this tag is deleted.
           </p>
 
-          <Field
-            className='mt-4'
-            label='Replacement tag id'
-            error={(invalid) ? 'Paste a tag id, or id:<tag id>' : (targetId && preview.isError) ? errorMessage(preview.error) : null}
-          >
-            {(props) => (
-              <input
-                {...props}
-                {...NO_AUTOFILL}
-                className='input font-mono'
-                value={input}
-                onChange={(event) => setInput(event.target.value)}
-                placeholder='Tag id'
-                inputMode='numeric'
-                autoFocus
-              />
-            )}
-          </Field>
+          <div className='mt-4'>
+            <label htmlFor={inputId} className='mb-1.5 block text-sm text-muted'>Replacement tag id</label>
+            <input
+              id={inputId}
+              {...NO_AUTOFILL}
+              className='input font-mono'
+              value={input}
+              onChange={(event) => setInput(event.target.value)}
+              placeholder='Tag id'
+              inputMode='numeric'
+              aria-invalid={(inputError) ? true : undefined}
+              aria-describedby={(inputError) ? errorId : undefined}
+              disabled={mutation.isPending}
+              autoFocus
+            />
+            {(inputError) ? <p id={errorId} className='mt-1.5 text-xs text-danger'>{inputError}</p> : null}
+          </div>
 
           {(targetId && !preview.isError && !summary) ? (
-            <div className='mt-4 flex items-center gap-2 text-sm text-muted'>
+            <div className='mt-3 flex items-center gap-2 text-sm text-muted'>
               <Spinner className='size-4'/>
               Checking that tag…
             </div>
@@ -109,7 +110,7 @@ export function ReplaceTagDialog({ tag, onReplaced, onClose }: {
           <div className='mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
             <button type='button' className='btn btn-secondary' onClick={onClose} disabled={mutation.isPending}>Cancel</button>
             <button type='submit' className='btn btn-danger' disabled={!summary || mutation.isPending}>
-              {(mutation.isPending) ? <Spinner className='size-4 border-white/40 border-t-white'/> : <Replace className='size-4'/>}
+              {(mutation.isPending) ? <Spinner className='size-4 border-white/40 border-t-white'/> : null}
               Replace
             </button>
           </div>
@@ -117,7 +118,7 @@ export function ReplaceTagDialog({ tag, onReplaced, onClose }: {
       </Modal>
       {(confirming) ? (
         <ConfirmDialog
-          title={<>Replace {tag.name} with {confirming.target.name}?</>}
+          title={`Replace “${tag.name}” with “${confirming.target.name}”?`}
           description={
             <>
               <span className='font-mono text-white'>{tag.name}</span> is deleted and everything listed moves to{' '}
@@ -125,7 +126,7 @@ export function ReplaceTagDialog({ tag, onReplaced, onClose }: {
               <span className='font-medium text-white'>This can’t be undone.</span>
             </>
           }
-          confirmLabel='Yes, replace it'
+          confirmLabel='Replace tag'
           confirmPhrase={tag.name}
           onConfirm={() => {
             setConfirming(null);
@@ -169,14 +170,14 @@ function MergeSummary({ summary }: {summary: AdminTagMergeSummary}) {
   }
 
   return (
-    <div className='mt-4 space-y-3'>
+    <div className='mt-3 space-y-3'>
       <div className='flex items-center gap-2 rounded-md border border-line bg-deep p-3'>
         <TagSummary tag={source}/>
         <ArrowRight aria-hidden className='size-4 shrink-0 text-subtle'/>
         <TagSummary tag={target}/>
       </div>
       <div>
-        <h3 className='section-label mb-1.5'>Moves to {target.name}</h3>
+        <h3 className='section-label mb-1'>Moves to {target.name}</h3>
         <ul className='list-disc space-y-1 pl-5 text-sm text-fg'>
           {rows.map((row, i) => <li key={i}>{row}</li>)}
         </ul>

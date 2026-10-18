@@ -132,7 +132,7 @@ export function RemindersPage() {
 
       {(deleting) ? (
         <ConfirmDialog
-          title='Delete this reminder?'
+          title={`Delete reminder #${deleting.position}?`}
           description='The bot won’t remind you of it anymore. This can’t be undone.'
           confirmLabel='Delete reminder'
           pending={remove.isPending}

@@ -550,15 +550,15 @@ function EditRequestPanel({ tag, directory }: {tag: Tag, directory: TagDirectory
 
       {(discarding) ? (
         <ConfirmDialog
-          title='Cancel this change request?'
+          title={`Discard the change request for “${tag.name}”?`}
           description='Its note, content and anything uploaded for it are deleted. The listing isn’t affected.'
-          confirmLabel='Cancel request'
+          confirmLabel='Discard request'
           pending={mutation.isPending}
-          error={(mutation.isError) ? errorMessage(mutation.error, 'Couldn’t cancel the change request.') : undefined}
+          error={(mutation.isError) ? errorMessage(mutation.error, 'Couldn’t discard the change request.') : undefined}
           onConfirm={() => mutation.mutate({discard: true}, {
             onSuccess: () => {
               setDiscarding(false);
-              toast(`Canceled the change request for “${tag.name}”.`);
+              toast(`Discarded the change request for “${tag.name}”.`);
             },
           })}
           onClose={() => {

@@ -1,4 +1,4 @@
-import { KeyRound, Save, TriangleAlert } from 'lucide-react';
+import { KeyRound, TriangleAlert } from 'lucide-react';
 import { useId, useState, type ReactNode } from 'react';
 
 import { Modal } from '@/components/ui/Modal';
@@ -61,12 +61,12 @@ export function ApplicationNameDialog({ title, initialName = '', submitLabel, pe
           }
         }}
       >
-        <h2 id={titleId} className='pr-10 text-lg font-semibold text-white'>{title}</h2>
+        <h2 id={titleId} className='pr-10 text-lg font-semibold break-words text-white'>{title}</h2>
+        <p className='mt-2 text-sm text-muted'>Only you and NotSoBot staff see its name.</p>
 
         <Field
           className='mt-4'
           label='Name'
-          hint='Only you and NotSoBot staff see it.'
           error={(tooLong) ? `Names can be up to ${APPLICATION_NAME_MAX_LENGTH} characters.` : undefined}
           counter={<CharCounter length={trimmed.length} max={APPLICATION_NAME_MAX_LENGTH}/>}
         >
@@ -90,7 +90,7 @@ export function ApplicationNameDialog({ title, initialName = '', submitLabel, pe
         <div className='mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
           <button type='button' className='btn btn-secondary' onClick={onClose} disabled={pending}>Cancel</button>
           <button type='submit' className='btn btn-primary' disabled={pending || !valid || !changed}>
-            {(pending) ? <Spinner className='size-4 border-white/40 border-t-white'/> : <Save className='size-4'/>}
+            {(pending) ? <Spinner className='size-4 border-white/40 border-t-white'/> : null}
             {submitLabel}
           </button>
         </div>
@@ -111,12 +111,12 @@ export function ApplicationTokenDialog({ application, heading, onClose }: {
     <Modal labelledBy={titleId} onClose={onClose} className='max-w-lg'>
       <div className='p-5 sm:p-6'>
         <h2 id={titleId} className='flex items-center gap-2 pr-10 text-lg font-semibold text-white'>
-          <KeyRound aria-hidden className='size-5 text-[#3ba55c]'/>
+          <KeyRound aria-hidden className='size-5 shrink-0 text-success'/>
           {heading}
         </h2>
-        <p className='mt-1 text-sm text-muted'>{application.name}</p>
+        <p className='mt-2 text-sm break-words text-muted'>{application.name}</p>
 
-        <div className='mt-4 flex items-start gap-2 rounded-md border border-line bg-deep p-3'>
+        <div className='mt-3 flex items-start gap-2 rounded-md border border-line bg-deep p-3'>
           <code className='min-w-0 flex-1 font-mono text-xs break-all text-fg select-all'>{application.token}</code>
           <CopyButton value={application.token}/>
         </div>
@@ -125,7 +125,7 @@ export function ApplicationTokenDialog({ application, heading, onClose }: {
           Send it as <code className='text-fg'>Authorization: Bot &lt;token&gt;</code> with your requests to the NotSoBot API.
         </p>
 
-        <p className='mt-4 flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-fg'>
+        <p className='mt-3 flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-fg'>
           <TriangleAlert aria-hidden className='mt-0.5 size-4 shrink-0 text-warning'/>
           Treat it like a password. Anyone with it can use the API as this application; if it leaks, reset it.
         </p>

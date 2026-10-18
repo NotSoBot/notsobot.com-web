@@ -198,6 +198,7 @@ export const TagDirectoryCategories = {
   GAMES: 4,
   MEMES: 5,
   UTILITY: 6,
+  LOGO_EDITING: 7,
 } as const;
 
 export type TagDirectoryCategory = typeof TagDirectoryCategories[keyof typeof TagDirectoryCategories];
@@ -809,13 +810,26 @@ export type AdminGuildsSortBy = 'newest' | 'oldest' | 'name' | 'flags_most' | 'f
 // `/admin/guilds/<id>`: the `UserGuild` shape (every area editable) plus where the bot is and what's linked to it
 export interface AdminGuild extends UserGuild {
   bot: AdminGuildBot | null,
+  // commands run in it, ever, and when the first one was (clickhouse `command_stats`), null if none ever were
+  commands: number,
+  // the same breakdown as a user's
+  content_flags: AdminUserContentFlags,
   counts: {content_flags: number, reminders: number, reports: number, tags: number},
+  first_seen: ApiTimestamp | null,
 }
 
-// unblocking is owner only
+// what a server's `features` turn on, set by bot owners (`GuildFeatures` in the api)
+export const GuildFeatures = {
+  AI_ACCESS: 'AI_ACCESS',
+  FREE_CUSTOM_COMMANDS: 'FREE_CUSTOM_COMMANDS',
+} as const;
+export type GuildFeature = (typeof GuildFeatures)[keyof typeof GuildFeatures];
+
+// unblocking and `features` (which replaces the list) are owner only
 export interface AdminGuildPatch extends UserGuildPatch {
   blocked?: boolean,
   blocked_reason?: string | null,
+  features?: Array<GuildFeature>,
 }
 
 
@@ -924,9 +938,16 @@ export interface AdminUserContentFlags {
 }
 
 export interface AdminUserEntry {
+  // commands they've run, ever, and when they ran their first (clickhouse `command_stats`), null if they never have
+  commands: number,
+  first_seen: ApiTimestamp | null,
   content_flags: AdminUserContentFlags,
   // reports about the user (`GET /admin/reports?target_id=`)
   reports: number,
+  // reports the user sent (`GET /admin/reports?user_id=`)
+  reports_sent: number,
+  // what they have (files that expired aren't counted)
+  owned: {applications: number, files: number, reminders: number, tags: number, voices: number},
   user: AdminUser,
 }
 
@@ -950,6 +971,20 @@ export interface AdminTagItem {
 export interface AdminTagsPage {
   count: number,
   items: Array<AdminTagItem>,
+}
+
+// `GET /admin/tags/<id>/duplicates`, other tags with the exact same content (aliases aside). `global` is everyone's,
+// the owner's `user` ones included; `global_protected` of them can't be deleted by the caller and are skipped
+export interface AdminTagDuplicates {
+  global: number,
+  global_protected: number,
+  user: number,
+}
+
+// `DELETE /admin/tags/<id>`: `count` deleted (the tag included), `skipped` duplicates the caller can't delete
+export interface AdminTagDeleteResult {
+  count: number,
+  skipped: number,
 }
 
 // `POST /admin/tags/<id>/merge`, what replacing a tag with another moves (or would, for a dry run). Variables and blobs
@@ -1032,6 +1067,9 @@ export interface ContentFlag {
   needs_human_review: boolean,
   notes: string | null,
   pdq: string | null,
+  // the safety scanner's prompts and settings this was scanned with (InternalSafetyApi.prompt_hash), dismissing it only lets
+  // the same content (sha256) through again while scans still hash the same. null for flags from before it was recorded
+  prompt_hash?: string | null,
   query: string | null,
   reviewed_at: ApiTimestamp | null,
   // TODO: make this a user object (`{id, username, discriminator, avatar}` like `user`) instead of just the id
@@ -1242,6 +1280,21 @@ export interface AdminVoicesPage {
 // `/admin/applications`: every API application, with its owner (staff never get the token)
 export interface AdminApplication extends Application {
   user: AdminUserRef | null,
+}
+
+// `GET /admin/applications/<id>`: requests made with its token in the last `days` days (clickhouse `endpoint_uses`),
+// `endpoints` the five it used most
+export interface AdminApplicationUsage {
+  days: number,
+  endpoints: Array<{count: number, endpoint: string}>,
+  errors: number,
+  first_request_at: ApiTimestamp | null,
+  last_request_at: ApiTimestamp | null,
+  requests: number,
+}
+
+export interface AdminApplicationDetail extends AdminApplication {
+  usage: AdminApplicationUsage,
 }
 
 export interface AdminApplicationsPage {

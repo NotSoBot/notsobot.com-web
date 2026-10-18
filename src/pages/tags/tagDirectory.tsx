@@ -23,6 +23,7 @@ export const TAG_DIRECTORY_CATEGORY_OPTIONS: Array<{param: string, label: string
   {param: 'clips', label: 'Clips', value: TagDirectoryCategories.CLIPS},
   {param: 'filters', label: 'Filters', value: TagDirectoryCategories.FILTERS},
   {param: 'games', label: 'Games', value: TagDirectoryCategories.GAMES},
+  {param: 'logo-editing', label: 'Logo Editing', value: TagDirectoryCategories.LOGO_EDITING},
   {param: 'memes', label: 'Memes', value: TagDirectoryCategories.MEMES},
   {param: 'utility', label: 'Utility', value: TagDirectoryCategories.UTILITY},
   {param: 'other', label: 'Other', value: TagDirectoryCategories.OTHER},

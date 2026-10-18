@@ -247,11 +247,53 @@ const ADMIN_GUILD_NAMES = ['Pixel Plaza', 'The Lounge', 'Speedrunners United', '
   'Retro Arcade', 'Night Owls', 'Dev Den', 'Music Makers', 'Book Club', 'Garden Gnomes', 'Space Cadets', 'Tea Time', 'Ocean Breeze',
   'Map Makers', 'Puzzle Hunters', 'Chess Club', 'Film Buffs', 'Pet Pals', 'Bread Bakers', 'Cloud Watchers', 'Late Night Radio'];
 
+// the id of the `i`th server in ADMIN_GUILD_NAMES
+export function adminGuildId(i: number): string {
+  return (1150000000000000000n + BigInt(i) * 4194304n * 997n).toString();
+}
+
+const LIST_TYPES = ['channel', 'role', 'user'] as const;
+const LISTED_COMMANDS = ['nsfw', 'imagine', 'ai', 'tag.create', 'deepfry', 'reminders.add'];
+
+// a stable mix of settings for the `i`th extra server, so its modal and the list have something in them
+function fillAdminGuild(detail: MockGuild['detail'], i: number) {
+  const added = new Date(Date.now() - 86400000 * (10 + i * 3)).toISOString();
+  const entry = (n: number, type: string) => ({
+    added,
+    admin_bypass: (n % 3 === 0) ? false : null,
+    id: (type === 'user') ? (400000000000000000n + BigInt(i * 37 + n) * 1009n).toString() : (1200000000000000100n + BigInt(i * 10 + n)).toString(),
+    type,
+    user_id: mockUser.id,
+  });
+  detail.allowlist = (i % 3 === 0) ? Array.from({length: 1 + (i % 2)}, (_, n) => entry(n, LIST_TYPES[n % 2])) : [];
+  detail.blocklist = Array.from({length: i % 4}, (_, n) => entry(n + 5, LIST_TYPES[(i + n) % 3]));
+  detail.commands_allowlist = (i % 4 === 1) ? [{...entry(8, 'role'), command: 'imagine'}] : [];
+  detail.commands_blocklist = Array.from({length: (i * 7) % 4}, (_, n) => ({
+    ...entry(n + 12, (n === 0) ? 'guild' : LIST_TYPES[n % 3]),
+    command: LISTED_COMMANDS[(i + n) % LISTED_COMMANDS.length],
+    id: (n === 0) ? detail.id : entry(n + 12, LIST_TYPES[n % 3]).id,
+  }));
+  detail.loggers = Array.from({length: (i * 5) % 4}, (_, n) => ({
+    added,
+    channel_id: (1200000000000000200n + BigInt(i * 4 + n)).toString(),
+    disabled_events: 0,
+    guild_id: detail.id,
+    type: n,
+    user_id: mockUser.id,
+  }));
+  detail.features = [
+    ...((i % 5 === 0) ? ['AI_ACCESS'] : []),
+    ...((i % 7 === 3 || i === 0) ? ['FREE_CUSTOM_COMMANDS'] : []),
+  ];
+  detail.prefixes = detail.prefixes.slice(0, 1 + (i % 2));
+}
+
 export function createAdminGuilds(guilds: Array<MockGuild>): Array<MockAdminGuild> {
   const updated = new Date(Date.now() - 3600000 * 5).toISOString();
   const extras = ADMIN_GUILD_NAMES.map((name, i): MockAdminGuild => {
-    const id = (1150000000000000000n + BigInt(i) * 4194304n * 997n).toString();
+    const id = adminGuildId(i);
     const entry = guild(id, name, null, 0n);
+    fillAdminGuild(entry.detail, i);
     if (i % 6 === 2) {
       entry.detail.blocked = true;
       entry.detail.blocked_reason = (i % 12 === 2) ? 'Raiding other servers with the bot' : null;
@@ -328,7 +370,8 @@ export function createContentFlags(users: Array<AdminUser>): Array<ContentFlag> 
       flagged_for_review: (category.startsWith('review')) ? flagged : [],
       frames,
       frames_flagged: (text) ? [] : (video) ? [2, 3, 7].filter((frame) => frame < frames) : [0],
-      guild_id: (i % 5) ? '1100000000000000001' : null,
+      // most from the support server, the rest spread over some of the admin list's servers
+      guild_id: (i % 5) ? ((i % 3) ? '1100000000000000001' : adminGuildId([2, 5, 9, 14][(i % 5) - 1])) : null,
       id: String(9000 + 64 - i),
       message_id: (i % 5) ? (1310000000000000000n + BigInt(i) * 13n).toString() : null,
       mimetype: (text) ? 'text/plain' : (video) ? 'video/mp4' : ['image/png', 'image/gif', 'image/jpeg', 'image/webp'][i % 4],
@@ -336,6 +379,8 @@ export function createContentFlags(users: Array<AdminUser>): Array<ContentFlag> 
       needs_human_review: category.startsWith('review') || i % 9 === 0,
       notes: (i % 6 === 0) ? 'Checked hash against known list, no match.' : null,
       pdq: (text) ? null : Array.from({length: 64}, (_, j) => ((i * 31 + j * 7) % 16).toString(16)).join(''),
+      // one per kind of scan, the oldest flags are from before it was recorded
+      prompt_hash: (i >= 48) ? null : Array.from({length: 64}, (_, j) => (((text) ? 3 : 11) + j * 7 + (i % 2) * j).toString(16).slice(-1)).join(''),
       query: (text) ? ((i % 16 === 5) ? `フィルターに引っかかったタグの出力 #${i}` : `{tag output that tripped the filter #${i}}`) : (i % 3 === 0) ? `a picture of something weird #${i}` : null,
       reviewed_at: (status) ? new Date(Date.parse(created) + 3600000).toISOString() : null,
       reviewed_by: (status) ? mockUser.id : null,
@@ -369,16 +414,28 @@ export function adminUserEntries(users: Array<AdminUser>, flags: Array<ContentFl
     const own = flags.filter((flag) => flag.user_id === user.id);
     const last = own.map((flag) => String(flag.created)).sort().pop() ?? null;
     return {
+      // made up but stable per user
+      commands: Number(BigInt(user.id) % 4000n) * 3,
+      owned: {
+        applications: Number(BigInt(user.id) % 3n),
+        files: Number(BigInt(user.id) % 41n),
+        reminders: Number(BigInt(user.id) % 7n),
+        tags: Number(BigInt(user.id) % 23n),
+        voices: Number(BigInt(user.id) % 4n),
+      },
+      first_seen: (BigInt(user.id) % 4000n) ? new Date(Date.UTC(2021, Number(BigInt(user.id) % 36n), 1)).toISOString() : null,
       content_flags: {
         confirmed: own.filter((flag) => flag.status === 1).length,
         dismissed: own.filter((flag) => flag.status === 2).length,
-        flagged: own.filter((flag) => flag.status !== 2).length,
+        // like the api: flags with a hard `flagged` label, the rest were only for review
+        flagged: own.filter((flag) => flag.flagged?.length).length,
         last_flagged_at: last,
         pending: own.filter((flag) => flag.status === 0).length,
         reported: own.filter((flag) => flag.status === 3).length,
         total: own.length,
       },
       reports: reports.filter((report) => report.target_id === user.id).length,
+      reports_sent: reports.filter((report) => report.user.id === user.id).length,
       user,
     };
   });

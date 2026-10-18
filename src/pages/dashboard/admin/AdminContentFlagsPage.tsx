@@ -9,6 +9,7 @@ import { Fragment, type ReactNode, useEffect, useId, useRef, useState } from 're
 import { Link } from 'react-router';
 
 import { isOwner, useAuth } from '@/auth';
+import { DetailModalHeader, DetailModalStrip } from '@/components/ui/DetailModal';
 import { Modal } from '@/components/ui/Modal';
 import { SearchInput } from '@/components/ui/SearchInput';
 
@@ -27,16 +28,14 @@ import {
   type ContentFlagMatches,
   type ContentFlagStatus,
   type ContentFlagType,
-  type ContentFlagUser,
-  UserFlags,
 } from '@/lib/api';
 import { ADMIN_CONTENT_FLAGS_PAGE_SIZE, errorMessage, useAdminContentFlagQuery, useAdminContentFlagsQuery, useFetchContentFlagMatches, useFlagAdminContentFlagPromptMutation, usePatchAdminContentFlagMutation, usePatchAdminUserMutation, useTranslateAdminContentFlagMutation } from '@/lib/api/dashboardQueries';
 import { cn, formatDateTime, formatMemory, NO_AUTOFILL } from '@/lib/utils';
 
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton, Toggle } from '../ui';
 import { AdminModalFooter, AdminTagModal, useOpenListItem } from './AdminTagModal';
-import { adminServerPath, Chip, CopyableValue, CopyButton, DetailList, ExactDate, Pagination, selectAllScope, useSearchParamState, useStepBackFromEmptyPage, UserCell } from './adminUi';
-import { BLOCK_REASON_MAX, BlockUserDialog } from './BlockUserDialog';
+import { adminServerPath, Chip, CopyableValue, CopyButton, DETAIL_LIST_STACKED, DetailList, ExactDate, FiltersButton, Pagination, selectAllScope, useSearchParamState, useStepBackFromEmptyPage, UserCell } from './adminUi';
+import { BLOCK_REASON_MAX, BlockUserDialog, canBlockUser } from './BlockUserDialog';
 
 
 type Tone = 'warning' | 'danger' | 'neutral' | 'brand';
@@ -64,11 +63,12 @@ function pdqHint(distance?: number): string {
     `${(distance) ? `, up to ${distance} of its 256 bits can differ` : ''}. For videos and GIFs it's only one frame: the first flagged frame, or the first frame when no single frame was flagged.`;
 }
 
-const TITLE_ID = 'admin-content-flag-modal-title';
+// shown on hover beside the prompt hash
+const PROMPT_HASH_HINT = 'A hash of the safety scanner\'s prompts and settings this was scanned with. Dismissing the flag lets the same ' +
+  'content (same SHA-256) through future scans only while they still hash the same, so changing the prompts scans it again. ' +
+  'Empty for flags from before it was recorded, dismissing those doesn\'t let anything through.';
 
-// the modal's two detail lists, when stacked (below sm): each spans both columns of its parent and reuses them, so the
-// labels of both lists share one width. max-sm so these don't fight the list's own grid-cols once side by side
-const DETAIL_LIST_STACKED = 'max-sm:col-span-2 max-sm:grid-cols-subgrid';
+const TITLE_ID = 'admin-content-flag-modal-title';
 
 // What the safety scan did with it (`action`, set in `responses/tools.py` and `content_flag.py`). Coloured by whether the
 // content got out: the ones that stopped it are calm teal/blue/grey, `logged` (it went through, only logged for review)
@@ -189,13 +189,6 @@ function useUndoStatusAction(): (flagId: string, previous: number) => ToastActio
   };
 }
 
-// owners can't be blocked, moderators only by owners; mirrors `admin_patch_user`
-function canBlockUser(user: ContentFlagUser, viewerIsOwner: boolean): boolean {
-  const owner = (user.flags & UserFlags.OWNER) === UserFlags.OWNER;
-  const moderator = (user.flags & UserFlags.MODERATOR) === UserFlags.MODERATOR;
-  return !owner && (viewerIsOwner || !moderator);
-}
-
 
 export function AdminContentFlagsPage() {
   const { searchParams, page, update, setPage } = useSearchParamState();
@@ -210,11 +203,14 @@ export function AdminContentFlagsPage() {
   const category = searchParams.get('category') || '';
   const needsHumanReview = parseBool(searchParams.get('needs_human_review'));
   const autoConfirmed = parseBool(searchParams.get('auto_confirmed'));
+  const promptHash = (searchParams.get('prompt_hash') || '').trim();
   const type = ContentFlagTypes.find((item) => item === searchParams.get('type')) ?? null;
   // flags of blocked users are hidden unless `blocked=1`
   const includeBlocked = searchParams.get('blocked') === '1';
   const search = searchParams.get('q') || '';
   const debouncedSearch = useDebouncedValue(search.trim(), 300);
+  // collapsed on every visit, the count on its button says when any of them are set
+  const [ filtersOpen, setFiltersOpen ] = useState(false);
 
   const { data, isPending, isError, error, isPlaceholderData, isFetching, isRefetching, refetch } = useAdminContentFlagsQuery({
     userId,
@@ -226,6 +222,7 @@ export function AdminContentFlagsPage() {
     category,
     needsHumanReview,
     autoConfirmed,
+    promptHash,
     type,
     includeBlocked,
     search: debouncedSearch,
@@ -233,11 +230,18 @@ export function AdminContentFlagsPage() {
   });
   const items = data?.items ?? [];
   const { openId, openItem: listedItem, previousId, nextId, open, close } = useOpenListItem(items, (flag) => flag.id, Routes.DASHBOARD_ADMIN_FLAGS);
-  // a link to a flag that isn't on this page
-  const linked = useAdminContentFlagQuery(openId, !listedItem);
-  const openItem = listedItem ?? linked.data ?? null;
+  // a link to a flag that isn't on this page, or one that left it after its status changed. `listedItem` is then the
+  // last copy seen in the list and goes stale on the next change, the mutation keeps this one up to date instead
+  const inList = items.some((flag) => flag.id === openId);
+  const linked = useAdminContentFlagQuery(openId, !inList);
+  const openItem = ((inList) ? listedItem : linked.data ?? listedItem) ?? null;
   const steppingBack = useStepBackFromEmptyPage({page, setPage, data, isPlaceholderData, pageSize: ADMIN_CONTENT_FLAGS_PAGE_SIZE});
-  const filtered = !!(userId || guildId || channelId || tagId || commandId || status !== null || category || needsHumanReview !== null || autoConfirmed !== null || type || debouncedSearch);
+  // the ones in the collapsible panel set to something other than their default, the search box stays out
+  const activeFilters = [
+    userId, guildId, channelId, tagId, commandId, status !== DEFAULT_STATUS, category, needsHumanReview !== null, autoConfirmed !== null,
+    promptHash, type, includeBlocked,
+  ].filter(Boolean).length;
+  const filtered = !!(userId || guildId || channelId || tagId || commandId || status !== null || category || needsHumanReview !== null || autoConfirmed !== null || promptHash || type || debouncedSearch);
   const pagination = {
     page,
     count: data?.count ?? 0,
@@ -253,15 +257,18 @@ export function AdminContentFlagsPage() {
         description='Media the safety scan flagged. Shown as metadata, media is only loaded when you ask for it.'
       />
 
-      <SearchInput
-        className='mb-4'
-        value={search}
-        onValueChange={(value) => update({q: value})}
-        placeholder='Search by case #, message id, tag id, command, text, prompt, url or hash...'
-        aria-label='Search content flags'
-      />
+      <div className='mb-4 flex gap-2'>
+        <SearchInput
+          className='min-w-0 flex-1'
+          value={search}
+          onValueChange={(value) => update({q: value})}
+          placeholder='Search by case #, message id, tag id, command, text, prompt, url or hash...'
+          aria-label='Search content flags'
+        />
+        <FiltersButton open={filtersOpen} onToggle={() => setFiltersOpen((value) => !value)} active={activeFilters} controls='admin-content-flag-filters'/>
+      </div>
 
-      <div className='card mb-4 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-12'>
+      <div id='admin-content-flag-filters' hidden={!filtersOpen} className='card mb-4 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-12'>
         <label className='text-sm lg:col-span-3'>
           <span className='mb-1 block text-subtle'>Status</span>
           <select
@@ -328,6 +335,13 @@ export function AdminContentFlagsPage() {
             <option value='0'>No</option>
           </select>
         </label>
+        <IdFilter
+          label='Prompt hash'
+          placeholder='Any, or none'
+          value={promptHash}
+          pattern={PROMPT_HASH_PATTERN}
+          onChange={(value) => update({prompt_hash: value})}
+        />
         <div className='flex items-end lg:col-span-4'>
           <div className='w-full rounded-md border border-line bg-surface px-3 py-2'>
             <Toggle label='Show blocked users' checked={includeBlocked} onChange={(value) => update({blocked: (value) ? '1' : null})}/>
@@ -378,6 +392,8 @@ export function AdminContentFlagsPage() {
 const SNOWFLAKE_PATTERN = /^\d+$/;
 // `tag.show`, `media.aiv.tools.extract.media`; spaces are allowed since the api treats them as dots
 const COMMAND_ID_PATTERN = /^[\w.\- ]+$/;
+// a full prompt hash or a prefix of one (the api wants 6+ characters), `none` for flags without one
+const PROMPT_HASH_PATTERN = /^(none|[0-9a-fA-F]{6,64})$/;
 
 // edits locally and lands in the URL once typing stops, only for empty values or ones matching `pattern`
 function IdFilter({ className = 'lg:col-span-4', label, placeholder, value, pattern = SNOWFLAKE_PATTERN, onChange }: {
@@ -585,36 +601,23 @@ function ContentFlagDetails({ flag, onReport, navigation }: {
 
   return (
     <div>
-      {/* same layout as the list's rows: what it is and its id on the left, why it was flagged stacked in the middle, and
-          the review status in the top right, just left of the close button (its left edge is 48px in) and lined up with the
-          "#id" line: the columns sit at the top, so that line is always the padding plus half of its 28px height. From sm
-          up the padding is even and the outer columns are both 1fr, so the middle one is centred on the modal (the status
-          and close button sit in the right column's empty space). On phones the reasons get their own centred line under
-          the id and date, and the whole header sticks to the top of the window (`Modal`'s top padding, hence `-top-12`)
-          with the close button over it */}
-      <div className='relative grid gap-x-4 gap-y-2 px-4 pt-4 pb-3 max-sm:sticky max-sm:-top-12 max-sm:z-10 max-sm:rounded-t-xl max-sm:border-b max-sm:border-line max-sm:bg-bg/95 max-sm:backdrop-blur sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-start sm:px-6 sm:pt-5'>
-        {/* clear of the status and close button on phones */}
-        <div className='min-w-0 max-sm:pr-32'>
-          <div className='flex h-7 items-center gap-2.5'>
-            <Chip className='w-12 shrink-0 justify-center'>{(isText) ? 'text' : 'media'}</Chip>
-            {/* can be cut off on phones, so there it's in the details below with a copy button too */}
-            <h2 id={TITLE_ID} className='min-w-0 truncate font-mono text-base leading-7 font-semibold text-white sm:text-lg'>
-              <span className='sr-only'>Flag </span>#{flag.id}
-            </h2>
-          </div>
-          <p className='mt-1 text-xs text-subtle'><ExactDate value={flag.created} format={formatDateTime}/></p>
-        </div>
-        <div className='flex flex-wrap items-center justify-center gap-1 sm:flex-col sm:flex-nowrap'>
+      {/* the title can be cut off on phones, so there it's in the details below with a copy button too */}
+      <DetailModalHeader
+        titleId={TITLE_ID}
+        leading={<Chip className='w-12 shrink-0 justify-center'>{(isText) ? 'text' : 'media'}</Chip>}
+        title={<><span className='sr-only'>Flag </span>#{flag.id}</>}
+        mono
+        meta={<ExactDate value={flag.created} format={formatDateTime}/>}
+        states={<>
           {(flag.category) ? <Chip tone={(flag.category.startsWith('unsafe')) ? 'danger' : 'warning'}>{flag.category}</Chip> : null}
           {(flag.needs_human_review) ? <Chip tone='warning'>needs human review</Chip> : null}
           {(flag.auto_confirmed_from) ? <Chip title={`Same media as #${flag.auto_confirmed_from}, which was already confirmed`}>auto-confirmed</Chip> : null}
-        </div>
-        <Chip tone={status.tone} title={status.description} className='absolute top-[20px] right-16 w-20 justify-center sm:top-[24px]'>{status.label}</Chip>
-      </div>
+        </>}
+        status={<Chip tone={status.tone} title={status.description} className='w-20 justify-center'>{status.label}</Chip>}
+      />
 
       {/* who posted it, a link to their admin page (the server is linked from the Guild id below) */}
-      {/* no top border on phones, the sticky header above has its own */}
-      <div className='border-b border-line bg-surface-2 px-4 py-2.5 sm:border-t sm:px-6'>
+      <DetailModalStrip>
         <div className='flex items-center gap-2'>
           {(user ?? flag.user_id) ? (
             <Link
@@ -641,7 +644,7 @@ function ContentFlagDetails({ flag, onReport, navigation }: {
           ) : null}
         </div>
         {(user?.blocked && user.blocked_reason) ? <p className='mt-1 text-xs break-words text-subtle'>Blocked for: {user.blocked_reason}</p> : null}
-      </div>
+      </DetailModalStrip>
 
       <div className='px-4 pt-4 pb-5 sm:px-6'>
         {(flagged.length || forReview.length) ? (
@@ -664,10 +667,24 @@ function ContentFlagDetails({ flag, onReport, navigation }: {
                 ? `${framesFlagged.length.toLocaleString()} flagged of ${flag.frames.toLocaleString()}`
                 : '—'],
               (framesFlagged.length) ? ['Flagged frames', <span className='font-mono text-xs'>{framesFlagged.join(', ')}</span>] : null,
-              ['SHA-256', (flag.sha256) ? <CopyableValue value={flag.sha256}/> : '—'],
+              ['SHA-256', (flag.sha256) ? (
+                <CopyableValue value={flag.sha256} to={`${Routes.DASHBOARD_ADMIN_FLAGS}?q=${flag.sha256}`} linkTitle='Search the flags of this exact file'/>
+              ) : '—'],
               (isText) ? null : [
                 <span title={pdqHint()} className='cursor-help underline decoration-dotted underline-offset-2'>PDQ</span>,
-                (flag.pdq) ? <CopyableValue value={flag.pdq}/> : '—',
+                (flag.pdq) ? (
+                  <CopyableValue value={flag.pdq} to={`${Routes.DASHBOARD_ADMIN_FLAGS}?q=${flag.pdq}`} linkTitle='Search the flags with this PDQ hash'/>
+                ) : '—',
+              ],
+              [
+                <span title={PROMPT_HASH_HINT} className='cursor-help underline decoration-dotted underline-offset-2'>Prompt hash</span>,
+                (flag.prompt_hash) ? (
+                  <CopyableValue
+                    value={flag.prompt_hash}
+                    to={`${Routes.DASHBOARD_ADMIN_FLAGS}?prompt_hash=${flag.prompt_hash}`}
+                    linkTitle='Show the flags scanned with this prompt hash'
+                  />
+                ) : '—',
               ],
             ]}
           />

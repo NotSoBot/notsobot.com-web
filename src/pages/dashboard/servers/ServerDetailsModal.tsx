@@ -3,11 +3,13 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { DetailModalHeader, DetailModalStrip } from '@/components/ui/DetailModal';
 import { Modal } from '@/components/ui/Modal';
 import { Routes } from '@/config';
 import { ApiErrorCodes, ApiRequestError, type GuildEditableArea, type UserGuild } from '@/lib/api';
 import { errorMessage, isDiscordGrantError, isScopeMismatch, useMeGuildQuery, useMeRemindersQuery, useMeTagsCountQuery } from '@/lib/api/dashboardQueries';
 
+import { Chip, CopyableValue } from '../admin/adminUi';
 import { PanelSkeleton, Skeleton, UnsavedChangesGuard } from '../ui';
 import { GuildIcon } from './GuildIcon';
 import { AREA_LABEL, AREA_PERMISSION } from './guildMeta';
@@ -36,20 +38,21 @@ export function ServerDetailsModal({ guildId, onClose }: {guildId: string, onClo
   };
 
   return (
-    <Modal labelledBy={TITLE_ID} onClose={requestClose}>
+    <Modal labelledBy={TITLE_ID} onClose={requestClose} stickyClose={!!guild}>
       {(guild) ? (
         <ServerDetails guild={guild} onDirtyChange={setSettingsDirty}/>
       ) : (isPending) ? (
         <div aria-busy='true'>
           <h2 id={TITLE_ID} className='sr-only'>Loading server</h2>
-          <div className='flex items-center gap-4 border-b border-line px-6 pt-6 pb-5'>
-            <Skeleton className='size-16 rounded-2xl'/>
-            <div>
-              <Skeleton className='h-7 w-48'/>
-              <Skeleton className='mt-2 h-3 w-32 bg-surface-2'/>
+          {/* the header's icon, name and id */}
+          <div className='border-b border-line px-4 pt-4 pb-3 sm:px-6 sm:pt-5'>
+            <div className='flex h-7 items-center gap-2.5'>
+              <Skeleton className='size-7 rounded-lg'/>
+              <Skeleton className='h-6 w-48'/>
             </div>
+            <Skeleton className='mt-1 h-4 w-40 bg-surface-2'/>
           </div>
-          <div className='space-y-4 p-6'><PanelSkeleton rows={2}/><PanelSkeleton rows={3}/></div>
+          <div className='space-y-4 px-4 pt-4 pb-5 sm:px-6'><PanelSkeleton rows={2}/><PanelSkeleton rows={3}/></div>
         </div>
       ) : (
         <ServerLoadError error={error} onRetry={() => refetch()} retrying={isRefetching}/>
@@ -101,26 +104,30 @@ function ServerDetails({ guild, onDirtyChange }: {guild: UserGuild, onDirtyChang
 
   return (
     <>
-      <header className='rounded-t-xl border-b border-line bg-surface px-6 pt-6 pb-5 sm:pr-14'>
-        <div className='flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
-          <div className='flex min-w-0 items-center gap-4 pr-8 sm:pr-0'>
-            <GuildIcon guild={guild} size={64} className='size-14 shrink-0 text-lg sm:size-16'/>
-            <div className='min-w-0'>
-              <h2 id={TITLE_ID} className='flex items-center gap-2 text-2xl font-bold text-white'>
-                <span className='truncate' title={guild.name}>{guild.name}</span>
-                {(guild.owner) ? <Crown aria-label='You own this server' className='size-5 shrink-0 text-warning'/> : null}
-              </h2>
-              <p className='mt-1 flex flex-wrap gap-x-3 text-sm text-subtle'>
-                <span className='font-mono'>{guild.id}</span>
-                <span>{(canEditAnything) ? 'You can manage this server' : 'View only'}</span>
-              </p>
-            </div>
-          </div>
-          <YourStuffLinks guildId={guild.id}/>
-        </div>
-      </header>
+      <DetailModalHeader
+        titleId={TITLE_ID}
+        leading={<GuildIcon guild={guild} size={32} className='size-7 rounded-lg text-[10px]'/>}
+        title={guild.name}
+        titleTooltip={guild.name}
+        meta={<CopyableValue value={guild.id} truncate={0}/>}
+        states={[
+          (guild.owner) ? <Chip key='owner' tone='warning' title='You own this server' className='gap-1'><Crown aria-hidden className='size-3'/>owner</Chip> : null,
+          (guild.blocked) ? <Chip key='blocked' tone='danger' title={guild.blocked_reason || 'Blocked from using NotSoBot'}>blocked</Chip> : null,
+        ]}
+        status={(
+          <Chip
+            tone={(canEditAnything) ? 'success' : 'neutral'}
+            title={(canEditAnything) ? ((lockedAreas.length) ? 'You can manage some of this server, the rest is view only' : 'You can manage this server') : 'You can see this server’s setup but can’t change anything'}
+            className='w-24 justify-center'
+          >
+            {(canEditAnything) ? 'Can manage' : 'View only'}
+          </Chip>
+        )}
+        wideStatus
+      />
+      <YourStuffLinks guildId={guild.id}/>
 
-      <div className='space-y-4 p-4 sm:p-6'>
+      <div className='space-y-4 px-4 pt-4 pb-5 sm:px-6'>
         {(lockedAreas.length) ? <ViewOnlyBanner lockedAreas={lockedAreas} all={!canEditAnything}/> : null}
 
         {(guild.blocked) ? (
@@ -151,12 +158,14 @@ function YourStuffLinks({ guildId }: {guildId: string}) {
   const reminderCount = reminders.data?.items.filter((reminder) => reminder.guild_id === guildId).length;
   const search = `?${new URLSearchParams({server: guildId})}`;
   return (
-    <nav aria-label='Your things in this server' className='flex shrink-0 flex-wrap gap-2'>
-      {/* no count, it'd scan their whole command history every time a server is opened */}
-      <YourStuffLink to={`${Routes.DASHBOARD_COMMANDS}${search}`} icon={SquareTerminal} label='Your commands' count={undefined}/>
-      <YourStuffLink to={`${Routes.DASHBOARD_REMINDERS}${search}`} icon={AlarmClock} label='Your reminders' count={reminderCount}/>
-      <YourStuffLink to={`${Routes.DASHBOARD_TAGS}${search}`} icon={TagsIcon} label='Your tags' count={tags.data}/>
-    </nav>
+    <DetailModalStrip>
+      <nav aria-label='Your things in this server' className='flex flex-wrap gap-2'>
+        {/* no count, it'd scan their whole command history every time a server is opened */}
+        <YourStuffLink to={`${Routes.DASHBOARD_COMMANDS}${search}`} icon={SquareTerminal} label='Your commands' count={undefined}/>
+        <YourStuffLink to={`${Routes.DASHBOARD_REMINDERS}${search}`} icon={AlarmClock} label='Your reminders' count={reminderCount}/>
+        <YourStuffLink to={`${Routes.DASHBOARD_TAGS}${search}`} icon={TagsIcon} label='Your tags' count={tags.data}/>
+      </nav>
+    </DetailModalStrip>
   );
 }
 

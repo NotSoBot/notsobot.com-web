@@ -1512,6 +1512,60 @@ route('POST', '/admin/tags/(\\d+)/merge', ([ , tagId ], { body }) => {
   return {...summary, source: payload(source), target: payload(target)};
 });
 
+// every tag the mock knows with its owner: the mock user's plus every directory tag, like `GET /admin/tags`
+function adminTagOwners() {
+  return [
+    ...state.tags.map((tag) => ({tag, userId: mockUser.id})),
+    ...state.adminDirectory.map((item) => ({tag: item.tag as unknown as Tag, userId: item.user?.id ?? item.tag.user_id ?? ''})),
+  ];
+}
+
+// mirrors the API's duplicate lookup: other non-alias tags with the exact same content, split into ones staff can
+// delete and ones they can't (bot owners', the mock user aside so the mock can delete its own)
+function adminTagDuplicates(tagId: string) {
+  const all = adminTagOwners();
+  const source = all.find((entry) => entry.tag.id === tagId);
+  if (!source) {
+    throw new MockError(404, ApiErrorCodes.UNKNOWN_TAG, 'Unknown Tag');
+  }
+  const duplicates = (source.tag.reference_tag || !source.tag.content) ? [] : all.filter((entry) => (
+    entry.tag.id !== tagId && !entry.tag.reference_tag && entry.tag.content === source.tag.content
+  ));
+  const isProtected = (userId: string) => userId !== mockUser.id && !!((state.adminUsers.find((user) => user.id === userId)?.flags ?? 0) & 1);
+  return {
+    source,
+    allowed: duplicates.filter((entry) => !isProtected(entry.userId)),
+    protected: duplicates.filter((entry) => isProtected(entry.userId)),
+  };
+}
+
+route('GET', '/admin/tags/(\\d+)/duplicates', ([ , tagId ]) => {
+  requireBotOwner();
+  const { source, allowed, protected: blocked } = adminTagDuplicates(tagId);
+  return {
+    global: allowed.length + blocked.length,
+    global_protected: blocked.length,
+    user: [...allowed, ...blocked].filter((entry) => entry.userId === source.userId).length,
+  };
+});
+
+// mirrors `DELETE /admin/tags/<tag_id>`: the tag (plus the duplicates asked for), their listings and the mock user's
+// aliases of them
+route('DELETE', '/admin/tags/(\\d+)', ([ , tagId ], { query }) => {
+  requireBotOwner();
+  const { source, allowed, protected: blocked } = adminTagDuplicates(tagId);
+  const globalDuplicates = parseBool(query.get('global_duplicates')) === true;
+  const userDuplicates = parseBool(query.get('user_duplicates')) === true;
+  const duplicates = (globalDuplicates) ? allowed : (userDuplicates) ? allowed.filter((entry) => entry.userId === source.userId) : [];
+  const ids = new Set([tagId, ...duplicates.map((entry) => entry.tag.id)]);
+  state.tags = state.tags.filter((tag) => !ids.has(tag.id) && !ids.has((tag.reference_tag as {id?: string} | null | undefined)?.id ?? ''));
+  state.adminDirectory = state.adminDirectory.filter((item) => !ids.has(item.tag.id));
+  for (const id of ids) {
+    state.directory.delete(id);
+  }
+  return {count: ids.size, skipped: (globalDuplicates) ? blocked.length : 0};
+});
+
 route('DELETE', '/admin/users/(\\d+)/tags', ([ , userId ]) => {
   requireBotOwner();
   const user = state.adminUsers.find((other) => other.id === userId);
@@ -1537,6 +1591,10 @@ route('GET', '/admin/users', (_match, { query }) => {
     .filter((entry) => !needle || entry.user.username.toLowerCase().includes(needle) || entry.user.id === needle);
   if (parseBool(query.get('only_flagged'))) {
     entries = entries.filter((entry) => entry.content_flags.total);
+  }
+  const blocked = parseBool(query.get('blocked'));
+  if (blocked !== null) {
+    entries = entries.filter((entry) => entry.user.blocked === blocked);
   }
   const flaggedWithin = Number(query.get('flagged_within')) || 0;
   if (flaggedWithin) {
@@ -1584,6 +1642,7 @@ route('GET', '/admin/content-flags', (_match, { query }) => {
   const category = query.get('category');
   const needsReview = parseBool(query.get('needs_human_review'));
   const autoConfirmed = parseBool(query.get('auto_confirmed'));
+  const promptHash = (query.get('prompt_hash') || '').toLowerCase();
   const type = query.get('type');
   const guildId = query.get('guild_id');
   const channelId = query.get('channel_id');
@@ -1627,6 +1686,13 @@ route('GET', '/admin/content-flags', (_match, { query }) => {
     .filter((flag) => !category || flag.category === category)
     .filter((flag) => needsReview === null || flag.needs_human_review === needsReview)
     .filter((flag) => autoConfirmed === null || !!flag.auto_confirmed_from === autoConfirmed)
+    .filter((flag) => {
+      // mirrors the `prompt_hash` filter in `admin_get_content_flags`
+      if (promptHash === 'none') {
+        return !flag.prompt_hash;
+      }
+      return !promptHash || (!!flag.prompt_hash && ((promptHash.length === 64) ? flag.prompt_hash === promptHash : flag.prompt_hash.startsWith(promptHash)));
+    })
     .filter((flag) => !type || (flag.mimetype === 'text/plain') === (type === 'text'))
     .filter(matchesSearch);
   return pageOf(matching, query);
@@ -1907,12 +1973,27 @@ function adminGuildDetail(guildId: string) {
   // opening one the bot never saved creates its row from Discord, like the api
   item.saved = true;
   const { entry } = item;
+  const flags = state.contentFlags.filter((flag) => flag.guild_id === guildId);
+  // made up but stable per server, like the users' (servers the bot left were busy before it did, ones never saved weren't)
+  const commands = (item.saved) ? 200 + Number(BigInt(guildId) % 90000n) : 0;
   return {
     ...entry.detail,
     bot: item.bot,
+    commands,
+    content_flags: {
+      confirmed: flags.filter((flag) => flag.status === 1).length,
+      dismissed: flags.filter((flag) => flag.status === 2).length,
+      flagged: flags.filter((flag) => flag.flagged?.length).length,
+      last_flagged_at: flags.map((flag) => String(flag.created)).sort().pop() ?? null,
+      pending: flags.filter((flag) => flag.status === 0).length,
+      reported: flags.filter((flag) => flag.status === 3).length,
+      total: flags.length,
+    },
+    first_seen: (commands) ? new Date(Date.UTC(2020, Number(BigInt(guildId) % 48n), 1)).toISOString() : null,
     counts: {
       ...adminGuildCounts(guildId),
-      reminders: state.reminders.filter((reminder) => reminder.guild_id === guildId).length,
+      // the mock user's own, or a made up count for servers they aren't in (staff only see a count anyway)
+      reminders: state.reminders.filter((reminder) => reminder.guild_id === guildId).length || Number(BigInt(guildId) % 9n),
     },
     editable: {allowlist: true, blocklist: true, commands: true, loggers: true, prefixes: true, settings: true, admin_bypass: true},
     owner: false,
@@ -1991,6 +2072,11 @@ route('PATCH', '/admin/guilds/(\\d+)', ([ , guildId ], { body }) => {
   }
   if (detail.blocked && 'blocked_reason' in body) {
     detail.blocked_reason = (typeof body.blocked_reason === 'string' && body.blocked_reason) ? body.blocked_reason : null;
+  }
+  if (Array.isArray(body.features)) {
+    // owners only, like the api
+    requireBotOwner();
+    detail.features = [...new Set(body.features as Array<string>)];
   }
   return adminGuildDetail(guildId);
 });
@@ -2337,6 +2423,26 @@ route('GET', '/admin/applications', (_match, { query }) => {
     .filter((application) => !text || application.name.toLowerCase().includes(text) || !!application.user?.username.toLowerCase().includes(text)
       || application.id === text || application.owner_id === text);
   return pageOf(matching, query);
+});
+
+route('GET', '/admin/applications/(\\d+)', ([ , applicationId ]) => {
+  requireBotOwner();
+  const application = findApplication(applicationId);
+  // made up but stable per application, the bot's own ones the busiest
+  const seed = Number(BigInt(applicationId) % 9973n);
+  const requests = (application.flags & 2) ? seed % 40 : ((application.flags & 1) ? 250000 : 0) + seed * 17;
+  const endpoints = ['/image/imagine', '/tags/render', '/image/deepfry', '/users/@me', '/image/caption', '/search/google'];
+  return {
+    ...application,
+    usage: {
+      days: 30,
+      endpoints: (requests) ? endpoints.slice(seed % 2, (seed % 2) + 5).map((endpoint, i) => ({count: Math.round(requests / (2 + i * 1.7)), endpoint})) : [],
+      errors: Math.round(requests * ((seed % 7) / 100)),
+      first_request_at: (requests) ? new Date(Date.now() - 86400000 * 29.5).toISOString() : null,
+      last_request_at: (requests) ? new Date(Date.now() - 60000 * (seed % 300)).toISOString() : null,
+      requests,
+    },
+  };
 });
 
 route('PATCH', '/admin/applications/(\\d+)', ([ , applicationId ], { body }) => {

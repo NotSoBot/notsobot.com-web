@@ -43,6 +43,7 @@ export const queryKeys = {
   adminEntitlements: (token: string | null, filters: object) => ['users', '@me', token, 'admin', 'entitlements', filters] as const,
   adminReports: (token: string | null, filters: object) => ['users', '@me', token, 'admin', 'reports', filters] as const,
   adminApplications: (token: string | null, filters: object) => ['users', '@me', token, 'admin', 'applications', 'list', filters] as const,
+  adminApplication: (token: string | null, applicationId: string) => ['users', '@me', token, 'admin', 'applications', 'detail', applicationId] as const,
   adminApplicationAccess: (token: string | null, filters: object) => ['users', '@me', token, 'admin', 'applications', 'access', filters] as const,
   adminVoices: (token: string | null, filters: object) => ['users', '@me', token, 'admin', 'voices', filters] as const,
   // a server's list rows and its detail are both under `guilds`, so one invalidation refreshes either after an edit

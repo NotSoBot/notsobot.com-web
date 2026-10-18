@@ -217,7 +217,7 @@ function VariableRow({ tagId, scope, storageType, storageId, name, value, readOn
         <ConfirmDialog
           title={`Delete variable “${name}”?`}
           description='The tag will act as if it was never set.'
-          confirmLabel='Delete'
+          confirmLabel='Delete variable'
           pending={remove.isPending}
           error={(remove.isError) ? errorMessage(remove.error) : null}
           onClose={() => {

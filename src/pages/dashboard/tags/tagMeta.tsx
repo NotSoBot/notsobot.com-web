@@ -1,4 +1,4 @@
-import { Globe, Lock, MessageCircle, Server, User, Users, type LucideIcon } from 'lucide-react';
+import { Globe, Lock, MessageCircle, Server, Trash2, User, Users, type LucideIcon } from 'lucide-react';
 import { generatePath, Link } from 'react-router';
 
 import { Routes } from '@/config';
@@ -14,6 +14,26 @@ export const TAG_VARIABLE_NAME_MAX = 128;
 export const TAG_VARIABLE_VALUE_MAX = 16 * 1024;
 export const TAG_VARIABLES_PER_STORAGE = 5;
 export const TAG_BLOB_MAX_BYTES = 256 * 1024;
+
+
+// a tag card's own delete, above the card's stretched open button (so it doesn't open the tag). With a mouse it shows
+// while the card is hovered or focused, on touch screens it's always there
+export function TagCardDeleteButton({ name, onClick }: {name: string, onClick: () => void}) {
+  return (
+    <button
+      type='button'
+      className='btn btn-ghost btn-sm relative z-10 -my-1.5 shrink-0 px-1.5 text-subtle transition-opacity hover:text-danger pointer-fine:opacity-0 pointer-fine:group-focus-within:opacity-100 pointer-fine:group-hover:opacity-100'
+      aria-label={`Delete ${name}`}
+      title='Delete'
+      onClick={(event) => {
+        event.stopPropagation();
+        onClick();
+      }}
+    >
+      <Trash2 aria-hidden className='size-4'/>
+    </button>
+  );
+}
 
 
 // the tag's details and its editor, both modals over the tag list

@@ -49,6 +49,12 @@ export function shardIdForGuild(guildId: string, shardCount: number): number | n
 }
 
 
+// Discord snowflake -> when it was made, in ms (null for anything that isn't one)
+export function snowflakeTimestamp(id: string): number | null {
+  return (/^\d{15,21}$/.test(id)) ? Number(BigInt(id) >> 22n) + 1420070400000 : null;
+}
+
+
 // API timestamps are ISO strings; some admin fields may be epoch numbers (seconds or ms)
 export function toDate(value: string | number): Date {
   if (typeof value === 'number') {

@@ -4,6 +4,7 @@ import { ApiErrorCodes, toTagDirectoryCategory } from './types';
 import type {
   AdminApplication,
   AdminApplicationPatch,
+  AdminApplicationDetail,
   AdminApplicationsPage,
   AdminEntitlementsPage,
   AdminGuild,
@@ -17,6 +18,8 @@ import type {
   AdminUserPatch,
   AdminUsersPage,
   AdminTagDirectorySortBy,
+  AdminTagDeleteResult,
+  AdminTagDuplicates,
   AdminTagMergeSummary,
   AdminTagsPage,
   AdminTagsSortBy,
@@ -682,6 +685,8 @@ export const api = {
     onlyFlagged?: boolean,
     // hours
     flaggedWithin?: number | null,
+    // null for either
+    blocked?: boolean | null,
     offset?: number,
     limit?: number,
   }, signal?: AbortSignal) => {
@@ -692,6 +697,7 @@ export const api = {
         sort_by: params.sortBy,
         only_flagged: (params.onlyFlagged) ? true : undefined,
         flagged_within: params.flaggedWithin ?? undefined,
+        blocked: params.blocked ?? undefined,
         offset: params.offset || undefined,
         limit: params.limit,
       },
@@ -700,6 +706,24 @@ export const api = {
 
   patchAdminUser: (userId: string, body: AdminUserPatch) => {
     return apiRequest<AdminUser>(ApiEndpoints.ADMIN_USER(userId), {method: 'PATCH', body});
+  },
+
+  fetchAdminTagDuplicates: (tagId: string, signal?: AbortSignal) => {
+    return apiRequest<AdminTagDuplicates>(ApiEndpoints.ADMIN_TAG_DUPLICATES(tagId), {signal});
+  },
+
+  // any tag, wherever it lives; its aliases everywhere go with it. `userDuplicates` also deletes the owner's other tags
+  // with the exact same content, `globalDuplicates` everyone's
+  deleteAdminTag: (tagId: string, params: {userDuplicates?: boolean, globalDuplicates?: boolean} = {}) => {
+    return apiRequest<AdminTagDeleteResult>(ApiEndpoints.ADMIN_TAG(tagId), {
+      method: 'DELETE',
+      query: {
+        user_duplicates: (params.userDuplicates) ? true : undefined,
+        global_duplicates: (params.globalDuplicates) ? true : undefined,
+      },
+      // each duplicate is deleted on its own
+      timeout: 120_000,
+    });
   },
 
   // replaces `tagId` with `targetId` everywhere and deletes it (owner only); `dryRun` only counts what would move
@@ -728,6 +752,8 @@ export const api = {
     category?: string,
     needsHumanReview?: boolean | null,
     autoConfirmed?: boolean | null,
+    // a full hash or a prefix of one, `none` for flags from before it was recorded
+    promptHash?: string,
     type?: ContentFlagType | null,
     includeBlocked?: boolean,
     search?: string,
@@ -746,6 +772,7 @@ export const api = {
         category: params.category || undefined,
         needs_human_review: params.needsHumanReview,
         auto_confirmed: params.autoConfirmed,
+        prompt_hash: params.promptHash || undefined,
         type: params.type || undefined,
         include_blocked: params.includeBlocked || undefined,
         search: params.search || undefined,
@@ -869,6 +896,10 @@ export const api = {
 
   patchAdminVoice: (voiceId: string, body: VoicePatch) => {
     return apiRequest<AdminVoice>(ApiEndpoints.ADMIN_VOICE(voiceId), {method: 'PATCH', body});
+  },
+
+  fetchAdminApplication: (applicationId: string, signal?: AbortSignal) => {
+    return apiRequest<AdminApplicationDetail>(ApiEndpoints.ADMIN_APPLICATION(applicationId), {signal});
   },
 
   fetchAdminApplications: (params: {query?: string, userId?: string, disabled?: boolean | null, offset?: number, limit?: number}, signal?: AbortSignal) => {

@@ -196,13 +196,13 @@ export function CommandsPage() {
                 </span>
               ) : null}
             </h2>
-            {/* one fixed-height row that scrolls sideways, so switching filters never shifts the page */}
+            {/* one row that only scrolls sideways (cards are a constant height), so switching filters never shifts the page */}
             {(trending.length) ? (
               <div className='-mx-4 sm:mx-0'>
                 <ul
                   key={`${typeOption.param}:${category}:${dmOnly}`}
                   className={cn(
-                    'grid h-[11.5rem] animate-fade-in auto-cols-[15.5rem] grid-flow-col gap-3 overflow-x-auto overscroll-x-contain px-4 pb-2 sm:px-0',
+                    'grid animate-fade-in auto-cols-[15.5rem] grid-flow-col gap-3 overflow-x-auto overflow-y-hidden overscroll-x-contain px-4 pb-2 sm:px-0',
                     'snap-x snap-mandatory scroll-px-4 sm:scroll-px-0 [&>li]:snap-start',
                   )}
                 >
@@ -213,7 +213,7 @@ export function CommandsPage() {
               </div>
             ) : (
               // same height as the row above, so an empty category doesn't shift the page either
-              <div className='flex h-[11.5rem] animate-fade-in items-center justify-center rounded-lg border border-dashed border-line-strong pb-2 text-sm text-muted'>
+              <div className='flex h-[12rem] animate-fade-in items-center justify-center rounded-lg border border-dashed border-line-strong pb-2 text-sm text-muted'>
                 Nothing here has been used this week.
               </div>
             )}

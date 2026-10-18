@@ -181,7 +181,7 @@ export function FilesPage() {
 
       {(deleting) ? (
         <ConfirmDialog
-          title={(deleting.length === 1) ? 'Delete this file?' : `Delete ${deleting.length} files?`}
+          title={(deleting.length === 1) ? `Delete “${deleting[0].filename || deleting[0].vanity}”?` : `Delete ${deleting.length} files?`}
           description={(deleting.length === 1) ? (
             <>Its link <span className='font-mono text-fg break-all'>{deleting[0].urls.vanity}</span> stops working everywhere it was posted. This can’t be undone.</>
           ) : (

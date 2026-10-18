@@ -1,21 +1,24 @@
-import { BookMarked, Replace, Search, Tags } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { BookMarked, Replace, Search, Tags, Trash2 } from 'lucide-react';
+import { useState } from 'react';
 import { Link } from 'react-router';
 
 import { isOwner, useAuth } from '@/auth';
+import { DetailModalHeader } from '@/components/ui/DetailModal';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
-import type { AdminTagItem, AdminTagsSortBy } from '@/lib/api';
+import { TagDirectoryVerificationStates, type AdminTagItem, type AdminTagsSortBy } from '@/lib/api';
 import { ADMIN_TAGS_PAGE_SIZE, errorMessage, useAdminTagsQuery } from '@/lib/api/dashboardQueries';
-import { cn, formatDate } from '@/lib/utils';
-import { tagLocation, TagLocationChip, TagStatusBadges, type TagLocation, type TagLocationKind } from '@/pages/dashboard/tags/tagMeta';
+import { cn, formatDate, formatDateTime } from '@/lib/utils';
+import { TagCardDeleteButton, tagLocation, TagLocationChip, TagStatusBadges, type TagLocation, type TagLocationKind } from '@/pages/dashboard/tags/tagMeta';
 import { NsfwBadge, VerificationBadge } from '@/pages/tags/tagDirectory';
 
 import { ServerFilterChip } from '../servers/ServerFilterChip';
 
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton, Toggle } from '../ui';
 import { AdminModalFooter, AdminTagModal, useOpenListItem } from './AdminTagModal';
-import { adminServerPath, adminTagDirectoryPath, Chip, CopyableValue, CopyButton, ExactDate, Pagination, selectAllScope, useSearchParamState, useStepBackFromEmptyPage, UserCell } from './adminUi';
+import { adminServerPath, adminTagDirectoryPath, adminUserPath, Chip, CopyableValue, CopyButton, DETAIL_LIST_STACKED, DetailList, ExactDate, Pagination, selectAllScope, useSearchParamState, useStepBackFromEmptyPage, UserCell } from './adminUi';
+import { TagOwnerStrip } from './DeleteUserTagsDialog';
+import { DeleteTagDialog } from './DeleteTagDialog';
 import { ReplaceTagDialog } from './ReplaceTagDialog';
 import { TagStoragePanel } from './TagStoragePanel';
 
@@ -36,10 +39,8 @@ const TITLE_ID = 'admin-tag-modal-title';
 
 export function AdminAllTagsPage() {
   const { searchParams, page, update, setPage } = useSearchParamState();
-  const { user: me } = useAuth();
-  // replacing a tag with another is owners only
-  const owner = isOwner(me);
-  const [ replacing, setReplacing ] = useState(false);
+  // deleting from a card, without opening it
+  const [ deleting, setDeleting ] = useState<AdminTagItem | null>(null);
   const hideNsfw = searchParams.get('nsfw') === 'hide';
   const searchContent = searchParams.get('content') === '1';
   const sortBy = SORTS.find((sort) => sort.value === searchParams.get('sort'))?.value ?? 'newest';
@@ -116,45 +117,33 @@ export function AdminAllTagsPage() {
         <>
           <Pagination {...pagination} className='mt-0 mb-4'/>
           <ul className={cn('grid grid-cols-1 gap-3 transition-opacity sm:grid-cols-2 xl:grid-cols-3', isPlaceholderData && 'opacity-60')}>
-            {items.map((item) => <TagCard key={item.tag.id} item={item} onOpen={open}/>)}
+            {items.map((item) => <TagCard key={item.tag.id} item={item} onOpen={open} onDelete={setDeleting}/>)}
           </ul>
           <Pagination {...pagination}/>
         </>
       )}
 
       {(openItem) ? (
-        <AdminTagModal labelledBy={TITLE_ID} previousId={previousId} nextId={nextId} onNavigate={open} onClose={close} footer={!owner}>
+        <AdminTagModal labelledBy={TITLE_ID} previousId={previousId} nextId={nextId} onNavigate={open} onClose={close} footer={false} stickyClose>
           <TagDetails
             key={openItem.tag.id}
             item={openItem}
+            navigation={{previousId, nextId, onNavigate: open}}
             onSearch={(value) => {
               close();
               update({q: value});
             }}
+            onReplaced={(targetId) => {
+              close();
+              // the tag that's left, with everything moved onto it
+              update({q: `id:${targetId}`});
+            }}
+            onDeleted={close}
           />
-          {(owner) ? (
-            <AdminModalFooter previousId={previousId} nextId={nextId} onNavigate={open}>
-              <button type='button' className='btn btn-secondary' title='Move everything to another tag, then delete this one' onClick={() => setReplacing(true)}>
-                <Replace aria-hidden className='size-4'/>
-                Replace with another tag
-              </button>
-            </AdminModalFooter>
-          ) : null}
         </AdminTagModal>
       ) : null}
 
-      {(replacing && openItem) ? (
-        <ReplaceTagDialog
-          tag={openItem.tag}
-          onReplaced={(targetId) => {
-            setReplacing(false);
-            close();
-            // the tag that's left, with everything moved onto it
-            update({q: `id:${targetId}`});
-          }}
-          onClose={() => setReplacing(false)}
-        />
-      ) : null}
+      {(deleting) ? <DeleteTagDialog item={deleting} onDeleted={() => setDeleting(null)} onClose={() => setDeleting(null)}/> : null}
     </>
   );
 }
@@ -167,8 +156,9 @@ function itemLocation(item: AdminTagItem): TagLocation {
 
 
 // the dashboard's own tag card (`TagsPage`) plus the owner: just enough to spot the tag, the rest is in `TagDetails` a click away
-function TagCard({ item, onOpen }: {item: AdminTagItem, onOpen: (id: string) => void}) {
+function TagCard({ item, onOpen, onDelete }: {item: AdminTagItem, onOpen: (id: string) => void, onDelete: (item: AdminTagItem) => void}) {
   const { tag, directory } = item;
+  const ownerId = item.user?.id ?? tag.user_id ?? null;
   const reference = tag.reference_tag as {id: string, name: string} | null | undefined;
   const location = itemLocation(item);
   // staff wording, and directory tags live under their owner's id so that id isn't shown
@@ -206,101 +196,182 @@ function TagCard({ item, onOpen }: {item: AdminTagItem, onOpen: (id: string) => 
       </div>
       {/* pinned above the footer, so it sits in the same spot on every card whether or not there's an alias line */}
       <div className='mt-auto mb-3 flex min-w-0 flex-col gap-2'>
-        <UserCell user={item.user} fallbackId={item.user?.id ?? tag.user_id ?? null} size='sm'/>
+        <UserCell user={item.user} fallbackId={ownerId} size='sm' to={(ownerId) ? adminUserPath(ownerId) : undefined}/>
         {/* a guild opens that server in the admin servers page */}
         <TagLocationChip location={chipLocation} to={(location.kind === 'server' && location.id) ? adminServerPath(location.id) : undefined}/>
       </div>
       <div className='flex items-center justify-between gap-3 border-t border-line pt-3 text-xs text-subtle'>
         <span className='tabular-nums'>{(tag.uses ?? 0).toLocaleString()} uses</span>
-        <span>{(tag.edited) ? `Edited ${formatDate(tag.edited)}` : `Created ${formatDate(tag.created)}`}</span>
+        <span className='flex items-center gap-1'>
+          {(tag.edited) ? `Edited ${formatDate(tag.edited)}` : `Created ${formatDate(tag.created)}`}
+          <TagCardDeleteButton name={tag.name} onClick={() => onDelete(item)}/>
+        </span>
       </div>
     </li>
   );
 }
 
 
-function TagDetails({ item, onSearch }: {item: AdminTagItem, onSearch: (query: string) => void}) {
+// `navigation` is the modal's Previous / Next, the tag's actions go between them. Its directory listing is the status
+function TagDetails({ item, navigation, onSearch, onReplaced, onDeleted }: {
+  item: AdminTagItem,
+  navigation: {previousId: string | null, nextId: string | null, onNavigate: (id: string) => void},
+  onSearch: (query: string) => void,
+  onReplaced: (targetId: string) => void,
+  onDeleted: () => void,
+}) {
   const { tag, directory } = item;
+  const { user: me } = useAuth();
+  // replacing a tag with another is owners only
+  const owner = isOwner(me);
+  const [ replacing, setReplacing ] = useState(false);
+  const [ deleting, setDeleting ] = useState(false);
   const ownerId = item.user?.id ?? tag.user_id ?? null;
   const reference = tag.reference_tag as {id: string, name: string, content?: string} | null | undefined;
   // aliases have no content of their own, they show their source's
   const content = (reference) ? (reference.content ?? '') : (tag.content ?? '');
   const location = itemLocation(item);
-  const directoryLink = (directory) ? (
-    <Link
-      to={adminTagDirectoryPath(tag.id)}
-      className='inline-flex items-center gap-1.5 hover:opacity-80'
-      title={`Listed in the directory${(directory.title) ? ` as “${directory.title}”` : ''}`}
-    >
-      {(location.kind === 'personal') ? null : <Chip tone='success'>Listed</Chip>}
-      <VerificationBadge verified={directory.verified} hideUnverified/>
-    </Link>
-  ) : null;
+  const states = [
+    (tag.nsfw) ? <NsfwBadge key='nsfw'/> : null,
+    (tag.locked) ? <Chip key='locked' tone='warning'>Locked</Chip> : null,
+    (tag.is_command) ? <Chip key='command' tone='brand'>Command</Chip> : null,
+    (reference) ? (
+      <button key='alias' type='button' className='max-w-full cursor-pointer hover:opacity-80' title='Show the source tag' onClick={() => onSearch(`id:${reference.id}`)}>
+        <Chip className='max-w-56'><span className='truncate'>Alias of {reference.name}</span></Chip>
+      </button>
+    ) : null,
+  ].filter(Boolean);
 
   return (
     <div>
-      <div className='flex flex-col items-start gap-2 rounded-t-xl px-4 pt-4 pb-3 pr-14 sm:flex-row sm:justify-between sm:gap-4 sm:px-6 sm:pt-5 sm:pr-14'>
-        <div className='w-full min-w-0 sm:flex-1'>
-          <div className='flex flex-wrap items-center gap-2'>
-            <h2 id={TITLE_ID} className='min-w-0 truncate font-mono text-lg font-semibold text-code'>{tag.name}</h2>
-            {(tag.nsfw) ? <NsfwBadge/> : null}
-            {(tag.locked) ? <Chip tone='warning'>Locked</Chip> : null}
-            {(tag.is_command) ? <Chip tone='brand'>Command</Chip> : null}
-            {(reference) ? (
-              <button type='button' className='cursor-pointer hover:opacity-80' title='Show the source tag' onClick={() => onSearch(`id:${reference.id}`)}>
-                <Chip>Alias of {reference.name}</Chip>
-              </button>
-            ) : null}
-            {(location.kind === 'personal') ? null : directoryLink}
-          </div>
-          <div className='mt-1 flex items-center gap-1.5 text-xs whitespace-nowrap text-subtle'>
-            Tag id
-            <CopyableValue value={tag.id} truncate={0}/>
-          </div>
+      <DetailModalHeader
+        titleId={TITLE_ID}
+        leading={<Chip className='min-w-16 shrink-0 justify-center'>{LOCATION_LABELS[location.kind]}</Chip>}
+        // can be cut off on phones, so there it's in the details below with a copy button too
+        title={<><span className='sr-only'>Tag </span>{tag.name}</>}
+        mono
+        meta={<>Created <ExactDate value={tag.created} format={formatDateTime}/></>}
+        states={states}
+        status={(directory) ? (
+          <Link
+            to={adminTagDirectoryPath(tag.id)}
+            className='hover:opacity-80'
+            title={`Open its directory listing${(directory.title) ? ` “${directory.title}”` : ''}`}
+          >
+            {(directory.verified === TagDirectoryVerificationStates.NOT_VERIFIED) ? <Chip tone='success'>Listed</Chip> : <VerificationBadge verified={directory.verified}/>}
+          </Link>
+        ) : null}
+      />
+
+      <TagOwnerStrip user={item.user} fallbackId={ownerId} blockReason={`Tag: \`${tag.name}\` #${tag.id}`}>
+        {(ownerId) ? (
+          <button type='button' className='btn btn-ghost btn-sm' title='Show every tag by this user' onClick={() => onSearch(`user:${ownerId}`)}>
+            <Search aria-hidden className='size-4 shrink-0'/>
+            {/* icon only on phones, there's the block button beside it */}
+            <span className='sr-only sm:not-sr-only'>All their tags</span>
+          </button>
+        ) : null}
+      </TagOwnerStrip>
+
+      <div className='px-4 pt-4 pb-5 sm:px-6'>
+        {/* side by side once there's room, stacked on phones with one shared label column (subgrid) */}
+        <div className='grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-4 sm:grid-cols-2'>
+          <DetailList
+            className={DETAIL_LIST_STACKED}
+            items={[
+              // phones only, the title's can be cut off there
+              ['Name', <CopyableValue value={tag.name} truncate={0}/>, 'sm:hidden'],
+              ['Tag', <CopyableValue value={tag.id} truncate={0}/>],
+              ['Uses', <span className='tabular-nums'>{(tag.uses ?? 0).toLocaleString()}</span>],
+              ['Last used', (tag.last_used) ? <ExactDate value={tag.last_used}/> : '—'],
+            ]}
+          />
+          <DetailList
+            className={DETAIL_LIST_STACKED}
+            items={[
+              ['Edited', (tag.edited) ? <ExactDate value={tag.edited}/> : '—'],
+              // a guild opens that server in the admin servers page
+              (location.id) ? [LOCATION_LABELS[location.kind], (location.kind === 'server') ? (
+                <CopyableValue value={location.id} truncate={0} to={adminServerPath(location.id)} linkTitle='Open this server'/>
+              ) : (
+                <CopyableValue value={location.id} truncate={0}/>
+              )] : null,
+              (reference) ? ['Alias of', <CopyableValue value={reference.id} truncate={0}/>] : null,
+              (directory) ? ['Listing', (
+                <Link to={adminTagDirectoryPath(tag.id)} className='text-code underline-offset-2 hover:underline'>
+                  {directory.title || <span className='italic'>Untitled</span>}
+                </Link>
+              )] : null,
+            ]}
+          />
         </div>
-        <LocationChip
-          location={location}
-          to={(location.kind === 'server' && location.id) ? adminServerPath(location.id) : undefined}
-          extra={(location.kind === 'personal') ? directoryLink : null}
-        />
+
+        <div className='mt-4'>
+          <div className='mb-1 flex min-h-8 items-center justify-between gap-2'>
+            <h3 className='section-label'>
+              {(reference) ? 'Source content' : 'Content'}{' '}
+              <span className='normal-case tracking-normal text-subtle'>({content.length.toLocaleString()} chars)</span>
+            </h3>
+            <div className='flex items-center gap-1'>
+              {(content) ? <CopyButton value={content} label='Copy'/> : null}
+            </div>
+          </div>
+          <pre
+            className='max-h-96 overflow-auto rounded-md border border-line bg-deep px-3 py-2 font-mono text-sm whitespace-pre-wrap break-words text-fg focus:border-line-strong focus:outline-none'
+            {...selectAllScope}
+          >
+            {content || <span className='text-subtle italic'>(empty)</span>}
+          </pre>
+        </div>
+
+        <TagStoragePanel tagId={tag.id} className='mt-4'/>
       </div>
 
-      <div className='flex flex-wrap items-center gap-x-6 gap-y-3 border-y border-line bg-surface-2 px-4 py-2.5 sm:px-6'>
-        <div className='flex min-w-0 items-center gap-1'>
-          <UserCell user={item.user} fallbackId={ownerId} size='sm'/>
-          {(ownerId) ? (
-            <button type='button' className='btn btn-ghost btn-sm shrink-0' title='Show every tag by this user' onClick={() => onSearch(`user:${ownerId}`)}>
-              <Search className='size-3.5'/>
-              All their tags
-            </button>
-          ) : null}
-        </div>
-        <dl className='flex flex-wrap gap-x-5 gap-y-1 text-sm sm:ml-auto'>
-          <Stat label='Uses'>{(tag.uses ?? 0).toLocaleString()}</Stat>
-          <Stat label='Created'><ExactDate value={tag.created}/></Stat>
-          {(tag.edited) ? <Stat label='Edited'><ExactDate value={tag.edited}/></Stat> : null}
-          {(tag.last_used) ? <Stat label='Last used'><ExactDate value={tag.last_used}/></Stat> : null}
-        </dl>
-      </div>
-
-      <div className='px-4 pt-3 pb-5 sm:px-6'>
-        <div className='mb-1.5 flex min-h-8 items-center justify-between gap-2'>
-          <h3 className='section-label'>
-            {(reference) ? 'Source content' : 'Content'}{' '}
-            <span className='normal-case tracking-normal text-subtle'>({content.length.toLocaleString()} chars)</span>
-          </h3>
-          <div className='flex items-center gap-1'>
-            {(content) ? <CopyButton value={content} label='Copy'/> : null}
-          </div>
-        </div>
-        <pre
-          className='max-h-96 overflow-auto rounded-md border border-line bg-deep p-3 font-mono text-sm whitespace-pre-wrap break-words text-fg focus:border-line-strong focus:outline-none'
-          {...selectAllScope}
+      {/* both take the tag away, so no divider between them. Replace is owners only, so for everyone else Delete is
+          the one slot */}
+      <AdminModalFooter {...navigation}>
+        {(owner) ? (
+          <button
+            type='button'
+            className='btn btn-secondary min-w-0 flex-1 px-2 sm:flex-none sm:px-3'
+            title='Move everything to another tag, then delete this one'
+            onClick={() => setReplacing(true)}
+          >
+            <Replace aria-hidden className='hidden size-4 shrink-0 sm:block'/>
+            <span className='truncate sm:hidden'>Replace</span>
+            <span className='hidden sm:inline'>Replace with another tag</span>
+          </button>
+        ) : null}
+        <button
+          type='button'
+          className='btn btn-danger min-w-0 flex-1 px-2 sm:flex-none sm:px-3'
+          onClick={() => setDeleting(true)}
         >
-          {content || <span className='text-subtle italic'>(empty)</span>}
-        </pre>
-        <TagStoragePanel tagId={tag.id} className='mt-3'/>
-      </div>
+          <Trash2 aria-hidden className='hidden size-4 shrink-0 sm:block'/>
+          <span className='truncate'>Delete</span>
+        </button>
+      </AdminModalFooter>
+
+      {(replacing) ? (
+        <ReplaceTagDialog
+          tag={tag}
+          onReplaced={(targetId) => {
+            setReplacing(false);
+            onReplaced(targetId);
+          }}
+          onClose={() => setReplacing(false)}
+        />
+      ) : null}
+      {(deleting) ? (
+        <DeleteTagDialog
+          item={item}
+          onDeleted={() => {
+            setDeleting(false);
+            onDeleted();
+          }}
+          onClose={() => setDeleting(false)}
+        />
+      ) : null}
     </div>
   );
 }
@@ -314,51 +385,6 @@ const LOCATION_LABELS: Record<TagLocationKind, string> = {
   personal: 'Directory',
   global: 'Global',
 };
-
-// with `to` the chip itself links there (a guild opens that server in the admin servers page), and the id's copy
-// button sits beside it rather than inside the link
-function LocationChip({ location, to, extra }: {location: TagLocation, to?: string, extra?: ReactNode}) {
-  const Icon = (location.kind === 'personal') ? BookMarked : location.icon;
-  const id = (location.kind === 'personal') ? null : location.id;
-  const label = LOCATION_LABELS[location.kind];
-  const content = (
-    <>
-      <Icon aria-hidden className='size-3.5 shrink-0 text-muted transition-colors group-hover/location:text-brand'/>
-      <span className='shrink-0 font-medium text-fg'>{label}</span>
-      {(id) ? (
-        <>
-          <span aria-hidden className='h-3 w-px shrink-0 bg-line-strong'/>
-          <span className='min-w-0 truncate font-mono text-subtle'>{id}</span>
-        </>
-      ) : null}
-      {extra}
-    </>
-  );
-  const className = 'inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-md border border-line-strong bg-surface-2 px-2 py-1 text-xs';
-  return (
-    <span className='inline-flex max-w-full items-center gap-1'>
-      {(to) ? (
-        <Link to={to} className={cn('group/location transition-colors hover:border-brand hover:bg-surface-3', className)} title={`Open this ${label.toLowerCase()} · ${id}`}>
-          {content}
-        </Link>
-      ) : (
-        <span className={className}>{content}</span>
-      )}
-      {(id) ? <CopyButton value={id}/> : null}
-    </span>
-  );
-}
-
-
-function Stat({ label, children }: {label: string, children: ReactNode}) {
-  return (
-    <div className='flex items-baseline gap-1.5'>
-      <dt className='text-xs text-subtle'>{label}</dt>
-      <dd className='text-fg tabular-nums'>{children}</dd>
-    </div>
-  );
-}
-
 
 function ListSkeleton() {
   return (
