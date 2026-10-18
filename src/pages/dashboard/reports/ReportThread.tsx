@@ -15,9 +15,10 @@ import { cn, formatDateTime } from '@/lib/utils';
 
 import { ExactDate } from '../admin/adminUi';
 import { CharCounter, InlineError, Skeleton } from '../ui';
+import { REPORT_STAFF_NAME } from './reportLabels';
 
 
-export const REPORT_STAFF_NAME = 'NotSoAdmin';
+export { REPORT_STAFF_NAME };
 const MAX_LENGTH = 2000;
 
 const STATUS_VERBS: Record<number, string> = {

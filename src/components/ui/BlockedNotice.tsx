@@ -1,0 +1,33 @@
+import { Ban } from 'lucide-react';
+import { Link } from 'react-router';
+
+import { Routes } from '@/config';
+import type { UserMe } from '@/lib/api';
+import { cn, formatDate, formatExactDateTime } from '@/lib/utils';
+
+
+// shown to a user NotSoBot staff blocked; the site still works for them, but the bot ignores their commands
+export function BlockedNotice({ className, user }: {className?: string, user: UserMe}) {
+  return (
+    <div role='alert' className={cn('flex items-start gap-3 rounded-md border border-danger/40 bg-danger/10 px-4 py-3 text-left text-sm text-fg', className)}>
+      <Ban aria-hidden className='mt-0.5 size-5 shrink-0 text-danger'/>
+      <div className='min-w-0 flex-1'>
+        <p className='font-semibold text-white'>
+          Your account is blocked from using NotSoBot
+          {(user.blocked_on) ? (
+            <span className='font-normal text-subtle' title={formatExactDateTime(user.blocked_on)}> • since {formatDate(user.blocked_on)}</span>
+          ) : null}
+        </p>
+        <p className='mt-1'>
+          NotSoBot ignores your commands in every server and in DMs. If you think this is a mistake, ask about it in our{' '}
+          <Link to={Routes.SUPPORT_INVITE} className='text-code hover:underline'>support server</Link>.
+        </p>
+        {(user.blocked_reason) ? (
+          <p className='mt-2 whitespace-pre-wrap break-words'>
+            <span className='font-medium text-white'>Reason:</span> {user.blocked_reason}
+          </p>
+        ) : null}
+      </div>
+    </div>
+  );
+}

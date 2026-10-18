@@ -123,6 +123,14 @@ const STATUS_BUTTON_CLASSES: Record<number, string> = {
   [ContentFlagStatuses.REPORTED]: 'border border-brand/50 bg-transparent text-[#aab2ff] hover:bg-brand/15',
 };
 
+// the status bar down the left edge of each row, by the status' tone (pending orange, confirmed red, dismissed grey)
+const STATUS_PILL_FILLS: Record<Tone, string> = {
+  warning: 'bg-warning',
+  danger: 'bg-danger',
+  neutral: 'bg-subtle',
+  brand: 'bg-brand',
+};
+
 function statusInfo(status: number) {
   return STATUSES.find((item) => item.value === status) ?? {value: status, label: `Status ${status}`, action: '', short: '', tone: 'neutral' as Tone, icon: Flag, description: ''};
 }
@@ -452,8 +460,8 @@ function IdFilter({ className = 'lg:col-span-4', label, placeholder, value, patt
 // one line per flag, just enough to triage from; the rest is in `ContentFlagDetails` a click away.
 // Plain content only inside (no buttons, links or focusable dates), since the whole row is a button.
 // From sm up it's three columns: what it is and who posted it, why it was flagged stacked in the middle, the status and
-// date on the right. On phones those don't fit side by side, so it's stacked instead: the poster with the status across
-// from them, the reasons centred under them, then the type and id with the date across from them.
+// date on the right. On phones the middle doesn't fit, so the reasons go centred under the rest: the type and id in the
+// top left with the status across from them, and the poster with the date across from them, like the reports list.
 function ContentFlagRow({ flag, onOpen }: {flag: ContentFlag, onOpen: (id: string) => void}) {
   const status = statusInfo(flag.status);
   const isText = flag.mimetype === CONTENT_FLAG_TEXT_MIMETYPE;
@@ -464,35 +472,40 @@ function ContentFlagRow({ flag, onOpen }: {flag: ContentFlag, onOpen: (id: strin
     (flag.auto_confirmed_from) ? <Chip key='auto'>auto-confirmed</Chip> : null,
     (user?.blocked) ? <Chip key='blocked' tone='danger'>user blocked</Chip> : null,
   ].filter(Boolean);
-  // the type and id's row on phones, under the reasons when there are any
-  const lastRow = (reasons.length) ? 'row-start-3' : 'row-start-2';
   return (
-    <li>
+    <li className='group/row relative'>
+      {/* the status at a glance, the full height of the left edge. The first and last rows round it into the card's
+          corners (its 8px radius less the 1px border) */}
+      <span
+        aria-hidden
+        title={status.label}
+        className={cn('pointer-events-none absolute inset-y-0 left-0 w-1 group-first/row:rounded-tl-[7px] group-last/row:rounded-bl-[7px]', STATUS_PILL_FILLS[status.tone])}
+      />
       <button
         type='button'
         className='grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-4 py-3 text-left first:rounded-t-[inherit] last:rounded-b-[inherit] hover:bg-surface-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:gap-x-4 sm:px-5'
         onClick={() => onOpen(flag.id)}
       >
         {/* what it is and its id (fixed widths, so rows line up) */}
-        <span className={cn('col-start-1 flex min-w-0 items-center gap-3 sm:row-start-1', lastRow)}>
+        <span className='col-start-1 row-start-1 flex min-w-0 items-center gap-3'>
           <Chip className='w-12 shrink-0 justify-center'>{(isText) ? 'text' : 'media'}</Chip>
           <span className='min-w-0 truncate font-mono text-sm leading-5 text-white'>#{flag.id}</span>
         </span>
-        {/* who posted it, first on phones and under them from sm up */}
-        <span className='col-start-1 row-start-1 min-w-0 sm:row-start-2'>
+        {/* who posted it, under the type */}
+        <span className='col-start-1 row-start-2 min-w-0'>
           <UserCell user={user} fallbackId={flag.user_id} size='sm'/>
         </span>
-        {/* why it was flagged: a centred wrapping line in the middle on phones, stacked in the middle column from sm up */}
+        {/* why it was flagged: a centred wrapping line across the bottom on phones, stacked in the middle column from sm up */}
         {(reasons.length) ? (
-          <span className='col-span-2 row-start-2 flex flex-wrap items-center justify-center gap-1 sm:col-span-1 sm:col-start-2 sm:row-span-2 sm:row-start-1 sm:flex-col sm:flex-nowrap'>
+          <span className='col-span-2 row-start-3 flex flex-wrap items-center justify-center gap-1 sm:col-span-1 sm:col-start-2 sm:row-span-2 sm:row-start-1 sm:flex-col sm:flex-nowrap'>
             {reasons}
           </span>
         ) : null}
         {/* the review status, and when it was flagged under it. On phones this wrapper drops out of the layout so the
-            status sits across from the poster and the date across from the id */}
+            status sits across from the id and the date across from the poster */}
         <span className='contents sm:col-start-3 sm:row-span-2 sm:row-start-1 sm:flex sm:min-w-0 sm:flex-col sm:items-end sm:gap-2'>
           <Chip tone={status.tone} title={status.description} className='col-start-2 row-start-1 w-20 justify-center justify-self-end'>{status.label}</Chip>
-          <span className={cn('col-start-2 justify-self-end text-xs whitespace-nowrap text-subtle', lastRow)}>{formatDateTime(flag.created)}</span>
+          <span className='col-start-2 row-start-2 justify-self-end text-xs whitespace-nowrap text-subtle'>{formatDateTime(flag.created)}</span>
         </span>
       </button>
     </li>

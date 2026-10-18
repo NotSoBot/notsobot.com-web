@@ -539,8 +539,8 @@ export interface LLMMemory {
 
 export interface LLMMemoriesPage {
   items: Array<LLMMemory>,
-  // how many memories the user can have in total
-  limit: number,
+  // how many global memories the user can have, and how many more for each server
+  limits: {global: number, server: number},
 }
 
 // `content` max 200
@@ -1182,6 +1182,8 @@ export interface Report {
   // replies in the report's conversation (status changes don't count) and who sent the last one
   replies: number,
   last_reply: {author: ReportMessageAuthor, created: ApiTimestamp} | null,
+  // the newest reply or status change, null when nothing's happened since it was sent
+  last_activity: ApiTimestamp | null,
 }
 
 export interface ReportsPage {
@@ -1222,13 +1224,25 @@ export interface MeCommandsPage {
   // the caller's first command ever (ignores the filters), null if they've never used one
   first_used: string | null,
   items: Array<MeCommandUse>,
+  // how many ended each way (`untracked` for ones from before that was reported), matching every filter but the result's;
+  // most first
+  results: Array<{count: number, result: string}>,
   // every command they've used, ignoring the filters
   total: number,
 }
 
 
-// the caller's own reports, without the reporter (it's them) or the staff-only notes and reviewer
-export type MeReport = Omit<Report, 'notes' | 'reviewed_by' | 'user'>;
+// the caller's own reports, without the reporter (it's them) or the staff-only notes and reviewer.
+// `unread`: staff sent something (a reply or status change) since they last opened its conversation or last replied
+export type MeReport = Omit<Report, 'notes' | 'reviewed_by' | 'user'> & {unread: boolean};
+
+// how many of the caller's reports are `unread`, for the dashboard's badge
+export interface MeReportsUnread {
+  count: number,
+}
+
+// `updated` is the newest reply or status change (or when it was sent, with neither)
+export type MeReportsSortBy = 'updated' | 'newest' | 'oldest';
 
 export interface MeReportsPage {
   count: number,

@@ -46,6 +46,7 @@ export const ApiEndpoints = Object.freeze({
   USER_ME_REMINDERS: '/users/@me/reminders',
   USER_ME_REMINDER: (reminderId: string) => `/users/@me/reminders/${reminderId}`,
   USER_ME_REPORTS: '/users/@me/reports',
+  USER_ME_REPORTS_UNREAD: '/users/@me/reports/unread',
   USER_ME_REPORT: (reportId: string) => `/users/@me/reports/${reportId}`,
   USER_ME_REPORT_MESSAGES: (reportId: string) => `/users/@me/reports/${reportId}/messages`,
   USER_ME_VOICES: '/users/@me/voices',

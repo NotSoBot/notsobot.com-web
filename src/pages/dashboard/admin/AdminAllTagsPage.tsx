@@ -16,7 +16,7 @@ import { ServerFilterChip } from '../servers/ServerFilterChip';
 
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton, Toggle } from '../ui';
 import { AdminModalFooter, AdminTagModal, useOpenListItem } from './AdminTagModal';
-import { adminServerPath, adminTagDirectoryPath, adminUserPath, Chip, CopyableValue, CopyButton, DETAIL_LIST_STACKED, DetailList, ExactDate, Pagination, selectAllScope, useSearchParamState, useStepBackFromEmptyPage, UserCell } from './adminUi';
+import { adminServerPath, adminTagDirectoryPath, adminUserPath, Chip, CopyableValue, CopyButton, DETAIL_LIST_STACKED, DetailList, ExactDate, FiltersButton, Pagination, selectAllScope, useSearchParamState, useStepBackFromEmptyPage, UserCell } from './adminUi';
 import { TagOwnerStrip } from './DeleteUserTagsDialog';
 import { DeleteTagDialog } from './DeleteTagDialog';
 import { ReplaceTagDialog } from './ReplaceTagDialog';
@@ -48,6 +48,9 @@ export function AdminAllTagsPage() {
   const debouncedQuery = useDebouncedValue(query.trim(), 300);
   // `?server=<id>`: only tags made in that server (the admin server modal's "Tags")
   const serverId = (/^\d+$/.test(searchParams.get('server') || '')) ? searchParams.get('server')! : '';
+  // the panel starts closed like the other admin pages', the button counts the ones not on their default
+  const [ filtersOpen, setFiltersOpen ] = useState(false);
+  const activeFilters = [sortBy !== 'newest', searchContent, hideNsfw].filter(Boolean).length;
 
   const { data, isPending, isError, error, isPlaceholderData, isFetching, isRefetching, refetch } = useAdminTagsQuery({
     query: debouncedQuery,
@@ -75,14 +78,19 @@ export function AdminAllTagsPage() {
         description={<>Every tag, personal, server and aliases. A bare id matches the tag, owner or server; <code className='text-code'>user:&lt;id&gt;</code> or <code className='text-code'>id:&lt;tag id&gt;</code> match only that.</>}
       />
 
-      <div className='mb-4 space-y-3'>
+      <div className='mb-4 flex gap-2'>
         <SearchInput
+          className='min-w-0 flex-1'
           value={query}
           onValueChange={(value) => update({q: value})}
           placeholder={(searchContent) ? 'Search name, content or an id...' : 'Search name or an id...'}
           aria-label='Search tags'
         />
-        <div className='flex flex-wrap items-center gap-3 sm:justify-end'>
+        <FiltersButton open={filtersOpen} onToggle={() => setFiltersOpen((value) => !value)} active={activeFilters} controls='admin-tag-filters'/>
+      </div>
+
+      <div id='admin-tag-filters' hidden={!filtersOpen} className='card mb-4 p-4'>
+        <div className='flex flex-wrap items-center gap-3'>
           <label className='flex items-center gap-2 text-sm text-muted'>
             Sort
             <select className='input w-40' value={sortBy} onChange={(event) => update({sort: (event.target.value === 'newest') ? null : event.target.value})}>

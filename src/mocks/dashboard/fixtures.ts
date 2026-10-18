@@ -556,6 +556,7 @@ export function createReports(users: Array<AdminUser>): Array<Report> {
       // `syncReportReplies` fills these in from the conversation
       replies: 0,
       last_reply: null,
+      last_activity: null,
       user: {
         avatar: reporter.avatar,
         blocked: reporter.blocked,
@@ -597,12 +598,13 @@ export function createReportMessages(reports: Array<Report>): Map<string, Array<
   return threads;
 }
 
-// `replies`/`last_reply` from the conversation, like the api's `report_reply_stats`
+// `replies`/`last_reply`/`last_activity` from the conversation, like the api's `report_reply_stats`
 export function syncReportReplies(report: Report, messages: Array<ReportMessage>): void {
   const replies = messages.filter((message) => message.content !== null);
   const last = replies[replies.length - 1];
   report.replies = replies.length;
   report.last_reply = (last) ? {author: last.author, created: last.created} : null;
+  report.last_activity = messages[messages.length - 1]?.created ?? null;
 }
 
 

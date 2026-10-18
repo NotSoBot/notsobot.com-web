@@ -9,7 +9,7 @@ import { useAuth } from '@/auth';
 import { ApiRequestError } from './client';
 import type { GuildScope } from './endpoints';
 import { api } from './index';
-import { queryKeys } from './queries';
+import { queryKeys, useReportsUnreadQuery } from './queries';
 import type {
   AdminApplication,
   AdminApplicationPatch,
@@ -48,6 +48,7 @@ import type {
   RemindersPage,
   MeReport,
   MeReportsPage,
+  MeReportsSortBy,
   Report,
   ReportMessage,
   ReportMessagesPage,
@@ -658,6 +659,10 @@ export interface MeCommandsFilters {
   guildId: string | null,
   channelId: string | null,
   commandId: string | null,
+  // `CommandTypes`
+  commandType: number | null,
+  // `MeCommandResults`, or `untracked`
+  result: string | null,
   page: number,
 }
 
@@ -670,6 +675,8 @@ export function useMeCommandsQuery(filters: MeCommandsFilters) {
       guildId: filters.guildId,
       channelId: filters.channelId,
       commandId: filters.commandId,
+      commandType: filters.commandType,
+      result: filters.result,
       offset: filters.page * ME_COMMANDS_PAGE_SIZE,
       limit: ME_COMMANDS_PAGE_SIZE,
     }, signal),
@@ -685,22 +692,37 @@ export const ME_REPORTS_PAGE_SIZE = 25;
 // a report's conversation is checked again this often while it's open, so a reply from the other side shows up
 const REPORT_MESSAGES_REFETCH_INTERVAL = 30 * 1000;
 
-export function useMeReportQuery(reportId: string | null) {
+export function useMeReportQuery(reportId: string | null, enabled = true) {
   const { token } = useAuth();
   return useQuery({
     queryKey: ['users', '@me', token, 'report', reportId],
     queryFn: ({ signal }) => api.fetchMeReport(reportId!, signal),
-    enabled: !!reportId,
+    enabled: enabled && !!reportId,
   });
 }
 
+// fetching the conversation marks the report read, so it's marked read here too and the badge's count refetched
 export function useMeReportMessagesQuery(reportId: string) {
   const { token } = useAuth();
+  const queryClient = useQueryClient();
   return useQuery({
     queryKey: ['users', '@me', token, 'report', reportId, 'messages'],
-    queryFn: ({ signal }) => api.fetchMeReportMessages(reportId, signal),
+    queryFn: async ({ signal }) => {
+      const page = await api.fetchMeReportMessages(reportId, signal);
+      const read = (report: MeReport) => (report.id === reportId && report.unread) ? {...report, unread: false} : report;
+      queryClient.setQueryData<MeReport>(['users', '@me', token, 'report', reportId], (report) => (report) ? read(report) : report);
+      queryClient.setQueriesData<MeReportsPage>({queryKey: ['users', '@me', token, 'reports']}, (list) => (list) ? {...list, items: list.items.map(read)} : list);
+      void queryClient.invalidateQueries({queryKey: queryKeys.meReportsUnread(token)});
+      return page;
+    },
     refetchInterval: REPORT_MESSAGES_REFETCH_INTERVAL,
   });
+}
+
+// for the dashboard's sidebar badge and the overview
+export function useMeReportsUnreadQuery() {
+  const { token } = useAuth();
+  return useReportsUnreadQuery(token);
 }
 
 // the report (its reply count) and the list are refetched after, the message is added to the thread right away
@@ -713,9 +735,11 @@ export function usePostMeReportMessageMutation(reportId: string) {
     onSuccess: (message: ReportMessage) => {
       queryClient.setQueryData<ReportMessagesPage>([...reportKey, 'messages'], (page) => (page) ? {...page, items: [...page.items, message]} : page);
     },
+    // replying counts as having read it
     onSettled: () => Promise.all([
       queryClient.invalidateQueries({queryKey: reportKey}),
       queryClient.invalidateQueries({queryKey: ['users', '@me', token, 'reports']}),
+      queryClient.invalidateQueries({queryKey: queryKeys.meReportsUnread(token)}),
     ]),
   });
 }
@@ -741,12 +765,14 @@ export function useReopenMeReportMutation(reportId: string) {
   });
 }
 
-export function useMeReportsQuery(filters: {status: number | null, page: number}) {
+export function useMeReportsQuery(filters: {query: string, status: number | null, sortBy: MeReportsSortBy, page: number}) {
   const { token } = useAuth();
   return useQuery({
     queryKey: queryKeys.meReports(token, filters),
     queryFn: ({ signal }) => api.fetchMeReports({
+      query: filters.query,
       status: filters.status,
+      sortBy: filters.sortBy,
       offset: filters.page * ME_REPORTS_PAGE_SIZE,
       limit: ME_REPORTS_PAGE_SIZE,
     }, signal),
@@ -878,6 +904,8 @@ export const ME_FILES_PAGE_SIZE = 25;
 export interface MeFilesFilters {
   query: string,
   sortBy: UserFilesSortBy,
+  // only temporary uploads, only the ones that stay, or both (null)
+  temporary: boolean | null,
   page: number,
 }
 
@@ -888,6 +916,7 @@ export function useMeFilesQuery(filters: MeFilesFilters) {
     queryFn: ({ signal }) => api.fetchMeFiles({
       query: filters.query,
       sortBy: filters.sortBy,
+      temporary: filters.temporary,
       offset: filters.page * ME_FILES_PAGE_SIZE,
       limit: ME_FILES_PAGE_SIZE,
     }, signal),
@@ -1607,9 +1636,8 @@ export interface AdminReportsFilters {
   status: number | null,
   // the reporter sent the last reply
   awaitingReply: boolean | null,
-  userId: string,
-  targetId: string,
-  guildId: string,
+  // what the reporter wrote, or `#<id>`, `user:<id>`, `target:<id>`, `server:<id>` or a bare id
+  query: string,
   page: number,
 }
 
@@ -1631,9 +1659,7 @@ export function useAdminReportsQuery(filters: AdminReportsFilters) {
       type: filters.type,
       status: filters.status,
       awaitingReply: filters.awaitingReply,
-      userId: filters.userId,
-      targetId: filters.targetId,
-      guildId: filters.guildId,
+      query: filters.query,
       offset: filters.page * ADMIN_PAGE_SIZE,
       limit: ADMIN_PAGE_SIZE,
     }, signal),

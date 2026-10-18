@@ -1,5 +1,6 @@
 // Every command attempt the bot reported for the user (`/users/@me/commands`), newest first, filterable by server,
-// channel and command. Read only. The filters live in the URL (`?server=`, `?channel=`, `?command=`), `?server=0` is DMs.
+// channel, command, type and how it ended. Read only. The filters live in the URL (`?server=`, `?channel=`, `?command=`,
+// `?type=`, `?result=`), `?server=0` is DMs.
 
 import { ExternalLink, SquareTerminal, X } from 'lucide-react';
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
@@ -13,7 +14,7 @@ import { enabledCommandVariants } from '@/lib/commandAvailability';
 import { commandPath } from '@/lib/commandPaths';
 import { cn, formatDate, formatDateTime, formatExactDateTime, NO_AUTOFILL } from '@/lib/utils';
 
-import { Chip, FilterButton, IdFilter, Pagination, useSearchParamState, useStepBackFromEmptyPage } from '../admin/adminUi';
+import { Chip, FilterButton, FiltersButton, IdFilter, Pagination, useSearchParamState, useStepBackFromEmptyPage } from '../admin/adminUi';
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from '../ui';
 
 
@@ -30,16 +31,34 @@ const COMMAND_TYPE_LABELS: Record<CommandType, string> = {
 
 type Tone = 'neutral' | 'danger' | 'warning' | 'success' | 'brand';
 
+// the api's name for uses from before the bot reported how they ended
+const UNTRACKED_RESULT = 'untracked';
+
+// in the order the filter offers them: ran, then the errors, then the rest
 const RESULT_LABELS: Record<string, {label: string, tone: Tone}> = {
-  [MeCommandResults.ARGUMENT_ERROR]: {label: 'Bad arguments', tone: 'warning'},
-  [MeCommandResults.BLOCKED]: {label: 'Blocked', tone: 'neutral'},
-  [MeCommandResults.BOT_MISSING_PERMISSIONS]: {label: 'Bot missing permissions', tone: 'warning'},
-  [MeCommandResults.CANCELLED]: {label: 'Cancelled', tone: 'neutral'},
-  [MeCommandResults.FAIL]: {label: 'Failed', tone: 'danger'},
-  [MeCommandResults.MISSING_PERMISSIONS]: {label: 'Missing permissions', tone: 'warning'},
   [MeCommandResults.RAN]: {label: 'Ran', tone: 'success'},
-  [MeCommandResults.RATELIMITED]: {label: 'Rate limited', tone: 'warning'},
   [MeCommandResults.RUN_ERROR]: {label: 'Errored', tone: 'danger'},
+  [MeCommandResults.FAIL]: {label: 'Failed', tone: 'danger'},
+  [MeCommandResults.ARGUMENT_ERROR]: {label: 'Bad arguments', tone: 'warning'},
+  [MeCommandResults.MISSING_PERMISSIONS]: {label: 'Missing permissions', tone: 'warning'},
+  [MeCommandResults.BOT_MISSING_PERMISSIONS]: {label: 'Bot missing permissions', tone: 'warning'},
+  [MeCommandResults.RATELIMITED]: {label: 'Rate limited', tone: 'warning'},
+  [MeCommandResults.BLOCKED]: {label: 'Blocked', tone: 'neutral'},
+  [MeCommandResults.CANCELLED]: {label: 'Cancelled', tone: 'neutral'},
+  [UNTRACKED_RESULT]: {label: 'Not tracked', tone: 'neutral'},
+};
+
+function resultInfo(result: string): {label: string, tone: Tone} {
+  return RESULT_LABELS[result] ?? {label: result, tone: 'neutral'};
+}
+
+// the breakdown's bar and dots, by tone
+const TONE_FILLS: Record<Tone, string> = {
+  success: 'bg-success',
+  danger: 'bg-danger',
+  warning: 'bg-warning',
+  brand: 'bg-brand',
+  neutral: 'bg-subtle',
 };
 
 
@@ -58,12 +77,20 @@ export function CommandHistoryPage() {
   const serverId = searchParams.get('server') || null;
   const channelId = searchParams.get('channel') || '';
   const commandId = searchParams.get('command') || '';
-  const filtered = !!(serverId || channelId || commandId);
+  const typeParam = searchParams.get('type');
+  const commandType = (typeParam !== null && typeParam in COMMAND_TYPE_LABELS) ? Number(typeParam) : null;
+  const result = searchParams.get('result') || null;
+  const filtered = !!(serverId || channelId || commandId || commandType !== null || result);
+  // the panel starts closed like the other dashboard pages', the button counts the ones in use
+  const [ filtersOpen, setFiltersOpen ] = useState(false);
+  const activeFilters = [serverId, channelId, commandId, commandType !== null, result].filter(Boolean).length;
 
   const { data, isPending, isError, error, isPlaceholderData, isFetching, isRefetching, refetch } = useMeCommandsQuery({
     guildId: serverId,
     channelId: channelId || null,
     commandId: commandId || null,
+    commandType,
+    result,
     page,
   });
   // only for names and the server filter, the history still shows (with ids) when these can't load
@@ -90,7 +117,9 @@ export function CommandHistoryPage() {
       <DashboardHeader
         title='Command History'
         description='Every command you’ve used with NotSoBot, newest first. New ones can take a minute to show up.'
-      />
+      >
+        <FiltersButton open={filtersOpen} onToggle={() => setFiltersOpen((value) => !value)} active={activeFilters} controls='command-history-filters'/>
+      </DashboardHeader>
 
       <div className='mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2'>
         <SummaryCard
@@ -109,7 +138,11 @@ export function CommandHistoryPage() {
         />
       </div>
 
-      <div className='mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3'>
+      {(data?.results.length) ? (
+        <ResultBreakdown results={data.results} selected={result} onSelect={(value) => update({result: value})}/>
+      ) : null}
+
+      <div id='command-history-filters' hidden={!filtersOpen} className='card mb-4 grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3'>
         <label className='text-sm'>
           <span className='mb-1 block text-subtle'>Server</span>
           <select className='input' value={serverId ?? ''} onChange={(event) => update({server: event.target.value})}>
@@ -124,11 +157,26 @@ export function CommandHistoryPage() {
         </label>
         <IdFilter label='Channel id' placeholder='Any channel' value={channelId} onChange={(value) => update({channel: value})}/>
         <CommandFilter value={commandId} commands={commands.data} onChange={(value) => update({command: value})}/>
+        <label className='text-sm'>
+          <span className='mb-1 block text-subtle'>Type</span>
+          <select className='input' value={(commandType === null) ? '' : String(commandType)} onChange={(event) => update({type: event.target.value || null})}>
+            <option value=''>Any type</option>
+            {Object.entries(COMMAND_TYPE_LABELS).map(([ value, label ]) => <option key={value} value={value}>{label}</option>)}
+          </select>
+        </label>
+        <label className='text-sm'>
+          <span className='mb-1 block text-subtle'>Result</span>
+          <select className='input' value={result ?? ''} onChange={(event) => update({result: event.target.value || null})}>
+            <option value=''>Any result</option>
+            {Object.entries(RESULT_LABELS).map(([ value, { label } ]) => <option key={value} value={value}>{label}</option>)}
+            {(result && !(result in RESULT_LABELS)) ? <option value={result}>{result}</option> : null}
+          </select>
+        </label>
       </div>
 
       {(filtered) ? (
         <div className='mb-4'>
-          <button type='button' className='btn btn-secondary btn-sm' onClick={() => update({server: null, channel: null, command: null})}>
+          <button type='button' className='btn btn-secondary btn-sm' onClick={() => update({server: null, channel: null, command: null, type: null, result: null})}>
             <X aria-hidden className='size-4'/>
             Clear filters
           </button>
@@ -177,6 +225,56 @@ function SummaryCard({ label, value, detail, color }: {label: string, value: Rea
       </div>
       {(detail) ? <div className='mt-1 text-xs text-subtle'>{detail}</div> : null}
     </div>
+  );
+}
+
+
+// how the matching uses ended (every filter but the result's applies), as a bar of their shares and a legend whose
+// entries filter by that result; picking the selected one again clears it
+function ResultBreakdown({ results, selected, onSelect }: {
+  results: Array<{count: number, result: string}>,
+  selected: string | null,
+  onSelect: (result: string | null) => void,
+}) {
+  const total = results.reduce((sum, item) => sum + item.count, 0);
+  const percent = (count: number) => (total) ? count / total * 100 : 0;
+  return (
+    <section aria-label='How they ended' className='card mb-4 p-4 sm:p-5'>
+      <div aria-hidden className='flex h-2 overflow-hidden rounded-full bg-surface-3'>
+        {results.map((item) => (
+          <span
+            key={item.result}
+            className={cn('h-full transition-opacity', TONE_FILLS[resultInfo(item.result).tone], selected && selected !== item.result && 'opacity-30')}
+            style={{width: `${percent(item.count)}%`}}
+          />
+        ))}
+      </div>
+      <ul className='mt-3 flex flex-wrap gap-2'>
+        {results.map((item) => {
+          const info = resultInfo(item.result);
+          const active = selected === item.result;
+          return (
+            <li key={item.result}>
+              <button
+                type='button'
+                aria-pressed={active}
+                title={(active) ? 'Show every result' : `Only show ${info.label.toLowerCase()}`}
+                className={cn(
+                  'flex cursor-pointer items-center gap-2 rounded-md border px-2.5 py-1.5 text-sm transition-colors',
+                  (active) ? 'border-brand/70 bg-surface-3 text-white' : 'border-line text-muted hover:bg-surface-2 hover:text-white',
+                )}
+                onClick={() => onSelect((active) ? null : item.result)}
+              >
+                <span aria-hidden className={cn('size-2 rounded-full', TONE_FILLS[info.tone])}/>
+                {info.label}
+                <span className='font-semibold text-white tabular-nums'>{item.count.toLocaleString()}</span>
+                <span className='text-xs text-subtle tabular-nums'>{Math.round(percent(item.count))}%</span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
 
@@ -240,7 +338,7 @@ function CommandRow({ use, serverName, commandTypes, onFilter }: {
   commandTypes: Array<CommandType> | undefined,
   onFilter: (changes: Record<string, string | null>) => void,
 }) {
-  const result = (use.result) ? (RESULT_LABELS[use.result] ?? {label: use.result, tone: 'neutral' as const}) : null;
+  const result = (use.result) ? resultInfo(use.result) : null;
   const label = commandLabel(use);
   const linkable = !!commandTypes?.includes(use.command_type);
 

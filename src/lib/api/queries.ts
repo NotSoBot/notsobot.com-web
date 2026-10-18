@@ -28,6 +28,7 @@ export const queryKeys = {
   meLLMMemories: (token: string | null) => ['users', '@me', token, 'llm', 'memories'] as const,
   meReminders: (token: string | null) => ['users', '@me', token, 'reminders'] as const,
   meReports: (token: string | null, filters: object) => ['users', '@me', token, 'reports', filters] as const,
+  meReportsUnread: (token: string | null) => ['users', '@me', token, 'reports-unread'] as const,
   meVoices: (token: string | null) => ['users', '@me', token, 'voices'] as const,
   meFiles: (token: string | null, filters?: object) => ['users', '@me', token, 'files', ...((filters) ? [filters] : [])] as const,
   meGuilds: (token: string | null) => ['users', '@me', token, 'guilds'] as const,
@@ -50,6 +51,21 @@ export const queryKeys = {
   adminGuilds: (token: string | null, filters: object) => ['users', '@me', token, 'admin', 'guilds', 'list', filters] as const,
   adminGuild: (token: string | null, guildId: string) => ['users', '@me', token, 'admin', 'guilds', 'detail', guildId] as const,
 };
+
+
+const REPORTS_UNREAD_REFETCH_INTERVAL = 2 * 60 * 1000;
+
+// how many of the user's reports have something from staff they haven't opened, for the header, homepage and dashboard.
+// Here rather than with the dashboard's queries since the header (on every page) uses it; `useMeReportsUnreadQuery` there
+// passes the token in. Checked every so often since staff reply from elsewhere
+export function useReportsUnreadQuery(token: string | null) {
+  return useQuery({
+    queryKey: queryKeys.meReportsUnread(token),
+    queryFn: ({ signal }) => api.fetchMeReportsUnread(signal),
+    enabled: !!token,
+    refetchInterval: REPORTS_UNREAD_REFETCH_INTERVAL,
+  });
+}
 
 
 export function useCommandsQuery() {

@@ -308,8 +308,8 @@ function UserDetails({ entry, navigation }: {
             <div className='grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-2'>
               <StatTile label='Commands run' value={entry.commands.toLocaleString()} title='Commands they’ve run, ever'/>
               <DateTile label='First seen' value={entry.first_seen} empty='Never' title='When they ran their first command'/>
-              <StatTile label='Reports about' to={adminReportsPath({target_id: user.id, status: 'all'})} value={entry.reports.toLocaleString()} tone='text-warning'/>
-              <StatTile label='Reports sent' to={adminReportsPath({user_id: user.id, status: 'all'})} value={entry.reports_sent.toLocaleString()}/>
+              <StatTile label='Reports about' to={adminReportsPath({q: `target:${user.id}`, status: 'all'})} value={entry.reports.toLocaleString()} tone='text-warning'/>
+              <StatTile label='Reports sent' to={adminReportsPath({q: `user:${user.id}`, status: 'all'})} value={entry.reports_sent.toLocaleString()}/>
             </div>
           </section>
         </div>

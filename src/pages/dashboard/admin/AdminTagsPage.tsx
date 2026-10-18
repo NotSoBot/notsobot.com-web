@@ -35,7 +35,7 @@ import { CategoryBadge, categoryLabel, categoryOptionFromParam, CategorySelect, 
 
 import { CharCounter, DashboardHeader, EmptyState, ErrorPanel, Field, Skeleton, Toggle } from '../ui';
 import { AdminModalFooter, AdminTagModal, useOpenListItem } from './AdminTagModal';
-import { adminUserPath, Chip, CopyableValue, CopyButton, DETAIL_LIST_STACKED, DetailList, ExactDate, Pagination, selectAllScope, useSearchParamState, useStepBackFromEmptyPage, UserCell } from './adminUi';
+import { adminUserPath, Chip, CopyableValue, CopyButton, DETAIL_LIST_STACKED, DetailList, ExactDate, FiltersButton, Pagination, selectAllScope, useSearchParamState, useStepBackFromEmptyPage, UserCell } from './adminUi';
 import { DeleteDirectoryTagFlow } from './DeleteDirectoryTagFlow';
 import { TagOwnerStrip } from './DeleteUserTagsDialog';
 import { TagAssetsPanel } from './TagAssetsPanel';
@@ -79,6 +79,9 @@ export function AdminTagsPage() {
   const category = categoryOptionFromParam(searchParams.get('category'));
   const query = searchParams.get('q') || '';
   const debouncedQuery = useDebouncedValue(query.trim(), 300);
+  // the panel starts closed like the other admin pages', the button counts the ones not on their default
+  const [ filtersOpen, setFiltersOpen ] = useState(false);
+  const activeFilters = [filter !== DEFAULT_FILTER, category, sortBy !== 'newest', hideNsfw].filter(Boolean).length;
 
   const { data, isPending, isError, error, isPlaceholderData, isFetching, isRefetching, refetch } = useAdminTagDirectoryQuery({
     query: debouncedQuery,
@@ -110,13 +113,18 @@ export function AdminTagsPage() {
         description='Review tags published to the tag directory. Verified tags are marked safe and can’t be edited by their owner.'
       />
 
-      <div className='mb-4 space-y-3'>
+      <div className='mb-4 flex gap-2'>
         <SearchInput
+          className='min-w-0 flex-1'
           value={query}
           onValueChange={(value) => update({q: value})}
           placeholder='Search title, name, description or content...'
           aria-label='Search directory tags'
         />
+        <FiltersButton open={filtersOpen} onToggle={() => setFiltersOpen((value) => !value)} active={activeFilters} controls='admin-tag-directory-filters'/>
+      </div>
+
+      <div id='admin-tag-directory-filters' hidden={!filtersOpen} className='card mb-4 p-4'>
         <div className='flex flex-wrap items-center gap-3'>
           <div className='overflow-x-auto'>
             <Segmented

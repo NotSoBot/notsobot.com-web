@@ -11,7 +11,7 @@ import { TagDirectoryVerificationStates, type MeTagsDirectoryFilter, type MeTags
 import { cn, formatDate } from '@/lib/utils';
 import { NsfwBadge, tagDirectoryItemPath } from '@/pages/tags/tagDirectory';
 
-import { Pagination, useStepBackFromEmptyPage } from '../admin/adminUi';
+import { FiltersButton, Pagination, useStepBackFromEmptyPage } from '../admin/adminUi';
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from '../ui';
 import { ServerFilterChip } from '../servers/ServerFilterChip';
 import { DeleteMeTagDialog } from './DeleteMeTagDialog';
@@ -53,6 +53,9 @@ export function TagsPage() {
   // `?server=<id>`: only the tags in that server (the server modal's "Your tags")
   const serverId = searchParams.get('server') || null;
   const filtered = !!debouncedQuery || directoryFilter.filter !== null || !!serverId;
+  // the panel starts closed like the admin pages', the button counts the ones not on their default
+  const [ filtersOpen, setFiltersOpen ] = useState(false);
+  const activeFilters = [directoryFilter.filter !== null, sortBy !== 'newest'].filter(Boolean).length;
 
   // `?page=` is 1-based, left out for the first
   const page = Math.max(0, (Number(searchParams.get('page')) || 1) - 1);
@@ -206,23 +209,27 @@ export function TagsPage() {
         }
       />
 
-      <div className='mb-4 flex flex-col gap-3 sm:flex-row sm:items-center'>
+      <div className='mb-4 flex gap-2'>
         <SearchInput
-          className='flex-1'
+          className='min-w-0 flex-1'
           value={query}
           onValueChange={setQuery}
           placeholder='Search by name or content...'
           aria-label='Search your tags'
         />
-        <label className='flex items-center gap-2 text-sm text-muted sm:shrink-0'>
-          Directory
-          <select className='input w-44' value={directoryFilter.value} onChange={(event) => setDirectoryFilter(event.target.value)}>
+        <FiltersButton open={filtersOpen} onToggle={() => setFiltersOpen((value) => !value)} active={activeFilters} controls='tag-filters'/>
+      </div>
+
+      <div id='tag-filters' hidden={!filtersOpen} className='card mb-4 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4'>
+        <label className='text-sm'>
+          <span className='mb-1 block text-subtle'>Directory</span>
+          <select className='input' value={directoryFilter.value} onChange={(event) => setDirectoryFilter(event.target.value)}>
             {DIRECTORY_FILTERS.map((filter) => <option key={filter.value} value={filter.value}>{filter.label}</option>)}
           </select>
         </label>
-        <label className='flex items-center gap-2 text-sm text-muted sm:shrink-0'>
-          Sort
-          <select className='input w-40' value={sortBy} onChange={(event) => setSortBy(event.target.value)}>
+        <label className='text-sm'>
+          <span className='mb-1 block text-subtle'>Sort</span>
+          <select className='input' value={sortBy} onChange={(event) => setSortBy(event.target.value)}>
             {SORTS.map((sort) => <option key={sort.value} value={sort.value}>{sort.label}</option>)}
           </select>
         </label>

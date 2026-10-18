@@ -6,9 +6,11 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 
 import { DetailModalHeader, DetailModalStrip } from '@/components/ui/DetailModal';
+import { SearchInput } from '@/components/ui/SearchInput';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
 import { Routes } from '@/config';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { ReportStatuses, ReportTypes, type Report, type ReportPatch, type ReportStatus } from '@/lib/api';
 import {
   ADMIN_PAGE_SIZE,
@@ -22,10 +24,10 @@ import {
 import { cn, formatDateTime } from '@/lib/utils';
 
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from '../ui';
-import { REPORT_TYPES, type ReportTone, reportJumpUrl, reportTypeInfo } from '../reports/reportLabels';
+import { REPORT_TARGET_LABELS, REPORT_TONE_FILLS, REPORT_TYPES, ROW_EDGE_BAR, type ReportTone, reportJumpUrl, reportTypeInfo } from '../reports/reportLabels';
 import { ReportThread } from '../reports/ReportThread';
 import { AdminModalFooter, AdminTagModal, useOpenListItem } from './AdminTagModal';
-import { adminServerPath, adminUserPath, Chip, CopyableValue, CopyButton, DETAIL_LIST_STACKED, DetailList, ExactDate, FilterButton, IdFilter, Pagination, selectAllScope, useSearchParamState, useStepBackFromEmptyPage, UserCell } from './adminUi';
+import { adminServerPath, adminUserPath, Chip, CopyableValue, CopyButton, DETAIL_LIST_STACKED, DetailList, ExactDate, FilterButton, FiltersButton, Pagination, selectAllScope, useSearchParamState, useStepBackFromEmptyPage, UserCell } from './adminUi';
 
 
 type Tone = ReportTone;
@@ -37,14 +39,6 @@ const STATUSES: Array<{value: ReportStatus, label: string, action: string, tone:
 ];
 
 const TYPES = REPORT_TYPES;
-
-// message reports are only for the bot's own responses, they target whoever used the command
-const TARGET_LABELS: Record<number, string> = {
-  [ReportTypes.USER]: 'user',
-  [ReportTypes.SERVER]: 'server',
-  [ReportTypes.MESSAGE]: 'command user',
-  [ReportTypes.TAG]: 'tag',
-};
 
 function statusInfo(status: number) {
   return STATUSES.find((item) => item.value === status) ?? {value: status, label: `Status ${status}`, action: '', tone: 'neutral' as Tone};
@@ -99,18 +93,15 @@ export function AdminReportsPage() {
   const type = parseEnum(searchParams.get('type'));
   const status = parseStatus(searchParams.get('status'));
   const awaiting = parseBool(searchParams.get('awaiting_reply'));
-  const userId = (searchParams.get('user_id') || '').trim();
-  const targetId = (searchParams.get('target_id') || '').trim();
-  // sent from the server or about it (the admin server modal's "Reports")
-  const guildId = (searchParams.get('guild_id') || '').trim();
+  // what they wrote, or an id: `#<report>`, `user:<reporter>`, `target:<id>`, `server:<sent from or about>` or a bare one
+  const query = searchParams.get('q') || '';
+  const debouncedQuery = useDebouncedValue(query.trim(), 300);
 
   const { data, isPending, isError, error, isPlaceholderData, isFetching, isRefetching, refetch } = useAdminReportsQuery({
     type,
     status,
     awaitingReply: awaiting,
-    userId,
-    targetId,
-    guildId,
+    query: debouncedQuery,
     page,
   });
   const items = data?.items ?? [];
@@ -126,7 +117,11 @@ export function AdminReportsPage() {
     onChange: setPage,
     fetching: isFetching && isPlaceholderData,
   };
-  const filtered = !!(type !== null || status !== ReportStatuses.OPEN || awaiting !== null || userId || targetId || guildId);
+  const filtered = !!(type !== null || status !== ReportStatuses.OPEN || awaiting !== null || debouncedQuery);
+  // the panel starts closed like the other admin pages', the button counts the filters not on their default (the search
+  // box stays out)
+  const [ filtersOpen, setFiltersOpen ] = useState(false);
+  const activeFilters = [type !== null, status !== ReportStatuses.OPEN, awaiting !== null].filter(Boolean).length;
   // closes the report too (in the same navigation), the one it's filtering by might not be in the new list
   const filterBy = (changes: Record<string, string | null>) => {
     const next = new URLSearchParams(searchParams);
@@ -145,10 +140,21 @@ export function AdminReportsPage() {
     <>
       <DashboardHeader
         title='Reports'
-        description='Bug, user, server, message and tag reports sent with the bot’s report commands, newest first.'
+        description={<>Bug, user, server, message and tag reports sent with the bot’s report commands, newest first. Search what they wrote, or an id: a bare one matches the report, reporter, target or server; <code className='text-code'>#&lt;id&gt;</code>, <code className='text-code'>user:</code>, <code className='text-code'>target:</code> or <code className='text-code'>server:</code> match only that.</>}
       />
 
-      <div className='card mb-4 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6'>
+      <div className='mb-4 flex gap-2'>
+        <SearchInput
+          className='min-w-0 flex-1'
+          value={query}
+          onValueChange={(value) => update({q: value})}
+          placeholder='Search what they wrote, #id, user:, target: or server:...'
+          aria-label='Search reports'
+        />
+        <FiltersButton open={filtersOpen} onToggle={() => setFiltersOpen((value) => !value)} active={activeFilters} controls='admin-report-filters'/>
+      </div>
+
+      <div id='admin-report-filters' hidden={!filtersOpen} className='card mb-4 grid gap-3 p-4 sm:grid-cols-3'>
         <label className='text-sm'>
           <span className='mb-1 block text-subtle'>Status</span>
           <select
@@ -175,24 +181,6 @@ export function AdminReportsPage() {
             <option value='false'>Not waiting</option>
           </select>
         </label>
-        <IdFilter
-          label='Reporter id'
-          placeholder='Any reporter'
-          value={userId}
-          onChange={(value) => update({user_id: value})}
-        />
-        <IdFilter
-          label='Target id'
-          placeholder='Any user, server or tag'
-          value={targetId}
-          onChange={(value) => update({target_id: value})}
-        />
-        <IdFilter
-          label='Server id'
-          placeholder='Sent from or about'
-          value={guildId}
-          onChange={(value) => update({guild_id: value})}
-        />
       </div>
 
       {(isPending || steppingBack) ? (
@@ -218,8 +206,8 @@ export function AdminReportsPage() {
           <ReportDetails
             key={openItem.id}
             report={openItem}
-            onFilterReporter={(value) => filterBy({user_id: value})}
-            onFilterTarget={(value) => filterBy({target_id: value})}
+            onFilterReporter={(value) => filterBy({q: `user:${value}`})}
+            onFilterTarget={(value) => filterBy({q: `target:${value}`})}
             navigation={{previousId, nextId, onNavigate: open}}
           />
         </AdminTagModal>
@@ -237,7 +225,9 @@ function ReportRow({ report, onOpen }: {report: Report, onOpen: (id: string) => 
   const status = statusInfo(report.status);
   const type = typeInfo(report.type);
   return (
-    <li>
+    <li className='group/row relative'>
+      {/* the status at a glance, down the left edge like the content flags' */}
+      <span aria-hidden title={status.label} className={cn(ROW_EDGE_BAR, REPORT_TONE_FILLS[status.tone])}/>
       <button
         type='button'
         className='grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-4 py-3 text-left first:rounded-t-[inherit] last:rounded-b-[inherit] hover:bg-surface-2 sm:gap-x-4 sm:px-5'
@@ -344,12 +334,17 @@ function ReportDetails({ report, onFilterReporter, onFilterTarget, navigation }:
             <UserCell user={user} size='sm'/>
             <ArrowUpRight aria-hidden className='size-3.5 shrink-0 text-subtle transition-colors group-hover/user:text-brand'/>
           </Link>
-          <FilterButton label='Show reports from this user' onClick={() => onFilterReporter(user.id)}/>
+          {/* the filter by their name, and copying their id under it by the id (outside the link, so copying doesn't open
+              their page) */}
+          <div className='flex shrink-0 flex-col items-center gap-0.5'>
+            <FilterButton label='Show reports from this user' onClick={() => onFilterReporter(user.id)}/>
+            <CopyButton value={user.id}/>
+          </div>
           {(user.blocked) ? <Chip tone='danger' title={user.blocked_reason ?? undefined}>Blocked</Chip> : null}
         </div>
         {(report.type !== ReportTypes.BUG) ? (
           <>
-            <span className='text-xs text-subtle'>Reported {TARGET_LABELS[report.type] ?? 'target'}</span>
+            <span className='text-xs text-subtle'>Reported {REPORT_TARGET_LABELS[report.type] ?? 'target'}</span>
             <div className='flex min-h-8 min-w-0 items-center gap-2'>
               {(report.target_id) ? (
                 <>

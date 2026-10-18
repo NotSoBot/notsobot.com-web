@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { Link } from 'react-router';
 
 import { QuarantineNotice } from '@/components/ui/QuarantineNotice';
+import { ReportUpdatesNotice } from '@/components/ui/ReportUpdatesNotice';
 import { Routes } from '@/config';
 import { ApiEndpoints, apiUrl } from '@/lib/api';
 import { useCommandsQuery, useInfoDiscordQuery } from '@/lib/api/queries';
@@ -76,6 +77,7 @@ export function HomePage() {
     <>
       {/* Hero */}
       <section className='container-page py-20 text-center'>
+        <ReportUpdatesNotice className='mx-auto mb-4 max-w-3xl'/>
         <QuarantineNotice className='mx-auto mb-10 max-w-3xl'/>
         <div className='mb-4 inline-block rounded-full border border-brand/30 bg-brand/10 px-4 py-1.5'>
           <span className='text-sm font-medium text-brand'>Images, gifs, video and audio</span>

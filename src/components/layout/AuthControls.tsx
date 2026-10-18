@@ -1,10 +1,11 @@
-import { ChevronDown, LayoutDashboard, LogIn, LogOut, RefreshCw } from 'lucide-react';
+import { ChevronDown, LayoutDashboard, LogIn, LogOut, MessageSquareWarning, RefreshCw, Settings } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router';
 
 import { useAuth } from '@/auth';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { Routes } from '@/config';
+import { useReportsUnreadQuery } from '@/lib/api/queries';
 import { userDisplayTag } from '@/lib/discord';
 import { cn } from '@/lib/utils';
 
@@ -39,7 +40,9 @@ export function AuthControls({ compact = false }: {compact?: boolean}) {
 
 
 function UserMenu({ compact }: {compact: boolean}) {
-  const { user, logout } = useAuth();
+  const { user, token, logout } = useAuth();
+  // reports with something from staff they haven't opened: a dot on the avatar and a Reports item in the menu
+  const unreadReports = useReportsUnreadQuery(token).data?.count ?? 0;
   const [ open, setOpen ] = useState(false);
   const [ loggingOut, setLoggingOut ] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -97,7 +100,14 @@ function UserMenu({ compact }: {compact: boolean}) {
         onClick={() => setOpen((value) => !value)}
         className='flex cursor-pointer items-center gap-2.5 rounded-full border border-line bg-surface-2 py-1 pr-3 pl-1 transition-colors hover:border-line-strong'
       >
-        <UserAvatar user={user} size={80} className='size-9 rounded-full bg-surface-3'/>
+        <span className='relative shrink-0'>
+          <UserAvatar user={user} size={80} className='size-9 rounded-full bg-surface-3'/>
+          {(unreadReports) ? (
+            <span className='absolute -top-0.5 -right-0.5 size-3 rounded-full border-2 border-surface-2 bg-brand'>
+              <span className='sr-only'>{unreadReports.toLocaleString()} report {(unreadReports === 1) ? 'update' : 'updates'}</span>
+            </span>
+          ) : null}
+        </span>
         {/* `compact` (the navbar) only leaves the name out on phones, there's room for it from sm up */}
         <span className={cn('max-w-40 truncate text-sm font-medium text-white', compact && 'hidden sm:inline')}>{user.username}</span>
         <ChevronDown className={cn('size-4 text-subtle transition-transform', open && 'rotate-180')}/>
@@ -116,6 +126,7 @@ function UserMenu({ compact }: {compact: boolean}) {
               <div className='truncate font-mono text-xs text-subtle'>{user.id}</div>
             </div>
           </div>
+          {/* the dashboard links, with Log out on its own below a divider so it's not hit by mistake */}
           <div className='p-1.5'>
             <Link
               to={Routes.DASHBOARD}
@@ -125,6 +136,29 @@ function UserMenu({ compact }: {compact: boolean}) {
               <LayoutDashboard className='size-4 text-muted'/>
               Dashboard
             </Link>
+            {(unreadReports) ? (
+              <Link
+                to={Routes.DASHBOARD_REPORTS}
+                role='menuitem'
+                className='flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-fg hover:bg-surface-2'
+              >
+                <MessageSquareWarning className='size-4 text-muted'/>
+                Report updates
+                <span className='ml-auto min-w-5 rounded-full bg-brand px-1.5 text-center text-xs leading-5 font-semibold text-white tabular-nums'>
+                  {unreadReports.toLocaleString()}
+                </span>
+              </Link>
+            ) : null}
+            <Link
+              to={Routes.DASHBOARD_SETTINGS}
+              role='menuitem'
+              className='flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-fg hover:bg-surface-2'
+            >
+              <Settings className='size-4 text-muted'/>
+              Settings
+            </Link>
+          </div>
+          <div className='border-t border-line p-1.5'>
             <button
               type='button'
               role='menuitem'

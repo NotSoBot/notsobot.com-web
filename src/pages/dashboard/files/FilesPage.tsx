@@ -2,13 +2,12 @@
 // settings say to always upload. They can be opened, copied and deleted here; uploads still come from the bot.
 // Three views of the same page of files: a detailed list, a thumbnail grid, and a table with bulk delete.
 
-import { ExternalLink, File as FileIcon, FileAudio, FileImage, Files, FileText, FileVideo, Trash2 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { Check, ChevronDown, ExternalLink, File as FileIcon, FileAudio, FileImage, Files, FileText, FileVideo, LayoutGrid, List, type LucideIcon, Table2, Trash2 } from 'lucide-react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Link } from 'react-router';
 
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { SearchInput } from '@/components/ui/SearchInput';
-import { Segmented } from '@/components/ui/Segmented';
 import { useToast } from '@/components/ui/Toast';
 import { Routes } from '@/config';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
@@ -17,16 +16,16 @@ import type { UserFile, UserFilesSortBy } from '@/lib/api';
 import { ME_FILES_PAGE_SIZE, errorMessage, useDeleteMeFilesMutation, useMeFilesQuery } from '@/lib/api/dashboardQueries';
 import { cn, formatDate, formatDateTime, formatExactDateTime, formatMemory, formatNumber, toDate } from '@/lib/utils';
 
-import { Chip, CopyButton, Pagination, useSearchParamState, useStepBackFromEmptyPage } from '../admin/adminUi';
+import { Chip, CopyButton, FiltersButton, Pagination, useSearchParamState, useStepBackFromEmptyPage } from '../admin/adminUi';
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from '../ui';
 
 
 type FilesView = 'list' | 'grid' | 'table';
 
-const VIEWS: Array<{value: FilesView, label: string}> = [
-  {value: 'list', label: 'List'},
-  {value: 'grid', label: 'Grid'},
-  {value: 'table', label: 'Table'},
+const VIEWS: Array<{value: FilesView, label: string, icon: LucideIcon}> = [
+  {value: 'list', label: 'List', icon: List},
+  {value: 'grid', label: 'Grid', icon: LayoutGrid},
+  {value: 'table', label: 'Table', icon: Table2},
 ];
 
 const SORTS: Array<{value: UserFilesSortBy, label: string}> = [
@@ -79,13 +78,21 @@ export function FilesPage() {
   const { searchParams, page, update, setPage } = useSearchParamState();
   const query = searchParams.get('q') || '';
   const sortBy = SORTS.find((sort) => sort.value === searchParams.get('sort'))?.value ?? 'newest';
+  // `?temporary=true` only temporary uploads, `false` only the ones that stay
+  const temporaryParam = searchParams.get('temporary');
+  const temporary = (temporaryParam === 'true') ? true : (temporaryParam === 'false') ? false : null;
   const debouncedQuery = useDebouncedValue(query.trim(), 300);
+  // the panel starts closed, the button counts the ones not on their default (more filters will go in it)
+  const [ filtersOpen, setFiltersOpen ] = useState(false);
+  const activeFilters = [sortBy !== 'newest', temporary !== null].filter(Boolean).length;
+  const filtered = !!debouncedQuery || temporary !== null;
   const [ storedView, setView ] = usePersistentState<FilesView>('dashboard:files-view', 'list');
   const view = VIEWS.find((option) => option.value === storedView)?.value ?? 'list';
 
   const { data, isPending, isError, error, isPlaceholderData, isFetching, isRefetching, refetch } = useMeFilesQuery({
     query: debouncedQuery,
     sortBy,
+    temporary,
     page,
   });
   const items = data?.items ?? [];
@@ -100,7 +107,7 @@ export function FilesPage() {
 
   // the table's checkboxes; only ever the files on the page that's shown
   const [ selected, setSelected ] = useState<ReadonlySet<string>>(new Set());
-  useEffect(() => setSelected(new Set()), [page, debouncedQuery, sortBy, view]);
+  useEffect(() => setSelected(new Set()), [page, debouncedQuery, sortBy, temporary, view]);
   const selectedFiles = items.filter((file) => selected.has(file.id));
 
   const toast = useToast();
@@ -127,35 +134,45 @@ export function FilesPage() {
         description={<>Results the bot uploaded to its file host for you instead of attaching them. When that happens is in <Link to={Routes.DASHBOARD_SETTINGS} className='text-code hover:underline'>Settings → Media</Link>.</>}
       />
 
-      <div className='mb-4 flex flex-col gap-3 sm:flex-row sm:items-center'>
+      {/* the search, how they're shown, then the filters panel's button */}
+      <div className='mb-4 flex gap-2'>
         <SearchInput
-          className='flex-1'
-          size='sm'
+          className='min-w-0 flex-1'
           value={query}
           onValueChange={(value) => update({q: value})}
           placeholder='Search by file name or link...'
           aria-label='Search files'
         />
-        <div className='flex flex-wrap items-center gap-3'>
-          <label className='flex items-center gap-2 text-sm text-muted'>
-            Sort
-            <select className='input w-32' value={sortBy} onChange={(event) => update({sort: (event.target.value === 'newest') ? null : event.target.value})}>
-              {SORTS.map((sort) => <option key={sort.value} value={sort.value}>{sort.label}</option>)}
-            </select>
-          </label>
-          <Segmented label='View' value={view} options={VIEWS} onChange={(value) => setView(value as FilesView)}/>
-        </div>
+        <ViewMenu value={view} onChange={setView}/>
+        <FiltersButton open={filtersOpen} onToggle={() => setFiltersOpen((value) => !value)} active={activeFilters} controls='file-filters'/>
       </div>
 
-      {(data) ? <StorageSummary count={data.count} size={data.size} total={data.total} searching={!!debouncedQuery}/> : null}
+      <div id='file-filters' hidden={!filtersOpen} className='card mb-4 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4'>
+        <label className='text-sm'>
+          <span className='mb-1 block text-subtle'>Sort</span>
+          <select className='input' value={sortBy} onChange={(event) => update({sort: (event.target.value === 'newest') ? null : event.target.value})}>
+            {SORTS.map((sort) => <option key={sort.value} value={sort.value}>{sort.label}</option>)}
+          </select>
+        </label>
+        <label className='text-sm'>
+          <span className='mb-1 block text-subtle'>Temporary</span>
+          <select className='input' value={(temporary === null) ? '' : String(temporary)} onChange={(event) => update({temporary: event.target.value || null})}>
+            <option value=''>Any</option>
+            <option value='true'>Only temporary</option>
+            <option value='false'>Only permanent</option>
+          </select>
+        </label>
+      </div>
+
+      {(data) ? <StorageSummary count={data.count} size={data.size} total={data.total} searching={filtered}/> : null}
 
       {(isPending || steppingBack) ? (
         <ListSkeleton/>
       ) : (isError && !items.length) ? (
         <ErrorPanel title='Couldn’t load your files' message={errorMessage(error)} onRetry={() => refetch()} retrying={isRefetching}/>
       ) : (!items.length) ? (
-        <EmptyState icon={<Files className='size-10'/>} title={(debouncedQuery) ? 'No files found' : 'No files yet'}>
-          {(debouncedQuery) ? 'Try a different search.' : 'When a result is too big for Discord, the bot uploads it here instead.'}
+        <EmptyState icon={<Files className='size-10'/>} title={(filtered) ? 'No files found' : 'No files yet'}>
+          {(filtered) ? 'Try a different search or filter.' : 'When a result is too big for Discord, the bot uploads it here instead.'}
         </EmptyState>
       ) : (
         <>
@@ -205,6 +222,76 @@ export function FilesPage() {
 /* shared pieces */
 
 // how much the user has on the file host, and how much of it the search matched
+// how the files are shown (list, grid or table), a dropdown next to the search box. Remembered per browser
+function ViewMenu({ value, onChange }: {value: FilesView, onChange: (value: FilesView) => void}) {
+  const [ open, setOpen ] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const menuId = useId();
+  const current = VIEWS.find((option) => option.value === value) ?? VIEWS[0];
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    const onPointerDown = (event: PointerEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [open]);
+
+  return (
+    <div ref={containerRef} className='relative shrink-0'>
+      <button
+        type='button'
+        className='btn btn-secondary h-12 px-3 sm:px-4'
+        aria-haspopup='menu'
+        aria-expanded={open}
+        aria-controls={menuId}
+        aria-label={`View: ${current.label}`}
+        onClick={() => setOpen((previous) => !previous)}
+      >
+        <current.icon aria-hidden className='size-4'/>
+        <span className='max-sm:hidden'>{current.label}</span>
+        <ChevronDown aria-hidden className={cn('size-4 transition-transform', open && 'rotate-180')}/>
+      </button>
+      {(open) ? (
+        <div id={menuId} role='menu' aria-label='View' className='absolute right-0 z-30 mt-2 w-40 animate-fade-in rounded-lg border border-line bg-surface p-1.5 shadow-2xl shadow-black/40'>
+          {VIEWS.map((option) => (
+            <button
+              key={option.value}
+              type='button'
+              role='menuitemradio'
+              aria-checked={option.value === value}
+              className='flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-fg hover:bg-surface-2'
+              onClick={() => {
+                onChange(option.value);
+                setOpen(false);
+              }}
+            >
+              <option.icon aria-hidden className='size-4 text-muted'/>
+              {option.label}
+              {(option.value === value) ? <Check aria-hidden className='ml-auto size-4 text-brand'/> : null}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+
 function StorageSummary({ count, size, total, searching }: {count: number, size: number, total: {count: number, size: number}, searching: boolean}) {
   const files = (value: number) => `${formatNumber(value)} ${(value === 1) ? 'file' : 'files'}`;
   return (

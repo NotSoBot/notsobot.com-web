@@ -3,6 +3,7 @@ export const Routes = Object.freeze({
   AUTH_LOGIN: '/auth/login',
   AUTH_LOGIN_CALLBACK: '/auth/login/callback',
   AUTH_REDIRECT: '/auth/redirect',
+  CHANGELOG: '/changelog',
   COMMANDS: '/commands',
   // a command's drawer over the list. the default variant has no `:commandType`, see commandPath() in src/pages/commands
   COMMAND: '/commands/:commandId',

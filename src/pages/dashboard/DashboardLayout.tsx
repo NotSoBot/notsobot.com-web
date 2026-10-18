@@ -3,9 +3,11 @@ import type { CSSProperties } from 'react';
 import { NavLink, Outlet } from 'react-router';
 
 import { isStaff, useAuth } from '@/auth';
+import { BlockedNotice } from '@/components/ui/BlockedNotice';
 import { ToastProvider } from '@/components/ui/Toast';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { Routes } from '@/config';
+import { useMeReportsUnreadQuery } from '@/lib/api/dashboardQueries';
 import { cn } from '@/lib/utils';
 
 import { premiumLabel } from './premium';
@@ -63,10 +65,14 @@ export const ADMIN_SECTIONS: ReadonlyArray<Section> = [
 
 export function DashboardLayout() {
   const { user } = useAuth();
+  // reports with something from staff they haven't seen, as a badge on Reports
+  const unreadReports = useMeReportsUnreadQuery();
+  const contentBadges = {[Routes.DASHBOARD_REPORTS]: unreadReports.data?.count ?? 0};
 
   return (
     <ToastProvider>
       <div className='container-page py-6 sm:py-8'>
+        {(user?.blocked) ? <BlockedNotice user={user} className='mb-6'/> : null}
         <div className='grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-8'>
           {/* sticky, so on desktop it scrolls on its own once it's taller than the window; otherwise its bottom (the admin
               links) could only be reached by scrolling the page all the way down */}
@@ -89,7 +95,7 @@ export function DashboardLayout() {
             </nav>
             <nav aria-label='Content sections' className='mt-4 lg:mt-6'>
               <h2 className='section-label mb-1.5 px-1 lg:mb-2'>Content</h2>
-              <SectionList sections={CONTENT_SECTIONS}/>
+              <SectionList sections={CONTENT_SECTIONS} badges={contentBadges}/>
             </nav>
             {(isStaff(user)) ? (
               <nav aria-label='Admin sections' className='mt-4 lg:mt-6'>
@@ -109,7 +115,8 @@ export function DashboardLayout() {
 }
 
 
-function SectionList({ sections }: {sections: ReadonlyArray<Section>}) {
+// `badges`: counts by section path, shown on the right of the link when there's any
+function SectionList({ sections, badges }: {sections: ReadonlyArray<Section>, badges?: Record<string, number>}) {
   return (
     <ul className='-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:-mx-6 sm:px-6 lg:mx-0 lg:flex-col lg:gap-0.5 lg:overflow-visible lg:px-0 lg:pb-0'>
       {sections.flatMap((section): Array<Section & {nested?: boolean, last?: boolean}> => [
@@ -137,6 +144,12 @@ function SectionList({ sections }: {sections: ReadonlyArray<Section>}) {
           >
             <section.icon aria-hidden className='size-4 shrink-0 text-[var(--cat)]'/>
             {section.label}
+            {(badges?.[section.to]) ? (
+              <span className='ml-auto min-w-5 rounded-full bg-brand px-1.5 text-center text-xs leading-5 font-semibold text-white tabular-nums'>
+                {badges[section.to].toLocaleString()}
+                <span className='sr-only'> with updates</span>
+              </span>
+            ) : null}
           </NavLink>
         </li>
       ))}

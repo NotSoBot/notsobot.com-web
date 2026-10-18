@@ -263,7 +263,7 @@ function ServerDetails({ guild, navigation, onDirtyChange }: {guild: AdminGuild,
                 <DateTile label='First seen' value={guild.first_seen ?? null} empty='Never' title='When the first command was run in this server'/>
                 <StatTile
                   label='Reports'
-                  to={adminListPath(Routes.DASHBOARD_ADMIN_REPORTS, {guild_id: guild.id, status: 'all'})}
+                  to={adminListPath(Routes.DASHBOARD_ADMIN_REPORTS, {q: `server:${guild.id}`, status: 'all'})}
                   value={(counts?.reports ?? 0).toLocaleString()}
                   tone='text-warning'
                   title='Reports sent from this server, or about it'

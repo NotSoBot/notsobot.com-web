@@ -6,6 +6,7 @@ import { SiteLayout } from '@/components/layout/SiteLayout';
 import { Routes, Urls } from '@/config';
 import { ApiEndpoints, apiUrl } from '@/lib/api';
 import { BotAddedRedirectPage } from '@/pages/auth/BotAddedRedirectPage';
+import { ChangelogPage } from '@/pages/ChangelogPage';
 import { LoginCallbackPage } from '@/pages/auth/LoginCallbackPage';
 import { LoginPage } from '@/pages/auth/LoginPage';
 import { CommandsPage } from '@/pages/commands/CommandsPage';
@@ -42,6 +43,7 @@ const routes: Array<RouteObject> = [
           {path: ':commandId/:commandType', handle: PAGES.COMMAND_TYPE},
         ],
       },
+      {path: Routes.CHANGELOG, element: <ChangelogPage/>, handle: PAGES.CHANGELOG},
       {path: Routes.FAQ, element: <FaqPage/>, handle: PAGES.FAQ},
       {path: Routes.STATUS, element: <StatusPage/>, handle: PAGES.STATUS},
       {

@@ -98,7 +98,11 @@ export function AIMemoryPage() {
         </EmptyState>
       ) : (
         <>
-          <p className='mb-3 text-sm text-subtle'>{items.length.toLocaleString()} of {data.limit.toLocaleString()} memories</p>
+          {/* the global ones have their own limit, and each server has its own on top */}
+          <p className='mb-3 text-sm text-subtle'>
+            {items.filter((memory) => !memory.guild_id).length.toLocaleString()} of {data.limits.global.toLocaleString()} global memories,
+            and up to {data.limits.server.toLocaleString()} more for each server
+          </p>
           <ul className='card divide-y divide-line'>
             {items.map((memory) => (
               <MemoryRow

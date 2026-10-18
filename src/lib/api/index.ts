@@ -50,6 +50,8 @@ import type {
   MeReport,
   MeReportPatch,
   MeReportsPage,
+  MeReportsSortBy,
+  MeReportsUnread,
   RemindersPage,
   Report,
   ReportMessage,
@@ -382,6 +384,11 @@ export const api = {
     return apiRequest<MeReport>(ApiEndpoints.USER_ME_REPORT(reportId), {method: 'PATCH', body});
   },
 
+  fetchMeReportsUnread: (signal?: AbortSignal) => {
+    return apiRequest<MeReportsUnread>(ApiEndpoints.USER_ME_REPORTS_UNREAD, {signal});
+  },
+
+  // marks the report read too (the api counts fetching the conversation as opening it)
   fetchMeReportMessages: (reportId: string, signal?: AbortSignal) => {
     return apiRequest<ReportMessagesPage>(ApiEndpoints.USER_ME_REPORT_MESSAGES(reportId), {signal});
   },
@@ -390,24 +397,29 @@ export const api = {
     return apiRequest<ReportMessage>(ApiEndpoints.USER_ME_REPORT_MESSAGES(reportId), {method: 'POST', body: {content}});
   },
 
-  fetchMeCommands: (params: {guildId?: string | null, channelId?: string | null, commandId?: string | null, offset?: number, limit?: number}, signal?: AbortSignal) => {
+  fetchMeCommands: (params: {guildId?: string | null, channelId?: string | null, commandId?: string | null, commandType?: number | null, result?: string | null, offset?: number, limit?: number}, signal?: AbortSignal) => {
     return apiRequest<MeCommandsPage>(ApiEndpoints.USER_ME_COMMANDS, {
       signal,
       query: {
         guild_id: params.guildId,
         channel_id: params.channelId,
         command_id: params.commandId,
+        command_type: params.commandType,
+        result: params.result,
         offset: params.offset,
         limit: params.limit,
       },
     });
   },
 
-  fetchMeReports: (params: {status?: number | null, offset?: number, limit?: number}, signal?: AbortSignal) => {
+  // `query` is what they wrote, or a report id
+  fetchMeReports: (params: {query?: string, status?: number | null, sortBy?: MeReportsSortBy, offset?: number, limit?: number}, signal?: AbortSignal) => {
     return apiRequest<MeReportsPage>(ApiEndpoints.USER_ME_REPORTS, {
       signal,
       query: {
+        query: params.query || undefined,
         status: params.status,
+        sort_by: params.sortBy,
         offset: params.offset,
         limit: params.limit,
       },
@@ -426,12 +438,14 @@ export const api = {
     return apiRequest<EntitlementsPage>(ApiEndpoints.USER_ME_ENTITLEMENTS, {signal});
   },
 
-  fetchMeFiles: (params: {query?: string, sortBy?: UserFilesSortBy, offset?: number, limit?: number}, signal?: AbortSignal) => {
+  // `temporary`: only temporary uploads (true) or only the ones that stay (false), both when null
+  fetchMeFiles: (params: {query?: string, sortBy?: UserFilesSortBy, temporary?: boolean | null, offset?: number, limit?: number}, signal?: AbortSignal) => {
     return apiRequest<UserFilesPage>(ApiEndpoints.USER_ME_FILES, {
       signal,
       query: {
         query: params.query || undefined,
         sort_by: params.sortBy,
+        temporary: params.temporary ?? undefined,
         offset: params.offset,
         limit: params.limit,
       },
@@ -824,9 +838,7 @@ export const api = {
     type?: number | null,
     status?: number | null,
     awaitingReply?: boolean | null,
-    userId?: string,
-    targetId?: string,
-    guildId?: string,
+    query?: string,
     offset?: number,
     limit?: number,
   }, signal?: AbortSignal) => {
@@ -836,9 +848,7 @@ export const api = {
         type: params.type,
         status: params.status,
         awaiting_reply: params.awaitingReply ?? undefined,
-        user_id: params.userId || undefined,
-        target_id: params.targetId || undefined,
-        guild_id: params.guildId || undefined,
+        query: params.query || undefined,
         offset: params.offset || undefined,
         limit: params.limit,
       },

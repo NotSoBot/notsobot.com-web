@@ -8,7 +8,8 @@
 // In the console: `__dashboardMocks.guildsError('scope' | 'grant' | 'ratelimit' | 'refreshing' | null)` makes
 // `/users/@me/guilds*` fail like the real API does (missing `guilds` scope, revoked Discord grant, Discord 429,
 // token refresh in progress); `__dashboardMocks.latency(ms)` changes the fake delay; `__dashboardMocks.owner(false)`
-// (then reload) drops the owner flag so the admin section disappears and `/admin/*` answers 403.
+// (then reload) drops the owner flag so the admin section disappears and `/admin/*` answers 403;
+// `__dashboardMocks.blocked('reason' | true | false)` (then reload) marks the mock user as blocked by staff.
 // A logger webhook URL whose token contains "invalid" is rejected like a webhook from another channel.
 
 import { tokenStorage } from '@/auth/tokenStorage';
@@ -80,11 +81,15 @@ const state = {
   reminders: createReminders(),
   reports: createReports(adminUsers),
   reportMessages: new Map<string, Array<ReportMessage>>(),
+  // the api's `reporter_read_at`, set when the mock user opens a report's conversation
+  reportReadAt: new Map<string, string>(),
   voices: createVoices(adminUsers),
   applications: createApplications(adminUsers),
   entitlements: createEntitlements(adminUsers),
   // the mock user is a NotSoBot owner unless turned off (kept across reloads like guildsError)
   owner: sessionStorage.getItem('dashboardMocks:notOwner') !== '1',
+  // the block reason ('' for blocked without one), or null when not blocked; kept across reloads like owner
+  blocked: sessionStorage.getItem('dashboardMocks:blocked'),
   tags: createTags(),
   variables: createVariables(),
   blobs: createBlobs(),
@@ -171,7 +176,11 @@ function scopeIds(query: URLSearchParams | Record<string, unknown>): Record<TagS
 
 /* user */
 
-route('GET', '/users/@me', () => ({...mockUser, flags: (state.owner) ? (mockUser.flags | 1) : (mockUser.flags & ~1)}));
+route('GET', '/users/@me', () => ({
+  ...mockUser,
+  ...((state.blocked !== null) ? {blocked: true, blocked_on: '2026-09-02T17:41:08.000Z', blocked_reason: state.blocked || null} : {}),
+  flags: (state.owner) ? (mockUser.flags | 1) : (mockUser.flags & ~1),
+}));
 route('GET', '/auth/logout', () => undefined);
 route('GET', '/users/@me/settings', () => state.settings);
 route('PATCH', '/users/@me/settings', (_match, { body }) => {
@@ -1912,17 +1921,33 @@ route('GET', '/admin/reports', (_match, { query }) => {
   requireBotOwner();
   const type = query.get('type');
   const status = query.get('status');
-  const userId = query.get('user_id');
-  const targetId = query.get('target_id');
-  const guildId = query.get('guild_id');
+  const search = (query.get('query') ?? '').trim();
   const awaitingReply = parseBool(query.get('awaiting_reply'));
+  // mirrors the api's `_report_search_condition`: an id (`#`, `id:`, `user:`, `target:`, `server:` or bare), else the text
+  const idSearch = /^(?:(id|user|reporter|target|server|guild)\s*:\s*|#)?(\d{1,20})$/i.exec(search);
+  const matchesSearch = (report: Report) => {
+    if (!search) {
+      return true;
+    }
+    if (!idSearch) {
+      return report.content.toLowerCase().includes(search.toLowerCase());
+    }
+    const scope = (idSearch[1] ?? (search.startsWith('#') ? 'id' : '')).toLowerCase();
+    const value = idSearch[2];
+    const checks: Record<string, boolean> = {
+      id: report.id === value,
+      user: report.user.id === value,
+      target: report.target_id === value,
+      server: reportInGuild(report, value),
+    };
+    const key = ({reporter: 'user', guild: 'server'} as Record<string, string>)[scope] ?? scope;
+    return (key) ? checks[key] : Object.values(checks).some(Boolean);
+  };
   const matching = state.reports
     .filter((report) => awaitingReply === null || (report.last_reply?.author === 'reporter') === awaitingReply)
-    .filter((report) => !guildId || reportInGuild(report, guildId))
     .filter((report) => type === null || type === '' || report.type === Number(type))
     .filter((report) => status === null || status === '' || report.status === Number(status))
-    .filter((report) => !userId || report.user.id === userId)
-    .filter((report) => !targetId || report.target_id === targetId);
+    .filter(matchesSearch);
   return pageOf(matching, query);
 });
 
@@ -2134,9 +2159,20 @@ function findOwnReport(reportId: string): Report {
   return report;
 }
 
-function ownReportPayload({ notes: _notes, reviewed_by: _reviewedBy, user: _user, ...report }: Report) {
-  return report;
+// mirrors the api's `report_unread_expression`: staff sent something after the reporter last opened it or last sent something
+function reportUnread(report: Report): boolean {
+  const time = (value: Parameters<typeof toDate>[0] | undefined) => (value === undefined) ? 0 : toDate(value).getTime();
+  const messages = state.reportMessages.get(report.id) ?? [];
+  const latest = (author: ReportMessage['author']) => Math.max(0, ...messages.filter((message) => message.author === author).map((message) => time(message.created)));
+  return Math.max(time(state.reportReadAt.get(report.id)), latest('reporter')) < latest('staff');
 }
+
+function ownReportPayload(report: Report) {
+  const { notes: _notes, reviewed_by: _reviewedBy, user: _user, ...rest } = report;
+  return {...rest, unread: reportUnread(report)};
+}
+
+route('GET', '/users/@me/reports/unread', () => ({count: state.reports.filter((_report, index) => index % 2 === 0).filter(reportUnread).length}));
 
 route('GET', '/users/@me/reports/(\\d+)', ([ , reportId ]) => ownReportPayload(findOwnReport(reportId)));
 
@@ -2155,6 +2191,7 @@ route('PATCH', '/users/@me/reports/(\\d+)', ([ , reportId ], { body }) => {
 
 route('GET', '/users/@me/reports/(\\d+)/messages', ([ , reportId ]) => {
   const report = findOwnReport(reportId);
+  state.reportReadAt.set(report.id, new Date().toISOString());
   return {items: (state.reportMessages.get(report.id) ?? []).map(reporterMessage)};
 });
 
@@ -2166,10 +2203,23 @@ route('POST', '/users/@me/reports/(\\d+)/messages', ([ , reportId ], { body }) =
 
 route('GET', '/users/@me/reports', (_match, { query }) => {
   // every other fixture report stands in for the mock user's own (bug, message and tag ones), staff fields left out like the api does
+  // mirrors `views/me_reports.py`, `updated` is the newest message or when it was sent
   const status = query.get('status');
+  const search = (query.get('query') ?? '').trim().toLowerCase();
+  const sortBy = query.get('sort_by') ?? 'updated';
+  const time = (value: Parameters<typeof toDate>[0]) => toDate(value).getTime();
+  const updated = (report: Report) => Math.max(time(report.created), (report.last_activity) ? time(report.last_activity) : 0);
   const matching = state.reports
     .filter((_report, index) => index % 2 === 0)
     .filter((report) => status === null || status === '' || report.status === Number(status))
+    .filter((report) => !search || report.content.toLowerCase().includes(search) || report.id === search.replace(/^#/, ''))
+    .sort((a, b) => {
+      switch (sortBy) {
+        case 'oldest': return time(a.created) - time(b.created) || Number(a.id) - Number(b.id);
+        case 'newest': return time(b.created) - time(a.created) || Number(b.id) - Number(a.id);
+        default: return updated(b) - updated(a) || Number(b.id) - Number(a.id);
+      }
+    })
     .map(ownReportPayload);
   return pageOf(matching, query);
 });
@@ -2178,7 +2228,10 @@ route('GET', '/users/@me/reports', (_match, { query }) => {
 route('GET', '/users/@me/files', (_match, { query }) => {
   const search = (query.get('query') ?? '').toLowerCase();
   const sortBy = query.get('sort_by') ?? 'newest';
-  const matching = state.files.filter((file) => !search || file.filename_base.toLowerCase().includes(search) || file.vanity.toLowerCase().includes(search));
+  const temporary = query.get('temporary');
+  const matching = state.files
+    .filter((file) => !search || file.filename_base.toLowerCase().includes(search) || file.vanity.toLowerCase().includes(search))
+    .filter((file) => temporary === null || (file.expires_at !== null) === (temporary === 'true'));
   const byId = (a: (typeof state.files)[number], b: (typeof state.files)[number]) => a.id.length - b.id.length || a.id.localeCompare(b.id);
   matching.sort((a, b) => {
     switch (sortBy) {
@@ -2218,15 +2271,26 @@ route('GET', '/users/@me/commands', (_match, { query }) => {
   const guildId = query.get('guild_id');
   const channelId = query.get('channel_id');
   const commandId = (query.get('command_id') ?? '').trim().toLowerCase().split(/\s+/).join('.');
-  const matching = state.commandUses.filter((use) => {
+  const commandType = query.get('command_type');
+  const result = query.get('result');
+  // mirrors `views/me_commands.py`: the breakdown matches every filter but the result's
+  const unresulted = state.commandUses.filter((use) => {
     return (guildId === null || (use.guild_id ?? '0') === guildId)
       && (channelId === null || use.channel_id === channelId)
-      && (!commandId || use.command_id === commandId || use.command_id.startsWith(`${commandId}.`));
+      && (!commandId || use.command_id === commandId || use.command_id.startsWith(`${commandId}.`))
+      && (commandType === null || use.command_type === Number(commandType));
   });
+  const resultOf = (use: (typeof state.commandUses)[number]) => use.result ?? 'untracked';
+  const matching = unresulted.filter((use) => result === null || resultOf(use) === result);
+  const counts = new Map<string, number>();
+  for (const use of unresulted) {
+    counts.set(resultOf(use), (counts.get(resultOf(use)) ?? 0) + 1);
+  }
   const first = state.commandUses[state.commandUses.length - 1];
   return {
     ...pageOf(matching, query),
     first_used: first?.timestamp ?? null,
+    results: [...counts].map(([ value, count ]) => ({count, result: value})).sort((a, b) => b.count - a.count),
     total: state.commandUses.length,
   };
 });
@@ -2277,7 +2341,7 @@ route('DELETE', '/users/@me/reminders/(\\d+)', ([ , reminderId ]) => {
 
 // ai memory: mirrors `views/me_llm_memories.py`
 route('GET', '/users/@me/llm/memories', () => {
-  return {items: state.llmMemories, limit: 20};
+  return {items: state.llmMemories, limits: {global: 10, server: 10}};
 });
 
 function findLLMMemory(memoryId: string) {
@@ -2613,7 +2677,12 @@ route('POST', '/users/@me/tags/(\\d+)/add', ([ , tagId ], { body }) => {
 
 declare global {
   interface Window {
-    __dashboardMocks?: {guildsError: (value: GuildsError) => void, latency: (ms: number) => void, owner: (value: boolean) => void},
+    __dashboardMocks?: {
+      blocked: (value: string | boolean) => void,
+      guildsError: (value: GuildsError) => void,
+      latency: (ms: number) => void,
+      owner: (value: boolean) => void,
+    },
   }
 }
 
@@ -2667,6 +2736,15 @@ export function installDashboardMocks(): void {
   }
 
   window.__dashboardMocks = {
+    // takes effect after a reload (the user is fetched once)
+    blocked: (value) => {
+      state.blocked = (value === false) ? null : (value === true) ? '' : value;
+      if (state.blocked === null) {
+        sessionStorage.removeItem('dashboardMocks:blocked');
+      } else {
+        sessionStorage.setItem('dashboardMocks:blocked', state.blocked);
+      }
+    },
     guildsError: (value) => {
       state.guildsError = value;
       if (value) {

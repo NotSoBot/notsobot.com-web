@@ -28,6 +28,11 @@ export const PAGES: Readonly<Record<keyof typeof Routes, PageMeta>> = Object.fre
   AUTH_LOGIN: {title: 'Log in', description: 'Log in with Discord to manage your NotSoBot tags, servers and settings.'},
   AUTH_LOGIN_CALLBACK: {title: 'Log in', description: 'Finishing your Discord login.'},
   AUTH_REDIRECT: {description: 'Thanks for adding NotSoBot to your server.'},
+  CHANGELOG: {
+    title: 'Changelog',
+    description: 'What\'s new in NotSoBot: new commands, improvements and fixes, day by day.',
+    index: true,
+  },
   COMMANDS: {
     title: 'Commands',
     description: 'Browse every NotSoBot command by category, ranked by how often they\'re used this week, with prefix, slash and context menu usage.',
