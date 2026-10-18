@@ -350,19 +350,21 @@ export const MEDIASCRIPT_GUIDE: Array<TagDocGuideSection> = [
       'If you make logo effects, three commands are built for you: `ffmpeg` runs FFmpeg filters and codecs on a media key, `reexport` (also `ihtx`) re-exports a clip over and over and joins the exports, and `loadcube` loads `.cube` color LUTs for `applylut` (or FFmpeg\'s `lut3d`). They replace most of what `{sh:}` effect tags do, without the shell and without `.t sync+` afterwards.',
       '`ffmpeg KEY ...OPTIONS` takes FFmpeg\'s own output options: `-vf`, `-af`, `-filter_complex`, `-map`, `-c:v`, `-c:a`, `-crf`, `-qp`, `-preset` and more. KEY is input `0`, and `-i OTHERKEY` adds another media key as input `1`, `2`... (up to 4). The result keeps KEY\'s format and goes back into KEY. Most FFmpeg filters work, including `geq`, `displace`, `haldclut`, `curves`, `rubberband` and `frei0r` (with its built-in plugins like `mirr0r` and `gateweave`). Filters that read or write files on their own, like `movie`, `amovie` and `sendcmd`, are blocked, so load files with `load` or `loadcube` and pass them in.',
       '`reexport KEY AMOUNT LENGTH CODE` takes the first LENGTH seconds, runs CODE on it as `KEYx`, then runs CODE again on that result, AMOUNT times, and joins every export in order (backwards if AMOUNT is negative). Exports that come out longer than LENGTH are cut back unless you add `NO_TRIM=true`. Every export\'s audio is matched to its video before joining, so the result stays in sync. `idx` is the export number, for commands that take equations.',
-      'Pitch shifting is `rubberband=pitch=2^(SEMITONES/12)`: `2^(7/12)` is up a fifth, `2^(-12/12)` is down an octave. For a chord, split the audio with `asplit`, shift each copy and mix them back with `amix=N:normalize=0`. A hue shift is `hue=h=DEGREES`. ImageMagick\'s `-modulate 100,100,X` turns the hue by about `(X-100)*1.8` degrees; if the colors come out mirrored, flip the sign.',
-      'Downloaded programs (multipitch, 4orm, `.veg` renderers) and shell commands can\'t run in MediaScript. The table shows what to use instead. Limits: up to 100 `ffmpeg` runs per script, each output at most 10 minutes and 2048x2048, and every `ffmpeg` inside `reexport` counts once per export.',
+      'Pitch shifting is `multipitch KEY SEMITONES`: `multipitch clip 7` is up a fifth, and `multipitch clip 0,7,12` mixes a chord the same way the multipitch program does (with `--no-normalize`). When the pitch has to be part of one `ffmpeg` filter graph, for example chained with other audio filters, use `rubberband=pitch=2^(SEMITONES/12)` there instead, and for a chord split the audio with `asplit`, shift each copy and mix them back with `amix=N:normalize=0` (see the examples). A hue shift is `hue=h=DEGREES`. ImageMagick\'s `-modulate 100,100,X` turns the hue by about `(X-100)*1.8` degrees; if the colors come out mirrored, flip the sign.',
+      'Downloaded programs (4orm) and shell commands can\'t run in MediaScript; `.veg` projects play back with `loadveg` and `vegrender`. The table shows what to use instead. Limits: up to 100 `ffmpeg` runs per script, each output at most 10 minutes and 2048x2048, and every `ffmpeg` inside `reexport` counts once per export.',
     ].join('\n\n'),
     table: {
       columns: ['In a {sh:} tag', 'In MediaScript'],
       rows: [
         ['`magick hald:4 -modulate ...` + `movie=x.ppm,[in]haldclut`', '`hue=h=DEGREES`, or build the CLUT in the graph: `haldclutsrc=4,hue=h=54[h];[0:v][h]haldclut`'],
-        ['`multipitch in.wav out.wav 7`', '`rubberband=pitch=2^(7/12)`, chords with `asplit` + `rubberband` + `amix`'],
+        ['`multipitch in.wav out.wav 0,7,12 --no-normalize`', '`multipitch KEY 0,7,12`'],
+        ['The TV simulator (`movie=$(curl .../Project%20Name%209.mp4)` + `displace`)', '`tvsimulator KEY LINE_SYNC DETAIL_ZOOM`'],
         ['`movie=$(curl ...)` or a second downloaded video', '`load URL other`, then `ffmpeg KEY -i other -filter_complex "[0:v][1:v]..."`'],
         ['`lut3d=./input/x.cube`', '`loadcube URL x`, then `applylut KEY x` (or `lut3d=x.cube` inside `ffmpeg`)'],
         ['a loop of exports + concat + `.t sync+`', '`reexport KEY AMOUNT LENGTH CODE`'],
         ['`ffmpeg -i "concat:a.avi|b.avi|..."`', '`concatmultiple`'],
-        ['4orm, `.veg` renderers, other downloaded programs', 'Not supported'],
+        ['a `.veg` renderer (`tvdoubled`/tved) with `--all-media`', '`loadveg URL p`, then `vegrender KEY p`'],
+        ['4orm and other downloaded programs', 'Not supported'],
       ],
     },
     examples: [
@@ -375,8 +377,12 @@ export const MEDIASCRIPT_GUIDE: Array<TagDocGuideSection> = [
         result: 'IHTX-style: 20 exports of the first 0.46 seconds, each one inverted, hue shifted and pitched up from the last one.',
       },
       {
-        code: '{mediascript:load {video} clip\nffmpeg clip -filter_complex "[0:a]asplit=3[a][b][c];[b]rubberband=pitch=2^(7/12)[b2];[c]rubberband=pitch=2^(12/12)[c2];[a][b2][c2]amix=3:normalize=0[out]" -map 0:v? -map [out]\nrender clip}',
-        result: 'A chord, like multipitch with `0,7,12`: the original audio, a fifth up and an octave up, mixed together.',
+        code: '{mediascript:load {video} clip\nmultipitch clip -13.48,-6.48,0.52,7.52,14.52\nrender clip}',
+        result: 'The 5-pitch chord from Preview 1280 tags, made natively with `multipitch`.',
+      },
+      {
+        code: '{mediascript:load {video} clip\nffmpeg clip -filter_complex "[0:a]asplit=3[a][b][c];[b]rubberband=pitch=2^(7/12)[b2];[c]rubberband=pitch=2^(12/12)[c2];[a][b2][c2]amix=3:normalize=0,aecho=0.8:0.5:60:0.4[out]" -map 0:v? -map [out]\nrender clip}',
+        result: 'The same kind of chord inside one `ffmpeg` filter graph, here with an echo chained after it. Use this when the chord has to sit between other filters; otherwise `multipitch` is faster and closer to effect tags.',
       },
       {
         code: '{mediascript:load {video} clip\nffmpeg clip -vf "hue=h=180,scroll=0:0:0.5,frei0r=mirr0r:-.5" -af "rubberband=pitch=2^(-2/12)"\nrender clip}',
@@ -388,11 +394,54 @@ export const MEDIASCRIPT_GUIDE: Array<TagDocGuideSection> = [
       },
       {
         code: '{mediascript:load {video} clip\nload https://example.com/tv_displacement.mp4 tv\nffmpeg clip -i tv -filter_complex "[0:v]scale=640:360,split[v][g0];[g0]drawbox=c=gray:t=fill[g];[1:v]scale=640:360,format=gray[d];[v][d][g]displace=edge=wrap"\nrender clip}',
-        result: 'TV wobble with a displacement video loaded as its own media key, instead of `movie=$(curl ...)`. The result is as long as the clip; a shorter displacement video holds its last frame.',
+        result: 'A TV wobble with your own displacement video, loaded as its own media key instead of `movie=$(curl ...)`. For the usual TV simulator look, `tvsimulator clip` does this with a built-in map. The result is as long as the clip; a shorter displacement video holds its last frame.',
       },
       {
         code: '{mediascript:load {video} clip\nreexport clip -10 1 {jsonify:\nhueshifthsvffmpeg clipx 36\njpeg clipx\n}\nrender clip}',
         result: '10 exports that each shift the hue and add JPEG crunch, joined from the last one back to the first.',
+      },
+    ],
+  },
+
+  {
+    id: 'ms-vegas',
+    title: 'Vegas projects (.veg)',
+    body: [
+      '`loadveg URL KEY` reads a Vegas Pro project, and `vegrender MEDIA_KEY KEY` plays it back with every video and sound in it replaced by your media, the way the `.veg` renderers in effect tags do (tved with `--all-media`). The project is rebuilt from what Vegas saved in the `.veg`: its timeline, its Pan/Crop and track motion, and its generated media. Vegas itself never runs, so effects that only Vegas can draw are skipped and the result says nothing about them; check the table before you build a tag around a project.',
+      'Which clips get your media: a video event whose source file was a video (mp4, mov, mkv, avi, wmv, m4v, mpg, mpeg, mts, m2ts, webm, 3gp, ts or flv), and an audio event whose source was a video or a sound (wav, mp3, m4a, aac, flac, ogg, wma or opus). The file names come from the paths saved in the project, in any language. Events on still images (png, jpg, bmp, gif) are left out. With an image as your media, every video event shows it and there is no sound; with an audio file, only the audio events play (solid colors, text and noise still show).',
+      'Every event plays from the same spot of your media it played from in its own source, and your media loops when the project reaches past its end. With `CUTOFF=true` (the default) an event that starts on a track ends the one before it on that track, like Vegas does; `CUTOFF=false` lets them overlap.',
+      'Limits: projects up to 32mb, 4 per script, 20000 events and 512 tracks. The render is at most 10 minutes long and scaled to fit 1280x720, shows at most 32 clips at once (and plays 32 sounds at once), and has at most 1024 clips in any 2 seconds. It counts as one `ffmpeg` run, shares its time limit, and stops as soon as the file is sure to be too big to send.',
+    ].join('\n\n'),
+    table: {
+      columns: ['Vegas feature', 'Played back', 'How'],
+      rows: [
+        ['Events', 'Yes', 'Position, length, and where in its source each one starts'],
+        ['Speed', 'Yes', 'From 0.01x to 100x'],
+        ['Pitch', 'Yes', 'Pitch changes on audio events, keeping their length'],
+        ['Pan/Crop', 'Partly', 'Zoom, move, rotation and flips, from the first keyframe to the last in a straight line. Keyframes in between and smooth/fast/slow curves are not'],
+        ['Track motion', 'Partly', 'Position, size and flips. 3D track motion and rotation are not'],
+        ['Solid Color', 'Yes', 'Its color and transparency'],
+        ['Text', 'Partly', 'The text and its size, in white with a black border, centered. Fonts, colors, position and animation are not. Any language works; emoji show only if the font has them'],
+        ['Noise Texture', 'Partly', 'Gray static (found in Japanese Vegas projects, where it is named ノイズ)'],
+        ['Compositing', 'Partly', 'Add and Subtract on solid colors and noise. Video events always draw normally, and a track with a compositing plugin hides its generated media'],
+        ['Black and White', 'Yes', 'Including partial amounts'],
+        ['Other video FX', 'No', 'Swirl, TV simulator, pinch/bulge, glow...'],
+        ['Transitions', 'No', 'Crossfades and event fades too, every cut is hard'],
+        ['Envelopes', 'No', 'Volume, pan, opacity and velocity'],
+        ['Audio FX', 'No', 'Skipped'],
+        ['Reverse', 'No', 'Reversed events play forward'],
+        ['Takes', 'Partly', 'An event with several takes uses the last one'],
+        ['Masks', 'No', 'Parent/child tracks and nested projects too'],
+      ],
+    },
+    examples: [
+      {
+        code: '{mediascript:load {iv} logo\nloadveg https://example.com/preview1280.veg p\nvegrender logo p\nrender logo}',
+        result: 'The project rebuilt with the last image or video in every clip.',
+      },
+      {
+        code: '{mediascript:load {video} clip\nloadveg FILE_1 p\nvegrender clip p false\nrender clip}',
+        result: 'Uses a `.veg` attached earlier in the tag, with clips on a track allowed to overlap.',
       },
     ],
   },
@@ -463,6 +512,43 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     ],
     notes: [
       '`FILE_X` loads the tag\'s Xth attachment so far and removes it from the reply; `FILE_X_COPY` keeps it attached.',
+    ],
+  },
+  {
+    name: 'loadveg',
+    category: 'io',
+    summary: 'Loads a Vegas Pro project (.veg) for `vegrender`.',
+    syntax: 'loadveg URL VEG_KEY',
+    args: [
+      {name: 'URL', description: 'link to the `.veg` file, or `FILE_1`, `FILE_2`... for files attached to the tag'},
+      {name: 'VEG_KEY', description: 'name to use it by: letters, numbers and _ only, up to 32'},
+    ],
+    examples: [
+      {code: '{mediascript:loadveg FILE_1 p\nload {iv} logo\nvegrender logo p\nrender logo}', result: 'Plays back the attached project with the last image or video.'},
+    ],
+    notes: [
+      'Files up to 32mb, at most 4 per script, and they count toward the script\'s download limit. Projects with more than 20000 events or 512 tracks are refused.',
+      'Veg keys are separate from media keys. Loading the same link into the same key again (like inside `reexport`) is skipped.',
+      'Only the project is read, not the media it used. See the Vegas projects section for what is rebuilt.',
+    ],
+  },
+  {
+    name: 'vegrender',
+    category: 'compose',
+    summary: 'Plays back a Vegas project with every one of its videos and sounds replaced by your media, like the `.veg` renderer in effect tags.',
+    syntax: 'vegrender MEDIA_KEY VEG_KEY CUTOFF=true',
+    args: [
+      media(),
+      {name: 'VEG_KEY', description: 'a project from `loadveg`'},
+      {name: 'CUTOFF', default: 'true', description: 'a clip that starts on a track cuts off the one before it (false lets them overlap)'},
+    ],
+    examples: [
+      {code: '{mediascript:load {iv} logo\nloadveg https://example.com/preview1280.veg p\nvegrender logo p\nrender logo}', result: 'The project rebuilt with the last image or video in every clip.'},
+    ],
+    notes: [
+      'Rebuilt: the timeline (cuts, tracks, speed), pitch changes, Pan/Crop zooms, moves, turns and flips, track motion, solid colors, text, noise and Black and White. Other Vegas effects (swirl, TV simulator, pinch/bulge...), transitions, fades and envelopes are not, so a project that uses them will look different. The full list is in the Vegas projects section.',
+      'Video events on video files and audio events on video or sound files get your media; events on still images are left out. A still image is shown for the whole project.',
+      'At most 10 minutes, scaled down to fit 1280x720, with at most 32 clips on screen (and 32 heard) at once. Counts toward the `ffmpeg` limit.',
     ],
   },
   {
@@ -2041,6 +2127,26 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     ],
   },
   {
+    name: 'tvsimulator',
+    category: 'distort',
+    summary: 'An analog TV losing line sync: the picture tears and wobbles sideways (the TV simulator from Preview 1280 effects).',
+    syntax: 'tvsimulator MEDIA_KEY LINE_SYNC=0.75 DETAIL_ZOOM=1',
+    args: [
+      media(),
+      {name: 'LINE_SYNC', default: '0.75', range: '0..1', description: 'how well the TV holds the picture, 1 is clean and lower tears more'},
+      {name: 'DETAIL_ZOOM', default: '1', range: '1..8', description: 'zooms into the distortion, higher gives bigger, slower waves'},
+    ],
+    examples: [
+      {code: '{mediascript:load {video} clip\ntvsimulator clip\nrender clip}', result: 'A mild TV wobble.'},
+      {code: '{mediascript:load {video} clip\ntvsimulator clip 0.2 3\nrender clip}', result: 'A badly tuned TV with big, slow tears.'},
+    ],
+    notes: [
+      'Uses a built-in displacement video that loops for clips longer than its 60 seconds. The audio is kept as it is.',
+      'Works on videos, GIFs and images (a still image gets one frame of the wobble). The same effect is the `.tvsimulator` command (`/media-iv-5 fun tv-simulator`).',
+      'For your own displacement video, `load` it and use `displace` inside `ffmpeg` (see Logo effects).',
+    ],
+  },
+  {
     name: 'tunnel',
     category: 'distort',
     summary: 'Wraps the media into a radial or spiral tunnel.',
@@ -2277,6 +2383,23 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
 
   // audio
   {
+    name: 'audiobitcrush',
+    category: 'audio',
+    summary: 'Bit crushes the audio: a lower sample rate and bit depth for a crunchy, lo-fi sound.',
+    syntax: 'audiobitcrush MEDIA_KEY SAMPLES=6 BITS=8 MIX=1 MODE=log',
+    args: [
+      media(),
+      {name: 'SAMPLES', default: '6', range: '1..250', description: 'sample rate reduction factor; 6 turns 48kHz audio into about 8kHz'},
+      {name: 'BITS', default: '8', range: '1..64', description: 'bit depth; lower is grittier, 4 or less is harsh'},
+      {name: 'MIX', default: '1', range: '0..1', description: 'how much of the crushed audio is used, 1 is fully crushed'},
+      {name: 'MODE', default: 'log', range: 'lin, log', description: '`log` keeps quiet parts cleaner, `lin` crushes everything evenly'},
+    ],
+    examples: [
+      {code: '{mediascript:load {audio} clip\naudiobitcrush clip 12 4 1 lin\nrender clip}', result: 'Heavily crushed, harsh lo-fi audio.'},
+    ],
+    notes: ['Media without audio is left as is.'],
+  },
+  {
     name: 'audioboostbass',
     category: 'audio',
     summary: 'Boosts the bass.',
@@ -2305,6 +2428,25 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     args: [
       media(),
       {name: 'SCALE', default: '2.0', range: '0.17..2.0', description: 'pitch multiplier; below 1 is deeper'},
+    ],
+  },
+  {
+    name: 'multipitch',
+    category: 'audio',
+    summary: 'Pitch shifts the audio by semitones without changing its speed, or mixes several pitched copies into a chord (like the multipitch program in effect tags).',
+    syntax: 'multipitch MEDIA_KEY SEMITONES NORMALIZE=false',
+    args: [
+      media(),
+      {name: 'SEMITONES', range: '-48..48 each, up to 12', description: 'one number to shift, or several split by commas to mix a copy at each pitch (`0` is the original)'},
+      {name: 'NORMALIZE', default: 'false', description: 'turn the mix down so the copies don\'t add up to clipping'},
+    ],
+    examples: [
+      {code: '{mediascript:load {video} clip\nmultipitch clip 7\nrender clip}', result: 'Raises the audio a fifth, the video stays the same.'},
+      {code: '{mediascript:load {video} clip\nmultipitch clip 0,7,12\nrender clip}', result: 'A chord: the original audio, a fifth up and an octave up, mixed together.'},
+    ],
+    notes: [
+      'Uses Bungee, the pitch shifter the multipitch program is built on, with every pitch made at the same time.',
+      'Without NORMALIZE the copies add up, like `--no-normalize` in tags, so big chords get loud. Counts toward the `ffmpeg` limit.',
     ],
   },
   {
