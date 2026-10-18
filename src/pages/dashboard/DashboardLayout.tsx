@@ -1,4 +1,4 @@
-import { AlarmClock, AudioLines, Blocks, Crown, Files, Flag, Inbox, LayoutDashboard, MessageSquareWarning, Server, Settings, ShieldCheck, SquareTerminal, Tags, type LucideIcon, Users } from 'lucide-react';
+import { AlarmClock, AudioLines, Blocks, Brain, Crown, Files, Flag, Inbox, LayoutDashboard, MessageSquareWarning, Server, Settings, ShieldCheck, SquareTerminal, Tags, type LucideIcon, Users } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { NavLink, Outlet } from 'react-router';
 
@@ -33,6 +33,7 @@ export const DASHBOARD_SECTIONS: ReadonlyArray<Section> = [
 
 // things the user made with the bot, alphabetical
 export const CONTENT_SECTIONS: ReadonlyArray<Section> = [
+  {to: Routes.DASHBOARD_AI_MEMORY, label: 'AI Memory', icon: Brain, color: '#eb459e'},
   {to: Routes.DASHBOARD_FILES, label: 'Files', icon: Files, color: '#00b0f4'},
   {to: Routes.DASHBOARD_REMINDERS, label: 'Reminders', icon: AlarmClock, color: '#faa81a'},
   {to: Routes.DASHBOARD_REPORTS, label: 'Reports', icon: MessageSquareWarning, color: '#ed4245'},

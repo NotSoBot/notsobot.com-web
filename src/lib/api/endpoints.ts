@@ -41,6 +41,8 @@ export const ApiEndpoints = Object.freeze({
   USER_ME_FILES: '/users/@me/files',
   USER_ME_FILE: (fileId: string) => `/users/@me/files/${fileId}`,
   USER_ME_FILES_DELETE: '/users/@me/files/delete',
+  USER_ME_LLM_MEMORIES: '/users/@me/llm/memories',
+  USER_ME_LLM_MEMORY: (memoryId: string) => `/users/@me/llm/memories/${memoryId}`,
   USER_ME_REMINDERS: '/users/@me/reminders',
   USER_ME_REMINDER: (reminderId: string) => `/users/@me/reminders/${reminderId}`,
   USER_ME_REPORTS: '/users/@me/reports',

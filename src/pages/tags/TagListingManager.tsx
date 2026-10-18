@@ -35,7 +35,7 @@ import { TagAssetsPanel } from '@/pages/dashboard/admin/TagAssetsPanel';
 import { GuildIcon } from '@/pages/dashboard/servers/GuildIcon';
 import { CharCounter, Field, InlineError, Toggle } from '@/pages/dashboard/ui';
 
-import { CategorySelect, DescriptionEditor, verificationRequirement, VerificationWarning } from './tagDirectory';
+import { CategorySelect, DescriptionEditor, TAG_CONTENT_ACKNOWLEDGEMENT, verificationRequirement, VerificationWarning } from './tagDirectory';
 
 
 // The listing's owner and NotSoBot staff can manage a directory tag right from the public directory. Owners go through
@@ -446,6 +446,7 @@ function OwnerVerificationSection({ item, editing }: {item: TagDirectoryItem, ed
           tone='primary'
           title={`Request verification for “${item.tag.name}”?`}
           description={<VerificationWarning/>}
+          acknowledgement={TAG_CONTENT_ACKNOWLEDGEMENT}
           confirmLabel='Request verification'
           pending={request.isPending}
           error={(request.isError) ? errorMessage(request.error, 'Couldn’t request verification.') : undefined}

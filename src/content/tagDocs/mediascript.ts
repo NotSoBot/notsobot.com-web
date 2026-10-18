@@ -267,6 +267,7 @@ export const MEDIASCRIPT_GUIDE: Array<TagDocGuideSection> = [
       '`dobetween KEY START END CODE` works the same way but on a time range in seconds: the slice is available as `KEYx`, and after the code runs it is stitched back between the untouched parts.',
       '`if LEFT OPERATOR RIGHT CODE` compares two equations. Unlike the `if()` function, the two sides and the operator must be separated by spaces: `if imgw > 500 ...`.',
       'Media keys and variables created inside a loop disappear when it ends; changes to keys that already existed are kept. You cannot `render` from inside a loop.',
+      'Inside `foreachframe`, `dobetween` and `reexport`, the parent key itself is off limits: using `pfp` inside `foreachframe pfp ...` is an error, only `pfpx` works. Its size variables (`pfpw`, `pfpd`...) can still be read.',
     ].join('\n\n'),
     examples: [
       {
@@ -346,7 +347,7 @@ export const MEDIASCRIPT_GUIDE: Array<TagDocGuideSection> = [
     id: 'ms-logo-effects',
     title: 'Logo effects (Preview 2, Preview 1280, G Major, IHTX)',
     body: [
-      'If you make logo effects, three commands are built for you: `ffmpeg` runs FFmpeg filters and codecs on a media key, `reexport` (also `ihtx`) re-exports a clip over and over and joins the exports, and `loadcube` loads `.cube` color LUTs for FFmpeg\'s `lut3d`. They replace most of what `{sh:}` effect tags do, without the shell and without `.t sync+` afterwards.',
+      'If you make logo effects, three commands are built for you: `ffmpeg` runs FFmpeg filters and codecs on a media key, `reexport` (also `ihtx`) re-exports a clip over and over and joins the exports, and `loadcube` loads `.cube` color LUTs for `applylut` (or FFmpeg\'s `lut3d`). They replace most of what `{sh:}` effect tags do, without the shell and without `.t sync+` afterwards.',
       '`ffmpeg KEY ...OPTIONS` takes FFmpeg\'s own output options: `-vf`, `-af`, `-filter_complex`, `-map`, `-c:v`, `-c:a`, `-crf`, `-qp`, `-preset` and more. KEY is input `0`, and `-i OTHERKEY` adds another media key as input `1`, `2`... (up to 4). The result keeps KEY\'s format and goes back into KEY. Most FFmpeg filters work, including `geq`, `displace`, `haldclut`, `curves`, `rubberband` and `frei0r` (with its built-in plugins like `mirr0r` and `gateweave`). Filters that read or write files on their own, like `movie`, `amovie` and `sendcmd`, are blocked, so load files with `load` or `loadcube` and pass them in.',
       '`reexport KEY AMOUNT LENGTH CODE` takes the first LENGTH seconds, runs CODE on it as `KEYx`, then runs CODE again on that result, AMOUNT times, and joins every export in order (backwards if AMOUNT is negative). Exports that come out longer than LENGTH are cut back unless you add `NO_TRIM=true`. Every export\'s audio is matched to its video before joining, so the result stays in sync. `idx` is the export number, for commands that take equations.',
       'Pitch shifting is `rubberband=pitch=2^(SEMITONES/12)`: `2^(7/12)` is up a fifth, `2^(-12/12)` is down an octave. For a chord, split the audio with `asplit`, shift each copy and mix them back with `amix=N:normalize=0`. A hue shift is `hue=h=DEGREES`. ImageMagick\'s `-modulate 100,100,X` turns the hue by about `(X-100)*1.8` degrees; if the colors come out mirrored, flip the sign.',
@@ -358,7 +359,7 @@ export const MEDIASCRIPT_GUIDE: Array<TagDocGuideSection> = [
         ['`magick hald:4 -modulate ...` + `movie=x.ppm,[in]haldclut`', '`hue=h=DEGREES`, or build the CLUT in the graph: `haldclutsrc=4,hue=h=54[h];[0:v][h]haldclut`'],
         ['`multipitch in.wav out.wav 7`', '`rubberband=pitch=2^(7/12)`, chords with `asplit` + `rubberband` + `amix`'],
         ['`movie=$(curl ...)` or a second downloaded video', '`load URL other`, then `ffmpeg KEY -i other -filter_complex "[0:v][1:v]..."`'],
-        ['`lut3d=./input/x.cube`', '`loadcube URL x`, then `lut3d=x.cube`'],
+        ['`lut3d=./input/x.cube`', '`loadcube URL x`, then `applylut KEY x` (or `lut3d=x.cube` inside `ffmpeg`)'],
         ['a loop of exports + concat + `.t sync+`', '`reexport KEY AMOUNT LENGTH CODE`'],
         ['`ffmpeg -i "concat:a.avi|b.avi|..."`', '`concatmultiple`'],
         ['4orm, `.veg` renderers, other downloaded programs', 'Not supported'],
@@ -467,7 +468,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
   {
     name: 'loadcube',
     category: 'io',
-    summary: 'Loads a `.cube` 3D color LUT for the `ffmpeg` action\'s `lut3d` filter.',
+    summary: 'Loads a `.cube` 3D color LUT for `applylut` or the `ffmpeg` action\'s `lut3d` filter.',
     syntax: 'loadcube URL CUBE_KEY',
     args: [
       {name: 'URL', description: 'link to the `.cube` file, or `FILE_1`, `FILE_2`... for attached files'},
@@ -475,12 +476,12 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     ],
     examples: [
       {
-        code: '{mediascript:load {video} clip\nloadcube https://example.com/Cold_Major.cube cm\nffmpeg clip -vf lut3d=cm.cube\nrender clip}',
+        code: '{mediascript:load {video} clip\nloadcube https://example.com/Cold_Major.cube cm\napplylut clip cm\nrender clip}',
         result: 'Color grades the video with the LUT.',
       },
     ],
     notes: [
-      'Use it as `lut3d=CUBE_KEY.cube` (or `lut3d=file=CUBE_KEY.cube:interp=tetrahedral`) in `ffmpeg`.',
+      'Apply it with `applylut MEDIA_KEY CUBE_KEY`, or as `lut3d=CUBE_KEY.cube` (or `lut3d=file=CUBE_KEY.cube:interp=tetrahedral`) in `ffmpeg`.',
       'Only 3D LUTs, with `LUT_3D_SIZE` up to 65 and files up to 16mb. At most 10 per script.',
       'Cube keys are separate from media keys, a cube can\'t be used as media.',
     ],
@@ -555,7 +556,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
       },
     ],
     notes: [
-      'The current frame is the media key `MEDIA_KEYx` (e.g. `pfpx`), and `idx` is the frame number.',
+      'The current frame is the media key `MEDIA_KEYx` (e.g. `pfpx`), and `idx` is the frame number. Using `MEDIA_KEY` itself inside is an error.',
       'Don\'t use commands that turn a still image into a GIF inside the loop; each frame must stay a single image.',
       'Variables and new media keys made inside the loop are discarded when it ends. `render` is not allowed inside.',
     ],
@@ -578,7 +579,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
       },
     ],
     notes: [
-      'The slice is available as `MEDIA_KEYx`.',
+      'The slice is available as `MEDIA_KEYx`. Using `MEDIA_KEY` itself inside is an error.',
       'Variables and new media keys made inside are discarded when it ends. `render` is not allowed inside.',
     ],
   },
@@ -606,7 +607,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
       },
     ],
     notes: [
-      'The export being made is `MEDIA_KEYx`, and `idx` is its number (1, 2, 3...).',
+      'The export being made is `MEDIA_KEYx`, and `idx` is its number (1, 2, 3...). Using `MEDIA_KEY` itself inside is an error.',
       'Each export\'s audio is cut or padded to its video\'s length before joining, so it stays in sync (no `sync+` needed).',
       'The code\'s lines count once per export toward the 300 line limit, and every `ffmpeg` in it counts toward the `ffmpeg` limit.',
       'Variables and new media keys made inside are discarded when it ends. `render` is not allowed inside.',
@@ -1282,7 +1283,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
       'The output keeps the media\'s format, so `-c:v`/`-c:a` have to fit it (`flac` in a `video/mp4` works, `pcm_s16le` doesn\'t).',
       'Only allowed filters, codecs and options work. Filters that read or write files (`movie`, `amovie`, `sendcmd`, `zmq`, `ladspa`, `metadata`...) are blocked, and `frei0r` only takes known plugin names.',
       'Output is capped at 10 minutes, 2048x2048 and 2 minutes of FFmpeg run time.',
-      '`lut3d` works with LUTs from `loadcube`, as `lut3d=CUBE_KEY.cube`.',
+      '`lut3d` works with LUTs from `loadcube`, as `lut3d=CUBE_KEY.cube` (`applylut` does the same in one line).',
     ],
   },
   {
@@ -1576,6 +1577,32 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
       {name: 'BRIGHTNESS', default: '0', range: '-1..1', description: 'brightness change'},
     ],
     notes: ['Saturation here is a multiplier, so leaving it out keeps the original saturation.'],
+  },
+  {
+    name: 'applylut',
+    category: 'color',
+    summary: 'Color grades the media with a `.cube` LUT loaded by `loadcube`, optionally blended with the original.',
+    syntax: 'applylut MEDIA_KEY CUBE_KEY STRENGTH=1 INTERP=tetrahedral',
+    args: [
+      media(),
+      {name: 'CUBE_KEY', description: 'the LUT\'s name from `loadcube`'},
+      {name: 'STRENGTH', default: '1', range: '0..1', description: 'how much of the graded look to use, `0.5` is half graded and half original'},
+      {name: 'INTERP', default: 'tetrahedral', range: 'nearest, trilinear, tetrahedral, pyramid, prism', description: 'how colors between the LUT\'s points are worked out'},
+    ],
+    examples: [
+      {
+        code: '{mediascript:load {or:{iv}|{arg:0}} a\nloadcube FILE_1 b\napplylut a b\nrender a}',
+        result: 'Grades the image or video with the attached `.cube` file.',
+      },
+      {
+        code: '{mediascript:load {video} clip\nloadcube https://example.com/Cold_Major.cube cm\napplylut clip cm 0.6\nrender clip}',
+        result: 'Grades the clip at 60% strength.',
+      },
+    ],
+    notes: [
+      'The same as `ffmpeg MEDIA_KEY -vf lut3d=CUBE_KEY.cube`, and it counts towards the same limit of `ffmpeg` runs.',
+      'Images and video only, audio is left as it is. Transparency is kept.',
+    ],
   },
   {
     name: 'hueshiftrgb',

@@ -40,6 +40,9 @@ import type {
   GuildListKind,
   MeTagsDirectoryFilter,
   MeTagsSortBy,
+  LLMMemoriesPage,
+  LLMMemory,
+  LLMMemoryPatch,
   Reminder,
   ReminderPatch,
   RemindersPage,
@@ -173,6 +176,8 @@ export function errorMessage(error: unknown, fallback = 'Something went wrong. T
         return 'That voice doesn’t exist anymore. It may have been deleted with the bot.';
       case ApiErrorCodes.UNKNOWN_REMINDER:
         return 'That reminder doesn’t exist anymore. It may have already been sent or deleted with the bot.';
+      case ApiErrorCodes.UNKNOWN_LLM_MEMORY:
+        return 'NotSoAI already forgot that one.';
       case ApiErrorCodes.TEXT_BLOCKED_GUIDELINES:
         return 'That text was blocked because it may violate Discord’s Community Guidelines.';
       case ApiErrorCodes.SAFETY_SCAN_FAILED:
@@ -746,6 +751,64 @@ export function useMeReportsQuery(filters: {status: number | null, page: number}
       limit: ME_REPORTS_PAGE_SIZE,
     }, signal),
     placeholderData: keepPreviousData,
+  });
+}
+
+
+/* ai memory */
+
+export function useMeLLMMemoriesQuery() {
+  const { token } = useAuth();
+  return useQuery({
+    queryKey: queryKeys.meLLMMemories(token),
+    queryFn: ({ signal }) => api.fetchMeLLMMemories(signal),
+  });
+}
+
+
+export interface LLMMemoryEdit extends LLMMemoryPatch {
+  memoryId: string,
+}
+
+export function usePatchMeLLMMemoryMutation() {
+  const { token } = useAuth();
+  const queryClient = useQueryClient();
+  const key = queryKeys.meLLMMemories(token);
+  return useMutation({
+    mutationFn: ({ memoryId, ...body }: LLMMemoryEdit) => api.patchMeLLMMemory(memoryId, body),
+    onSuccess: (memory: LLMMemory) => {
+      queryClient.setQueryData<LLMMemoriesPage>(key, (page) => {
+        return (page) ? {...page, items: page.items.map((other) => (other.id === memory.id) ? memory : other)} : page;
+      });
+    },
+  });
+}
+
+
+export function useDeleteMeLLMMemoryMutation() {
+  const { token } = useAuth();
+  const queryClient = useQueryClient();
+  const key = queryKeys.meLLMMemories(token);
+  return useMutation({
+    mutationFn: (memoryId: string) => api.deleteMeLLMMemory(memoryId),
+    onSuccess: (_result, memoryId) => {
+      queryClient.setQueryData<LLMMemoriesPage>(key, (page) => {
+        return (page) ? {...page, items: page.items.filter((other) => other.id !== memoryId)} : page;
+      });
+    },
+  });
+}
+
+
+export function useDeleteMeLLMMemoriesMutation() {
+  const { token } = useAuth();
+  const queryClient = useQueryClient();
+  const key = queryKeys.meLLMMemories(token);
+  return useMutation({
+    mutationFn: () => api.deleteMeLLMMemories(),
+    onSuccess: () => {
+      queryClient.setQueryData<LLMMemoriesPage>(key, (page) => (page) ? {...page, items: []} : page);
+    },
   });
 }
 

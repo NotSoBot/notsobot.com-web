@@ -106,6 +106,7 @@ const routes: Array<RouteObject> = [
               {path: Routes.DASHBOARD_PREMIUM, lazy: async () => ({Component: (await import('@/pages/dashboard/PremiumPage')).PremiumPage}), handle: PAGES.DASHBOARD_PREMIUM},
               {path: Routes.DASHBOARD_SETTINGS, lazy: async () => ({Component: (await import('@/pages/dashboard/settings/SettingsPage')).SettingsPage}), handle: PAGES.DASHBOARD_SETTINGS},
               {path: Routes.DASHBOARD_FILES, lazy: async () => ({Component: (await import('@/pages/dashboard/files/FilesPage')).FilesPage}), handle: PAGES.DASHBOARD_FILES},
+              {path: Routes.DASHBOARD_AI_MEMORY, lazy: async () => ({Component: (await import('@/pages/dashboard/ai-memory/AIMemoryPage')).AIMemoryPage}), handle: PAGES.DASHBOARD_AI_MEMORY},
               {path: Routes.DASHBOARD_REMINDERS, lazy: async () => ({Component: (await import('@/pages/dashboard/reminders/RemindersPage')).RemindersPage}), handle: PAGES.DASHBOARD_REMINDERS},
               {path: `${Routes.DASHBOARD_REPORTS}/:itemId?`, lazy: async () => ({Component: (await import('@/pages/dashboard/reports/ReportsPage')).ReportsPage}), handle: PAGES.DASHBOARD_REPORTS},
               {path: Routes.DASHBOARD_VOICES, lazy: async () => ({Component: (await import('@/pages/dashboard/voices/VoicesPage')).VoicesPage}), handle: PAGES.DASHBOARD_VOICES},

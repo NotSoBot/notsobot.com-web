@@ -8,6 +8,7 @@ export const Routes = Object.freeze({
   COMMAND: '/commands/:commandId',
   COMMAND_TYPE: '/commands/:commandId/:commandType',
   DASHBOARD: '/dashboard',
+  DASHBOARD_AI_MEMORY: '/dashboard/ai-memory',
   DASHBOARD_APPLICATIONS: '/dashboard/applications',
   DASHBOARD_COMMANDS: '/dashboard/commands',
   DASHBOARD_TAGS: '/dashboard/tags',

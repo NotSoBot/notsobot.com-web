@@ -8,6 +8,7 @@ import type {
   AdminUserEntry,
   AdminVoice,
   ContentFlag,
+  LLMMemory,
   MeCommandUse,
   Reminder,
   Report,
@@ -72,6 +73,7 @@ export function createSettings(): UserSettings {
     file_upload_vanity: null,
     locale: 'en',
     ml_diffusion_model: null,
+    ml_llm_memory_disabled: false,
     ml_llm_model: 'ANTHROPIC_CLAUDE_HAIKU_5_5',
     ml_llm_personality: 'You are a sarcastic but helpful assistant who loves cats.',
     opted_out_content: null,
@@ -607,6 +609,26 @@ export function createReminders(): Array<Reminder> {
       timestamp_start: new Date(start).toISOString(),
     };
   });
+}
+
+
+// what NotSoAI remembers about the mock user, oldest first like the api
+export function createLLMMemories(): Array<LLMMemory> {
+  const day = 86400000;
+  const rows: Array<[number, string, string | null]> = [
+    // [days ago, content, guild id]
+    [40, 'Their name is Sam', null],
+    [21, 'Their birthday is March 3', null],
+    [9, 'They want short replies with no emojis', null],
+    [2, 'They run the Minecraft server for this club, it\'s called Oakvale', '1100000000000000002'],
+  ];
+  return rows.map(([ daysAgo, content, guildId ], i) => ({
+    content,
+    created: new Date(Date.now() - daysAgo * day).toISOString(),
+    guild: (guildId) ? {icon: null, id: guildId, name: 'Cool Gamers Club'} : null,
+    guild_id: guildId,
+    id: (1340000000000000000n + BigInt(i) * 4194304n).toString(),
+  }));
 }
 
 

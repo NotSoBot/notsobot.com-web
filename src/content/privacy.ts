@@ -3,7 +3,7 @@ import type { LegalDocument } from './legal';
 export const PRIVACY_POLICY: LegalDocument = {
   title: "Privacy Policy",
   effective: "October 13, 2026",
-  lastUpdated: "October 13, 2026",
+  lastUpdated: "October 17, 2026",
   intro: "This Privacy Policy explains what information NotSoBot collects, why, who it's shared with, how long it's kept, and how You can get a copy of it or have it deleted.",
   sections: [
     {
@@ -29,6 +29,7 @@ export const PRIVACY_POLICY: LegalDocument = {
           "Reports You send with the report command, including the text, the server, channel and message IDs involved, and Our review notes.",
           "Uploaded files: files You ask NotSoBot to host, their file names, sizes, dimensions and file hashes (MD5, SHA-1 and BLAKE2b).",
           "AI requests: the prompt, including any messages You replied to with the ai command, along with the instructions, model, generated response, any error and token counts.",
+          "AI memory: short facts NotSoAI saves about You when You ask it to remember something, whether each one applies everywhere or only in one server, when it was saved, and whether You've turned memory off.",
           "Cloned voices: the voice's name and the ID of the voice stored at ElevenLabs.",
           "Purchases: premium entitlements and subscription status received from Discord.",
           "Website login: if You log in to notsobot.com with Discord, an OAuth2 access and refresh token with the \"identify\" and \"guilds\" scopes, and your login sessions with their browser user agent. Your list of servers is fetched from Discord when the dashboard needs it and cached for about a minute.",
@@ -107,7 +108,7 @@ export const PRIVACY_POLICY: LegalDocument = {
       blocks: [
         {type: 'paragraph', text: "Nothing is sent to these companies unless someone uses an AI feature. Data is only sent when:"},
         {type: 'list', items: [
-          "You use the ai command. Your prompt and any media You attach are sent. If You use it as a reply, the messages You're replying to are sent too, up to 5 in a reply chain, including each author's name.",
+          "You use the ai command. Your prompt and any media You attach are sent. If You use it as a reply, the messages You're replying to are sent too, up to 5 in a reply chain, including each author's name. Unless You've turned memory off, the facts NotSoAI remembers about You are sent too (only the ones for that server and the ones that apply everywhere). They're never sent when a tag uses AI.",
           "You run a tag that uses AI. The tag's prompt is sent, which can include text and media You give the tag. The tag's creator chooses the model.",
           "You clone a voice, or use a cloned voice for text-to-speech.",
         ]},
@@ -120,10 +121,11 @@ export const PRIVACY_POLICY: LegalDocument = {
           "Meta, for Muse Spark models",
           "DeepSeek, for DeepSeek models",
           "Alibaba Cloud, for Qwen models",
+          "MiniMax, for MiniMax models",
           "Moonshot AI, for Kimi models",
           "Xiaomi, for MiMo models",
           "Z.ai, for GLM models",
-          "DeepInfra, which hosts openly available models from other developers, such as Gemma, Llama, Nemotron and gpt-oss",
+          "DeepInfra, which hosts openly available models from other developers, such as Gemma, Nemotron and gpt-oss",
           "ElevenLabs, for voice cloning and text-to-speech with cloned voices",
         ]},
         {type: 'paragraph', text: "Image generation, audio transcription, image descriptions, safety scanning and Our other text-to-speech voices run on Our own servers and are not sent to any of these companies."},
@@ -139,6 +141,7 @@ export const PRIVACY_POLICY: LegalDocument = {
           "AI requests, including any messages You replied to, are deleted after 30 days.",
           "Cached server lists for the dashboard expire after about a minute.",
           "Tags, reminders and cloned voices are deleted when You delete them. Deleting a cloned voice also deletes it from ElevenLabs.",
+          "AI memories are kept until You delete them, ask NotSoAI to forget them, or delete your information. Turning memory off stops NotSoAI from seeing or saving them but doesn't delete the ones already saved.",
           "Server settings are kept if NotSoBot is removed from a server, so they still apply if it's added back. A server owner can ask Us to delete them.",
           "Safety records are kept to prevent repeat abuse, and for as long as the law requires for anything We report.",
           "Other information is kept while You use the Service, and deleted when You ask Us to delete it or when We no longer need it.",
@@ -152,6 +155,7 @@ export const PRIVACY_POLICY: LegalDocument = {
         {type: 'paragraph', text: "You can also:"},
         {type: 'list', items: [
           "delete your own tags, reminders and cloned voices with NotSoBot's commands",
+          "see, edit or delete what NotSoAI remembers about You, or turn its memory off, with the /settings ai-memory commands or on the website's dashboard",
           "remove NotSoBot from a server You manage, or remove the user-installed app from your account",
           "revoke the website's access to your Discord account in Discord's settings under Authorized Apps",
           "clear the website's saved login by logging out or clearing your browser's site data",

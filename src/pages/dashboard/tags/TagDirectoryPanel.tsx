@@ -27,7 +27,7 @@ import {
   useRequestMeTagDirectoryVerificationMutation,
 } from '@/lib/api/dashboardQueries';
 import { formatDate, formatDateTime } from '@/lib/utils';
-import { CategorySelect, DescriptionEditor, tagDirectoryItemPath, VerificationBadge, verificationInfo, verificationRequirement, VerificationWarning } from '@/pages/tags/tagDirectory';
+import { CategorySelect, DescriptionEditor, TAG_CONTENT_ACKNOWLEDGEMENT, tagDirectoryItemPath, VerificationBadge, verificationInfo, verificationRequirement, VerificationWarning } from '@/pages/tags/tagDirectory';
 import { MediaSection, ThumbnailManager } from '@/pages/tags/TagMedia';
 
 import { CharCounter, ErrorPanel, Field, InlineError, Panel, PanelSkeleton, SaveBar, Toggle } from '../ui';
@@ -201,11 +201,8 @@ function PublishForm({ tag, onDirtyChange }: {tag: Tag, onDirtyChange: (dirty: b
     if (isAlias || publish.isPending) {
       return;
     }
-    if (movesOutOfServer) {
-      setConfirming(true);
-    } else {
-      doPublish();
-    }
+    // always confirmed, publishing needs the owner to say the content is theirs (or they have permission to share it)
+    setConfirming(true);
   };
 
   // the confirm dialog has its own form, so it sits next to this one rather than inside it (no nested forms)
@@ -260,7 +257,12 @@ function PublishForm({ tag, onDirtyChange }: {tag: Tag, onDirtyChange: (dirty: b
         <ConfirmDialog
           tone='primary'
           title={`Publish “${tag.name}”?`}
-          description={<>This moves the tag into your personal tags, leaves an alias of it in <span className='font-medium text-white'>{serverLabel}</span> and lists it on the tag directory.</>}
+          description={(movesOutOfServer) ? (
+            <>This moves the tag into your personal tags, leaves an alias of it in <span className='font-medium text-white'>{serverLabel}</span> and lists it on the tag directory.</>
+          ) : (
+            'This lists it on the tag directory, where anyone can find it and add it to their own servers.'
+          )}
+          acknowledgement={TAG_CONTENT_ACKNOWLEDGEMENT}
           confirmLabel='Publish'
           pending={publish.isPending}
           error={(publish.isError) ? errorMessage(publish.error, 'Couldn’t publish this tag.') : undefined}
@@ -447,6 +449,7 @@ function VerificationPanel({ tag, directory, listingDirty }: {tag: Tag, director
           tone='primary'
           title={`Request verification for “${tag.name}”?`}
           description={<VerificationWarning/>}
+          acknowledgement={TAG_CONTENT_ACKNOWLEDGEMENT}
           confirmLabel='Request verification'
           pending={request.isPending}
           error={(request.isError) ? errorMessage(request.error, 'Couldn’t request verification.') : undefined}

@@ -46,6 +46,7 @@ import {
   createContentFlags,
   createEntitlements,
   createFiles,
+  createLLMMemories,
   createReminders,
   createReportMessages,
   createReports,
@@ -75,6 +76,7 @@ const state = {
   contentFlags: createContentFlags(adminUsers),
   files: createFiles(),
   commandUses: createCommandUses(),
+  llmMemories: createLLMMemories(),
   reminders: createReminders(),
   reports: createReports(adminUsers),
   reportMessages: new Map<string, Array<ReportMessage>>(),
@@ -2185,6 +2187,44 @@ route('PATCH', '/users/@me/reminders/(\\d+)', ([ , reminderId ], { body }) => {
 route('DELETE', '/users/@me/reminders/(\\d+)', ([ , reminderId ]) => {
   findReminder(reminderId);
   state.reminders = state.reminders.filter((other) => other.id !== reminderId);
+});
+
+// ai memory: mirrors `views/me_llm_memories.py`
+route('GET', '/users/@me/llm/memories', () => {
+  return {items: state.llmMemories, limit: 20};
+});
+
+function findLLMMemory(memoryId: string) {
+  const memory = state.llmMemories.find((other) => other.id === memoryId);
+  if (!memory) {
+    throw new MockError(404, ApiErrorCodes.UNKNOWN_LLM_MEMORY, 'Unknown Memory');
+  }
+  return memory;
+}
+
+route('PATCH', '/users/@me/llm/memories/(\\d+)', ([ , memoryId ], { body }) => {
+  const memory = findLLMMemory(memoryId);
+  const content = (typeof body.content === 'string') ? body.content.trim() : '';
+  if (!content || 200 < content.length) {
+    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'Content must be 1 to 200 characters');
+  }
+  // same stand-ins for the content scanner as reminders
+  if (content.toLowerCase().includes('blockme')) {
+    throw new MockError(400, ApiErrorCodes.TEXT_BLOCKED_GUIDELINES, 'The memory was blocked because it may violate Discord\'s Community Guidelines');
+  }
+  memory.content = content;
+  return memory;
+});
+
+route('DELETE', '/users/@me/llm/memories/(\\d+)', ([ , memoryId ]) => {
+  findLLMMemory(memoryId);
+  state.llmMemories = state.llmMemories.filter((other) => other.id !== memoryId);
+});
+
+route('DELETE', '/users/@me/llm/memories', () => {
+  const count = state.llmMemories.length;
+  state.llmMemories = [];
+  return {count};
 });
 
 // applications: mirrors `views/me_applications.py` and the applications part of `views/admin.py`

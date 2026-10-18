@@ -89,7 +89,7 @@ function DeletePanel() {
   return (
     <Panel headingLevel={3} title='Delete my data' accent='#ed4245' description='Permanently remove what NotSoBot stores about you.'>
       <ul className='list-disc space-y-1 pl-5 text-sm text-muted'>
-        <li>Your settings, tags (with their variables and blobs), reminders and saved voices are deleted.</li>
+        <li>Your settings, tags (with their variables and blobs), reminders, AI memories and saved voices are deleted.</li>
         <li>Tags others use in their servers stop working.</li>
         <li>You’ll be logged out everywhere. Using NotSoBot again later creates a fresh record.</li>
         <li>This can’t be undone. Export first if you want a copy.</li>

@@ -372,6 +372,7 @@ export const ApiErrorCodes = {
   UNKNOWN_TAG_DIRECTORY_ASSET: 10020,
   UNKNOWN_TAG_DIRECTORY_EDIT_REQUEST: 10021,
   UNKNOWN_GUILD_LIST_ITEM: 10022,
+  UNKNOWN_LLM_MEMORY: 10023,
   UNKNOWN_SERVER: 10012,
   UNKNOWN_REPORT: 10017,
   UNKNOWN_REMINDER: 10007,
@@ -405,6 +406,7 @@ export const ApiErrorCodes = {
   MAX_TAG_DIRECTORY_ASSETS: 30018,
   // the reporter's replies on their reports, per hour
   MAX_REPORT_MESSAGES: 30019,
+  MAX_LLM_MEMORIES: 30020,
   // the session's Discord grant was revoked/expired (not the site session itself)
   DISCORD_OAUTH_ERROR: 60001,
   DISCORD_OAUTH_SCOPE_MISMATCH: 60002,
@@ -437,6 +439,8 @@ export interface UserSettings {
   file_upload_vanity: string | null,
   locale: string | null,
   ml_diffusion_model: string | null,
+  // NotSoAI doesn't see or save memories when this is on
+  ml_llm_memory_disabled: boolean,
   ml_llm_model: string | null,
   ml_llm_personality: string | null,
   opted_out_content: string | null,
@@ -520,6 +524,27 @@ export interface RemindersPage {
 export interface ReminderPatch {
   content?: string,
   move_to_dms?: boolean,
+}
+
+// something NotSoAI remembers about the user, it saves these when asked to (`{ai.memory.add}`)
+export interface LLMMemory {
+  content: string,
+  created: string,
+  // the server it's only used in, null when it's used everywhere
+  guild: {icon: string | null, id: string, name: string | null} | null,
+  guild_id: string | null,
+  id: string,
+}
+
+export interface LLMMemoriesPage {
+  items: Array<LLMMemory>,
+  // how many memories the user can have in total
+  limit: number,
+}
+
+// `content` max 200
+export interface LLMMemoryPatch {
+  content: string,
 }
 
 // `ApplicationFlags` bits on `Application.flags`

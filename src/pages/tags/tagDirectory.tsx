@@ -120,12 +120,17 @@ export function CategorySelect({ value, onChange, ...props }: Omit<ComponentProp
 export function VerificationWarning() {
   return (
     <ul className='list-disc space-y-1.5 pl-5'>
+      <li>Only request verification if you made the tag’s content (its code, text and media) or have permission from its owner to share it. Tags using content you don’t have the rights to won’t be verified.</li>
       <li>Requesting verification locks the tag’s content, so it can’t be edited while the review is pending or after it’s verified.</li>
       <li>If it’s verified, NotSoBot staff may change its content to make it more efficient, and may move its media onto NotSoBot’s own servers.</li>
       <li>You can cancel the request while it’s still pending.</li>
     </ul>
   );
 }
+
+
+// the checkbox the publish and verification `ConfirmDialog`s need ticked (the bot's `/tag directory add` and `verify` say the same)
+export const TAG_CONTENT_ACKNOWLEDGEMENT = 'I made this tag’s content, including its media, or have permission from its owner to share it.';
 
 
 // mirrors the api's `check_can_verify_tag_directory`, null when the listing can be verified

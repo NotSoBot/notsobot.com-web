@@ -38,6 +38,9 @@ import type {
   ContentFlagsPage,
   CommandStat,
   EntitlementsPage,
+  LLMMemoriesPage,
+  LLMMemory,
+  LLMMemoryPatch,
   Reminder,
   ReminderPatch,
   MeCommandsPage,
@@ -343,6 +346,23 @@ export const api = {
   // replaces every blob in the given scope (blobs left out are removed)
   putMeTagBlobs: (tagId: string, body: TagBlobsPut) => {
     return apiRequest<TagBlobs>(ApiEndpoints.USER_ME_TAG_BLOBS(tagId), {method: 'PUT', body});
+  },
+
+  fetchMeLLMMemories: (signal?: AbortSignal) => {
+    return apiRequest<LLMMemoriesPage>(ApiEndpoints.USER_ME_LLM_MEMORIES, {signal});
+  },
+
+  patchMeLLMMemory: (memoryId: string, body: LLMMemoryPatch) => {
+    return apiRequest<LLMMemory>(ApiEndpoints.USER_ME_LLM_MEMORY(memoryId), {method: 'PATCH', body});
+  },
+
+  deleteMeLLMMemory: (memoryId: string) => {
+    return apiRequest<void>(ApiEndpoints.USER_ME_LLM_MEMORY(memoryId), {method: 'DELETE'});
+  },
+
+  // every memory, in every server
+  deleteMeLLMMemories: () => {
+    return apiRequest<{count: number}>(ApiEndpoints.USER_ME_LLM_MEMORIES, {method: 'DELETE'});
   },
 
   fetchMeReminders: (signal?: AbortSignal) => {
