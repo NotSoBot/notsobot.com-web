@@ -159,6 +159,24 @@ export function CommandDrawer({ entry, siblings, totalRanked, onSelect, onClose 
                 </ul>
               </Section>
             ) : null}
+
+            {(metadata.credits?.length) ? (
+              <Section title='Credits'>
+                <div className='flex flex-wrap gap-2'>
+                  {metadata.credits.map((credit) => (
+                    <a
+                      key={credit.id}
+                      href={`https://discord.com/users/${credit.id}`}
+                      target='_blank'
+                      rel='noopener noreferrer'
+                      className='rounded bg-surface-3 px-2.5 py-1 text-sm text-fg transition-colors hover:text-white'
+                    >
+                      {credit.name}
+                    </a>
+                  ))}
+                </div>
+              </Section>
+            ) : null}
           </div>
         </aside>
       </div>

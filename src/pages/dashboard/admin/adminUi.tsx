@@ -1,4 +1,4 @@
-import { ArrowUpRight, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Copy, Filter, SlidersHorizontal, X } from 'lucide-react';
+import { ArrowUpRight, Check, ChevronDown, ChevronLeft, ChevronRight, Copy, Filter, X } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useSearchParams } from 'react-router';
@@ -9,6 +9,8 @@ import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import type { AdminUserContentFlags, AdminUserRef } from '@/lib/api';
 import { userDisplayTag } from '@/lib/discord';
 import { cn, formatDate, formatExactDateTime, NO_AUTOFILL, toDate } from '@/lib/utils';
+
+export { FiltersButton } from '@/components/ui/FiltersButton';
 
 
 // the Tags tab searching `query`, like `user:<id>`
@@ -47,28 +49,6 @@ export const BLOCKED_FILTERS = [
   {value: 'blocked', label: 'Blocked', blocked: true},
   {value: 'not', label: 'Not blocked', blocked: false},
 ] as const;
-
-
-// Shows and hides a page's filter panel (`controls` is the panel's id), next to its search box. `active` is how many of
-// the panel's filters aren't on their default, so they're noticed while it's closed.
-export function FiltersButton({ open, onToggle, active, controls }: {open: boolean, onToggle: () => void, active: number, controls: string}) {
-  return (
-    <button
-      type='button'
-      className='btn btn-secondary h-12 shrink-0 px-3 sm:px-4'
-      aria-expanded={open}
-      aria-controls={controls}
-      onClick={onToggle}
-    >
-      <SlidersHorizontal aria-hidden className='size-4'/>
-      <span className='max-sm:sr-only'>Filters</span>
-      {(active) ? (
-        <span className='rounded-full bg-brand px-1.5 text-xs leading-5 text-white' aria-label={`${active} active`}>{active}</span>
-      ) : null}
-      {(open) ? <ChevronUp aria-hidden className='size-4'/> : <ChevronDown aria-hidden className='size-4'/>}
-    </button>
-  );
-}
 
 
 export function useSearchParamState() {

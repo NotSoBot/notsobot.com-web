@@ -235,6 +235,85 @@ export const TAG_DOC_FUNCTIONS_PART1: Array<TagDocFunction> = [
     ],
   },
   {
+    id: 'API_SEARCH_REDDIT',
+    names: ['api.search.reddit'],
+    category: 'search',
+    summary: 'Searches Reddit posts and outputs the results as JSON.',
+    description: 'Outputs an object like `{"results": [...]}` where each post has `title`, `author`, `subreddit`, `url` (the post\'s link), `score`, `num_comments`, `created_utc` (unix seconds), `selftext` (cut to 1000 characters), `is_video` and `over_18`.',
+    syntax: '{api.search.reddit:query|subreddit?}',
+    args: [
+      {name: 'query', description: 'The search query (only the first 1024 characters are used).'},
+      {name: 'subreddit', description: 'Optional. Only search inside this subreddit, with or without `r/` (up to 20 characters).', optional: true},
+    ],
+    examples: [
+      {code: '{traversejson:results[0].title|{api.search.reddit:best pizza}}', result: 'The title of the top post.'},
+      {code: '{traversejson:results[0].url|{api.search.reddit:new update|discordapp}}', result: 'The link to the top post in r/discordapp.'},
+    ],
+    notes: [
+      'Counts against the network request limit. Repeating the same search in one run reuses the cached result without counting again.',
+      'NSFW posts are left out unless the channel allows NSFW content.',
+      'Image and video links are not included, link to the post instead.',
+      'An empty query outputs nothing.',
+    ],
+  },
+  {
+    id: 'API_SEARCH_URBAN',
+    names: ['api.search.urban'],
+    category: 'search',
+    summary: 'Looks up Urban Dictionary definitions of a word and outputs them as JSON.',
+    description: 'Outputs an array of definitions, the top one first. Each has `word`, `definition`, `example`, `author`, `thumbs_up`, `thumbs_down`, `written_on`, `permalink`, `defid` and `sound_urls`. Words in `[brackets]` are links to other definitions.',
+    syntax: '{api.search.urban:term?}',
+    args: [
+      {name: 'term', description: 'Optional. The word to define (only the first 1024 characters are used). Leave it empty for random definitions.', optional: true},
+    ],
+    examples: [
+      {code: '{traversejson:[0].definition|{api.search.urban:yeet}}', result: 'The top definition of "yeet".'},
+      {code: '{traversejson:[0].word|{api.search.urban}}', result: 'A random word from Urban Dictionary.'},
+    ],
+    notes: [
+      'Counts against the network request limit. Repeating the same term in one run reuses the cached result without counting again, random definitions are never cached.',
+      'Outputs `[]` if nothing was found.',
+    ],
+  },
+  {
+    id: 'API_SEARCH_WIKIHOW',
+    names: ['api.search.wikihow'],
+    category: 'search',
+    summary: 'Searches wikiHow articles, or gets a random one with its steps, as JSON.',
+    description: 'With a query, outputs an array of articles that have `title`, `url`, `views`, `updated`, `thumbnail` and `badge`. Without a query, outputs one random article with `title`, `description`, `url`, `rating` and `methods`, where each method has a `title` and its `steps` (`text`, `image`, `url`).',
+    syntax: '{api.search.wikihow:query?}',
+    args: [
+      {name: 'query', description: 'Optional. The search query (only the first 1024 characters are used). Leave it empty for a random article.', optional: true},
+    ],
+    examples: [
+      {code: '{traversejson:[0].url|{api.search.wikihow:tie a tie}}', result: 'The link to the best matching article.'},
+      {code: '{traversejson:methods[0].steps[0].text|{api.search.wikihow}}', result: 'The first step of a random article.'},
+    ],
+    notes: [
+      'Counts against the network request limit. Repeating the same query in one run reuses the cached result without counting again, a random article is never cached.',
+    ],
+  },
+  {
+    id: 'API_SEARCH_WOLFRAM_ALPHA',
+    names: ['api.search.wolframalpha'],
+    category: 'search',
+    summary: 'Asks WolframAlpha a question and outputs its answer as JSON.',
+    description: 'Outputs an object like `{"fields": [...], "images": [...], "url": string}`. Each field is one of WolframAlpha\'s answer sections, with a `name` and a text `value`. The first is usually `Input interpretation` and the second `Result`. `images` are the rendered sections, and `url` links to the full answer.',
+    syntax: '{api.search.wolframalpha:query}',
+    args: [
+      {name: 'query', description: 'The question, math or conversion (only the first 1024 characters are used).'},
+    ],
+    examples: [
+      {code: '{traversejson:fields[1].value|{api.search.wolframalpha:5 miles in km}}', result: 'The converted distance.'},
+      {code: '{traversejson:fields[1].value|{api.search.wolframalpha:integrate x^2}}', result: 'The integral, as text.'},
+    ],
+    notes: [
+      'Counts against the network request limit. Repeating the same query in one run reuses the cached result without counting again.',
+      '`fields` and `images` are empty if WolframAlpha didn\'t understand the query.',
+      'An empty query outputs nothing.',
+    ],
+  },
+  {
     id: 'API_UTILITIES_LOCATIONS',
     names: ['api.utilities.locations'],
     category: 'search',

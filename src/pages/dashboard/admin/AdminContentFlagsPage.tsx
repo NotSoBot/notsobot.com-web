@@ -33,7 +33,7 @@ import { ADMIN_CONTENT_FLAGS_PAGE_SIZE, errorMessage, useAdminContentFlagQuery, 
 import { cn, formatDateTime, formatMemory, NO_AUTOFILL } from '@/lib/utils';
 
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton, Toggle } from '../ui';
-import { AdminModalFooter, AdminTagModal, useOpenListItem } from './AdminTagModal';
+import { AdminModalFooter, AdminTagModal, LinkedItemModal, useOpenListItem } from './AdminTagModal';
 import { adminServerPath, Chip, CopyableValue, CopyButton, DETAIL_LIST_STACKED, DetailList, ExactDate, FiltersButton, Pagination, selectAllScope, useSearchParamState, useStepBackFromEmptyPage, UserCell } from './adminUi';
 import { BLOCK_REASON_MAX, BlockUserDialog, canBlockUser } from './BlockUserDialog';
 
@@ -390,6 +390,8 @@ export function AdminContentFlagsPage() {
             navigation={{previousId, nextId, onNavigate: open}}
           />
         </AdminTagModal>
+      ) : (openId) ? (
+        <LinkedItemModal noun='content flag' notFoundMessage='There’s no content flag with this id.' query={linked} onClose={close}/>
       ) : null}
       {(reportingFlag) ? <ReportFlagDialog flag={reportingFlag} onClose={() => setReportingFlag(null)}/> : null}
     </>

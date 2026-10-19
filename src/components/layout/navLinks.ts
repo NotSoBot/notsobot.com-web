@@ -7,5 +7,6 @@ export const NAV_LINKS: ReadonlyArray<{to: string, label: string, also?: Readonl
   {to: Routes.TAG_DIRECTORY, label: 'Tags'},
   {to: Routes.TAG_DOCS, label: 'Docs', also: [Routes.TAG_DOCS_MEDIASCRIPT]},
   {to: Routes.STATUS, label: 'Status'},
+  {to: Routes.CHANGELOG, label: 'Changelog'},
   {to: Routes.FAQ, label: 'FAQ'},
 ];

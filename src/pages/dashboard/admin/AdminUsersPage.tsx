@@ -16,7 +16,7 @@ import { cn, formatCompact, snowflakeTimestamp } from '@/lib/utils';
 import { premiumLabel } from '../premium';
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from '../ui';
 import { adminTagsPath, adminUserPath, BLOCKED_FILTERS, Chip, ContentFlagTiles, CopyableValue, DateTile, ExactDate, FiltersButton, FLAGGED_WITHIN, Hint, Pagination, StatTile, useSearchParamState, useStepBackFromEmptyPage } from './adminUi';
-import { AdminModalFooter, AdminTagModal, useOpenListItem } from './AdminTagModal';
+import { AdminModalFooter, AdminTagModal, LinkedItemModal, useOpenListItem } from './AdminTagModal';
 import { BlockUserDialog, canBlockUser } from './BlockUserDialog';
 import { DeleteUserTagsDialog } from './DeleteUserTagsDialog';
 import { EditUserDialog } from './EditUserDialog';
@@ -152,6 +152,8 @@ export function AdminUsersPage() {
         <AdminTagModal labelledBy={TITLE_ID} previousId={previousId} nextId={nextId} onNavigate={open} onClose={close} footer={false} stickyClose>
           <UserDetails key={openItem.user.id} entry={openItem} navigation={{previousId, nextId, onNavigate: open}}/>
         </AdminTagModal>
+      ) : (openId) ? (
+        <LinkedItemModal noun='user' notFoundMessage='NotSoBot doesn’t know anyone with this id.' query={linked} onClose={close}/>
       ) : null}
     </>
   );

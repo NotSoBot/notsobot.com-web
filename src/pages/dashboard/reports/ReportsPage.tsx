@@ -27,7 +27,7 @@ import {
 } from '@/lib/api/dashboardQueries';
 import { cn, formatDateTime, toDate } from '@/lib/utils';
 
-import { AdminModalFooter, AdminTagModal, useOpenListItem } from '../admin/AdminTagModal';
+import { AdminModalFooter, AdminTagModal, LinkedItemModal, useOpenListItem } from '../admin/AdminTagModal';
 import { Chip, CopyableValue, CopyButton, DETAIL_LIST_STACKED, DetailList, ExactDate, FiltersButton, Pagination, selectAllScope, useSearchParamState, useStepBackFromEmptyPage } from '../admin/adminUi';
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from '../ui';
 import { REPORT_STATUSES, REPORT_TARGET_LABELS, reportJumpUrl, reportStatusInfo, reportTypeInfo, ROW_EDGE_BAR } from './reportLabels';
@@ -176,10 +176,8 @@ export function ReportsPage() {
         <AdminTagModal labelledBy={TITLE_ID} previousId={previousId} nextId={nextId} onNavigate={open} onClose={close} footer={false} stickyClose>
           <ReportDetails key={openItem.id} report={openItem} navigation={{previousId, nextId, onNavigate: open}}/>
         </AdminTagModal>
-      ) : (openId && linked.isError) ? (
-        <div className='mt-4'>
-          <ErrorPanel title='Couldn’t load this report' message={errorMessage(linked.error)} onRetry={() => linked.refetch()} retrying={linked.isRefetching}/>
-        </div>
+      ) : (openId) ? (
+        <LinkedItemModal noun='report' notFoundMessage='You haven’t sent a report with this id.' query={linked} onClose={close}/>
       ) : null}
     </>
   );

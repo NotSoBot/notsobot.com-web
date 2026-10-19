@@ -2,7 +2,9 @@ import { History } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router';
 
+import { FiltersButton } from '@/components/ui/FiltersButton';
 import { Markdown } from '@/components/ui/Markdown';
+import { SearchInput } from '@/components/ui/SearchInput';
 import { Segmented } from '@/components/ui/Segmented';
 import { Routes } from '@/config';
 import { CHANGE_KIND_LABELS, CHANGELOG, type ChangeKind } from '@/content/changelog';
@@ -41,17 +43,28 @@ export function ChangelogPage() {
   const [ filter, setFilter ] = useState<KindFilter>('all');
   // only show that day and older ones, '' shows every day
   const [ until, setUntil ] = useState('');
+  const [ query, setQuery ] = useState('');
+  const [ filtersOpen, setFiltersOpen ] = useState(false);
+  const needle = query.trim().toLowerCase();
 
   // within a day, new things first, then improvements, fixes and removals
   const days = useMemo(() => {
     // YYYY-MM-DD compares in date order as a string
-    return CHANGELOG.filter((day) => !until || day.date <= until).map((day) => ({
-      ...day,
-      items: day.items
-        .filter((item) => filter === 'all' || item.kind === filter)
-        .sort((a, b) => KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind)),
-    })).filter((day) => day.items.length);
-  }, [filter, until]);
+    return CHANGELOG.filter((day) => !until || day.date <= until).map((day) => {
+      // a search matching the day's title keeps all of that day's changes
+      const titleMatches = !needle || day.title.toLowerCase().includes(needle);
+      return {
+        ...day,
+        items: day.items
+          .filter((item) => filter === 'all' || item.kind === filter)
+          .filter((item) => titleMatches || item.text.toLowerCase().includes(needle))
+          .sort((a, b) => KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind)),
+      };
+    }).filter((day) => day.items.length);
+  }, [filter, until, needle]);
+
+  const matchCount = days.reduce((count, day) => count + day.items.length, 0);
+  const activeFilters = Number(filter !== 'all') + Number(!!until);
 
   // `/changelog#2026-10-17` jumps to that day
   useEffect(() => {
@@ -73,22 +86,39 @@ export function ChangelogPage() {
           <p className='mb-6 max-w-2xl text-muted'>
             New commands, improvements and fixes to NotSoBot and notsobot.com, day by day.
           </p>
-          <div className='flex flex-wrap items-center gap-3'>
-            <div className='-mx-4 max-w-[calc(100%+2rem)] overflow-x-auto px-4 sm:mx-0 sm:max-w-full sm:px-0'>
-              <div className='w-max'>
-                <Segmented label='Show changes' value={filter} options={FILTER_OPTIONS} onChange={(value) => setFilter(value as KindFilter)}/>
-              </div>
-            </div>
-            <label className='flex items-center gap-2 text-sm text-muted'>
-              Up to
-              <select value={until} onChange={(event) => setUntil(event.target.value)} className='input w-auto py-2.5'>
-                <option value=''>All dates</option>
-                {CHANGELOG.map((day) => (
-                  <option key={day.date} value={day.date}>{FULL_DAY_FORMAT.format(parseDay(day.date))}</option>
-                ))}
-              </select>
-            </label>
+          <div className='flex max-w-2xl gap-2'>
+            <SearchInput
+              className='min-w-0 flex-1'
+              value={query}
+              onValueChange={setQuery}
+              placeholder='Search changes, like .zoom or {foreach}...'
+              aria-label='Search the changelog'
+            />
+            <FiltersButton open={filtersOpen} onToggle={() => setFiltersOpen((value) => !value)} active={activeFilters} controls='changelog-filters'/>
           </div>
+          <div id='changelog-filters' hidden={!filtersOpen} className='mt-3 max-w-2xl rounded-lg border border-line bg-deep/60 p-4'>
+            <div className='flex flex-wrap items-center gap-3'>
+              <div className='-mx-4 max-w-[calc(100%+2rem)] overflow-x-auto px-4 sm:mx-0 sm:max-w-full sm:px-0'>
+                <div className='w-max'>
+                  <Segmented label='Show changes' value={filter} options={FILTER_OPTIONS} onChange={(value) => setFilter(value as KindFilter)}/>
+                </div>
+              </div>
+              <label className='flex items-center gap-2 text-sm text-muted'>
+                Up to
+                <select value={until} onChange={(event) => setUntil(event.target.value)} className='input w-auto py-2.5'>
+                  <option value=''>All dates</option>
+                  {CHANGELOG.map((day) => (
+                    <option key={day.date} value={day.date}>{FULL_DAY_FORMAT.format(parseDay(day.date))}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </div>
+          {(needle) ? (
+            <p className='mt-3 text-sm text-muted' aria-live='polite'>
+              {matchCount} {(matchCount === 1) ? 'change' : 'changes'} for “{query.trim()}”
+            </p>
+          ) : null}
         </div>
       </div>
 
@@ -125,7 +155,7 @@ export function ChangelogPage() {
         {(!days.length) ? (
           <div className='card p-10 text-center'>
             <p className='mb-1 text-lg text-white'>No changes match these filters.</p>
-            <p className='text-muted'>Try another type or a later date.</p>
+            <p className='text-muted'>Try other words, another type or a later date.</p>
           </div>
         ) : null}
 

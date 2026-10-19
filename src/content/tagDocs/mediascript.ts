@@ -100,6 +100,39 @@ function media(description: string = 'the media to change'): TagDocMediaScriptAr
 }
 
 
+const TEXT_FONTS = 'sans, serif, monospace, archivoblack, arial, calibri, daysone, dejavumono, domine, dosis, freemono, futura, impact, kalam, montserrat, montserratbold, montserratsemibold, mplus1c, mplus2p, mrdafoe, msgothic, opensans, pricedown, roboto, rubik, saira, sfpro, sfprothin, sfprotext, tahoma, titillium, titilliumblack';
+
+// the look options `text`, `fittext` and `drawtext` share, always given by name (`FONT=impact`)
+function textStyleArgs(defaults: {color: string, stroke: string, width?: boolean}): Array<TagDocMediaScriptArgument> {
+  return [
+    {name: 'FONT', default: 'sans', range: TEXT_FONTS, description: 'one of the bundled fonts'},
+    {name: 'SIZE', default: '48', range: '1..500', description: 'font size in pixels'},
+    {name: 'COLOR', default: defaults.color, description: 'text color, `none` for hollow text (with `STROKE`)'},
+    ...(defaults.width === false ? [] : [{name: 'WIDTH', default: '0', range: '0..2048', description: 'wrap lines at this many pixels, 0 to only wrap at the max image width'}]),
+    {name: 'ALIGN', default: 'center', range: 'left, center, right, justify', description: 'how lines line up'},
+    {name: 'LINE_SPACING', default: '1', range: '0.5..5', description: 'line height, as a multiple of the normal one'},
+    {name: 'LETTER_SPACING', default: '0', range: '-0.5..2', description: 'extra space between letters, in ems (0.1 is a tenth of the size)'},
+    {name: 'MARKUP', default: 'false', description: 'read `<b>`, `<i>`, `<u>`, `<s>`, `<sub>`, `<sup>`, `<big>`, `<small>`, `<tt>` and `<span>` tags in the text'},
+    {name: 'STROKE', default: defaults.stroke, description: 'outline color'},
+    {name: 'STROKE_WIDTH', default: 'SIZE/16', range: '0..100', description: 'outline thickness in pixels'},
+    {name: 'SHADOW', default: 'none', description: 'drop shadow color (RGBA works for a see-through one)'},
+    {name: 'SHADOW_X', default: 'SIZE/16', range: '-500..500', description: 'shadow offset to the right'},
+    {name: 'SHADOW_Y', default: 'SIZE/16', range: '-500..500', description: 'shadow offset down'},
+    {name: 'SHADOW_BLUR', default: 'SIZE/12', range: '0..100', description: 'shadow softness in pixels'},
+    {name: 'BACKGROUND', default: 'none', description: 'color of a box behind the text (also `BG`)'},
+    {name: 'PADDING', default: 'SIZE/4 with a background, else 0', range: '0..500', description: 'space between the text and the box edge'},
+    {name: 'RADIUS', default: '0', range: '0..1000', description: 'rounded corners for the box'},
+    {name: 'FILL', default: 'none', description: 'a media key to fill the letters with (its first frame), instead of `COLOR`'},
+  ];
+}
+
+const TEXT_STYLE_NOTES = [
+  'Everything after the media key that isn\'t `NAME=value` is the text. Wrap it in `{jsonify:}` when it has new lines or quotes, and always when `MARKUP=true`: an unwrapped `<span color="red">` gets read as a `COLOR=` option.',
+  'Markup `<span>` takes `color`, `background`, `alpha`/`bgalpha` (percent), `font` (one of the font names), `size` (`10%`..`300%` or `xx-small`..`xx-large`, `smaller`, `larger`), `weight`, `style`, `variant`, `stretch`, `underline`, `overline`, `strikethrough`, their `_color`s, `letter_spacing` and `text_transform`. Markup can make text at most 4x bigger, and tags nest at most 10 deep.',
+  'Emoji are drawn in color.',
+];
+
+
 export const MEDIASCRIPT_GUIDE: Array<TagDocGuideSection> = [
   {
     id: 'ms-overview',
@@ -358,6 +391,7 @@ export const MEDIASCRIPT_GUIDE: Array<TagDocGuideSection> = [
       rows: [
         ['`magick hald:4 -modulate ...` + `movie=x.ppm,[in]haldclut`', '`hue=h=DEGREES`, or build the CLUT in the graph: `haldclutsrc=4,hue=h=54[h];[0:v][h]haldclut`'],
         ['`multipitch in.wav out.wav 0,7,12 --no-normalize`', '`multipitch KEY 0,7,12`'],
+        ['`multipitch in.wav out.wav 7 --backend signalsmith`', '`multipitch KEY 7 engine=signalsmith` (or `engine=rubberband`)'],
         ['`wine autotune.exe -b 75 voice.wav music.wav out.wav` (the "autotune" vocoder)', '`load URL song`, then `vocoder KEY song 75`'],
         ['The TV simulator (`movie=$(curl .../Project%20Name%209.mp4)` + `displace`)', '`tvsimulator KEY LINE_SYNC DETAIL_ZOOM VERTICAL`'],
         ['`movie=$(curl ...)` or a second downloaded video', '`load URL other`, then `ffmpeg KEY -i other -filter_complex "[0:v][1:v]..."`'],
@@ -410,7 +444,7 @@ export const MEDIASCRIPT_GUIDE: Array<TagDocGuideSection> = [
     body: [
       '`loadveg URL VEG_KEY` reads a Vegas Pro project, and `vegrender MEDIA_KEY VEG_KEY` plays it back with every video and sound in it replaced by your media, the way the `.veg` renderers in effect tags do (tved with `--all-media`). The project is rebuilt from what Vegas saved in the `.veg`: its timeline, fades, Pan/Crop and track motion, its generated media, and the video effects in the table (on events and on whole tracks). Vegas itself never runs: the effects are redrawn with ffmpeg, so they come out close to Vegas but not exactly the same, and effects not in the table are skipped without a word. Check the table before you build a tag around a project. Projects from older Vegas versions (like the 2012-2013 YTP collabs) are read too.',
       'Which clips get your media: a video event whose source file was a video (mp4, mov, mkv, avi, wmv, m4v, mpg, mpeg, mts, m2ts, webm, 3gp, ts or flv), and an audio event whose source was a video or a sound (wav, mp3, m4a, aac, flac, ogg, wma or opus). The file names come from the paths saved in the project, in any language. Events on still images (png, jpg, bmp, gif) are left out. With an image as your media, every video event shows it and there is no sound; with an audio file, only the audio events play (solid colors, text and noise still show).',
-      'Every event plays from the same spot of your media it played from in its own source, and your media loops when the project reaches past its end. With `CUTOFF=true` (the default) an event that starts on a track ends the one before it on that track, like Vegas does; `CUTOFF=false` lets them overlap.',
+      'Every event plays from the same spot of your media it played from in its own source, and your media loops when the project reaches past its end. With `CUTOFF=true` (the default) an event that starts on a track ends the one before it on that track, like Vegas does (except under a crossfade, where both play); `CUTOFF=false` lets them overlap.',
       'Limits: projects up to 32mb (and within the script\'s download limit, which is usually smaller), 4 per script, 20000 events and 512 tracks. The render is at most 10 minutes long (long projects usually hit the script\'s time limit first) and scaled to fit 1280x720, shows at most 32 clips at once (and plays 32 sounds at once), and has at most 1024 clips in any half second. It counts as one `ffmpeg` run, shares its time limit, and stops as soon as the file is sure to be too big to send.',
     ].join('\n\n'),
     table: {
@@ -418,35 +452,48 @@ export const MEDIASCRIPT_GUIDE: Array<TagDocGuideSection> = [
       rows: [
         ['Events', 'Yes', 'Position, length, and where in its source each one starts'],
         ['Speed', 'Yes', 'From 0.01x to 100x'],
-        ['Pitch', 'Yes', 'Pitch changes on audio events, keeping their length'],
-        ['Pan/Crop', 'Partly', 'Zoom, move, rotation and flips, from the first keyframe to the last in a straight line. Keyframes in between and smooth/fast/slow curves are not'],
+        ['Pitch', 'Yes', 'Pitch changes on audio events, keeping their length: the event\'s own pitch and its Pitch Shift plugin (any language or brand of it) add up'],
+        ['Pan/Crop', 'Partly', 'Zoom, move, rotation and flips, through every keyframe in a straight line from one to the next. Smooth/fast/slow curves are not'],
         ['Track motion', 'Partly', 'Position, size and flips. 3D track motion and rotation are not'],
         ['Solid Color', 'Yes', 'Its color and transparency'],
         ['Text', 'Partly', 'The text and its size, in white with a black border, centered. Fonts, colors, position and animation are not. Any language works; emoji show only if the font has them'],
         ['Noise Texture', 'Partly', 'Gray static (found in Japanese Vegas projects, where it is named ノイズ)'],
-        ['Compositing', 'Partly', 'Add and Subtract on solid colors and noise. Video events always draw normally, and a track with a compositing plugin hides its generated media'],
+        ['Compositing', 'Partly', 'Add and Subtract on solid colors and noise, and Difference (white solids or text inverting what is under them) on tracks set to it. Video events always draw normally, and generated media on a track with another compositing plugin is left out'],
         ['Event fades', 'Yes', 'Fade in and out on video (opacity, showing what is under it) and sound (volume), drawn as straight ramps. Fade curve types are not'],
-        ['Transitions', 'Partly', 'A crossfade plays as the two events fading (use `CUTOFF=false` so both are there while they overlap). Transition effects like wipes are not'],
+        ['Transitions', 'Partly', 'A crossfade plays as the next event fading in over the one before, which plays on under it (with either `CUTOFF`). Transition effects like wipes are not'],
         ['Track FX', 'Yes', 'Effects on a whole track are put on every clip on it, after the clip\'s own'],
-        ['Black and White', 'Yes', 'Including partial amounts'],
+        ['Black and White', 'Yes', 'Including partial amounts, the older plugin and the OFX one'],
         ['Invert', 'Yes', 'Including partial amounts, and keyframes (flashing inverts play frame by frame)'],
         ['HSL Adjust', 'Yes', 'Hue, saturation and luminance'],
         ['Color Corrector (Secondary)', 'Partly', 'Hue rotation, saturation, gamma and gain over the whole picture. Its luminance/saturation/hue limits and masks are not'],
-        ['Color Curves', 'Yes', 'Red, green and blue curves'],
-        ['Channel Blend', 'Yes', 'Each color channel mixed from the others (RGB to BGR, red only...)'],
+        ['Color Curves', 'Yes', 'Red, green and blue curves, the older plugin and the OFX one (Infrared...)'],
+        ['Channel Blend', 'Yes', 'Each color channel mixed from the others (RGB to BGR, red only...), the older plugin and the OFX one'],
         ['TV Simulator', 'Partly', 'All 8 controls: line sync, vertical sync, interlacing, scan phasing, phosphorescence, aperture grill, static and detail zoom. Line sync is a new random wobble each frame like in Vegas, so it matches in strength, not frame for frame'],
-        ['Convolution Kernel', 'Yes', 'The 3x3 kernel with its scale and bias (emboss, edges, sharpen...)'],
+        ['Convolution Kernel', 'Yes', 'The 3x3 kernel with its scale and bias (emboss, edges, sharpen...), the older plugin and the OFX one (not rotated)'],
         ['Linear Blur', 'Yes', 'Blur along its angle'],
         ['Mirror', 'Partly', 'Left/right or up/down through the middle. Other angles are not'],
-        ['Swirl', 'Yes', 'Clockwise or counter clockwise, around the middle'],
-        ['Pinch/Punch and Spherize', 'Yes', 'Bulging out or pinching in, around the middle'],
+        ['Swirl', 'Yes', 'Clockwise or counter clockwise, with its size and around its center'],
+        ['Pinch/Punch and Spherize', 'Yes', 'Bulging out or pinching in: Spherize around its center, Pinch/Punch around the middle'],
+        ['Deform', 'Yes', 'Shear, squeeze, curve, bend and compress, matching a Vegas render of every preset'],
+        ['Gaussian Blur', 'Yes', 'Across and down, on the channels it is set to (matched to a Vegas render of its presets)'],
+        ['Pixelate', 'Yes', 'Across, down or both, in blocks of 2, 4, 8 or 16 output pixels like Vegas'],
+        ['Threshold', 'Yes', 'Each of red, green and blue turned full or off at its level (matched to a Vegas render of its presets)'],
+        ['Gradient Map', 'Partly', 'The brightness mapped along its colour stops and laid over by their alpha. Close to Vegas, not exact'],
+        ['Glow', 'Yes', 'Its color over the brights, as wide and strong as its percent, intensity and suppression (matched to a Vegas render of its presets)'],
+        ['Radial Blur', 'Partly', 'Fixed radius and proportional, around its center. Close to Vegas; the strongest proportional streaks are shorter'],
+        ['Light Rays', 'Partly', 'Rays from the brights, the spotlight (size, feather), its color and ambient light. Close to Vegas; sensitivity is not used'],
+        ['NewBlue Wiggle', 'Partly', 'Rate, Strength, Drift, Crop, Edges and Orientation, matched to a Vegas render of its presets. Stretched edges are only close'],
+        ['NewBlue Duochrome', 'Partly', 'The brightness mapped through its ink and paper colors, mixed in by its blend. Close to Vegas'],
+        ['NewBlue Metallic', 'Partly', 'Its color as metal bands over the brightness, with shine, highlights, calibrate and the picture mixed back in. Close to Vegas'],
+        ['NewBlue Ghost', 'Partly', 'The fog (width, color, level), shine color and banding, mixed in by its blend. Close to Vegas; strong bands are only like it and motion is not done'],
+        ['NewBlue Earthquake', 'Partly', 'Zoomed in and shaken as far and as fast as its magnitude and velocity. The shake is made up, like Vegas’ own random one'],
         ['Wave (classic)', 'Yes', 'The older wave with the Small, Medium, Large, Horizontal Only and Vertical Only presets: rows and columns bent along a sine'],
         ['Cookie Cutter', 'Partly', 'Horizontal bars only. Other shapes are not'],
         ['Chroma Keyer', 'Partly', 'The key color with its threshold and blur, close to Vegas'],
         ['Effect keyframes', 'Partly', 'Invert follows its keyframes; the other effects keep their first one'],
-        ['Other video FX', 'No', 'The animated Wave (Flag, Dream...), glow, Gaussian blur, pixelate, OFX plugins from other companies...'],
-        ['Envelopes', 'No', 'Volume, pan, opacity and velocity'],
-        ['Audio FX', 'No', 'Skipped'],
+        ['Other video FX', 'No', 'Other NewBlue effects, OFX plugins from other companies...'],
+        ['Envelopes', 'Partly', 'Audio track volume and pan envelopes. Opacity and velocity envelopes are not'],
+        ['Audio FX', 'Partly', 'Pitch Shift, Distortion (its levels, graph and low-pass; slew rate only like it), Volume, Resonant Filter and Reverb (a made up room of its decay, pre-delay and levels), on events and on audio tracks (a track\'s on its mix). Others (ExpressFX Distortion, Vibrato, Delay, EQ...) are skipped'],
         ['Reverse', 'Yes', 'Reversed events play backwards, their sound too'],
         ['Subclips', 'Yes', 'A part of a file cut in Vegas plays from its own spot'],
         ['Takes', 'Partly', 'An event with several takes uses the one it was set to play (the last one, unless it was switched back)'],
@@ -540,7 +587,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     syntax: 'loadveg URL VEG_KEY',
     args: [
       {name: 'URL', description: 'link to the `.veg` file, or `FILE_1`, `FILE_2`... for files attached to the tag'},
-      {name: 'VEG_KEY', description: 'name to use it by: letters, numbers and _ only, up to 32'},
+      {name: 'VEG_KEY', description: 'name to use it by, any name like a media key'},
     ],
     examples: [
       {code: '{mediascript:loadveg FILE_1 p\nload {iv} logo\nvegrender logo p\nrender logo}', result: 'Plays back the attached project with the last image or video.'},
@@ -565,7 +612,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
       {code: '{mediascript:load {iv} logo\nloadveg https://example.com/preview1280.veg p\nvegrender logo p\nrender logo}', result: 'The project rebuilt with the last image or video in every clip.'},
     ],
     notes: [
-      'Rebuilt: the timeline (cuts, tracks, speed, reversed events and subclips), pitch changes, event fades, Pan/Crop zooms, moves, turns and flips, track motion, solid colors, text, noise, and these effects on events and tracks: Black and White, Invert, HSL Adjust, Color Corrector (Secondary), Color Curves, Convolution Kernel, Linear Blur, Mirror, Swirl, Pinch/Punch, Spherize, the classic Wave, Channel Blend, TV Simulator, Cookie Cutter and Chroma Keyer. Other effects (the animated Wave, glow...), transition effects and envelopes are not, so a project that uses them will look different. The full list is in the Vegas projects section.',
+      'Rebuilt: the timeline (cuts, tracks, speed, reversed events and subclips), pitch changes (including the Pitch Shift plugin), the Distortion audio plugin, event fades, Pan/Crop zooms, moves, turns and flips, track motion, solid colors, text, noise, and these effects on events and tracks: Black and White, Invert, HSL Adjust, Color Corrector (Secondary), Color Curves, Convolution Kernel, Linear Blur, Mirror, Swirl, Pinch/Punch, Spherize, Deform, the classic Wave, Channel Blend, Gaussian Blur, Pixelate, Threshold, Gradient Map, Glow, Radial Blur, Light Rays, NewBlue Wiggle, Duochrome, Metallic, Ghost and Earthquake, TV Simulator, Cookie Cutter and Chroma Keyer. Other effects (the animated Wave, other NewBlue effects...), transition effects and envelopes are not, so a project that uses them will look different. The full list is in the Vegas projects section.',
       'Video events on video files and audio events on video or sound files get your media; events on still images are left out. A still image is shown for the whole project.',
       'At most 10 minutes, scaled down to fit 1280x720, with at most 32 clips on screen (and 32 heard) at once. Counts toward the `ffmpeg` limit and has to finish within the script\'s time limit, which long or effect-heavy projects can run out of.',
       'Outside of tags, the bot has the same thing as the `.veg` command (the .veg attached or its url first, then the media, `-nocutoff` for `CUTOFF=false`) and `/media-aiv veg`.',
@@ -979,8 +1026,80 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     ],
   },
   {
+    name: 'text',
+    category: 'text',
+    summary: 'Creates a transparent image of styled text: any bundled font, outline, drop shadow, background box, markup and emoji.',
+    syntax: 'text MEDIA_KEY ...TEXT FONT=sans SIZE=48 COLOR=black STROKE=none SHADOW=none BACKGROUND=none ...',
+    args: [
+      media('the name for the text image'),
+      {name: 'TEXT', rest: true, description: 'the text'},
+      ...textStyleArgs({color: 'black', stroke: 'none'}),
+    ],
+    examples: [
+      {code: '{mediascript:load {iv} img\ntext caption {jsonify:WHEN THE CODE WORKS} FONT=impact SIZE=72 COLOR=white STROKE=black WIDTH=imgw-40\noverlay img caption (imgw-captionw)/2 20\nrender img}', result: 'Puts white Impact text with a black outline along the top of the image.'},
+      {code: '{mediascript:text label {jsonify:<b>NEW</b> feature} FONT=montserrat SIZE=32 COLOR=#222 BACKGROUND=gold RADIUS=12 MARKUP=true\nrender label}', result: 'A rounded yellow label with "NEW" in bold.'},
+    ],
+    notes: [
+      'The image is only as big as the text (plus its outline, shadow and box), so use `KEYw` / `KEYh` to place it with `overlay`, or use `drawtext` to write straight onto media.',
+      'The old way of writing it, `text MEDIA_KEY FONT_SIZE WRAP_WIDTH COLOR ...TEXT` (two numbers and a color before the text), still works and does the same as `tti`.',
+      ...TEXT_STYLE_NOTES,
+    ],
+  },
+  {
+    name: 'fittext',
+    category: 'text',
+    summary: 'Writes text as big as it can go inside a box, for meme templates and speech bubbles.',
+    syntax: 'fittext MEDIA_KEY WIDTH HEIGHT ...TEXT MIN_SIZE=4 MAX_SIZE=200 VALIGN=middle WRAP=true FONT=sans ...',
+    args: [
+      media('the name for the text image'),
+      {name: 'WIDTH', range: '1..2048', description: 'box width in pixels'},
+      {name: 'HEIGHT', range: '1..2048', description: 'box height in pixels'},
+      {name: 'TEXT', rest: true, description: 'the text'},
+      {name: 'MIN_SIZE', default: '4', range: '1..500', description: 'smallest font size to try'},
+      {name: 'MAX_SIZE', default: '200', range: '1..500', description: 'biggest font size to try'},
+      {name: 'VALIGN', default: 'middle', range: 'top, middle, bottom', description: 'where the text sits in the box vertically'},
+      {name: 'WRAP', default: 'true', description: 'wrap lines to fit the box (false keeps it on the lines you wrote)'},
+      ...textStyleArgs({color: 'black', stroke: 'none', width: false}),
+    ],
+    examples: [
+      {code: '{mediascript:load {iv} img\nfittext top imgw-20 imgh/4 {jsonify:{args}} FONT=impact COLOR=white STROKE=black VALIGN=top\noverlay img top 10 10\nrender img}', result: 'Fits the tag\'s arguments into the top quarter of the image, meme style.'},
+      {code: '{mediascript:create bg 600 400 30 30 30\nfittext a 560 150 {jsonify:first line} FONT=impact COLOR=white\nfittext b 560 150 {jsonify:the second, longer line} FONT=impact COLOR=white MAX_SIZE=afs\noverlay bg a 20 20\noverlay bg b 20 230\nrender bg}', result: 'Two boxes with the same font size, the second capped at the size the first one picked.'},
+    ],
+    notes: [
+      'The image is exactly `WIDTH`x`HEIGHT` with the text placed in it by `ALIGN` and `VALIGN`, so overlay it at the box\'s top-left corner.',
+      'The size it picked is saved as the variable `KEYfs` (e.g. `afs`), handy for making several boxes match.',
+      'Text that doesn\'t fit even at `MIN_SIZE` is cut off at the box edge.',
+      ...TEXT_STYLE_NOTES,
+    ],
+  },
+  {
+    name: 'drawtext',
+    category: 'text',
+    summary: 'Writes styled text straight onto an image, GIF or video, optionally moving over time.',
+    syntax: 'drawtext MEDIA_KEY ...TEXT X=(w-tw)/2 Y=(h-th)/2 START=0 END=0 FONT=sans COLOR=white STROKE=black ...',
+    args: [
+      media(),
+      {name: 'TEXT', rest: true, description: 'the text'},
+      {name: 'X', default: '(w-tw)/2', description: 'left edge of the text, an expression that can change every frame (see notes)'},
+      {name: 'Y', default: '(h-th)/2', description: 'top edge of the text, same as `X`'},
+      {name: 'START', default: '0', description: 'second the text appears at'},
+      {name: 'END', default: '0', description: 'second the text goes away at, 0 for the end'},
+      ...textStyleArgs({color: 'white', stroke: 'black'}),
+    ],
+    examples: [
+      {code: '{mediascript:load {iv} vid\ndrawtext vid {jsonify:subscribe} X=w-tw-20 Y=h-th-20 FONT=impact SIZE=40\nrender vid}', result: 'Puts "subscribe" in the bottom-right corner.'},
+      {code: '{mediascript:load {iv} vid\ndrawtext vid {jsonify:breaking news} X=w-t*200 Y=h-th-10 START=1 BACKGROUND=red COLOR=white STROKE=none\nrender vid}', result: 'A red ticker scrolls in from the right after one second.'},
+      {code: '{mediascript:load {iv} gif\ndrawtext gif wobble Y=(h-th)/2+sin(n/3)*20\nrender gif}', result: 'Text that bobs up and down on every frame of a GIF.'},
+    ],
+    notes: [
+      '`X` and `Y` are normal expressions with a few extra names: `w`/`h` (the media\'s size), `tw`/`th` (the text\'s size), `t` (the frame\'s time in seconds) and `n` (the frame number). On top of the usual functions they take `floor`, `ceil`, `sqrt` and `clip(x,min,max)`, and `rand()` gives a new number every frame.',
+      'Lines wrap at the media\'s width unless `WIDTH` is given.',
+      'Videos count towards the script\'s `ffmpeg` uses. Audio is kept as it is.',
+      ...TEXT_STYLE_NOTES,
+    ],
+  },
+  {
     name: 'tti',
-    aliases: ['text'],
     category: 'text',
     summary: 'Creates a transparent image with centered text on it.',
     syntax: 'tti MEDIA_KEY FONT_SIZE WRAP_WIDTH COLOR ...TEXT',
@@ -1388,6 +1507,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
       'The media is input `0`, each `-i MEDIA_KEY` adds another media as input `1`, `2`, ... (at most 4).',
       'The output keeps the media\'s format, so `-c:v`/`-c:a` have to fit it (`flac` in a `video/mp4` works, `pcm_s16le` doesn\'t).',
       'Only allowed filters, codecs and options work. Filters that read or write files (`movie`, `amovie`, `sendcmd`, `zmq`, `ladspa`, `metadata`...) are blocked, and `frei0r` only takes known plugin names.',
+      'The `drawtext` filter always draws its text as written (`expansion=none`, no `%{...}`), and its `fontsize` (1-500), `borderw` (0-100), `shadowx`/`shadowy` (-500 to 500) and `boxborderw` (0-500) have to be plain numbers. The `drawtext` command is the easier way to put text on media.',
       'Output is capped at 10 minutes, 2048x2048 and 2 minutes of FFmpeg run time.',
       '`lut3d` works with LUTs from `loadcube`, as `lut3d=CUBE_KEY.cube` (`applylut` does the same in one line).',
     ],
@@ -1451,6 +1571,26 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
       {code: '{mediascript:load {iv} img\nload {avatar} pfp\noverlay img pfp (imgw/2)-(pfpw/2) (imgh/2)-(pfph/2)\nrender img}', result: 'Puts the avatar in the middle of the image.'},
       {code: '{mediascript:load {video} clip\nload https://example.com/greenscreen.mp4 gs\noverlay clip gs color=green similarity=0.3 blend=0.2\nrender clip}', result: 'Overlays a green-screen video with the green removed.'},
     ],
+  },
+  {
+    name: 'blend',
+    category: 'compose',
+    summary: 'Places one media on top of another using a blend mode, like layer blend modes in image editors.',
+    syntax: 'blend MEDIA_KEY MEDIA_KEY_2 MODE X=0 Y=0 LOOP=TRUE OPACITY=100',
+    args: [
+      media('the bottom media (gets changed)'),
+      {name: 'MEDIA_KEY_2', description: 'the media to put on top'},
+      {name: 'MODE', range: 'normal, add, burn, darken, difference, dodge, exclusion, hardlight, lighten, multiply, overlay, screen, softlight', description: 'how the top media mixes with the bottom one (`normal` is the same as `overlay`)'},
+      {name: 'X', default: '0', description: 'left position of the top media'},
+      {name: 'Y', default: '0', description: 'top position of the top media'},
+      {name: 'LOOP', default: 'TRUE', description: 'loop the shorter media to match the longer one'},
+      {name: 'OPACITY', default: '100', range: '0..100', description: 'opacity of the top media'},
+    ],
+    examples: [
+      {code: '{mediascript:load {iv} img\nload https://example.com/gradient.png grad\nresize grad imgw imgh\nblend img grad multiply\nrender img}', result: 'Darkens the image with a gradient stretched over it.'},
+      {code: '{mediascript:load {video} clip\nload {avatar} pfp\nblend clip pfp screen 10 10 opacity=60\nrender clip}', result: 'Screens the avatar onto the top left of a video at 60% opacity.'},
+    ],
+    notes: ['The top media isn\'t resized, use `resize` first to cover the whole bottom media. Transparent parts of the top media are left out of the blend.'],
   },
   {
     name: 'watermark',
@@ -1706,7 +1846,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
       },
     ],
     notes: [
-      'The same as `ffmpeg MEDIA_KEY -vf lut3d=CUBE_KEY.cube`, and it counts towards the same limit of `ffmpeg` runs.',
+      'The same as `ffmpeg MEDIA_KEY -vf lut3d=CUBE_KEY.cube`, and it counts towards the same limit of `ffmpeg` runs. The same effect is the `.lut` command (`/media-iv-5 fun lut`).',
       'Images and video only, audio is left as it is. Transparency is kept.',
     ],
   },
@@ -2443,6 +2583,25 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     args: [media()],
   },
   {
+    name: 'audiopaulstretch',
+    aliases: ['paulstretch'],
+    category: 'audio',
+    summary: 'Stretches the audio into a slow, smeared ambient drone, like Audacity\'s Paulstretch. The video is slowed down to match.',
+    syntax: 'audiopaulstretch MEDIA_KEY STRETCH=2.0 RESOLUTION=1.6',
+    args: [
+      media(),
+      {name: 'STRETCH', default: '2.0', range: '1..50', description: 'how many times longer the media gets'},
+      {name: 'RESOLUTION', default: '1.6', range: '0.01..10', description: 'seconds of sound smeared together at a time; bigger is smoother and loses more of the rhythm, small values sound choppy'},
+    ],
+    examples: [
+      {code: '{mediascript:load {video} clip\naudiopaulstretch clip\nrender clip}', result: 'Twice as long, as a slow ambient wash.'},
+      {code: '{mediascript:load {audio} clip\npaulstretch clip 10 0.25\nrender clip}', result: 'Audacity\'s defaults: ten times longer.'},
+    ],
+    notes: [
+      'Only as much of the media is used as fits in 10 minutes once stretched. Counts toward the `ffmpeg` limit.',
+    ],
+  },
+  {
     name: 'audiopitch',
     category: 'audio',
     summary: 'Raises or lowers the pitch.',
@@ -2456,18 +2615,20 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     name: 'multipitch',
     category: 'audio',
     summary: 'Pitch shifts the audio by semitones without changing its speed, or mixes several pitched copies into a chord (like the multipitch program in effect tags).',
-    syntax: 'multipitch MEDIA_KEY SEMITONES NORMALIZE=false',
+    syntax: 'multipitch MEDIA_KEY SEMITONES NORMALIZE=false ENGINE=bungee',
     args: [
       media(),
       {name: 'SEMITONES', range: '-48..48 each, up to 12', description: 'one number to shift, or several split by commas to mix a copy at each pitch (`0` is the original)'},
       {name: 'NORMALIZE', default: 'false', description: 'turn the mix down so the copies don\'t add up to clipping'},
+      {name: 'ENGINE', default: 'bungee', description: '`bungee`, `rubberband` or `signalsmith`, the pitch shifter each copy is made with (the multipitch program\'s `--backend`)'},
     ],
     examples: [
       {code: '{mediascript:load {video} clip\nmultipitch clip 7\nrender clip}', result: 'Raises the audio a fifth, the video stays the same.'},
       {code: '{mediascript:load {video} clip\nmultipitch clip 0,7,12\nrender clip}', result: 'A chord: the original audio, a fifth up and an octave up, mixed together.'},
+      {code: '{mediascript:load {video} clip\nmultipitch clip 0,7,12 engine=rubberband\nrender clip}', result: 'The same chord made with rubberband, sounding like `rubberband=pitch=` in an `ffmpeg` line.'},
     ],
     notes: [
-      'Uses Bungee, the pitch shifter the multipitch program is built on, with every pitch made at the same time.',
+      'Uses Bungee by default, the multipitch program\'s default backend. ENGINE=rubberband and ENGINE=signalsmith match its `--backend rubberband` and `--backend signalsmith`. Every pitch is made at the same time.',
       'Without NORMALIZE the copies add up, like `--no-normalize` in tags, so big chords get loud. Counts toward the `ffmpeg` limit.',
     ],
   },
@@ -2488,6 +2649,28 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     notes: [
       'A channel vocoder like the Zerius Vocoder that autotune.exe is: about 1/15 second windows, split into BANDS bands, with the music\'s bands made as loud as the voice\'s and the result as loud as the music. It is not pitch correction.',
       'The result is mono. Counts toward the `ffmpeg` limit. Outside of tags, the bot has the same thing as the `.vocoder` command (voice first, then the music) and `/media-av audio vocoder`.',
+      'To sing a chord without a second media, use `vocoderchord`.',
+    ],
+  },
+  {
+    name: 'vocoderchord',
+    category: 'audio',
+    summary: 'Makes the voice in your media sing a chord, no music needed: the chord is made for it and shaped by how the voice sounds.',
+    syntax: 'vocoderchord MEDIA_KEY CHORD=C4,E4,G4 SYNTH=choir BANDS=75',
+    args: [
+      media('the media with the voice (it keeps its video)'),
+      {name: 'CHORD', default: 'C4,E4,G4', description: 'up to 8 notes split by commas: a letter, `#` or `b`, then the octave (octave 4 has middle C), like `A3,C#4,E4`. Frequencies in Hz work too'},
+      {name: 'SYNTH', default: 'choir', description: 'the sound the chord is played with: `choir` (soft voices with vibrato), `robot` (one square wave), `saw` (bright and wide), `pad` (slow and dark) or `organ`'},
+      {name: 'BANDS', default: '75', range: '1..512', description: 'how many frequency bands the voice is split into: fewer sounds more robotic, more sounds clearer'},
+    ],
+    examples: [
+      {code: '{mediascript:load {video} clip\nvocoderchord clip\nrender clip}', result: 'The clip\'s voice singing a C major chord.'},
+      {code: '{mediascript:load {audio} voice\nvocoderchord voice A3,C4,E4 pad\nrender voice}', result: 'A minor chord with a slow, dark pad.'},
+      {code: '{mediascript:load {audio} voice\nvocoderchord voice C3,G3,C4 robot 16\nrender voice}', result: 'A robotic 16 band vocoder on a plain square wave.'},
+    ],
+    notes: [
+      'Each note is a few detuned voices of the synth sound, with a little hiss so the voice\'s s and t sounds still come through. Our own sounds, not a copy of any plugin\'s.',
+      'The result is mono. Counts toward the `ffmpeg` limit. Outside of tags, the bot has the same thing as the `.vocoderchord` command and `/media-av audio vocoder-chord`.',
     ],
   },
   {

@@ -26,7 +26,7 @@ import { cn, formatDateTime } from '@/lib/utils';
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from '../ui';
 import { REPORT_TARGET_LABELS, REPORT_TONE_FILLS, REPORT_TYPES, ROW_EDGE_BAR, type ReportTone, reportJumpUrl, reportTypeInfo } from '../reports/reportLabels';
 import { ReportThread } from '../reports/ReportThread';
-import { AdminModalFooter, AdminTagModal, useOpenListItem } from './AdminTagModal';
+import { AdminModalFooter, AdminTagModal, LinkedItemModal, useOpenListItem } from './AdminTagModal';
 import { adminServerPath, adminUserPath, Chip, CopyableValue, CopyButton, DETAIL_LIST_STACKED, DetailList, ExactDate, FilterButton, FiltersButton, Pagination, selectAllScope, useSearchParamState, useStepBackFromEmptyPage, UserCell } from './adminUi';
 
 
@@ -211,6 +211,8 @@ export function AdminReportsPage() {
             navigation={{previousId, nextId, onNavigate: open}}
           />
         </AdminTagModal>
+      ) : (openId) ? (
+        <LinkedItemModal noun='report' notFoundMessage='There’s no report with this id.' query={linked} onClose={close}/>
       ) : null}
     </>
   );

@@ -34,7 +34,7 @@ import { TAG_NAME_MAX } from '@/pages/dashboard/tags/tagMeta';
 import { CategoryBadge, categoryLabel, categoryOptionFromParam, CategorySelect, DescriptionEditor, NsfwBadge, TAG_DIRECTORY_CATEGORY_OPTIONS, VerificationBadge, verificationRequirement } from '@/pages/tags/tagDirectory';
 
 import { CharCounter, DashboardHeader, EmptyState, ErrorPanel, Field, Skeleton, Toggle } from '../ui';
-import { AdminModalFooter, AdminTagModal, useOpenListItem } from './AdminTagModal';
+import { AdminModalFooter, AdminTagModal, LinkedItemModal, useOpenListItem } from './AdminTagModal';
 import { adminUserPath, Chip, CopyableValue, CopyButton, DETAIL_LIST_STACKED, DetailList, ExactDate, FiltersButton, Pagination, selectAllScope, useSearchParamState, useStepBackFromEmptyPage, UserCell } from './adminUi';
 import { DeleteDirectoryTagFlow } from './DeleteDirectoryTagFlow';
 import { TagOwnerStrip } from './DeleteUserTagsDialog';
@@ -193,6 +193,8 @@ export function AdminTagsPage() {
             }}
           />
         </AdminTagModal>
+      ) : (openId) ? (
+        <LinkedItemModal noun='listing' notFoundMessage='This tag isn’t on the directory. It may have been unpublished or deleted.' query={linked} onClose={close}/>
       ) : null}
       {(deletingItem) ? <DeleteDirectoryTagFlow item={deletingItem} onClose={() => setDeletingItem(null)}/> : null}
     </>

@@ -28,11 +28,44 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 
 export const CHANGELOG: Array<ChangelogDay> = [
   {
+    date: '2026-10-19',
+    title: 'Face edits, 40 new effects and chord vocoding',
+    items: [
+      {kind: 'new', text: '`.vocoderchord` (`.chordvocoder`) and `/media-av audio vocoder-chord`: the voice in your media sings a chord, no music needed. Give notes like `A3,C4,E4` and pick a `-synth` (`choir`, `robot`, `saw`, `pad` or `organ`) and `-bands`.'},
+      {kind: 'new', text: 'Face expression edits: `.angry`, `.grumpy`, `.sad`, `.smug` and `.surprised`. `.smile` has `-level` (`subtle` to `huge`) and now works on every frame of GIFs and videos.'},
+      {kind: 'new', text: '`.faceswap` (`.swapface`) swaps faces between two images or videos (`-faces` for up to 8), and `.mimic` copies one face\'s expression and pose onto another, with `-mode`, `-multiplier` and `-regions`.'},
+      {kind: 'new', text: 'Face effects: `.halloweenhat` (`-hat`), `.xmascap` (`-color`), `.knight`, `.lenin`, `.monalisa` and `.rushmore`, with slash versions under `/media-iv-5 face`.'},
+      {kind: 'new', text: 'Image and video effects: `.artistic`, `.glass`, `.instantcamera` (`.polaroid`, `-caption`), `.museum`, `.oldtv` (`.crt`, `-still`, `-grayscale`), `.popart` (`-grid`), `.spheres`, `.timesquare`, `.universe` (`-background`) and `.vhs`, with slash versions under `/media-iv-5 fun`.'},
+      {kind: 'new', text: '`.hueshiftccs` (`.ccs`): Vegas\' Color Corrector (Secondary) hue rotation with saturation, gamma, gain and offset.'},
+      {kind: 'new', text: 'Text effects: `.einstein`, `.foggy` (`-background`), `.neon`, `.snow`, `.soup`, `.treecarving`, `.woodensign` and `.yacht`, with slash versions under `/media-i fun`.'},
+      {kind: 'new', text: '`.audio multipitch` has `-engine`: `bungee` (default), `rubberband` or `signalsmith`, like the multipitch program\'s `--backend`.'},
+      {kind: 'new', text: '`.help` and the command list on the website show who made a command.'},
+      {kind: 'new', text: '**MediaScript:** `text` makes styled text images with any bundled font, outlines, drop shadows, background boxes, markup and color emoji. The old `text KEY SIZE WIDTH COLOR ...` form still works like `tti`.'},
+      {kind: 'new', text: '**MediaScript:** `fittext` writes text as big as it fits in a box (for meme templates and speech bubbles), and `drawtext` writes styled text straight onto images, GIFs and videos, with positions that can move every frame.'},
+      {kind: 'new', text: '**MediaScript:** `vocoderchord` (alias `chordvocoder`), and `multipitch` takes `ENGINE=`.'},
+      {kind: 'new', text: '`.veg` plays more of Vegas: the Pitch Shift and Distortion plugins, Deform, Gaussian Blur, Pixelate, Threshold, Gradient Map, Glow, Radial Blur, Light Rays, the NewBlue Wiggle, Duochrome, Metallic, Ghost and Earthquake effects, audio track volume and pan envelopes, the Volume, Resonant Filter and Reverb audio plugins, and Difference compositing.'},
+      {kind: 'improved', text: '`.alien`, `.anime` (`-eyes`), `.clown`, `.fat` (`-size`), `.bill`, `.burn` and `.latte` now run on NotSoBot itself instead of PhotoFunia, and work on GIFs and videos. Their slash versions moved to `/media-iv-5 face` and `/media-iv-5 fun`. `.retro` runs on NotSoBot too.'},
+      {kind: 'improved', text: '`.veg` Pan/Crop goes through every keyframe, Swirl and Spherize turn around their own center, crossfades play the next event fading in over the one before, and the older and OFX versions of Black and White, Color Curves, Channel Blend and Convolution Kernel all work. Renders over the size limit are shrunk instead of failing.'},
+      {kind: 'improved', text: '`.eyes` finds the faces on every frame of GIFs and videos and tilts the eyes with each face.'},
+      {kind: 'improved', text: 'Info commands like `.avatar`, `.user` and `.activity`, `.wordcloud user` and the moderation commands use the author of the message you replied to when you don\'t name anyone.'},
+      {kind: 'improved', text: 'Links in `.user`, `.google`, `.reddit` and other search results no longer add embed previews.'},
+      {kind: 'improved', text: '`/settings set locale` takes a `locale` option, and expired timed bans list the moderator, date and duration in the server\'s language.'},
+      {kind: 'improved', text: 'YouTube links shared from a playlist download the video you linked, and videos YouTube won\'t play say why.'},
+      {kind: 'improved', text: 'The changelog page has a search box, with its filters in a panel.'},
+      {kind: 'fixed', text: 'Paginated replies with files losing their images when you changed pages.'},
+      {kind: 'fixed', text: '`.code` in C, C++, D and Fortran failing to link, and Python missing modules like `bz2` (which broke `networkx`), `audioop` and OpenCV.'},
+      {kind: 'fixed', text: '**MediaScript:** RGBA colors with leading zeros (like `rgba(0,0,255,128)`) coming out as the wrong color, and `.veg` projects that couldn\'t be read failing with an unknown error.'},
+      {kind: 'removed', text: '**MediaScript:** the `drawtext` ffmpeg filter no longer expands `%{...}` in its text, and its size options must be plain numbers in a safe range.'},
+    ],
+  },
+  {
     date: '2026-10-18',
     title: 'Vocoder, Vegas projects and better help',
     items: [
       {kind: 'new', text: '`.vocoder` and `/media-av audio vocoder`.'},
+      {kind: 'new', text: '`.audio paulstretch` (`.paulstretch`) and `/media-av audio paulstretch`: stretch audio into a slow ambient drone like Audacity\'s Paulstretch, with `-stretch` and `-resolution`.'},
       {kind: 'new', text: '`.veg` and `/media-aiv veg`: attach a Vegas `.veg` project (or give its link) with your media and NotSoBot renders it. Add `-nocutoff` to keep the full length.'},
+      {kind: 'new', text: '`.lut` (`.applylut`) and `/media-iv-5 fun lut`: attach a `.cube` LUT (or give its link) with your image or video to color grade it. `-strength` blends the grade with the original.'},
       {kind: 'new', text: '`.tvsimulator` has `-vertical`, `-linesync` and `-detailzoom`.'},
       {kind: 'new', text: '`.emoji` has `-size`.'},
       {kind: 'new', text: 'Five new `.code` languages: **Bun**, **C#**, **Kotlin**, **Perl** and **SQLite**. C23, C++23, Java 27, Lua 5.5 and Python 3.14 are the new defaults, and every other language was updated to its latest version.'},
@@ -42,8 +75,14 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'improved', text: 'Timed bans that expire now leave a full audit log reason: who banned, when, for how long and why.'},
       {kind: 'improved', text: '`.tag info` uploads long tag content as a file, and tag replies put their text above a single attached file.'},
       {kind: 'improved', text: 'Very long error messages are sent as a file instead of being cut off.'},
+      {kind: 'new', text: '**TagScript:** `{api.search.reddit}`, `{api.search.urban}`, `{api.search.wikihow}` and `{api.search.wolframalpha}` return search results as JSON, and `{json.role}` returns a role with its member count. NotSoAI can use them too.'},
+      {kind: 'new', text: '**MediaScript:** `blend` places one media on another with a blend mode like `multiply`, `screen` or `overlay`.'},
+      {kind: 'new', text: '**MediaScript:** `audiopaulstretch` (alias `paulstretch`).'},
       {kind: 'new', text: '**MediaScript:** `vocoder` (alias `vocode`) makes the voice in your media sing another media\'s music.'},
       {kind: 'new', text: 'nsb.gg has a home page.'},
+      {kind: 'improved', text: 'NotSoAI memory limits are now separate: 10 global memories, plus 10 more for each server. A full server no longer blocks your global memories or other servers\' memories.'},
+      {kind: 'improved', text: '`.veg` renders faster, use less memory and get HD colors right. They also support Wave (classic), Channel Blend, TV Simulator, the Solid Color generator, alternate takes and pixel aspect in Pan/Crop.'},
+      {kind: 'fixed', text: '`.veg` renders with animated webps spinning until they timed out, and audio going silent on each loop when it was shorter than the video.'},
     ],
   },
   {
@@ -212,6 +251,1608 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'improved', text: 'New `.tag generate` models: Claude Sonnet 5, DeepSeek Flash and Pro, Gemini 3.8 Flash, Meta Muse Spark 1.3, Kimi K3, Nemotron 3 Ultra, ChatGPT 5.6 Luna and Terra, Qwen 3.8, Grok 4.6 and GLM 5.3.'},
       {kind: 'new', text: '**MediaScript:** `derain`.'},
       {kind: 'new', text: '**TagScript:** `{tagcontent}` outputs the original tag\'s content when the tag is an alias.'},
+    ],
+  },
+  {
+    date: '2026-06-08',
+    title: 'Threads downloads and fixes',
+    items: [
+      {kind: 'new', text: '`.download` supports Threads.'},
+      {kind: 'improved', text: 'Instagram downloads are more reliable.'},
+      {kind: 'fixed', text: 'AI personalities getting stuck in a loop when they used `{ai:}` themselves.'},
+      {kind: 'fixed', text: '**MediaScript:** a hash being added to the filename after you set one in `render`.'},
+    ],
+  },
+  {
+    date: '2026-06-01',
+    title: 'Dozens of new TikTok voices',
+    items: [
+      {kind: 'new', text: 'Around 60 new TikTok `.tts` voices: Disney characters (Deadpool, Jarvis, Pirate and more), singing voices, celebrity voices, and new Brazilian, Japanese and Portuguese voices.'},
+      {kind: 'new', text: 'A new **Klattsch** `.tts` voice.'},
+      {kind: 'improved', text: 'Some TikTok voices were renamed to match their group, like C3PO, Chewbacca, Ghostface, Rocket, Stitch and Stormtrooper moving under Disney.'},
+      {kind: 'improved', text: 'Mentions are turned into names before the text is used in `.ascii text`, `.textwall`, `.tts`, `.caption`, `.meme`, `.recaption`, `.vaporwave`, `.edit`, `.imagine` and `.reimagine`.'},
+      {kind: 'improved', text: 'More reliable DuckDuckGo and Google image searches.'},
+      {kind: 'fixed', text: '**TagScript:** `{ai}` responses not being parsed when a tag runs through `.ai`.'},
+    ],
+  },
+  {
+    date: '2026-05-29',
+    title: 'New TagScript functions',
+    items: [
+      {kind: 'new', text: '**TagScript:** `{includes:text|value1|value2|...}` outputs `true` or `false`.'},
+      {kind: 'new', text: '**TagScript:** `{uuid}` generates a UUID (version 4 by default, or `{uuid:7}`).'},
+      {kind: 'new', text: '**TagScript:** `{userstatus}` outputs `online`, `dnd`, `idle` or `offline`.'},
+      {kind: 'improved', text: '**TagScript:** clearer aliases like `{username}`, `{usermention}`, `{usernick}`, `{userdiscriminator}`, `{randomuser}` and `{randomonline}`. The old names still work.'},
+      {kind: 'improved', text: 'A new BRIA background removal model.'},
+      {kind: 'fixed', text: '`.ban` trying to DM people who aren\'t in the server.'},
+    ],
+  },
+  {
+    date: '2026-05-10',
+    title: 'ASCII rework, image search and Components V2 in tags',
+    items: [
+      {kind: 'improved', text: '`.ascii` now ascii-fies an image or video, with `-invert` (white text on a transparent background) and `-zoom`. Turning text into an ASCII image moved to `.ascii text`, and the new `.ascii image` converts an image to copyable ASCII text.'},
+      {kind: 'new', text: '`.image` is its own command again, using DuckDuckGo images for now.'},
+      {kind: 'improved', text: '`.phosimp` has filters up to #30, plus `-gridx` and `-gridy`.'},
+      {kind: 'improved', text: '`.edit` accepts up to 3 images, and `.math` is faster for simple equations.'},
+      {kind: 'improved', text: '`.ban` DMs the member before banning them.'},
+      {kind: 'improved', text: 'Media replies from prefix commands show who ran them.'},
+      {kind: 'new', text: '**TagScript:** `{getfilename:file number}`.'},
+      {kind: 'new', text: '**TagScript:** `{componentjson}` and code execution support Components V2 and select menus.'},
+      {kind: 'fixed', text: '**TagScript:** the `{set...}` functions parsing the key and value before running.'},
+    ],
+  },
+  {
+    date: '2026-04-17',
+    title: 'Datamosh, 3D spins and tag blob storage',
+    items: [
+      {kind: 'new', text: '`.datamosh`, `.spin3d` and `.orb` (a spinning globe), plus `/media-iv-3 fun globe`.'},
+      {kind: 'new', text: '`.gif` (`/media-iv-tools to-gif`) converts media to a gif. Gifs encode much faster and can have more frames, and animated webps are allowed now that Discord supports them.'},
+      {kind: 'new', text: '`/settings set file-upload-type` to choose whether your files are uploaded to nsb.gg as temporary or permanent (premium).'},
+      {kind: 'improved', text: '`.caption` and `.uncaption` work with bottom captions too, like `.meme`.'},
+      {kind: 'improved', text: '`.resize` has a kernel option, `.flies` goes up to 100 flies, and `.globe` isn\'t tiled by default.'},
+      {kind: 'improved', text: '`.kick` and `.ban` accept seconds for `-clean`.'},
+      {kind: 'improved', text: '`/media-iv-2 fun stretch` moved to `/media-iv-3 fun stretch`.'},
+      {kind: 'improved', text: '`.download` supports Facebook, and Google image search is more reliable.'},
+      {kind: 'improved', text: '`.imagine` uses Flux Klein, replacing Flux Schnell and Qwen Image Edit.'},
+      {kind: 'fixed', text: '`.zoom` breaking when zooming out, and `.tag list` not showing the full count for people with close to 100k tags.'},
+      {kind: 'improved', text: 'Tags now detect newline spam.'},
+      {kind: 'new', text: '**TagScript:** blob storage for code in tags: `discord.blobs` with `.global`, `.server`, `.channel` and `.user`, up to 256kb each.'},
+      {kind: 'new', text: '**TagScript:** select menus in `{componentjson}` (`"type": 3`). They support `run` like buttons, and the picked values go in `__values`.'},
+      {kind: 'new', text: '**TagScript:** `{settings:ALLOW_COMPONENT_EXECUTIONS_FROM_EVERYONE|true}` runs a tag\'s buttons as the person who first ran the tag.'},
+      {kind: 'new', text: '**TagScript:** `{setfilename:file number|name|extension}` renames a file the tag attached.'},
+      {kind: 'new', text: '**MediaScript:** `croptriangle`, `croptwitterhex` (`cropnft`), `datamosh`, `orb`, `phosimp`, `spin3d` and `wordcloud`.'},
+    ],
+  },
+  {
+    date: '2026-04-07',
+    title: 'Code execution updates',
+    items: [
+      {kind: 'improved', text: '`.code` accepts up to 16MB of input (up from 8MB), and Prolog, Node, TypeScript and the Python packages were updated.'},
+    ],
+  },
+  {
+    date: '2026-01-21',
+    title: 'PhoSimp, smiles and markup functions',
+    items: [
+      {kind: 'new', text: '`.phosimp` (`/media-iv-3 fun phosimp`), based on the PhoSimp game on Steam, with its first 17 filters.'},
+      {kind: 'new', text: '`.smile` (`/media-iv-3 fun smile`) and `.crop triangle` (`/media-iv-tools crop-triangle`).'},
+      {kind: 'improved', text: 'Newer `.ai` models: ChatGPT 5.2, Grok 4.1 Fast and Claude 4.5 Haiku.'},
+      {kind: 'improved', text: 'Better timezone handling.'},
+      {kind: 'new', text: '**TagScript:** markup functions for Discord formatting: `{markupbold}`, `{markupitalics}`, `{markupunderline}`, `{markupstrike}`, `{markupspoiler}`, `{markupquote}`, `{markupsubtext}`, `{markupurl}`, `{markupcodestring}`, `{markupescape}`, `{markupheaderbig}`, `{markupheadermedium}`, `{markupheadersmall}`, `{markuplistdotted}` and `{markuplistnumbered}`.'},
+      {kind: 'new', text: '**TagScript:** `{variables}`, `{variableschannel}`, `{variablesglobal}`, `{variablesserver}` and `{variablesuser}` list a tag\'s saved variables, and `{exitsilent}` stops a tag without output.'},
+      {kind: 'improved', text: '**TagScript:** `{foreach}` can loop over an object\'s keys, `{pagejson}` accepts an array of pages, and `{settings}` errors on a setting that doesn\'t exist.'},
+    ],
+  },
+  {
+    date: '2025-10-09',
+    title: 'Cartoon and smarter edits',
+    items: [
+      {kind: 'new', text: '`.cartoon` (`/media-iv-3 fun cartoon`).'},
+      {kind: 'improved', text: '`.edit` uses Qwen Image Edit 2509 Lightning by default, and `imagine`, `mashup`, `reimagine` and `edit` run in the job queue.'},
+      {kind: 'improved', text: 'Newer `.ai` models: Claude 4.5, ChatGPT 5, Qwen 3 Coder, Grok 4 Fast and Grok Code 1 Fast. Grok 3 and older were retired.'},
+      {kind: 'improved', text: '`/media-iv-2 fun edge-detect` moved to `/media-iv-3 fun edge-detect`.'},
+      {kind: 'fixed', text: 'Tag Directory tags showing their code to everyone, and `/media-iv-2 fun detunnel` missing.'},
+      {kind: 'improved', text: 'Instagram downloads are parsed by NotSoBot itself.'},
+      {kind: 'improved', text: '**MediaScript:** `edit` accepts a diffusion model.'},
+    ],
+  },
+  {
+    date: '2025-09-23',
+    title: 'Edge detection',
+    items: [
+      {kind: 'new', text: '`.edgedetect` (`/media-iv-2 fun edge-detect`).'},
+      {kind: 'improved', text: 'Better Reddit and TikTok downloads.'},
+      {kind: 'fixed', text: 'Videos made from jpegs not playing everywhere.'},
+      {kind: 'fixed', text: '**TagScript:** comparing decimal numbers (up to 10 decimal places).'},
+      {kind: 'new', text: '**MediaScript:** `edgedetect`.'},
+    ],
+  },
+  {
+    date: '2025-09-18',
+    title: 'AI settings for tags',
+    items: [
+      {kind: 'new', text: '**TagScript:** `AI_MODEL` and `AI_PERSONALITY` tag settings, used with `{settings}`.'},
+      {kind: 'new', text: '**MediaScript:** `interpolate` cuts between two videos, alternating slices of each.'},
+      {kind: 'removed', text: '`.object remove`.'},
+    ],
+  },
+  {
+    date: '2025-09-13',
+    title: 'Moonbase Alpha and more classic voices',
+    items: [
+      {kind: 'new', text: 'New `.tts` voices: Moonbase Alpha (DECtalk), MLG Daniel (ScanSoft) and Moonman (AT&T). Thanks to pandela for the help.'},
+      {kind: 'improved', text: 'The Microsoft voices are now named `SAPI_MICROSOFT_...`.'},
+      {kind: 'fixed', text: 'YouTube links with both a video and a playlist id, and YouTube downloads picking vp9/av1 videos that don\'t play everywhere.'},
+      {kind: 'fixed', text: '`.caption` after a library update.'},
+      {kind: 'improved', text: '**MediaScript:** `render` works inside if statements.'},
+      {kind: 'fixed', text: '**MediaScript:** a bug with `is()` calls.'},
+    ],
+  },
+  {
+    date: '2025-09-06',
+    title: 'Profile decorations',
+    items: [
+      {kind: 'fixed', text: 'User and avatar commands not showing server profile decorations.'},
+    ],
+  },
+  {
+    date: '2025-09-04',
+    title: 'Android, audio effects and Tag Directory slash commands',
+    items: [
+      {kind: 'new', text: '`.android` (`/media-aiv android`).'},
+      {kind: 'new', text: '`.audio equalizer`, `.audio flanger` and `.audio reverse` (under `/media-av audio`). `/media-av boost-bass` moved to `/media-av audio boost-bass`.'},
+      {kind: 'new', text: '`/tag directory add` and `/tag directory edit`.'},
+      {kind: 'new', text: '**TagScript:** `{bracketleft}`, `{bracketright}`, `{splitterargument}` and `{splitterfunction}` output TagScript characters, so you don\'t need `\\` escapes.'},
+      {kind: 'new', text: '**TagScript:** `{isfromai}` and `{isfromcomponent}` output `true` or `false`, handy for default values before a button is pressed.'},
+      {kind: 'new', text: '**TagScript:** `{textfromhtml:url}` outputs only the visible text of a web page.'},
+      {kind: 'improved', text: '**TagScript:** code execution and `{componentjson}` no longer run `{tag}` calls early, so `{tag:{tagid}|args}` doesn\'t need escaping in button `run`s.'},
+    ],
+  },
+  {
+    date: '2025-08-27',
+    title: 'Clearing settings',
+    items: [
+      {kind: 'new', text: 'Setting commands accept `-clear` to reset a setting.'},
+      {kind: 'improved', text: 'Downloads from YouTube and gallery sites link to the cached file.'},
+      {kind: 'new', text: '**TagScript:** `{ismaintag}`, `{tagownerid}` and `{mediascriptmaybeurl}` (aliases `{mscriptmaybeurl}`, `{imagescriptmaybeurl}`, `{iscriptmaybeurl}`), which works like `{mediascript}` without Discord\'s upload size limit.'},
+      {kind: 'new', text: '**MediaScript:** `android`, `audioequalizer`, `audioflanger` and `audioreverse`.'},
+    ],
+  },
+  {
+    date: '2025-08-11',
+    title: 'AI personalities and buttons in tags',
+    items: [
+      {kind: 'new', text: 'AI personalities: `.set ai personality` for a server (`/settings-server set ai-personality`) and `.set my ai personality` for yourself (`/settings set ai-personality`). Personalities can use TagScript.'},
+      {kind: 'improved', text: 'NotSoAI knows your language, timezone and units from your settings.'},
+      {kind: 'improved', text: '`.ai` defaults to ChatGPT 5, Gemini models moved to 2.5, and ChatGPT 4o was retired.'},
+      {kind: 'new', text: '`.stretch` (`/media-iv-2 fun stretch`).'},
+      {kind: 'fixed', text: 'Resizing videos not changing their aspect ratio, and nsb.gg embeds for audio files.'},
+      {kind: 'new', text: '**TagScript:** `{componentjson}` adds buttons to a tag reply, `{componentsontimeout}` runs code when they time out, and code execution can return components.'},
+      {kind: 'new', text: '**TagScript:** `{request:REQUEST_JSON}` for HTTP requests, and `{getglobal}`/`{setglobal}` for variables shared by everyone in every server.'},
+      {kind: 'improved', text: '**TagScript:** pages support `content` (in `{pagejson}` and code execution).'},
+      {kind: 'new', text: '**MediaScript:** `stretch`.'},
+    ],
+  },
+  {
+    date: '2025-08-06',
+    title: 'Code execution updates',
+    items: [
+      {kind: 'improved', text: '`.code` has Node 22 and 24, TypeScript 5.9.2, `numba` and `redis` for Python, `redis` for Node, and Wine in every environment.'},
+    ],
+  },
+  {
+    date: '2025-08-05',
+    title: 'Microsoft voices and message functions',
+    items: [
+      {kind: 'new', text: 'Microsoft `.tts` voices.'},
+      {kind: 'new', text: '**TagScript:** `{messagelastid:index|channel}`, and `{randmessageid}`, `{messagecontent}` and `{messageuserid}` accept a channel.'},
+      {kind: 'improved', text: '**TagScript:** pages accept `content`, `embed` and `files`.'},
+    ],
+  },
+  {
+    date: '2025-07-25',
+    title: 'Stammer, offset and classic face effects',
+    items: [
+      {kind: 'new', text: '`.stammer` (`/media-av stammer`) rebuilds one video or audio out of another\'s frames to match its sound.'},
+      {kind: 'new', text: '`.offset` (`/media-iv offset`) shifts an image by an x or y amount.'},
+      {kind: 'new', text: 'Face and fun effects: `.alien`, `.anime`, `.clown`, `.fat` (`/media-i face`), `.bill`, `.burn` and `.latte` (`/media-i fun`).'},
+      {kind: 'new', text: 'New `.ai` models: Claude Sonnet 4, ChatGPT 4.1, and Grok 3 and 4.'},
+      {kind: 'improved', text: '`.math` ignores commas in numbers (`1,000,000` becomes `1000000`), and `.code` has frei0r.'},
+      {kind: 'new', text: '**MediaScript:** `offset` and `stammer`, and scripts can be up to 300 lines.'},
+    ],
+  },
+  {
+    date: '2025-07-12',
+    title: 'Java 24',
+    items: [
+      {kind: 'improved', text: '`.code` supports Java 24.'},
+    ],
+  },
+  {
+    date: '2025-05-01',
+    title: 'Components V2 and response display',
+    items: [
+      {kind: 'new', text: '`/settings set response-display` to go back to embeds, or pick **No Embeds** for plain text replies (good on mobile).'},
+      {kind: 'improved', text: 'Some media replies use Discord\'s Components V2, and media commands can find files in Components V2 messages.'},
+      {kind: 'fixed', text: '`.code` not being able to use files made by MediaScript, and Instagram downloads.'},
+    ],
+  },
+  {
+    date: '2025-04-30',
+    title: 'AI in tags and bigger slash uploads',
+    items: [
+      {kind: 'improved', text: '`/tools download` is now `/download`, and `.dl` accepts a locale (mostly for YouTube).'},
+      {kind: 'improved', text: 'Slash commands follow your Nitro upload limit, up to 100MB.'},
+      {kind: 'new', text: '`/settings set ai-model`, plus Claude 3.7 Sonnet, Gemini 2.5 Pro, Gemini 2.0 Flash and Gemma 3.'},
+      {kind: 'new', text: 'Flite `.tts` voices, and more Google languages.'},
+      {kind: 'improved', text: '`.math` can return text.'},
+      {kind: 'fixed', text: 'TikTok and Twitter links not downloading.'},
+      {kind: 'new', text: '**TagScript:** `{ai:prompt}` (premium), `{evalsilent}` to run code and ignore its output and errors, `{iferror}` to run something when the previous action errors, and `{api.create.reminder}`.'},
+      {kind: 'improved', text: '**TagScript:** attachment size limits apply per file instead of in total.'},
+      {kind: 'new', text: '**MediaScript:** `export` and `exportmultiple`, and a `color(mostused, MEDIA_KEY)` function.'},
+    ],
+  },
+  {
+    date: '2025-03-09',
+    title: 'Shuffle, reverb and embeds in tags',
+    items: [
+      {kind: 'new', text: '`.shuffle` (`/media-aiv shuffle`) and `.audio reverb` (`/media-av audio reverb`).'},
+      {kind: 'new', text: '`.download -format` and `.screenshot -wait`.'},
+      {kind: 'new', text: '`.code` supports Prolog.'},
+      {kind: 'fixed', text: '`.math` timing out, and tweets not downloading.'},
+      {kind: 'new', text: '**TagScript:** `{embedjson}` for embeds, `{pagejson}` for paginated embeds, `{tag:TAG_ID|ARGUMENTS}` to run another tag, and `{tagid}`.'},
+      {kind: 'new', text: '**MediaScript:** `shuffle` and `audioreverb`.'},
+    ],
+  },
+  {
+    date: '2025-01-12',
+    title: 'New AI models and media commands',
+    items: [
+      {kind: 'new', text: '`.bitrate`, `.grain`, `.sepia`, `.slide` and `.solarize`.'},
+      {kind: 'new', text: '`.ai` supports DeepSeek, Gemini 2.0 Flash and Flash Thinking, Llama, ChatGPT 4o Mini, Qwen 2.5 Coder and Grok 2.'},
+      {kind: 'improved', text: '`.deepfry`, `.jpeg` and `.glitch` keep transparency (turn it off with `-notransparency` or `-nt`).'},
+      {kind: 'improved', text: 'Server command permissions set in Discord apply to prefix commands too.'},
+      {kind: 'improved', text: '`.download` handles more sites and can pick an item from playlists and albums. `.code` accepts txt files, and there are more Google languages.'},
+      {kind: 'improved', text: '**TagScript:** variables can hold up to 1MB (up from 16KB).'},
+      {kind: 'fixed', text: '`.adhd` erroring on long videos, and bitrate issues.'},
+      {kind: 'new', text: '**MediaScript:** `audionoise`, `createaudionoise`, `bitrate`, `grain`, `sepia`, `slide` and `solarize`, and `rotate` can crop.'},
+    ],
+  },
+  {
+    date: '2024-12-11',
+    title: 'Tremolo, emboss and JSON functions',
+    items: [
+      {kind: 'new', text: '`.audio tremolo`, `.emboss`, `.mandalascope` and `.motionblur`.'},
+      {kind: 'improved', text: '`.resize` takes a plain number or size and works out whether you meant a scale or a size.'},
+      {kind: 'improved', text: '`/media-iv fun2` moved to `/media-iv-2 fun`.'},
+      {kind: 'improved', text: 'MediaScript-based commands like concat and overlay are faster, since videos aren\'t re-saved in between. Media is capped at 1920×1920.'},
+      {kind: 'fixed', text: 'Some slash command options not accepting decimals.'},
+      {kind: 'improved', text: '**TagScript:** `{userjson}` is now `{json.user}` (just the user object) and `{channeljson}` is `{json.channel}`.'},
+      {kind: 'new', text: '**TagScript:** `{json.guild}`, `{json.member}`, `{json.memberoruser}`, `{json.message}` and `{json.messagereply}`.'},
+      {kind: 'new', text: '**TagScript:** files a tag makes (like from `{imagine}` or code) can be loaded into MediaScript with `load FILE_1 media`. Use `FILE_1_COPY` to keep the file in the tag\'s output.'},
+      {kind: 'new', text: '**MediaScript:** `audiotremolo`, `emboss`, `globe`, `mandalascope` and `motionblur`.'},
+    ],
+  },
+  {
+    date: '2024-12-07',
+    title: 'Zoom, delays and download quality',
+    items: [
+      {kind: 'new', text: '`.audiodelay`, `.snipframes`, `.zoom` and `.zoomblur`, with slash versions.'},
+      {kind: 'new', text: '`/settings set download-quality` and `/settings set units`.'},
+      {kind: 'improved', text: '`.ai` looks at the media you upload or reply to.'},
+      {kind: 'improved', text: 'The weather slash command autocompletes locations, and premium-only commands explain what you need.'},
+      {kind: 'new', text: '**TagScript:** `{api.utilities.locations}`.'},
+      {kind: 'new', text: '**MediaScript:** `audiodelay`, `glitch`, `set`, `snipframes`, `uncaption`, `wall`, `zoom` and `zoomblur`, and `!=` in if statements.'},
+    ],
+  },
+  {
+    date: '2024-12-01',
+    title: 'Safe arguments',
+    items: [
+      {kind: 'new', text: '**TagScript:** `{argsafe}` and `{argssafe}` escape `|` and other separators in the arguments.'},
+      {kind: 'new', text: '**MediaScript:** `dobetween MEDIA_KEY START END ...CODE` runs code on part of a clip.'},
+      {kind: 'fixed', text: '`.screenshot` ignoring the height, `.download` re-encoding some videos it could copy, and x.com links.'},
+    ],
+  },
+  {
+    date: '2024-11-29',
+    title: 'Weather and loops in tags',
+    items: [
+      {kind: 'new', text: '**TagScript:** `{api.utilities.weather:query|units}` returns the weather as JSON.'},
+      {kind: 'new', text: '**TagScript:** `{foreach:jsonarray|code}` runs code for each item (or a number of times), with `idx` and `valuex` set.'},
+      {kind: 'new', text: '**MediaScript:** `loadsvg`, `createpolygonfill` and `createpolygonstroke`.'},
+      {kind: 'improved', text: 'Faster downloads, and x.com links unfurl through fxtwitter.'},
+      {kind: 'fixed', text: 'TikTok downloads, and download quality sorting when a quality isn\'t available.'},
+    ],
+  },
+  {
+    date: '2024-11-28',
+    title: 'Tag info, exits and searches in tags',
+    items: [
+      {kind: 'improved', text: '`/a convert` and `/v convert` are now `/media-av-tools convert`, and `/tag add` is `/tag import dm`.'},
+      {kind: 'improved', text: '`.tag raw` is now `.tag info` (`.tag raw` still works).'},
+      {kind: 'fixed', text: '`/tag show`, `/tag random` and `/tag commands show` counting each use twice, and `.reminder list me`.'},
+      {kind: 'new', text: '**TagScript:** `{api.search.duckduckgo.images}` and `{api.search.imgur}` return search results as JSON.'},
+      {kind: 'new', text: '**TagScript:** `{exit:text}` stops the tag (great for help messages), `{oneOf:value|choice1|choice2|...}` picks a choice, and `{transcribe:url}` transcribes audio or video.'},
+      {kind: 'new', text: '**TagScript:** `{type:number|value|default}` makes sure a value is a number or float.'},
+      {kind: 'improved', text: '**TagScript:** `{attach}` and API results are cached. Lua code gets the `discord` object and `dkjson`, like JavaScript and Python.'},
+    ],
+  },
+  {
+    date: '2024-11-27',
+    title: 'Morshu and sharper background removal',
+    items: [
+      {kind: 'new', text: 'The Morshu `.tts` voice.'},
+      {kind: 'new', text: 'BiRefNet background removal models (more accurate, but slow).'},
+      {kind: 'new', text: '**TagScript:** `{traversejson:path|json}`, like `{traversejson:cake[0].test|{"cake":[{"test":10}]}}`.'},
+      {kind: 'new', text: '**MediaScript:** `concatmultiple` and `clonesnip` (`copysnip`).'},
+      {kind: 'fixed', text: 'Audio clipping, and `opacity` in overlays.'},
+      {kind: 'new', text: '`.code` supports Rust 1.82 (2021 edition).'},
+    ],
+  },
+  {
+    date: '2024-11-25',
+    title: 'Frame rate and extract commands',
+    items: [
+      {kind: 'new', text: '`.extract media`, `.setfps` and `.setframecount` (under `/media-iv-tools set`).'},
+      {kind: 'improved', text: '`.video extract audio` is now `.extract audio` (`/media-av extract audio`).'},
+      {kind: 'improved', text: 'Reminders without text no longer get a default message.'},
+      {kind: 'improved', text: 'Chroma keying keeps existing transparency, and audio uses mp3 by default to avoid clipping.'},
+      {kind: 'new', text: '**MediaScript:** `setfps`.'},
+    ],
+  },
+  {
+    date: '2024-11-24',
+    title: 'Shorter option names',
+    items: [
+      {kind: 'new', text: 'Short aliases for most media command options, and `.pixelate -nolines`.'},
+      {kind: 'improved', text: 'Downloads default to 720p without premium.'},
+      {kind: 'improved', text: 'Overlays can use the image\'s most used color, and vp9 webms are converted for better compatibility.'},
+      {kind: 'fixed', text: '`.meme` text on small images.'},
+    ],
+  },
+  {
+    date: '2024-11-21',
+    title: 'Download quality',
+    items: [
+      {kind: 'new', text: '`.download -quality`.'},
+      {kind: 'improved', text: '`.ai` uses ChatGPT 4o by default and sees the message you replied to.'},
+      {kind: 'improved', text: '`.exif` shows the bitrate.'},
+      {kind: 'new', text: '**MediaScript:** `setframedelay` and `setloop`.'},
+    ],
+  },
+  {
+    date: '2024-11-17',
+    title: '3D rotation and better screenshots',
+    items: [
+      {kind: 'new', text: '`.rotate3d` (`/media-iv tools rotate-3d`) and `.huehsvffmpeg`.'},
+      {kind: 'new', text: '`.screenshot -width`, `-height` and `-lightmode`.'},
+      {kind: 'improved', text: 'Google image search is more reliable, and tags are checked for NSFW content.'},
+      {kind: 'new', text: '**TagScript:** `{nsfwfilter}` and `{search.duckduckgo.images}` (`{s.ddg.images}`).'},
+      {kind: 'new', text: '**MediaScript:** `cartoon`, `hueshifthsvffmpeg`, `rotate3d` and `watercolor`.'},
+    ],
+  },
+  {
+    date: '2024-11-11',
+    title: 'Watercolor',
+    items: [
+      {kind: 'new', text: '`.watercolor`.'},
+      {kind: 'new', text: '**TagScript:** `{attachvoice}` attaches audio as a voice message.'},
+    ],
+  },
+  {
+    date: '2024-11-09',
+    title: 'Wiggle and mashup',
+    items: [
+      {kind: 'new', text: '`.wiggle`, `.mashup` and `.ripple` (still a work in progress).'},
+      {kind: 'new', text: '**TagScript:** `{search.youtube}` (`{s.yt}`).'},
+      {kind: 'new', text: '**MediaScript:** `wiggle`.'},
+    ],
+  },
+  {
+    date: '2024-11-08',
+    title: 'Premium through Discord',
+    items: [
+      {kind: 'new', text: 'NotSoPremium can be bought through Discord.'},
+      {kind: 'improved', text: '`.legofy` is faster and handles more frames.'},
+      {kind: 'new', text: '**MediaScript:** `is()` in expressions and an `if A OPERATOR B CODE` action.'},
+    ],
+  },
+  {
+    date: '2024-11-07',
+    title: 'Paint, tunnels and fisheye',
+    items: [
+      {kind: 'new', text: '`.paint`, `.gpaint`, `.tunnel`, `.detunnel`, `.exo`, `.kek`, `.kek2` and `.fisheye`.'},
+      {kind: 'improved', text: '`/media-iv` commands moved to `/media-iv fun2`, and `/media-iv pipe` to `/media-aiv pipe`.'},
+      {kind: 'new', text: '**MediaScript:** `detunnel`, `exo`, `fisheye`, `paint` and `tunnel`.'},
+    ],
+  },
+  {
+    date: '2024-11-06',
+    title: 'Distort and hue curves',
+    items: [
+      {kind: 'new', text: '`.distort` and `.huecurvergba`.'},
+      {kind: 'new', text: '**MediaScript:** an `if()` function.'},
+    ],
+  },
+  {
+    date: '2024-11-05',
+    title: 'Per-frame MediaScript',
+    items: [
+      {kind: 'new', text: '**MediaScript:** `foreachframe`, `huecurvergba` and `setframecount`, and `%` in equations.'},
+      {kind: 'fixed', text: '**MediaScript:** `trace` on transparent images.'},
+      {kind: 'improved', text: '`.code` has more Python libraries.'},
+    ],
+  },
+  {
+    date: '2024-11-03',
+    title: 'NotSoAI',
+    items: [
+      {kind: 'new', text: '`.ai`: chat with NotSoAI.'},
+      {kind: 'new', text: '`.invertrgba`.'},
+      {kind: 'new', text: '**TagScript:** code can return `{pages: [{embed}, ...]}` JSON for a paginator.'},
+      {kind: 'new', text: '**TagScript:** `{markupcodeblock}`, `{markuptime}` and `{unixsnowflake}`.'},
+      {kind: 'new', text: '**MediaScript:** `qrcode`, `invertrgba` and `trace`.'},
+    ],
+  },
+  {
+    date: '2024-10-26',
+    title: 'Swirls, waves and vaporwave',
+    items: [
+      {kind: 'new', text: '`.fadein`, `.fadeout`, `.audio vibrato`, `.huehsv`, `.shake`, `.swapcolors`, `.swappixels`, `.swaprgba`, `.swirl`, `.wave` and `.waves`.'},
+      {kind: 'new', text: '`.recolor` and `.vaporwave`.'},
+      {kind: 'improved', text: '`.spin` has new options. `.tc` is short for `.transcribe`, and `.tctr`/`.trtc` for `.transcribetranslate`.'},
+      {kind: 'fixed', text: 'Clan changes in server logs, and Python code not being trimmed.'},
+      {kind: 'new', text: '**TagScript:** `{useravatar}`.'},
+      {kind: 'new', text: '**MediaScript:** `audiopitch`, `audiovibrato`, `fadein`, `fadeout`, `hueshifthsv`, `hueshiftrgb`, `shake`, `spin`, `swaprgba`, `swirl`, `blurple`, `gold`, `rain`, `raingold`, `wave`, `waves`, `recolor` and `vaporwave`.'},
+    ],
+  },
+  {
+    date: '2024-09-09',
+    title: 'Hue',
+    items: [
+      {kind: 'new', text: '`.hue`.'},
+      {kind: 'improved', text: 'Media commands find emojis in the message you replied to.'},
+    ],
+  },
+  {
+    date: '2024-09-08',
+    title: 'Media slash commands',
+    items: [
+      {kind: 'new', text: 'Slash versions of the audio put commands, concat, join, overlay, snip, adhd, audio compress/destroy/extract/identify/pitch/volume, boost bass, recaption, rotate, uncaption, ascii, ifunny and face overlay.'},
+    ],
+  },
+  {
+    date: '2024-09-07',
+    title: 'Audio pitch',
+    items: [
+      {kind: 'new', text: '`.audio pitch`.'},
+      {kind: 'improved', text: 'Face overlays can scale the face and eyes.'},
+      {kind: 'new', text: '**MediaScript:** `render` can set a filename.'},
+    ],
+  },
+  {
+    date: '2024-08-22',
+    title: 'Blocked commands as private slash replies',
+    items: [
+      {kind: 'improved', text: 'Blocked commands still work as slash commands, but only you see the reply. Commands that change the server stay blocked.'},
+      {kind: 'new', text: '`.calc` works as `.math`.'},
+      {kind: 'new', text: '**TagScript:** `ML_IMAGINE_MODEL` and `ML_IMAGINE_DO_NOT_ERROR` tag settings.'},
+    ],
+  },
+  {
+    date: '2024-08-17',
+    title: 'Flux Schnell and face overlays',
+    items: [
+      {kind: 'improved', text: '`.imagine`, `.edit` and `.reimagine` use Flux Schnell. The older SDXL Turbo model is still there with `-use`.'},
+      {kind: 'new', text: '`/settings set ml-imagine-model` to pick your default image model.'},
+      {kind: 'new', text: '`.overlay face`.'},
+      {kind: 'improved', text: '`.code` can run for 15 seconds (up from 10).'},
+      {kind: 'new', text: '**MediaScript:** `overlayface`.'},
+    ],
+  },
+  {
+    date: '2024-08-02',
+    title: 'Audio channels',
+    items: [
+      {kind: 'new', text: '`.audio channels combine` (and the slash version).'},
+      {kind: 'new', text: '`/tag commands show`.'},
+    ],
+  },
+  {
+    date: '2024-07-26',
+    title: 'Clan logs',
+    items: [
+      {kind: 'new', text: 'Server logs include clan changes.'},
+    ],
+  },
+  {
+    date: '2024-07-24',
+    title: 'Lottie support',
+    items: [
+      {kind: 'new', text: 'Lottie animations work as media.'},
+      {kind: 'new', text: '**MediaScript:** `min()` and `max()`.'},
+    ],
+  },
+  {
+    date: '2024-07-23',
+    title: 'Context menu downloads and user installs',
+    items: [
+      {kind: 'new', text: 'A **Download** context menu command, and context menu commands work when NotSoBot is added to your account.'},
+      {kind: 'improved', text: '**Translate (w/ OCR)** is now **Translate (w/ OCR & Transcribe)**, and `/translate` is `/tools translate`.'},
+      {kind: 'new', text: '`/tools transcribe`, `/tag add`, `/tag alias` and `/fun tts`.'},
+      {kind: 'new', text: '`.trim` can set a margin.'},
+      {kind: 'fixed', text: '`.unban`, and `.trim`.'},
+    ],
+  },
+  {
+    date: '2024-07-18',
+    title: 'Avatar decorations',
+    items: [
+      {kind: 'new', text: '`/fun emoji`.'},
+      {kind: 'improved', text: '`.avatar`, `.user` and server logs show avatar decorations and display names.'},
+    ],
+  },
+  {
+    date: '2024-07-14',
+    title: 'Slash commands everywhere',
+    items: [
+      {kind: 'improved', text: 'Most slash commands work in DMs and group DMs.'},
+      {kind: 'new', text: '`.commands usage`, `.remind delete server`, `.voice list` and `.voice rename`.'},
+      {kind: 'fixed', text: 'DuckDuckGo and Google search.'},
+      {kind: 'new', text: '**TagScript:** `{userjson}`, `{channeljson}`, `{and}`, `{or}`, `{unix}` and `{unixs}`.'},
+    ],
+  },
+  {
+    date: '2024-04-04',
+    title: 'Saved variables in tags',
+    items: [
+      {kind: 'new', text: '**TagScript:** saved variables: `{getserver}`/`{setserver}`/`{deleteserver}`, plus channel and user versions.'},
+      {kind: 'improved', text: 'Option autocomplete is searchable, and attachment links in tags are refreshed when they expire.'},
+    ],
+  },
+  {
+    date: '2024-02-05',
+    title: 'Pipeable edits',
+    items: [
+      {kind: 'improved', text: '`edit` can be piped, and `edit` and `imagine` no longer require a prompt.'},
+    ],
+  },
+  {
+    date: '2024-01-29',
+    title: 'Transcribe',
+    items: [
+      {kind: 'new', text: '`.transcribe` and `.transcribetranslate`.'},
+      {kind: 'improved', text: 'Better NSFW detection.'},
+      {kind: 'new', text: '**MediaScript:** `deepfry`.'},
+    ],
+  },
+  {
+    date: '2024-01-23',
+    title: 'Voice cloning',
+    items: [
+      {kind: 'new', text: 'Voice cloning: `.voice record`, `.voice clone`, `.voice clone add` and `.voice delete` (early version).'},
+      {kind: 'new', text: '**MediaScript:** `edit`, `imagine`, `audioboostbass`, `audiocompress`, `audiodestroy` and `volume`.'},
+    ],
+  },
+  {
+    date: '2024-01-10',
+    title: 'AI slash commands',
+    items: [
+      {kind: 'new', text: '`/imagine`, `/edit`, `/reimagine` and `/interrogate`.'},
+      {kind: 'improved', text: '**TagScript:** tags can make up to 15 network requests.'},
+    ],
+  },
+  {
+    date: '2024-01-04',
+    title: 'Recaption and reimagine',
+    items: [
+      {kind: 'new', text: '`.uncaption`, `.recaption`, `.reimagine` and `.interrogate`.'},
+      {kind: 'improved', text: '`.emoji` supports Apple, Google and Microsoft emojis.'},
+      {kind: 'new', text: '**TagScript:** `{interrogate}`, `{edit}`, `{editurl}`, `{imagine}`, `{imagineurl}`, `{mediascripturl}` and `{indexof}`.'},
+    ],
+  },
+  {
+    date: '2023-12-11',
+    title: 'Tag aliases and custom commands',
+    items: [
+      {kind: 'new', text: '`.tag alias`, `.tag rename`, and custom commands: turn tags into commands with `.tag commands add`, `.tag commands remove` and `.tag commands me`.'},
+      {kind: 'new', text: 'File upload settings.'},
+    ],
+  },
+  {
+    date: '2023-12-05',
+    title: 'Classic overlays are back',
+    items: [
+      {kind: 'new', text: '`.bobross`, `.ifunny`, `.gaben`, `.linus`, `.starman` and `.bernie` are back.'},
+      {kind: 'improved', text: 'Commands like translate can use the message you replied to.'},
+    ],
+  },
+  {
+    date: '2023-12-04',
+    title: 'Imagine, edit and command lists',
+    items: [
+      {kind: 'new', text: '`.imagine` and `.edit`, AI image generation and editing.'},
+      {kind: 'improved', text: '`.commands disable`/`enable` is now `.commands blocklist`, and there\'s a new `.commands allowlist`.'},
+    ],
+  },
+  {
+    date: '2023-11-11',
+    title: 'Newer code languages',
+    items: [
+      {kind: 'new', text: '`.code` supports Node 21, Python 3.11 and 3.12, and code can use the network.'},
+    ],
+  },
+  {
+    date: '2023-07-05',
+    title: 'TTS in MediaScript',
+    items: [
+      {kind: 'new', text: '**MediaScript:** `tts`, `repeat` and `repeatduration`.'},
+    ],
+  },
+  {
+    date: '2023-07-01',
+    title: 'Math is back',
+    items: [
+      {kind: 'new', text: '`.math` and `/tools math`.'},
+      {kind: 'new', text: '**TagScript:** `{math}`, `{mathsilent}` and `{attachtext}`.'},
+      {kind: 'improved', text: '**TagScript:** repeat limits were replaced with file size checks.'},
+      {kind: 'fixed', text: '`.tag random` not counting uses.'},
+    ],
+  },
+  {
+    date: '2023-06-27',
+    title: 'Join and overlay',
+    items: [
+      {kind: 'new', text: '`.join` and `.overlay`.'},
+      {kind: 'new', text: '**TagScript:** `{randmessageid}`, `{messagecontent}` and `{messageuserid}`.'},
+      {kind: 'fixed', text: 'Google search results sometimes missing images.'},
+      {kind: 'new', text: '**MediaScript:** `croptransparency`, `reverse` and `speed`, and longer scripts.'},
+    ],
+  },
+  {
+    date: '2023-06-25',
+    title: 'ImageScript is now MediaScript',
+    items: [
+      {kind: 'improved', text: '**MediaScript:** ImageScript was renamed MediaScript. `overlay` and `crop` accept expressions, media loops by default, and every media gets `{key}w`, `{key}h` and `{key}d` variables.'},
+    ],
+  },
+  {
+    date: '2023-06-21',
+    title: 'Flies, concat and audio tools',
+    items: [
+      {kind: 'new', text: '`.flies`, `.concat`, `.snip`, `.audio compress`, `.audio destroy`, `.boost bass`, `.volume` and `.crop auto`.'},
+      {kind: 'improved', text: '`.crop` crops by values.'},
+      {kind: 'new', text: '**TagScript:** `{media}`, `{audio}`, `{av}`, `{iv}`, `{video}`, `{replycontent}`, `{replyuserid}`, `{search.google.images}` and `{settings}`.'},
+    ],
+  },
+  {
+    date: '2023-06-18',
+    title: 'AVIF, HEIC and chroma keying',
+    items: [
+      {kind: 'new', text: 'AVIF, HEIC and HEIF images are supported.'},
+      {kind: 'improved', text: 'New background removal models.'},
+      {kind: 'new', text: '**MediaScript:** `audioputconcat`, `audioputmix`, `audioputreplace`, `concat`, `cropauto`, `snip`, `chromakey` and `convert`.'},
+    ],
+  },
+  {
+    date: '2023-03-19',
+    title: 'Reminder list',
+    items: [
+      {kind: 'new', text: '`.reminder list`.'},
+      {kind: 'improved', text: '`.code` reads the language up to a space or a newline.'},
+    ],
+  },
+  {
+    date: '2023-03-18',
+    title: 'Identify Song',
+    items: [
+      {kind: 'new', text: 'An **Identify Song** context menu command.'},
+      {kind: 'improved', text: '`.code` lets you pick a language version.'},
+      {kind: 'improved', text: 'The `gif` commands dropped the prefix: `.reverse`, `.seesaw` and `.speed`, and they work on videos.'},
+    ],
+  },
+  {
+    date: '2023-03-15',
+    title: 'More code languages',
+    items: [
+      {kind: 'new', text: '`.code` supports C, C++, D, Fortran, Java and CoffeeScript.'},
+      {kind: 'improved', text: '`.meme` and `.caption` use the Futura font.'},
+      {kind: 'new', text: '**TagScript:** `{tagname}`, and `discord.tag` in code.'},
+    ],
+  },
+  {
+    date: '2023-03-14',
+    title: 'Song identify start time',
+    items: [
+      {kind: 'new', text: '`.audio identify -start`.'},
+      {kind: 'new', text: '`.code` supports Brainfuck, NASM, Elixir and Erlang.'},
+    ],
+  },
+  {
+    date: '2023-03-13',
+    title: 'New code executor',
+    items: [
+      {kind: 'new', text: '`.code` runs on our own executor: code can output files and share variables with tags.'},
+      {kind: 'new', text: '`.snip`.'},
+      {kind: 'fixed', text: 'Durations written as `00:00:00`.'},
+    ],
+  },
+  {
+    date: '2023-03-12',
+    title: 'Audio put concat and mix',
+    items: [
+      {kind: 'new', text: '`.audio put concat` and `.audio put mix`.'},
+      {kind: 'improved', text: '`.dl` works with NotSoBot\'s own YouTube embeds.'},
+    ],
+  },
+  {
+    date: '2023-03-11',
+    title: 'Longest audio',
+    items: [
+      {kind: 'new', text: '`.audio put replace -longest`.'},
+    ],
+  },
+  {
+    date: '2023-03-07',
+    title: 'Audio put replace',
+    items: [
+      {kind: 'new', text: '`.audio put replace` puts a new audio track on media.'},
+      {kind: 'new', text: '`.adhd -horizontal`.'},
+    ],
+  },
+  {
+    date: '2023-03-06',
+    title: 'ADHD',
+    items: [
+      {kind: 'new', text: '`.adhd`.'},
+    ],
+  },
+  {
+    date: '2023-02-18',
+    title: 'Rain gold and embeds in tags',
+    items: [
+      {kind: 'new', text: '`.raingold` (`/i tint rain-gold`) and `/tag create`.'},
+      {kind: 'new', text: '**TagScript:** embeds.'},
+      {kind: 'fixed', text: '**TagScript:** `{args}` not giving the full content. The new `__args` and `__argsString` variables hold it.'},
+      {kind: 'new', text: '**MediaScript:** (then ImageScript) `caption`, `meme`, `distort`, `darken`, `join`, `ascii`, `asciitext`, `flip`, `flop`, the mirror actions and `sharpen`.'},
+    ],
+  },
+  {
+    date: '2023-01-09',
+    title: 'Animated WebP and APNG',
+    items: [
+      {kind: 'new', text: 'Animated WebP and APNG support.'},
+      {kind: 'improved', text: '`.gif speed` takes a scale.'},
+    ],
+  },
+  {
+    date: '2023-01-07',
+    title: 'Tag export',
+    items: [
+      {kind: 'new', text: '`.tag export` and `.tag remove all` (with slash versions). `/tag remove` is now `/tag remove tag`.'},
+      {kind: 'improved', text: 'More formats in `/a convert` and `/v convert`.'},
+    ],
+  },
+  {
+    date: '2022-12-26',
+    title: 'Smarter downloads and OCR',
+    items: [
+      {kind: 'improved', text: '`.download` uses the last link or attachment in the chat when you don\'t give one.'},
+      {kind: 'improved', text: '`.ocr` and `.ocrtranslate` upload text longer than 2000 characters as a file.'},
+    ],
+  },
+  {
+    date: '2022-12-19',
+    title: 'Download and YouTube search',
+    items: [
+      {kind: 'new', text: '`.download` (`/tools download`) downloads videos and media from links.'},
+      {kind: 'new', text: '`/search youtube`.'},
+      {kind: 'improved', text: '`.convert` works on audio and video, and more image commands can be piped.'},
+      {kind: 'fixed', text: 'Apple Music song info, YouTube results and gif frame glitches.'},
+    ],
+  },
+  {
+    date: '2022-11-06',
+    title: 'Pipe slash command',
+    items: [
+      {kind: 'new', text: '`/i pipe`.'},
+    ],
+  },
+  {
+    date: '2022-11-05',
+    title: 'Pipe more commands',
+    items: [
+      {kind: 'improved', text: '`.pipe` works with background remove, blur, blurple, caption, circle, deepfry, explode, gif reverse/seesaw/speed, glitch, gold, grayscale, implode, invert, legofy, magik, e2e, e2p and globe, with their options.'},
+    ],
+  },
+  {
+    date: '2022-11-04',
+    title: 'Pipe',
+    items: [
+      {kind: 'new', text: '`.pipe` chains image commands together (starting with flip and flop).'},
+      {kind: 'improved', text: '`.nick mass` can use `{user}`, `{nick}`, `{discrim}` and `{guild}`.'},
+    ],
+  },
+  {
+    date: '2022-09-23',
+    title: 'TikTok voices',
+    items: [
+      {kind: 'new', text: 'New TikTok `.tts` voices.'},
+      {kind: 'fixed', text: 'Google image search and TikTok TTS.'},
+    ],
+  },
+  {
+    date: '2022-08-22',
+    title: 'Caption and trim',
+    items: [
+      {kind: 'new', text: '`.caption` and `.trim`.'},
+      {kind: 'improved', text: '`.meme` and captions were reworked with new fonts.'},
+      {kind: 'improved', text: '**ImageScript:** updated with new actions like `skew`.'},
+    ],
+  },
+  {
+    date: '2022-08-18',
+    title: 'New crop commands',
+    items: [
+      {kind: 'new', text: 'New crop commands, and `.b1` from the old Python bot.'},
+    ],
+  },
+  {
+    date: '2022-05-26',
+    title: 'Reminder fixes',
+    items: [
+      {kind: 'improved', text: 'Reminders that came due while the bot was down are sent when it\'s back.'},
+      {kind: 'fixed', text: 'Reminders picking AM instead of PM, disabling commands for roles/channels/users, and emojis in image commands.'},
+    ],
+  },
+  {
+    date: '2022-05-09',
+    title: 'Object remove',
+    items: [
+      {kind: 'new', text: '`.object remove` (`/i objects remove`) erases objects from an image.'},
+    ],
+  },
+  {
+    date: '2022-05-02',
+    title: 'Edges to emoji',
+    items: [
+      {kind: 'new', text: '`.e2p` and `.e2e`, with gif support.'},
+      {kind: 'new', text: 'A bot status page on the website.'},
+    ],
+  },
+  {
+    date: '2022-05-01',
+    title: 'Globe, paper and bad memes',
+    items: [
+      {kind: 'new', text: '`.globe`, `.glitch gif`, `.paper`, `.trace` and `.badmeme` (`/fun badmeme`).'},
+      {kind: 'new', text: 'Imgur search.'},
+      {kind: 'new', text: '**TagScript:** `{jsonify:text}`.'},
+    ],
+  },
+  {
+    date: '2022-04-28',
+    title: 'Retro and word clouds',
+    items: [
+      {kind: 'new', text: '`.retro` and word clouds.'},
+      {kind: 'new', text: 'More image slash commands.'},
+    ],
+  },
+  {
+    date: '2022-04-26',
+    title: '4chan and text effects',
+    items: [
+      {kind: 'new', text: '`.4chan`, `.regional`, `.aesthetics` and `.textwall`.'},
+      {kind: 'new', text: 'TikTok voices in `.tts`.'},
+      {kind: 'improved', text: '`.urban` both searches and picks random definitions (`.urban random` and `.urban search` were removed).'},
+    ],
+  },
+  {
+    date: '2022-04-24',
+    title: 'Reminders',
+    items: [
+      {kind: 'new', text: '`.remind` and `/reminder create`.'},
+      {kind: 'new', text: 'Your own timezone setting.'},
+      {kind: 'improved', text: 'Language options accept `random`.'},
+      {kind: 'new', text: '**TagScript:** `{ocr}` and `{translate}`, and tags track how often they\'re used.'},
+    ],
+  },
+  {
+    date: '2022-04-22',
+    title: 'Better song identification',
+    items: [
+      {kind: 'improved', text: '`.audio identify` uses our own song identification.'},
+    ],
+  },
+  {
+    date: '2022-04-21',
+    title: 'Audio commands',
+    items: [
+      {kind: 'new', text: '`.audio identify`, `.video extract audio`, `/a convert`, `/a identify` and `/v extract audio`.'},
+      {kind: 'improved', text: 'More `.code` languages.'},
+      {kind: 'new', text: '**TagScript:** `{image}` finds the last image, or uses the one you give it.'},
+      {kind: 'fixed', text: 'Emoji parsing.'},
+    ],
+  },
+  {
+    date: '2022-03-31',
+    title: 'Trash button',
+    items: [
+      {kind: 'improved', text: 'The paginator\'s trash button deletes the message.'},
+      {kind: 'improved', text: 'Large gifs (under 20MB) are converted to png automatically.'},
+    ],
+  },
+  {
+    date: '2022-03-27',
+    title: 'Not equal in tags',
+    items: [
+      {kind: 'new', text: '**TagScript:** `!=` comparisons.'},
+    ],
+  },
+  {
+    date: '2022-03-21',
+    title: 'Code language detection',
+    items: [
+      {kind: 'improved', text: '`.code` detects languages better.'},
+      {kind: 'fixed', text: '`.gif seesaw`.'},
+    ],
+  },
+  {
+    date: '2022-03-19',
+    title: 'ImageScript in tags',
+    items: [
+      {kind: 'new', text: '**TagScript:** ImageScript (`{iscript}`) is back in tags, plus `{random}` (`{rnd}`) and `{urlencode}` aliases.'},
+    ],
+  },
+  {
+    date: '2022-03-17',
+    title: 'Code execution',
+    items: [
+      {kind: 'new', text: '`.code` runs code, and tags can run code too.'},
+    ],
+  },
+  {
+    date: '2022-03-16',
+    title: 'Privacy policy',
+    items: [
+      {kind: 'new', text: '`/privacy` shows the privacy policy.'},
+      {kind: 'improved', text: '`.prune` works in DMs.'},
+    ],
+  },
+  {
+    date: '2022-02-17',
+    title: 'Stuck responses',
+    items: [
+      {kind: 'fixed', text: 'A rare bug where the bot stopped responding to someone after the API restarted.'},
+    ],
+  },
+  {
+    date: '2022-02-13',
+    title: 'QR slash commands',
+    items: [
+      {kind: 'new', text: '`/tools qr create`, `/tools qr scan` and `/i background remove`.'},
+      {kind: 'improved', text: 'Media slash commands accept attachments, and `/v convert` has `noaudio`.'},
+    ],
+  },
+  {
+    date: '2022-02-07',
+    title: 'Background removal',
+    items: [
+      {kind: 'fixed', text: '`.background remove`.'},
+    ],
+  },
+  {
+    date: '2022-02-06',
+    title: 'Video convert',
+    items: [
+      {kind: 'new', text: '`/v convert` converts videos to other formats, like webm to mp4.'},
+    ],
+  },
+  {
+    date: '2022-02-05',
+    title: 'Screenshot and tag remove',
+    items: [
+      {kind: 'new', text: '`/tools screenshot` and `/tag remove`.'},
+    ],
+  },
+  {
+    date: '2022-01-18',
+    title: 'Bigger tag attachments',
+    items: [
+      {kind: 'improved', text: '**TagScript:** attachments use the server\'s upload limit instead of 8MB.'},
+    ],
+  },
+  {
+    date: '2021-10-26',
+    title: 'Substring and code in tags',
+    items: [
+      {kind: 'new', text: '**TagScript:** `{substring}` and `{code}`.'},
+    ],
+  },
+  {
+    date: '2021-10-25',
+    title: 'Tag argument fixes',
+    items: [
+      {kind: 'fixed', text: '**TagScript:** argument splitting, and outputs are no longer trimmed.'},
+    ],
+  },
+  {
+    date: '2021-09-28',
+    title: 'Role logs',
+    items: [
+      {kind: 'improved', text: 'Server logs show role icons and role audit log entries.'},
+    ],
+  },
+  {
+    date: '2021-09-25',
+    title: 'Autocomplete',
+    items: [
+      {kind: 'new', text: 'Autocomplete for tag names, languages and `/settings prefixes remove`.'},
+    ],
+  },
+  {
+    date: '2021-09-15',
+    title: 'Slash mentions',
+    items: [
+      {kind: 'fixed', text: 'Slash commands not clearing mentions.'},
+    ],
+  },
+  {
+    date: '2021-09-14',
+    title: 'Multiple images in tags',
+    items: [
+      {kind: 'improved', text: 'Creating a tag picks up every image in the attachments or replied message.'},
+    ],
+  },
+  {
+    date: '2021-09-13',
+    title: 'More slash commands',
+    items: [
+      {kind: 'new', text: 'Slash versions of blur, blurple, circle, deepfry, explode, flip, flop, convert, resize, the gif commands and `overlay pistol`, plus `/tag random` and `.t random`.'},
+      {kind: 'new', text: '`.user` shows banners.'},
+      {kind: 'improved', text: 'Tags can attach audio.'},
+    ],
+  },
+  {
+    date: '2021-09-12',
+    title: 'Our own meme command',
+    items: [
+      {kind: 'new', text: '`/i meme`, now made by NotSoBot itself with the Impact font.'},
+      {kind: 'improved', text: '`.rotate` doesn\'t crop by default.'},
+    ],
+  },
+  {
+    date: '2021-09-08',
+    title: 'If statements in tags',
+    items: [
+      {kind: 'new', text: '**TagScript:** `{if}`, `{text}`, `{replace}` and `{attachspoiler}`.'},
+      {kind: 'new', text: '`.tag search`, and tag lists filter content.'},
+    ],
+  },
+  {
+    date: '2021-09-07',
+    title: 'Tag slash commands',
+    items: [
+      {kind: 'new', text: '`/tag` slash commands, including `/tag list server`, `/tag list user` and `/tag info`. Tag lists can be searched.'},
+    ],
+  },
+  {
+    date: '2021-08-31',
+    title: 'QR codes',
+    items: [
+      {kind: 'new', text: '`.qr create` (with `-margin`) and `.qr scan`.'},
+    ],
+  },
+  {
+    date: '2021-08-28',
+    title: 'Help and ping slash commands',
+    items: [
+      {kind: 'new', text: '`/help`, and `/ping` shows more information.'},
+      {kind: 'improved', text: 'Slash commands have default values and some accept a custom language.'},
+      {kind: 'improved', text: '`.ban` and `.kick` work on replies.'},
+      {kind: 'fixed', text: '`.prune` with a single message.'},
+    ],
+  },
+  {
+    date: '2021-08-25',
+    title: 'Your own language',
+    items: [
+      {kind: 'new', text: '`.set my locale` sets your default language for translate commands.'},
+    ],
+  },
+  {
+    date: '2021-08-13',
+    title: 'Confirmations',
+    items: [
+      {kind: 'improved', text: '`.prune` asks for confirmation when deleting more than 15 messages, and so do `.nick mass` and `.nick mass reset`.'},
+      {kind: 'new', text: '`.users -hasnick`.'},
+    ],
+  },
+  {
+    date: '2021-08-11',
+    title: 'Context menu commands',
+    items: [
+      {kind: 'new', text: 'Right-click commands: **Translate**, **OCR** and **Usage** on messages and users.'},
+      {kind: 'new', text: 'The Certified Moderator badge.'},
+    ],
+  },
+  {
+    date: '2021-06-29',
+    title: 'Images from replies',
+    items: [
+      {kind: 'improved', text: 'Image commands use the image in the message you replied to.'},
+    ],
+  },
+  {
+    date: '2021-06-09',
+    title: 'Prefixes and hashes',
+    items: [
+      {kind: 'new', text: '`/settings prefixes list` and `/tools hash`.'},
+      {kind: 'improved', text: '`.avatar` shows every link, and `/translate` shows the original text.'},
+    ],
+  },
+  {
+    date: '2021-06-06',
+    title: 'Server avatars',
+    items: [
+      {kind: 'new', text: 'Server-specific member avatars are supported.'},
+    ],
+  },
+  {
+    date: '2021-06-04',
+    title: 'Slash command groups',
+    items: [
+      {kind: 'new', text: '`/search google images-simple`, and slash commands are grouped by category.'},
+    ],
+  },
+  {
+    date: '2021-06-03',
+    title: 'Slash commands',
+    items: [
+      {kind: 'new', text: 'The first slash commands: `google search`, `google images` and `translate`.'},
+    ],
+  },
+  {
+    date: '2021-05-29',
+    title: 'Paginator buttons',
+    items: [
+      {kind: 'improved', text: 'Paginators use buttons instead of reactions, with shuffle and custom-page buttons.'},
+    ],
+  },
+  {
+    date: '2021-05-28',
+    title: 'Mass nicknames',
+    items: [
+      {kind: 'new', text: '`.nick mass`, `.nick mass reset` and `.nick mass cancel`.'},
+    ],
+  },
+  {
+    date: '2021-04-01',
+    title: 'Badges',
+    items: [
+      {kind: 'improved', text: '`.playing`, `.user` and `.users` show badges, and `.channel` supports stage channels.'},
+      {kind: 'new', text: '**TagScript:** `{newline}` and `{reverse}`.'},
+    ],
+  },
+  {
+    date: '2021-03-30',
+    title: 'More tag functions',
+    items: [
+      {kind: 'new', text: '**TagScript:** `{choose}`, math functions (`{abs}`, `{cos}`, `{sin}`, `{tan}`, `{max}`, `{min}`, `{pi}`, `{e}`), `{channelmention}`, `{randchannelid}`, `{randchannelmention}`, `{usertag}`, `{randusertag}` and `{randonlinetag}`.'},
+      {kind: 'improved', text: 'Commands can be disabled for specific channels, roles and users. `.purge` works as `.prune`.'},
+      {kind: 'fixed', text: 'Disabled commands sometimes breaking a server, `.urban` erroring on big definitions, and edited replies turning mentions on.'},
+    ],
+  },
+  {
+    date: '2021-03-29',
+    title: 'Tag scripting',
+    items: [
+      {kind: 'new', text: 'Tags run TagScript.'},
+      {kind: 'new', text: '`.google image2`, a cleaner image search with no links.'},
+    ],
+  },
+  {
+    date: '2021-03-28',
+    title: 'Prune and tag list',
+    items: [
+      {kind: 'new', text: '`.prune` and `.tag list`.'},
+      {kind: 'new', text: '`-randomize` on image searches, and `.lgbt` as an alias of `.overlay gay`.'},
+      {kind: 'improved', text: '`.circle` gives a radial blur instead of a crop.'},
+    ],
+  },
+  {
+    date: '2021-02-23',
+    title: 'Tags',
+    items: [
+      {kind: 'new', text: 'Tag commands (`.tag`, `.tag create` and more), `.inviteinfo` and `.unban`.'},
+    ],
+  },
+  {
+    date: '2021-02-09',
+    title: 'Timezones',
+    items: [
+      {kind: 'new', text: '`.gif speed` and server timezones (`set timezone`), used in dates and logs.'},
+      {kind: 'improved', text: '`.users` lists every member matching the name.'},
+      {kind: 'fixed', text: '`.mirror right` using the left mirror.'},
+    ],
+  },
+  {
+    date: '2021-02-04',
+    title: 'Overlays and seesaw',
+    items: [
+      {kind: 'new', text: '`.gif seesaw` and `.convert`.'},
+      {kind: 'new', text: 'Overlays: israel, northkorea, russia, shotgun, smg, trans, uk, usa and ussr. `.gay` and `.pistol` are now `.overlay gay` and `.overlay pistol`.'},
+      {kind: 'improved', text: '`.reddit` shows more about each post.'},
+    ],
+  },
+  {
+    date: '2021-02-03',
+    title: 'Steam emoji',
+    items: [
+      {kind: 'new', text: '`.steam emoji`.'},
+    ],
+  },
+  {
+    date: '2021-02-02',
+    title: 'Urban random',
+    items: [
+      {kind: 'new', text: '`.urban random`, and `.google reverse` (renamed from `reversesearch`).'},
+      {kind: 'improved', text: 'Command responses use replies.'},
+    ],
+  },
+  {
+    date: '2021-02-01',
+    title: 'Stickers and exif',
+    items: [
+      {kind: 'new', text: '`.gif reverse` and `.exif`, and stickers work as images.'},
+    ],
+  },
+  {
+    date: '2021-01-31',
+    title: 'TTS and labels',
+    items: [
+      {kind: 'new', text: '`.hash`, `.tts`, `.safetylabels` and `.labels`, plus `.avatar -default`.'},
+    ],
+  },
+  {
+    date: '2021-01-30',
+    title: 'Blur, gold and rain',
+    items: [
+      {kind: 'new', text: '`.blur`, `.gold`, `.rain`, `.blurple` and `.circle`.'},
+    ],
+  },
+  {
+    date: '2021-01-29',
+    title: 'Flip and flop',
+    items: [
+      {kind: 'new', text: '`.flip` and `.flop`.'},
+      {kind: 'improved', text: 'The base image commands handle gifs, so most `gif` versions were removed.'},
+    ],
+  },
+  {
+    date: '2021-01-28',
+    title: 'Invert',
+    items: [
+      {kind: 'new', text: '`.invert gif`, and more Google result cards.'},
+      {kind: 'removed', text: 'The `cowsay` commands.'},
+    ],
+  },
+  {
+    date: '2021-01-27',
+    title: 'Steam, ascii and rip',
+    items: [
+      {kind: 'new', text: '`.steam`, `.steam profile`, `.ascii gif`, `.ascii image` and `.rip`.'},
+      {kind: 'fixed', text: 'NSFW checks and user search in DMs.'},
+    ],
+  },
+  {
+    date: '2021-01-26',
+    title: 'Reverse image search and undo',
+    items: [
+      {kind: 'new', text: '`.reverseimage` and `.undo`.'},
+    ],
+  },
+  {
+    date: '2021-01-18',
+    title: 'Background removal',
+    items: [
+      {kind: 'new', text: '`.background remove`, `.grayscale` and `.rotate`, and `.legofy -size`.'},
+    ],
+  },
+  {
+    date: '2021-01-17',
+    title: 'Reddit search',
+    items: [
+      {kind: 'new', text: '`.reddit` search.'},
+      {kind: 'improved', text: 'YouTube search supports playlists and filters, and Google shows the total result count.'},
+    ],
+  },
+  {
+    date: '2021-01-05',
+    title: 'Image commands and moderation',
+    items: [
+      {kind: 'new', text: '`.wikihow`, `.spin`, `.sharpen`, `.pixelate`, `.glitch`, `.gay` and gif versions of magik, glitch and deepfry.'},
+      {kind: 'new', text: 'Server logging with `.loggers`, and `.kick` and `.ban` with `-clean`.'},
+    ],
+  },
+  {
+    date: '2020-08-12',
+    title: 'Eyes, implode and legofy',
+    items: [
+      {kind: 'new', text: 'All the eyes commands, plus `.implode`, `.invert` and `.legofy`.'},
+      {kind: 'improved', text: '`.ascii` moved to the fun commands.'},
+    ],
+  },
+  {
+    date: '2020-08-01',
+    title: 'More logging',
+    items: [
+      {kind: 'new', text: 'Server logs for user updates and voice channels.'},
+    ],
+  },
+  {
+    date: '2020-07-28',
+    title: 'Server logging',
+    items: [
+      {kind: 'new', text: 'Server logging, plus checks for blocked users.'},
+    ],
+  },
+  {
+    date: '2020-07-26',
+    title: 'Deepfry, explode and meme',
+    items: [
+      {kind: 'new', text: '`.deepfry`, `.explode` and `.meme`.'},
+    ],
+  },
+  {
+    date: '2020-07-12',
+    title: 'Allowlists',
+    items: [
+      {kind: 'new', text: 'Channel, role and user allowlists, which work like the blocklist.'},
+      {kind: 'improved', text: 'Blocklists need Administrator instead of Manage Server, and administrators always bypass allowlists, blocklists and disabled commands.'},
+    ],
+  },
+  {
+    date: '2020-07-11',
+    title: 'Faster startup',
+    items: [
+      {kind: 'improved', text: 'Members load when a command needs them instead of at startup, so the bot is ready sooner.'},
+      {kind: 'fixed', text: '`blocklist` and `commands` erroring when used without arguments.'},
+    ],
+  },
+  {
+    date: '2020-07-10',
+    title: 'Blocklists',
+    items: [
+      {kind: 'new', text: 'Blocklist commands. Adding a category blocks every channel in it.'},
+      {kind: 'improved', text: 'The `prefixes` command was reworked.'},
+    ],
+  },
+  {
+    date: '2020-06-13',
+    title: 'Google image search fix',
+    items: [
+      {kind: 'fixed', text: 'Google image search after Google changed its results page.'},
+    ],
+  },
+  {
+    date: '2020-05-10',
+    title: 'Playing',
+    items: [
+      {kind: 'new', text: '`.playing`.'},
+    ],
+  },
+  {
+    date: '2020-03-08',
+    title: 'Prefix and image search fixes',
+    items: [
+      {kind: 'fixed', text: 'Prefix commands asking for Manage Server too often.'},
+      {kind: 'improved', text: 'Google image results show more results and details.'},
+    ],
+  },
+  {
+    date: '2020-03-07',
+    title: 'e621',
+    items: [
+      {kind: 'new', text: '`.e621` and `.e926`.'},
+    ],
+  },
+  {
+    date: '2020-02-10',
+    title: 'OCR uploads',
+    items: [
+      {kind: 'improved', text: 'Long `.ocr` results are uploaded to files.gg.'},
+    ],
+  },
+  {
+    date: '2020-02-03',
+    title: 'More languages',
+    items: [
+      {kind: 'new', text: 'More language codes for translation.'},
+      {kind: 'improved', text: 'Resizing gifs over 30 frames gives an error instead of hanging.'},
+    ],
+  },
+  {
+    date: '2020-02-02',
+    title: 'Needs more jpeg',
+    items: [
+      {kind: 'new', text: '`.jpeg` (needs more jpeg).'},
+    ],
+  },
+  {
+    date: '2020-02-01',
+    title: 'Mirror',
+    items: [
+      {kind: 'new', text: 'The mirror commands.'},
+    ],
+  },
+  {
+    date: '2020-01-31',
+    title: 'Google image details',
+    items: [
+      {kind: 'improved', text: 'Google image results have more details, including videos and file types.'},
+    ],
+  },
+  {
+    date: '2019-11-28',
+    title: 'System users',
+    items: [
+      {kind: 'new', text: 'System users and server public features in info commands.'},
+      {kind: 'fixed', text: 'Errors too long to fit in an embed.'},
+    ],
+  },
+  {
+    date: '2019-11-02',
+    title: 'Server language for translate',
+    items: [
+      {kind: 'improved', text: 'Translate uses the server\'s language by default.'},
+    ],
+  },
+  {
+    date: '2019-10-30',
+    title: 'Disabling commands',
+    items: [
+      {kind: 'new', text: 'Commands can be disabled per server.'},
+      {kind: 'fixed', text: 'Commands in DMs.'},
+    ],
+  },
+  {
+    date: '2019-10-28',
+    title: 'Rule34 and Samsung',
+    items: [
+      {kind: 'new', text: '`.rule34`, with tags on results.'},
+      {kind: 'improved', text: 'Activity commands support Samsung games.'},
+    ],
+  },
+  {
+    date: '2019-10-27',
+    title: 'Magik',
+    items: [
+      {kind: 'new', text: '`.magik`.'},
+      {kind: 'fixed', text: '`.resize`.'},
+    ],
+  },
+  {
+    date: '2019-10-26',
+    title: 'The big command import',
+    items: [
+      {kind: 'new', text: 'A big batch of commands from the original bot: `.regional`, `.tts`, `.glitch`, `.jpeg`, the mirror commands, `.pixel`, `.retro`, the cowsay family (`.cowsay`, `.ponysay`, `.tuxsay` and friends), `.giphy`, `.imgur`, `.steam`, `.webmd`, `.hash`, `.screenshot`, `.invite` and `.undo`.'},
+      {kind: 'improved', text: '`.games` with no arguments lists every application.'},
+    ],
+  },
+  {
+    date: '2019-10-24',
+    title: 'Commands on the website',
+    items: [
+      {kind: 'new', text: 'notsobot.com lists every command.'},
+    ],
+  },
+  {
+    date: '2019-10-20',
+    title: 'Custom prefixes',
+    items: [
+      {kind: 'new', text: 'Custom prefixes per server.'},
+    ],
+  },
+  {
+    date: '2019-10-19',
+    title: 'Memory usage',
+    items: [
+      {kind: 'new', text: '`.memoryusage`, and more Google languages.'},
+    ],
+  },
+  {
+    date: '2019-10-18',
+    title: 'Latin',
+    items: [
+      {kind: 'new', text: 'Latin in translate.'},
+    ],
+  },
+  {
+    date: '2019-10-11',
+    title: 'Say',
+    items: [
+      {kind: 'new', text: '`.say`.'},
+      {kind: 'improved', text: 'Better YouTube search.'},
+    ],
+  },
+  {
+    date: '2019-10-08',
+    title: 'Reverse text',
+    items: [
+      {kind: 'new', text: '`.reversetext`.'},
+    ],
+  },
+  {
+    date: '2019-10-07',
+    title: 'Activity emojis',
+    items: [
+      {kind: 'improved', text: '`.activity` shows custom status emojis.'},
+    ],
+  },
+  {
+    date: '2019-10-05',
+    title: 'Translate',
+    items: [
+      {kind: 'new', text: '`.translate`.'},
+      {kind: 'fixed', text: 'Google image search.'},
+    ],
+  },
+  {
+    date: '2019-10-01',
+    title: 'YouTube and DuckDuckGo',
+    items: [
+      {kind: 'new', text: '`.youtube`, `.duckduckgo image` and `.application`.'},
+    ],
+  },
+  {
+    date: '2019-09-29',
+    title: 'Google search',
+    items: [
+      {kind: 'new', text: '`.google` search.'},
+    ],
+  },
+  {
+    date: '2019-09-22',
+    title: 'Unicode emojis',
+    items: [
+      {kind: 'improved', text: 'Unicode emojis can be used as images.'},
+    ],
+  },
+  {
+    date: '2019-09-12',
+    title: 'Avatar and channel',
+    items: [
+      {kind: 'new', text: '`.avatar` and `.channel`.'},
+    ],
+  },
+  {
+    date: '2019-09-10',
+    title: 'Guild info',
+    items: [
+      {kind: 'new', text: '`.guild`.'},
+    ],
+  },
+  {
+    date: '2019-08-30',
+    title: 'Ping and usage',
+    items: [
+      {kind: 'new', text: '`.applications`, `.ping`, `.shards` and `.usage`.'},
+    ],
+  },
+  {
+    date: '2019-08-05',
+    title: 'Resize and user',
+    items: [
+      {kind: 'new', text: '`.resize` and `.user`.'},
+    ],
+  },
+  {
+    date: '2019-08-01',
+    title: 'The TypeScript rewrite begins',
+    items: [
+      {kind: 'new', text: 'Work starts on the new NotSoBot, rewritten in TypeScript.'},
     ],
   },
 ];

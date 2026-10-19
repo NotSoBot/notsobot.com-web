@@ -450,6 +450,26 @@ export const TAG_DOC_FUNCTIONS_PART2: Array<TagDocFunction> = [
     ],
   },
   {
+    id: 'JSON_ROLE',
+    names: ['json.role'],
+    category: 'json',
+    summary: 'Outputs a server role as a JSON object.',
+    description: 'The object uses Discord\'s field names, such as `id`, `name`, `color`, `colors`, `position`, `permissions`, `hoist`, `mentionable`, `managed`, `icon` and `unicode_emoji`, plus `member_count`, how many of the server\'s cached members have the role.',
+    syntax: '{json.role:role?}',
+    args: [
+      {name: 'role', description: 'Optional. A role mention, ID or name. Defaults to your highest role.', optional: true},
+    ],
+    examples: [
+      {code: '{traversejson:name|{json.role}}', result: 'The name of your highest role'},
+      {code: '{traversejson:member_count|{json.role:moderator}}', result: 'How many members have the Moderator role'},
+    ],
+    notes: [
+      'Names match the start of a role\'s name first, then anywhere in it.',
+      '`member_count` only counts cached members, so it can be lower than the real count in big servers.',
+      'Outputs nothing outside of a server, or if no role matches.',
+    ],
+  },
+  {
     id: 'JSON_USER',
     names: ['json.user', 'userjson'],
     category: 'json',

@@ -82,6 +82,8 @@ export interface CommandMetadata {
   aliases: Array<string>,
   args: Array<CommandArg>,
   category: CommandCategory | string,
+  // who made the command (or the program behind it). missing from commands uploaded before it existed
+  credits?: Array<{id: string, name: string}>,
   description: string | null,
   dmable: boolean,
   enabled: boolean,
