@@ -416,6 +416,8 @@ export function adminUserEntries(users: Array<AdminUser>, flags: Array<ContentFl
     return {
       // made up but stable per user
       commands: Number(BigInt(user.id) % 4000n) * 3,
+      // up to about 20 MB for each of their files
+      files_size: Number(BigInt(user.id) % 41n) * Number(BigInt(user.id) % 20_000_000n + 50_000n),
       owned: {
         applications: Number(BigInt(user.id) % 3n),
         files: Number(BigInt(user.id) % 41n),

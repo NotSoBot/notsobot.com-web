@@ -140,7 +140,7 @@ export function AdminReportsPage() {
     <>
       <DashboardHeader
         title='Reports'
-        description={<>Bug, user, server, message and tag reports sent with the bot’s report commands, newest first. Search what they wrote, or an id: a bare one matches the report, reporter, target or server; <code className='text-code'>#&lt;id&gt;</code>, <code className='text-code'>user:</code>, <code className='text-code'>target:</code> or <code className='text-code'>server:</code> match only that.</>}
+        description={<>Bug, user, server, message and tag reports sent with the bot’s report commands, newest first. Search what they wrote, or an id: a bare one matches the report, reporter, target or server; <code className='text-code'>#&lt;id&gt;</code>, <code className='text-code'>user:</code>, <code className='text-code'>target:</code> or <code className='text-code'>server:</code> match only that, with any other text still searched (<code className='text-code'>user:&lt;id&gt; foo</code>).</>}
       />
 
       <div className='mb-4 flex gap-2'>

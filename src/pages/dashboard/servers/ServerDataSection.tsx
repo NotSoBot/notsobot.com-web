@@ -33,16 +33,15 @@ function exportFilename(guildId: string, data: UserGuildDataExport): string {
 }
 
 
-// Owner only: download or wipe what NotSoBot stores for this server. From the admin panel any staff member can export
-// and bot owners can delete.
+// Owner only: download or wipe what NotSoBot stores for this server. From the admin panel only bot owners can do either.
 export function ServerDataSection({ guild }: {guild: UserGuild}) {
   const toast = useToast();
   const { user } = useAuth();
   const staff = useGuildScope() === 'admin';
-  const canExport = staff || guild.owner;
-  const canDelete = (staff) ? isOwner(user) : guild.owner;
-  const readOnly = (canExport && canDelete) ? undefined
-    : (staff) ? 'Only bot owners can delete a server’s data.'
+  const canExport = (staff) ? isOwner(user) : guild.owner;
+  const canDelete = canExport;
+  const readOnly = (canExport) ? undefined
+    : (staff) ? 'Only bot owners can export or delete a server’s data.'
     : 'Only the server owner can export or delete this server’s data.';
   const exportData = useExportGuildDataMutation(guild.id);
   const deleteData = useDeleteGuildDataMutation(guild.id);

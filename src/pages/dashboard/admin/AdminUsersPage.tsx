@@ -8,10 +8,10 @@ import { SearchInput } from '@/components/ui/SearchInput';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { Routes } from '@/config';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
-import { UserFlags, type AdminUserEntry, type AdminUsersSortBy } from '@/lib/api';
-import { ADMIN_PAGE_SIZE, errorMessage, useAdminUserEntryQuery, useAdminUsersQuery } from '@/lib/api/dashboardQueries';
+import { UserFlags, type AdminCopyrightStrike, type AdminCopyrightStrikes, type AdminUserEntry, type AdminUsersSortBy } from '@/lib/api';
+import { ADMIN_PAGE_SIZE, errorMessage, useAdminUserCopyrightStrikesQuery, useAdminUserEntryQuery, useAdminUsersQuery } from '@/lib/api/dashboardQueries';
 import { userDisplayTag } from '@/lib/discord';
-import { cn, formatCompact, snowflakeTimestamp } from '@/lib/utils';
+import { cn, formatCompact, formatDateTime, formatMemory, snowflakeTimestamp } from '@/lib/utils';
 
 import { premiumLabel } from '../premium';
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from '../ui';
@@ -25,8 +25,12 @@ import { EditUserDialog } from './EditUserDialog';
 const SORTS: Array<{value: AdminUsersSortBy, label: string}> = [
   {value: 'flags', label: 'Most flagged'},
   {value: 'confirmed', label: 'Most confirmed'},
+  {value: 'pending', label: 'Most pending'},
+  {value: 'reported', label: 'Most reported'},
   {value: 'last_flagged', label: 'Last flagged'},
+  {value: 'blocked', label: 'Recently blocked'},
   {value: 'newest', label: 'Newest'},
+  {value: 'oldest', label: 'Oldest'},
   {value: 'username', label: 'Username'},
 ];
 
@@ -258,9 +262,11 @@ function UserDetails({ entry, navigation }: {
   const { user: me } = useAuth();
   const viewerIsOwner = isOwner(me);
   const { owner, moderator } = userRoles(user);
-  // anyone who can be blocked can also have their tags deleted
   const canBlock = canBlockUser(user, viewerIsOwner);
   const cantBlockReason = (canBlock) ? null : (owner) ? 'Owners can’t be blocked.' : 'Only owners can block moderators.';
+  // deleting everything they made can't be undone, so owners only (moderators delete tags one at a time)
+  const canDeleteTags = canBlock && viewerIsOwner;
+  const cantDeleteTagsReason = (canDeleteTags) ? null : cantBlockReason ?? 'Only bot owners can delete all of a user’s tags.';
   const [ blocking, setBlocking ] = useState(false);
   const [ deletingTags, setDeletingTags ] = useState(false);
   const [ editing, setEditing ] = useState(false);
@@ -320,13 +326,20 @@ function UserDetails({ entry, navigation }: {
           <h3 className='section-label mb-2'>Has</h3>
           <div className='grid grid-cols-2 gap-2 sm:grid-cols-5'>
             <StatTile label='Applications' to={adminListPath(Routes.DASHBOARD_ADMIN_APPLICATIONS, {user_id: user.id})} value={entry.owned.applications.toLocaleString()}/>
-            <StatTile label='Files' value={entry.owned.files.toLocaleString()} title='Files they’ve uploaded that haven’t expired'/>
+            <StatTile
+              label='Files'
+              // an api from before the size was added leaves it out
+              value={(entry.owned.files && entry.files_size) ? `${entry.owned.files.toLocaleString()} · ${formatMemory(entry.files_size, (entry.files_size < 1024 * 1024) ? 0 : 1)}` : entry.owned.files.toLocaleString()}
+              title='Files they’ve uploaded that haven’t expired, and the storage they take up (the same file uploaded twice is stored once)'
+            />
             {/* a count only: reminders are people's private notes, so staff don't get to read them */}
             <StatTile label='Reminders' value={entry.owned.reminders.toLocaleString()} title='Reminders they’ve set. Their contents are private.'/>
             <StatTile label='Tags' to={adminTagsPath(`user:${user.id}`)} value={entry.owned.tags.toLocaleString()}/>
             <StatTile label='Voices' to={adminListPath(Routes.DASHBOARD_ADMIN_VOICES, {user_id: user.id})} value={entry.owned.voices.toLocaleString()}/>
           </div>
         </section>
+
+        <CopyrightStrikes userId={user.id}/>
 
         {(cantBlockReason) ? <p className='mt-4 text-xs text-subtle'>{cantBlockReason}</p> : null}
       </div>
@@ -357,7 +370,7 @@ function UserDetails({ entry, navigation }: {
           {(user.blocked) ? <ShieldCheck aria-hidden className='hidden size-4 shrink-0 sm:block'/> : <Ban aria-hidden className='hidden size-4 shrink-0 sm:block'/>}
           <span className='truncate'>{(user.blocked) ? 'Unblock' : 'Block'}</span>
         </button>
-        <button type='button' className={cn(ACTION, DANGER_TINT)} disabled={!canBlock} title={cantBlockReason ?? undefined} onClick={() => setDeletingTags(true)}>
+        <button type='button' className={cn(ACTION, DANGER_TINT)} disabled={!canDeleteTags} title={cantDeleteTagsReason ?? undefined} onClick={() => setDeletingTags(true)}>
           <Trash2 aria-hidden className='hidden size-4 shrink-0 sm:block'/>
           <span className='truncate sm:hidden'>Delete</span>
           <span className='hidden sm:inline'>Delete tags</span>
@@ -370,6 +383,70 @@ function UserDetails({ entry, navigation }: {
       {(editing) ? <EditUserDialog user={user} onClose={() => setEditing(false)}/> : null}
       {(deletingTags) ? <DeleteUserTagsDialog user={user} onClose={() => setDeletingTags(false)}/> : null}
     </div>
+  );
+}
+
+
+// The repeat infringer policy's numbers: copyright removals of their tags and files, one per staff action. The count
+// opens the list of them, each with who took it down, the notice and the tags it hit
+function CopyrightStrikes({ userId }: {userId: string}) {
+  const query = useAdminUserCopyrightStrikesQuery(userId);
+  const [ open, setOpen ] = useState(false);
+  const strikes = query.data?.strikes ?? [];
+  const value = (query.isPending) ? '…' : (query.isError) ? '—' : query.data.count.toLocaleString();
+
+  return (
+    <section className='mt-5 lg:mt-4'>
+      <h3 className='section-label mb-2'>Copyright</h3>
+      <div className='grid grid-cols-2 gap-2 sm:grid-cols-5'>
+        <StatTile
+          label='Strikes'
+          value={value}
+          tone='text-danger'
+          title={(query.isError) ? errorMessage(query.error, 'Couldn’t load their strikes.') : (strikes.length) ? `${(open) ? 'Hide' : 'Show'} their strikes` : 'Copyright removals of their tags, one per staff action'}
+          onClick={(strikes.length) ? () => setOpen(!open) : undefined}
+        />
+        <DateTile label='Last strike' value={strikes[0]?.created ?? null} empty='Never'/>
+      </div>
+      {(open && strikes.length) ? (
+        <ol className='mt-2 space-y-2'>
+          {strikes.map((strike) => <StrikeCard key={strike.action_id} strike={strike} users={query.data!.users}/>)}
+        </ol>
+      ) : null}
+    </section>
+  );
+}
+
+
+function StrikeCard({ strike, users }: {strike: AdminCopyrightStrike, users: AdminCopyrightStrikes['users']}) {
+  const actor = (strike.actor_id) ? users[strike.actor_id] : null;
+  return (
+    <li className='rounded-md border border-line bg-deep p-2.5 text-sm'>
+      <div className='flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-subtle'>
+        {(strike.actor_id) ? (
+          <span className='inline-flex min-w-0 items-center gap-1'>
+            {(actor) ? <span className='truncate font-medium text-fg'>{actor.username}</span> : null}
+            <CopyableValue value={strike.actor_id} truncate={0} to={adminUserPath(strike.actor_id)} linkTitle='Open in users'/>
+          </span>
+        ) : <span>Unknown staff member</span>}
+        <span aria-hidden>·</span>
+        <ExactDate value={strike.created} format={formatDateTime}/>
+        {(strike.asset_ids.length) ? <Chip>{strike.asset_ids.length.toLocaleString()} {(strike.asset_ids.length === 1) ? 'file' : 'files'}</Chip> : null}
+      </div>
+      {(strike.notice) ? (
+        <p className='mt-1.5 rounded border-l-2 border-line-strong pl-2 text-xs break-words whitespace-pre-wrap text-muted'>{strike.notice}</p>
+      ) : (
+        <p className='mt-1.5 text-xs text-subtle italic'>No notice given</p>
+      )}
+      {(strike.tag_ids.length) ? (
+        <p className='mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-subtle'>
+          {(strike.tag_ids.length === 1) ? 'Tag' : 'Tags'}
+          {strike.tag_ids.map((tagId) => (
+            <Link key={tagId} to={adminTagsPath(`id:${tagId}`)} className='font-mono text-fg hover:underline'>{tagId}</Link>
+          ))}
+        </p>
+      ) : null}
+    </li>
   );
 }
 

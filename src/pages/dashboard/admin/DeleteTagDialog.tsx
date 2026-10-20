@@ -5,6 +5,8 @@ import { useToast } from '@/components/ui/Toast';
 import type { AdminTagItem } from '@/lib/api';
 import { errorMessage, useAdminTagDuplicatesQuery, useDeleteAdminTagMutation } from '@/lib/api/dashboardQueries';
 
+import { RemovalReasonFields, useRemovalReason } from './removalReason';
+
 
 function tagsLabel(count: number): string {
   return `${count.toLocaleString()} ${(count === 1) ? 'tag' : 'tags'}`;
@@ -23,6 +25,7 @@ export function DeleteTagDialog({ item, onDeleted, onClose }: {item: AdminTagIte
   const remove = useDeleteAdminTagMutation();
   const [ userDuplicates, setUserDuplicates ] = useState(false);
   const [ globalDuplicates, setGlobalDuplicates ] = useState(false);
+  const [ removal, setRemoval ] = useRemovalReason();
 
   const counts = duplicates.data;
   const globalDeletable = (counts) ? counts.global - counts.global_protected : 0;
@@ -80,12 +83,15 @@ export function DeleteTagDialog({ item, onDeleted, onClose }: {item: AdminTagIte
               (counts.global_protected) ? `${tagsLabel(counts.global_protected)} by bot owners or other moderators can’t be deleted and are skipped.` : null,
             ].filter(Boolean).join(' ') || null,
           ) : null}
+
+          {/* the duplicates are one action with it, so a copyright removal is one strike per owner */}
+          <RemovalReasonFields value={removal} onChange={setRemoval} disabled={remove.isPending} className='mt-3'/>
         </>
       }
       confirmLabel={(total === 1) ? 'Delete tag' : `Delete ${tagsLabel(total)}`}
       pending={remove.isPending}
       error={(remove.isError) ? errorMessage(remove.error, 'Couldn’t delete the tag.') : null}
-      onConfirm={() => remove.mutate({tagId: tag.id, userDuplicates, globalDuplicates}, {
+      onConfirm={() => remove.mutate({tagId: tag.id, userDuplicates, globalDuplicates, removal}, {
         onSuccess: ({ count, skipped }) => {
           const deleted = (count === 1) ? `Deleted “${tag.name}”` : `Deleted ${tagsLabel(count)}`;
           toast((skipped) ? `${deleted}, skipped ${tagsLabel(skipped)} you can’t delete` : deleted);

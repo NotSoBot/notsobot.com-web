@@ -121,11 +121,18 @@ const routes: Array<RouteObject> = [
                   {path: Routes.DASHBOARD_ADMIN_TAGS, lazy: async () => ({Component: (await import('@/pages/dashboard/admin/AdminAllTagsPage')).AdminAllTagsPage}), handle: PAGES.DASHBOARD_ADMIN_TAGS},
                   {path: `${Routes.DASHBOARD_ADMIN_TAG_DIRECTORY}/:itemId?`, lazy: async () => ({Component: (await import('@/pages/dashboard/admin/AdminTagsPage')).AdminTagsPage}), handle: PAGES.DASHBOARD_ADMIN_TAG_DIRECTORY},
                   {path: `${Routes.DASHBOARD_ADMIN_USERS}/:itemId?`, lazy: async () => ({Component: (await import('@/pages/dashboard/admin/AdminUsersPage')).AdminUsersPage}), handle: PAGES.DASHBOARD_ADMIN_USERS},
-                  {path: Routes.DASHBOARD_ADMIN_ENTITLEMENTS, lazy: async () => ({Component: (await import('@/pages/dashboard/admin/AdminEntitlementsPage')).AdminEntitlementsPage}), handle: PAGES.DASHBOARD_ADMIN_ENTITLEMENTS},
                   {path: `${Routes.DASHBOARD_ADMIN_FLAGS}/:itemId?`, lazy: async () => ({Component: (await import('@/pages/dashboard/admin/AdminContentFlagsPage')).AdminContentFlagsPage}), handle: PAGES.DASHBOARD_ADMIN_FLAGS},
                   {path: `${Routes.DASHBOARD_ADMIN_REPORTS}/:itemId?`, lazy: async () => ({Component: (await import('@/pages/dashboard/admin/AdminReportsPage')).AdminReportsPage}), handle: PAGES.DASHBOARD_ADMIN_REPORTS},
                   {path: `${Routes.DASHBOARD_ADMIN_SERVERS}/:itemId?`, lazy: async () => ({Component: (await import('@/pages/dashboard/admin/AdminServersPage')).AdminServersPage}), handle: PAGES.DASHBOARD_ADMIN_SERVERS},
                   {path: Routes.DASHBOARD_ADMIN_VOICES, lazy: async () => ({Component: (await import('@/pages/dashboard/admin/AdminVoicesPage')).AdminVoicesPage}), handle: PAGES.DASHBOARD_ADMIN_VOICES},
+                ],
+              },
+              // NotSoBot owners only: everyone's purchase history and who can make API applications
+              {
+                element: <RequireStaff owner/>,
+                children: [
+                  {path: Routes.DASHBOARD_OWNER_API_ACCESS, lazy: async () => ({Component: (await import('@/pages/dashboard/admin/OwnerApiAccessPage')).OwnerApiAccessPage}), handle: PAGES.DASHBOARD_OWNER_API_ACCESS},
+                  {path: Routes.DASHBOARD_OWNER_ENTITLEMENTS, lazy: async () => ({Component: (await import('@/pages/dashboard/admin/AdminEntitlementsPage')).AdminEntitlementsPage}), handle: PAGES.DASHBOARD_OWNER_ENTITLEMENTS},
                 ],
               },
             ],

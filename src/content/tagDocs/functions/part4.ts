@@ -334,6 +334,29 @@ export const TAG_DOC_FUNCTIONS_PART4: Array<TagDocFunction> = [
     ],
   },
   {
+    id: 'SETTINGS_SET_USER',
+    names: ['settings.set.user'],
+    category: 'ai',
+    summary: 'Reads or changes the other settings of the person using the tag, like their units or AI model. Only NotSoAI can use this.',
+    description: 'With no arguments, outputs every setting (plus `AI_PERSONALITY`, `LOCALE` and `TIMEZONE`) as a JSON object. With just a setting, outputs its current value. With a value, saves it and outputs `true`, or `false` if it was already set to that. Use `clear` to reset it to the default.\n\nThe settings are `AI_MEMORY` (`on`/`off`), `AI_MODEL`, `APP_COMMAND_RESPONSE_TYPE` (`AUTOMATIC`/`EPHEMERAL`), `DOWNLOAD_QUALITY` (`1440p` to `144p`), `FALLBACKS_MEDIA_IMAGE` (`SEARCH_GOOGLE_IMAGES`/`SEARCH_DUCK_DUCK_GO_IMAGES`/`IMAGINE`), `FILE_UPLOAD_THRESHOLD` (`EXCEEDS_DISCORD_LIMIT`/`ALWAYS`/`NEVER`), `FILE_UPLOAD_TYPE` (`AUTOMATIC`/`TEMPORARY`), `FILE_VANITY`, `IMAGINE_MODEL`, `RESPONSE_DISPLAY` (`DEFAULT`/`NO_EMBED`/`LEGACY`) and `UNITS` (`IMPERIAL`/`METRIC`).',
+    syntax: '{settings.set.user:setting?|value?}',
+    args: [
+      {name: 'setting', description: 'Which setting, like `UNITS` or `ai model`. Leave out to output every setting.', optional: true},
+      {name: 'value', description: 'The new value, or `clear` to reset it. Leave out to read the current one.', optional: true},
+    ],
+    examples: [
+      {code: '{settings.set.user:UNITS|metric}', result: 'true'},
+      {code: '{settings.set.user:UNITS}', result: 'METRIC'},
+      {code: '{settings.set.user:AI_MEMORY|off}', result: 'true'},
+    ],
+    notes: [
+      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text.',
+      'This permanently changes the NotSoBot settings of the person who asked NotSoAI, not just this run.',
+      'Language, timezone and AI personality have their own functions: {settings.set.user.locale}, {settings.set.user.timezone} and {settings.set.user.ai.personality}.',
+      'Throws an error if the setting or value is not recognised, or if the setting needs premium.',
+    ],
+  },
+  {
     id: 'SETTINGS_SET_USER_AI_PERSONALITY',
     names: ['settings.set.user.ai.personality'],
     category: 'ai',

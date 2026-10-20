@@ -232,7 +232,22 @@ export interface TagDirectoryAsset {
     width: number,
   },
   position: number,
+  // where the file came from, only on the admin routes (`asset_provenance_dict`). Every field is null on files from
+  // before it was recorded
+  provenance?: AssetProvenance,
   urls: {cdn: string},
+}
+
+export interface AssetProvenance {
+  created: ApiTimestamp | null,
+  // `TagAssets` only: the asset an edit in the dashboard saved this one over
+  replaces_id?: string | null,
+  // `TagAssets` only: the tag's owner, when they asked staff to archive it
+  requested_by?: string | null,
+  sha256: string | null,
+  // null for uploads, the url it was downloaded from otherwise
+  source_url: string | null,
+  uploaded_by: string | null,
 }
 
 // `TagAssets.to_dict()`, same shape as a directory listing's assets
@@ -376,12 +391,14 @@ export const ApiErrorCodes = {
   UNKNOWN_TAG_DIRECTORY_EDIT_REQUEST: 10021,
   UNKNOWN_GUILD_LIST_ITEM: 10022,
   UNKNOWN_LLM_MEMORY: 10023,
+  UNKNOWN_PREMIUM_SERVER: 10025,
   UNKNOWN_SERVER: 10012,
   UNKNOWN_REPORT: 10017,
   UNKNOWN_REMINDER: 10007,
   UNKNOWN_FILE: 10002,
   UNKNOWN_VOICE: 10003,
   MISSING_ACCESS: 20004,
+  PREMIUM_REQUIRED: 20005,
   MAX_APPLICATIONS: 30001,
   TEXT_BLOCKED_GUIDELINES: 40030,
   INVALID_FILE_TYPE: 40001,
@@ -410,6 +427,9 @@ export const ApiErrorCodes = {
   // the reporter's replies on their reports, per hour
   MAX_REPORT_MESSAGES: 30019,
   MAX_LLM_MEMORIES: 30020,
+  MAX_PREMIUM_SERVERS: 30022,
+  // a server can't have a premium server slot taken off until a while after it got it (`removable_at` in the body)
+  PREMIUM_SERVER_COOLDOWN: 30023,
   // the session's Discord grant was revoked/expired (not the site session itself)
   DISCORD_OAUTH_ERROR: 60001,
   DISCORD_OAUTH_SCOPE_MISMATCH: 60002,
@@ -950,6 +970,8 @@ export interface AdminUserEntry {
   reports_sent: number,
   // what they have (files that expired aren't counted)
   owned: {applications: number, files: number, reminders: number, tags: number, voices: number},
+  // bytes their files take up in storage (the same file uploaded twice is stored once)
+  files_size: number,
   user: AdminUser,
 }
 
@@ -958,7 +980,7 @@ export interface AdminUsersPage {
   items: Array<AdminUserEntry>,
 }
 
-export type AdminUsersSortBy = 'confirmed' | 'flags' | 'last_flagged' | 'newest' | 'username';
+export type AdminUsersSortBy = 'blocked' | 'confirmed' | 'flags' | 'last_flagged' | 'newest' | 'oldest' | 'pending' | 'reported' | 'username';
 export type AdminTagsSortBy = 'newest' | 'oldest' | 'uses' | 'name' | 'last_used';
 
 // `GET /admin/tags`, every tag (personal, server and aliases), not just directory listings
@@ -987,6 +1009,111 @@ export interface AdminTagDuplicates {
 export interface AdminTagDeleteResult {
   count: number,
   skipped: number,
+}
+
+// Why staff remove something, for the tag audit log (`AdminRemovalFields`). No reason is a plain delete, `copyright`
+// counts as a strike against the owner
+export type AdminRemovalReason = 'copyright' | 'rules';
+export interface AdminRemoval {
+  reason: AdminRemovalReason | null,
+  // who sent the notice and where it is
+  notice: string,
+}
+export const ADMIN_REMOVAL_NOTICE_MAX = 2000;
+
+// `TagAuditLogTypes`
+export const TagAuditLogTypes = {
+  ASSET_ADDED: 0,
+  ASSET_REMOVED: 1,
+  ASSET_MOVED: 2,
+  DIRECTORY_STATE_CHANGED: 3,
+  STAFF_TAG_EDIT: 4,
+  EDIT_REQUEST_REVIEWED: 5,
+  TAG_REMOVED: 6,
+} as const;
+export type TagAuditLogType = (typeof TagAuditLogTypes)[keyof typeof TagAuditLogTypes];
+
+// `TagAuditAssetKinds`, which file an asset entry is about
+export const TagAuditAssetKinds = {
+  TAG_ASSET: 0,
+  DIRECTORY_ASSET: 1,
+  DIRECTORY_THUMBNAIL: 2,
+  EDIT_REQUEST_ASSET: 3,
+  EDIT_REQUEST_THUMBNAIL: 4,
+} as const;
+
+// `TagRemovalReasons`
+export const TagRemovalReasons = {
+  DELETED: 0,
+  COPYRIGHT: 1,
+  RULES: 2,
+  REPLACED: 3,
+  DATA_DELETION: 4,
+} as const;
+export type TagRemovalReason = (typeof TagRemovalReasons)[keyof typeof TagRemovalReasons];
+
+// `TagAuditLog.to_dict()`, `details` depends on `type` (the fields are all optional for that reason)
+export interface TagAuditEntry {
+  action_id: string,
+  actor_id: string | null,
+  asset_id: string | null,
+  created: ApiTimestamp,
+  details: {
+    // asset entries
+    kind?: number,
+    extension?: string | null,
+    mimetype?: string | null,
+    sha256?: string | null,
+    size?: number | null,
+    source_url?: string | null,
+    uploaded_by?: string | null,
+    replaces_id?: string | null,
+    requested_by?: string | null,
+    request_id?: string,
+    from_tag_id?: string,
+    to_tag_id?: string,
+    // verification state changes (`to` null is off the directory) and edit request reviews (`reason` is a rejection's)
+    from?: number,
+    to?: number | null,
+    status?: number,
+    reason?: string | null,
+    // staff edits, approved change requests and removed tags
+    content?: string,
+    content_before?: string | null,
+    content_after?: string | null,
+    name?: string,
+    name_before?: string | null,
+    name_after?: string | null,
+  },
+  directory_id: string | null,
+  id: string,
+  notice: string | null,
+  owner_id: string | null,
+  reason: TagRemovalReason | null,
+  tag_id: string | null,
+  type: TagAuditLogType,
+}
+
+// `GET /admin/tags/<tag_id>/audit`, newest first; `users` has everyone the entries mention
+export interface AdminTagAuditPage {
+  entries: Array<TagAuditEntry>,
+  users: Record<string, AdminUserRef | null>,
+}
+
+// `GET /admin/users/<user_id>/copyright-strikes`, newest first. One strike per staff action (a tag taken down with its
+// files is one); `users` has the staff who did them
+export interface AdminCopyrightStrike {
+  action_id: string,
+  actor_id: string | null,
+  asset_ids: Array<string>,
+  created: ApiTimestamp,
+  notice: string | null,
+  tag_ids: Array<string>,
+}
+export interface AdminCopyrightStrikes {
+  count: number,
+  strikes: Array<AdminCopyrightStrike>,
+  users: Record<string, AdminUserRef | null>,
 }
 
 // `POST /admin/tags/<id>/merge`, what replacing a tag with another moves (or would, for a dry run). Variables and blobs
@@ -1367,6 +1494,25 @@ export interface Entitlement {
 export interface EntitlementsPage {
   count: number,
   items: Array<Entitlement>,
+}
+
+// `/users/@me/premium/servers`: a server the caller gave their premium plus perks to (a premium server slot)
+export interface PremiumServer {
+  created: ApiTimestamp,
+  // the guild as NotSoBot knows it, null for group dms (added from the bot) and guilds it hasn't seen
+  guild: {icon: string | null, id: string, name: string | null} | null,
+  // when it can be taken off, a server is locked in for a while after getting it
+  removable_at: ApiTimestamp,
+  server_id: string,
+  user_id: string,
+}
+
+export interface PremiumServersPage {
+  // the servers only get anything while the caller has premium plus
+  active: boolean,
+  items: Array<PremiumServer>,
+  // null for owners, they can give as many as they want
+  limit: number | null,
 }
 
 // `/admin/entitlements`: everyone's, with Discord's own id and the owner (null for guild-only ones)

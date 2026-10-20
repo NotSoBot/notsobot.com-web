@@ -1,10 +1,11 @@
 // Query/mutation hooks for the user dashboard (`/users/@me/...`, see docs/dashboard-api.md).
 // Every key is scoped to the session token, so switching accounts never shows someone else's data.
 
-import { keepPreviousData, useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
+import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient, type QueryClient, type UseQueryResult } from '@tanstack/react-query';
 import { createContext, useContext } from 'react';
 
 import { useAuth } from '@/auth';
+import { formatDate } from '@/lib/utils';
 
 import { ApiRequestError } from './client';
 import type { GuildScope } from './endpoints';
@@ -13,6 +14,7 @@ import { queryKeys, useReportsUnreadQuery } from './queries';
 import type {
   AdminApplication,
   AdminApplicationPatch,
+  AdminRemoval,
   AdminApplicationsPage,
   AdminGuildPatch,
   AdminGuildsSortBy,
@@ -43,6 +45,7 @@ import type {
   LLMMemoriesPage,
   LLMMemory,
   LLMMemoryPatch,
+  PremiumServersPage,
   Reminder,
   ReminderPatch,
   RemindersPage,
@@ -179,6 +182,16 @@ export function errorMessage(error: unknown, fallback = 'Something went wrong. T
         return 'That reminder doesn’t exist anymore. It may have already been sent or deleted with the bot.';
       case ApiErrorCodes.UNKNOWN_LLM_MEMORY:
         return 'NotSoAI already forgot that one.';
+      case ApiErrorCodes.PREMIUM_REQUIRED:
+        return 'You need NotSoPremium Plus (or Plus AI) for this.';
+      case ApiErrorCodes.MAX_PREMIUM_SERVERS:
+        return 'You’ve already given all of your servers premium. Remove one first.';
+      case ApiErrorCodes.PREMIUM_SERVER_COOLDOWN: {
+        const removableAt = error.body?.removable_at;
+        return (typeof removableAt === 'string') ? `That server got your premium too recently, it can be removed ${formatDate(removableAt)}.` : 'That server got your premium too recently to remove it yet.';
+      }
+      case ApiErrorCodes.UNKNOWN_PREMIUM_SERVER:
+        return 'That server doesn’t have your premium anymore.';
       case ApiErrorCodes.TEXT_BLOCKED_GUIDELINES:
         return 'That text was blocked because it may violate Discord’s Community Guidelines.';
       case ApiErrorCodes.SAFETY_SCAN_FAILED:
@@ -648,6 +661,40 @@ export function useMeEntitlementsQuery() {
   return useQuery({
     queryKey: queryKeys.meEntitlements(token),
     queryFn: ({ signal }) => api.fetchMeEntitlements(signal),
+  });
+}
+
+
+export function useMePremiumServersQuery() {
+  const { token } = useAuth();
+  return useQuery({
+    queryKey: queryKeys.mePremiumServers(token),
+    queryFn: ({ signal }) => api.fetchMePremiumServers(signal),
+  });
+}
+
+
+// both return the caller's whole list afterwards
+export function usePutMePremiumServerMutation() {
+  const { token } = useAuth();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (guildId: string) => api.putMePremiumServer(guildId),
+    onSuccess: ({ created: _created, ...page }) => {
+      queryClient.setQueryData<PremiumServersPage>(queryKeys.mePremiumServers(token), page);
+    },
+  });
+}
+
+
+export function useDeleteMePremiumServerMutation() {
+  const { token } = useAuth();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (serverId: string) => api.deleteMePremiumServer(serverId),
+    onSuccess: (page) => {
+      queryClient.setQueryData<PremiumServersPage>(queryKeys.mePremiumServers(token), page);
+    },
   });
 }
 
@@ -1238,6 +1285,8 @@ export function usePatchAdminTagDirectoryMutation() {
       void queryClient.invalidateQueries({queryKey: listKey});
       // the public directory shows the badge too
       void queryClient.invalidateQueries({queryKey: ['tags', 'directory']});
+      // verification changes and content edits are logged
+      invalidateTagAudit(queryClient, token);
     },
   });
 }
@@ -1263,28 +1312,30 @@ function useAdminTagDirectoryListingMutation<Action>(tagId: string, mutationFn: 
       // the owner's copy too, for staff editing their own listing
       void queryClient.invalidateQueries({queryKey: queryKeys.meTagDirectory(token, tagId)});
       void queryClient.invalidateQueries({queryKey: ['tags', 'directory']});
+      invalidateTagAudit(queryClient, token);
     },
   });
 }
 
+// `removal` says why staff removed it, for the tag audit log
 export function useAdminTagDirectoryMediaMutation(tagId: string) {
-  return useAdminTagDirectoryListingMutation(tagId, (action: {upload: File} | {move: string, position: number} | {remove: string}) => {
+  return useAdminTagDirectoryListingMutation(tagId, (action: {upload: File} | {move: string, position: number} | {remove: string, removal?: AdminRemoval}) => {
     if ('upload' in action) {
       return api.uploadAdminTagDirectoryMedia(tagId, action.upload);
     }
     if ('move' in action) {
       return api.moveAdminTagDirectoryMedia(tagId, action.move, action.position);
     }
-    return api.deleteAdminTagDirectoryMedia(tagId, action.remove);
+    return api.deleteAdminTagDirectoryMedia(tagId, action.remove, action.removal);
   });
 }
 
 export function useAdminTagDirectoryThumbnailMutation(tagId: string) {
-  return useAdminTagDirectoryListingMutation(tagId, (action: {upload: File} | {remove: true}) => {
+  return useAdminTagDirectoryListingMutation(tagId, (action: {upload: File} | {remove: true, removal?: AdminRemoval}) => {
     if ('upload' in action) {
       return api.uploadAdminTagDirectoryThumbnail(tagId, action.upload);
     }
-    return api.deleteAdminTagDirectoryThumbnail(tagId);
+    return api.deleteAdminTagDirectoryThumbnail(tagId, action.removal);
   });
 }
 
@@ -1312,18 +1363,25 @@ export function useAdminTagDirectoryEditRequestMutation() {
     onSettled: () => {
       void queryClient.invalidateQueries({queryKey: listKey});
       void queryClient.invalidateQueries({queryKey: ['tags', 'directory']});
+      invalidateTagAudit(queryClient, token);
     },
   });
 }
 
 
-// tag assets only show up on the admin listing, refetch it so the card picks up the change
+// tag assets only show up on the admin listing, refetch it so the card picks up the change. `replacesId` is the asset
+// an edit saves this one over, `ownerRequested` records that the tag's owner asked for it
 export function useUploadAdminTagAssetMutation() {
   const { token } = useAuth();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ tagId, source }: {tagId: string, source: {file: File} | {url: string}}) => api.uploadAdminTagAsset(tagId, source),
-    onSettled: () => queryClient.invalidateQueries({queryKey: [...queryKeys.admin(token), 'tags']}),
+    mutationFn: ({ tagId, source, ...params }: {tagId: string, source: {file: File} | {url: string}, replacesId?: string, ownerRequested?: boolean}) => (
+      api.uploadAdminTagAsset(tagId, source, params)
+    ),
+    onSettled: () => {
+      invalidateTagAudit(queryClient, token);
+      return queryClient.invalidateQueries({queryKey: [...queryKeys.admin(token), 'tags']});
+    },
   });
 }
 
@@ -1332,8 +1390,11 @@ export function useDeleteAdminTagAssetMutation() {
   const { token } = useAuth();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ tagId, assetId }: {tagId: string, assetId: string}) => api.deleteAdminTagAsset(tagId, assetId),
-    onSettled: () => queryClient.invalidateQueries({queryKey: [...queryKeys.admin(token), 'tags']}),
+    mutationFn: ({ tagId, assetId, removal }: {tagId: string, assetId: string, removal?: AdminRemoval}) => api.deleteAdminTagAsset(tagId, assetId, removal),
+    onSettled: () => {
+      invalidateTagAudit(queryClient, token);
+      return queryClient.invalidateQueries({queryKey: [...queryKeys.admin(token), 'tags']});
+    },
   });
 }
 
@@ -1344,11 +1405,43 @@ export function useDeleteAdminTagDirectoryMutation() {
   const queryClient = useQueryClient();
   const listKey = [...queryKeys.admin(token), 'tags'];
   return useMutation({
-    mutationFn: ({ tagId, deleteTag }: {tagId: string, deleteTag: boolean}) => api.deleteAdminTagDirectory(tagId, {deleteTag}),
+    mutationFn: ({ tagId, deleteTag, removal }: {tagId: string, deleteTag: boolean, removal?: AdminRemoval}) => api.deleteAdminTagDirectory(tagId, {deleteTag, removal}),
     onSettled: () => Promise.all([
       queryClient.invalidateQueries({queryKey: listKey}),
       queryClient.invalidateQueries({queryKey: ['tags', 'directory']}),
+      invalidateTagAudit(queryClient, token),
     ]),
+  });
+}
+
+
+function tagAuditKey(token: string | null, tagId?: string) {
+  return (tagId) ? [...queryKeys.admin(token), 'tag-audit', tagId] : [...queryKeys.admin(token), 'tag-audit'];
+}
+
+function copyrightStrikesKey(token: string | null, userId?: string) {
+  return (userId) ? [...queryKeys.admin(token), 'copyright-strikes', userId] : [...queryKeys.admin(token), 'copyright-strikes'];
+}
+
+// every tag's, it's cheap: the history only loads while it's open. Users' copyright strikes come from the same log
+function invalidateTagAudit(queryClient: QueryClient, token: string | null) {
+  return Promise.all([
+    queryClient.invalidateQueries({queryKey: tagAuditKey(token)}),
+    queryClient.invalidateQueries({queryKey: copyrightStrikesKey(token)}),
+  ]);
+}
+
+const TAG_AUDIT_PAGE_SIZE = 50;
+
+// the tag's audit log, newest first, a page at a time (`fetchNextPage` for older ones). Only fetched while `enabled`
+export function useAdminTagAuditQuery(tagId: string, enabled: boolean) {
+  const { token } = useAuth();
+  return useInfiniteQuery({
+    queryKey: tagAuditKey(token, tagId),
+    queryFn: ({ pageParam, signal }) => api.fetchAdminTagAudit(tagId, {before: pageParam, limit: TAG_AUDIT_PAGE_SIZE}, signal),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (page) => (page.entries.length < TAG_AUDIT_PAGE_SIZE) ? undefined : page.entries[page.entries.length - 1]?.id,
+    enabled: !!token && enabled,
   });
 }
 
@@ -1373,6 +1466,16 @@ export function useAdminUserEntryQuery(userId: string | null, enabled = true) {
     queryFn: ({ signal }) => api.fetchAdminUsers({query: userId!, limit: 10}, signal),
     select: (page) => page.items.find((entry) => entry.user.id === userId) ?? null,
     enabled: enabled && !!userId,
+  });
+}
+
+// the user's copyright strikes (copyright removals of their tags, one per staff action), newest first
+export function useAdminUserCopyrightStrikesQuery(userId: string) {
+  const { token } = useAuth();
+  return useQuery({
+    queryKey: copyrightStrikesKey(token, userId),
+    queryFn: ({ signal }) => api.fetchAdminUserCopyrightStrikes(userId, signal),
+    enabled: !!token,
   });
 }
 
@@ -1474,14 +1577,15 @@ export function useDeleteAdminTagMutation() {
   const { token } = useAuth();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ tagId, userDuplicates, globalDuplicates }: {tagId: string, userDuplicates: boolean, globalDuplicates: boolean}) => (
-      api.deleteAdminTag(tagId, {userDuplicates, globalDuplicates})
+    mutationFn: ({ tagId, userDuplicates, globalDuplicates, removal }: {tagId: string, userDuplicates: boolean, globalDuplicates: boolean, removal?: AdminRemoval}) => (
+      api.deleteAdminTag(tagId, {userDuplicates, globalDuplicates, removal})
     ),
     // both admin tag lists (its aliases go too), and the public directory if it was listed
     onSettled: () => Promise.all([
       queryClient.invalidateQueries({queryKey: [...queryKeys.admin(token), 'all-tags']}),
       queryClient.invalidateQueries({queryKey: [...queryKeys.admin(token), 'tags']}),
       queryClient.invalidateQueries({queryKey: ['tags', 'directory']}),
+      invalidateTagAudit(queryClient, token),
     ]),
   });
 }
@@ -1491,12 +1595,13 @@ export function useDeleteAdminUserTagsMutation() {
   const { token } = useAuth();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ userId }: {userId: string}) => api.deleteAdminUserTags(userId),
+    mutationFn: ({ userId, removal }: {userId: string, removal?: AdminRemoval}) => api.deleteAdminUserTags(userId, removal),
     // both admin tag lists, and the public directory if any of them were listed
     onSettled: () => Promise.all([
       queryClient.invalidateQueries({queryKey: [...queryKeys.admin(token), 'all-tags']}),
       queryClient.invalidateQueries({queryKey: [...queryKeys.admin(token), 'tags']}),
       queryClient.invalidateQueries({queryKey: ['tags', 'directory']}),
+      invalidateTagAudit(queryClient, token),
     ]),
   });
 }

@@ -2,6 +2,7 @@ import { AtSign, Hash, Server, Shield } from 'lucide-react';
 
 import { Routes } from '@/config';
 import type { GuildEditableArea } from '@/lib/api';
+import { useGuildScope } from '@/lib/api/dashboardQueries';
 
 
 // the server opens as a modal over the server list
@@ -31,8 +32,10 @@ export const AREA_LABEL: Record<GuildEditableArea, string> = {
   admin_bypass: 'Owner/admin bypass',
 };
 
-export function readOnlyMessage(area: GuildEditableArea): string {
-  return `You need the ${AREA_PERMISSION[area]} permission in this server to change this.`;
+// why a server's section can't be changed: a missing Discord permission, or in the admin panel, not being a bot owner
+export function useReadOnlyMessage(): (area: GuildEditableArea) => string {
+  const staff = useGuildScope() === 'admin';
+  return (area) => (staff) ? 'Only bot owners can change a server’s settings.' : `You need the ${AREA_PERMISSION[area]} permission in this server to change this.`;
 }
 
 

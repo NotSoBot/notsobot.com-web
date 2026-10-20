@@ -1,44 +1,32 @@
-import { ArrowUpRight, Ban, Blocks, ChevronRight, CircleCheck, KeyRound, Pencil, Plus, RefreshCw, Search, Trash2, UserMinus } from 'lucide-react';
+import { ArrowUpRight, Ban, Blocks, ChevronRight, CircleCheck, Pencil, RefreshCw, Search, Trash2 } from 'lucide-react';
 import { Link } from 'react-router';
-import { useId, useState } from 'react';
+import { useState } from 'react';
 
 import { isOwner, useAuth } from '@/auth';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DetailModalHeader, DetailModalStrip } from '@/components/ui/DetailModal';
-import { Modal } from '@/components/ui/Modal';
 import { SearchInput } from '@/components/ui/SearchInput';
-import { Segmented } from '@/components/ui/Segmented';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
-import type { AdminApplication, ApplicationAccessItem } from '@/lib/api';
+import type { AdminApplication } from '@/lib/api';
 import {
   ADMIN_PAGE_SIZE,
   errorMessage,
-  useAdminApplicationAccessQuery,
   useAdminApplicationQuery,
   useAdminApplicationsQuery,
   useDeleteAdminApplicationMutation,
-  useGrantApplicationAccessMutation,
   usePatchAdminApplicationMutation,
   useRenameAdminApplicationMutation,
   useResetAdminApplicationTokenMutation,
-  useRevokeApplicationAccessMutation,
 } from '@/lib/api/dashboardQueries';
-import { cn, formatDate, NO_AUTOFILL } from '@/lib/utils';
+import { cn, formatDate } from '@/lib/utils';
 
 import { ApplicationChips, ApplicationNameDialog, isApplicationDisabled, isNotSoBotApplication } from '../applications/ApplicationDialogs';
-import { DashboardHeader, EmptyState, ErrorPanel, Field, Skeleton } from '../ui';
+import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from '../ui';
 import { adminUserPath, Chip, CopyableValue, DateTile, ExactDate, FiltersButton, IdFilter, Pagination, StatTile, useSearchParamState, useStepBackFromEmptyPage, UserCell } from './adminUi';
 import { AdminModalFooter, AdminTagModal, useOpenListItem } from './AdminTagModal';
 
-
-type Tab = 'applications' | 'access';
-
-const TABS: Array<{value: Tab, label: string}> = [
-  {value: 'applications', label: 'Applications'},
-  {value: 'access', label: 'API access'},
-];
 
 const STATUSES = [
   {value: '', label: 'Any'},
@@ -49,23 +37,14 @@ const STATUSES = [
 
 export function AdminApplicationsPage() {
   const state = useSearchParamState();
-  const tab: Tab = (state.searchParams.get('tab') === 'access') ? 'access' : 'applications';
 
   return (
     <>
       <DashboardHeader
         title='Applications'
-        description='Every API application, and who can make them. Staff never see tokens: resetting one only revokes the old token.'
+        description='Every API application. Staff never see tokens: resetting one only revokes the old token.'
       />
-      <div className='mb-4 flex'>
-        <Segmented
-          label='Show'
-          value={tab}
-          options={TABS}
-          onChange={(value) => state.update({tab: (value === 'access') ? 'access' : null, q: null, user_id: null, status: null})}
-        />
-      </div>
-      {(tab === 'access') ? <AccessTab state={state}/> : <ApplicationsTab state={state}/>}
+      <ApplicationsTab state={state}/>
     </>
   );
 }
@@ -233,6 +212,8 @@ function ApplicationDetails({ application, navigation, onFilterOwner, onDeleted 
   const disabled = isApplicationDisabled(application);
   // the bot's own applications are owners only, and can only be renamed from here
   const locked = notsobot && !isOwner(me);
+  // it can't be undone, so owners only; moderators can disable one instead
+  const canDelete = isOwner(me);
   const ownerId = application.user?.id ?? application.owner_id;
   const usage = detail?.usage;
 
@@ -376,7 +357,13 @@ function ApplicationDetails({ application, navigation, onFilterOwner, onDeleted 
               <span className='hidden sm:inline'>Reset token</span>
             </button>
             <span aria-hidden className='mx-0.5 h-6 w-px shrink-0 self-center bg-line-strong sm:mx-1'/>
-            <button type='button' className={cn(ACTION, DANGER_TINT)} onClick={() => setDialog('delete')}>
+            <button
+              type='button'
+              className={cn(ACTION, DANGER_TINT)}
+              disabled={!canDelete}
+              title={(canDelete) ? undefined : 'Only bot owners can delete applications. Disable it instead.'}
+              onClick={() => setDialog('delete')}
+            >
               <Trash2 aria-hidden className='hidden size-4 shrink-0 sm:block'/>
               Delete
             </button>
@@ -442,196 +429,6 @@ function ApplicationDetails({ application, navigation, onFilterOwner, onDeleted 
         />
       ) : null}
     </div>
-  );
-}
-
-
-function AccessTab({ state }: {state: SearchParamState}) {
-  const { searchParams, page, update, setPage } = state;
-  const { user: me } = useAuth();
-  // moderators can see who has API access, only owners can give or take it
-  const canEdit = isOwner(me);
-  const toast = useToast();
-  const query = searchParams.get('q') || '';
-  const debouncedQuery = useDebouncedValue(query.trim(), 300);
-
-  const { data, isPending, isError, error, isPlaceholderData, isFetching, isRefetching, refetch } = useAdminApplicationAccessQuery({
-    query: debouncedQuery,
-    page,
-  });
-  const revoke = useRevokeApplicationAccessMutation();
-  const [ granting, setGranting ] = useState(false);
-  const [ revoking, setRevoking ] = useState<ApplicationAccessItem | null>(null);
-
-  const items = data?.items ?? [];
-  const steppingBack = useStepBackFromEmptyPage({page, setPage, data, isPlaceholderData, pageSize: ADMIN_PAGE_SIZE});
-  const pagination = {
-    page,
-    count: data?.count ?? 0,
-    pageSize: ADMIN_PAGE_SIZE,
-    onChange: setPage,
-    fetching: isFetching && isPlaceholderData,
-  };
-
-  return (
-    <>
-      <div className='mb-4 flex flex-col gap-3 sm:flex-row sm:items-center'>
-        <SearchInput
-          className='flex-1'
-          value={query}
-          onValueChange={(value) => update({q: value})}
-          placeholder='Search by username or id...'
-          aria-label='Search users with API access'
-        />
-        {(canEdit) ? (
-          <button type='button' className='btn btn-primary shrink-0' onClick={() => setGranting(true)}>
-            <Plus className='size-4'/>
-            Grant access
-          </button>
-        ) : null}
-      </div>
-      <p className='mb-4 text-sm text-muted'>
-        Users here can create applications, and their applications’ tokens work. Taking access away pauses their
-        applications until it’s given back. Bot owners always have it, so they aren’t listed.
-        {(!canEdit) ? ' Only bot owners can give or take API access.' : null}
-      </p>
-
-      {(isPending || steppingBack) ? (
-        <ListSkeleton/>
-      ) : (isError && !items.length) ? (
-        <ErrorPanel title='Couldn’t load users with API access' message={errorMessage(error)} onRetry={() => refetch()} retrying={isRefetching}/>
-      ) : (!items.length) ? (
-        <EmptyState icon={<KeyRound className='size-10'/>} title={(debouncedQuery) ? 'No users found' : 'Nobody has API access yet'}>
-          {(debouncedQuery) ? 'Try a different search.' : (canEdit) ? 'Grant it to a user by their id.' : null}
-        </EmptyState>
-      ) : (
-        <>
-          <Pagination {...pagination} className='mt-0 mb-4'/>
-          {/* one line per user, like the other admin lists: who, how many applications they have (opening those), and
-              taking access away */}
-          <ul className={cn('card divide-y divide-line transition-opacity', isPlaceholderData && 'opacity-60')}>
-            {items.map((item) => (
-              <li key={item.user.id} className='flex items-center gap-3 px-4 py-3 first:rounded-t-[inherit] last:rounded-b-[inherit] sm:px-5'>
-                <div className='min-w-0 flex-1'><UserCell user={item.user} to={adminUserPath(item.user.id)}/></div>
-                {(item.applications) ? (
-                  <button
-                    type='button'
-                    className='btn btn-ghost btn-sm shrink-0 tabular-nums'
-                    title='Show their applications'
-                    onClick={() => update({tab: null, q: null, user_id: item.user.id})}
-                  >
-                    <Blocks aria-hidden className='size-4 shrink-0'/>
-                    {item.applications.toLocaleString()}
-                    <span className='max-sm:sr-only'>{(item.applications === 1) ? 'application' : 'applications'}</span>
-                  </button>
-                ) : <span className='shrink-0 text-xs text-subtle'>No applications</span>}
-                {(canEdit) ? (
-                  <button type='button' className='btn btn-sm shrink-0 border border-danger/40 bg-danger/10 text-danger hover:bg-danger/20' onClick={() => setRevoking(item)}>
-                    <UserMinus aria-hidden className='size-4 shrink-0'/>
-                    <span className='max-sm:sr-only'>Revoke</span>
-                  </button>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-          <Pagination {...pagination}/>
-        </>
-      )}
-
-      {(granting) ? <GrantAccessDialog onClose={() => setGranting(false)}/> : null}
-      {(revoking) ? (
-        <ConfirmDialog
-          title={`Revoke ${revoking.user.username}’s API access?`}
-          description={
-            <>
-              They won’t be able to create applications or see tokens.
-              {(revoking.applications) ? ` Their ${revoking.applications.toLocaleString()} application${(revoking.applications === 1) ? '' : 's'} stop${(revoking.applications === 1) ? 's' : ''} working until access is given back.` : null}
-            </>
-          }
-          confirmLabel='Revoke access'
-          pending={revoke.isPending}
-          error={(revoke.isError) ? errorMessage(revoke.error, 'Couldn’t revoke API access.') : null}
-          onConfirm={() => revoke.mutate(revoking.user.id, {
-            onSuccess: () => {
-              toast(`Revoked ${revoking.user.username}’s API access`);
-              revoke.reset();
-              setRevoking(null);
-            },
-          })}
-          onClose={() => {
-            revoke.reset();
-            setRevoking(null);
-          }}
-        />
-      ) : null}
-    </>
-  );
-}
-
-
-function GrantAccessDialog({ onClose }: {onClose: () => void}) {
-  const titleId = useId();
-  const toast = useToast();
-  const grant = useGrantApplicationAccessMutation();
-  const [ userId, setUserId ] = useState('');
-
-  const trimmed = userId.trim();
-  const valid = /^\d{15,21}$/.test(trimmed);
-
-  return (
-    <Modal labelledBy={titleId} onClose={() => !grant.isPending && onClose()} className='max-w-md'>
-      <form
-        className='p-5 sm:p-6'
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (!grant.isPending && valid) {
-            grant.mutate(trimmed, {
-              onSuccess: (item) => {
-                toast(`Gave ${item.user.username} API access`);
-                onClose();
-              },
-            });
-          }
-        }}
-      >
-        <h2 id={titleId} className='pr-10 text-lg font-semibold text-white'>Grant API access</h2>
-        <p className='mt-2 text-sm text-muted'>They’ll be able to create applications from their dashboard.</p>
-
-        <Field
-          className='mt-4'
-          label='User id'
-          hint='They need to have used NotSoBot or logged in to the site before.'
-          error={(trimmed && !valid) ? 'That doesn’t look like a Discord user id.' : undefined}
-        >
-          {(props) => (
-            <input
-              {...props}
-              {...NO_AUTOFILL}
-              className='input font-mono'
-              inputMode='numeric'
-              autoComplete='off'
-              value={userId}
-              disabled={grant.isPending}
-              onChange={(event) => setUserId(event.target.value)}
-            />
-          )}
-        </Field>
-
-        {(grant.isError) ? (
-          <p role='alert' className='mt-4 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-fg'>
-            {errorMessage(grant.error, 'Couldn’t grant API access.')}
-          </p>
-        ) : null}
-
-        <div className='mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
-          <button type='button' className='btn btn-secondary' onClick={onClose} disabled={grant.isPending}>Cancel</button>
-          <button type='submit' className='btn btn-primary' disabled={grant.isPending || !valid}>
-            {(grant.isPending) ? <Spinner className='size-4 border-white/40 border-t-white'/> : null}
-            Grant access
-          </button>
-        </div>
-      </form>
-    </Modal>
   );
 }
 

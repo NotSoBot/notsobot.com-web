@@ -8,7 +8,8 @@
 // In the console: `__dashboardMocks.guildsError('scope' | 'grant' | 'ratelimit' | 'refreshing' | null)` makes
 // `/users/@me/guilds*` fail like the real API does (missing `guilds` scope, revoked Discord grant, Discord 429,
 // token refresh in progress); `__dashboardMocks.latency(ms)` changes the fake delay; `__dashboardMocks.owner(false)`
-// (then reload) drops the owner flag so the admin section disappears and `/admin/*` answers 403;
+// (then reload) drops the owner flag so the admin section disappears and `/admin/*` answers 403; `__dashboardMocks.moderator(true)`
+// (then reload) makes the mock user a moderator, so the owner-only admin parts answer 403 and are hidden;
 // `__dashboardMocks.blocked('reason' | true | false)` (then reload) marks the mock user as blocked by staff.
 // A logger webhook URL whose token contains "invalid" is rejected like a webhook from another channel.
 
@@ -21,6 +22,7 @@ import {
   TAG_DIRECTORY_ASSETS_MAX,
   TagDirectoryCategories,
   TagDirectoryVerificationStates,
+  type AdminCopyrightStrike,
   type AdminDirectoryTag,
   type AdminTagDirectoryItem,
   type AdminUserRef,
@@ -31,6 +33,7 @@ import {
   type TagDirectoryCategory,
   type TagDirectoryEditRequest,
   type TagDirectoryItem,
+  type TagAuditEntry,
   type TagStorageType,
   type UserGuild,
 } from '@/lib/api/types';
@@ -86,8 +89,15 @@ const state = {
   voices: createVoices(adminUsers),
   applications: createApplications(adminUsers),
   entitlements: createEntitlements(adminUsers),
+  // premium server slots, a guild added two days ago (still locked) and a group dm from the bot three weeks ago
+  premiumServers: [
+    {created: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), server_id: guilds[1].summary.id},
+    {created: new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString(), server_id: '1290000000000000001'},
+  ] as Array<{created: string, server_id: string}>,
   // the mock user is a NotSoBot owner unless turned off (kept across reloads like guildsError)
   owner: sessionStorage.getItem('dashboardMocks:notOwner') !== '1',
+  // a moderator instead of an owner (`__dashboardMocks.moderator(true)`, then reload), kept across reloads like owner
+  moderator: sessionStorage.getItem('dashboardMocks:moderator') === '1',
   // the block reason ('' for blocked without one), or null when not blocked; kept across reloads like owner
   blocked: sessionStorage.getItem('dashboardMocks:blocked'),
   tags: createTags(),
@@ -103,6 +113,128 @@ const state = {
 
 
 type GuildsError = 'scope' | 'grant' | 'ratelimit' | 'refreshing' | null;
+
+
+// ---- tag audit log (`GET /admin/tags/<id>/audit`) ----
+
+// newest last, per tag; a tag's is made up from its listing the first time it's asked for
+const tagAudit = new Map<string, Array<TagAuditEntry>>();
+let auditCounter = 0;
+
+function fakeSha256(seed: string): string {
+  let hash = 0;
+  let out = '';
+  for (let i = 0; out.length < 64; i++) {
+    hash = (Math.imul(hash ^ seed.charCodeAt(i % seed.length), 2654435761) + i) >>> 0;
+    out += hash.toString(16).padStart(8, '0');
+  }
+  return out.slice(0, 64);
+}
+
+function auditId(): string {
+  auditCounter += 1;
+  return String(Date.now() * 1000 + auditCounter);
+}
+
+// the api's `reason`/`notice` query params to the stored reason (null on things that aren't removals)
+function removalFromQuery(query: URLSearchParams): {reason: TagAuditEntry['reason'], notice: string | null} {
+  const reason = query.get('reason');
+  return {
+    reason: (reason === 'copyright') ? 1 : (reason === 'rules') ? 2 : 0,
+    notice: (reason) ? (query.get('notice') || null) : null,
+  };
+}
+
+function logAudit(tagId: string, entries: Array<Partial<TagAuditEntry> & Pick<TagAuditEntry, 'type'>>, actorId: string | null = mockUser.id) {
+  const list = auditFor(tagId);
+  const actionId = auditId();
+  const ownerId = state.adminDirectory.find((item) => item.id === tagId)?.tag.user_id ?? null;
+  for (const entry of entries) {
+    list.push({
+      action_id: actionId,
+      actor_id: actorId,
+      asset_id: null,
+      created: new Date().toISOString(),
+      details: {},
+      directory_id: null,
+      id: auditId(),
+      notice: null,
+      owner_id: ownerId,
+      reason: null,
+      tag_id: tagId,
+      ...entry,
+    });
+  }
+}
+
+function auditFor(tagId: string): Array<TagAuditEntry> {
+  let list = tagAudit.get(tagId);
+  if (list) {
+    return list;
+  }
+  list = [];
+  tagAudit.set(tagId, list);
+  const item = state.adminDirectory.find((other) => other.id === tagId);
+  if (item) {
+    const ownerId = item.tag.user_id ?? item.user?.id ?? null;
+    const listed = new Date(Date.now() - 1000 * 60 * 60 * 24 * 6).toISOString();
+    for (const asset of item.assets ?? []) {
+      list.push({
+        action_id: `seed-${asset.id}`,
+        actor_id: ownerId,
+        asset_id: asset.id,
+        created: listed,
+        details: {
+          kind: 1,
+          extension: asset.metadata.extension,
+          mimetype: asset.metadata.mimetype,
+          sha256: asset.provenance?.sha256 ?? null,
+          size: asset.metadata.size,
+          source_url: asset.provenance?.source_url ?? null,
+          uploaded_by: ownerId,
+        },
+        directory_id: tagId,
+        id: auditId(),
+        notice: null,
+        owner_id: ownerId,
+        reason: null,
+        tag_id: tagId,
+        type: 0,
+      });
+    }
+    if (item.verified !== TagDirectoryVerificationStates.NOT_VERIFIED) {
+      list.push({
+        action_id: `seed-verify-${tagId}`,
+        actor_id: ownerId,
+        asset_id: null,
+        created: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5).toISOString(),
+        details: {from: 0, to: 1},
+        directory_id: tagId,
+        id: auditId(),
+        notice: null,
+        owner_id: ownerId,
+        reason: null,
+        tag_id: tagId,
+        type: 3,
+      });
+    }
+  }
+  return list;
+}
+
+// the listings' media say where they came from (the owner uploaded them, some from a url)
+for (const item of state.adminDirectory) {
+  const ownerId = item.tag.user_id ?? item.user?.id ?? null;
+  item.assets = (item.assets ?? []).map((asset, index) => ({
+    ...asset,
+    provenance: {
+      created: new Date(Date.now() - 1000 * 60 * 60 * 24 * 6).toISOString(),
+      sha256: fakeSha256(asset.id),
+      source_url: (index % 2) ? `https://cdn.discordapp.com/attachments/1/2/${asset.filename}` : null,
+      uploaded_by: ownerId,
+    },
+  }));
+}
 
 state.reportMessages = createReportMessages(state.reports);
 for (const report of state.reports) {
@@ -179,7 +311,7 @@ function scopeIds(query: URLSearchParams | Record<string, unknown>): Record<TagS
 route('GET', '/users/@me', () => ({
   ...mockUser,
   ...((state.blocked !== null) ? {blocked: true, blocked_on: '2026-09-02T17:41:08.000Z', blocked_reason: state.blocked || null} : {}),
-  flags: (state.owner) ? (mockUser.flags | 1) : (mockUser.flags & ~1),
+  flags: (state.owner) ? ((mockUser.flags | 1) & ~2) : (state.moderator) ? ((mockUser.flags | 2) & ~1) : (mockUser.flags & ~3),
 }));
 route('GET', '/auth/logout', () => undefined);
 route('GET', '/users/@me/settings', () => state.settings);
@@ -700,7 +832,7 @@ function pendingEditRequest(tagId: string): [TagDirectoryItem, TagDirectoryEditR
 }
 
 route('POST', '/admin/tags/directory/(\\d+)/edit-request/approve', ([ , tagId ]) => {
-  requireBotOwner();
+  requireStaff();
   const [ item, request ] = pendingEditRequest(tagId);
   if (request.content !== null) {
     const source = findTag(tagId);
@@ -719,7 +851,7 @@ route('POST', '/admin/tags/directory/(\\d+)/edit-request/approve', ([ , tagId ])
 });
 
 route('POST', '/admin/tags/directory/(\\d+)/edit-request/reject', ([ , tagId ], { body }) => {
-  requireBotOwner();
+  requireStaff();
   const [ item, request ] = pendingEditRequest(tagId);
   const reason = (typeof body.reason === 'string' && body.reason) ? body.reason : null;
   item.edit_request = {...request, assets: [], status: EDIT_REJECTED, reason, reviewed: new Date().toISOString(), thumbnail: null};
@@ -889,7 +1021,7 @@ function requireOwner(guildId: string) {
 
 // `/admin/guilds/<id>/...` reuse the routes below: any server, every area editable (staff only)
 function findAdminGuild(guildId: string) {
-  requireBotOwner();
+  requireStaff();
   const item = state.adminGuilds.find((other) => other.entry.summary.id === guildId);
   if (!item) {
     throw new MockError(404, ApiErrorCodes.UNKNOWN_SERVER, 'Unknown Server');
@@ -898,7 +1030,12 @@ function findAdminGuild(guildId: string) {
 }
 
 function scopedGuild(scope: string, guildId: string, area: keyof ReturnType<typeof guildEditable>) {
-  return (scope === 'admin') ? findAdminGuild(guildId).entry : requireEditable(guildId, area);
+  if (scope === 'admin') {
+    // editing any server is owners only
+    requireBotOwner();
+    return findAdminGuild(guildId).entry;
+  }
+  return requireEditable(guildId, area);
 }
 
 route('GET', '/users/@me/guilds', () => {
@@ -1040,6 +1177,9 @@ route('POST', '/(users/@me|admin)/guilds/(\\d+)/loggers/delete', ([ , scope, gui
 
 
 route('GET', '/(users/@me|admin)/guilds/(\\d+)/data/export', ([ , scope, guildId ]) => {
+  if (scope === 'admin') {
+    requireBotOwner();
+  }
   const { detail } = (scope === 'admin') ? findAdminGuild(guildId).entry : requireOwner(guildId);
   // loggers never carry webhook urls here, same as the real api
   const tags = state.tags.filter((tag) => tag.server_id === guildId).map((tag) => ({
@@ -1060,6 +1200,9 @@ route('GET', '/(users/@me|admin)/guilds/(\\d+)/data/export', ([ , scope, guildId
 });
 
 route('POST', '/(users/@me|admin)/guilds/(\\d+)/data/delete', ([ , scope, guildId ]) => {
+  if (scope === 'admin') {
+    requireBotOwner();
+  }
   const { detail } = (scope === 'admin') ? findAdminGuild(guildId).entry : requireOwner(guildId);
   const before = state.tags.length;
   state.tags = state.tags.filter((tag) => tag.server_id !== guildId);
@@ -1079,11 +1222,21 @@ route('POST', '/(users/@me|admin)/guilds/(\\d+)/data/delete', ([ , scope, guildI
 });
 
 
-/* admin (owner only) */
+/* admin (staff: owners and moderators) */
 
-function requireBotOwner() {
-  if (!state.owner) {
+function requireStaff() {
+  if (!state.owner && !state.moderator) {
     throw new MockError(403, ApiErrorCodes.MISSING_ACCESS, 'Missing Access');
+  }
+}
+
+// the api's `staff_only(owner=True)`, moderators get a 403 too. Only the parts that are owner only for privacy or
+// because they can't be undone use this here (entitlements, editing/exporting servers, deleting applications and all of
+// a user's tags, features)
+function requireBotOwner() {
+  requireStaff();
+  if (!state.owner) {
+    throw new MockError(403, ApiErrorCodes.MISSING_ACCESS, 'Only bot owners can do this');
   }
 }
 
@@ -1168,7 +1321,7 @@ function adminListingAsPublic(item: AdminTagDirectoryItem): TagDirectoryItem {
 }
 
 route('GET', '/admin/tags/directory', (_match, { query }) => {
-  requireBotOwner();
+  requireStaff();
   const search = query.get('query') || '';
   const verified = query.get('verified');
   const nsfw = parseBool(query.get('nsfw'));
@@ -1196,7 +1349,7 @@ route('GET', '/admin/tags/directory', (_match, { query }) => {
 
 // mirrors `GET /admin/tags`: the mock user's tags plus every directory tag
 route('GET', '/admin/tags', (_match, { query }) => {
-  requireBotOwner();
+  requireStaff();
   const search = query.get('query') || '';
   const searchContent = parseBool(query.get('search_content')) === true;
   const nsfw = parseBool(query.get('nsfw'));
@@ -1236,7 +1389,7 @@ route('GET', '/admin/tags', (_match, { query }) => {
 });
 
 route('PATCH', '/admin/tags/directory/(\\d+)', ([ , tagId ], { body }) => {
-  requireBotOwner();
+  requireStaff();
   // checked against the listing as it'll be after this request, same as the api
   const current = state.directory.get(tagId) ?? state.adminDirectory.find((other) => other.id === tagId);
   if (current) {
@@ -1244,6 +1397,11 @@ route('PATCH', '/admin/tags/directory/(\\d+)', ([ , tagId ], { body }) => {
     if (verified === TagDirectoryVerificationStates.VERIFIED && (body.verified !== undefined || typeof body.description === 'string' || body.category !== undefined)) {
       checkCanVerify((typeof body.description === 'string') ? body.description : current.description, (body.category !== undefined) ? Number(body.category) : current.category);
     }
+    const contentBefore = ('tag' in current) ? (current.tag as {content?: string}).content ?? '' : '';
+    logAudit(tagId, [
+      (typeof body.content === 'string' && body.content !== contentBefore) ? {type: 4 as const, details: {content_before: contentBefore, content_after: body.content}} : null,
+      (body.verified !== undefined && Number(body.verified) !== current.verified) ? {type: 3 as const, directory_id: tagId, details: {from: current.verified, to: Number(body.verified)}} : null,
+    ].filter((entry) => entry !== null));
   }
   // the mock user's own listing: apply the same edits to `state.directory` and its source tag
   const own = state.directory.get(tagId);
@@ -1328,7 +1486,7 @@ function adminStoragePage<T extends {storage_type: number}>(entries: Array<T>, q
 }
 
 route('GET', '/admin/tags/(\\d+)/variables', ([ , tagId ], { query }) => {
-  requireBotOwner();
+  requireStaff();
   const entries = [...(state.variables.get(tagId) ?? new Map<string, Record<string, string>>()).entries()]
     .flatMap(([ key, values ]) => {
       const [ type, id ] = key.split(':');
@@ -1339,7 +1497,7 @@ route('GET', '/admin/tags/(\\d+)/variables', ([ , tagId ], { query }) => {
 });
 
 route('GET', '/admin/tags/(\\d+)/blobs', ([ , tagId ], { query }) => {
-  requireBotOwner();
+  requireStaff();
   const entries = [...(state.blobs.get(tagId) ?? new Map<string, string>()).entries()]
     .map(([ key, value ]) => {
       const [ type, id ] = key.split(':');
@@ -1378,14 +1536,36 @@ route('GET', '/users/@me/tags/(\\d+)/servers', ([ , tagId ]) => {
   return {alias_count, server_count};
 });
 
+// mirrors `GET /admin/tags/<tag_id>/audit`: newest first, `before` an entry id
+route('GET', '/admin/tags/(\\d+)/audit', ([ , tagId ], { query }) => {
+  requireStaff();
+  const limit = Number(query.get('limit') || 50);
+  const before = query.get('before');
+  let entries = [...auditFor(tagId)].reverse();
+  if (before) {
+    const index = entries.findIndex((entry) => entry.id === before);
+    entries = (index === -1) ? [] : entries.slice(index + 1);
+  }
+  entries = entries.slice(0, limit);
+  return {entries, users: auditUsers(entries.flatMap((entry) => [entry.actor_id, entry.owner_id]))};
+});
+
+// `users` of the audit responses, a summary of each id
+function auditUsers(ids: Array<string | null>) {
+  return Object.fromEntries([...new Set(ids.filter((id): id is string => !!id))].map((id) => {
+    const user = (id === mockUser.id) ? mockUser : state.adminUsers.find((other) => other.id === id);
+    return [id, (user) ? {avatar: user.avatar ?? null, discriminator: String(user.discriminator ?? '0'), id, username: user.username} : null];
+  }));
+}
+
 route('GET', '/admin/tags/(\\d+)/servers', ([ , tagId ]) => {
-  requireBotOwner();
+  requireStaff();
   return tagServers(tagId);
 });
 
 // mirrors `POST /admin/tags/directory/<tag_id>/assets`, nothing is stored so the cdn url won't load
-route('POST', '/admin/tags/directory/(\\d+)/assets', ([ , tagId ], { body }) => {
-  requireBotOwner();
+route('POST', '/admin/tags/directory/(\\d+)/assets', ([ , tagId ], { body, query }) => {
+  requireStaff();
   const item = state.adminDirectory.find((other) => other.id === tagId);
   if (!item) {
     throw new MockError(404, ApiErrorCodes.UNKNOWN_TAG_DIRECTORY_ITEM, 'Unknown Tag Directory Item');
@@ -1395,6 +1575,15 @@ route('POST', '/admin/tags/directory/(\\d+)/assets', ([ , tagId ], { body }) => 
   const extension = (/\.([a-z0-9]{1,12})$/i.exec(name)?.[1] ?? 'png').toLowerCase();
   const id = String(Date.now() * 1000 + Math.floor(Math.random() * 1000));
   const mimetype = file?.type || `image/${extension}`;
+  const sourceUrl = (file) ? null : String(body.url || '') || null;
+  const provenance = {
+    created: new Date().toISOString(),
+    replaces_id: query.get('replaces_id'),
+    requested_by: (parseBool(query.get('owner_requested'))) ? item.tag.user_id ?? null : null,
+    sha256: fakeSha256(`${id}${name}`),
+    source_url: sourceUrl,
+    uploaded_by: mockUser.id,
+  };
   const asset = {
     filename: `${id}.${extension}`,
     filename_base: id,
@@ -1403,38 +1592,56 @@ route('POST', '/admin/tags/directory/(\\d+)/assets', ([ , tagId ], { body }) => 
     is_text: /^text\/|^application\/(json|javascript|xml)$|^application\/(?!lottie).*\+(json|xml)$/.test(mimetype),
     metadata: {duration: 0, extension, framecount: 1, height: 0, mimetype, size: file?.size ?? 0, width: 0},
     position: item.tag.assets?.length ?? 0,
+    provenance,
     urls: {cdn: `https://cdn.nsb.gg/assets/tags/${tagId}/${id}.${extension}`},
   };
   item.tag.assets = [...(item.tag.assets ?? []), asset];
+  logAudit(tagId, [{type: 0, asset_id: id, details: {kind: 0, extension, mimetype, size: asset.metadata.size, ...provenance}}]);
   return asset;
 });
 
-route('DELETE', '/admin/tags/directory/(\\d+)/assets/(\\d+)', ([ , tagId, assetId ]) => {
-  requireBotOwner();
+route('DELETE', '/admin/tags/directory/(\\d+)/assets/(\\d+)', ([ , tagId, assetId ], { query }) => {
+  requireStaff();
   const item = state.adminDirectory.find((other) => other.id === tagId);
-  if (!item?.tag.assets?.some((asset) => asset.id === assetId)) {
+  const asset = item?.tag.assets?.find((other) => other.id === assetId);
+  if (!item?.tag.assets || !asset) {
     throw new MockError(404, ApiErrorCodes.UNKNOWN_TAG_ASSET, 'Unknown Tag Asset');
   }
-  item.tag.assets = item.tag.assets.filter((asset) => asset.id !== assetId);
+  item.tag.assets = item.tag.assets.filter((other) => other.id !== assetId);
+  logAudit(tagId, [{
+    type: 1,
+    asset_id: assetId,
+    details: {kind: 0, extension: asset.metadata.extension, mimetype: asset.metadata.mimetype, size: asset.metadata.size, ...asset.provenance},
+    ...removalFromQuery(query),
+  }]);
   return undefined;
 });
 
 route('DELETE', '/admin/tags/directory/(\\d+)', ([ , tagId ], { query }) => {
-  requireBotOwner();
+  requireStaff();
   // the mock user's own listings live in `state.directory`, everyone else's in `state.adminDirectory`
   if (!state.adminDirectory.some((other) => other.id === tagId) && !state.directory.has(tagId)) {
     throw new MockError(404, ApiErrorCodes.UNKNOWN_TAG_DIRECTORY_ITEM, 'Unknown Tag Directory Item');
   }
+  const listing = state.adminDirectory.find((other) => other.id === tagId);
+  const removal = removalFromQuery(query);
+  const deleteTag = parseBool(query.get('delete_tag'));
+  logAudit(tagId, [
+    ...(listing?.assets ?? []).map((asset) => ({type: 1 as const, asset_id: asset.id, directory_id: tagId, details: {kind: 1, mimetype: asset.metadata.mimetype, size: asset.metadata.size, ...asset.provenance}, ...removal})),
+    (deleteTag) ?
+      {type: 6 as const, details: {name: listing?.tag.name, content: listing?.tag.content}, ...removal} :
+      {type: 3 as const, directory_id: tagId, details: {from: listing?.verified, to: null}, ...removal},
+  ]);
   state.adminDirectory = state.adminDirectory.filter((other) => other.id !== tagId);
   state.directory.delete(tagId);
-  if (parseBool(query.get('delete_tag'))) {
+  if (deleteTag) {
     state.tags = state.tags.filter((tag) => tag.id !== tagId);
   }
   return undefined;
 });
 
 route('PATCH', '/admin/users/(\\d+)', ([ , userId ], { body }) => {
-  requireBotOwner();
+  requireStaff();
   const user = state.adminUsers.find((other) => other.id === userId);
   if (!user) {
     throw new MockError(404, 10013, 'Unknown User');
@@ -1459,7 +1666,7 @@ route('PATCH', '/admin/users/(\\d+)', ([ , userId ], { body }) => {
 // mirrors `POST /admin/tags/<tag_id>/merge`: the tag's uses go onto `target_id`, its aliases point there, its directory
 // listing moves there when the target isn't listed, then it's deleted
 route('POST', '/admin/tags/(\\d+)/merge', ([ , tagId ], { body }) => {
-  requireBotOwner();
+  requireStaff();
   const find = (id: string) => {
     const mine = state.tags.find((tag) => tag.id === id);
     if (mine) {
@@ -1549,7 +1756,7 @@ function adminTagDuplicates(tagId: string) {
 }
 
 route('GET', '/admin/tags/(\\d+)/duplicates', ([ , tagId ]) => {
-  requireBotOwner();
+  requireStaff();
   const { source, allowed, protected: blocked } = adminTagDuplicates(tagId);
   return {
     global: allowed.length + blocked.length,
@@ -1561,12 +1768,26 @@ route('GET', '/admin/tags/(\\d+)/duplicates', ([ , tagId ]) => {
 // mirrors `DELETE /admin/tags/<tag_id>`: the tag (plus the duplicates asked for), their listings and the mock user's
 // aliases of them
 route('DELETE', '/admin/tags/(\\d+)', ([ , tagId ], { query }) => {
-  requireBotOwner();
+  requireStaff();
   const { source, allowed, protected: blocked } = adminTagDuplicates(tagId);
   const globalDuplicates = parseBool(query.get('global_duplicates')) === true;
   const userDuplicates = parseBool(query.get('user_duplicates')) === true;
   const duplicates = (globalDuplicates) ? allowed : (userDuplicates) ? allowed.filter((entry) => entry.userId === source.userId) : [];
   const ids = new Set([tagId, ...duplicates.map((entry) => entry.tag.id)]);
+  const removal = removalFromQuery(query);
+  // one action like the api's, with the owner of tags that aren't listed too
+  const actionId = auditId();
+  const owners = new Map([source, ...duplicates].map((entry) => [entry.tag.id, entry.userId]));
+  for (const id of ids) {
+    const listing = state.adminDirectory.find((item) => item.tag.id === id);
+    logAudit(id, [{
+      type: 6,
+      details: {name: listing?.tag.name ?? source.tag.name, content: listing?.tag.content},
+      action_id: actionId,
+      owner_id: owners.get(id) || null,
+      ...removal,
+    }]);
+  }
   state.tags = state.tags.filter((tag) => !ids.has(tag.id) && !ids.has((tag.reference_tag as {id?: string} | null | undefined)?.id ?? ''));
   state.adminDirectory = state.adminDirectory.filter((item) => !ids.has(item.tag.id));
   for (const id of ids) {
@@ -1592,8 +1813,32 @@ route('DELETE', '/admin/users/(\\d+)/tags', ([ , userId ]) => {
   return {count};
 });
 
+// mirrors `GET /admin/users/<user_id>/copyright-strikes`: their copyright removals in every tag's audit log, one per
+// action, newest first
+route('GET', '/admin/users/(\\d+)/copyright-strikes', ([ , userId ]) => {
+  requireStaff();
+  const entries = [...tagAudit.values()].flat()
+    .filter((entry) => entry.owner_id === userId && entry.reason === 1)
+    .sort((a, b) => (BigInt(b.id) > BigInt(a.id)) ? 1 : -1);
+  const strikes = new Map<string, AdminCopyrightStrike>();
+  for (const entry of entries) {
+    let strike = strikes.get(entry.action_id);
+    if (!strike) {
+      strike = {action_id: entry.action_id, actor_id: entry.actor_id, created: entry.created, notice: entry.notice, asset_ids: [], tag_ids: []};
+      strikes.set(entry.action_id, strike);
+    }
+    if (entry.asset_id && !strike.asset_ids.includes(entry.asset_id)) {
+      strike.asset_ids.push(entry.asset_id);
+    }
+    if (entry.tag_id && !strike.tag_ids.includes(entry.tag_id)) {
+      strike.tag_ids.push(entry.tag_id);
+    }
+  }
+  return {count: strikes.size, strikes: [...strikes.values()], users: auditUsers(entries.map((entry) => entry.actor_id))};
+});
+
 route('GET', '/admin/users', (_match, { query }) => {
-  requireBotOwner();
+  requireStaff();
   const needle = (query.get('query') || '').toLowerCase();
   const sortBy = query.get('sort_by') || 'flags';
   let entries = adminUserEntries(state.adminUsers, state.contentFlags, state.reports)
@@ -1612,17 +1857,31 @@ route('GET', '/admin/users', (_match, { query }) => {
   }
   const lastFlagged = (entry: typeof entries[number]) => (entry.content_flags.last_flagged_at) ? toDate(entry.content_flags.last_flagged_at).getTime() : -Infinity;
   entries.sort((a, b) => {
+    const newest = (BigInt(b.user.id) > BigInt(a.user.id)) ? 1 : -1;
     if (sortBy === 'username') {
       return a.user.username.localeCompare(b.user.username);
     }
     if (sortBy === 'newest') {
-      return (BigInt(b.user.id) > BigInt(a.user.id)) ? 1 : -1;
+      return newest;
+    }
+    if (sortBy === 'oldest') {
+      return -newest;
     }
     if (sortBy === 'confirmed') {
       return (b.content_flags.confirmed - a.content_flags.confirmed) || (b.content_flags.flagged - a.content_flags.flagged);
     }
+    if (sortBy === 'pending') {
+      return (b.content_flags.pending - a.content_flags.pending) || (b.content_flags.flagged - a.content_flags.flagged);
+    }
+    if (sortBy === 'reported') {
+      return (b.reports - a.reports) || newest;
+    }
     if (sortBy === 'last_flagged') {
-      return (lastFlagged(b) - lastFlagged(a)) || ((BigInt(b.user.id) > BigInt(a.user.id)) ? 1 : -1);
+      return (lastFlagged(b) - lastFlagged(a)) || newest;
+    }
+    if (sortBy === 'blocked') {
+      // the fixtures don't keep when someone was blocked, so just blocked users first
+      return (Number(b.user.blocked) - Number(a.user.blocked)) || newest;
     }
     return (b.content_flags.flagged - a.content_flags.flagged) || (b.content_flags.total - a.content_flags.total);
   });
@@ -1636,7 +1895,7 @@ function withUser(flag: ContentFlag): ContentFlag {
 }
 
 route('GET', '/admin/content-flags/(\\d+)', ([ , flagId ]) => {
-  requireBotOwner();
+  requireStaff();
   const flag = state.contentFlags.find((other) => other.id === flagId);
   if (!flag) {
     throw new MockError(404, ApiErrorCodes.UNKNOWN_CONTENT_FLAG, 'Unknown Content Flag');
@@ -1645,7 +1904,7 @@ route('GET', '/admin/content-flags/(\\d+)', ([ , flagId ]) => {
 });
 
 route('GET', '/admin/content-flags', (_match, { query }) => {
-  requireBotOwner();
+  requireStaff();
   const userId = query.get('user_id');
   const status = query.get('status');
   const category = query.get('category');
@@ -1734,7 +1993,7 @@ function statusCounts(flags: Array<ContentFlag>) {
 }
 
 route('GET', '/admin/content-flags/(\\d+)/matches', ([ , flagId ]) => {
-  requireBotOwner();
+  requireStaff();
   const flag = state.contentFlags.find((other) => other.id === flagId);
   if (!flag) {
     throw new MockError(404, 10000, 'Unknown Content Flag');
@@ -1756,7 +2015,7 @@ function mockJobResponse(id: string, status: string, response: unknown = null) {
 }
 
 route('POST', '/admin/content-flags/(\\d+)/media', ([ , flagId ]) => {
-  requireBotOwner();
+  requireStaff();
   const flag = state.contentFlags.find((other) => other.id === flagId);
   if (!flag) {
     throw new MockError(404, 10000, 'Unknown Content Flag');
@@ -1804,7 +2063,7 @@ route('DELETE', '/jobs/([0-9a-f-]+)', ([ , jobId ]) => {
 });
 
 route('PATCH', '/admin/content-flags/(\\d+)', ([ , flagId ], { body }) => {
-  requireBotOwner();
+  requireStaff();
   const flag = state.contentFlags.find((other) => other.id === flagId);
   if (!flag) {
     throw new MockError(404, 10000, 'Unknown Content Flag');
@@ -1831,7 +2090,7 @@ route('PATCH', '/admin/content-flags/(\\d+)', ([ , flagId ], { body }) => {
 
 // mirrors `admin_post_content_flag_prompt`
 route('POST', '/admin/content-flags/(\\d+)/prompt', ([ , flagId ]) => {
-  requireBotOwner();
+  requireStaff();
   const flag = state.contentFlags.find((other) => other.id === flagId);
   if (!flag) {
     throw new MockError(404, 10000, 'Unknown Content Flag');
@@ -1854,7 +2113,7 @@ route('POST', '/admin/content-flags/(\\d+)/prompt', ([ , flagId ]) => {
 });
 
 route('POST', '/admin/content-flags/(\\d+)/translate', ([ , flagId ]) => {
-  requireBotOwner();
+  requireStaff();
   const flag = state.contentFlags.find((other) => other.id === flagId);
   if (!flag) {
     throw new MockError(404, 10000, 'Unknown Content Flag');
@@ -1901,24 +2160,24 @@ function reporterMessage({ author_id: _authorId, ...message }: ReportMessage) {
 }
 
 route('GET', '/admin/reports/(\\d+)', ([ , reportId ]) => {
-  requireBotOwner();
+  requireStaff();
   return findReport(reportId);
 });
 
 route('GET', '/admin/reports/(\\d+)/messages', ([ , reportId ]) => {
-  requireBotOwner();
+  requireStaff();
   const report = findReport(reportId);
   return {items: state.reportMessages.get(report.id) ?? []};
 });
 
 route('POST', '/admin/reports/(\\d+)/messages', ([ , reportId ], { body }) => {
-  requireBotOwner();
+  requireStaff();
   const report = findReport(reportId);
   return addReportMessage(report, {author: 'staff', author_id: mockUser.id, content: reportMessageContent(body), status: null});
 });
 
 route('GET', '/admin/reports', (_match, { query }) => {
-  requireBotOwner();
+  requireStaff();
   const type = query.get('type');
   const status = query.get('status');
   const search = (query.get('query') ?? '').trim();
@@ -1953,7 +2212,7 @@ route('GET', '/admin/reports', (_match, { query }) => {
 
 // like the api, any patch stamps reviewed_at/reviewed_by
 route('PATCH', '/admin/reports/(\\d+)', ([ , reportId ], { body }) => {
-  requireBotOwner();
+  requireStaff();
   const report = state.reports.find((other) => other.id === reportId);
   if (!report) {
     throw new MockError(404, ApiErrorCodes.UNKNOWN_REPORT, 'Unknown Report');
@@ -2020,14 +2279,15 @@ function adminGuildDetail(guildId: string) {
       // the mock user's own, or a made up count for servers they aren't in (staff only see a count anyway)
       reminders: state.reminders.filter((reminder) => reminder.guild_id === guildId).length || Number(BigInt(guildId) % 9n),
     },
-    editable: {allowlist: true, blocklist: true, commands: true, loggers: true, prefixes: true, settings: true, admin_bypass: true},
+    // owners can edit every area, moderators none
+    editable: {allowlist: state.owner, blocklist: state.owner, commands: state.owner, loggers: state.owner, prefixes: state.owner, settings: state.owner, admin_bypass: state.owner},
     owner: false,
     permissions: '0',
   };
 }
 
 route('GET', '/admin/guilds', (_match, { query }) => {
-  requireBotOwner();
+  requireStaff();
   const search = (query.get('query') || '').trim().toLowerCase();
   const inBot = parseBool(query.get('in_bot'));
   const blocked = parseBool(query.get('blocked'));
@@ -2075,6 +2335,10 @@ route('GET', '/admin/guilds', (_match, { query }) => {
 route('GET', '/admin/guilds/(\\d+)', ([ , guildId ]) => adminGuildDetail(guildId));
 
 route('PATCH', '/admin/guilds/(\\d+)', ([ , guildId ], { body }) => {
+  // moderators can only block, changing its settings is owners only
+  if (Object.keys(body).some((key) => key !== 'blocked' && key !== 'blocked_reason')) {
+    requireBotOwner();
+  }
   const { detail } = findAdminGuild(guildId).entry;
   const settingsKeys = ['ml_diffusion_model', 'ml_llm_model', 'ml_llm_personality', 'response_display'] as const;
   for (const key of settingsKeys) {
@@ -2377,6 +2641,56 @@ route('DELETE', '/users/@me/llm/memories', () => {
   return {count};
 });
 
+// premium server slots: mirrors `views/me_premium_servers.py` (the mock user has premium plus)
+const MAX_PREMIUM_SERVERS = 2;
+const PREMIUM_SERVER_LOCK = 7 * 24 * 60 * 60 * 1000;
+
+function premiumServersPage() {
+  return {
+    active: true,
+    items: state.premiumServers.map((server) => {
+      const guild = state.guilds.find((entry) => entry.summary.id === server.server_id)?.summary;
+      return {
+        ...server,
+        guild: (guild) ? {icon: guild.icon, id: guild.id, name: guild.name} : null,
+        removable_at: new Date(toDate(server.created).getTime() + PREMIUM_SERVER_LOCK).toISOString(),
+        user_id: mockUser.id,
+      };
+    }),
+    limit: MAX_PREMIUM_SERVERS,
+  };
+}
+
+route('GET', '/users/@me/premium/servers', () => premiumServersPage());
+
+route('PUT', '/users/@me/premium/servers/(\\d+)', ([ , guildId ]) => {
+  throwGuildsError();
+  if (!state.guilds.some((entry) => entry.summary.id === guildId)) {
+    throw new MockError(404, ApiErrorCodes.UNKNOWN_SERVER, 'Unknown Server');
+  }
+  if (state.premiumServers.some((server) => server.server_id === guildId)) {
+    return {...premiumServersPage(), created: false};
+  }
+  if (MAX_PREMIUM_SERVERS <= state.premiumServers.length) {
+    throw new MockError(400, ApiErrorCodes.MAX_PREMIUM_SERVERS, `You already gave ${MAX_PREMIUM_SERVERS} servers your premium, remove one first`, {limit: MAX_PREMIUM_SERVERS});
+  }
+  state.premiumServers.push({created: new Date().toISOString(), server_id: guildId});
+  return {...premiumServersPage(), created: true};
+});
+
+route('DELETE', '/users/@me/premium/servers/(\\d+)', ([ , serverId ]) => {
+  const server = state.premiumServers.find((other) => other.server_id === serverId);
+  if (!server) {
+    throw new MockError(404, ApiErrorCodes.UNKNOWN_PREMIUM_SERVER, 'Unknown Premium Server');
+  }
+  const removableAt = toDate(server.created).getTime() + PREMIUM_SERVER_LOCK;
+  if (Date.now() < removableAt) {
+    throw new MockError(400, ApiErrorCodes.PREMIUM_SERVER_COOLDOWN, 'This server got your premium too recently to take it off yet', {removable_at: new Date(removableAt).toISOString()});
+  }
+  state.premiumServers = state.premiumServers.filter((other) => other !== server);
+  return premiumServersPage();
+});
+
 // applications: mirrors `views/me_applications.py` and the applications part of `views/admin.py`
 const MAX_APPLICATIONS = 5;
 const API_ACCESS = 1 << 2;
@@ -2477,7 +2791,7 @@ route('POST', '/users/@me/applications/(\\d+)/token-reset', ([ , applicationId ]
 });
 
 route('GET', '/admin/applications', (_match, { query }) => {
-  requireBotOwner();
+  requireStaff();
   const text = (query.get('query') || '').trim().toLowerCase();
   const userId = query.get('user_id');
   const disabled = query.get('disabled');
@@ -2490,7 +2804,7 @@ route('GET', '/admin/applications', (_match, { query }) => {
 });
 
 route('GET', '/admin/applications/(\\d+)', ([ , applicationId ]) => {
-  requireBotOwner();
+  requireStaff();
   const application = findApplication(applicationId);
   // made up but stable per application, the bot's own ones the busiest
   const seed = Number(BigInt(applicationId) % 9973n);
@@ -2510,7 +2824,7 @@ route('GET', '/admin/applications/(\\d+)', ([ , applicationId ]) => {
 });
 
 route('PATCH', '/admin/applications/(\\d+)', ([ , applicationId ], { body }) => {
-  requireBotOwner();
+  requireStaff();
   const application = findApplication(applicationId);
   if (typeof body.disabled === 'boolean') {
     requireNotNotSoBot(application);
@@ -2523,7 +2837,7 @@ route('PATCH', '/admin/applications/(\\d+)', ([ , applicationId ], { body }) => 
 });
 
 route('POST', '/admin/applications/(\\d+)/token-reset', ([ , applicationId ]) => {
-  requireBotOwner();
+  requireStaff();
   const application = findApplication(applicationId);
   requireNotNotSoBot(application);
   return application;
@@ -2554,7 +2868,7 @@ route('GET', '/admin/applications/access', (_match, { query }) => {
 });
 
 route('PUT', '/admin/applications/access/(\\d+)', ([ , userId ]) => {
-  requireBotOwner();
+  requireStaff();
   const user = state.adminUsers.find((other) => other.id === userId);
   if (!user) {
     throw new MockError(404, 10008, 'Unknown User');
@@ -2567,7 +2881,7 @@ route('PUT', '/admin/applications/access/(\\d+)', ([ , userId ]) => {
 });
 
 route('DELETE', '/admin/applications/access/(\\d+)', ([ , userId ]) => {
-  requireBotOwner();
+  requireStaff();
   const user = state.adminUsers.find((other) => other.id === userId);
   if (!user) {
     throw new MockError(404, 10008, 'Unknown User');
@@ -2597,7 +2911,7 @@ route('PATCH', '/users/@me/voices/(\\d+)', ([ , voiceId ], { body }) => {
 });
 
 route('GET', '/admin/voices', (_match, { query }) => {
-  requireBotOwner();
+  requireStaff();
   const text = (query.get('query') || '').trim().toLowerCase();
   const userId = query.get('user_id');
   const matching = state.voices
@@ -2608,7 +2922,7 @@ route('GET', '/admin/voices', (_match, { query }) => {
 });
 
 route('PATCH', '/admin/voices/(\\d+)', ([ , voiceId ], { body }) => {
-  requireBotOwner();
+  requireStaff();
   return renameVoice(voiceId, body);
 });
 
@@ -2682,6 +2996,7 @@ declare global {
       guildsError: (value: GuildsError) => void,
       latency: (ms: number) => void,
       owner: (value: boolean) => void,
+      moderator: (value: boolean) => void,
     },
   }
 }
@@ -2763,6 +3078,18 @@ export function installDashboardMocks(): void {
         sessionStorage.removeItem('dashboardMocks:notOwner');
       } else {
         sessionStorage.setItem('dashboardMocks:notOwner', '1');
+      }
+    },
+    // a moderator: owner off and moderator on (then reload), `moderator(false)` makes them an owner again
+    moderator: (value) => {
+      state.moderator = value;
+      state.owner = !value;
+      if (value) {
+        sessionStorage.setItem('dashboardMocks:moderator', '1');
+        sessionStorage.setItem('dashboardMocks:notOwner', '1');
+      } else {
+        sessionStorage.removeItem('dashboardMocks:moderator');
+        sessionStorage.removeItem('dashboardMocks:notOwner');
       }
     },
   };

@@ -607,7 +607,10 @@ function ContentFlagDetails({ flag, onReport, navigation }: {
   const flagged = flag.flagged ?? [];
   const forReview = flag.flagged_for_review ?? [];
   const framesFlagged = flag.frames_flagged ?? [];
-  const scores = Object.entries(flag.scores_worst ?? {});
+  // highest first, non-numeric scores last, ties by name
+  const scores = Object.entries(flag.scores_worst ?? {}).sort(([ keyA, a ], [ keyB, b ]) => {
+    return (((typeof b === 'number') ? b : -Infinity) - ((typeof a === 'number') ? a : -Infinity) || 0) || keyA.localeCompare(keyB);
+  });
 
   const changingStatus = mutation.isPending || checkingMatches !== null;
   // reporting goes through a dialog so the uploader can be blocked in the same step
@@ -797,12 +800,21 @@ function ContentFlagDetails({ flag, onReport, navigation }: {
           <div className='mt-4'>
             <h3 className='section-label mb-1'>Worst scores</h3>
             <dl className='flex flex-wrap gap-1.5'>
-              {scores.map(([ key, value ]) => (
-                <div key={key} className='flex items-baseline gap-1.5 rounded bg-deep px-2 py-1 text-xs'>
-                  <dt className='text-subtle'>{key}</dt>
-                  <dd className='font-mono text-fg tabular-nums'>{formatScore(value)}</dd>
-                </div>
-              ))}
+              {/* the labels are score keys, so the ones that fired get the same tone as their chips above */}
+              {scores.map(([ key, value ]) => {
+                const tone = (flagged.includes(key)) ? 'danger' : (forReview.includes(key)) ? 'warning' : null;
+                return (
+                  <div
+                    key={key}
+                    className={cn('flex items-baseline gap-1.5 rounded border px-2 py-1 text-xs',
+                      (tone === 'danger') ? 'border-danger/40 bg-danger/10' : (tone === 'warning') ? 'border-warning/40 bg-warning/10' : 'border-transparent bg-deep')}
+                    title={(tone === 'danger') ? 'Flagged' : (tone === 'warning') ? 'Flagged for review' : undefined}
+                  >
+                    <dt className={(tone === 'danger') ? 'text-danger' : (tone === 'warning') ? 'text-warning' : 'text-subtle'}>{key}</dt>
+                    <dd className='font-mono text-fg tabular-nums'>{formatScore(value)}</dd>
+                  </div>
+                );
+              })}
             </dl>
           </div>
         ) : null}

@@ -2,7 +2,7 @@ import { ArrowRight, ArrowUpRight, Crown, MessageSquareWarning, Settings } from 
 import type { CSSProperties, ReactNode } from 'react';
 import { Link } from 'react-router';
 
-import { isStaff, useAuth } from '@/auth';
+import { isOwner, isStaff, useAuth } from '@/auth';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { Routes } from '@/config';
 import {
@@ -24,7 +24,7 @@ import { UserPremiumTypes } from '@/lib/api';
 import { userDisplayTag } from '@/lib/discord';
 import { cn, formatDate, formatMemory, toDate } from '@/lib/utils';
 
-import { ADMIN_SECTIONS, CONTENT_SECTIONS } from './DashboardLayout';
+import { ADMIN_SECTIONS, CONTENT_SECTIONS, OWNER_SECTIONS } from './DashboardLayout';
 import { premiumLabel } from './premium';
 import { REPORT_STAFF_NAME } from './reports/reportLabels';
 import { Skeleton } from './ui';
@@ -32,15 +32,16 @@ import { Skeleton } from './ui';
 
 // by path, the admin sections share some labels with the content ones (Reports, Tags, Voices)
 const ADMIN_BLURBS: Record<string, string> = {
-  [Routes.DASHBOARD_ADMIN_APPLICATIONS]: 'Every API application, and who can make them.',
+  [Routes.DASHBOARD_ADMIN_APPLICATIONS]: 'Every API application.',
   [Routes.DASHBOARD_ADMIN_FLAGS]: 'Media the safety scan flagged, for review.',
-  [Routes.DASHBOARD_ADMIN_ENTITLEMENTS]: 'Discord subscriptions and the premium owners give.',
   [Routes.DASHBOARD_ADMIN_REPORTS]: 'Reports sent with the bot’s report commands.',
   [Routes.DASHBOARD_ADMIN_SERVERS]: 'Every server NotSoBot knows about, and their settings.',
   [Routes.DASHBOARD_ADMIN_TAG_DIRECTORY]: 'Review tags published to the tag directory.',
   [Routes.DASHBOARD_ADMIN_TAGS]: 'Every tag: personal, server and aliases.',
   [Routes.DASHBOARD_ADMIN_USERS]: 'Everyone NotSoBot knows about, with their flag history.',
   [Routes.DASHBOARD_ADMIN_VOICES]: 'Every voice cloned with the bot.',
+  [Routes.DASHBOARD_OWNER_API_ACCESS]: 'Who can create API applications.',
+  [Routes.DASHBOARD_OWNER_ENTITLEMENTS]: 'Discord subscriptions and the premium owners give.',
 };
 
 type DashboardSection = (typeof CONTENT_SECTIONS)[number];
@@ -243,7 +244,8 @@ export function OverviewPage() {
         </ul>
       </section>
 
-      {(isStaff(user)) ? <AdminSection/> : null}
+      {(isStaff(user)) ? <AdminSection id='overview-admin' title='Admin' sections={ADMIN_SECTIONS}/> : null}
+      {(isOwner(user)) ? <AdminSection id='overview-owner' title='Owner' sections={OWNER_SECTIONS}/> : null}
     </div>
   );
 }
@@ -282,13 +284,13 @@ function ContentTile({ section, stat }: {section: DashboardSection, stat: Conten
 }
 
 
-// staff only, the sidebar's Admin sections as cards
-function AdminSection() {
+// staff only, the sidebar's Admin (and for owners, Owner) sections as cards
+function AdminSection({ id, title, sections }: {id: string, title: string, sections: ReadonlyArray<DashboardSection>}) {
   return (
-    <section aria-labelledby='overview-admin'>
-      <h2 id='overview-admin' className='section-label mb-3'>Admin</h2>
+    <section aria-labelledby={id}>
+      <h2 id={id} className='section-label mb-3'>{title}</h2>
       <ul className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
-        {sortedSections(ADMIN_SECTIONS).map((section) => (
+        {sortedSections(sections).map((section) => (
           <li key={section.to}>
             <Link
               to={section.to}

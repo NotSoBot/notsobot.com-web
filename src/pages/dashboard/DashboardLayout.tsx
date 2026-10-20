@@ -1,8 +1,8 @@
-import { AlarmClock, AudioLines, Blocks, Brain, Crown, Files, Flag, Inbox, LayoutDashboard, MessageSquareWarning, Server, Settings, ShieldCheck, SquareTerminal, Tags, type LucideIcon, Users } from 'lucide-react';
+import { AlarmClock, AudioLines, Blocks, Brain, Crown, Files, Flag, Inbox, KeyRound, LayoutDashboard, MessageSquareWarning, Server, Settings, ShieldCheck, SquareTerminal, Tags, type LucideIcon, Users } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { NavLink, Outlet } from 'react-router';
 
-import { isStaff, useAuth } from '@/auth';
+import { isOwner, isStaff, useAuth } from '@/auth';
 import { BlockedNotice } from '@/components/ui/BlockedNotice';
 import { ToastProvider } from '@/components/ui/Toast';
 import { UserAvatar } from '@/components/ui/UserAvatar';
@@ -47,7 +47,6 @@ export const CONTENT_SECTIONS: ReadonlyArray<Section> = [
 export const ADMIN_SECTIONS: ReadonlyArray<Section> = [
   {to: Routes.DASHBOARD_ADMIN_APPLICATIONS, label: 'Applications', icon: Blocks, color: '#3ba55c'},
   {to: Routes.DASHBOARD_ADMIN_FLAGS, label: 'Content Flags', icon: Flag, color: '#ed4245'},
-  {to: Routes.DASHBOARD_ADMIN_ENTITLEMENTS, label: 'Entitlements', icon: Crown, color: '#f0b232'},
   {to: Routes.DASHBOARD_ADMIN_REPORTS, label: 'Reports', icon: Inbox, color: '#faa81a'},
   {to: Routes.DASHBOARD_ADMIN_SERVERS, label: 'Servers', icon: Server, color: '#faa81a'},
   {
@@ -60,6 +59,12 @@ export const ADMIN_SECTIONS: ReadonlyArray<Section> = [
   },
   {to: Routes.DASHBOARD_ADMIN_USERS, label: 'Users', icon: Users, color: '#5865f2'},
   {to: Routes.DASHBOARD_ADMIN_VOICES, label: 'Voices', icon: AudioLines, color: '#eb459e'},
+];
+
+// only shown to NotSoBot owners, not moderators (the routes are guarded by <RequireStaff owner/> too); alphabetical
+export const OWNER_SECTIONS: ReadonlyArray<Section> = [
+  {to: Routes.DASHBOARD_OWNER_API_ACCESS, label: 'API Access', icon: KeyRound, color: '#3ba55c'},
+  {to: Routes.DASHBOARD_OWNER_ENTITLEMENTS, label: 'Entitlements', icon: Crown, color: '#f0b232'},
 ];
 
 
@@ -101,6 +106,12 @@ export function DashboardLayout() {
               <nav aria-label='Admin sections' className='mt-4 lg:mt-6'>
                 <h2 className='section-label mb-1.5 px-1 lg:mb-2'>Admin</h2>
                 <SectionList sections={ADMIN_SECTIONS}/>
+              </nav>
+            ) : null}
+            {(isOwner(user)) ? (
+              <nav aria-label='Owner sections' className='mt-4 lg:mt-6'>
+                <h2 className='section-label mb-1.5 px-1 lg:mb-2'>Owner</h2>
+                <SectionList sections={OWNER_SECTIONS}/>
               </nav>
             ) : null}
           </aside>

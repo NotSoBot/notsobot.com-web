@@ -18,6 +18,9 @@ import type {
   AdminUserPatch,
   AdminUsersPage,
   AdminTagDirectorySortBy,
+  AdminCopyrightStrikes,
+  AdminRemoval,
+  AdminTagAuditPage,
   AdminTagDeleteResult,
   AdminTagDuplicates,
   AdminTagMergeSummary,
@@ -44,6 +47,7 @@ import type {
   LLMMemoriesPage,
   LLMMemory,
   LLMMemoryPatch,
+  PremiumServersPage,
   Reminder,
   ReminderPatch,
   MeCommandsPage,
@@ -107,6 +111,14 @@ function normalizeListing<T extends {category: number}>(item: T): T {
 
 function normalizeListings<T extends {items: Array<{category: number}>}>(page: T): T {
   return {...page, items: page.items.map(normalizeListing)};
+}
+
+// the admin delete routes' `reason`/`notice`, nothing for a plain delete
+function removalQuery(removal?: AdminRemoval): {reason?: string, notice?: string} {
+  if (!removal?.reason) {
+    return {};
+  }
+  return {reason: removal.reason, notice: removal.notice.trim() || undefined};
 }
 
 
@@ -438,6 +450,19 @@ export const api = {
     return apiRequest<EntitlementsPage>(ApiEndpoints.USER_ME_ENTITLEMENTS, {signal});
   },
 
+  fetchMePremiumServers: (signal?: AbortSignal) => {
+    return apiRequest<PremiumServersPage>(ApiEndpoints.USER_ME_PREMIUM_SERVERS, {signal});
+  },
+
+  // only guilds the caller is in (from their Discord guild list)
+  putMePremiumServer: (guildId: string) => {
+    return apiRequest<PremiumServersPage & {created: boolean}>(ApiEndpoints.USER_ME_PREMIUM_SERVER(guildId), {method: 'PUT'});
+  },
+
+  deleteMePremiumServer: (serverId: string) => {
+    return apiRequest<PremiumServersPage>(ApiEndpoints.USER_ME_PREMIUM_SERVER(serverId), {method: 'DELETE'});
+  },
+
   // `temporary`: only temporary uploads (true) or only the ones that stay (false), both when null
   fetchMeFiles: (params: {query?: string, sortBy?: UserFilesSortBy, temporary?: boolean | null, offset?: number, limit?: number}, signal?: AbortSignal) => {
     return apiRequest<UserFilesPage>(ApiEndpoints.USER_ME_FILES, {
@@ -643,8 +668,9 @@ export const api = {
     return apiRequest<AdminTagDirectoryItem>(ApiEndpoints.ADMIN_TAG_DIRECTORY_EDIT_REQUEST_REJECT(tagId), {method: 'POST', body: {reason: reason || undefined}}).then(normalizeListing);
   },
 
-  // archives a file, or whatever `url` points at, for the tag; the content isn't touched
-  uploadAdminTagAsset: (tagId: string, source: {file: File} | {url: string}) => {
+  // archives a file, or whatever `url` points at, for the tag; the content isn't touched. `replacesId` is the asset an
+  // edit saves this one over, `ownerRequested` records that the tag's owner asked for it
+  uploadAdminTagAsset: (tagId: string, source: {file: File} | {url: string}, params: {replacesId?: string, ownerRequested?: boolean} = {}) => {
     let body: FormData | {url: string};
     if ('file' in source) {
       body = new FormData();
@@ -653,11 +679,16 @@ export const api = {
       body = {url: source.url};
     }
     // the api downloads/probes the media first, which can take a while for videos
-    return apiRequest<TagAsset>(ApiEndpoints.ADMIN_TAG_ASSETS(tagId), {method: 'POST', body, timeout: 120_000});
+    return apiRequest<TagAsset>(ApiEndpoints.ADMIN_TAG_ASSETS(tagId), {
+      method: 'POST',
+      body,
+      query: {replaces_id: params.replacesId, owner_requested: (params.ownerRequested) ? true : undefined},
+      timeout: 120_000,
+    });
   },
 
-  deleteAdminTagAsset: (tagId: string, assetId: string) => {
-    return apiRequest<void>(ApiEndpoints.ADMIN_TAG_ASSET(tagId, assetId), {method: 'DELETE'});
+  deleteAdminTagAsset: (tagId: string, assetId: string, removal?: AdminRemoval) => {
+    return apiRequest<void>(ApiEndpoints.ADMIN_TAG_ASSET(tagId, assetId), {method: 'DELETE', query: removalQuery(removal)});
   },
 
   // the listing's media and thumbnail, same as the owner's routes but not limited to pending listings
@@ -671,8 +702,11 @@ export const api = {
     return apiRequest<AdminTagDirectoryItem>(ApiEndpoints.ADMIN_TAG_DIRECTORY_MEDIA_ITEM(tagId, assetId), {method: 'PATCH', body: {position}}).then(normalizeListing);
   },
 
-  deleteAdminTagDirectoryMedia: (tagId: string, assetId: string) => {
-    return apiRequest<AdminTagDirectoryItem>(ApiEndpoints.ADMIN_TAG_DIRECTORY_MEDIA_ITEM(tagId, assetId), {method: 'DELETE'}).then(normalizeListing);
+  deleteAdminTagDirectoryMedia: (tagId: string, assetId: string, removal?: AdminRemoval) => {
+    return apiRequest<AdminTagDirectoryItem>(ApiEndpoints.ADMIN_TAG_DIRECTORY_MEDIA_ITEM(tagId, assetId), {
+      method: 'DELETE',
+      query: removalQuery(removal),
+    }).then(normalizeListing);
   },
 
   uploadAdminTagDirectoryThumbnail: (tagId: string, file: File) => {
@@ -681,15 +715,26 @@ export const api = {
     return apiRequest<AdminTagDirectoryItem>(ApiEndpoints.ADMIN_TAG_DIRECTORY_THUMBNAIL(tagId), {method: 'PUT', body, timeout: 120_000}).then(normalizeListing);
   },
 
-  deleteAdminTagDirectoryThumbnail: (tagId: string) => {
-    return apiRequest<AdminTagDirectoryItem>(ApiEndpoints.ADMIN_TAG_DIRECTORY_THUMBNAIL(tagId), {method: 'DELETE'}).then(normalizeListing);
+  deleteAdminTagDirectoryThumbnail: (tagId: string, removal?: AdminRemoval) => {
+    return apiRequest<AdminTagDirectoryItem>(ApiEndpoints.ADMIN_TAG_DIRECTORY_THUMBNAIL(tagId), {
+      method: 'DELETE',
+      query: removalQuery(removal),
+    }).then(normalizeListing);
   },
 
   // `deleteTag` also deletes the tag itself (and its aliases), not just the listing
-  deleteAdminTagDirectory: (tagId: string, params: {deleteTag?: boolean} = {}) => {
+  deleteAdminTagDirectory: (tagId: string, params: {deleteTag?: boolean, removal?: AdminRemoval} = {}) => {
     return apiRequest<void>(ApiEndpoints.ADMIN_TAG_DIRECTORY(tagId), {
       method: 'DELETE',
-      query: {delete_tag: (params.deleteTag) ? true : undefined},
+      query: {delete_tag: (params.deleteTag) ? true : undefined, ...removalQuery(params.removal)},
+    });
+  },
+
+  // the tag's audit log, newest first: works after the tag is deleted too. `before` is the oldest entry id seen so far
+  fetchAdminTagAudit: (tagId: string, params: {before?: string, limit?: number} = {}, signal?: AbortSignal) => {
+    return apiRequest<AdminTagAuditPage>(ApiEndpoints.ADMIN_TAG_AUDIT(tagId), {
+      signal,
+      query: {before: params.before, limit: params.limit},
     });
   },
 
@@ -722,18 +767,24 @@ export const api = {
     return apiRequest<AdminUser>(ApiEndpoints.ADMIN_USER(userId), {method: 'PATCH', body});
   },
 
+  // copyright removals of the user's tags and files, one per staff action, for the repeat infringer policy
+  fetchAdminUserCopyrightStrikes: (userId: string, signal?: AbortSignal) => {
+    return apiRequest<AdminCopyrightStrikes>(ApiEndpoints.ADMIN_USER_COPYRIGHT_STRIKES(userId), {signal});
+  },
+
   fetchAdminTagDuplicates: (tagId: string, signal?: AbortSignal) => {
     return apiRequest<AdminTagDuplicates>(ApiEndpoints.ADMIN_TAG_DUPLICATES(tagId), {signal});
   },
 
   // any tag, wherever it lives; its aliases everywhere go with it. `userDuplicates` also deletes the owner's other tags
   // with the exact same content, `globalDuplicates` everyone's
-  deleteAdminTag: (tagId: string, params: {userDuplicates?: boolean, globalDuplicates?: boolean} = {}) => {
+  deleteAdminTag: (tagId: string, params: {userDuplicates?: boolean, globalDuplicates?: boolean, removal?: AdminRemoval} = {}) => {
     return apiRequest<AdminTagDeleteResult>(ApiEndpoints.ADMIN_TAG(tagId), {
       method: 'DELETE',
       query: {
         user_duplicates: (params.userDuplicates) ? true : undefined,
         global_duplicates: (params.globalDuplicates) ? true : undefined,
+        ...removalQuery(params.removal),
       },
       // each duplicate is deleted on its own
       timeout: 120_000,
@@ -752,8 +803,8 @@ export const api = {
   },
 
   // every tag the user owns, everywhere; `count` is how many of theirs were deleted
-  deleteAdminUserTags: (userId: string) => {
-    return apiRequest<{count: number}>(ApiEndpoints.ADMIN_USER_TAGS(userId), {method: 'DELETE'});
+  deleteAdminUserTags: (userId: string, removal?: AdminRemoval) => {
+    return apiRequest<{count: number}>(ApiEndpoints.ADMIN_USER_TAGS(userId), {method: 'DELETE', query: removalQuery(removal)});
   },
 
   fetchAdminContentFlags: (params: {

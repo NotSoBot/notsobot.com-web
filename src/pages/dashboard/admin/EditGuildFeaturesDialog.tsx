@@ -18,7 +18,7 @@ export const GUILD_FEATURE_INFO: Record<GuildFeature, {label: string, descriptio
   },
   [GuildFeatures.FREE_CUSTOM_COMMANDS]: {
     label: 'Free custom commands',
-    description: 'Tags can run as custom commands here without the server owner having premium.',
+    description: 'Tags can run as custom commands here without a member giving it their premium.',
   },
 };
 

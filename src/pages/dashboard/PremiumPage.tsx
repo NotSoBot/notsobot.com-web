@@ -1,5 +1,5 @@
-// The user's premium tier and the entitlements behind it (Discord subscriptions and grants from staff). Read only,
-// subscriptions are bought, renewed and cancelled in Discord.
+// The user's premium tier, the servers they gave it to, and the entitlements behind it (Discord subscriptions and
+// grants from staff). Subscriptions are bought, renewed and cancelled in Discord.
 
 import { Crown } from 'lucide-react';
 import { Link } from 'react-router';
@@ -12,6 +12,7 @@ import { cn, formatDate, formatExactDateTime, toDate } from '@/lib/utils';
 
 import { Chip } from './admin/adminUi';
 import { entitlementStatus, entitlementTierLabel, premiumLabel } from './premium';
+import { PremiumServers } from './PremiumServers';
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from './ui';
 
 
@@ -36,6 +37,8 @@ export function PremiumPage() {
       </DashboardHeader>
 
       <CurrentTier premiumType={user.premium_type} items={(data) ? items : null}/>
+
+      <PremiumServers/>
 
       <h2 className='section-label mt-8 mb-3'>Subscriptions and grants</h2>
       {(isPending) ? (

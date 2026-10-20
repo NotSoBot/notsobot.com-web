@@ -20,6 +20,7 @@ import { adminServerPath, adminTagDirectoryPath, adminUserPath, Chip, CopyableVa
 import { TagOwnerStrip } from './DeleteUserTagsDialog';
 import { DeleteTagDialog } from './DeleteTagDialog';
 import { ReplaceTagDialog } from './ReplaceTagDialog';
+import { TagHistoryPanel } from './TagHistoryPanel';
 import { TagStoragePanel } from './TagStoragePanel';
 
 
@@ -75,7 +76,7 @@ export function AdminAllTagsPage() {
     <>
       <DashboardHeader
         title='Tags'
-        description={<>Every tag, personal, server and aliases. A bare id matches the tag, owner or server; <code className='text-code'>user:&lt;id&gt;</code> or <code className='text-code'>id:&lt;tag id&gt;</code> match only that.</>}
+        description={<>Every tag, personal, server and aliases. A bare id matches the tag, owner or server; <code className='text-code'>user:&lt;id&gt;</code> or <code className='text-code'>id:&lt;tag id&gt;</code> match only that, with any other text still searched (<code className='text-code'>user:&lt;id&gt; foo</code>).</>}
       />
 
       <div className='mb-4 flex gap-2'>
@@ -333,6 +334,8 @@ function TagDetails({ item, navigation, onSearch, onReplaced, onDeleted }: {
         </div>
 
         <TagStoragePanel tagId={tag.id} className='mt-4'/>
+
+        <TagHistoryPanel tagId={tag.id} ownerId={ownerId}/>
       </div>
 
       {/* both take the tag away, so no divider between them. Replace is owners only, so for everyone else Delete is

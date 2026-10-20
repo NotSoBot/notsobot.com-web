@@ -129,13 +129,13 @@ export const FAQ_QUESTIONS: Array<FaqQuestion> = [
     id: 'premium',
     section: 'premium',
     question: 'What is NotSoPremium?',
-    answer: 'NotSoPremium is an optional subscription, bought through Discord on NotSoBot\'s profile. It comes in three tiers:\n\n- **NotSoPremium**: premium-only commands and permanent file hosting on nsb.gg\n- **NotSoPremium Plus**: everything above, plus the heavier premium commands\n- **NotSoPremium Plus AI**: everything above, plus NotSoAI\n\nSome commands work for the whole server when the server owner has premium.',
+    answer: 'NotSoPremium is an optional subscription, bought through Discord on NotSoBot\'s profile. It comes in three tiers:\n\n- **NotSoPremium**: premium-only commands and permanent file hosting on nsb.gg\n- **NotSoPremium Plus**: everything above, plus the heavier premium commands\n- **NotSoPremium Plus AI**: everything above, plus NotSoAI\n\nWith **NotSoPremium Plus** you can give up to 2 servers (or group DMs) your premium with `/settings premium-servers add` or from the dashboard\'s Premium page, so some premium commands work there for everyone. Owning a server doesn\'t give it premium by itself.',
   },
   {
     id: 'notsoai',
     section: 'premium',
     question: 'How do I talk to NotSoAI?',
-    answer: 'Mention the bot with a message, or reply to one of its messages, and NotSoAI will answer. It needs **NotSoPremium Plus AI**, either yours or the server owner\'s. You can set its personality with `/settings set ai-personality`.',
+    answer: 'Mention the bot with a message, or reply to one of its messages, and NotSoAI will answer. It needs **NotSoPremium Plus AI**, either yours or from a member who gave the server their premium. You can set its personality with `/settings set ai-personality`.',
   },
 
   // privacy & support

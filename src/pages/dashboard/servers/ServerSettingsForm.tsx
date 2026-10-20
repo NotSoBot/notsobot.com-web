@@ -16,7 +16,7 @@ import {
 import { PersonalityHint } from '../settings/PersonalityHint';
 import { useDraft } from '../settings/useDraft';
 import { CharCounter, Field, InlineError, Panel, SaveBar } from '../ui';
-import { readOnlyMessage } from './guildMeta';
+import { useReadOnlyMessage } from './guildMeta';
 
 
 // the owner/admin bypass settings are changed from the list panels
@@ -27,6 +27,7 @@ type Values = Required<{[K in keyof SettingsPatch]: Exclude<SettingsPatch[K], un
 export function ServerSettingsForm({ guild, onDirtyChange }: {guild: UserGuild, onDirtyChange: (dirty: boolean) => void}) {
   const toast = useToast();
   const editable = guild.editable.settings;
+  const readOnlyMessage = useReadOnlyMessage();
   const mutation = useGuildMutation(guild.id);
 
   const saved: Values = useMemo(() => ({

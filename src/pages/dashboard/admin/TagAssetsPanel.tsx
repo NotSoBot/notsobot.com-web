@@ -1,11 +1,14 @@
 import { Check, Copy, Link2, Pencil, Trash2, Upload } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 
 import { Spinner } from '@/components/ui/Spinner';
 import type { TagAsset } from '@/lib/api';
 import { errorMessage, useDeleteAdminTagAssetMutation, useUploadAdminTagAssetMutation } from '@/lib/api/dashboardQueries';
 import { cn, formatMemory, NO_AUTOFILL } from '@/lib/utils';
 import { InlineError } from '@/pages/dashboard/ui';
+
+import { AssetProvenanceLine } from './AssetProvenance';
+import { RemovalConfirm } from './removalReason';
 
 
 /**
@@ -15,22 +18,29 @@ import { InlineError } from '@/pages/dashboard/ui';
  * asset (urls are cached forever, so they never change bytes) and hands it to `onArchived` like any other. Errors show inline, not as toasts: the public directory's listing
  * editor uses this too and isn't inside the dashboard's `ToastProvider`. No `<form>` either, since that editor is one.
  */
-export function TagAssetsPanel({ tagId, assets, onArchived, className = 'mt-4' }: {
+export function TagAssetsPanel({ tagId, assets, ownerId = null, onArchived, className = 'mt-4' }: {
   tagId: string,
   assets: Array<TagAsset>,
+  // the tag's owner, for where each file came from
+  ownerId?: string | null,
   onArchived?: (asset: TagAsset, sourceUrl: string | null) => void,
   className?: string,
 }) {
   const upload = useUploadAdminTagAssetMutation();
   const fileInput = useRef<HTMLInputElement>(null);
+  const requestedId = useId();
   const [ url, setUrl ] = useState('');
+  // recorded on the file (`requested_by`), so it's clear the owner wanted it rehosted
+  const [ ownerRequested, setOwnerRequested ] = useState(false);
 
   const archive = (source: {file: File} | {url: string}) => {
-    upload.mutate({tagId, source}, {
+    upload.mutate({tagId, source, ownerRequested}, {
       onSuccess: (asset) => {
         if ('url' in source) {
           setUrl('');
         }
+        // each file is its own ask
+        setOwnerRequested(false);
         onArchived?.(asset, ('url' in source) ? source.url : null);
       },
     });
@@ -56,7 +66,7 @@ export function TagAssetsPanel({ tagId, assets, onArchived, className = 'mt-4' }
 
       {(assets.length) ? (
         <ul className='mb-2 space-y-1.5'>
-          {assets.map((asset) => <TagAssetRow key={asset.id} tagId={tagId} asset={asset} onArchived={onArchived}/>)}
+          {assets.map((asset) => <TagAssetRow key={asset.id} tagId={tagId} asset={asset} ownerId={ownerId} onArchived={onArchived}/>)}
         </ul>
       ) : (
         <p className='mb-2 text-sm text-subtle'>No archived files yet.</p>
@@ -103,15 +113,27 @@ export function TagAssetsPanel({ tagId, assets, onArchived, className = 'mt-4' }
           }}
         />
       </div>
+      <label htmlFor={requestedId} className='mt-2 flex w-fit cursor-pointer items-center gap-2 text-xs text-muted'>
+        <input
+          id={requestedId}
+          type='checkbox'
+          checked={ownerRequested}
+          disabled={upload.isPending}
+          onChange={(event) => setOwnerRequested(event.target.checked)}
+          className='accent-brand'
+        />
+        The owner asked for this to be archived
+      </label>
       {(upload.isError) ? <InlineError>{errorMessage(upload.error, 'Couldn’t archive the file.')}</InlineError> : null}
     </div>
   );
 }
 
 
-function TagAssetRow({ tagId, asset, onArchived }: {
+function TagAssetRow({ tagId, asset, ownerId, onArchived }: {
   tagId: string,
   asset: TagAsset,
+  ownerId: string | null,
   onArchived?: (asset: TagAsset, sourceUrl: string | null) => void,
 }) {
   const remove = useDeleteAdminTagAssetMutation();
@@ -145,7 +167,6 @@ function TagAssetRow({ tagId, asset, onArchived }: {
             {asset.urls.cdn}
           </a>
           {(details) ? <span className='block truncate text-xs text-subtle'>{details}</span> : null}
-          {(remove.isError) ? <InlineError>{errorMessage(remove.error, 'Couldn’t delete the file.')}</InlineError> : null}
         </div>
         {(asset.is_text) ? (
           <button
@@ -175,24 +196,29 @@ function TagAssetRow({ tagId, asset, onArchived }: {
         </button>
         <button
           type='button'
-          className={cn('btn btn-sm', (confirming) ? 'btn-danger' : 'btn-ghost')}
+          className={cn('btn btn-sm', (confirming) ? 'btn-secondary' : 'btn-ghost')}
           title='Delete the file (swap its url out of the content first)'
+          aria-expanded={confirming}
           disabled={remove.isPending}
-          onBlur={() => setConfirming(false)}
           onClick={() => {
-            if (!confirming) {
-              setConfirming(true);
-              return;
-            }
-            remove.mutate({tagId, assetId: asset.id}, {
-              onError: () => setConfirming(false),
-            });
+            remove.reset();
+            setConfirming(!confirming);
           }}
         >
-          {(remove.isPending) ? <Spinner className='size-4 border-white/40 border-t-white'/> : <Trash2 className='size-4'/>}
-          <span className={cn(!confirming && 'sr-only')}>{(confirming) ? 'Confirm' : 'Delete'}</span>
+          <Trash2 className='size-4'/>
+          <span className='sr-only'>Delete</span>
         </button>
       </div>
+      <AssetProvenanceLine provenance={asset.provenance} ownerId={ownerId} className='mt-1.5'/>
+      {(confirming) ? (
+        <RemovalConfirm
+          label='Delete file'
+          pending={remove.isPending}
+          onConfirm={(removal) => remove.mutate({tagId, assetId: asset.id, removal})}
+          onCancel={() => setConfirming(false)}
+        />
+      ) : null}
+      {(remove.isError) ? <InlineError>{errorMessage(remove.error, 'Couldn’t delete the file.')}</InlineError> : null}
       {(editing) ? (
         <TagAssetTextEditor
           tagId={tagId}
@@ -247,7 +273,7 @@ function TagAssetTextEditor({ tagId, asset, onClose, onSaved }: {
 
   const save = () => {
     const file = new File([draft], asset.filename, {type: asset.metadata.mimetype});
-    upload.mutate({tagId, source: {file}}, {onSuccess: onSaved});
+    upload.mutate({tagId, source: {file}, replacesId: asset.id}, {onSuccess: onSaved});
   };
 
   if (loadError) {

@@ -141,7 +141,7 @@ export const TAG_DOC_FUNCTIONS_PART3: Array<TagDocFunction> = [
     names: ['math'],
     category: 'math',
     summary: 'Evaluate a math expression.',
-    description: 'Uses a math.js parser with high-precision (BigNumber) numbers, so things like `0.1+0.2` give `0.3`. Supports `+ - * / % ^`, parentheses, `**` (treated as `^`), comparisons, functions like `sqrt`, `round`, `floor`, `ceil`, `abs`, `min`, `max`, `log`, `pow`, `sin`/`cos`/`tan`, constants like `pi` and `e`, and unit conversions like `5 inch to cm`.\n\nNumbers with thousands separators such as `1,000,000` are understood. Results that repeat forever are rounded to 2 decimal places, and trailing zeros are removed.',
+    description: 'Uses a math.js parser with high-precision (BigNumber) numbers, so things like `0.1+0.2` give `0.3`. Supports `+ - * / % ^`, parentheses, `**` (treated as `^`), comparisons, functions like `sqrt`, `round`, `floor`, `ceil`, `abs`, `min`, `max`, `log`, `pow`, `sin`/`cos`/`tan`, constants like `pi` and `e`, unit conversions like `5 inch to cm`, and base conversions with `base(number, base)` and `frombase("digits", base)` for bases 2 to 36 (`0-9` then `a-z`).\n\nNumbers with thousands separators such as `1,000,000` are understood. Results that repeat forever are rounded to 2 decimal places, and trailing zeros are removed.',
     syntax: '{math:expression}',
     args: [
       {name: 'expression', description: 'The expression to evaluate. Whitespace around it is trimmed.'},
@@ -150,6 +150,8 @@ export const TAG_DOC_FUNCTIONS_PART3: Array<TagDocFunction> = [
       {code: '{math:5+5}', result: '10'},
       {code: '{math:2**10 / 4}', result: '256'},
       {code: '{math:10/3}', result: '3.33'},
+      {code: '{math:base(1295, 36)}', result: 'zz'},
+      {code: '{math:frombase("zz", 36)}', result: '1295'},
     ],
     notes: [
       'Each expression has a 750ms time limit; slow expressions error with a timeout.',

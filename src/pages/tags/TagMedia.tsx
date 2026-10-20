@@ -8,6 +8,7 @@ import {
   TagDirectoryEditRequestStatuses,
   TagDirectoryEditRequestThumbnailModes,
   TagDirectoryVerificationStates,
+  type AdminRemoval,
   type TagDirectoryAsset,
   type TagDirectoryItem,
   type TagDirectoryThumbnail,
@@ -21,6 +22,7 @@ import {
   useMeTagDirectoryThumbnailMutation,
 } from '@/lib/api/dashboardQueries';
 import { cn } from '@/lib/utils';
+import { RemovalConfirm } from '@/pages/dashboard/admin/removalReason';
 import { InlineError } from '@/pages/dashboard/ui';
 
 
@@ -378,7 +380,8 @@ function AssetThumb({ asset, revealed }: {asset: TagDirectoryAsset, revealed: bo
 const ACCEPTED_TYPES = 'image/*,video/*,audio/*';
 const PASTE_HINT = 'Click here and paste (Ctrl/⌘+V), or drop a file.';
 
-type MediaAction = {upload: File} | {move: string, position: number} | {remove: string};
+// `removal` is staff's reason, for the tag audit log
+type MediaAction = {upload: File} | {move: string, position: number} | {remove: string, removal?: AdminRemoval};
 
 // the listing's own media, or (`manage.editRequest`) its change request's proposed media; both answer with the listing
 function useMediaMutation(manage: MediaManage) {
@@ -418,6 +421,8 @@ function MediaManager({ assets, selected, selectedIndex, manage, onUploaded, chi
   const mutation = useMediaMutation(manage);
   const input = useRef<HTMLInputElement>(null);
   const [ localError, setLocalError ] = useState<string | null>(null);
+  // staff say why before removing one (the audit log records it), owners just remove it
+  const [ confirmingRemove, setConfirmingRemove ] = useState<string | null>(null);
 
   const editable = (manage.editRequest) ?
     manage.editRequest.status === TagDirectoryEditRequestStatuses.DRAFT :
@@ -514,7 +519,19 @@ function MediaManager({ assets, selected, selectedIndex, manage, onUploaded, chi
                 <button type='button' className='btn btn-ghost btn-sm px-2' aria-label='Move later' title='Move later' disabled={busy || selectedIndex === assets.length - 1} onClick={() => move(selectedIndex + 1)}>
                   <ArrowRight className='size-3.5'/>
                 </button>
-                <button type='button' className='btn btn-ghost btn-sm text-danger' disabled={busy} onClick={() => mutation.mutate({remove: selected.id})}>
+                <button
+                  type='button'
+                  className='btn btn-ghost btn-sm text-danger'
+                  disabled={busy}
+                  aria-expanded={(manage.staff) ? confirmingRemove === selected.id : undefined}
+                  onClick={() => {
+                    if (manage.staff && !manage.editRequest) {
+                      setConfirmingRemove((confirmingRemove === selected.id) ? null : selected.id);
+                    } else {
+                      mutation.mutate({remove: selected.id});
+                    }
+                  }}
+                >
                   <Trash2 className='size-3.5'/>
                   Remove
                 </button>
@@ -522,6 +539,14 @@ function MediaManager({ assets, selected, selectedIndex, manage, onUploaded, chi
             ) : null}
           </div>
         )}
+        {(selected && confirmingRemove === selected.id) ? (
+          <RemovalConfirm
+            label='Remove media'
+            pending={busy}
+            onConfirm={(removal) => mutation.mutate({remove: selected.id, removal}, () => setConfirmingRemove(null))}
+            onCancel={() => setConfirmingRemove(null)}
+          />
+        ) : null}
         <input ref={input} type='file' accept={ACCEPTED_TYPES} className='hidden' onChange={onFile}/>
         <p className='mt-2 flex items-center gap-1.5 text-xs text-subtle'>
           <EyeOff aria-hidden className='size-3.5 shrink-0'/>
@@ -568,6 +593,8 @@ export function ThumbnailManager({ assets, thumbnail, manage }: {
   const active = (request) ? draft : listing;
   const input = useRef<HTMLInputElement>(null);
   const [ localError, setLocalError ] = useState<string | null>(null);
+  // staff say why before removing it, like the media
+  const [ confirmingRemove, setConfirmingRemove ] = useState(false);
 
   const editable = (request) ?
     request.status === TagDirectoryEditRequestStatuses.DRAFT :
@@ -611,12 +638,14 @@ export function ThumbnailManager({ assets, thumbnail, manage }: {
     }
   };
 
-  const remove = () => {
+  const remove = (removal?: AdminRemoval) => {
     setLocalError(null);
     if (request) {
       draft.mutate({patch: {thumbnail_mode: TagDirectoryEditRequestThumbnailModes.REMOVE}});
+    } else if (manage.staff) {
+      admin.mutate({remove: true, removal}, {onSuccess: () => setConfirmingRemove(false)});
     } else {
-      listing.mutate({remove: true});
+      own.mutate({remove: true});
     }
   };
 
@@ -663,7 +692,13 @@ export function ThumbnailManager({ assets, thumbnail, manage }: {
                 {(uploading) ? 'Uploading…' : (effective) ? 'Replace' : 'Upload thumbnail'}
               </button>
               {(effective) ? (
-                <button type='button' className='btn btn-ghost btn-sm text-danger' disabled={busy} onClick={remove}>
+                <button
+                  type='button'
+                  className='btn btn-ghost btn-sm text-danger'
+                  disabled={busy}
+                  aria-expanded={(manage.staff && !request) ? confirmingRemove : undefined}
+                  onClick={() => (manage.staff && !request) ? setConfirmingRemove(!confirmingRemove) : remove()}
+                >
                   <Trash2 className='size-3.5'/>
                   Remove
                 </button>
@@ -685,6 +720,9 @@ export function ThumbnailManager({ assets, thumbnail, manage }: {
         </div>
       </div>
       <input ref={input} type='file' accept={THUMBNAIL_ACCEPTED_TYPES} className='hidden' onChange={onFile}/>
+      {(confirmingRemove && effective) ? (
+        <RemovalConfirm label='Remove thumbnail' pending={busy} onConfirm={remove} onCancel={() => setConfirmingRemove(false)}/>
+      ) : null}
       {(lockedMessage) ? (
         <p className='mt-3 flex gap-2 rounded-md border border-line bg-deep px-3 py-2 text-sm text-muted'>
           <Lock aria-hidden className='mt-0.5 size-4 shrink-0 text-subtle'/>

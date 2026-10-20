@@ -4,7 +4,7 @@ import { useId, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
 import type { GuildAdminBypassSetting, GuildListEntry, GuildListKind, UserGuild } from '@/lib/api';
-import { errorField, errorMessage, useGuildMutation, type GuildAction } from '@/lib/api/dashboardQueries';
+import { errorField, errorMessage, useGuildMutation, useGuildScope, type GuildAction } from '@/lib/api/dashboardQueries';
 import { useCommandsQuery } from '@/lib/api/queries';
 import { enabledCommandVariants } from '@/lib/commandAvailability';
 import { formatDate } from '@/lib/utils';
@@ -17,7 +17,7 @@ import {
   EntryMention,
   LIST_TYPES,
   loggerTypeLabel,
-  readOnlyMessage,
+  useReadOnlyMessage,
 } from './guildMeta';
 
 
@@ -107,6 +107,7 @@ function AdminBypassToggle({ guild, setting, listName, edit }: {
   edit: ReturnType<typeof useGuildEdit>,
 }) {
   const editable = guild.editable.admin_bypass;
+  const staff = useGuildScope() === 'admin';
   const checked = guild.settings[setting];
   return (
     <div className='mb-4 rounded-md border border-line bg-deep px-3 py-2.5'>
@@ -116,7 +117,7 @@ function AdminBypassToggle({ guild, setting, listName, edit }: {
         label={`Server owner and admins skip the ${listName}`}
         description={(editable)
           ? 'Turn off to make them follow it too, like turning a command off for everyone. Entries can override this.'
-          : `Only the server owner and admins can change this.`}
+          : (staff) ? 'Only bot owners can change a server’s settings.' : 'Only the server owner and admins can change this.'}
         onChange={(value) => void edit.run(
           '\u0000bypass',
           {kind: 'settings', patch: {[setting]: value}},
@@ -169,6 +170,7 @@ function EntryAdminBypass({ entry, serverValue, editable, busy, disabled, label,
 
 export function PrefixesSection({ guild }: {guild: UserGuild}) {
   const editable = guild.editable.prefixes;
+  const readOnlyMessage = useReadOnlyMessage();
   const edit = useGuildEdit(guild.id);
   const [ prefix, setPrefix ] = useState('');
   // the API strips leading/trailing whitespace, so compare (and send) what it'll actually store
@@ -241,6 +243,7 @@ const LIST_COPY: Record<GuildListKind, {title: string, description: string, acce
 
 export function ListSection({ guild, list }: {guild: UserGuild, list: GuildListKind}) {
   const editable = guild.editable[list];
+  const readOnlyMessage = useReadOnlyMessage();
   const entries = guild[list];
   const copy = LIST_COPY[list];
   const edit = useGuildEdit(guild.id);
@@ -363,6 +366,7 @@ const COMMAND_LIST_COPY: Record<GuildListKind, {title: string, description: stri
 
 export function CommandListSection({ guild, list }: {guild: UserGuild, list: GuildListKind}) {
   const editable = guild.editable.commands;
+  const readOnlyMessage = useReadOnlyMessage();
   const entries = (list === 'allowlist') ? guild.commands_allowlist : guild.commands_blocklist;
   const copy = COMMAND_LIST_COPY[list];
   const edit = useGuildEdit(guild.id);
@@ -475,6 +479,7 @@ export function CommandListSection({ guild, list }: {guild: UserGuild, list: Gui
 
 export function LoggersSection({ guild }: {guild: UserGuild}) {
   const editable = guild.editable.loggers;
+  const readOnlyMessage = useReadOnlyMessage();
   const edit = useGuildEdit(guild.id);
   const loggers = guild.loggers.slice().sort((a, b) => a.type - b.type);
 

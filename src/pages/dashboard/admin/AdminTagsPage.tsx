@@ -38,7 +38,9 @@ import { AdminModalFooter, AdminTagModal, LinkedItemModal, useOpenListItem } fro
 import { adminUserPath, Chip, CopyableValue, CopyButton, DETAIL_LIST_STACKED, DetailList, ExactDate, FiltersButton, Pagination, selectAllScope, useSearchParamState, useStepBackFromEmptyPage, UserCell } from './adminUi';
 import { DeleteDirectoryTagFlow } from './DeleteDirectoryTagFlow';
 import { TagOwnerStrip } from './DeleteUserTagsDialog';
+import { AssetProvenanceLine } from './AssetProvenance';
 import { TagAssetsPanel } from './TagAssetsPanel';
+import { TagHistoryPanel } from './TagHistoryPanel';
 import { TagStoragePanel } from './TagStoragePanel';
 
 
@@ -539,7 +541,7 @@ function DirectoryTagDetails({ item, navigation, onDelete }: {
           )}
         </div>
 
-        <TagAssetsPanel tagId={item.id} assets={tag.assets ?? []} onArchived={onArchived}/>
+        <TagAssetsPanel tagId={item.id} assets={tag.assets ?? []} ownerId={ownerId} onArchived={onArchived}/>
 
         <TagStoragePanel tagId={item.id} className='mt-4'/>
 
@@ -555,11 +557,13 @@ function DirectoryTagDetails({ item, navigation, onDelete }: {
         {(item.assets?.length) ? (
           <div className='mt-4'>
             <h3 className='section-label mb-1'>Listing assets</h3>
-            <ul className='space-y-1'>
-              {item.assets.map((asset) => <AssetRow key={asset.id} asset={asset}/>)}
+            <ul className='space-y-1.5'>
+              {item.assets.map((asset) => <AssetRow key={asset.id} asset={asset} ownerId={ownerId}/>)}
             </ul>
           </div>
         ) : null}
+
+        <TagHistoryPanel tagId={item.id} ownerId={ownerId}/>
 
       </div>
 
@@ -601,7 +605,7 @@ function DirectoryTagDetails({ item, navigation, onDelete }: {
 }
 
 
-function AssetRow({ asset }: {asset: TagDirectoryAsset}) {
+function AssetRow({ asset, ownerId }: {asset: TagDirectoryAsset, ownerId: string | null}) {
   const meta = asset.metadata;
   const details = [
     meta?.mimetype,
@@ -610,13 +614,16 @@ function AssetRow({ asset }: {asset: TagDirectoryAsset}) {
     (meta?.duration) ? `${meta.duration}s` : null,
   ].filter(Boolean).join(' · ');
   return (
-    <li className='flex flex-wrap items-baseline gap-x-2 text-sm'>
-      {(asset.urls?.cdn) ? (
-        <a href={asset.urls.cdn} target='_blank' rel='noreferrer noopener' className='font-mono text-brand hover:underline'>{asset.filename}</a>
-      ) : (
-        <span className='font-mono text-fg'>{asset.filename}</span>
-      )}
-      {(details) ? <span className='text-xs text-subtle'>{details}</span> : null}
+    <li className='text-sm'>
+      <div className='flex flex-wrap items-baseline gap-x-2'>
+        {(asset.urls?.cdn) ? (
+          <a href={asset.urls.cdn} target='_blank' rel='noreferrer noopener' className='font-mono text-brand hover:underline'>{asset.filename}</a>
+        ) : (
+          <span className='font-mono text-fg'>{asset.filename}</span>
+        )}
+        {(details) ? <span className='text-xs text-subtle'>{details}</span> : null}
+      </div>
+      <AssetProvenanceLine provenance={asset.provenance} ownerId={ownerId}/>
     </li>
   );
 }

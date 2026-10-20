@@ -1,6 +1,7 @@
 import { Ban, Trash2 } from 'lucide-react';
 import { useId, useState } from 'react';
 
+import { isOwner, useAuth } from '@/auth';
 import { Markdown } from '@/components/ui/Markdown';
 import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
@@ -12,6 +13,7 @@ import { NsfwBadge, VerificationBadge } from '@/pages/tags/tagDirectory';
 import { selectAllScope, UserCell } from './adminUi';
 import { BLOCK_REASON_MAX } from './BlockUserDialog';
 import { ConfirmDeleteUserTags, tagCountLabel, useUserTagCount } from './DeleteUserTagsDialog';
+import { RemovalReasonFields, useRemovalReason } from './removalReason';
 
 
 // One dialog for deleting a directory listing and (optionally) all of its owner's tags and blocking them, decided
@@ -26,6 +28,9 @@ export function DeleteDirectoryTagFlow({ item, onClose }: {item: AdminTagDirecto
   const toast = useToast();
   const remove = useDeleteAdminTagDirectoryMutation();
   const removeAll = useDeleteAdminUserTagsMutation();
+  const { user: me } = useAuth();
+  // deleting everything they made can't be undone, so owners only
+  const canDeleteAll = isOwner(me);
   const block = usePatchAdminUserMutation();
 
   const { tag, user } = item;
@@ -33,6 +38,8 @@ export function DeleteDirectoryTagFlow({ item, onClose }: {item: AdminTagDirecto
   const [ deleteTag, setDeleteTag ] = useState(false);
   const [ deleteAll, setDeleteAll ] = useState(false);
   const [ blockUser, setBlockUser ] = useState(false);
+  // why it's coming down, recorded with the listing (and their tags) in the audit log
+  const [ removal, setRemoval ] = useRemovalReason();
   const tagCount = useUserTagCount(user?.id ?? tag.user_id ?? null);
   // e.g. Tag directory: `cat` #1282656576297242646
   const [ reason, setReason ] = useState(`Tag directory: \`${tag.name}\` #${tag.id}`);
@@ -71,7 +78,7 @@ export function DeleteDirectoryTagFlow({ item, onClose }: {item: AdminTagDirecto
       afterTags();
       return;
     }
-    removeAll.mutate({userId: ownerId}, {
+    removeAll.mutate({userId: ownerId, removal}, {
       onSuccess: ({ count }) => {
         setAllDeleted(true);
         toast(`Deleted ${tagCountLabel(count)} by ${user?.username ?? ownerId}`);
@@ -90,7 +97,7 @@ export function DeleteDirectoryTagFlow({ item, onClose }: {item: AdminTagDirecto
       return;
     }
     // deleting all of their tags takes this one with it, so the listing goes with the tag either way
-    remove.mutate({tagId: item.id, deleteTag: deleteTag || deleteAll}, {
+    remove.mutate({tagId: item.id, deleteTag: deleteTag || deleteAll, removal}, {
       onSuccess: () => {
         setDeleted(true);
         toast((deleteTag || deleteAll) ? `Deleted ${name}` : `Removed ${name} from the directory`);
@@ -168,7 +175,7 @@ export function DeleteDirectoryTagFlow({ item, onClose }: {item: AdminTagDirecto
             </span>
           </label>
 
-          {(user ?? tag.user_id) ? (
+          {((user ?? tag.user_id) && canDeleteAll) ? (
             <label htmlFor={deleteAllId} className='mt-3 flex cursor-pointer items-start gap-2 rounded-md border border-line p-3 text-sm'>
               <input
                 id={deleteAllId}
@@ -187,6 +194,8 @@ export function DeleteDirectoryTagFlow({ item, onClose }: {item: AdminTagDirecto
               </span>
             </label>
           ) : null}
+
+          <RemovalReasonFields value={removal} onChange={setRemoval} disabled={pending || deleted} className='mt-3'/>
 
           {(user) ? (
             <div className='mt-3 rounded-md border border-line p-3 text-sm'>

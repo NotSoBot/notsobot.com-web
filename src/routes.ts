@@ -30,7 +30,6 @@ export const Routes = Object.freeze({
   DASHBOARD_ADMIN_TAG_DIRECTORY_ITEM: '/dashboard/admin/tags/directory/:itemId',
   DASHBOARD_ADMIN_USERS: '/dashboard/admin/users',
   DASHBOARD_ADMIN_USER: '/dashboard/admin/users/:itemId',
-  DASHBOARD_ADMIN_ENTITLEMENTS: '/dashboard/admin/entitlements',
   DASHBOARD_ADMIN_FLAGS: '/dashboard/admin/flags',
   DASHBOARD_ADMIN_FLAG: '/dashboard/admin/flags/:itemId',
   DASHBOARD_ADMIN_REPORTS: '/dashboard/admin/reports',
@@ -38,6 +37,9 @@ export const Routes = Object.freeze({
   DASHBOARD_ADMIN_SERVERS: '/dashboard/admin/servers',
   DASHBOARD_ADMIN_SERVER: '/dashboard/admin/servers/:itemId',
   DASHBOARD_ADMIN_VOICES: '/dashboard/admin/voices',
+  // bot owners only
+  DASHBOARD_OWNER_API_ACCESS: '/dashboard/owner/api-access',
+  DASHBOARD_OWNER_ENTITLEMENTS: '/dashboard/owner/entitlements',
   FAQ: '/faq',
   FOXBOT: '/foxbot',
   INVITE: '/invite',

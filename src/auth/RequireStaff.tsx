@@ -4,7 +4,7 @@ import { Navigate, Outlet } from 'react-router';
 import { Routes } from '@/config';
 
 import { useAuth } from './AuthContext';
-import { isStaff } from './permissions';
+import { isOwner, isStaff } from './permissions';
 
 
 /**
@@ -12,9 +12,10 @@ import { isStaff } from './permissions';
  * <RequireAuth/>, so the user is already loaded; everyone else is sent back to the dashboard. The API enforces
  * this too (403).
  */
-export function RequireStaff({ children }: {children?: ReactNode}) {
+// `owner`: NotSoBot owners only, moderators are sent back to the dashboard too
+export function RequireStaff({ owner = false, children }: {owner?: boolean, children?: ReactNode}) {
   const { user } = useAuth();
-  if (!isStaff(user)) {
+  if (!isStaff(user) || (owner && !isOwner(user))) {
     return <Navigate to={Routes.DASHBOARD} replace/>;
   }
   return children ?? <Outlet/>;

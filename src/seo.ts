@@ -62,7 +62,6 @@ export const PAGES: Readonly<Record<keyof typeof Routes, PageMeta>> = Object.fre
   DASHBOARD_ADMIN_TAG_DIRECTORY_ITEM: {title: 'Directory Tag', description: ADMIN_DESCRIPTION},
   DASHBOARD_ADMIN_USERS: {title: 'Users', description: ADMIN_DESCRIPTION},
   DASHBOARD_ADMIN_USER: {title: 'User', description: ADMIN_DESCRIPTION},
-  DASHBOARD_ADMIN_ENTITLEMENTS: {title: 'Entitlements', description: ADMIN_DESCRIPTION},
   DASHBOARD_ADMIN_FLAGS: {title: 'Content Flags', description: ADMIN_DESCRIPTION},
   DASHBOARD_ADMIN_FLAG: {title: 'Content Flag', description: ADMIN_DESCRIPTION},
   DASHBOARD_ADMIN_REPORTS: {title: 'Reports', description: ADMIN_DESCRIPTION},
@@ -70,6 +69,8 @@ export const PAGES: Readonly<Record<keyof typeof Routes, PageMeta>> = Object.fre
   DASHBOARD_ADMIN_SERVERS: {title: 'Servers', description: ADMIN_DESCRIPTION},
   DASHBOARD_ADMIN_SERVER: {title: 'Server', description: ADMIN_DESCRIPTION},
   DASHBOARD_ADMIN_VOICES: {title: 'Voices', description: ADMIN_DESCRIPTION},
+  DASHBOARD_OWNER_API_ACCESS: {title: 'API Access', description: ADMIN_DESCRIPTION},
+  DASHBOARD_OWNER_ENTITLEMENTS: {title: 'Entitlements', description: ADMIN_DESCRIPTION},
   FAQ: {
     title: 'FAQ',
     description: 'Answers to common NotSoBot questions: adding the bot, running commands, changing the prefix, limiting it to certain channels, premium and your data.',

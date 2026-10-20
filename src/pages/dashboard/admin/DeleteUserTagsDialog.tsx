@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 
 import { adminTagsPath, adminUserPath, Chip, UserCell } from './adminUi';
 import { BlockUserDialog, canBlockUser } from './BlockUserDialog';
+import { RemovalReasonFields, useRemovalReason } from './removalReason';
 
 
 // how many tags `userId` owns, from the same search the Tags tab's `user:<id>` uses
@@ -65,9 +66,10 @@ export function DeleteUserTagsDialog({ user, onClose }: {user: AdminUserRef, onC
   const mutation = useDeleteAdminUserTagsMutation();
   const count = useUserTagCount(user.id);
   const [ confirming, setConfirming ] = useState(false);
+  const [ removal, setRemoval ] = useRemovalReason();
 
   const submit = () => {
-    mutation.mutate({userId: user.id}, {
+    mutation.mutate({userId: user.id, removal}, {
       onSuccess: ({ count: deleted }) => {
         toast(`Deleted ${tagCountLabel(deleted)} by ${user.username}`);
         onClose();
@@ -103,6 +105,8 @@ export function DeleteUserTagsDialog({ user, onClose }: {user: AdminUserRef, onC
               {(count === null) ? 'Counting tags…' : `Review ${tagCountLabel(count)}`}
             </Link>
           </div>
+
+          {(count !== 0) ? <RemovalReasonFields value={removal} onChange={setRemoval} disabled={mutation.isPending} className='mt-3'/> : null}
 
           {(mutation.isError) ? (
             <p role='alert' className='mt-4 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-fg'>

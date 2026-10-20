@@ -25,6 +25,7 @@ export const queryKeys = {
   meApplications: (token: string | null) => ['users', '@me', token, 'applications'] as const,
   meCommands: (token: string | null, filters: object) => ['users', '@me', token, 'commands', filters] as const,
   meEntitlements: (token: string | null) => ['users', '@me', token, 'entitlements'] as const,
+  mePremiumServers: (token: string | null) => ['users', '@me', token, 'premium', 'servers'] as const,
   meLLMMemories: (token: string | null) => ['users', '@me', token, 'llm', 'memories'] as const,
   meReminders: (token: string | null) => ['users', '@me', token, 'reminders'] as const,
   meReports: (token: string | null, filters: object) => ['users', '@me', token, 'reports', filters] as const,
