@@ -77,7 +77,7 @@ export function ServerDataSection({ guild }: {guild: UserGuild}) {
         <div className='flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between'>
           <div className='min-w-0 text-sm'>
             <p className='font-medium text-white'>Export</p>
-            <p className='mt-0.5 text-muted'>A JSON file with this server’s settings, prefixes, allow/blocklists, loggers and tags.</p>
+            <p className='mt-0.5 text-muted'>A JSON file with this server’s settings, prefixes, rules, loggers and tags.</p>
           </div>
           <button type='button' className='btn btn-secondary shrink-0' onClick={runExport} disabled={!canExport || exportData.isPending}>
             {(exportData.isPending) ? <Spinner className='size-4'/> : <Download aria-hidden className='size-4'/>}
@@ -97,7 +97,7 @@ export function ServerDataSection({ guild }: {guild: UserGuild}) {
           <div className='min-w-0 text-sm'>
             <p className='font-medium text-white'>Delete</p>
             <p className='mt-0.5 text-muted'>
-              Removes this server’s tags and their storage, settings, prefixes, allow/blocklists and loggers (their webhooks too).
+              Removes this server’s tags and their storage, settings, prefixes, rules and loggers (their webhooks too).
               NotSoBot stays in the server with default settings.
             </p>
           </div>
@@ -118,7 +118,7 @@ export function ServerDataSection({ guild }: {guild: UserGuild}) {
           title={`Delete ${guild.name}’s data?`}
           description={(
             <>
-              <p>This deletes every tag made in this server along with its variables and blobs, all server settings, prefixes, allow/blocklists and loggers. It can’t be undone, so export first if you might want it back.</p>
+              <p>This deletes every tag made in this server along with its variables and blobs, all server settings, prefixes, rules and loggers. It can’t be undone, so export first if you might want it back.</p>
               <p className='mt-2'>Members’ own data (their reminders, personal tags and command history) isn’t touched.</p>
             </>
           )}

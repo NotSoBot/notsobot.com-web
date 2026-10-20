@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react';
 
 import { useToast } from '@/components/ui/Toast';
-import type { GuildAdminBypassSetting, UserGuild, UserGuildPatch } from '@/lib/api';
+import type { UserGuild, UserGuildPatch } from '@/lib/api';
 import { errorMessage, useGuildMutation } from '@/lib/api/dashboardQueries';
 
 import { ChoiceSelect } from '../settings/ChoiceSelect';
@@ -19,8 +19,8 @@ import { CharCounter, Field, InlineError, Panel, SaveBar } from '../ui';
 import { useReadOnlyMessage } from './guildMeta';
 
 
-// the owner/admin bypass settings are changed from the list panels
-type SettingsPatch = Omit<UserGuildPatch, GuildAdminBypassSetting>;
+// the owner/admin bypass is changed from the rules panel
+type SettingsPatch = Omit<UserGuildPatch, 'rules_admin_bypass'>;
 type Values = Required<{[K in keyof SettingsPatch]: Exclude<SettingsPatch[K], undefined>}>;
 
 

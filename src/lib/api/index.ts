@@ -62,7 +62,8 @@ import type {
   ReportMessagesPage,
   ReportPatch,
   ReportsPage,
-  GuildListKind,
+  GuildRule,
+  GuildRuleInput,
   InfoDiscord,
   JobResponse,
   Tag,
@@ -539,21 +540,18 @@ export const api = {
     return apiRequest<unknown>(guildEndpoints(scope, guildId).PREFIXES_DELETE, {method: 'POST', body: {prefix}});
   },
 
-  setGuildListEntry: (scope: GuildScope, guildId: string, list: GuildListKind, id: string, type: string, present: boolean) => {
-    return apiRequest<void>(guildEndpoints(scope, guildId).LIST(list, id, type), {method: (present) ? 'PUT' : 'DELETE'});
+  // each returns the server's rules; rules covering everything need `editable.rules_admin`, like `admin_bypass`
+  putGuildRules: (scope: GuildScope, guildId: string, rules: Array<GuildRuleInput>) => {
+    return apiRequest<Array<GuildRule>>(guildEndpoints(scope, guildId).RULES, {method: 'PUT', body: {rules}});
   },
 
-  setGuildCommandListEntry: (scope: GuildScope, guildId: string, list: GuildListKind, command: string, id: string, type: string, present: boolean) => {
-    return apiRequest<void>(guildEndpoints(scope, guildId).COMMAND_LIST(command, list, id, type), {method: (present) ? 'PUT' : 'DELETE'});
+  // null `admin_bypass` follows the server's setting
+  editGuildRule: (scope: GuildScope, guildId: string, ruleId: string, body: {admin_bypass?: boolean | null, value?: GuildRule['value']}) => {
+    return apiRequest<Array<GuildRule>>(guildEndpoints(scope, guildId).RULE(ruleId), {method: 'PATCH', body});
   },
 
-  // owners/admins only (`editable.admin_bypass`), null follows the server's setting for the list
-  setGuildListEntryAdminBypass: (scope: GuildScope, guildId: string, list: GuildListKind, id: string, type: string, adminBypass: boolean | null) => {
-    return apiRequest<void>(guildEndpoints(scope, guildId).LIST(list, id, type), {method: 'PATCH', body: {admin_bypass: adminBypass}});
-  },
-
-  setGuildCommandListEntryAdminBypass: (scope: GuildScope, guildId: string, list: GuildListKind, command: string, id: string, type: string, adminBypass: boolean | null) => {
-    return apiRequest<void>(guildEndpoints(scope, guildId).COMMAND_LIST(command, list, id, type), {method: 'PATCH', body: {admin_bypass: adminBypass}});
+  deleteGuildRules: (scope: GuildScope, guildId: string, ids: Array<string>) => {
+    return apiRequest<Array<GuildRule>>(guildEndpoints(scope, guildId).RULES_DELETE, {method: 'POST', body: {ids}});
   },
 
   removeGuildLogger: (scope: GuildScope, guildId: string, body: {channel_id: string, type: number}) => {

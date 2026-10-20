@@ -8,6 +8,7 @@ import type {
   AdminUserEntry,
   AdminVoice,
   ContentFlag,
+  GuildRule,
   LLMMemory,
   MeCommandUse,
   Reminder,
@@ -186,14 +187,38 @@ export interface MockGuild {
 
 export function createGuildSettings(): UserGuild['settings'] {
   return {
-    allowlist_admin_bypass: true,
-    blocklist_admin_bypass: true,
-    commands_allowlist_admin_bypass: true,
-    commands_blocklist_admin_bypass: true,
     ml_diffusion_model: null,
     ml_llm_model: null,
     ml_llm_personality: null,
     response_display: null,
+    rules_admin_bypass: true,
+  };
+}
+
+let mockRuleId = 1400000000000000000n;
+
+export function mockRule(options: {
+  added?: string,
+  admin_bypass?: boolean | null,
+  allow: boolean,
+  category?: string | null,
+  command?: string | null,
+  message?: string | null,
+  target_id: string,
+  target_type: GuildRule['target_type'],
+}): GuildRule {
+  mockRuleId += 1n;
+  return {
+    action: 'access',
+    added: options.added ?? new Date().toISOString(),
+    admin_bypass: options.admin_bypass ?? null,
+    category: options.category ?? null,
+    command: options.command ?? null,
+    id: mockRuleId.toString(),
+    target_id: options.target_id,
+    target_type: options.target_type,
+    user_id: mockUser.id,
+    value: {allow: options.allow, message: (options.allow) ? null : options.message ?? null},
   };
 }
 
@@ -203,12 +228,8 @@ function guild(id: string, name: string, icon: string | null, permissions: bigin
   return {
     summary: {id, name, icon, owner, permissions: permissions.toString(), can_manage: canManage},
     detail: {
-      allowlist: [],
       blocked: false,
       blocked_reason: null,
-      blocklist: [{added, admin_bypass: null, id: '1200000000000000011', type: 'channel', user_id: mockUser.id}],
-      commands_allowlist: [],
-      commands_blocklist: [{added, admin_bypass: false, command: 'nsfw', id: id, type: 'guild', user_id: mockUser.id}],
       disabled_logger_events: 0,
       features: [],
       icon,
@@ -217,6 +238,12 @@ function guild(id: string, name: string, icon: string | null, permissions: bigin
       loggers: [{added, channel_id: '1200000000000000022', disabled_events: 0, guild_id: id, type: 0, user_id: mockUser.id}],
       name,
       prefixes: [{added, guild_id: id, prefix: '.', user_id: mockUser.id}, {added, guild_id: id, prefix: 'nsb ', user_id: mockUser.id}],
+      rules: [
+        mockRule({added, target_type: 'channel', target_id: '1200000000000000011', allow: false}),
+        mockRule({added, target_type: 'channel', target_id: '1200000000000000012', category: 'FUN', allow: false, message: 'Fun commands go in #bots'}),
+        mockRule({added, target_type: 'guild', target_id: id, command: 'nsfw', allow: false, admin_bypass: false}),
+        mockRule({added, target_type: 'role', target_id: '1300000000000000001', command: 'nsfw', allow: true}),
+      ],
       settings: createGuildSettings(),
       timezone: 'Europe/London',
     },
@@ -252,27 +279,37 @@ export function adminGuildId(i: number): string {
   return (1150000000000000000n + BigInt(i) * 4194304n * 997n).toString();
 }
 
-const LIST_TYPES = ['channel', 'role', 'user'] as const;
-const LISTED_COMMANDS = ['nsfw', 'imagine', 'ai', 'tag.create', 'deepfry', 'reminders.add'];
+const RULE_TARGET_TYPES = ['channel', 'role', 'user'] as const;
+const RULE_COMMANDS = ['nsfw', 'imagine', 'ai', 'tag.create', 'deepfry', 'reminders.add'];
+const RULE_CATEGORIES = ['FUN', 'AI', 'EFFECTS', 'SEARCH'];
 
 // a stable mix of settings for the `i`th extra server, so its modal and the list have something in them
 function fillAdminGuild(detail: MockGuild['detail'], i: number) {
   const added = new Date(Date.now() - 86400000 * (10 + i * 3)).toISOString();
-  const entry = (n: number, type: string) => ({
-    added,
-    admin_bypass: (n % 3 === 0) ? false : null,
-    id: (type === 'user') ? (400000000000000000n + BigInt(i * 37 + n) * 1009n).toString() : (1200000000000000100n + BigInt(i * 10 + n)).toString(),
-    type,
-    user_id: mockUser.id,
-  });
-  detail.allowlist = (i % 3 === 0) ? Array.from({length: 1 + (i % 2)}, (_, n) => entry(n, LIST_TYPES[n % 2])) : [];
-  detail.blocklist = Array.from({length: i % 4}, (_, n) => entry(n + 5, LIST_TYPES[(i + n) % 3]));
-  detail.commands_allowlist = (i % 4 === 1) ? [{...entry(8, 'role'), command: 'imagine'}] : [];
-  detail.commands_blocklist = Array.from({length: (i * 7) % 4}, (_, n) => ({
-    ...entry(n + 12, (n === 0) ? 'guild' : LIST_TYPES[n % 3]),
-    command: LISTED_COMMANDS[(i + n) % LISTED_COMMANDS.length],
-    id: (n === 0) ? detail.id : entry(n + 12, LIST_TYPES[n % 3]).id,
-  }));
+  const targetId = (n: number, type: string) => (type === 'user') ? (400000000000000000n + BigInt(i * 37 + n) * 1009n).toString() : (1200000000000000100n + BigInt(i * 10 + n)).toString();
+  const rules: Array<GuildRule> = [];
+  if (i % 3 === 0) {
+    rules.push(mockRule({added, target_type: 'guild', target_id: detail.id, allow: false}));
+    rules.push(mockRule({added, target_type: 'channel', target_id: targetId(0, 'channel'), allow: true}));
+  }
+  for (let n = 0; n < i % 4; n++) {
+    const type = RULE_TARGET_TYPES[(i + n) % 3];
+    rules.push(mockRule({added, target_type: type, target_id: targetId(n + 5, type), allow: false, admin_bypass: (n % 3 === 0) ? false : null}));
+  }
+  if (i % 4 === 1) {
+    rules.push(mockRule({added, target_type: 'role', target_id: targetId(8, 'role'), command: 'imagine', allow: true}));
+  }
+  for (let n = 0; n < (i * 7) % 4; n++) {
+    const type = (n === 0) ? 'guild' : RULE_TARGET_TYPES[n % 3];
+    rules.push(mockRule({
+      added,
+      target_type: type,
+      target_id: (type === 'guild') ? detail.id : targetId(n + 12, type),
+      ...((n % 2) ? {category: RULE_CATEGORIES[(i + n) % RULE_CATEGORIES.length]} : {command: RULE_COMMANDS[(i + n) % RULE_COMMANDS.length]}),
+      allow: false,
+    }));
+  }
+  detail.rules = rules;
   detail.loggers = Array.from({length: (i * 5) % 4}, (_, n) => ({
     added,
     channel_id: (1200000000000000200n + BigInt(i * 4 + n)).toString(),
@@ -313,7 +350,7 @@ export function guildEditable(summary: UserGuildSummary): UserGuild['editable'] 
   const permissions = BigInt(summary.permissions);
   const admin = summary.owner || !!(permissions & ADMINISTRATOR);
   const manage = admin || !!(permissions & MANAGE_GUILD);
-  return {prefixes: manage, allowlist: admin, blocklist: admin, commands: manage, loggers: manage, settings: manage, admin_bypass: admin};
+  return {prefixes: manage, rules: manage, rules_admin: admin, loggers: manage, settings: manage};
 }
 
 

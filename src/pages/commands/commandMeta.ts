@@ -100,7 +100,9 @@ export function categoryMeta(category: string): CategoryMeta {
   return CATEGORY_META[category] || UNKNOWN_CATEGORY;
 }
 
-export const CATEGORY_ORDER = Object.keys(CATEGORY_META).filter((category) => !HIDDEN_CATEGORIES.has(category));
+export const CATEGORY_ORDER = Object.keys(CATEGORY_META)
+  .filter((category) => !HIDDEN_CATEGORIES.has(category))
+  .sort((a, b) => CATEGORY_META[a].label.localeCompare(CATEGORY_META[b].label));
 
 
 export interface Entry {

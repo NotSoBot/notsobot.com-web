@@ -14,7 +14,7 @@ import { cn, snowflakeTimestamp } from '@/lib/utils';
 
 import { GuildIcon } from '../servers/GuildIcon';
 import { ServerDataSection } from '../servers/ServerDataSection';
-import { CommandListSection, ListSection, LoggersSection, PrefixesSection } from '../servers/ServerSections';
+import { LoggersSection, PrefixesSection, RulesSection } from '../servers/ServerSections';
 import { ServerSettingsForm } from '../servers/ServerSettingsForm';
 import { PanelSkeleton, Skeleton, UnsavedChangesGuard } from '../ui';
 import { BLOCK_REASON_MAX } from './BlockUserDialog';
@@ -135,10 +135,8 @@ function ServerLoadError({ error, onRetry, retrying }: {error: Error | null, onR
 
 // the "Has" tiles' explanations, worded like their sections in the Settings tab
 const LIST_TITLES = {
-  allowlist: 'Channels, roles and users on the allowlist. If anything is listed, NotSoBot only responds to those.',
-  blocklist: 'Channels, roles and users NotSoBot ignores here.',
-  commandsAllowlist: 'Commands limited to specific channels, roles or users.',
-  commandsBlocklist: 'Commands turned off here, for the whole server or for specific channels, roles or users.',
+  rulesAllow: 'Rules allowing every command, a category or a command for the whole server, a channel, a role or a user.',
+  rulesBlock: 'Rules blocking every command, a category or a command for the whole server, a channel, a role or a user.',
   loggers: 'Channels server events (message edits, joins, bans…) are posted to.',
 };
 
@@ -281,10 +279,8 @@ function ServerDetails({ guild, navigation, onDirtyChange }: {guild: AdminGuild,
             <h3 className='section-label mb-2'>Has</h3>
             {/* the settings counts open the Settings tab, where they're listed */}
             <div className='grid grid-cols-2 gap-2 sm:grid-cols-3'>
-              <StatTile label='Allowlist' value={guild.allowlist.length.toLocaleString()} onClick={() => setTab('settings')} title={LIST_TITLES.allowlist}/>
-              <StatTile label='Blocklist' value={guild.blocklist.length.toLocaleString()} onClick={() => setTab('settings')} title={LIST_TITLES.blocklist}/>
-              <StatTile label='Command allowlist' value={guild.commands_allowlist.length.toLocaleString()} onClick={() => setTab('settings')} title={LIST_TITLES.commandsAllowlist}/>
-              <StatTile label='Command blocklist' value={guild.commands_blocklist.length.toLocaleString()} onClick={() => setTab('settings')} title={LIST_TITLES.commandsBlocklist}/>
+              <StatTile label='Block rules' value={guild.rules.filter((rule) => !rule.value.allow).length.toLocaleString()} onClick={() => setTab('settings')} title={LIST_TITLES.rulesBlock}/>
+              <StatTile label='Allow rules' value={guild.rules.filter((rule) => rule.value.allow).length.toLocaleString()} onClick={() => setTab('settings')} title={LIST_TITLES.rulesAllow}/>
               <div className='col-span-2 rounded-md border border-line bg-deep px-3 py-2'>
                 <p className='text-xs text-subtle'>Features</p>
                 <div className='mt-1 flex flex-wrap gap-1'>
@@ -311,10 +307,7 @@ function ServerDetails({ guild, navigation, onDirtyChange }: {guild: AdminGuild,
               onDirtyChange(dirty);
             }}
           />
-          <ListSection guild={guild} list='allowlist'/>
-          <ListSection guild={guild} list='blocklist'/>
-          <CommandListSection guild={guild} list='allowlist'/>
-          <CommandListSection guild={guild} list='blocklist'/>
+          <RulesSection guild={guild}/>
           <LoggersSection guild={guild}/>
           <ServerDataSection guild={guild}/>
         </div>

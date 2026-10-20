@@ -702,17 +702,35 @@ export interface UserGuildSummary {
   permissions: string,
 }
 
-export interface GuildListEntry {
+export type GuildRuleTargetType = 'channel' | 'guild' | 'role' | 'user';
+
+// `GuildRule.to_dict()`: who can use what, the most specific rule that matches decides
+export interface GuildRule {
+  action: 'access',
   added: string,
-  // if the server owner and admins skip this entry, null follows the server's setting for the list
+  // if the server owner and admins skip this rule, null follows the server's `rules_admin_bypass`
   admin_bypass: boolean | null,
+  // what it covers, a command category, a command, or (both null) everything
+  category: string | null,
+  command: string | null,
   id: string,
-  type: string,
+  // the server's id for `guild`
+  target_id: string,
+  target_type: GuildRuleTargetType,
   user_id: string | null,
+  value: {allow: boolean, message: string | null},
 }
 
-export interface GuildCommandListEntry extends GuildListEntry {
-  command: string,
+// `PUT .../rules`, a rule that already exists for the same target and command/category gets the new value instead
+export interface GuildRuleInput {
+  action: 'access',
+  // only changed on an existing rule when given
+  admin_bypass?: boolean | null,
+  category?: string | null,
+  command?: string | null,
+  target_id: string,
+  target_type: GuildRuleTargetType,
+  value: {allow: boolean, message?: string | null},
 }
 
 // `GuildLogger.to_dict()` (the dashboard never gets the webhook)
@@ -733,27 +751,21 @@ export interface GuildPrefix {
 }
 
 export interface GuildSettings {
-  // if the server owner and admins skip each list (entries can override it)
-  allowlist_admin_bypass: boolean,
-  blocklist_admin_bypass: boolean,
-  commands_allowlist_admin_bypass: boolean,
-  commands_blocklist_admin_bypass: boolean,
   ml_diffusion_model: string | null,
   ml_llm_model: string | null,
   ml_llm_personality: string | null,
   response_display: number | null,
+  // if the server owner and admins skip the rules (rules can override it)
+  rules_admin_bypass: boolean,
 }
 
-export type GuildEditableArea = 'prefixes' | 'allowlist' | 'blocklist' | 'commands' | 'loggers' | 'settings' | 'admin_bypass';
+// `rules` covers command and category rules, `rules_admin` rules covering everything and the owner/admin bypass
+export type GuildEditableArea = 'prefixes' | 'rules' | 'rules_admin' | 'loggers' | 'settings';
 
 // `Guild.to_dict()` + the caller's permissions and what they may edit
 export interface UserGuild {
-  allowlist: Array<GuildListEntry>,
   blocked: boolean,
   blocked_reason: string | null,
-  blocklist: Array<GuildListEntry>,
-  commands_allowlist: Array<GuildCommandListEntry>,
-  commands_blocklist: Array<GuildCommandListEntry>,
   disabled_logger_events: number,
   editable: Record<GuildEditableArea, boolean>,
   features: Array<string>,
@@ -765,6 +777,7 @@ export interface UserGuild {
   owner: boolean,
   permissions: string,
   prefixes: Array<GuildPrefix>,
+  rules: Array<GuildRule>,
   settings: GuildSettings,
   timezone: string | null,
 }
@@ -783,23 +796,16 @@ export interface UserGuildDataDelete {
   tags_deleted: number,
 }
 
-export type GuildAdminBypassSetting = 'allowlist_admin_bypass' | 'blocklist_admin_bypass' | 'commands_allowlist_admin_bypass' | 'commands_blocklist_admin_bypass';
-
-// the `*_admin_bypass` settings need the `admin_bypass` area, null resets one to true
+// `rules_admin_bypass` needs the `rules_admin` area, null resets it to true
 export interface UserGuildPatch {
-  allowlist_admin_bypass?: boolean | null,
-  blocklist_admin_bypass?: boolean | null,
-  commands_allowlist_admin_bypass?: boolean | null,
-  commands_blocklist_admin_bypass?: boolean | null,
   locale?: string | null,
   timezone?: string | null,
   ml_llm_personality?: string | null,
   ml_llm_model?: string | null,
   ml_diffusion_model?: string | null,
   response_display?: number | null,
+  rules_admin_bypass?: boolean | null,
 }
-
-export type GuildListKind = 'allowlist' | 'blocklist';
 
 
 // `/admin/guilds`: a server NotSoBot knows, from its `guilds` row and/or `bot_guilds`

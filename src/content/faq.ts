@@ -103,13 +103,13 @@ export const FAQ_QUESTIONS: Array<FaqQuestion> = [
     id: 'restrict-channels',
     section: 'server',
     question: 'How do I limit NotSoBot to certain channels, roles or users?',
-    answer: 'Use the allowlist and blocklist (these need **Administrator**):\n\n- `.allowlist add #bot-commands`: the bot only responds in allowlisted channels, roles or users\n- `.blocklist add #general @Role`: the bot ignores blocklisted channels, roles or users\n\nRun `.allowlist` or `.blocklist` on its own to see the current lists.',
+    answer: 'Use rules (`.rules` or `/server rules`). Rules covering every command need **Administrator**:\n\n- `.rules block everything` then `.rules allow everything -channels bot-commands`: the bot only responds in #bot-commands\n- `.rules block everything -channels general -roles Muted`: the bot ignores #general and the Muted role\n\nThe most specific rule wins: a user beats a role, a role beats a channel, and a channel beats the whole server. Run `.rules` to see them all, or `.rules check <command>` to see which rule decides.',
   },
   {
     id: 'disable-command',
     section: 'server',
-    question: 'How do I turn off a specific command?',
-    answer: 'Use `.commands blocklist add <command>`, for example `.commands blocklist add rule34`. Add `-channels` to only disable it in certain channels: `.commands blocklist add rule34 -channels lobby`. This needs the **Manage Server** permission.',
+    question: 'How do I turn off a specific command or category?',
+    answer: 'Use `.rules block <command or category>`, for example `.rules block rule34` or `.rules block category:fun`. Add `-channels` to only turn it off in certain channels, and `-message` to tell people where to go instead: `.rules block fun -channels general -message Fun commands go in #bots`. This needs the **Manage Server** permission.',
   },
   {
     id: 'loggers',

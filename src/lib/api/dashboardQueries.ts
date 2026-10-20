@@ -39,7 +39,8 @@ import type {
   ContentFlagPatch,
   ContentFlagType,
   ContentFlagsPage,
-  GuildListKind,
+  GuildRule,
+  GuildRuleInput,
   MeTagsDirectoryFilter,
   MeTagsSortBy,
   LLMMemoriesPage,
@@ -1040,15 +1041,14 @@ export function useMeGuildQuery(guildId: string) {
 
 export type GuildAction =
   | {kind: 'prefix', prefix: string, present: boolean}
-  | {kind: 'list', list: GuildListKind, id: string, type: string, present: boolean}
-  | {kind: 'command-list', list: GuildListKind, command: string, id: string, type: string, present: boolean}
-  | {kind: 'list-admin-bypass', list: GuildListKind, id: string, type: string, adminBypass: boolean | null}
-  | {kind: 'command-list-admin-bypass', list: GuildListKind, command: string, id: string, type: string, adminBypass: boolean | null}
+  | {kind: 'rules-add', rules: Array<GuildRuleInput>}
+  | {kind: 'rule-edit', ruleId: string, adminBypass?: boolean | null, value?: GuildRule['value']}
+  | {kind: 'rules-remove', ids: Array<string>}
   | {kind: 'logger-remove', channelId: string, type: number}
   | {kind: 'settings', patch: UserGuildPatch};
 
 
-// Which routes the server sections (prefixes, settings, lists, loggers, data) edit through: yours (`/users/@me/guilds`,
+// Which routes the server sections (prefixes, settings, rules, loggers, data) edit through: yours (`/users/@me/guilds`,
 // the default) or staff's (`/admin/guilds`, the admin server modal provides it).
 export const GuildScopeContext = createContext<GuildScope>('me');
 
@@ -1073,14 +1073,12 @@ export function useGuildMutation(guildId: string) {
       switch (action.kind) {
         case 'prefix':
           return (action.present) ? api.addGuildPrefix(scope, guildId, action.prefix) : api.removeGuildPrefix(scope, guildId, action.prefix);
-        case 'list':
-          return api.setGuildListEntry(scope, guildId, action.list, action.id, action.type, action.present);
-        case 'command-list':
-          return api.setGuildCommandListEntry(scope, guildId, action.list, action.command, action.id, action.type, action.present);
-        case 'list-admin-bypass':
-          return api.setGuildListEntryAdminBypass(scope, guildId, action.list, action.id, action.type, action.adminBypass);
-        case 'command-list-admin-bypass':
-          return api.setGuildCommandListEntryAdminBypass(scope, guildId, action.list, action.command, action.id, action.type, action.adminBypass);
+        case 'rules-add':
+          return api.putGuildRules(scope, guildId, action.rules);
+        case 'rule-edit':
+          return api.editGuildRule(scope, guildId, action.ruleId, {admin_bypass: action.adminBypass, value: action.value});
+        case 'rules-remove':
+          return api.deleteGuildRules(scope, guildId, action.ids);
         case 'logger-remove':
           return api.removeGuildLogger(scope, guildId, {channel_id: action.channelId, type: action.type});
         case 'settings':

@@ -20,7 +20,7 @@ export const PRIVACY_POLICY: LegalDocument = {
         {type: 'list', items: [
           "Discord account information: your user ID, username, discriminator, avatar, account flags, and the ID of your DM channel with NotSoBot. This comes from Discord when You use a command.",
           "Your settings: language, timezone, units, response display preferences, file upload preferences, selected AI models and personality, and text-to-speech voice.",
-          "Server information and settings for servers NotSoBot is in: server ID, name, icon, features, language, timezone, custom prefixes, AI settings, and command and user allowlists and blocklists along with who added each entry.",
+          "Server information and settings for servers NotSoBot is in: server ID, name, icon, features, language, timezone, custom prefixes, AI settings, and the rules for who can use which commands along with who added each rule.",
           "Logging settings: if a server enables logging, the channel and webhook used to post logs, including the webhook token. Log events are sent to that webhook and are not kept by Us.",
           "Command replies: the IDs of your command message, its channel, the command used, and NotSoBot's reply, so that editing or deleting your command can update or remove the reply.",
           "Command usage statistics: which command was used, when, and the server, channel and user IDs involved.",

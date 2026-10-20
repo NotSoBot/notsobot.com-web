@@ -3,19 +3,19 @@ import { useId, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
-import type { GuildAdminBypassSetting, GuildListEntry, GuildListKind, UserGuild } from '@/lib/api';
+import { CommandCategories, type GuildRule, type GuildRuleTargetType, type UserGuild } from '@/lib/api';
 import { errorField, errorMessage, useGuildMutation, useGuildScope, type GuildAction } from '@/lib/api/dashboardQueries';
 import { useCommandsQuery } from '@/lib/api/queries';
 import { enabledCommandVariants } from '@/lib/commandAvailability';
-import { formatDate } from '@/lib/utils';
+import { cn, formatDate } from '@/lib/utils';
+import { categoryMeta } from '@/pages/commands/commandMeta';
 
 import { isSnowflake } from '../tags/tagMeta';
 import { EmptyState, Field, Panel, Toggle } from '../ui';
 import {
-  COMMAND_LIST_TYPES,
   ENTRY_TYPE_LABELS,
   EntryMention,
-  LIST_TYPES,
+  RULE_TARGET_TYPES,
   loggerTypeLabel,
   useReadOnlyMessage,
 } from './guildMeta';
@@ -99,29 +99,23 @@ function AddRow({ onSubmit, children, pending, disabled, label = 'Add' }: {
 
 /* owner/admin bypass */
 
-// the server owner and admins skip every list unless it (or an entry) says otherwise
-function AdminBypassToggle({ guild, setting, listName, edit }: {
-  guild: UserGuild,
-  setting: GuildAdminBypassSetting,
-  listName: string,
-  edit: ReturnType<typeof useGuildEdit>,
-}) {
-  const editable = guild.editable.admin_bypass;
+// the server owner and admins skip every rule unless it (or a rule) says otherwise
+function AdminBypassToggle({ guild, edit }: {guild: UserGuild, edit: ReturnType<typeof useGuildEdit>}) {
+  const editable = guild.editable.rules_admin;
   const staff = useGuildScope() === 'admin';
-  const checked = guild.settings[setting];
   return (
     <div className='mb-4 rounded-md border border-line bg-deep px-3 py-2.5'>
       <Toggle
-        checked={checked}
+        checked={guild.settings.rules_admin_bypass}
         disabled={!editable || edit.pending}
-        label={`Server owner and admins skip the ${listName}`}
+        label='Server owner and admins skip the rules'
         description={(editable)
-          ? 'Turn off to make them follow it too, like turning a command off for everyone. Entries can override this.'
+          ? 'Turn off to make them follow the rules too. A rule can override this.'
           : (staff) ? 'Only bot owners can change a server’s settings.' : 'Only the server owner and admins can change this.'}
         onChange={(value) => void edit.run(
           '\u0000bypass',
-          {kind: 'settings', patch: {[setting]: value}},
-          (value) ? `The server owner and admins skip the ${listName} again` : `The server owner and admins now follow the ${listName}`,
+          {kind: 'settings', patch: {rules_admin_bypass: value}},
+          (value) ? 'The server owner and admins skip the rules again' : 'The server owner and admins now follow the rules',
         )}
       />
     </div>
@@ -129,23 +123,23 @@ function AdminBypassToggle({ guild, setting, listName, edit }: {
 }
 
 
-// an entry's own bypass, or the list's setting (empty value)
-function EntryAdminBypass({ entry, serverValue, editable, busy, disabled, label, onChange }: {
-  entry: GuildListEntry,
+// a rule's own bypass, or the server's setting (empty value)
+function RuleAdminBypass({ rule, serverValue, editable, busy, disabled, onChange }: {
+  rule: GuildRule,
   serverValue: boolean,
   editable: boolean,
   busy: boolean,
   disabled: boolean,
-  label: string,
   onChange: (value: boolean | null) => void,
 }) {
   if (!editable) {
-    if (entry.admin_bypass === null) {
+    if (rule.admin_bypass === null) {
       return null;
     }
-    return <span className='shrink-0 text-xs text-subtle'>{(entry.admin_bypass) ? 'Admins skip' : 'Admins follow'}</span>;
+    return <span className='shrink-0 text-xs text-subtle'>{(rule.admin_bypass) ? 'Admins skip' : 'Admins follow'}</span>;
   }
-  const value = (entry.admin_bypass === null) ? '' : String(entry.admin_bypass);
+  const value = (rule.admin_bypass === null) ? '' : String(rule.admin_bypass);
+  const label = 'Owner/admin bypass for this rule';
   return (
     <div className='flex shrink-0 items-center gap-1.5'>
       {(busy) ? <Spinner className='size-3.5'/> : null}
@@ -225,62 +219,141 @@ export function PrefixesSection({ guild }: {guild: UserGuild}) {
 }
 
 
-/* allowlist / blocklist */
+/* rules */
 
-const LIST_COPY: Record<GuildListKind, {title: string, description: string, accent: string}> = {
-  allowlist: {
-    title: 'Allowlist',
-    description: 'If anything is listed, NotSoBot only responds in these channels, to these roles and to these users.',
-    accent: '#3ba55c',
-  },
-  blocklist: {
-    title: 'Blocklist',
-    description: 'NotSoBot ignores these channels, roles and users.',
-    accent: '#ed4245',
-  },
-};
+// the categories a rule can cover (bot owner commands can't be blocked), alphabetical like the commands page
+const RULE_CATEGORIES = Object.values(CommandCategories)
+  .filter((category) => category !== CommandCategories.OWNER)
+  .sort((a, b) => categoryMeta(a).label.localeCompare(categoryMeta(b).label));
+
+// the list reads from the whole server down to single users, like the bot's `rules` command
+const TARGET_ORDER: Record<GuildRuleTargetType, number> = {guild: 0, channel: 1, role: 2, user: 3};
+
+function coverageOrder(rule: GuildRule): number {
+  return (rule.command) ? 2 : (rule.category) ? 1 : 0;
+}
+
+function coversEverything(rule: {category?: string | null, command?: string | null}): boolean {
+  return !rule.command && !rule.category;
+}
 
 
-export function ListSection({ guild, list }: {guild: UserGuild, list: GuildListKind}) {
-  const editable = guild.editable[list];
+function RuleCoverage({ rule, commandNames }: {rule: GuildRule, commandNames: Map<string, string>}) {
+  if (rule.command) {
+    return <code className='font-mono text-sm text-code'>{commandNames.get(rule.command) ?? rule.command}</code>;
+  }
+  if (rule.category) {
+    const meta = categoryMeta(rule.category);
+    return <span className='text-sm font-medium text-white'>{meta.label} commands</span>;
+  }
+  return <span className='text-sm font-medium text-white'>Every command</span>;
+}
+
+
+export function RulesSection({ guild }: {guild: UserGuild}) {
+  const editable = guild.editable.rules;
+  const adminEditable = guild.editable.rules_admin;
   const readOnlyMessage = useReadOnlyMessage();
-  const entries = guild[list];
-  const copy = LIST_COPY[list];
   const edit = useGuildEdit(guild.id);
-  const [ type, setType ] = useState<string>('channel');
+  const datalistId = useId();
+  const { data: commands } = useCommandsQuery();
+
+  // command id -> the name people know it by, only enabled ones can be picked; rules for a removed command show its id
+  const commandNames = useMemo(() => {
+    const names = new Map<string, string>();
+    for (const command of commands ?? []) {
+      const [ variant ] = enabledCommandVariants(command);
+      if (variant && variant.category !== CommandCategories.OWNER) {
+        names.set(command.id, variant.name);
+      }
+    }
+    return names;
+  }, [commands]);
+  const commandIdsByName = useMemo(() => {
+    const ids = new Map<string, string>();
+    for (const [ id, name ] of commandNames) {
+      ids.set(name.toLowerCase(), id);
+      ids.set(id.toLowerCase(), id);
+    }
+    return ids;
+  }, [commandNames]);
+
+  const rules = useMemo(() => {
+    return guild.rules.slice().sort((a, b) => {
+      return (TARGET_ORDER[a.target_type] - TARGET_ORDER[b.target_type]) || (coverageOrder(a) - coverageOrder(b)) || a.added.localeCompare(b.added);
+    });
+  }, [guild.rules]);
+
+  const [ allow, setAllow ] = useState(false);
+  // '' is everything, `category:FUN`, or `command` (then `command` holds what was typed)
+  const [ covers, setCovers ] = useState('');
+  const [ command, setCommand ] = useState('');
+  const [ type, setType ] = useState<GuildRuleTargetType>('guild');
   const [ id, setId ] = useState('');
-  const idValid = isSnowflake(id);
-  const exists = entries.some((entry) => entry.id === id && entry.type === type);
+  const [ message, setMessage ] = useState('');
+
+  const category = (covers.startsWith('category:')) ? covers.slice('category:'.length) : null;
+  const commandId = (covers === 'command') ? commandIdsByName.get(command.trim().toLowerCase()) ?? null : null;
+  const targetId = (type === 'guild') ? guild.id : id;
+  const needsAdmin = covers === '';
+  const exists = guild.rules.some((rule) => {
+    return rule.target_type === type && rule.target_id === targetId && (rule.command ?? null) === commandId && (rule.category ?? null) === category && rule.value.allow === allow && (rule.value.message ?? '') === (allow ? '' : message.trim());
+  });
+  const valid = isSnowflake(targetId) && (covers !== 'command' || !!commandId) && !exists && (!needsAdmin || adminEditable);
+
+  const canChange = (rule: GuildRule) => editable && (!coversEverything(rule) || adminEditable);
 
   return (
-    <Panel title={copy.title} accent={copy.accent} description={copy.description} readOnly={(editable) ? undefined : readOnlyMessage(list)}>
-      <AdminBypassToggle guild={guild} setting={`${list}_admin_bypass`} listName={list} edit={edit}/>
-      {(entries.length) ? (
+    <Panel
+      title='Rules'
+      accent='#ed4245'
+      description={(
+        <>
+          Block or allow every command, a category, or one command for the whole server, a channel, a role or a user.
+          The most specific rule wins: a user beats a role, a role beats a channel, a channel beats the whole server, then
+          a command beats its category and a category beats every command. Two equally specific rules that disagree block.
+        </>
+      )}
+      readOnly={(editable) ? undefined : readOnlyMessage('rules')}
+    >
+      <AdminBypassToggle guild={guild} edit={edit}/>
+      {(rules.length) ? (
         <ul className='divide-y divide-line rounded-md border border-line'>
-          {entries.map((entry) => {
-            const key = `${entry.type}:${entry.id}`;
-            const bypassKey = `${key}:bypass`;
+          {rules.map((rule) => {
+            const bypassKey = `${rule.id}:bypass`;
             return (
-              <li key={key} className='flex flex-wrap items-center gap-x-3 gap-y-1.5 px-3 py-2'>
-                <div className='min-w-[8rem] flex-1'>
-                  <EntryMention type={entry.type} id={entry.id}/>
+              <li key={rule.id} className='flex flex-wrap items-center gap-x-3 gap-y-1.5 px-3 py-2'>
+                <span
+                  className={cn(
+                    'shrink-0 rounded px-1.5 py-0.5 text-xs font-semibold uppercase',
+                    (rule.value.allow) ? 'bg-success/15 text-success' : 'bg-danger/15 text-danger',
+                  )}
+                >
+                  {(rule.value.allow) ? 'Allow' : 'Block'}
+                </span>
+                <div className='min-w-[10rem] flex-1'>
+                  <div className='flex flex-wrap items-center gap-x-1.5 gap-y-0.5'>
+                    <RuleCoverage rule={rule} commandNames={commandNames}/>
+                    <span className='text-sm text-subtle'>{(rule.target_type === 'channel' || rule.target_type === 'guild') ? 'in' : 'for'}</span>
+                    <EntryMention type={rule.target_type} id={rule.target_id}/>
+                  </div>
+                  {(rule.value.message) ? <p className='mt-0.5 text-xs text-muted'>“{rule.value.message}”</p> : null}
                 </div>
-                <span className='hidden text-xs text-subtle sm:inline'>{ENTRY_TYPE_LABELS[entry.type] ?? entry.type} · added {formatDate(entry.added)}</span>
-                <EntryAdminBypass
-                  entry={entry}
-                  serverValue={guild.settings[`${list}_admin_bypass`]}
-                  editable={guild.editable.admin_bypass}
+                <span className='hidden text-xs text-subtle sm:inline'>added {formatDate(rule.added)}</span>
+                <RuleAdminBypass
+                  rule={rule}
+                  serverValue={guild.settings.rules_admin_bypass}
+                  editable={adminEditable}
                   busy={edit.busyKey === bypassKey}
                   disabled={edit.pending}
-                  label={`Owner/admin bypass for ${entry.type} ${entry.id}`}
-                  onChange={(adminBypass) => void edit.run(bypassKey, {kind: 'list-admin-bypass', list, id: entry.id, type: entry.type, adminBypass}, 'Updated the owner/admin bypass')}
+                  onChange={(adminBypass) => void edit.run(bypassKey, {kind: 'rule-edit', ruleId: rule.id, adminBypass}, 'Updated the owner/admin bypass')}
                 />
-                {(editable) ? (
+                {(canChange(rule)) ? (
                   <RemoveButton
-                    label={`Remove ${entry.type} ${entry.id} from the ${list}`}
-                    busy={edit.busyKey === key}
+                    label='Remove this rule'
+                    busy={edit.busyKey === rule.id}
                     disabled={edit.pending}
-                    onClick={() => void edit.run(key, {kind: 'list', list, id: entry.id, type: entry.type, present: false}, `Removed from the ${list}`)}
+                    onClick={() => void edit.run(rule.id, {kind: 'rules-remove', ids: [rule.id]}, 'Removed the rule')}
                   />
                 ) : null}
               </li>
@@ -288,22 +361,70 @@ export function ListSection({ guild, list }: {guild: UserGuild, list: GuildListK
           })}
         </ul>
       ) : (
-        <EmptyState title={`The ${list} is empty`}>
-          {(list === 'allowlist') ? 'NotSoBot responds everywhere it can see.' : 'Nobody is blocked.'}
-        </EmptyState>
+        <EmptyState title='No rules'>Every command can be used everywhere.</EmptyState>
       )}
       {(editable) ? (
         <AddRow
           pending={edit.busyKey === '\u0000add'}
-          disabled={!idValid || exists || edit.pending}
+          disabled={!valid || edit.pending}
+          label='Add rule'
           onSubmit={async () => {
-            if (await edit.run('\u0000add', {kind: 'list', list, id, type, present: true}, `Added to the ${list}`)) {
+            const action: GuildAction = {kind: 'rules-add', rules: [{
+              action: 'access',
+              category,
+              command: commandId,
+              target_id: targetId,
+              target_type: type,
+              value: {allow, message: (allow) ? null : message.trim() || null},
+            }]};
+            if (await edit.run('\u0000add', action, (allow) ? 'Added an allow rule' : 'Added a block rule')) {
               setId('');
+              setMessage('');
             }
           }}
         >
-          <TypeSelect value={type} onChange={setType} options={LIST_TYPES}/>
-          <IdInput type={type} value={id} onChange={setId} exists={exists}/>
+          <Field label='Action' className='sm:w-28'>
+            {(props) => (
+              <select {...props} className='input' value={(allow) ? 'allow' : 'block'} onChange={(event) => setAllow(event.target.value === 'allow')}>
+                <option value='block'>Block</option>
+                <option value='allow'>Allow</option>
+              </select>
+            )}
+          </Field>
+          <Field label='What' className='sm:w-52' hint={(needsAdmin && !adminEditable) ? 'Rules for every command need Administrator.' : undefined}>
+            {(props) => (
+              <select {...props} className='input' value={covers} onChange={(event) => setCovers(event.target.value)}>
+                <option value=''>Every command</option>
+                <optgroup label='Category'>
+                  {RULE_CATEGORIES.map((value) => <option key={value} value={`category:${value}`}>{categoryMeta(value).label}</option>)}
+                </optgroup>
+                <option value='command'>One command…</option>
+              </select>
+            )}
+          </Field>
+          {(covers === 'command') ? (
+            <Field label='Command' className='sm:w-44' error={(command.trim() && !commandId) ? 'No command by that name.' : null}>
+              {(props) => (
+                <>
+                  <input {...props} list={datalistId} className='input font-mono' placeholder='e.g. imagine' value={command} onChange={(event) => setCommand(event.target.value)} autoComplete='off' spellCheck={false}/>
+                  <datalist id={datalistId}>
+                    {[...commandNames.values()].sort().map((name) => <option key={name} value={name}/>)}
+                  </datalist>
+                </>
+              )}
+            </Field>
+          ) : null}
+          <TypeSelect value={type} onChange={(value) => setType(value as GuildRuleTargetType)} options={RULE_TARGET_TYPES}/>
+          {(type === 'guild') ? (
+            <p className='flex-1 text-sm text-muted sm:pt-[2.125rem]'>{(exists) ? 'That rule already exists.' : 'Applies to everyone in the server.'}</p>
+          ) : (
+            <IdInput type={type} value={id} onChange={setId} exists={exists}/>
+          )}
+          {(!allow) ? (
+            <Field label='Message' className='w-full' hint='Optional. Shown to whoever the rule stops, like “Fun commands go in #bots”.' counter={`${message.length}/200`}>
+              {(props) => <input {...props} className='input' value={message} maxLength={200} onChange={(event) => setMessage(event.target.value)} autoComplete='off'/>}
+            </Field>
+          ) : null}
         </AddRow>
       ) : null}
     </Panel>
@@ -313,7 +434,7 @@ export function ListSection({ guild, list }: {guild: UserGuild, list: GuildListK
 
 function TypeSelect({ value, onChange, options }: {value: string, onChange: (value: string) => void, options: ReadonlyArray<string>}) {
   return (
-    <Field label='Type' className='sm:w-40'>
+    <Field label='Who/where' className='sm:w-40'>
       {(props) => (
         <select {...props} className='input' value={value} onChange={(event) => onChange(event.target.value)}>
           {options.map((option) => <option key={option} value={option}>{ENTRY_TYPE_LABELS[option]}</option>)}
@@ -330,7 +451,7 @@ function IdInput({ type, value, onChange, exists }: {type: string, value: string
     <Field
       className='flex-1'
       label={label}
-      error={(value && !isSnowflake(value)) ? 'IDs are 15–21 digits. Turn on Developer Mode in Discord and use “Copy ID”.' : (exists) ? 'Already listed.' : null}
+      error={(value && !isSnowflake(value)) ? 'IDs are 15–21 digits. Turn on Developer Mode in Discord and use “Copy ID”.' : (exists) ? 'That rule already exists.' : null}
     >
       {(props) => (
         <input
@@ -344,133 +465,6 @@ function IdInput({ type, value, onChange, exists }: {type: string, value: string
         />
       )}
     </Field>
-  );
-}
-
-
-/* command allowlist / blocklist */
-
-const COMMAND_LIST_COPY: Record<GuildListKind, {title: string, description: string, accent: string}> = {
-  allowlist: {
-    title: 'Command allowlist',
-    description: 'Limit a command to specific channels, roles or users.',
-    accent: '#00b0f4',
-  },
-  blocklist: {
-    title: 'Command blocklist',
-    description: 'Turn a command off for the whole server, or for specific channels, roles or users.',
-    accent: '#faa81a',
-  },
-};
-
-
-export function CommandListSection({ guild, list }: {guild: UserGuild, list: GuildListKind}) {
-  const editable = guild.editable.commands;
-  const readOnlyMessage = useReadOnlyMessage();
-  const entries = (list === 'allowlist') ? guild.commands_allowlist : guild.commands_blocklist;
-  const copy = COMMAND_LIST_COPY[list];
-  const edit = useGuildEdit(guild.id);
-  const datalistId = useId();
-  const { data: commands } = useCommandsQuery();
-  // only what can still be picked; existing entries for a removed command keep showing below by their stored name
-  const commandNames = useMemo(() => {
-    const names = new Set<string>();
-    for (const command of commands ?? []) {
-      for (const metadata of enabledCommandVariants(command)) {
-        names.add(metadata.name);
-      }
-    }
-    return [...names].sort();
-  }, [commands]);
-
-  const [ command, setCommand ] = useState('');
-  const [ type, setType ] = useState<string>('guild');
-  const [ id, setId ] = useState('');
-  const targetId = (type === 'guild') ? guild.id : id;
-  const normalizedCommand = command.trim().toLowerCase();
-  const exists = entries.some((entry) => entry.command === normalizedCommand && entry.id === targetId && entry.type === type);
-  const valid = !!normalizedCommand && isSnowflake(targetId) && !exists;
-
-  const grouped = useMemo(() => {
-    const map = new Map<string, typeof entries>();
-    for (const entry of entries) {
-      map.set(entry.command, [...(map.get(entry.command) ?? []), entry]);
-    }
-    return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
-  }, [entries]);
-
-  return (
-    <Panel title={copy.title} accent={copy.accent} description={copy.description} readOnly={(editable) ? undefined : readOnlyMessage('commands')}>
-      <AdminBypassToggle guild={guild} setting={`commands_${list}_admin_bypass`} listName={`command ${list}`} edit={edit}/>
-      {(grouped.length) ? (
-        <ul className='space-y-3'>
-          {grouped.map(([ name, items ]) => (
-            <li key={name} className='rounded-md border border-line'>
-              <div className='border-b border-line bg-surface-2 px-3 py-1.5 font-mono text-sm text-white'>{name}</div>
-              <ul className='divide-y divide-line'>
-                {items.map((entry) => {
-                  const key = `${entry.command}:${entry.type}:${entry.id}`;
-                  const bypassKey = `${key}:bypass`;
-                  return (
-                    <li key={key} className='flex flex-wrap items-center gap-x-3 gap-y-1.5 px-3 py-2'>
-                      <div className='min-w-[8rem] flex-1'><EntryMention type={entry.type} id={entry.id}/></div>
-                      <EntryAdminBypass
-                        entry={entry}
-                        serverValue={guild.settings[`commands_${list}_admin_bypass`]}
-                        editable={guild.editable.admin_bypass}
-                        busy={edit.busyKey === bypassKey}
-                        disabled={edit.pending}
-                        label={`Owner/admin bypass for ${entry.type} ${entry.id} on ${name}`}
-                        onChange={(adminBypass) => void edit.run(bypassKey, {kind: 'command-list-admin-bypass', list, command: entry.command, id: entry.id, type: entry.type, adminBypass}, 'Updated the owner/admin bypass')}
-                      />
-                      {(editable) ? (
-                        <RemoveButton
-                          label={`Remove ${entry.type} ${entry.id} from the ${name} ${list}`}
-                          busy={edit.busyKey === key}
-                          disabled={edit.pending}
-                          onClick={() => void edit.run(key, {kind: 'command-list', list, command: entry.command, id: entry.id, type: entry.type, present: false}, `Removed from ${entry.command}’s ${list}`)}
-                        />
-                      ) : null}
-                    </li>
-                  );
-                })}
-              </ul>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <EmptyState title={`No command ${list} entries`}/>
-      )}
-      {(editable) ? (
-        <AddRow
-          pending={edit.busyKey === '\u0000add'}
-          disabled={!valid || edit.pending}
-          onSubmit={async () => {
-            const action: GuildAction = {kind: 'command-list', list, command: normalizedCommand, id: targetId, type, present: true};
-            if (await edit.run('\u0000add', action, `Added to ${normalizedCommand}’s ${list}`)) {
-              setId('');
-            }
-          }}
-        >
-          <Field label='Command' className='sm:w-44'>
-            {(props) => (
-              <>
-                <input {...props} list={datalistId} className='input font-mono' placeholder='e.g. image' value={command} onChange={(event) => setCommand(event.target.value)} autoComplete='off' spellCheck={false}/>
-                <datalist id={datalistId}>
-                  {commandNames.map((name) => <option key={name} value={name}/>)}
-                </datalist>
-              </>
-            )}
-          </Field>
-          <TypeSelect value={type} onChange={setType} options={COMMAND_LIST_TYPES}/>
-          {(type === 'guild') ? (
-            <p className='flex-1 text-sm text-muted sm:pt-[2.125rem]'>{(exists) ? 'Already listed.' : 'Applies to everyone in the server.'}</p>
-          ) : (
-            <IdInput type={type} value={id} onChange={setId} exists={exists}/>
-          )}
-        </AddRow>
-      ) : null}
-    </Panel>
   );
 }
 

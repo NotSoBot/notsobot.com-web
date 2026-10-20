@@ -1949,7 +1949,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     syntax: 'backgroundremove MEDIA_KEY MODEL=ISNET_GENERAL_USE',
     args: [
       media(),
-      {name: 'MODEL', default: 'ISNET_GENERAL_USE', range: 'ALPHA_MATTING, BIREFNET_COD, BIREFNET_DIS, BIREFNET_GENERAL, BIREFNET_GENERAL_LITE, BIREFNET_HRSOD, BIREFNET_MASSIVE, BIREFNET_PORTRAIT, BRIA_RMBG, ISNET_ANIME, ISNET_GENERAL_USE, SAM, SILUETA, U2NET, U2NETP, U2NET_CLOTH_SEG, U2NET_HUMAN_SEG', description: 'which model to use, e.g. `ISNET_ANIME` for drawings or `BIREFNET_PORTRAIT` for people'},
+      {name: 'MODEL', default: 'ISNET_GENERAL_USE', range: 'BIREFNET_COD, BIREFNET_DIS, BIREFNET_GENERAL, BIREFNET_GENERAL_LITE, BIREFNET_HRSOD, BIREFNET_MASSIVE, BIREFNET_PORTRAIT, BRIA_RMBG, ISNET_ANIME, ISNET_GENERAL_USE, SILUETA, U2NET, U2NETP, U2NET_CLOTH_SEG, U2NET_HUMAN_SEG', description: 'which model to use, e.g. `ISNET_ANIME` for drawings or `BIREFNET_PORTRAIT` for people'},
     ],
   },
   {
@@ -1960,7 +1960,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     syntax: 'overlaypreset MEDIA_KEY NAME',
     args: [
       media(),
-      {name: 'NAME', range: '9gag, adidas, bandicam, binoculars, black-panther, brazzers, cool-guy, dork, flag-asexual, flag-bisexual, flag-brazil, flag-canada, flag-china, flag-eu, flag-france, flag-germany, flag-india, flag-iran, flag-ireland, flag-isis, flag-israel, flag-japan, flag-lesbian, flag-lgbt, flag-mexico, flag-nonbinary, flag-north-korea, flag-palestine, flag-pansexual, flag-russia, flag-syria, flag-trans, flag-uk, flag-ukraine, flag-usa, flag-ussr, god, gold-star, half-life-pistol, half-life-shotgun, half-life-smg, hypercam, mistake, not-responding, old-guy, owo, ajit-pai-1, austin-evans-1, bernie-1, bob-ross, gaben-1, idubbbz-1, jacksfilms-1, jesus-1, keemstar-1, keemstar-2, ltt-linus-1, miranda-cosgrove-1, trump-1, zuckerberg-1, respects, shutterstock, starman, supreme, thinking, vhs, wasted, wheeze, who-did-this, yusuke', description: 'the template; dashes, underscores and case don\'t matter (`flagusa` works)'},
+      {name: 'NAME', range: '9gag, adidas, bandicam, binoculars, black-panther, brazzers, cool-guy, dork, flag-asexual, flag-bisexual, flag-brazil, flag-canada, flag-china, flag-eu, flag-france, flag-germany, flag-india, flag-iran, flag-ireland, flag-isis, flag-israel, flag-japan, flag-lesbian, flag-lgbt, flag-mexico, flag-nonbinary, flag-north-korea, flag-palestine, flag-pansexual, flag-russia, flag-syria, flag-trans, flag-uk, flag-ukraine, flag-usa, flag-ussr, god, gold-star, half-life-pistol, half-life-shotgun, half-life-smg, hypercam, mistake, not-responding, old-guy, owo, ajit-pai-1, austin-evans-1, bernie-1, bob-ross, gaben-1, idubbbz-1, jacksfilms-1, jesus-1, keemstar-1, keemstar-2, ltt-linus-1, miranda-cosgrove-1, stephen-hawking-1, trump-1, zuckerberg-1, respects, shutterstock, starman, supreme, thinking, vhs, wasted, wheeze, who-did-this, yusuke', description: 'the template; dashes, underscores and case don\'t matter (`flagusa` works)'},
     ],
     examples: [
       {code: '{mediascript:load {iv} img\noverlaypreset img wasted\nrender img}', result: 'The GTA "wasted" screen over the image.'},
@@ -2029,22 +2029,31 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
   {
     name: 'facehalloweenhat',
     category: 'compose',
-    summary: 'Puts a Halloween hat on every face.',
+    summary: 'Puts a Halloween hat on top of every head.',
     syntax: 'facehalloweenhat MEDIA_KEY HAT=WITCH',
     args: [
       media(),
       {name: 'HAT', default: 'WITCH', range: 'WITCH, WITCH_BUCKLE, TOP_HAT'},
     ],
+    notes: ['Sits on top of the head (big hair raises it) and turns with it. Heads without a face found, like anime, drawings or the back of a head, get one too, and on GIFs and videos it follows each face.'],
   },
   {
     name: 'facexmascap',
     category: 'compose',
-    summary: 'Puts a Santa hat on every face.',
+    summary: 'Puts a Santa hat on top of every head.',
     syntax: 'facexmascap MEDIA_KEY COLOR=RED',
     args: [
       media(),
       {name: 'COLOR', default: 'RED', range: 'RED, BLUE'},
     ],
+    notes: ['Sits on top of the head (big hair raises it) and turns with it. Heads without a face found, like anime, drawings or the back of a head, get one too, and on GIFs and videos it follows each face.'],
+  },
+  {
+    name: 'facejoy',
+    category: 'compose',
+    summary: 'Puts a 😂 emoji over every face.',
+    syntax: 'facejoy MEDIA_KEY',
+    args: [media()],
   },
   {
     name: 'faceknight',

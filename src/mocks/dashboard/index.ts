@@ -27,6 +27,8 @@ import {
   type AdminTagDirectoryItem,
   type AdminUserRef,
   type ContentFlag,
+  type GuildRule,
+  type GuildRuleInput,
   type Report,
   type ReportMessage,
   type Tag,
@@ -65,6 +67,7 @@ import {
   createGuildSettings,
   guildEditable,
   MOCK_TOKEN,
+  mockRule,
   mockUser,
   sampleDirectoryAssets,
 } from './fixtures';
@@ -1048,7 +1051,7 @@ route('GET', '/users/@me/guilds/(\\d+)', ([ , guildId ]) => {
   return guildDetail(guildId);
 });
 
-const ADMIN_BYPASS_SETTINGS = ['allowlist_admin_bypass', 'blocklist_admin_bypass', 'commands_allowlist_admin_bypass', 'commands_blocklist_admin_bypass'] as const;
+const ADMIN_BYPASS_SETTINGS = ['rules_admin_bypass'] as const;
 
 // null resets one to true
 function applyAdminBypassSettings(detail: {settings: UserGuild['settings']}, body: Record<string, unknown>) {
@@ -1062,7 +1065,7 @@ function applyAdminBypassSettings(detail: {settings: UserGuild['settings']}, bod
 route('PATCH', '/users/@me/guilds/(\\d+)', ([ , guildId ], { body }) => {
   const { detail } = requireEditable(guildId, 'settings');
   if (ADMIN_BYPASS_SETTINGS.some((key) => key in body)) {
-    requireEditable(guildId, 'admin_bypass');
+    requireEditable(guildId, 'rules_admin');
   }
   const settingsKeys = ['ml_diffusion_model', 'ml_llm_model', 'ml_llm_personality', 'response_display'] as const;
   for (const key of settingsKeys) {
@@ -1101,50 +1104,72 @@ route('POST', '/(users/@me|admin)/guilds/(\\d+)/prefixes/delete', ([ , scope, gu
   return detail.prefixes;
 });
 
-route('(PUT|DELETE)', '/(users/@me|admin)/guilds/(\\d+)/(allowlist|blocklist)/(\\d+)/(channel|role|user)', ([ , scope, guildId, list, id, type ], { method }) => {
-  const { detail } = scopedGuild(scope, guildId, list as 'allowlist' | 'blocklist');
-  const key = list as 'allowlist' | 'blocklist';
-  detail[key] = detail[key].filter((item) => !(item.id === id && item.type === type));
-  if (method === 'PUT') {
-    detail[key].push({added: new Date().toISOString(), admin_bypass: null, id, type, user_id: mockUser.id});
+const MAX_MOCK_RULES = 500;
+
+function ruleCoversEverything(rule: {category?: string | null, command?: string | null}): boolean {
+  return !rule.command && !rule.category;
+}
+
+// rules covering everything and turning off the admin bypass need administrator, like the API
+function requireRulesAdmin(scope: string, guildId: string, needed: boolean) {
+  if (needed && scope !== 'admin') {
+    requireEditable(guildId, 'rules_admin');
   }
-  return undefined;
+}
+
+route('PUT', '/(users/@me|admin)/guilds/(\\d+)/rules', ([ , scope, guildId ], { body }) => {
+  const { detail } = scopedGuild(scope, guildId, 'rules');
+  const items = (Array.isArray(body.rules)) ? body.rules as Array<GuildRuleInput> : [];
+  if (!items.length) {
+    throw new MockError(400, 50001, 'Invalid Form Body');
+  }
+  requireRulesAdmin(scope, guildId, items.some((item) => ruleCoversEverything(item) || item.admin_bypass === false));
+  for (const item of items) {
+    if (item.command === 'notacommand') {
+      throw new MockError(404, 10005, 'Unknown Command');
+    }
+    const existing = detail.rules.find((rule) => {
+      return rule.target_type === item.target_type && rule.target_id === item.target_id && rule.command === (item.command ?? null) && rule.category === (item.category ?? null);
+    });
+    const value = {allow: item.value.allow, message: (item.value.allow) ? null : item.value.message || null};
+    if (existing) {
+      existing.value = value;
+      if (item.admin_bypass !== undefined) {
+        existing.admin_bypass = item.admin_bypass;
+      }
+    } else {
+      if (MAX_MOCK_RULES <= detail.rules.length) {
+        throw new MockError(400, 30024, `Reached Max Rules (${MAX_MOCK_RULES})`, {limit: MAX_MOCK_RULES});
+      }
+      detail.rules.push(mockRule({...item, allow: value.allow, message: value.message}));
+    }
+  }
+  return detail.rules;
 });
 
-route('PATCH', '/(users/@me|admin)/guilds/(\\d+)/(allowlist|blocklist)/(\\d+)/(channel|role|user)', ([ , scope, guildId, list, id, type ], { body }) => {
-  const { detail } = scopedGuild(scope, guildId, 'admin_bypass');
-  const entry = detail[list as 'allowlist' | 'blocklist'].find((item) => item.id === id && item.type === type);
-  if (!entry) {
-    throw new MockError(404, ApiErrorCodes.UNKNOWN_GUILD_LIST_ITEM, 'Unknown List Item');
+route('PATCH', '/(users/@me|admin)/guilds/(\\d+)/rules/(\\d+)', ([ , scope, guildId, ruleId ], { body }) => {
+  const { detail } = scopedGuild(scope, guildId, 'rules');
+  const rule = detail.rules.find((item) => item.id === ruleId);
+  if (!rule) {
+    throw new MockError(404, 10026, 'Unknown Rule');
   }
-  entry.admin_bypass = (typeof body.admin_bypass === 'boolean') ? body.admin_bypass : null;
-  return undefined;
+  requireRulesAdmin(scope, guildId, ruleCoversEverything(rule) || 'admin_bypass' in body);
+  if ('admin_bypass' in body) {
+    rule.admin_bypass = (typeof body.admin_bypass === 'boolean') ? body.admin_bypass : null;
+  }
+  if (body.value && typeof body.value === 'object') {
+    const value = body.value as GuildRule['value'];
+    rule.value = {allow: !!value.allow, message: (value.allow) ? null : value.message || null};
+  }
+  return detail.rules;
 });
 
-route('(PUT|DELETE)', '/(users/@me|admin)/guilds/(\\d+)/commands/([^/]+)/(allowlist|blocklist)/(\\d+)/(channel|guild|role|user)', ([ , scope, guildId, rawCommand, list, id, type ], { method }) => {
-  const { detail } = scopedGuild(scope, guildId, 'commands');
-  const command = decodeURIComponent(rawCommand);
-  if (command === 'notacommand') {
-    throw new MockError(404, 10011, 'Unknown Command');
-  }
-  const key = (list === 'allowlist') ? 'commands_allowlist' : 'commands_blocklist';
-  detail[key] = detail[key].filter((item) => !(item.command === command && item.id === id && item.type === type));
-  if (method === 'PUT') {
-    detail[key].push({added: new Date().toISOString(), admin_bypass: null, command, id, type, user_id: mockUser.id});
-  }
-  return undefined;
-});
-
-route('PATCH', '/(users/@me|admin)/guilds/(\\d+)/commands/([^/]+)/(allowlist|blocklist)/(\\d+)/(channel|guild|role|user)', ([ , scope, guildId, rawCommand, list, id, type ], { body }) => {
-  const { detail } = scopedGuild(scope, guildId, 'admin_bypass');
-  const command = decodeURIComponent(rawCommand);
-  const key = (list === 'allowlist') ? 'commands_allowlist' : 'commands_blocklist';
-  const entry = detail[key].find((item) => item.command === command && item.id === id && item.type === type);
-  if (!entry) {
-    throw new MockError(404, ApiErrorCodes.UNKNOWN_GUILD_LIST_ITEM, 'Unknown List Item');
-  }
-  entry.admin_bypass = (typeof body.admin_bypass === 'boolean') ? body.admin_bypass : null;
-  return undefined;
+route('POST', '/(users/@me|admin)/guilds/(\\d+)/rules/delete', ([ , scope, guildId ], { body }) => {
+  const { detail } = scopedGuild(scope, guildId, 'rules');
+  const ids = new Set((Array.isArray(body.ids)) ? body.ids as Array<string> : []);
+  requireRulesAdmin(scope, guildId, detail.rules.some((rule) => ids.has(rule.id) && ruleCoversEverything(rule)));
+  detail.rules = detail.rules.filter((rule) => !ids.has(rule.id));
+  return detail.rules;
 });
 
 route('PUT', '/users/@me/guilds/(\\d+)/loggers', ([ , guildId ], { body }) => {
@@ -1207,14 +1232,11 @@ route('POST', '/(users/@me|admin)/guilds/(\\d+)/data/delete', ([ , scope, guildI
   const before = state.tags.length;
   state.tags = state.tags.filter((tag) => tag.server_id !== guildId);
   Object.assign(detail, {
-    allowlist: [],
-    blocklist: [],
-    commands_allowlist: [],
-    commands_blocklist: [],
     disabled_logger_events: 0,
     locale: null,
     loggers: [],
     prefixes: [],
+    rules: [],
     settings: createGuildSettings(),
     timezone: null,
   });
@@ -2280,7 +2302,7 @@ function adminGuildDetail(guildId: string) {
       reminders: state.reminders.filter((reminder) => reminder.guild_id === guildId).length || Number(BigInt(guildId) % 9n),
     },
     // owners can edit every area, moderators none
-    editable: {allowlist: state.owner, blocklist: state.owner, commands: state.owner, loggers: state.owner, prefixes: state.owner, settings: state.owner, admin_bypass: state.owner},
+    editable: {loggers: state.owner, prefixes: state.owner, rules: state.owner, rules_admin: state.owner, settings: state.owner},
     owner: false,
     permissions: '0',
   };

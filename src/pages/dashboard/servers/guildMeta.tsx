@@ -14,22 +14,18 @@ export function dashboardServerPath(guildId: string): string {
 // permission the bot command for each area needs (owners always pass)
 export const AREA_PERMISSION: Record<GuildEditableArea, string> = {
   prefixes: 'Manage Server',
-  allowlist: 'Administrator',
-  blocklist: 'Administrator',
-  commands: 'Manage Server',
+  rules: 'Manage Server',
+  rules_admin: 'Administrator',
   loggers: 'Manage Server',
   settings: 'Manage Server',
-  admin_bypass: 'Administrator',
 };
 
 export const AREA_LABEL: Record<GuildEditableArea, string> = {
   prefixes: 'Prefixes',
   settings: 'Server settings',
-  allowlist: 'Allowlist',
-  blocklist: 'Blocklist',
-  commands: 'Command lists',
+  rules: 'Command and category rules',
+  rules_admin: 'Rules for every command and the owner/admin bypass',
   loggers: 'Loggers',
-  admin_bypass: 'Owner/admin bypass',
 };
 
 // why a server's section can't be changed: a missing Discord permission, or in the admin panel, not being a bot owner
@@ -39,8 +35,7 @@ export function useReadOnlyMessage(): (area: GuildEditableArea) => string {
 }
 
 
-export const LIST_TYPES = ['channel', 'role', 'user'] as const;
-export const COMMAND_LIST_TYPES = ['guild', 'channel', 'role', 'user'] as const;
+export const RULE_TARGET_TYPES = ['guild', 'channel', 'role', 'user'] as const;
 
 export const ENTRY_TYPE_LABELS: Record<string, string> = {
   channel: 'Channel',

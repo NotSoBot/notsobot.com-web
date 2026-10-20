@@ -14,7 +14,7 @@ import { PanelSkeleton, Skeleton, UnsavedChangesGuard } from '../ui';
 import { GuildIcon } from './GuildIcon';
 import { AREA_LABEL, AREA_PERMISSION } from './guildMeta';
 import { ServerDataSection } from './ServerDataSection';
-import { CommandListSection, ListSection, LoggersSection, PrefixesSection } from './ServerSections';
+import { LoggersSection, PrefixesSection, RulesSection } from './ServerSections';
 import { ServerSettingsForm } from './ServerSettingsForm';
 import { ScopeMismatchCard } from './ServersPage';
 
@@ -139,10 +139,7 @@ function ServerDetails({ guild, onDirtyChange }: {guild: UserGuild, onDirtyChang
 
         <PrefixesSection guild={guild}/>
         <ServerSettingsForm guild={guild} onDirtyChange={onDirtyChange}/>
-        <ListSection guild={guild} list='allowlist'/>
-        <ListSection guild={guild} list='blocklist'/>
-        <CommandListSection guild={guild} list='allowlist'/>
-        <CommandListSection guild={guild} list='blocklist'/>
+        <RulesSection guild={guild}/>
         <LoggersSection guild={guild}/>
         <ServerDataSection guild={guild}/>
       </div>
