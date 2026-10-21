@@ -28,7 +28,7 @@ import type {
 } from '@/lib/api/types';
 import deepfryPreview from '@/assets/logos/effects/deepfry.webp';
 import magikPreview from '@/assets/logos/effects/magik-animated.webp';
-import { TagDirectoryCategories } from '@/lib/api/types';
+import { DiscordSkus, TagDirectoryCategories } from '@/lib/api/types';
 import { toDate } from '@/lib/utils';
 
 
@@ -773,11 +773,11 @@ export function createApplications(users: Array<AdminUser>): Array<AdminApplicat
 }
 
 
-// SKU ids from notsobot.api's `DiscordSkus`, keyed by the premium type they give
+// keyed by the premium type they give
 const PREMIUM_SKUS: Record<number, string> = {
-  2: '1182569865735831582',
-  3: '1318864356179710044',
-  4: '1492322196146618429',
+  2: DiscordSkus.USER_NOTSOPREMIUM,
+  3: DiscordSkus.USER_NOTSOPREMIUM_PLUS,
+  4: DiscordSkus.USER_NOTSOPREMIUM_PLUS_AI,
 };
 
 // the mock user has an active Premium+ subscription, an older cancelled Premium one and a replaced staff grant;

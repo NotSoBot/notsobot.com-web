@@ -22,6 +22,8 @@ export const config = Object.freeze({
 export const Urls = Object.freeze({
   GITHUB: 'https://github.com/notsobot',
   FOXBOT: 'https://discord.com/users/66078337084162048',
+  // the bot's store tab in discord's app directory, lists every premium sku
+  DISCORD_STORE: 'https://discord.com/application-directory/439205512425504771/store',
   CONTACT_EMAIL: 'privacy@notsocompany.com',
 });
 

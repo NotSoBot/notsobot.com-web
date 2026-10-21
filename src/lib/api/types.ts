@@ -459,6 +459,14 @@ export const UserPremiumTypes = {
 } as const;
 
 
+// `DiscordSkus`, the store sku for each tier
+export const DiscordSkus = {
+  USER_NOTSOPREMIUM: '1182569865735831582',
+  USER_NOTSOPREMIUM_PLUS: '1318864356179710044',
+  USER_NOTSOPREMIUM_PLUS_AI: '1492322196146618429',
+} as const;
+
+
 // `UserSettings.to_dict()`
 export interface UserSettings {
   application_command_response_type: number,
@@ -1536,6 +1544,8 @@ export interface PremiumServer {
   // when it can be taken off, a server is locked in for a while after getting it
   removable_at: ApiTimestamp,
   server_id: string,
+  // how many of the caller's slots are on it, Plus AI subscribers can stack them to raise its NotSoAI limit
+  slots: number,
   user_id: string,
 }
 
@@ -1543,8 +1553,10 @@ export interface PremiumServersPage {
   // the servers only get anything while the caller has premium plus
   active: boolean,
   items: Array<PremiumServer>,
-  // null for owners, they can give as many as they want
+  // slots, not servers. null for owners, they can give as many as they want
   limit: number | null,
+  // slots in use, stacked ones included
+  used: number,
 }
 
 // `/admin/entitlements`: everyone's, with Discord's own id and the owner (null for guild-only ones)

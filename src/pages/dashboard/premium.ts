@@ -1,5 +1,6 @@
 import { EntitlementProviders, UserPremiumTypes, type Entitlement } from '@/lib/api';
 import { toDate } from '@/lib/utils';
+import { isOwner } from '@/auth/permissions';
 
 
 const LABELS: Record<number, string> = {
@@ -9,6 +10,15 @@ const LABELS: Record<number, string> = {
   [UserPremiumTypes.PREMIUM_PLUS]: 'Premium+',
   [UserPremiumTypes.PREMIUM_PLUS_AI]: 'Premium+ AI',
 };
+
+
+// Plus AI's perks, which complimentary premium and bot owners get too (the api's `has_premium_plus_ai`)
+export function hasPremiumPlusAI(user: {flags: number, premium_type: number} | null | undefined): boolean {
+  if (!user) {
+    return false;
+  }
+  return isOwner(user) || user.premium_type === UserPremiumTypes.PREMIUM_PLUS_AI || user.premium_type === UserPremiumTypes.PREMIUM_FREE;
+}
 
 
 export function premiumLabel(premiumType: number): string {

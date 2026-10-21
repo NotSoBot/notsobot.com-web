@@ -77,7 +77,7 @@ export const FAQ_QUESTIONS: Array<FaqQuestion> = [
     id: 'files-as-links',
     section: 'commands',
     question: 'Why did I get a link instead of a file?',
-    answer: 'When a result is bigger than Discord lets the bot upload, NotSoBot hosts it on [nsb.gg](https://nsb.gg) and sends you a link instead. Those links are temporary. With NotSoPremium they can be kept permanently.\n\nYou can control when this happens with `/settings set file-upload-threshold` and `/settings set file-upload-type`.',
+    answer: 'When a result is bigger than Discord lets the bot upload, NotSoBot hosts it on [nsb.gg](https://nsb.gg) and sends you a link instead. Those links are temporary: they last 14 days, or 28 days with NotSoPremium.\n\nYou can control when this happens with `/settings set file-upload-threshold` and `/settings set file-upload-type`.',
   },
   {
     id: 'undo',
@@ -129,7 +129,7 @@ export const FAQ_QUESTIONS: Array<FaqQuestion> = [
     id: 'premium',
     section: 'premium',
     question: 'What is NotSoPremium?',
-    answer: 'NotSoPremium is an optional subscription, bought through Discord on NotSoBot\'s profile. It comes in three tiers:\n\n- **NotSoPremium**: premium-only commands and permanent file hosting on nsb.gg\n- **NotSoPremium Plus**: everything above, plus the heavier premium commands\n- **NotSoPremium Plus AI**: everything above, plus NotSoAI\n\nWith **NotSoPremium Plus** you can give up to 2 servers (or group DMs) your premium with `/settings premium-servers add` or from the dashboard\'s Premium page, so some premium commands work there for everyone. Owning a server doesn\'t give it premium by itself.',
+    answer: 'NotSoPremium is an optional subscription, bought through Discord on NotSoBot\'s profile. It comes in three tiers:\n\n- **NotSoPremium**: bigger files, more time for every command and your own custom commands\n- **NotSoPremium Plus**: everything above, plus 2 premium server slots and voice cloning\n- **NotSoPremium Plus AI**: everything above, plus NotSoAI\n\nWith **NotSoPremium Plus** you can give up to 2 servers (or group DMs) your premium with `/settings premium-servers add` or from the dashboard\'s Premium page, so some premium commands work there for everyone. Owning a server doesn\'t give it premium by itself.',
   },
   {
     id: 'notsoai',

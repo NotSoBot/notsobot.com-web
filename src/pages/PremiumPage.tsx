@@ -7,8 +7,8 @@ import { Link } from 'react-router';
 
 import { useAuth } from '@/auth';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { Routes } from '@/config';
-import { UserPremiumTypes } from '@/lib/api';
+import { Routes, Urls } from '@/config';
+import { DiscordSkus, UserPremiumTypes } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
 
@@ -18,6 +18,7 @@ interface Tier {
   id: TierId,
   name: string,
   tagline: string,
+  sku: string,
   // shown as "Everything in <includes>, plus:"
   includes?: string,
   perks: Array<string>,
@@ -28,9 +29,10 @@ const TIERS: Array<Tier> = [
     id: 'premium',
     name: 'NotSoPremium',
     tagline: 'Bigger files and more time for every command.',
+    sku: DiscordSkus.USER_NOTSOPREMIUM,
     perks: [
       'Files up to 200 MB, hosted on nsb.gg when they’re too big for Discord',
-      'Keep nsb.gg files permanently, or 28 days instead of 14',
+      'nsb.gg files are kept for 28 days instead of 14',
       'Priority processing on premium-only workers, so you never wait behind free users',
       '60 seconds to process media instead of 30, and twice as long to run code',
       'Tags run for 70 seconds instead of 40',
@@ -42,6 +44,7 @@ const TIERS: Array<Tier> = [
     id: 'plus',
     name: 'NotSoPremium Plus',
     tagline: 'Share your perks with the servers you hang out in.',
+    sku: DiscordSkus.USER_NOTSOPREMIUM_PLUS,
     includes: 'NotSoPremium',
     perks: [
       '2 premium server slots: everyone in those servers or group DMs gets premium perks, and you keep yours',
@@ -53,11 +56,12 @@ const TIERS: Array<Tier> = [
     id: 'plusAi',
     name: 'NotSoPremium Plus AI',
     tagline: 'Everything, plus NotSoAI.',
+    sku: DiscordSkus.USER_NOTSOPREMIUM_PLUS_AI,
     includes: 'NotSoPremium Plus',
     perks: [
       'Talk to NotSoAI by mentioning the bot or replying to it, using our smartest model',
       'AI in your tags with {ai}',
-      'Your premium server slots include NotSoAI, using a faster, lighter model',
+      'Your premium server slots include NotSoAI, using a faster, lighter model, with 50 messages every 12 hours for each slot (stack both on one server for 100)',
       '120 seconds to process media and 130 to run tags',
       'Clone up to 3 voices',
     ],
@@ -82,7 +86,6 @@ const COMPARISON: Array<{group: string, icon: LucideIcon, rows: Array<{label: st
       // free follows the caller's discord upload limit (nitro, server boosts), which the bot sends as `max_file_size`
       {label: 'Largest file', values: ['Your Discord limit, up to 100 MB', '200 MB', '200 MB', '200 MB']},
       {label: 'nsb.gg file lifetime', values: ['14 days', '28 days', '28 days', '28 days']},
-      {label: 'Permanent nsb.gg files', values: [false, true, true, true]},
       {label: 'Download quality', values: ['Up to 720p', 'Best available', 'Best available', 'Best available']},
       {label: 'Image search fallback', values: [false, true, true, true]},
     ],
@@ -130,7 +133,8 @@ const SERVER_PERKS: Array<{label: string, free?: string, server?: string}> = [
   {label: 'Processing queue', free: 'Shared', server: 'Priority'},
   {label: 'Custom commands for the server'},
   {label: 'Image commands find an image for you when there’s nothing to edit'},
-  {label: 'NotSoAI with a faster, lighter model, if the slot is from a Plus AI subscriber'},
+  // the api's `MAX_SERVER_AI_MESSAGES` every `SERVER_AI_MESSAGES_WINDOW`, shared by everyone in the server
+  {label: 'NotSoAI with a faster, lighter model, 50 messages every 12 hours for each Plus AI slot on the server'},
 ];
 
 
@@ -184,6 +188,10 @@ export function PremiumPage() {
               these perks while they use NotSoBot, and you keep your own premium. Add one with <code className='text-code'>/settings premium-servers add</code> in
               the server, or from the dashboard. A slot can be moved to another server 24 hours after it was added.
             </p>
+            <p className='mt-3 text-muted'>
+              With Plus AI, slots stack: every Plus AI slot on a server adds 50 NotSoAI messages every 12 hours, so
+              putting both of yours on one server (or two members adding theirs) gives it 100.
+            </p>
             <p className='mt-3 text-sm text-subtle'>Owning a server doesn’t give it premium on its own.</p>
           </div>
           <div>
@@ -221,6 +229,7 @@ function HowToSubscribe({ signedIn }: {signedIn: boolean}) {
           In Discord, open NotSoBot’s profile and pick <span className='font-semibold text-white'>Store</span>.
         </span>
       </div>
+      <a href={Urls.DISCORD_STORE} target='_blank' rel='noreferrer' className='btn btn-primary'>Open the store</a>
       {(signedIn) ? (
         <Link to={Routes.DASHBOARD_PREMIUM} className='btn btn-secondary'>Manage your premium</Link>
       ) : (
@@ -248,9 +257,17 @@ function TierCard({ tier, current }: {tier: Tier, current: boolean}) {
       {(tier.includes) ? (
         <p className='mb-3 text-sm text-subtle'>Everything in <span className='text-fg'>{tier.includes}</span>, plus:</p>
       ) : null}
-      <ul className='grid gap-3'>
+      <ul className='mb-6 grid gap-3'>
         {tier.perks.map((perk) => <Perk key={perk}>{perk}</Perk>)}
       </ul>
+      <a
+        href={`${Urls.DISCORD_STORE}/${tier.sku}`}
+        target='_blank'
+        rel='noreferrer'
+        className={cn('btn mt-auto w-full', (ai) ? 'btn-primary' : 'btn-secondary')}
+      >
+        {(current) ? 'View in the store' : `Get ${tier.name}`}
+      </a>
     </article>
   );
 }

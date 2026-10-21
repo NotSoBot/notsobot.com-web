@@ -5,7 +5,7 @@ import { Crown } from 'lucide-react';
 import { Link } from 'react-router';
 
 import { useAuth } from '@/auth';
-import { Routes } from '@/config';
+import { Routes, Urls } from '@/config';
 import { EntitlementProviders, UserPremiumTypes, type Entitlement } from '@/lib/api';
 import { errorMessage, useMeEntitlementsQuery } from '@/lib/api/dashboardQueries';
 import { cn, formatDate, formatExactDateTime, toDate } from '@/lib/utils';
@@ -47,7 +47,7 @@ export function PremiumPage() {
         <ErrorPanel title='Couldn’t load your subscriptions' message={errorMessage(error)} onRetry={() => refetch()} retrying={isRefetching}/>
       ) : (!items.length) ? (
         <EmptyState icon={<Crown className='size-10'/>} title='No subscriptions yet'>
-          Subscribe in Discord: open NotSoBot’s profile and pick <span className='text-fg'>Store</span>.
+          Subscribe in Discord: open NotSoBot’s profile and pick <a href={Urls.DISCORD_STORE} target='_blank' rel='noreferrer' className='text-fg underline hover:text-white'>Store</a>.
         </EmptyState>
       ) : (
         <>

@@ -1,10 +1,12 @@
 // The servers the user gave their premium plus perks to (premium server slots). A server only gets premium this way,
-// owning one doesn't give it anything. The dashboard can only add guilds, group dms are added with the bot.
+// owning one doesn't give it anything. The dashboard can only add guilds, group dms are added with the bot. Plus AI
+// subscribers can stack more than one slot on a server, each raises its NotSoAI limit.
 
-import { Lock, MessagesSquare, Plus, Server, Trash2 } from 'lucide-react';
+import { Layers, Lock, MessagesSquare, Plus, Server, Trash2 } from 'lucide-react';
 import { useId, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 
+import { useAuth } from '@/auth';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Modal } from '@/components/ui/Modal';
 import { SearchInput } from '@/components/ui/SearchInput';
@@ -24,6 +26,7 @@ import {
 import { formatDate, formatExactDateTime, toDate } from '@/lib/utils';
 
 import { Chip } from './admin/adminUi';
+import { hasPremiumPlusAI } from './premium';
 import { GuildIcon } from './servers/GuildIcon';
 import { ScopeMismatchCard } from './servers/ServersPage';
 import { EmptyState, ErrorPanel, Skeleton } from './ui';
@@ -33,6 +36,8 @@ import { EmptyState, ErrorPanel, Skeleton } from './ui';
 const LOCK_HOURS = 24;
 // the lock only lasts a day, so the time matters more than the year
 const LOCK_FORMAT: Intl.DateTimeFormatOptions = {month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'};
+// the api's `MAX_SERVER_AI_MESSAGES`, NotSoAI messages every 12 hours each Plus AI slot gives a server
+const SERVER_AI_MESSAGES_PER_SLOT = 50;
 
 
 function serverName(server: PremiumServer): string {
@@ -42,13 +47,17 @@ function serverName(server: PremiumServer): string {
 
 export function PremiumServers() {
   const { data, isPending, isError, error, isRefetching, refetch } = useMePremiumServersQuery();
+  const { user } = useAuth();
   const toast = useToast();
   const remove = useDeleteMePremiumServerMutation();
+  const stack = usePutMePremiumServerMutation();
   const [ adding, setAdding ] = useState(false);
   const [ removing, setRemoving ] = useState<PremiumServer | null>(null);
 
   const items = data?.items ?? [];
-  const full = !!data && data.limit !== null && data.limit <= items.length;
+  const full = !!data && data.limit !== null && data.limit <= data.used;
+  // only Plus AI makes a second slot on a server worth anything (more NotSoAI messages)
+  const canStack = !!data?.active && !full && hasPremiumPlusAI(user);
 
   const confirmRemove = () => {
     if (!removing) {
@@ -56,9 +65,16 @@ export function PremiumServers() {
     }
     remove.mutate(removing.server_id, {
       onSuccess: () => {
-        toast('Premium taken off of that server');
+        toast((1 < removing.slots) ? 'Took one of your slots off of that server' : 'Premium taken off of that server');
         setRemoving(null);
       },
+    });
+  };
+
+  const addSlot = (server: PremiumServer) => {
+    stack.mutate(server.server_id, {
+      onSuccess: () => toast(`${serverName(server)} has ${server.slots + 1} of your slots now`),
+      onError: (stackError) => toast(errorMessage(stackError, 'Couldn’t add another slot.'), 'error'),
     });
   };
 
@@ -71,9 +87,10 @@ export function PremiumServers() {
             {(data?.limit === null) ? (
               'As an owner, you can give as many servers as you want your premium perks.'
             ) : (
-              `NotSoPremium Plus lets you give ${(data) ? data.limit.toLocaleString() : 'a couple of'} servers your premium perks.`
+              `NotSoPremium Plus gives you ${(data) ? data.limit.toLocaleString() : 'a couple of'} premium server slots.`
             )}
-            Owning a server doesn’t give it premium, so give it one of yours.
+            {' '}Owning a server doesn’t give it premium, so give it one of yours. With Plus AI you can stack slots on one server,
+            each adds {SERVER_AI_MESSAGES_PER_SLOT} NotSoAI messages every 12 hours.
             {' '}
             <Link to={`${Routes.PREMIUM}#premium-servers`} className='text-brand hover:underline'>See what a server gets</Link>
           </p>
@@ -83,7 +100,7 @@ export function PremiumServers() {
             type='button'
             className='btn btn-sm btn-primary'
             disabled={full}
-            title={(full) ? 'Remove a server first' : undefined}
+            title={(full) ? 'All of your slots are in use, remove one first' : undefined}
             onClick={() => setAdding(true)}
           >
             <Plus className='size-4'/>
@@ -117,10 +134,18 @@ export function PremiumServers() {
             </EmptyState>
           ) : (
             <>
-              <p className='mb-3 text-sm text-subtle'>{items.length.toLocaleString()} {(data.limit === null) ? '' : `of ${data.limit.toLocaleString()} `}servers</p>
+              <p className='mb-3 text-sm text-subtle'>{data.used.toLocaleString()} {(data.limit === null) ? '' : `of ${data.limit.toLocaleString()} `}slots used</p>
               <ul className='card divide-y divide-line'>
                 {items.map((server) => (
-                  <ServerRow key={server.server_id} server={server} active={data.active} onRemove={() => setRemoving(server)}/>
+                  <ServerRow
+                    key={server.server_id}
+                    server={server}
+                    active={data.active}
+                    // the dashboard can only add guilds, a group dm's extra slot is added with the bot
+                    onStack={(canStack && server.guild) ? () => addSlot(server) : null}
+                    stacking={stack.isPending && stack.variables === server.server_id}
+                    onRemove={() => setRemoving(server)}
+                  />
                 ))}
               </ul>
             </>
@@ -134,8 +159,12 @@ export function PremiumServers() {
 
       {(removing) ? (
         <ConfirmDialog
-          title={`Take your premium off of ${serverName(removing)}?`}
-          description={`It loses your premium perks right away. You can give your slot to another server after.`}
+          title={(1 < removing.slots) ? `Take one of your slots off of ${serverName(removing)}?` : `Take your premium off of ${serverName(removing)}?`}
+          description={(1 < removing.slots) ? (
+            `It keeps your other ${(removing.slots === 2) ? 'slot' : 'slots'}, but gets ${SERVER_AI_MESSAGES_PER_SLOT} fewer NotSoAI messages every 12 hours.`
+          ) : (
+            'It loses your premium perks right away. You can give your slot to another server after.'
+          )}
           confirmLabel='Remove'
           pending={remove.isPending}
           error={(remove.isError) ? errorMessage(remove.error, 'Couldn’t remove the server.') : null}
@@ -151,7 +180,13 @@ export function PremiumServers() {
 }
 
 
-function ServerRow({ server, active, onRemove }: {server: PremiumServer, active: boolean, onRemove: () => void}) {
+function ServerRow({ server, active, onStack, stacking, onRemove }: {
+  server: PremiumServer,
+  active: boolean,
+  onStack: (() => void) | null,
+  stacking: boolean,
+  onRemove: () => void,
+}) {
   const name = serverName(server);
   // the lock only matters while they have premium plus, the api lets them remove it any time otherwise
   const locked = active && Date.now() < toDate(server.removable_at).getTime();
@@ -168,6 +203,12 @@ function ServerRow({ server, active, onRemove }: {server: PremiumServer, active:
       <div className='min-w-0 flex-1'>
         <div className='flex flex-wrap items-center gap-2'>
           <span className='truncate font-medium text-white'>{name}</span>
+          {(1 < server.slots) ? (
+            <Chip tone='brand' className='gap-1' title={`${server.slots * SERVER_AI_MESSAGES_PER_SLOT} NotSoAI messages every 12 hours from your slots`}>
+              <Layers aria-hidden className='size-3'/>
+              {server.slots} slots
+            </Chip>
+          ) : null}
           {(locked) ? (
             <Chip className='gap-1' title={`Servers are locked in for ${LOCK_HOURS} hours after getting your premium`}>
               <Lock aria-hidden className='size-3'/>
@@ -180,6 +221,19 @@ function ServerRow({ server, active, onRemove }: {server: PremiumServer, active:
           <span className='font-mono'>{server.server_id}</span>
         </div>
       </div>
+      {(onStack) ? (
+        <button
+          type='button'
+          className='btn btn-sm btn-secondary shrink-0'
+          disabled={stacking}
+          title={`Stack another slot here for ${SERVER_AI_MESSAGES_PER_SLOT} more NotSoAI messages every 12 hours`}
+          onClick={onStack}
+          aria-label={`Add another slot to ${name}`}
+        >
+          {(stacking) ? <Spinner className='size-4'/> : <Layers className='size-4'/>}
+          <span className='hidden sm:inline'>Add slot</span>
+        </button>
+      ) : null}
       <button
         type='button'
         className='btn btn-sm btn-secondary shrink-0'

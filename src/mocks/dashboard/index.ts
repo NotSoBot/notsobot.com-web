@@ -96,9 +96,9 @@ const state = {
   entitlements: createEntitlements(adminUsers),
   // premium server slots, a guild added two days ago (still locked) and a group dm from the bot three weeks ago
   premiumServers: [
-    {created: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), server_id: guilds[1].summary.id},
-    {created: new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString(), server_id: '1290000000000000001'},
-  ] as Array<{created: string, server_id: string}>,
+    {created: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), server_id: guilds[1].summary.id, slots: 1},
+    {created: new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString(), server_id: '1290000000000000001', slots: 1},
+  ] as Array<{created: string, server_id: string, slots: number}>,
   // the mock user is a NotSoBot owner unless turned off (kept across reloads like guildsError)
   owner: sessionStorage.getItem('dashboardMocks:notOwner') !== '1',
   // a moderator instead of an owner (`__dashboardMocks.moderator(true)`, then reload), kept across reloads like owner
@@ -2995,9 +2995,10 @@ route('DELETE', '/users/@me/llm/memories', () => {
   return {count};
 });
 
-// premium server slots: mirrors `views/me_premium_servers.py` (the mock user has premium plus)
-const MAX_PREMIUM_SERVERS = 2;
-const PREMIUM_SERVER_LOCK = 7 * 24 * 60 * 60 * 1000;
+// premium server slots: mirrors `views/me_premium_servers.py` (the mock user has premium plus, and can stack slots
+// like plus ai). The limit is counted in slots so stacking shows up even though the mock user is an owner
+const MAX_PREMIUM_SERVERS = 3;
+const PREMIUM_SERVER_LOCK = 24 * 60 * 60 * 1000;
 
 function premiumServersPage() {
   return {
@@ -3012,6 +3013,7 @@ function premiumServersPage() {
       };
     }),
     limit: MAX_PREMIUM_SERVERS,
+    used: state.premiumServers.reduce((total, server) => total + server.slots, 0),
   };
 }
 
@@ -3022,13 +3024,17 @@ route('PUT', '/users/@me/premium/servers/(\\d+)', ([ , guildId ]) => {
   if (!state.guilds.some((entry) => entry.summary.id === guildId)) {
     throw new MockError(404, ApiErrorCodes.UNKNOWN_SERVER, 'Unknown Server');
   }
-  if (state.premiumServers.some((server) => server.server_id === guildId)) {
-    return {...premiumServersPage(), created: false};
+  if (MAX_PREMIUM_SERVERS <= premiumServersPage().used) {
+    throw new MockError(400, ApiErrorCodes.MAX_PREMIUM_SERVERS, `You already used all ${MAX_PREMIUM_SERVERS} of your premium server slots, remove one first`, {limit: MAX_PREMIUM_SERVERS});
   }
-  if (MAX_PREMIUM_SERVERS <= state.premiumServers.length) {
-    throw new MockError(400, ApiErrorCodes.MAX_PREMIUM_SERVERS, `You already gave ${MAX_PREMIUM_SERVERS} servers your premium, remove one first`, {limit: MAX_PREMIUM_SERVERS});
+  const existing = state.premiumServers.find((server) => server.server_id === guildId);
+  if (existing) {
+    // stacked, locked in again like a new slot
+    existing.slots += 1;
+    existing.created = new Date().toISOString();
+  } else {
+    state.premiumServers.push({created: new Date().toISOString(), server_id: guildId, slots: 1});
   }
-  state.premiumServers.push({created: new Date().toISOString(), server_id: guildId});
   return {...premiumServersPage(), created: true};
 });
 
@@ -3041,7 +3047,11 @@ route('DELETE', '/users/@me/premium/servers/(\\d+)', ([ , serverId ]) => {
   if (Date.now() < removableAt) {
     throw new MockError(400, ApiErrorCodes.PREMIUM_SERVER_COOLDOWN, 'This server got your premium too recently to take it off yet', {removable_at: new Date(removableAt).toISOString()});
   }
-  state.premiumServers = state.premiumServers.filter((other) => other !== server);
+  if (1 < server.slots) {
+    server.slots -= 1;
+  } else {
+    state.premiumServers = state.premiumServers.filter((other) => other !== server);
+  }
   return premiumServersPage();
 });
 
