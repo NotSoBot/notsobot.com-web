@@ -1,4 +1,4 @@
-import { Plus, X } from 'lucide-react';
+import { Pencil, Plus, X } from 'lucide-react';
 import { useId, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 
 import { Spinner } from '@/components/ui/Spinner';
@@ -64,6 +64,22 @@ function RemoveButton({ label, busy, disabled, onClick }: {label: string, busy: 
       className='flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-subtle transition-colors hover:bg-surface-3 hover:text-danger disabled:cursor-not-allowed disabled:opacity-50'
     >
       {(busy) ? <Spinner className='size-3.5'/> : <X aria-hidden className='size-4'/>}
+    </button>
+  );
+}
+
+
+function EditButton({ label, disabled, onClick }: {label: string, disabled: boolean, onClick: () => void}) {
+  return (
+    <button
+      type='button'
+      aria-label={label}
+      title={label}
+      disabled={disabled}
+      onClick={onClick}
+      className='flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-subtle transition-colors hover:bg-surface-3 hover:text-white disabled:cursor-not-allowed disabled:opacity-50'
+    >
+      <Pencil aria-hidden className='size-3.5'/>
     </button>
   );
 }
@@ -250,6 +266,59 @@ function RuleCoverage({ rule, commandNames }: {rule: GuildRule, commandNames: Ma
 }
 
 
+// a block rule's message, edited in place; empty removes it
+function RuleMessageEditor({ initial, busy, disabled, onSave, onCancel }: {
+  initial: string,
+  busy: boolean,
+  disabled: boolean,
+  onSave: (message: string | null) => void,
+  onCancel: () => void,
+}) {
+  const [ message, setMessage ] = useState(initial);
+  const trimmed = message.trim();
+  const label = 'Message for this rule';
+  return (
+    <form
+      className='mt-1.5 flex flex-wrap items-center gap-2'
+      onSubmit={(event: FormEvent) => {
+        event.preventDefault();
+        if (disabled) {
+          return;
+        }
+        if (trimmed === initial) {
+          onCancel();
+        } else {
+          onSave(trimmed || null);
+        }
+      }}
+    >
+      <input
+        aria-label={label}
+        className='input h-8 min-w-[12rem] flex-1 py-0 text-sm'
+        placeholder='No message'
+        value={message}
+        maxLength={200}
+        onChange={(event) => setMessage(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            onCancel();
+          }
+        }}
+        autoComplete='off'
+        autoFocus
+      />
+      <span className='text-xs text-subtle tabular-nums'>{message.length}/200</span>
+      <button type='submit' className='btn btn-sm btn-secondary' disabled={disabled}>
+        {(busy) ? <Spinner className='size-3.5'/> : null}
+        Save
+      </button>
+      <button type='button' className='btn btn-sm btn-ghost' disabled={busy} onClick={onCancel}>Cancel</button>
+    </form>
+  );
+}
+
+
 export function RulesSection({ guild }: {guild: UserGuild}) {
   const editable = guild.editable.rules;
   const adminEditable = guild.editable.rules_admin;
@@ -302,6 +371,8 @@ export function RulesSection({ guild }: {guild: UserGuild}) {
   const valid = isSnowflake(targetId) && (covers !== 'command' || !!commandId) && !exists && (!needsAdmin || adminEditable);
 
   const canChange = (rule: GuildRule) => editable && (!coversEverything(rule) || adminEditable);
+  // the rule whose message is being edited
+  const [ editingId, setEditingId ] = useState<string | null>(null);
 
   return (
     <Panel
@@ -321,6 +392,10 @@ export function RulesSection({ guild }: {guild: UserGuild}) {
         <ul className='divide-y divide-line rounded-md border border-line'>
           {rules.map((rule) => {
             const bypassKey = `${rule.id}:bypass`;
+            const messageKey = `${rule.id}:message`;
+            // only block rules show a message
+            const messageEditable = canChange(rule) && !rule.value.allow;
+            const editing = messageEditable && editingId === rule.id;
             return (
               <li key={rule.id} className='flex flex-wrap items-center gap-x-3 gap-y-1.5 px-3 py-2'>
                 <span
@@ -337,7 +412,20 @@ export function RulesSection({ guild }: {guild: UserGuild}) {
                     <span className='text-sm text-subtle'>{(rule.target_type === 'channel' || rule.target_type === 'guild') ? 'in' : 'for'}</span>
                     <EntryMention type={rule.target_type} id={rule.target_id}/>
                   </div>
-                  {(rule.value.message) ? <p className='mt-0.5 text-xs text-muted'>“{rule.value.message}”</p> : null}
+                  {(editing) ? (
+                    <RuleMessageEditor
+                      initial={rule.value.message ?? ''}
+                      busy={edit.busyKey === messageKey}
+                      disabled={edit.pending}
+                      onCancel={() => setEditingId(null)}
+                      onSave={async (message) => {
+                        const action: GuildAction = {kind: 'rule-edit', ruleId: rule.id, value: {allow: false, message}};
+                        if (await edit.run(messageKey, action, (message) ? 'Updated the rule’s message' : 'Removed the rule’s message')) {
+                          setEditingId(null);
+                        }
+                      }}
+                    />
+                  ) : (rule.value.message) ? <p className='mt-0.5 text-xs text-muted'>“{rule.value.message}”</p> : null}
                 </div>
                 <span className='hidden text-xs text-subtle sm:inline'>added {formatDate(rule.added)}</span>
                 <RuleAdminBypass
@@ -348,6 +436,13 @@ export function RulesSection({ guild }: {guild: UserGuild}) {
                   disabled={edit.pending}
                   onChange={(adminBypass) => void edit.run(bypassKey, {kind: 'rule-edit', ruleId: rule.id, adminBypass}, 'Updated the owner/admin bypass')}
                 />
+                {(messageEditable && !editing) ? (
+                  <EditButton
+                    label={(rule.value.message) ? 'Edit this rule’s message' : 'Add a message to this rule'}
+                    disabled={edit.pending}
+                    onClick={() => setEditingId(rule.id)}
+                  />
+                ) : null}
                 {(canChange(rule)) ? (
                   <RemoveButton
                     label='Remove this rule'

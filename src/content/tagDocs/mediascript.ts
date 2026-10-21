@@ -452,7 +452,7 @@ export const MEDIASCRIPT_GUIDE: Array<TagDocGuideSection> = [
       rows: [
         ['Events', 'Yes', 'Position, length, and where in its source each one starts'],
         ['Speed', 'Yes', 'From 0.01x to 100x'],
-        ['Pitch', 'Yes', 'Pitch changes on audio events, keeping their length: the event\'s own pitch and its Pitch Shift plugin (any language or brand of it) add up'],
+        ['Pitch', 'Yes', 'Pitch changes on audio events, keeping their length: the event\'s own pitch and its Pitch Shift plugin (any language or brand of it) add up. Shifted like Vegas does it (matched to a Vegas render of -24 to +24 semitones, including a pitched event starting a little early going up and late going down)'],
         ['Pan/Crop', 'Yes', 'Zoom, move, rotation and flips, through every keyframe with its curve (linear, fast, slow, smooth, sharp or hold)'],
         ['Track motion', 'Partly', 'Position, size and flips, and its 2D Shadow and 2D Glow (offset, size, color and blur; not matched to a Vegas render). 3D track motion and rotation are not'],
         ['Mute and solo', 'Yes', 'Muted tracks are left out, and a soloed track leaves out the others of its kind (audio or video)'],
@@ -471,8 +471,8 @@ export const MEDIASCRIPT_GUIDE: Array<TagDocGuideSection> = [
         ['Video output FX', 'Yes', 'The project\'s own video effects (the ones in this table) are put on the whole picture, after everything else'],
         ['Black and White', 'Yes', 'Including partial amounts, the older plugin and the OFX one. Gray is the average of red, green and blue, like Vegas (matched to a Vegas render)'],
         ['Invert', 'Yes', 'Including partial amounts, and keyframes (flashing inverts play frame by frame). On Vegas\'s studio levels, so white turns a little brighter than black, matched to a Vegas render'],
-        ['HSL Adjust', 'Yes', 'Hue, saturation and luminance'],
-        ['Color Corrector (Secondary)', 'Partly', 'Hue rotation, saturation, gamma and gain over the whole picture. Its luminance/saturation/hue limits and masks are not'],
+        ['HSL Adjust', 'Yes', 'Hue, saturation and luminance, matched to a Vegas render of its presets'],
+        ['Color Corrector (Secondary)', 'Yes', 'Hue rotation, saturation, gamma, gain and offset on the colors its luminance, saturation and hue limits pick (smoothed, or inverted), matched to a Vegas render of its presets. Showing the mask and its alpha are not'],
         ['Color Curves', 'Yes', 'Red, green and blue curves, the older plugin and the OFX one, on Vegas\'s studio levels. Every OFX preset matched to a Vegas render within 2 levels'],
         ['Channel Blend', 'Yes', 'Each color channel mixed from the others (RGB to BGR, red only...), with Normalize, the older plugin and the OFX one (matched to a Vegas render of its presets)'],
         ['TV Simulator', 'Partly', 'All 8 controls: line sync, vertical sync, interlacing, scan phasing, phosphorescence, aperture grill, static and detail zoom. Line sync is a new random wobble each frame like in Vegas, so it matches in strength, not frame for frame'],
@@ -498,7 +498,7 @@ export const MEDIASCRIPT_GUIDE: Array<TagDocGuideSection> = [
         ['Cookie Cutter', 'Partly', 'Every shape, repeated, cut in or out, with its feather and border color. Shapes and sizes are close to Vegas, not exact'],
         ['Chroma Keyer', 'Partly', 'The key color with its threshold and blur, close to Vegas'],
         ['LAB Adjust', 'Yes', 'Lightness, the a and b channels, Invert Luminance and Desaturate'],
-        ['Levels, Brightness and Contrast, Color Corrector', 'Partly', 'Levels on all channels (input, output and gamma), brightness and contrast around its center, and Color Corrector\'s saturation, gamma and gain. Levels on one channel and the color wheels are not'],
+        ['Levels, Brightness and Contrast, Color Corrector', 'Partly', 'Levels on all channels (input, output and gamma), brightness and contrast around its center, and Color Corrector\'s saturation, gamma and gain. The older Color Corrector also has its offset and low, mid and high color wheels, matched to a Vegas render of its presets. Levels on one channel and the OFX Color Corrector\'s color wheels are not'],
         ['Sepia', 'Partly', 'The brightness through black, its color and white, mixed in by its strength'],
         ['Unsharp Mask and Sharpen', 'Yes', 'Amount and radius (Negative, Outline Edges...), within a few levels of a Vegas render of its presets'],
         ['Bump Map', 'Partly', 'Its spotlight or glow (location, aim, intensity, focus, ambience) and the relief from the picture\'s brightness, fitted to a Vegas render of three presets. Shininess is not done'],
@@ -507,7 +507,7 @@ export const MEDIASCRIPT_GUIDE: Array<TagDocGuideSection> = [
         ['Vignette', 'Partly', 'Its color past the inner and outer radius, its aspect, center and feather, or inside with Invert'],
         ['Radial Pixelate', 'Partly', 'Wedges or rings around its center, bigger with strength'],
         ['NewBlue Dream Glow and Line Drawing', 'Partly', 'Dream Glow\'s color, blur and glow; Line Drawing\'s paper and ink colors, density and contrast (edges only, no shading). Not matched to a Vegas render'],
-        ['NewBlue Old TV', 'Partly', 'Noise, chroma, tint, saturation, brightness, contrast, scan lines, the vertical roll with its blank bar, scan phasing, curvature, soft edge and border opacity, matched to a Vegas render of its presets. The noise is random like the plugin\'s own, so it matches in kind, not pixel for pixel. Ghosting and horizontal sync are not done'],
+        ['NewBlue Old TV', 'Partly', 'Noise, chroma, tint, saturation, brightness, contrast, scan lines, the vertical roll with its blank bar, scan phasing, curvature, soft edge and border opacity, matched to a Vegas render of its presets, plus ghosting (its offset copy) and horizontal sync (rows torn sideways in bursts), with keyframed settings played. The noise and tearing are random like the plugin\'s own, so they match in kind, not pixel for pixel'],
         ['NewBlue Motion, Spin and Zoom Blur', 'Partly', 'Motion Blur along its angle (one way or both), Spin Blur around its center, Zoom Blur toward its center. Their sizes are guesses, not matched to a Vegas render'],
         ['NewBlue Ripple', 'Partly', 'Its rings with amplitude, frequency, speed, fade, shading and warp, fitted to a Vegas render of its presets. Strong warps are only close'],
         ['Timecode', 'Yes', 'The event\'s time in any of its formats (SMPTE drop and non-drop, film, seconds, frames, time and frames) in its box, at its alignment and size, matched to a Vegas render of its presets'],
@@ -524,7 +524,7 @@ export const MEDIASCRIPT_GUIDE: Array<TagDocGuideSection> = [
         ['Audio FX', 'Partly', 'Pitch Shift, Distortion (its levels, graph and low-pass; slew rate only like it), Volume, Resonant Filter and Reverb (a made up room of its decay, pre-delay and levels), on events and on audio tracks (a track\'s on its mix). Also Graphic EQ (its 10 and 20 band modes), Smooth/Enhance, Vibrato, Chorus, Flange/Wah-Wah, Amplitude Modulation and the ExpressFX Delay, Distortion, Chorus, Flange, Amplitude Modulation, Equalization and Reverb, rebuilt from their settings so only close to Vegas. Others (Simple Delay, Multi-Tap Delay, Noise Gate, compressors...) are skipped'],
         ['Reverse', 'Yes', 'Reversed events play backwards, their sound too'],
         ['Subclips', 'Yes', 'A part of a file cut in Vegas plays from its own spot'],
-        ['Takes', 'Partly', 'An event with several takes uses the one it was set to play (the last one, unless it was switched back)'],
+        ['Takes', 'Partly', 'An event with several takes uses the one it was set to play (the last one, unless it was switched back), also when the take was renamed in the project'],
         ['Masks', 'No', 'Parent/child tracks and nested projects too'],
       ],
     },
@@ -987,18 +987,28 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
   {
     name: 'wordcloud',
     category: 'generate',
-    summary: 'Creates a word cloud from a list of words.',
+    summary: 'Creates a word cloud from a list of words or messages.',
     syntax: 'wordcloud MEDIA_KEY WIDTH=1024 HEIGHT=768 ...WORDS',
     args: [
       media('the name for the word cloud'),
       {name: 'WIDTH', default: '1024', description: 'width in pixels; 0 uses the default'},
       {name: 'HEIGHT', default: '768', description: 'height in pixels; 0 uses the default'},
-      {name: 'WORDS', rest: true, description: 'the words, split by new lines (wrap in `{jsonify:}`)'},
+      {name: 'THEME', default: 'RAINBOW', description: 'colors, only by name: `FIRE`, `FOREST`, `IMAGE` (the mask\'s colors, the default with one), `MONO`, `NEON`, `OCEAN`, `PASTEL`, `RAINBOW` or `SUNSET`'},
+      {name: 'SHAPE', default: 'RECTANGLE', description: 'only by name: `CIRCLE`, `CLOUD`, `HEART`, `RECTANGLE` or `STAR`'},
+      {name: 'BACKGROUND', default: 'black', description: 'only by name: a hex code, `r,g,b(,a)`, a color name or `transparent`'},
+      {name: 'MASK', description: 'only by name: an image media the words fill (its white or transparent parts stay empty) and take the colors of'},
+      {name: 'SEED', description: 'only by name: the same seed and words give the same cloud'},
+      {name: 'WORDS', rest: true, description: 'the words or messages, each line on its own (wrap in `{jsonify:}`)'},
     ],
     examples: [
       {code: '{mediascript:wordcloud cloud words={jsonify:cake\ncake\ncake\npie\ncookies}\nrender cloud image/png}', result: 'A word cloud where "cake" is the biggest word.'},
+      {code: '{mediascript:wordcloud cloud 0 0 shape=heart theme=sunset background=white words={jsonify:{args}}\nrender cloud image/png}', result: 'The words you give, in a heart with sunset colors on white.'},
+      {code: '{mediascript:load {avatar} pfp\nwordcloud cloud mask=pfp words={jsonify:{args}}\nrender cloud image/png}', result: 'The words filling your avatar, in its colors.'},
     ],
-    notes: ['The size is kept between 512 and 2048 pixels.'],
+    notes: [
+      'The size is kept between 512 and 2048 pixels, with a shape it defaults to 1024x1024 and with a mask it fits the mask in it.',
+      'Common words (like "the", "lol") are left out, and two words that keep showing up together become one.',
+    ],
   },
   {
     name: 'tts',
@@ -1951,6 +1961,9 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
       media(),
       {name: 'MODEL', default: 'ISNET_GENERAL_USE', range: 'BIREFNET_COD, BIREFNET_DIS, BIREFNET_GENERAL, BIREFNET_GENERAL_LITE, BIREFNET_HRSOD, BIREFNET_MASSIVE, BIREFNET_PORTRAIT, BRIA_RMBG, ISNET_ANIME, ISNET_GENERAL_USE, SILUETA, U2NET, U2NETP, U2NET_CLOTH_SEG, U2NET_HUMAN_SEG', description: 'which model to use, e.g. `ISNET_ANIME` for drawings or `BIREFNET_PORTRAIT` for people'},
     ],
+    notes: [
+      'On GIFs and videos repeated frames only count once. The `BIREFNET_` models and `BRIA_RMBG` take one frame (still images), `ISNET_ANIME`, `ISNET_GENERAL_USE` and `U2NET_CLOTH_SEG` up to 128 different frames, the rest any amount within the usual frame limit.',
+    ],
   },
   {
     name: 'overlaypreset',
@@ -2333,7 +2346,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
       },
     ],
     notes: [
-      'The same as `ffmpeg MEDIA_KEY -vf lut3d=CUBE_KEY.cube`, and it counts towards the same limit of `ffmpeg` runs. The same effect is the `.lut` command (`/media-iv-5 fun lut`).',
+      'The same as `ffmpeg MEDIA_KEY -vf lut3d=CUBE_KEY.cube`, and it counts towards the same limit of `ffmpeg` runs. The same effect is the `.lut` command (`/media-iv-color lut`).',
       'Images and video only, audio is left as it is. Transparency is kept.',
     ],
   },
@@ -3021,7 +3034,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     ],
     notes: [
       'Uses a built-in displacement video that loops for clips longer than its 60 seconds. The audio is kept as it is.',
-      'Works on videos, GIFs and images (a still image gets one frame of the wobble). The same effect is the `.tvsimulator` command (`/media-iv-5 fun tv-simulator`).',
+      'Works on videos, GIFs and images (a still image gets one frame of the wobble). The same effect is the `.tvsimulator` command (`/media-iv-glitch tv-simulator`).',
       'For your own displacement video, `load` it and use `displace` inside `ffmpeg` (see Logo effects).',
     ],
   },
@@ -3532,7 +3545,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     ],
     notes: [
       'A channel vocoder like the Zerius Vocoder that autotune.exe is: about 1/15 second windows, split into BANDS bands, with the music\'s bands made as loud as the voice\'s and the result as loud as the music. It is not pitch correction.',
-      'The result is mono. Counts toward the `ffmpeg` limit. Outside of tags, the bot has the same thing as the `.vocoder` command (voice first, then the music) and `/media-av audio vocoder`.',
+      'The result is mono. Counts toward the `ffmpeg` limit. Outside of tags, the bot has the same thing as the `.vocoder` command (voice first, then the music) and `/media-av-pitch vocoder`.',
       'To sing a chord without a second media, use `vocoderchord`.',
     ],
   },
@@ -3555,7 +3568,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     ],
     notes: [
       'Each note is a few detuned voices of the synth sound, with a little hiss so the voice\'s s and t sounds still come through. Our own sounds, not a copy of any plugin\'s.',
-      'The result is mono. Counts toward the `ffmpeg` limit. Outside of tags, the bot has the same thing as the `.vocoderchord` command and `/media-av audio vocoder-chord`.',
+      'The result is mono. Counts toward the `ffmpeg` limit. Outside of tags, the bot has the same thing as the `.vocoderchord` command and `/media-av-pitch vocoder-chord`.',
     ],
   },
   {
@@ -3584,6 +3597,19 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
       media(),
       {name: 'FREQUENCY', default: '5.0', range: '0.1..20000.0', description: 'wobbles per second'},
       {name: 'DEPTH', default: '0.5', range: '0.0..1.0'},
+    ],
+  },
+  {
+    name: 'audionormalize',
+    category: 'audio',
+    summary: 'Normalizes the loudness to a loud level with ffmpeg\'s loudnorm.',
+    syntax: 'audionormalize MEDIA_KEY STRENGTH=1.0',
+    args: [
+      media(),
+      {name: 'STRENGTH', default: '1.0', range: '0.0..1.0', description: 'how loud it gets, 0 is -24 LUFS and 1 is -5 LUFS'},
+    ],
+    notes: [
+      'The same effect is the `.audio normalize` command (`/media-av-effect normalize`).',
     ],
   },
   {
