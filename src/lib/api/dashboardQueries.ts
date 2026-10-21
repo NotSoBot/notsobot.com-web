@@ -8,7 +8,7 @@ import { useAuth } from '@/auth';
 import { formatDate } from '@/lib/utils';
 
 import { ApiRequestError } from './client';
-import type { GuildScope } from './endpoints';
+import type { AdminStatsArea, GuildScope } from './endpoints';
 import { api } from './index';
 import { queryKeys, useReportsUnreadQuery } from './queries';
 import type {
@@ -76,6 +76,7 @@ import type {
   UserSettingsPatch,
   Voice,
   VoicesPage,
+  WebsiteReportBody,
 } from './types';
 import { ApiErrorCodes, ReportStatuses, TAG_DIRECTORY_ASSETS_MAX } from './types';
 
@@ -789,6 +790,26 @@ export function usePostMeReportMessageMutation(reportId: string) {
       queryClient.invalidateQueries({queryKey: ['users', '@me', token, 'reports']}),
       queryClient.invalidateQueries({queryKey: queryKeys.meReportsUnread(token)}),
     ]),
+  });
+}
+
+// the website's report forms. Logged in it's one of the user's reports (with replies), logged out it's anonymous and
+// needs the turnstile token. `report` is null for an anonymous one, there's nowhere to follow it
+export function useCreateReportMutation() {
+  const { token, isAuthenticated } = useAuth();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ turnstileToken, ...body }: WebsiteReportBody & {turnstileToken?: string | null}): Promise<{report: MeReport | null}> => {
+      if (isAuthenticated) {
+        return {report: await api.postMeReport(body)};
+      }
+      if (!turnstileToken) {
+        throw new Error('Missing the captcha');
+      }
+      await api.postAnonymousReport({...body, turnstile_token: turnstileToken});
+      return {report: null};
+    },
+    onSuccess: ({ report }) => (report) ? queryClient.invalidateQueries({queryKey: ['users', '@me', token, 'reports']}) : undefined,
   });
 }
 
@@ -1739,6 +1760,8 @@ export interface AdminReportsFilters {
   status: number | null,
   // the reporter sent the last reply
   awaitingReply: boolean | null,
+  // only anonymous reports from the website / only ones with a reporter
+  anonymous: boolean | null,
   // what the reporter wrote, or `#<id>`, `user:<id>`, `target:<id>`, `server:<id>` or a bare id
   query: string,
   page: number,
@@ -1762,6 +1785,7 @@ export function useAdminReportsQuery(filters: AdminReportsFilters) {
       type: filters.type,
       status: filters.status,
       awaitingReply: filters.awaitingReply,
+      anonymous: filters.anonymous,
       query: filters.query,
       offset: filters.page * ADMIN_PAGE_SIZE,
       limit: ADMIN_PAGE_SIZE,
@@ -1841,6 +1865,27 @@ export function useAdminEntitlementsQuery(filters: AdminEntitlementsFilters) {
       offset: filters.page * ADMIN_PAGE_SIZE,
       limit: ADMIN_PAGE_SIZE,
     }, signal),
+    placeholderData: keepPreviousData,
+  });
+}
+
+
+// `/admin/stats/files`, kept on screen while another window loads
+export function useAdminFileStatsQuery(expiringDays: number) {
+  const { token } = useAuth();
+  return useQuery({
+    queryKey: queryKeys.adminFileStats(token, expiringDays),
+    queryFn: ({ signal }) => api.fetchAdminFileStats(expiringDays, signal),
+    placeholderData: keepPreviousData,
+  });
+}
+
+// the other `/admin/stats/<area>` routes, over the last `days` days
+export function useAdminStatsQuery<T>(area: Exclude<AdminStatsArea, 'files'>, days: number) {
+  const { token } = useAuth();
+  return useQuery({
+    queryKey: queryKeys.adminStats(token, area, days),
+    queryFn: ({ signal }) => api.fetchAdminStats<T>(area, days, signal),
     placeholderData: keepPreviousData,
   });
 }

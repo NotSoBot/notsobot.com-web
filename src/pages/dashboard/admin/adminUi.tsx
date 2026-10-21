@@ -1,4 +1,4 @@
-import { ArrowUpRight, Check, ChevronDown, ChevronLeft, ChevronRight, Copy, Filter, X } from 'lucide-react';
+import { ArrowUpRight, Check, ChevronDown, ChevronLeft, ChevronRight, Copy, Filter, Info, X } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useSearchParams } from 'react-router';
@@ -200,7 +200,27 @@ export function Hint({ text, className, children }: {text: string, className?: s
 }
 
 
-function FloatingTooltip({ rect, text }: {rect: DOMRect, text: string}) {
+// an ⓘ next to a label that explains it, right away on hover, focus or a tap (unlike `title`, slow and never on touch)
+export function InfoTip({ text, className }: {text: string, className?: string}) {
+  const { rect, handlers } = useFloatingTooltip();
+  return (
+    <>
+      <button
+        type='button'
+        aria-label={text}
+        {...handlers}
+        className={cn('inline-flex shrink-0 cursor-default rounded-full text-subtle transition-colors hover:text-fg focus-visible:text-fg', className)}
+      >
+        <Info aria-hidden className='size-3.5'/>
+      </button>
+      {(rect) ? createPortal(<FloatingTooltip rect={rect} text={text} wrap/>, document.body) : null}
+    </>
+  );
+}
+
+
+// `wrap`: a sentence instead of a short value, wrapped at a narrow width so it fits on a phone
+function FloatingTooltip({ rect, text, wrap = false }: {rect: DOMRect, text: string, wrap?: boolean}) {
   const ref = useRef<HTMLDivElement>(null);
   const [ left, setLeft ] = useState<number | null>(null);
   // centered over what it's for but kept inside the viewport, which needs its own width; hidden until measured
@@ -218,7 +238,8 @@ function FloatingTooltip({ rect, text }: {rect: DOMRect, text: string}) {
       style={{left: left ?? 0, top: (above) ? rect.top - 6 : rect.bottom + 6, visibility: (left === null) ? 'hidden' : undefined}}
       className={cn(
         'pointer-events-none fixed z-50 rounded-md border border-line-strong bg-deep px-2.5 py-1.5',
-        'text-xs whitespace-nowrap text-fg tabular-nums shadow-xl shadow-black/40',
+        'text-xs text-fg tabular-nums shadow-xl shadow-black/40',
+        (wrap) ? 'max-w-64 whitespace-normal' : 'whitespace-nowrap',
         above && '-translate-y-full',
       )}
     >

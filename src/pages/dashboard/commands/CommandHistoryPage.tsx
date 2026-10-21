@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from
 import { Link } from 'react-router';
 
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
-import { CommandTypes, MeCommandResults, type Command, type CommandType, type MeCommandUse } from '@/lib/api';
+import { CommandTypes, type Command, type CommandType, type MeCommandUse } from '@/lib/api';
 import { ME_COMMANDS_PAGE_SIZE, errorMessage, useMeCommandsQuery, useMeGuildsQuery } from '@/lib/api/dashboardQueries';
 import { useCommandsQuery } from '@/lib/api/queries';
 import { enabledCommandVariants } from '@/lib/commandAvailability';
@@ -16,51 +16,12 @@ import { cn, formatDate, formatDateTime, formatExactDateTime, NO_AUTOFILL } from
 
 import { Chip, FilterButton, FiltersButton, IdFilter, Pagination, useSearchParamState, useStepBackFromEmptyPage } from '../admin/adminUi';
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from '../ui';
+import { COMMAND_TYPE_LABELS, RESULT_LABELS, resultInfo, TONE_FILLS } from './commandLabels';
 
 
 // the api doesn't page past this offset
 const MAX_OFFSET = 100000;
 const DMS = '0';
-
-const COMMAND_TYPE_LABELS: Record<CommandType, string> = {
-  [CommandTypes.PREFIXED]: 'Prefix',
-  [CommandTypes.APPLICATION_SLASH]: 'Slash',
-  [CommandTypes.APPLICATION_MENU_USER]: 'User app',
-  [CommandTypes.APPLICATION_MENU_MESSAGE]: 'Message app',
-};
-
-type Tone = 'neutral' | 'danger' | 'warning' | 'success' | 'brand';
-
-// the api's name for uses from before the bot reported how they ended
-const UNTRACKED_RESULT = 'untracked';
-
-// in the order the filter offers them: ran, then the errors, then the rest
-const RESULT_LABELS: Record<string, {label: string, tone: Tone}> = {
-  [MeCommandResults.RAN]: {label: 'Ran', tone: 'success'},
-  [MeCommandResults.RUN_ERROR]: {label: 'Errored', tone: 'danger'},
-  [MeCommandResults.FAIL]: {label: 'Failed', tone: 'danger'},
-  [MeCommandResults.ARGUMENT_ERROR]: {label: 'Bad arguments', tone: 'warning'},
-  [MeCommandResults.MISSING_PERMISSIONS]: {label: 'Missing permissions', tone: 'warning'},
-  [MeCommandResults.BOT_MISSING_PERMISSIONS]: {label: 'Bot missing permissions', tone: 'warning'},
-  [MeCommandResults.RATELIMITED]: {label: 'Rate limited', tone: 'warning'},
-  [MeCommandResults.BLOCKED]: {label: 'Blocked', tone: 'neutral'},
-  [MeCommandResults.CANCELLED]: {label: 'Cancelled', tone: 'neutral'},
-  [UNTRACKED_RESULT]: {label: 'Not tracked', tone: 'neutral'},
-};
-
-function resultInfo(result: string): {label: string, tone: Tone} {
-  return RESULT_LABELS[result] ?? {label: result, tone: 'neutral'};
-}
-
-// the breakdown's bar and dots, by tone
-const TONE_FILLS: Record<Tone, string> = {
-  success: 'bg-success',
-  danger: 'bg-danger',
-  warning: 'bg-warning',
-  brand: 'bg-brand',
-  neutral: 'bg-subtle',
-};
-
 
 function commandLabel(use: MeCommandUse): string {
   const name = use.command_name ?? use.command_id;

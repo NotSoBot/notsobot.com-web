@@ -474,7 +474,7 @@ export function adminUserEntries(users: Array<AdminUser>, flags: Array<ContentFl
         total: own.length,
       },
       reports: reports.filter((report) => report.target_id === user.id).length,
-      reports_sent: reports.filter((report) => report.user.id === user.id).length,
+      reports_sent: reports.filter((report) => report.user?.id === user.id).length,
       user,
     };
   });
@@ -572,14 +572,17 @@ export function createReports(users: Array<AdminUser>): Array<Report> {
     const status = [0, 0, 1, 0, 2, 1, 0][i % 7];
     const contents = REPORT_CONTENT[type];
     const dm = i % 4 === 3;
+    // odd ones, so none of them land in the mock user's own (every other one)
+    const anonymous = i % 12 === 5;
     const created = new Date(Date.now() - i * 7 * 3600000).toISOString();
     reports.push({
-      channel_id: (dm) ? (1300000000000000000n + BigInt(i)).toString() : (1200000000000000000n + BigInt(i % 3)).toString(),
+      // website reports weren't sent from anywhere in discord
+      channel_id: (anonymous) ? null : (dm) ? (1300000000000000000n + BigInt(i)).toString() : (1200000000000000000n + BigInt(i % 3)).toString(),
       content: contents[Math.floor(i / 6) % contents.length],
       created,
-      guild_id: (dm) ? null : '1100000000000000001',
+      guild_id: (dm || anonymous) ? null : '1100000000000000001',
       id: String(7000 + 37 - i),
-      message_id: (1320000000000000000n + BigInt(i) * 17n).toString(),
+      message_id: (anonymous) ? null : (1320000000000000000n + BigInt(i) * 17n).toString(),
       notes: (status && i % 3 === 0) ? 'Fixed in the last deploy.' : null,
       reviewed_at: (status) ? new Date(Date.parse(created) + 2 * 3600000).toISOString() : null,
       reviewed_by: (status) ? mockUser.id : null,
@@ -596,7 +599,9 @@ export function createReports(users: Array<AdminUser>): Array<Report> {
       replies: 0,
       last_reply: null,
       last_activity: null,
-      user: {
+      // a few bug reports came from the website logged out, two of them from the same place
+      ip_hash: (anonymous) ? ['4f1c9a7e2b6d8053', '9a3e5d71c0b2f846'][Math.floor(i / 12) % 2].padEnd(64, '0') : null,
+      user: (anonymous) ? null : {
         avatar: reporter.avatar,
         blocked: reporter.blocked,
         blocked_on: null,
@@ -627,7 +632,7 @@ export function createReportMessages(reports: Array<Report>): Map<string, Array<
     ];
     // the rest are waiting on the reporter
     if (i % 9 === 0) {
-      items.push({author: 'reporter', author_id: report.user.id, content: 'Around an hour before I sent it, in #general. It happened twice.', created: at(1.5), id: `${report.id}02`, status: null});
+      items.push({author: 'reporter', author_id: report.user?.id ?? '0', content: 'Around an hour before I sent it, in #general. It happened twice.', created: at(1.5), id: `${report.id}02`, status: null});
     }
     if (report.status !== 0 && report.reviewed_at) {
       items.push({author: 'staff', author_id: mockUser.id, content: null, created: report.reviewed_at, id: `${report.id}03`, status: report.status as ReportMessage['status']});

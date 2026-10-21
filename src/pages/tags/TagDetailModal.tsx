@@ -2,6 +2,7 @@ import { AlertTriangle, BarChart3, Calendar, ChevronLeft, ChevronRight, Hash, Se
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 
+import { ReportButton } from '@/components/reports/ReportDialog';
 import { Markdown } from '@/components/ui/Markdown';
 import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
@@ -295,6 +296,10 @@ function TagDetail({ item, editing, onEditingChange }: {item: TagDirectoryItem, 
               </div>
             </div>
           </section>
+          {/* the owner can't report their own tag */}
+          {(access.owner) ? null : (
+            <ReportButton subject={{type: 'tag', tag}} className='btn btn-ghost w-full justify-center text-sm hover:text-danger'/>
+          )}
         </aside>
       </div>
     </>

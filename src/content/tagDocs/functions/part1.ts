@@ -50,7 +50,7 @@ export const TAG_DOC_FUNCTIONS_PART1: Array<TagDocFunction> = [
       'The `ai.memory.*` functions can change the memory at most 3 times per message; another change throws an error. An add only counts when it saves something new.',
       'Counts against the network request limit.',
       'An empty fact outputs nothing.',
-      'Throws an error if the person turned off NotSoAI\'s memory, already has 10 global memories (or 10 for this server, with `server`), or the fact looks like a password, token or key.',
+      'Throws an error if the person turned off NotSoAI\'s memory, already has 25 global memories (or 15 for this server, with `server`), or the fact looks like a password, token or key.',
     ],
   },
   {

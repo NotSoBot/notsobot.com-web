@@ -40,11 +40,13 @@ export const Routes = Object.freeze({
   // bot owners only
   DASHBOARD_OWNER_API_ACCESS: '/dashboard/owner/api-access',
   DASHBOARD_OWNER_ENTITLEMENTS: '/dashboard/owner/entitlements',
+  DASHBOARD_OWNER_STATS: '/dashboard/owner/stats',
   FAQ: '/faq',
   FOXBOT: '/foxbot',
   INVITE: '/invite',
   LEGAL_PRIVACY: '/legal/privacy',
   LEGAL_TERMS_OF_SERVICE: '/legal/tos',
+  PREMIUM: '/premium',
   STATUS: '/status',
   TAG_DIRECTORY: '/tags/directory',
   TAG_DOCS: '/docs/tags',

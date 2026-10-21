@@ -31,7 +31,7 @@ export function PremiumPage() {
         title='Premium'
         description='Your NotSoPremium tier and the subscriptions behind it. Buying, renewing and cancelling happen in Discord, on NotSoBot’s profile.'
       >
-        <Link to={`${Routes.FAQ}#premium`} className='btn btn-sm btn-ghost'>
+        <Link to={Routes.PREMIUM} className='btn btn-sm btn-ghost'>
           What’s included
         </Link>
       </DashboardHeader>

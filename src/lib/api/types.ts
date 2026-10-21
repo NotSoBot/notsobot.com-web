@@ -83,7 +83,7 @@ export interface CommandMetadata {
   args: Array<CommandArg>,
   category: CommandCategory | string,
   // who made the command (or the program behind it). missing from commands uploaded before it existed
-  credits?: Array<{id: string, name: string}>,
+  credits?: Array<{id: string, name: string, url?: string}>,
   description: string | null,
   dmable: boolean,
   enabled: boolean,
@@ -424,8 +424,16 @@ export const ApiErrorCodes = {
   TAG_DIRECTORY_EDIT_REQUEST_NO_CHANGES: 50038,
   MAX_TAG_DIRECTORY: 30013,
   MAX_TAG_DIRECTORY_ASSETS: 30018,
+  // reports sent, per hour and per day (`metadata.scope`), the bot's and the tag directory's together
+  MAX_REPORTS: 30015,
   // the reporter's replies on their reports, per hour
   MAX_REPORT_MESSAGES: 30019,
+  // reporting your own tag from the tag directory
+  CANNOT_REPORT_YOURSELF: 50040,
+  // the turnstile token on an anonymous report was used, expired or failed
+  CAPTCHA_INVALID: 50041,
+  // e.g. anonymous reports without the api's turnstile secret
+  SERVER_MISCONFIGURED: 90001,
   MAX_LLM_MEMORIES: 30020,
   MAX_PREMIUM_SERVERS: 30022,
   // a server can't have a premium server slot taken off until a while after it got it (`removable_at` in the body)
@@ -1312,13 +1320,31 @@ export interface Report {
   // message reports have the reported message in channel_id/message_id instead of where the report was sent from
   target_id: string | null,
   type: number,
-  // the reporter
-  user: User,
+  // the reporter, null for an anonymous report from the website (no replies, they can't get them)
+  user: User | null,
+  // admin routes only: an anonymous report's sender, the same hash on several means they came from the same place
+  ip_hash?: string | null,
   // replies in the report's conversation (status changes don't count) and who sent the last one
   replies: number,
   last_reply: {author: ReportMessageAuthor, created: ApiTimestamp} | null,
   // the newest reply or status change, null when nothing's happened since it was sent
   last_activity: ApiTimestamp | null,
+}
+
+// what the website's report forms send (`POST /users/@me/reports`, or `/reports/anonymous` with `turnstile_token` when
+// logged out): bugs, and tags from the tag directory (`target_id` is the tag)
+export interface WebsiteReportBody {
+  content: string,
+  target_id?: string,
+  type: typeof ReportTypes.BUG | typeof ReportTypes.TAG,
+}
+
+// `POST /reports/anonymous` answers with just what was sent
+export interface AnonymousReport {
+  content: string,
+  id: string,
+  target_id: string | null,
+  type: number,
 }
 
 export interface ReportsPage {
@@ -1530,4 +1556,149 @@ export interface AdminEntitlement extends Entitlement {
 export interface AdminEntitlementsPage {
   count: number,
   items: Array<AdminEntitlement>,
+}
+
+
+export interface CountAndSize {
+  count: number,
+  // bytes
+  size: number,
+}
+
+// `/admin/stats/files`: everyone's files. The top-level numbers add up each file (the same content uploaded twice
+// counts twice), `expired` is temporary files the cleanup hasn't deleted yet (not in `count`/`size`). `storage` is
+// what's actually stored, each object once, split by what keeps it: a permanent file, only unexpired temporary ones,
+// or nothing (waiting for the cleanup)
+export interface AdminFileStats {
+  count: number,
+  size: number,
+  permanent: CountAndSize,
+  temporary: CountAndSize,
+  expired: CountAndSize,
+  storage: CountAndSize & {
+    permanent: CountAndSize,
+    temporary: CountAndSize,
+    unused: CountAndSize,
+  },
+  // temporary files expiring before `ends_at` (`expiring_days` from now); `freed` is the stored objects that go with
+  // them (nothing outside the window keeps them), `days` a bucket per 24 hours from now
+  expiring: CountAndSize & {
+    ends_at: string,
+    freed: CountAndSize,
+    days: Array<CountAndSize & {starts_at: string}>,
+  },
+  // live files by mimetype (`image/...`, `video/...`, `audio/...`, the rest is `other`)
+  types: Array<CountAndSize & {type: 'image' | 'video' | 'audio' | 'other'}>,
+  // who stores the most: their stored objects a live file uses, each once. `user` is null if the row is gone
+  top_users: Array<CountAndSize & {user_id: string, user: AdminUserRef | null}>,
+  generated_at: string,
+}
+
+// the other `/admin/stats/<area>` routes cover the last `days` UTC calendar days (today included, from `starts_at`),
+// and their `series` have one item per day, oldest first
+export interface AdminStatsWindow {
+  days: number,
+  starts_at: string,
+}
+
+type DailySeries<T> = Array<T & {date: string}>;
+
+// `/admin/stats/uploads`: files uploaded per day (expired temporary ones that were cleaned up don't count anymore)
+export interface AdminUploadStats extends AdminStatsWindow {
+  permanent: CountAndSize,
+  temporary: CountAndSize,
+  series: DailySeries<{permanent: CountAndSize, temporary: CountAndSize}>,
+}
+
+// `/admin/stats/commands`: commands run, by how many users and servers. `results` is how attempts ended (the bot's
+// `CommandResults`, `untracked` from before that was recorded), most first; `types` by `CommandTypes`
+export interface AdminCommandStats extends AdminStatsWindow {
+  count: number,
+  users: number,
+  servers: number,
+  series: DailySeries<{count: number}>,
+  top: Array<{command_id: string, count: number, users: number}>,
+  types: Array<{type: CommandType, count: number}>,
+  results: Array<{result: string, count: number}>,
+}
+
+// `/admin/stats/api`: requests the api logged. Times are ms; `application: null` is requests without an application
+// token (the dashboard and the site), `name` is null when the application is gone
+export interface AdminApiStats extends AdminStatsWindow {
+  requests: number,
+  client_errors: number,
+  server_errors: number,
+  took_avg: number,
+  took_p95: number,
+  users: number,
+  series: DailySeries<{requests: number, server_errors: number}>,
+  endpoints: Array<{method: string, endpoint: string, requests: number, server_errors: number, took_avg: number}>,
+  applications: Array<{application: {id: string, name: string | null} | null, requests: number, server_errors: number}>,
+}
+
+// `/admin/stats/growth`: `users.total` is every (non-bot) user row, `active_ever` everyone who's run a command, `new`
+// the ones whose first command was in the window. `servers.current` is the servers the bot is in now. `ghosts` are servers
+// the bot had already left that discord still lists when a shard identifies, then removes again: not leaves, but how
+// often shards identified
+export interface AdminGrowthStats extends AdminStatsWindow {
+  users: {
+    total: number,
+    blocked: number,
+    active_ever: number,
+    new: number,
+    series: DailySeries<{count: number}>,
+  },
+  servers: {
+    current: number,
+    joins: number,
+    leaves: number,
+    // missing from an api from before they were counted
+    ghosts?: number,
+    series: DailySeries<{joins: number, leaves: number, ghosts?: number}>,
+  },
+}
+
+// `/admin/stats/premium`: active entitlements by tier (`premium_type` null for a sku we don't sell) and provider,
+// `users` by their `premium_type` (owners can give premium without an entitlement), and what started or ended in the
+// window
+export interface AdminPremiumStats extends AdminStatsWindow {
+  active: {
+    count: number,
+    users: number,
+    tiers: Array<{premium_type: number | null, count: number, discord: number, manual: number}>,
+  },
+  users: Array<{premium_type: number, count: number}>,
+  started: number,
+  ended: number,
+  premium_servers: number,
+  series: DailySeries<{started: number, ended: number}>,
+}
+
+// `/admin/stats/moderation`: what's waiting on staff (pending flags leave out blocked users', like the flags page),
+// with the oldest of each; `created`/`reviewed` are in the window
+export interface AdminModerationStats extends AdminStatsWindow {
+  content_flags: {pending: number, needs_human_review: number, oldest_pending_at: string | null, created: number, reviewed: number},
+  reports: {open: number, awaiting_reply: number, oldest_open_at: string | null, created: number},
+  directory: {pending: number, oldest_pending_at: string | null, edit_requests: number, oldest_edit_request_at: string | null},
+}
+
+// `/admin/stats/content`: how much of everything there is, `users` is how many users have any, `new` made in the window
+export interface AdminContentStats extends AdminStatsWindow {
+  tags: {
+    total: number,
+    users: number,
+    new: number,
+    // where they live: personal (on their owner), a server, or a DM
+    personal: number,
+    server: number,
+    dm: number,
+    aliases: number,
+    commands: number,
+    nsfw: number,
+    directory: {verified: number, pending: number, unverified: number},
+  },
+  reminders: {total: number, users: number, new: number, next_day: number},
+  voices: {total: number, users: number, new: number},
+  ai_memories: {total: number, users: number, new: number},
+  applications: {total: number, users: number, new: number, disabled: number},
 }

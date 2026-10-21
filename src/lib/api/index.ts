@@ -1,4 +1,4 @@
-import { ApiEndpoints, guildEndpoints, type GuildScope } from './endpoints';
+import { ApiEndpoints, guildEndpoints, type AdminStatsArea, type GuildScope } from './endpoints';
 import { ApiRequestError, apiRequest } from './client';
 import { ApiErrorCodes, toTagDirectoryCategory } from './types';
 import type {
@@ -7,6 +7,7 @@ import type {
   AdminApplicationDetail,
   AdminApplicationsPage,
   AdminEntitlementsPage,
+  AdminFileStats,
   AdminGuild,
   AdminGuildPatch,
   AdminGuildsPage,
@@ -51,11 +52,13 @@ import type {
   Reminder,
   ReminderPatch,
   MeCommandsPage,
+  AnonymousReport,
   MeReport,
   MeReportPatch,
   MeReportsPage,
   MeReportsSortBy,
   MeReportsUnread,
+  WebsiteReportBody,
   RemindersPage,
   Report,
   ReportMessage,
@@ -408,6 +411,15 @@ export const api = {
 
   postMeReportMessage: (reportId: string, content: string) => {
     return apiRequest<ReportMessage>(ApiEndpoints.USER_ME_REPORT_MESSAGES(reportId), {method: 'POST', body: {content}});
+  },
+
+  // the website's report forms, logged in (`postAnonymousReport` when logged out)
+  postMeReport: (body: WebsiteReportBody) => {
+    return apiRequest<MeReport>(ApiEndpoints.USER_ME_REPORTS, {method: 'POST', body});
+  },
+
+  postAnonymousReport: (body: WebsiteReportBody & {turnstile_token: string}) => {
+    return apiRequest<AnonymousReport>(ApiEndpoints.REPORTS_ANONYMOUS, {method: 'POST', body});
   },
 
   fetchMeCommands: (params: {guildId?: string | null, channelId?: string | null, commandId?: string | null, commandType?: number | null, result?: string | null, offset?: number, limit?: number}, signal?: AbortSignal) => {
@@ -887,6 +899,7 @@ export const api = {
     type?: number | null,
     status?: number | null,
     awaitingReply?: boolean | null,
+    anonymous?: boolean | null,
     query?: string,
     offset?: number,
     limit?: number,
@@ -897,6 +910,7 @@ export const api = {
         type: params.type,
         status: params.status,
         awaiting_reply: params.awaitingReply ?? undefined,
+        anonymous: params.anonymous ?? undefined,
         query: params.query || undefined,
         offset: params.offset || undefined,
         limit: params.limit,
@@ -939,6 +953,15 @@ export const api = {
         limit: params.limit,
       },
     });
+  },
+
+  fetchAdminFileStats: (expiringDays: number, signal?: AbortSignal) => {
+    return apiRequest<AdminFileStats>(ApiEndpoints.ADMIN_STATS('files'), {signal, query: {expiring_days: expiringDays}});
+  },
+
+  // every other stats area takes a window of days
+  fetchAdminStats: <T>(area: Exclude<AdminStatsArea, 'files'>, days: number, signal?: AbortSignal) => {
+    return apiRequest<T>(ApiEndpoints.ADMIN_STATS(area), {signal, query: {days}});
   },
 
   fetchAdminVoices: (params: {query?: string, userId?: string, offset?: number, limit?: number}, signal?: AbortSignal) => {

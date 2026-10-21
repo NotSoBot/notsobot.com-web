@@ -8,6 +8,8 @@ export const ApiEndpoints = Object.freeze({
   HELP_DISCORD_SERVER: '/help/discord/server',
   INFO_DISCORD: '/info/discord',
   JOB: (jobId: string) => `/jobs/${jobId}`,
+  // the website's report forms when logged out
+  REPORTS_ANONYMOUS: '/reports/anonymous',
   TAGS_DIRECTORY: '/tags/directory',
   USER_ME: '/users/@me',
   USER_ME_SESSIONS: '/users/@me/sessions',
@@ -87,6 +89,7 @@ export const ApiEndpoints = Object.freeze({
   ADMIN_USER_COPYRIGHT_STRIKES: (userId: string) => `/admin/users/${userId}/copyright-strikes`,
   ADMIN_CONTENT_FLAGS: '/admin/content-flags',
   ADMIN_ENTITLEMENTS: '/admin/entitlements',
+  ADMIN_STATS: (area: AdminStatsArea) => `/admin/stats/${area}`,
   ADMIN_CONTENT_FLAG: (flagId: string) => `/admin/content-flags/${flagId}`,
   ADMIN_CONTENT_FLAG_MATCHES: (flagId: string) => `/admin/content-flags/${flagId}/matches`,
   ADMIN_CONTENT_FLAG_MEDIA: (flagId: string) => `/admin/content-flags/${flagId}/media`,
@@ -120,3 +123,7 @@ export function guildEndpoints(scope: GuildScope, guildId: string) {
     DATA_DELETE: `${base}/data/delete`,
   };
 }
+
+
+// the owner Stats page's sections, a route each so they load on their own
+export type AdminStatsArea = 'api' | 'commands' | 'content' | 'files' | 'growth' | 'moderation' | 'premium' | 'uploads';

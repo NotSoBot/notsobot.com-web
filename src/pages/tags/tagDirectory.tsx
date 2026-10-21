@@ -124,6 +124,7 @@ export function VerificationWarning() {
       <li>Only request verification if you made the tag’s content (its code, text and media) or have permission from its owner to share it. Tags using content you don’t have the rights to won’t be verified.</li>
       <li>Requesting verification locks the tag’s content, so it can’t be edited while the review is pending or after it’s verified.</li>
       <li>If it’s verified, NotSoBot staff may change its content to make it more efficient, and may move its media onto NotSoBot’s own servers.</li>
+      <li>If it’s verified, it runs with NotSoPremium limits for everyone who uses it, like more time to run.</li>
       <li>You can cancel the request while it’s still pending.</li>
     </ul>
   );

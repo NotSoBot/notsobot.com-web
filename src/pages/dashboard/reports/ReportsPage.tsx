@@ -1,4 +1,4 @@
-// The reports the user sent with the bot's report commands and where they stand. The reports are made in Discord, here they
+// The reports the user sent (with the bot's report commands or the website's report forms) and where they stand. Here they
 // can talk with staff (only ever "NotSoAdmin" to them) about one and reopen it, even after it was resolved or dismissed.
 // Laid out like the admin reports page: one line per report, and a click opens it in a modal like the admin one.
 // `content` is whatever the user typed, so it's only ever rendered as plain text.
@@ -119,7 +119,7 @@ export function ReportsPage() {
     <>
       <DashboardHeader
         title='Your Reports'
-        description={<>Reports you’ve sent to the NotSoBot developers with the bot’s <code className='text-fg'>report</code> commands.</>}
+        description={<>Reports you’ve sent to the NotSoBot developers with the bot’s <code className='text-fg'>report</code> commands or from the website.</>}
       />
 
       <div className='mb-4 flex gap-2'>

@@ -1,7 +1,8 @@
-// Bug, user, server, message and tag reports sent with the bot's `report` commands (prefixed, slash and context menus).
+// Bug, user, server, message and tag reports sent with the bot's `report` commands (prefixed, slash and context menus),
+// and bug and tag reports from the website, which can be anonymous (no reporter, so no conversation).
 // `content` is whatever the reporter typed, so it's only ever rendered as plain text.
 
-import { ArrowUpRight, Check, ExternalLink, Inbox, type LucideIcon, MessagesSquare, RotateCcw, X } from 'lucide-react';
+import { ArrowUpRight, Check, ExternalLink, EyeOff, Inbox, type LucideIcon, MessagesSquare, RotateCcw, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 
@@ -93,6 +94,7 @@ export function AdminReportsPage() {
   const type = parseEnum(searchParams.get('type'));
   const status = parseStatus(searchParams.get('status'));
   const awaiting = parseBool(searchParams.get('awaiting_reply'));
+  const anonymous = parseBool(searchParams.get('anonymous'));
   // what they wrote, or an id: `#<report>`, `user:<reporter>`, `target:<id>`, `server:<sent from or about>` or a bare one
   const query = searchParams.get('q') || '';
   const debouncedQuery = useDebouncedValue(query.trim(), 300);
@@ -101,6 +103,7 @@ export function AdminReportsPage() {
     type,
     status,
     awaitingReply: awaiting,
+    anonymous,
     query: debouncedQuery,
     page,
   });
@@ -117,11 +120,11 @@ export function AdminReportsPage() {
     onChange: setPage,
     fetching: isFetching && isPlaceholderData,
   };
-  const filtered = !!(type !== null || status !== ReportStatuses.OPEN || awaiting !== null || debouncedQuery);
+  const filtered = !!(type !== null || status !== ReportStatuses.OPEN || awaiting !== null || anonymous !== null || debouncedQuery);
   // the panel starts closed like the other admin pages', the button counts the filters not on their default (the search
   // box stays out)
   const [ filtersOpen, setFiltersOpen ] = useState(false);
-  const activeFilters = [type !== null, status !== ReportStatuses.OPEN, awaiting !== null].filter(Boolean).length;
+  const activeFilters = [type !== null, status !== ReportStatuses.OPEN, awaiting !== null, anonymous !== null].filter(Boolean).length;
   // closes the report too (in the same navigation), the one it's filtering by might not be in the new list
   const filterBy = (changes: Record<string, string | null>) => {
     const next = new URLSearchParams(searchParams);
@@ -140,7 +143,7 @@ export function AdminReportsPage() {
     <>
       <DashboardHeader
         title='Reports'
-        description={<>Bug, user, server, message and tag reports sent with the bot’s report commands, newest first. Search what they wrote, or an id: a bare one matches the report, reporter, target or server; <code className='text-code'>#&lt;id&gt;</code>, <code className='text-code'>user:</code>, <code className='text-code'>target:</code> or <code className='text-code'>server:</code> match only that, with any other text still searched (<code className='text-code'>user:&lt;id&gt; foo</code>).</>}
+        description={<>Bug, user, server, message and tag reports sent with the bot’s report commands, and bug and tag reports from the website (anonymous when logged out), newest first. Search what they wrote, or an id: a bare one matches the report, reporter, target or server; <code className='text-code'>#&lt;id&gt;</code>, <code className='text-code'>user:</code>, <code className='text-code'>target:</code> or <code className='text-code'>server:</code> match only that, with any other text still searched (<code className='text-code'>user:&lt;id&gt; foo</code>).</>}
       />
 
       <div className='mb-4 flex gap-2'>
@@ -154,7 +157,7 @@ export function AdminReportsPage() {
         <FiltersButton open={filtersOpen} onToggle={() => setFiltersOpen((value) => !value)} active={activeFilters} controls='admin-report-filters'/>
       </div>
 
-      <div id='admin-report-filters' hidden={!filtersOpen} className='card mb-4 grid gap-3 p-4 sm:grid-cols-3'>
+      <div id='admin-report-filters' hidden={!filtersOpen} className='card mb-4 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4'>
         <label className='text-sm'>
           <span className='mb-1 block text-subtle'>Status</span>
           <select
@@ -179,6 +182,14 @@ export function AdminReportsPage() {
             <option value=''>Any</option>
             <option value='true'>Waiting on staff</option>
             <option value='false'>Not waiting</option>
+          </select>
+        </label>
+        <label className='text-sm'>
+          <span className='mb-1 block text-subtle'>Sender</span>
+          <select className='input' value={(anonymous === null) ? '' : String(anonymous)} onChange={(event) => update({anonymous: event.target.value})}>
+            <option value=''>Any</option>
+            <option value='false'>Logged in</option>
+            <option value='true'>Anonymous</option>
           </select>
         </label>
       </div>
@@ -241,7 +252,7 @@ function ReportRow({ report, onOpen }: {report: Report, onOpen: (id: string) => 
           <span className='min-w-0 truncate font-mono text-sm leading-5 text-white'>#{report.id}</span>
         </span>
         {/* who sent it, under the type */}
-        <span className='col-start-1 row-start-2 min-w-0'><UserCell user={report.user} size='sm'/></span>
+        <span className='col-start-1 row-start-2 min-w-0'>{(report.user) ? <UserCell user={report.user} size='sm'/> : <AnonymousReporter/>}</span>
         {/* what they wrote, across the bottom in a code box like the modal's */}
         <span className='col-span-2 row-start-3 flex min-w-0 items-center gap-2 text-sm text-muted'>
           {(report.replies) ? (
@@ -327,23 +338,36 @@ function ReportDetails({ report, onFilterReporter, onFilterTarget, navigation }:
       {/* who sent it and what it's about. The reporter links to their admin page, the target id to whatever it is */}
       <DetailModalStrip className='grid grid-cols-[max-content_minmax(0,1fr)] items-center gap-x-3 gap-y-1'>
         <span className='text-xs text-subtle'>Reporter</span>
-        <div className='flex min-h-8 min-w-0 items-center gap-2'>
-          <Link
-            to={adminUserPath(user.id)}
-            title='Open in users'
-            className='group/user -ml-1.5 flex min-w-0 items-center gap-1.5 rounded-md py-1 pr-2 pl-1.5 transition-colors hover:bg-surface-3'
-          >
-            <UserCell user={user} size='sm'/>
-            <ArrowUpRight aria-hidden className='size-3.5 shrink-0 text-subtle transition-colors group-hover/user:text-brand'/>
-          </Link>
-          {/* the filter by their name, and copying their id under it by the id (outside the link, so copying doesn't open
-              their page) */}
-          <div className='flex shrink-0 flex-col items-center gap-0.5'>
-            <FilterButton label='Show reports from this user' onClick={() => onFilterReporter(user.id)}/>
-            <CopyButton value={user.id}/>
+        {(user) ? (
+          <div className='flex min-h-8 min-w-0 items-center gap-2'>
+            <Link
+              to={adminUserPath(user.id)}
+              title='Open in users'
+              className='group/user -ml-1.5 flex min-w-0 items-center gap-1.5 rounded-md py-1 pr-2 pl-1.5 transition-colors hover:bg-surface-3'
+            >
+              <UserCell user={user} size='sm'/>
+              <ArrowUpRight aria-hidden className='size-3.5 shrink-0 text-subtle transition-colors group-hover/user:text-brand'/>
+            </Link>
+            {/* the filter by their name, and copying their id under it by the id (outside the link, so copying doesn't open
+                their page) */}
+            <div className='flex shrink-0 flex-col items-center gap-0.5'>
+              <FilterButton label='Show reports from this user' onClick={() => onFilterReporter(user.id)}/>
+              <CopyButton value={user.id}/>
+            </div>
+            {(user.blocked) ? <Chip tone='danger' title={user.blocked_reason ?? undefined}>Blocked</Chip> : null}
           </div>
-          {(user.blocked) ? <Chip tone='danger' title={user.blocked_reason ?? undefined}>Blocked</Chip> : null}
-        </div>
+        ) : (
+          // sent from the website logged out: no account, just a hash of where it came from (the same on reports from
+          // the same place)
+          <div className='flex min-h-8 min-w-0 items-center gap-2'>
+            <AnonymousReporter/>
+            {(report.ip_hash) ? (
+              <span className='font-mono text-xs text-subtle' title={`Source ${report.ip_hash}: anonymous reports with the same source came from the same IP address`}>
+                source {report.ip_hash.slice(0, 8)}
+              </span>
+            ) : null}
+          </div>
+        )}
         {(report.type !== ReportTypes.BUG) ? (
           <>
             <span className='text-xs text-subtle'>Reported {REPORT_TARGET_LABELS[report.type] ?? 'target'}</span>
@@ -461,7 +485,13 @@ function ReportDetails({ report, onFilterReporter, onFilterTarget, navigation }:
           <div className='mb-1 flex min-h-8 items-center'>
             <h3 className='section-label'>Conversation with the reporter</h3>
           </div>
-          <ReportConversation report={report}/>
+          {(report.user) ? (
+            <ReportConversation report={report}/>
+          ) : (
+            <p className='rounded-md border border-line bg-deep px-3 py-2 text-sm text-muted'>
+              Sent anonymously from the website, so there’s nobody to reply to. Changing the status still works.
+            </p>
+          )}
         </div>
       </div>
 
@@ -486,6 +516,17 @@ function ReportDetails({ report, onFilterReporter, onFilterTarget, navigation }:
         })}
       </AdminModalFooter>
     </div>
+  );
+}
+
+
+// a website report sent while logged out, in place of the reporter
+function AnonymousReporter() {
+  return (
+    <span className='inline-flex items-center gap-1.5 text-sm text-muted' title='Sent from the website without logging in'>
+      <EyeOff aria-hidden className='size-4 shrink-0 text-subtle'/>
+      Anonymous
+    </span>
   );
 }
 

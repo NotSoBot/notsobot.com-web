@@ -2,6 +2,7 @@ import { Github, MessageSquare } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 
+import { ReportButton } from '@/components/reports/ReportDialog';
 import { Routes, Urls } from '@/config';
 import { ApiEndpoints, apiUrl } from '@/lib/api';
 import { shuffle } from '@/lib/utils';
@@ -47,6 +48,8 @@ export function Footer() {
             <li><Link to={Routes.FAQ} className='text-muted transition-colors hover:text-white'>FAQ</Link></li>
             <li><Link to={Routes.CHANGELOG} className='text-muted transition-colors hover:text-white'>Changelog</Link></li>
             <li><Link to={Routes.TAG_DOCS} className='text-muted transition-colors hover:text-white'>Tag Docs</Link></li>
+            {/* anonymous when logged out (behind a captcha), or logging in first when the site has no captcha set up */}
+            <li><ReportButton subject={{type: 'bug'}} className='cursor-pointer text-muted transition-colors hover:text-white'>Report a Bug</ReportButton></li>
             <li><Link to={Routes.LEGAL_PRIVACY} className='text-muted transition-colors hover:text-white'>Privacy Policy</Link></li>
             <li><Link to={Routes.LEGAL_TERMS_OF_SERVICE} className='text-muted transition-colors hover:text-white'>Terms of Service</Link></li>
           </ul>

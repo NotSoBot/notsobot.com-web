@@ -15,6 +15,7 @@ import { HomePage } from '@/pages/HomePage';
 import { PrivacyPage } from '@/pages/legal/PrivacyPage';
 import { TermsPage } from '@/pages/legal/TermsPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
+import { PremiumPage } from '@/pages/PremiumPage';
 import { RouteErrorPage } from '@/pages/RouteErrorPage';
 import { StatusPage } from '@/pages/StatusPage';
 import { TagDirectoryPage } from '@/pages/tags/TagDirectoryPage';
@@ -45,6 +46,8 @@ const routes: Array<RouteObject> = [
       },
       {path: Routes.CHANGELOG, element: <ChangelogPage/>, handle: PAGES.CHANGELOG},
       {path: Routes.FAQ, element: <FaqPage/>, handle: PAGES.FAQ},
+      // not in the navbar or footer yet
+      {path: Routes.PREMIUM, element: <PremiumPage/>, handle: PAGES.PREMIUM},
       {path: Routes.STATUS, element: <StatusPage/>, handle: PAGES.STATUS},
       {
         path: Routes.TAG_DIRECTORY,
@@ -127,12 +130,13 @@ const routes: Array<RouteObject> = [
                   {path: Routes.DASHBOARD_ADMIN_VOICES, lazy: async () => ({Component: (await import('@/pages/dashboard/admin/AdminVoicesPage')).AdminVoicesPage}), handle: PAGES.DASHBOARD_ADMIN_VOICES},
                 ],
               },
-              // NotSoBot owners only: everyone's purchase history and who can make API applications
+              // NotSoBot owners only: everyone's purchase history, who can make API applications and api-wide stats
               {
                 element: <RequireStaff owner/>,
                 children: [
                   {path: Routes.DASHBOARD_OWNER_API_ACCESS, lazy: async () => ({Component: (await import('@/pages/dashboard/admin/OwnerApiAccessPage')).OwnerApiAccessPage}), handle: PAGES.DASHBOARD_OWNER_API_ACCESS},
                   {path: Routes.DASHBOARD_OWNER_ENTITLEMENTS, lazy: async () => ({Component: (await import('@/pages/dashboard/admin/AdminEntitlementsPage')).AdminEntitlementsPage}), handle: PAGES.DASHBOARD_OWNER_ENTITLEMENTS},
+                  {path: Routes.DASHBOARD_OWNER_STATS, lazy: async () => ({Component: (await import('@/pages/dashboard/admin/OwnerStatsPage')).OwnerStatsPage}), handle: PAGES.DASHBOARD_OWNER_STATS},
                 ],
               },
             ],

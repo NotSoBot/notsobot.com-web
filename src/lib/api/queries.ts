@@ -43,6 +43,8 @@ export const queryKeys = {
   adminUsers: (token: string | null, filters: object) => ['users', '@me', token, 'admin', 'users', filters] as const,
   adminContentFlags: (token: string | null, filters: object) => ['users', '@me', token, 'admin', 'content-flags', filters] as const,
   adminEntitlements: (token: string | null, filters: object) => ['users', '@me', token, 'admin', 'entitlements', filters] as const,
+  adminFileStats: (token: string | null, expiringDays: number) => ['users', '@me', token, 'admin', 'stats', 'files', expiringDays] as const,
+  adminStats: (token: string | null, area: string, days: number) => ['users', '@me', token, 'admin', 'stats', area, days] as const,
   adminReports: (token: string | null, filters: object) => ['users', '@me', token, 'admin', 'reports', filters] as const,
   adminApplications: (token: string | null, filters: object) => ['users', '@me', token, 'admin', 'applications', 'list', filters] as const,
   adminApplication: (token: string | null, applicationId: string) => ['users', '@me', token, 'admin', 'applications', 'detail', applicationId] as const,
@@ -95,12 +97,12 @@ export function useCommandStatsQuery(days = 7) {
 }
 
 
-// the status page polls every 2s; other pages (home stats) just read it once
+// the status page polls every 5s (clusters report about every 15s); other pages (home stats) just read it once
 export function useInfoDiscordQuery({ poll = true }: {poll?: boolean} = {}) {
   return useQuery({
     queryKey: queryKeys.infoDiscord,
     queryFn: ({ signal }) => api.fetchInfoDiscord(signal),
-    refetchInterval: (poll) ? 2000 : false,
+    refetchInterval: (poll) ? 5000 : false,
     staleTime: (poll) ? 0 : 60 * 1000,
     refetchIntervalInBackground: false,
   });

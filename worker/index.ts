@@ -373,14 +373,16 @@ const FRAME_POLICY = 'frame-ancestors \'none\'; object-src \'none\'; base-uri \'
 // report-only for now: command previews come from the API and can point at any image host, so this can't be
 // enforced until it's been watched in production for a while. once the browser console stays quiet, move it
 // into Content-Security-Policy (and add a report endpoint to hear about breakage)
+// cloudflare turnstile (the captcha on the report forms when logged out) loads its script and renders in an iframe
+const TURNSTILE_ORIGIN = 'https://challenges.cloudflare.com';
 const CONTENT_POLICY = [
   'default-src \'self\'',
-  `script-src 'self' ${new URL(UMAMI_SCRIPT_URL).origin}`,
+  `script-src 'self' ${new URL(UMAMI_SCRIPT_URL).origin} ${TURNSTILE_ORIGIN}`,
   'style-src \'self\' https://fonts.googleapis.com',
   'font-src \'self\' https://fonts.gstatic.com',
   'img-src \'self\' data: https://cdn.discordapp.com https://media.discordapp.net https://cdn.nsb.gg',
   `connect-src 'self' ${new URL(UMAMI_SCRIPT_URL).origin}`,
-  'frame-src \'none\'',
+  `frame-src ${TURNSTILE_ORIGIN}`,
   'form-action \'self\'',
 ].join('; ');
 

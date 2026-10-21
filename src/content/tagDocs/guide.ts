@@ -550,12 +550,13 @@ export const TAG_DOC_GUIDE: Array<TagDocGuideSection> = [
     id: 'limits',
     title: 'Limits',
     body: [
-      'To keep things fast and fair, every run of a tag has limits. Going over one stops the tag with an error, except for the iteration limit (explained below). These limits are the same for everyone, premium or not (only the time code may run is longer with premium). Each button or select menu click on a tag\'s message starts with fresh limits.',
+      'To keep things fast and fair, every run of a tag has limits. Going over one stops the tag with an error, except for the iteration limit (explained below). These limits are the same for everyone, premium or not, except how long the tag and its code may run. Verified tags from the tag directory always run with premium limits, whoever uses them. Each button or select menu click on a tag\'s message starts with fresh limits.',
       'The iteration limit counts how many times the engine parses a piece of text: once for the tag itself and once for every argument that contains a function. When it runs out, the rest of the tag is output as plain text without being evaluated.',
     ].join('\n\n'),
     table: {
       columns: ['Limit', 'Default', 'What it covers'],
       rows: [
+        ['Run time', '40 seconds', 'How long the whole run can take, everything it calls included: 60 seconds in a premium server, 70 with Premium, 100 with Plus and 130 with Plus AI.'],
         ['Iterations', '450', 'Times text is parsed per run. When it runs out the remaining text is output unevaluated.'],
         ['Network requests', '15', 'Functions that reach the internet: downloads, searches, attachments, code runs, looking up users and so on.'],
         ['AI requests', '1', '`{ai}` calls.'],
@@ -574,7 +575,7 @@ export const TAG_DOC_GUIDE: Array<TagDocGuideSection> = [
         ['Storage value length', '16,384 characters', 'Length of a persistent storage value.'],
         ['Storage keys per scope', '5', 'Keys a scope (user, channel, server, global) may hold per tag, from set functions or code. Empty values do not count.'],
         ['Blob size', '256 KB', 'Size of each scope\'s blob, written from code.'],
-        ['Code run time', 'About 15 seconds', 'How long one code run can take before it is stopped; longer for premium.'],
+        ['Code run time', 'About 15 seconds', 'How long one code run can take before it is stopped: 20 seconds in a premium server, 30 with Premium and 45 with Plus.'],
         ['Code output JSON check', '16,000 characters', 'Printed output longer than this is never read as embed, component or page JSON, only as text.'],
         ['Files loaded into code', '10', 'Files from `load` lines in one code run.'],
         ['Files from code', '10', 'Files saved to the output folder in one run (the reply still holds 10 attachments in total).'],

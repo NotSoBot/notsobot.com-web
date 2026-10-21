@@ -71,6 +71,7 @@ export const PAGES: Readonly<Record<keyof typeof Routes, PageMeta>> = Object.fre
   DASHBOARD_ADMIN_VOICES: {title: 'Voices', description: ADMIN_DESCRIPTION},
   DASHBOARD_OWNER_API_ACCESS: {title: 'API Access', description: ADMIN_DESCRIPTION},
   DASHBOARD_OWNER_ENTITLEMENTS: {title: 'Entitlements', description: ADMIN_DESCRIPTION},
+  DASHBOARD_OWNER_STATS: {title: 'Stats', description: ADMIN_DESCRIPTION},
   FAQ: {
     title: 'FAQ',
     description: 'Answers to common NotSoBot questions: adding the bot, running commands, changing the prefix, limiting it to certain channels, premium and your data.',
@@ -80,6 +81,11 @@ export const PAGES: Readonly<Record<keyof typeof Routes, PageMeta>> = Object.fre
   INVITE: {title: 'Invite', description: 'Add NotSoBot to your Discord server.'},
   LEGAL_PRIVACY: {title: 'Privacy Policy', description: 'How NotSoBot collects, uses and stores your data.', index: true},
   LEGAL_TERMS_OF_SERVICE: {title: 'Terms of Service', description: 'The terms for using NotSoBot and notsobot.com.', index: true},
+  // not indexed until it's linked from the navbar/footer
+  PREMIUM: {
+    title: 'Premium',
+    description: 'What NotSoPremium, Plus and Plus AI unlock: bigger files, longer time limits, custom commands, premium servers, voice cloning and NotSoAI.',
+  },
   STATUS: {title: 'Status', description: 'Live NotSoBot shard and cluster health.', index: true},
   TAG_DIRECTORY: {
     title: 'Tag Directory',

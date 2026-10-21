@@ -3,7 +3,7 @@ import type { LegalDocument } from './legal';
 export const PRIVACY_POLICY: LegalDocument = {
   title: "Privacy Policy",
   effective: "October 13, 2026",
-  lastUpdated: "October 17, 2026",
+  lastUpdated: "October 21, 2026",
   intro: "This Privacy Policy explains what information NotSoBot collects, why, who it's shared with, how long it's kept, and how You can get a copy of it or have it deleted.",
   sections: [
     {
@@ -26,7 +26,7 @@ export const PRIVACY_POLICY: LegalDocument = {
           "Command usage statistics: which command was used, when, and the server, channel and user IDs involved.",
           "Tags: names, content, variables, attached media, usage counts and directory listings for tags You create.",
           "Reminders: reminder text, times, and the channel and message they belong to.",
-          "Reports You send with the report command, including the text, the server, channel and message IDs involved, and Our review notes.",
+          "Reports You send with the report command or from the website, including the text, the server, channel and message IDs involved, and Our review notes. Bug and tag reports sent from the website without logging in aren't linked to any account. Instead We keep a one-way hash of the IP address they came from, to limit how many can be sent and to spot abuse. The IP address itself isn't stored with the report.",
           "Uploaded files: files You ask NotSoBot to host, their file names, sizes, dimensions and file hashes (MD5, SHA-1 and BLAKE2b).",
           "AI requests: the prompt, including any messages You replied to with the ai command, along with the instructions, model, generated response, any error and token counts.",
           "AI memory: short facts NotSoAI saves about You when You ask it to remember something, whether each one applies everywhere or only in one server, when it was saved, and whether You've turned memory off.",
@@ -96,7 +96,7 @@ export const PRIVACY_POLICY: LegalDocument = {
           "AI providers, listed in Section 8, which receive the prompt and any media You give an AI command in order to generate your result.",
           "Search, information and media sources, such as Google, DuckDuckGo, Wolfram Alpha, YouTube and Reddit, which receive the search terms or links You give a command that looks something up.",
           "Backblaze, which stores files You ask NotSoBot to host.",
-          "Cloudflare, which hosts and protects the website.",
+          "Cloudflare, which hosts and protects the website. When You send a report from the website without logging in, Cloudflare Turnstile checks that You're not a bot. It receives your IP address and information about your browser to do this.",
           "Sentry, which receives error reports when something breaks. These can include the IDs and command details involved in the error.",
         ]},
         {type: 'paragraph', text: "Each of these providers handles data under its own terms and privacy policy. We may also share information when the law requires it, for example to respond to a valid court order, or when We believe it's needed to protect someone's safety or to investigate a violation of Our Terms of Service. If NotSoBot is ever transferred to a new owner, your information would be transferred with it and would remain covered by this policy."},

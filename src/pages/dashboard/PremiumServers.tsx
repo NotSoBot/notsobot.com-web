@@ -3,12 +3,14 @@
 
 import { Lock, MessagesSquare, Plus, Server, Trash2 } from 'lucide-react';
 import { useId, useMemo, useState } from 'react';
+import { Link } from 'react-router';
 
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Modal } from '@/components/ui/Modal';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
+import { Routes } from '@/config';
 import type { PremiumServer, UserGuildSummary } from '@/lib/api';
 import {
   errorMessage,
@@ -28,7 +30,9 @@ import { EmptyState, ErrorPanel, Skeleton } from './ui';
 
 
 // the api's `PREMIUM_SERVER_SWAP_COOLDOWN`, only used to explain the lock before a server is added
-const LOCK_DAYS = 7;
+const LOCK_HOURS = 24;
+// the lock only lasts a day, so the time matters more than the year
+const LOCK_FORMAT: Intl.DateTimeFormatOptions = {month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'};
 
 
 function serverName(server: PremiumServer): string {
@@ -70,6 +74,8 @@ export function PremiumServers() {
               `NotSoPremium Plus lets you give ${(data) ? data.limit.toLocaleString() : 'a couple of'} servers your premium perks.`
             )}
             Owning a server doesn’t give it premium, so give it one of yours.
+            {' '}
+            <Link to={`${Routes.PREMIUM}#premium-servers`} className='text-brand hover:underline'>See what a server gets</Link>
           </p>
         </div>
         {(data?.active) ? (
@@ -163,9 +169,9 @@ function ServerRow({ server, active, onRemove }: {server: PremiumServer, active:
         <div className='flex flex-wrap items-center gap-2'>
           <span className='truncate font-medium text-white'>{name}</span>
           {(locked) ? (
-            <Chip className='gap-1' title={`Servers are locked in for ${LOCK_DAYS} days after getting your premium`}>
+            <Chip className='gap-1' title={`Servers are locked in for ${LOCK_HOURS} hours after getting your premium`}>
               <Lock aria-hidden className='size-3'/>
-              Locked until {formatDate(server.removable_at)}
+              Locked until {formatDate(server.removable_at, LOCK_FORMAT)}
             </Chip>
           ) : null}
         </div>
@@ -221,7 +227,7 @@ function AddServerDialog({ taken, onClose }: {taken: Array<string>, onClose: () 
       <div className='p-5 sm:p-6'>
         <h2 id={titleId} className='pr-10 text-lg font-semibold text-white'>Give a server your premium</h2>
         <p className='mt-2 text-sm text-muted'>
-          Servers you share with NotSoBot. Once added, a server can’t be removed for {LOCK_DAYS} days.
+          Servers you share with NotSoBot. Once added, a server can’t be removed for {LOCK_HOURS} hours.
         </p>
 
         {(put.isError) ? (

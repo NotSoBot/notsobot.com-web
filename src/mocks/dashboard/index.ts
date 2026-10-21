@@ -89,6 +89,8 @@ const state = {
   reportMessages: new Map<string, Array<ReportMessage>>(),
   // the api's `reporter_read_at`, set when the mock user opens a report's conversation
   reportReadAt: new Map<string, string>(),
+  // the reports the mock user sent, filled in below
+  ownReportIds: new Set<string>(),
   voices: createVoices(adminUsers),
   applications: createApplications(adminUsers),
   entitlements: createEntitlements(adminUsers),
@@ -111,6 +113,8 @@ const state = {
   directory: new Map<string, TagDirectoryItem>(),
   // kept in sessionStorage so it survives the reload needed to see it
   guildsError: (sessionStorage.getItem('dashboardMocks:guildsError') || null) as GuildsError,
+  // browse as a logged out visitor (`__dashboardMocks.loggedOut(true)`), for the anonymous report forms
+  loggedOut: sessionStorage.getItem('dashboardMocks:loggedOut') === '1',
   latency: 350,
 };
 
@@ -240,6 +244,8 @@ for (const item of state.adminDirectory) {
 }
 
 state.reportMessages = createReportMessages(state.reports);
+// every other fixture report stands in for the mock user's own (bug, message and tag ones), plus the ones they send
+state.reports.forEach((report, index) => (index % 2 === 0) && state.ownReportIds.add(report.id));
 for (const report of state.reports) {
   syncReportReplies(report, state.reportMessages.get(report.id) ?? []);
 }
@@ -2204,6 +2210,7 @@ route('GET', '/admin/reports', (_match, { query }) => {
   const status = query.get('status');
   const search = (query.get('query') ?? '').trim();
   const awaitingReply = parseBool(query.get('awaiting_reply'));
+  const anonymous = parseBool(query.get('anonymous'));
   // mirrors the api's `_report_search_condition`: an id (`#`, `id:`, `user:`, `target:`, `server:` or bare), else the text
   const idSearch = /^(?:(id|user|reporter|target|server|guild)\s*:\s*|#)?(\d{1,20})$/i.exec(search);
   const matchesSearch = (report: Report) => {
@@ -2217,7 +2224,7 @@ route('GET', '/admin/reports', (_match, { query }) => {
     const value = idSearch[2];
     const checks: Record<string, boolean> = {
       id: report.id === value,
-      user: report.user.id === value,
+      user: report.user?.id === value,
       target: report.target_id === value,
       server: reportInGuild(report, value),
     };
@@ -2226,6 +2233,7 @@ route('GET', '/admin/reports', (_match, { query }) => {
   };
   const matching = state.reports
     .filter((report) => awaitingReply === null || (report.last_reply?.author === 'reporter') === awaitingReply)
+    .filter((report) => anonymous === null || (report.user === null) === anonymous)
     .filter((report) => type === null || type === '' || report.type === Number(type))
     .filter((report) => status === null || status === '' || report.status === Number(status))
     .filter(matchesSearch);
@@ -2417,6 +2425,273 @@ route('GET', '/admin/entitlements', (_match, { query }) => {
 });
 
 
+// stats: made up from the day count, shaped like `GET /admin/stats/files`
+route('GET', '/admin/stats/files', (_match, { query }) => {
+  requireBotOwner();
+  const days = Math.min(28, Math.max(1, Math.trunc(Number(query.get('expiring_days'))) || 7));
+  const now = Date.now();
+  const DAY = 24 * 60 * 60 * 1000;
+  const MB = 1024 * 1024;
+  // fewer files expire the further out you look (most are uploaded with the default 14 days), with a bump at 14
+  const buckets = Array.from({length: days}, (_, day) => {
+    const count = Math.round(4200 / (day + 1)) + ((day === 13) ? 6100 : 0);
+    return {count, size: count * 2.3 * MB, starts_at: new Date(now + day * DAY).toISOString()};
+  });
+  const sum = (key: 'count' | 'size') => buckets.reduce((total, bucket) => total + bucket[key], 0);
+  const permanent = {count: 182_402, size: 612 * 1024 * MB};
+  const temporary = {count: 48_913, size: 141 * 1024 * MB};
+  return {
+    count: permanent.count + temporary.count,
+    size: permanent.size + temporary.size,
+    permanent,
+    temporary,
+    expired: {count: 1_207, size: 3.1 * 1024 * MB},
+    storage: {
+      count: 201_884,
+      size: 688 * 1024 * MB,
+      permanent: {count: 160_115, size: 548 * 1024 * MB},
+      temporary: {count: 40_552, size: 136 * 1024 * MB},
+      unused: {count: 1_217, size: 4 * 1024 * MB},
+    },
+    expiring: {
+      count: sum('count'),
+      size: sum('size'),
+      ends_at: new Date(now + days * DAY).toISOString(),
+      freed: {count: Math.round(sum('count') * 0.86), size: sum('size') * 0.84},
+      days: buckets,
+    },
+    types: [
+      {type: 'image', count: 151_220, size: 398 * 1024 * MB},
+      {type: 'video', count: 38_904, size: 301 * 1024 * MB},
+      {type: 'audio', count: 9_118, size: 22 * 1024 * MB},
+      {type: 'other', count: 32_073, size: 32 * 1024 * MB},
+    ],
+    top_users: state.adminUsers.slice(0, 10).map((user, i) => ({
+      user_id: user.id,
+      user,
+      count: Math.round(4100 / (i + 1)),
+      size: Math.round(38 * 1024 * MB / (i + 1)),
+    })),
+    generated_at: new Date(now).toISOString(),
+  };
+});
+
+
+// the other stats areas: the last `days` UTC days, made up but steady (the same day always gets the same numbers)
+function statsWindow(query: URLSearchParams) {
+  const days = Math.min(90, Math.max(1, Math.trunc(Number(query.get('days'))) || 30));
+  const today = new Date();
+  const first = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()) - (days - 1) * 24 * 60 * 60 * 1000;
+  const dates = Array.from({length: days}, (_, i) => new Date(first + i * 24 * 60 * 60 * 1000).toISOString().slice(0, 10));
+  return {days, starts_at: new Date(first).toISOString(), dates};
+}
+
+// 0..1, steady per date and key
+function wobble(date: string, key: string): number {
+  let hash = 2166136261;
+  for (const char of `${date}:${key}`) {
+    hash = Math.imul(hash ^ char.charCodeAt(0), 16777619) >>> 0;
+  }
+  return (hash % 1000) / 1000;
+}
+
+// weekends are busier, plus some noise
+function daily(date: string, key: string, base: number): number {
+  const weekend = [0, 6].includes(new Date(`${date}T00:00:00Z`).getUTCDay()) ? 1.25 : 1;
+  return Math.round(base * weekend * (0.8 + wobble(date, key) * 0.4));
+}
+
+function sumOf<T>(items: Array<T>, value: (item: T) => number): number {
+  return items.reduce((total, item) => total + value(item), 0);
+}
+
+route('GET', '/admin/stats/uploads', (_match, { query }) => {
+  requireBotOwner();
+  const { days, starts_at, dates } = statsWindow(query);
+  const MB = 1024 * 1024;
+  const series = dates.map((date, i) => {
+    // temporary uploads from more than 14 days back have mostly expired and been cleaned up
+    const left = (dates.length - i <= 14) ? 1 : 0.15;
+    const permanent = daily(date, 'uploads-permanent', 2100);
+    const temporary = Math.round(daily(date, 'uploads-temporary', 3400) * left);
+    return {date, permanent: {count: permanent, size: permanent * 2.6 * MB}, temporary: {count: temporary, size: temporary * 2.1 * MB}};
+  });
+  return {
+    days,
+    starts_at,
+    permanent: {count: sumOf(series, (x) => x.permanent.count), size: sumOf(series, (x) => x.permanent.size)},
+    temporary: {count: sumOf(series, (x) => x.temporary.count), size: sumOf(series, (x) => x.temporary.size)},
+    series,
+  };
+});
+
+route('GET', '/admin/stats/commands', (_match, { query }) => {
+  requireBotOwner();
+  const { days, starts_at, dates } = statsWindow(query);
+  const series = dates.map((date) => ({date, count: daily(date, 'commands', 412_000)}));
+  const count = sumOf(series, (x) => x.count);
+  const top = ['magik', 'tag.show', 'imagine', 'deepfry', 'meme', 'help', 'ai', 'gif.speed', 'caption', 'tts'];
+  const results: Array<[string, number]> = [['ran', 0.86], ['argument_error', 0.05], ['run_error', 0.012], ['ratelimited', 0.03], ['blocked', 0.02], ['cancelled', 0.015], ['missing_permissions', 0.008], ['fail', 0.005]];
+  return {
+    days,
+    starts_at,
+    count,
+    users: Math.round(count / 21),
+    servers: Math.round(count / 58),
+    series,
+    top: top.map((command_id, i) => ({command_id, count: Math.round(count * 0.18 / (i + 1)), users: Math.round(count * 0.02 / (i + 1))})),
+    types: [{type: 0, count: Math.round(count * 0.71)}, {type: 1, count: Math.round(count * 0.26)}, {type: 2, count: Math.round(count * 0.01)}, {type: 3, count: Math.round(count * 0.02)}],
+    results: results.map(([ result, share ]) => ({result, count: Math.round(count * share)})).sort((a, b) => b.count - a.count),
+  };
+});
+
+route('GET', '/admin/stats/api', (_match, { query }) => {
+  requireBotOwner();
+  const { days, starts_at, dates } = statsWindow(query);
+  const series = dates.map((date) => ({date, requests: daily(date, 'requests', 88_000), server_errors: daily(date, 'server-errors', 140)}));
+  const requests = sumOf(series, (x) => x.requests);
+  const endpoints: Array<[string, string, number]> = [
+    ['GET', '/users/@me', 40], ['GET', '/users/@me/guilds', 140], ['POST', '/image/manipulation/magik', 2400], ['GET', '/tags/directory', 85],
+    ['POST', '/generate/imagine', 9800], ['GET', '/info/discord', 12], ['POST', '/files', 620], ['GET', '/users/@me/commands', 95],
+  ];
+  return {
+    days,
+    starts_at,
+    requests,
+    client_errors: Math.round(requests * 0.034),
+    server_errors: sumOf(series, (x) => x.server_errors),
+    took_avg: 412,
+    took_p95: 3180,
+    users: Math.round(requests / 160),
+    series,
+    endpoints: endpoints.map(([ method, endpoint, took ], i) => ({method, endpoint, requests: Math.round(requests * 0.3 / (i + 1)), server_errors: Math.round(requests * 0.0004 / (i + 1)), took_avg: took})),
+    applications: [
+      {application: null, requests: Math.round(requests * 0.6), server_errors: 41},
+      ...state.applications.slice(0, 5).map((item, i) => ({application: {id: item.id, name: item.name}, requests: Math.round(requests * 0.1 / (i + 1)), server_errors: 3})),
+      {application: {id: '1111111111111111111', name: null}, requests: 42, server_errors: 0},
+    ],
+  };
+});
+
+route('GET', '/admin/stats/growth', (_match, { query }) => {
+  requireBotOwner();
+  const { days, starts_at, dates } = statsWindow(query);
+  const usersSeries = dates.map((date) => ({date, count: daily(date, 'new-users', 3_900)}));
+  // ghost leaves come in bursts, about 1,800 whenever every shard identifies (a restart) and a few dozen otherwise
+  const serversSeries = dates.map((date) => ({
+    date,
+    joins: daily(date, 'joins', 640),
+    leaves: daily(date, 'leaves', 410),
+    ghosts: (wobble(date, 'restart') < 0.3) ? daily(date, 'ghosts-restart', 1800) : daily(date, 'ghosts', 40),
+  }));
+  return {
+    days,
+    starts_at,
+    users: {total: 9_412_007, blocked: 3_118, active_ever: 7_602_311, new: sumOf(usersSeries, (x) => x.count), series: usersSeries},
+    servers: {
+      current: 1_082_455,
+      joins: sumOf(serversSeries, (x) => x.joins),
+      leaves: sumOf(serversSeries, (x) => x.leaves),
+      ghosts: sumOf(serversSeries, (x) => x.ghosts),
+      series: serversSeries,
+    },
+  };
+});
+
+route('GET', '/admin/stats/premium', (_match, { query }) => {
+  requireBotOwner();
+  const { days, starts_at, dates } = statsWindow(query);
+  const series = dates.map((date) => ({date, started: daily(date, 'started', 14), ended: daily(date, 'ended', 9)}));
+  const active = state.entitlements.filter((item) => item.active);
+  const tiers = [2, 3, 4].map((premiumType) => {
+    const matching = active.filter((item) => item.premium_type === premiumType);
+    return {
+      premium_type: premiumType,
+      count: matching.length,
+      discord: matching.filter((item) => item.provider === 'discord').length,
+      manual: matching.filter((item) => item.provider === 'manual').length,
+    };
+  }).filter((tier) => tier.count);
+  return {
+    days,
+    starts_at,
+    active: {count: active.length, users: new Set(active.map((item) => item.user?.id)).size, tiers},
+    users: [{premium_type: 1, count: 12}, {premium_type: 2, count: 1_840}, {premium_type: 3, count: 911}, {premium_type: 4, count: 203}],
+    started: sumOf(series, (x) => x.started),
+    ended: sumOf(series, (x) => x.ended),
+    premium_servers: 604,
+    series,
+  };
+});
+
+// from the fixtures, so the numbers match the admin pages they link to
+route('GET', '/admin/stats/moderation', (_match, { query }) => {
+  requireBotOwner();
+  const { days, starts_at } = statsWindow(query);
+  const since = new Date(starts_at).getTime();
+  const time = (value: string | number | null | undefined) => (value === null || value === undefined) ? NaN : toDate(value).getTime();
+  const oldest = (values: Array<string | number | undefined>) => {
+    const times = values.map(time).filter((value) => !Number.isNaN(value));
+    return (times.length) ? new Date(Math.min(...times)).toISOString() : null;
+  };
+  const pendingFlags = state.contentFlags.filter((flag) => flag.status === 0 && !flag.user?.blocked);
+  const openReports = state.reports.filter((report) => report.status === 0);
+  const pendingListings = state.adminDirectory.filter((item) => item.verified === 1);
+  const editRequests = state.adminDirectory.filter((item) => item.edit_request?.status === 1);
+  return {
+    days,
+    starts_at,
+    content_flags: {
+      pending: pendingFlags.length,
+      needs_human_review: pendingFlags.filter((flag) => flag.needs_human_review).length,
+      oldest_pending_at: oldest(pendingFlags.map((flag) => flag.created)),
+      created: state.contentFlags.filter((flag) => since <= time(flag.created)).length,
+      reviewed: state.contentFlags.filter((flag) => flag.status !== 0).length,
+    },
+    reports: {
+      open: openReports.length,
+      awaiting_reply: state.reports.filter((report) => report.last_reply?.author === 'reporter').length,
+      oldest_open_at: oldest(openReports.map((report) => report.created)),
+      created: state.reports.filter((report) => since <= time(report.created)).length,
+    },
+    directory: {
+      pending: pendingListings.length,
+      oldest_pending_at: oldest(pendingListings.map((item) => item.created)),
+      edit_requests: editRequests.length,
+      oldest_edit_request_at: null,
+    },
+  };
+});
+
+route('GET', '/admin/stats/content', (_match, { query }) => {
+  requireBotOwner();
+  const { days, starts_at } = statsWindow(query);
+  const scale = Math.max(1, days / 30);
+  return {
+    days,
+    starts_at,
+    tags: {
+      total: 6_204_118, users: 1_420_330, new: Math.round(51_000 * scale), personal: 2_310_442, server: 3_604_871, dm: 288_805,
+      aliases: 912_004, commands: 48_120, nsfw: 71_552,
+      directory: {
+        verified: state.adminDirectory.filter((item) => item.verified === 2).length,
+        pending: state.adminDirectory.filter((item) => item.verified === 1).length,
+        unverified: state.adminDirectory.filter((item) => item.verified === 0).length,
+      },
+    },
+    reminders: {total: 182_330, users: 61_209, new: Math.round(9_100 * scale), next_day: 4_812},
+    voices: {total: state.voices.length, users: new Set(state.voices.map((voice) => voice.user?.id)).size, new: 2},
+    ai_memories: {total: 412_660, users: 88_014, new: Math.round(12_400 * scale)},
+    applications: {
+      total: state.applications.length,
+      users: new Set(state.applications.map((item) => item.user?.id)).size,
+      new: 1,
+      disabled: state.applications.filter((item) => item.flags & 2).length,
+    },
+  };
+});
+
+
 // voices: only the name can be changed, from either side
 function findVoice(voiceId: string) {
   const voice = state.voices.find((other) => other.id === voiceId);
@@ -2436,9 +2711,12 @@ function renameVoice(voiceId: string, body: Record<string, unknown>) {
   return voice;
 }
 
-// the same every-other fixture report the list treats as the mock user's own
+function ownReports(): Array<Report> {
+  return state.reports.filter((report) => state.ownReportIds.has(report.id));
+}
+
 function findOwnReport(reportId: string): Report {
-  const report = state.reports.filter((_report, index) => index % 2 === 0).find((other) => other.id === reportId);
+  const report = ownReports().find((other) => other.id === reportId);
   if (!report) {
     throw new MockError(404, ApiErrorCodes.UNKNOWN_REPORT, 'Unknown Report');
   }
@@ -2454,11 +2732,66 @@ function reportUnread(report: Report): boolean {
 }
 
 function ownReportPayload(report: Report) {
-  const { notes: _notes, reviewed_by: _reviewedBy, user: _user, ...rest } = report;
+  const { notes: _notes, reviewed_by: _reviewedBy, user: _user, ip_hash: _ipHash, ...rest } = report;
   return {...rest, unread: reportUnread(report)};
 }
 
-route('GET', '/users/@me/reports/unread', () => ({count: state.reports.filter((_report, index) => index % 2 === 0).filter(reportUnread).length}));
+route('GET', '/users/@me/reports/unread', () => ({count: ownReports().filter(reportUnread).length}));
+
+// mirrors `views/me_reports.py` `create_me_report` and `views/reports.py` `create_anonymous_report`: bugs, and tags
+// listed on the directory (not the caller's own when logged in). No limits or real captcha here, any token passes
+function createWebsiteReport(body: Record<string, unknown>, user: Report['user']): Report {
+  const type = Number(body.type);
+  if (type !== 0 && type !== 4) {
+    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'type must be 0 or 4', {field: 'type'});
+  }
+  const targetId = (type === 4 && typeof body.target_id === 'string') ? body.target_id : null;
+  if (type === 4) {
+    const listing = [...state.directory.values(), ...state.adminDirectory.map(adminListingAsPublic)].find((item) => item.id === targetId);
+    if (!listing) {
+      throw new MockError(404, ApiErrorCodes.UNKNOWN_TAG_DIRECTORY_ITEM, 'Unknown Tag Directory Item');
+    }
+    if (user && listing.tag.user.id === user.id) {
+      throw new MockError(400, ApiErrorCodes.CANNOT_REPORT_YOURSELF, 'You cannot report your own tag');
+    }
+  }
+  const report: Report = {
+    channel_id: null,
+    content: reportMessageContent(body),
+    created: new Date().toISOString(),
+    guild_id: null,
+    id: String(Math.max(0, ...state.reports.map((other) => Number(other.id))) + 1),
+    ip_hash: (user) ? null : 'mock'.padEnd(64, '0'),
+    message_id: null,
+    notes: null,
+    reviewed_at: null,
+    reviewed_by: null,
+    status: 0,
+    tag_id: null,
+    target_id: targetId,
+    type,
+    replies: 0,
+    last_reply: null,
+    last_activity: null,
+    user,
+  };
+  state.reports.unshift(report);
+  return report;
+}
+
+route('POST', '/users/@me/reports', (_match, { body }) => {
+  const report = createWebsiteReport(body, mockUser);
+  state.ownReportIds.add(report.id);
+  return ownReportPayload(report);
+});
+
+route('POST', '/reports/anonymous', (_match, { body }) => {
+  if (typeof body.turnstile_token !== 'string' || !body.turnstile_token) {
+    throw new MockError(400, ApiErrorCodes.CAPTCHA_INVALID, 'The captcha expired or failed, try it again');
+  }
+  const { content, id, target_id: targetId, type } = createWebsiteReport(body, null);
+  return {content, id, target_id: targetId, type};
+});
 
 route('GET', '/users/@me/reports/(\\d+)', ([ , reportId ]) => ownReportPayload(findOwnReport(reportId)));
 
@@ -2470,7 +2803,7 @@ route('PATCH', '/users/@me/reports/(\\d+)', ([ , reportId ], { body }) => {
   }
   if (report.status !== 0) {
     report.status = 0;
-    addReportMessage(report, {author: 'reporter', author_id: report.user.id, content: null, status: 0});
+    addReportMessage(report, {author: 'reporter', author_id: report.user?.id ?? mockUser.id, content: null, status: 0});
   }
   return ownReportPayload(report);
 });
@@ -2483,20 +2816,19 @@ route('GET', '/users/@me/reports/(\\d+)/messages', ([ , reportId ]) => {
 
 route('POST', '/users/@me/reports/(\\d+)/messages', ([ , reportId ], { body }) => {
   const report = findOwnReport(reportId);
-  const message = addReportMessage(report, {author: 'reporter', author_id: report.user.id, content: reportMessageContent(body), status: null});
+  const message = addReportMessage(report, {author: 'reporter', author_id: report.user?.id ?? mockUser.id, content: reportMessageContent(body), status: null});
   return reporterMessage(message);
 });
 
 route('GET', '/users/@me/reports', (_match, { query }) => {
-  // every other fixture report stands in for the mock user's own (bug, message and tag ones), staff fields left out like the api does
+  // staff fields left out like the api does
   // mirrors `views/me_reports.py`, `updated` is the newest message or when it was sent
   const status = query.get('status');
   const search = (query.get('query') ?? '').trim().toLowerCase();
   const sortBy = query.get('sort_by') ?? 'updated';
   const time = (value: Parameters<typeof toDate>[0]) => toDate(value).getTime();
   const updated = (report: Report) => Math.max(time(report.created), (report.last_activity) ? time(report.last_activity) : 0);
-  const matching = state.reports
-    .filter((_report, index) => index % 2 === 0)
+  const matching = ownReports()
     .filter((report) => status === null || status === '' || report.status === Number(status))
     .filter((report) => !search || report.content.toLowerCase().includes(search) || report.id === search.replace(/^#/, ''))
     .sort((a, b) => {
@@ -2627,7 +2959,7 @@ route('DELETE', '/users/@me/reminders/(\\d+)', ([ , reminderId ]) => {
 
 // ai memory: mirrors `views/me_llm_memories.py`
 route('GET', '/users/@me/llm/memories', () => {
-  return {items: state.llmMemories, limits: {global: 10, server: 10}};
+  return {items: state.llmMemories, limits: {global: 25, server: 15}};
 });
 
 function findLLMMemory(memoryId: string) {
@@ -3016,6 +3348,7 @@ declare global {
     __dashboardMocks?: {
       blocked: (value: string | boolean) => void,
       guildsError: (value: GuildsError) => void,
+      loggedOut: (value: boolean) => void,
       latency: (ms: number) => void,
       owner: (value: boolean) => void,
       moderator: (value: boolean) => void,
@@ -3023,6 +3356,8 @@ declare global {
   }
 }
 
+
+const MOCK_PUBLIC_PATHS = ['/tags/directory', '/reports/anonymous'];
 
 export function installDashboardMocks(): void {
   const realFetch = window.fetch.bind(window);
@@ -3043,8 +3378,8 @@ export function installDashboardMocks(): void {
       await new Promise((resolve) => window.setTimeout(resolve, state.latency));
       init?.signal?.throwIfAborted();
       const headers = new Headers(init?.headers);
-      // the public tag directory is fetched without a token
-      if (path !== '/tags/directory' && headers.get('authorization') !== MOCK_TOKEN) {
+      // the public tag directory and anonymous reports are fetched without a token
+      if (!MOCK_PUBLIC_PATHS.includes(path) && headers.get('authorization') !== MOCK_TOKEN) {
         return json(401, {code: 0, message: '401: Unauthorized', status: 401});
       }
       let body: Record<string, unknown> = {};
@@ -3067,8 +3402,10 @@ export function installDashboardMocks(): void {
     return realFetch(input, init);
   };
 
-  // pretend we're logged in
-  if (tokenStorage.get() !== MOCK_TOKEN) {
+  // pretend we're logged in, unless browsing logged out
+  if (state.loggedOut) {
+    tokenStorage.clear();
+  } else if (tokenStorage.get() !== MOCK_TOKEN) {
     tokenStorage.set(MOCK_TOKEN);
   }
 
@@ -3080,6 +3417,15 @@ export function installDashboardMocks(): void {
         sessionStorage.removeItem('dashboardMocks:blocked');
       } else {
         sessionStorage.setItem('dashboardMocks:blocked', state.blocked);
+      }
+    },
+    // takes effect after a reload
+    loggedOut: (value) => {
+      state.loggedOut = value;
+      if (value) {
+        sessionStorage.setItem('dashboardMocks:loggedOut', '1');
+      } else {
+        sessionStorage.removeItem('dashboardMocks:loggedOut');
       }
     },
     guildsError: (value) => {
