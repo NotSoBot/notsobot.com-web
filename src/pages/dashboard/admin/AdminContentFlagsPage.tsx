@@ -4,7 +4,7 @@
 // api fetches it, so the reviewer's browser never touches the source), blurred until revealed and never for
 // child safety flags.
 
-import { AlertTriangle, ArrowUpRight, Ban, Check, Clock, CloudOff, Eye, Flag, ImageOff, Info, Languages, type LucideIcon, MessageSquareWarning, ShieldCheck, X } from 'lucide-react';
+import { AlertTriangle, ArrowUpRight, Ban, Check, CircleHelp, Clock, CloudOff, Eye, Flag, ImageOff, Info, Languages, type LucideIcon, MessageSquareWarning, ShieldCheck, X } from 'lucide-react';
 import { Fragment, type ReactNode, useEffect, useId, useRef, useState } from 'react';
 import { Link } from 'react-router';
 
@@ -38,15 +38,19 @@ import { adminServerPath, Chip, CopyableValue, CopyButton, DETAIL_LIST_STACKED, 
 import { BLOCK_REASON_MAX, BlockUserDialog, canBlockUser } from './BlockUserDialog';
 
 
-type Tone = 'warning' | 'danger' | 'neutral' | 'brand';
+type Tone = 'warning' | 'danger' | 'neutral' | 'brand' | 'fuchsia';
 
 // `short` is the action's label in the phone-width action bar, where the buttons share one row
 // `description` is what the status means, shown on hover over its chip
 const REPORTED_DESCRIPTION = 'Reported: staff reported this content outside NotSoBot (like Discord Trust & Safety, or NCMEC for child safety). ' +
   'It’s only a marker, nothing is sent from here. It counts as confirmed, so matching uploads are auto-confirmed too.';
 
+const UNSURE_DESCRIPTION = 'Unsure: a reviewer couldn’t decide and left it for someone else. It counts as neither confirmed nor dismissed, ' +
+  'so matching uploads aren’t auto-confirmed or let through.';
+
 const STATUSES: Array<{value: ContentFlagStatus, label: string, action: string, short: string, tone: Tone, icon: LucideIcon, description: string}> = [
   {value: ContentFlagStatuses.PENDING, label: 'Pending', action: 'Mark pending', short: 'Pending', tone: 'warning', icon: Clock, description: 'Pending: waiting for a staff review.'},
+  {value: ContentFlagStatuses.UNSURE, label: 'Unsure', action: 'Mark unsure', short: 'Unsure', tone: 'fuchsia', icon: CircleHelp, description: UNSURE_DESCRIPTION},
   {value: ContentFlagStatuses.CONFIRMED, label: 'Confirmed', action: 'Confirm', short: 'Confirm', tone: 'danger', icon: Check, description: 'Confirmed: staff agreed the content breaks the rules. Matching uploads are auto-confirmed.'},
   {value: ContentFlagStatuses.DISMISSED, label: 'Dismissed', action: 'Dismiss', short: 'Dismiss', tone: 'neutral', icon: X, description: 'Dismissed: staff decided it was a false positive.'},
   {value: ContentFlagStatuses.REPORTED, label: 'Reported', action: 'Mark reported', short: 'Report', tone: 'brand', icon: Flag, description: REPORTED_DESCRIPTION},
@@ -114,21 +118,24 @@ function ActionChip({ action }: {action: string}) {
   );
 }
 
-// the modal's status buttons: confirm is the strong red, mark pending the pending chip's light yellow, and reporting an
-// outline in the reported chip's colour so it doesn't read as a third verdict
+// the modal's status buttons: confirm is the strong red, mark pending the pending chip's light yellow, and unsure and
+// reporting outlines in their chips' colours so they don't read as verdicts
 const STATUS_BUTTON_CLASSES: Record<number, string> = {
   [ContentFlagStatuses.PENDING]: 'border border-warning/40 bg-warning/15 text-warning hover:bg-warning/25',
   [ContentFlagStatuses.CONFIRMED]: 'btn-danger',
   [ContentFlagStatuses.DISMISSED]: 'btn-secondary',
   [ContentFlagStatuses.REPORTED]: 'border border-brand/50 bg-transparent text-[#aab2ff] hover:bg-brand/15',
+  [ContentFlagStatuses.UNSURE]: 'border border-[#eb459e]/50 bg-transparent text-[#f47fbf] hover:bg-[#eb459e]/15',
 };
 
-// the status bar down the left edge of each row, by the status' tone (pending orange, confirmed red, dismissed grey)
+// the status bar down the left edge of each row, by the status' tone (pending orange, confirmed red, dismissed grey,
+// unsure pink)
 const STATUS_PILL_FILLS: Record<Tone, string> = {
   warning: 'bg-warning',
   danger: 'bg-danger',
   neutral: 'bg-subtle',
   brand: 'bg-brand',
+  fuchsia: 'bg-[#eb459e]',
 };
 
 function statusInfo(status: number) {
@@ -860,25 +867,27 @@ function ContentFlagDetails({ flag, onReport, navigation }: {
         </form>
       </div>
 
-      {/* confirm on the left, dismiss on the right, and reporting set apart after a divider (it isn't a review verdict,
-          it marks the content as reported elsewhere). The current status' slot turns into "Mark pending", so the buttons
-          never move around */}
+      {/* confirm on the left, dismiss on the right with unsure between them, and reporting set apart after a divider (it
+          isn't a review verdict, it marks the content as reported elsewhere). The current status' slot turns into "Mark
+          pending", so the buttons never move around. Four labels don't fit a phone's row, so there the unsure and
+          report slots are only their icons, leaving the words for the verdicts */}
       <AdminModalFooter {...navigation}>
-        {([ ContentFlagStatuses.CONFIRMED, ContentFlagStatuses.DISMISSED, ContentFlagStatuses.REPORTED ] as Array<ContentFlagStatus>).map((slot) => {
+        {([ ContentFlagStatuses.CONFIRMED, ContentFlagStatuses.UNSURE, ContentFlagStatuses.DISMISSED, ContentFlagStatuses.REPORTED ] as Array<ContentFlagStatus>).map((slot) => {
           const value: ContentFlagStatus = (flag.status === slot) ? ContentFlagStatuses.PENDING : slot;
           const item = statusInfo(value);
+          const iconOnPhones = slot === ContentFlagStatuses.UNSURE || slot === ContentFlagStatuses.REPORTED;
           return (
             <Fragment key={slot}>
               {(slot === ContentFlagStatuses.REPORTED) ? <span aria-hidden className='mx-0.5 h-6 w-px shrink-0 self-center bg-line-strong sm:mx-1'/> : null}
               <button
                 type='button'
-                className={cn('btn min-w-0 flex-1 px-2 sm:flex-none sm:px-3', STATUS_BUTTON_CLASSES[item.value])}
+                className={cn('btn min-w-0 px-2 sm:flex-none sm:px-3', (iconOnPhones) ? 'flex-none' : 'flex-1', STATUS_BUTTON_CLASSES[item.value])}
                 disabled={changingStatus}
-                title={(item.value === ContentFlagStatuses.REPORTED) ? REPORTED_DESCRIPTION : undefined}
+                title={(item.value === ContentFlagStatuses.REPORTED) ? REPORTED_DESCRIPTION : (item.value === ContentFlagStatuses.UNSURE) ? UNSURE_DESCRIPTION : (iconOnPhones) ? item.action : undefined}
                 onClick={() => changeStatus(value)}
               >
-                {(pendingStatus === value) ? <Spinner className='size-4'/> : <item.icon aria-hidden className='hidden size-4 shrink-0 sm:block'/>}
-                <span className='truncate sm:hidden'>{item.short}</span>
+                {(pendingStatus === value) ? <Spinner className='size-4'/> : <item.icon aria-hidden className={cn('size-4 shrink-0', !iconOnPhones && 'hidden sm:block')}/>}
+                <span className={cn('truncate sm:hidden', iconOnPhones && 'sr-only')}>{item.short}</span>
                 <span className='hidden sm:inline'>{item.action}</span>
               </button>
             </Fragment>
@@ -1005,6 +1014,7 @@ function MatchOption({ label, kind, hint, hash, status, counts, checked, onChang
     [ContentFlagStatuses.CONFIRMED, counts.confirmed, 'confirmed'],
     [ContentFlagStatuses.DISMISSED, counts.dismissed, 'dismissed'],
     [ContentFlagStatuses.REPORTED, counts.reported, 'reported'],
+    [ContentFlagStatuses.UNSURE, counts.unsure, 'unsure'],
   ] as const;
   const ignoredCounts = reviewed.filter(([ value, count ]) => value !== status && count);
   const ignoredTotal = ignoredCounts.reduce((total, [ , count ]) => total + count, 0);
@@ -1037,7 +1047,7 @@ function MatchOption({ label, kind, hint, hash, status, counts, checked, onChang
           {(hint) ? <span className='sr-only'>{hint}</span> : null}
           {(ignored.length) ? (
             <span className='mt-1 block text-xs text-subtle'>
-              Ignoring {ignored.join(' and ')}, {(ignoredTotal === 1) ? 'it keeps its' : 'they keep their'} status.
+              Ignoring {new Intl.ListFormat('en').format(ignored)}, {(ignoredTotal === 1) ? 'it keeps its' : 'they keep their'} status.
             </span>
           ) : null}
         </span>

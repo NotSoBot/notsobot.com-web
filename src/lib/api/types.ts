@@ -979,6 +979,7 @@ export interface AdminUserContentFlags {
   pending: number,
   reported: number,
   total: number,
+  unsure: number,
 }
 
 export interface AdminUserEntry {
@@ -1188,6 +1189,8 @@ export const ContentFlagStatuses = {
   CONFIRMED: 1,
   DISMISSED: 2,
   REPORTED: 3,
+  // a reviewer couldn't decide and left it for someone else, counts as neither confirmed nor dismissed
+  UNSURE: 4,
 } as const;
 export type ContentFlagStatus = (typeof ContentFlagStatuses)[keyof typeof ContentFlagStatuses];
 
@@ -1266,6 +1269,7 @@ export interface ContentFlagMatchCounts {
   confirmed: number,
   dismissed: number,
   reported: number,
+  unsure: number,
 }
 
 // `GET /admin/content-flags/<id>/matches`: the other flags of the same media, per status. `sha256` is the exact same
@@ -1689,7 +1693,7 @@ export interface AdminPremiumStats extends AdminStatsWindow {
 // `/admin/stats/moderation`: what's waiting on staff (pending flags leave out blocked users', like the flags page),
 // with the oldest of each; `created`/`reviewed` are in the window
 export interface AdminModerationStats extends AdminStatsWindow {
-  content_flags: {pending: number, needs_human_review: number, oldest_pending_at: string | null, created: number, reviewed: number},
+  content_flags: {pending: number, needs_human_review: number, oldest_pending_at: string | null, unsure: number, oldest_unsure_at: string | null, created: number, reviewed: number},
   reports: {open: number, awaiting_reply: number, oldest_open_at: string | null, created: number},
   directory: {pending: number, oldest_pending_at: string | null, edit_requests: number, oldest_edit_request_at: string | null},
 }

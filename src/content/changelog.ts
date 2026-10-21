@@ -50,7 +50,7 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'improved', text: 'Command credits can link somewhere: `.help phosimp` and the website\'s command list link to PHOSIMP on Steam.'},
       {kind: 'improved', text: 'Errors about invalid options list each option with its message instead of raw JSON.'},
       {kind: 'improved', text: '`.inout` is faster on images.'},
-      {kind: 'improved', text: '**MediaScript:** `.veg` projects play NewBlue Video Tune-up (matched to Vegas renders of each slider and its presets), Old TV\'s Horizontal Sync follows its Severity and Frequency like Vegas, Min and Max are sized like Vegas\', the older Chroma Keyer and Radial Blur play, Linear Blur, Levels\' gamma and Brightness and Contrast are matched to Vegas renders, and effect chains stop at a plugin Vegas can\'t load, like Vegas does.'},
+      {kind: 'improved', text: '**MediaScript:** `.veg` projects play NewBlue Video Tune-up (matched to Vegas renders of each slider and its presets) and NewBlue Charcoal, Old TV\'s Horizontal Sync follows its Severity and Frequency like Vegas, Min and Max are sized like Vegas\', the older Chroma Keyer and Radial Blur play, Linear Blur, Levels\' gamma and Brightness and Contrast are matched to Vegas renders, and effect chains stop at a plugin Vegas can\'t load, like Vegas does.'},
       {kind: 'fixed', text: '`.ascii` and MediaScript `ascii` crashing on GIFs and videos.'},
       {kind: 'fixed', text: 'Audio from WebM and MKV videos coming out at 8 kbps when turned into Opus or OGG, and `.ogg` results carrying the video along.'},
       {kind: 'fixed', text: '`.tag edit` on a tag from another server (picked by its tag directory ID) making a copy in this server instead of editing it.'},

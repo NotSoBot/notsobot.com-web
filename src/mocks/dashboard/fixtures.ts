@@ -472,6 +472,7 @@ export function adminUserEntries(users: Array<AdminUser>, flags: Array<ContentFl
         pending: own.filter((flag) => flag.status === 0).length,
         reported: own.filter((flag) => flag.status === 3).length,
         total: own.length,
+        unsure: own.filter((flag) => flag.status === 4).length,
       },
       reports: reports.filter((report) => report.target_id === user.id).length,
       reports_sent: reports.filter((report) => report.user?.id === user.id).length,

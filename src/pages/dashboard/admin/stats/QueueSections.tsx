@@ -35,8 +35,10 @@ export function ModerationSection({ days }: {days: number}) {
     <StatsSection id='moderation' title='Moderation' accent={STAT_COLORS.bad} query={query} description='What’s waiting on staff.'>
       {({ content_flags: flags, reports, directory, days: windowDays }) => (
         <>
-          <div className='grid grid-cols-2 gap-2 lg:grid-cols-3'>
+          {/* a row per queue from lg up: the three flag tiles, then reports and the directory two each */}
+          <div className='grid grid-cols-2 gap-2 lg:grid-cols-6'>
             <Metric
+              className='lg:col-span-2'
               label='Content flags to review'
               value={formatNumber(flags.pending)}
               detail={joinDetails(waiting(flags.oldest_pending_at)) ?? 'all caught up'}
@@ -45,6 +47,7 @@ export function ModerationSection({ days }: {days: number}) {
               to={Routes.DASHBOARD_ADMIN_FLAGS}
             />
             <Metric
+              className='lg:col-span-2'
               label='Need a human'
               value={formatNumber(flags.needs_human_review)}
               detail='of the pending flags'
@@ -53,6 +56,17 @@ export function ModerationSection({ days }: {days: number}) {
               to={`${Routes.DASHBOARD_ADMIN_FLAGS}?needs_human_review=true`}
             />
             <Metric
+              className='col-span-2'
+              label='Unsure flags'
+              value={formatNumber(flags.unsure)}
+              detail={waiting(flags.oldest_unsure_at) ?? 'none'}
+              tone={(flags.unsure) ? 'warning' : undefined}
+              title={oldestTitle('Flags a reviewer marked unsure and left for someone else, blocked users’ left out', flags.oldest_unsure_at) ??
+                'Flags a reviewer marked unsure and left for someone else'}
+              to={`${Routes.DASHBOARD_ADMIN_FLAGS}?status=4`}
+            />
+            <Metric
+              className='lg:col-span-3'
               label='Open reports'
               value={formatNumber(reports.open)}
               detail={waiting(reports.oldest_open_at) ?? 'all caught up'}
@@ -61,6 +75,7 @@ export function ModerationSection({ days }: {days: number}) {
               to={Routes.DASHBOARD_ADMIN_REPORTS}
             />
             <Metric
+              className='lg:col-span-3'
               label='Awaiting a reply'
               value={formatNumber(reports.awaiting_reply)}
               detail='the reporter wrote last'
@@ -69,6 +84,7 @@ export function ModerationSection({ days }: {days: number}) {
               to={`${Routes.DASHBOARD_ADMIN_REPORTS}?status=all&awaiting_reply=true`}
             />
             <Metric
+              className='lg:col-span-3'
               label='Directory listings'
               value={formatNumber(directory.pending)}
               detail={waiting(directory.oldest_pending_at) ?? 'none pending'}
@@ -77,6 +93,7 @@ export function ModerationSection({ days }: {days: number}) {
               to={`${Routes.DASHBOARD_ADMIN_TAG_DIRECTORY}?status=pending`}
             />
             <Metric
+              className='lg:col-span-3'
               label='Change requests'
               value={formatNumber(directory.edit_requests)}
               detail={waiting(directory.oldest_edit_request_at) ?? 'none submitted'}

@@ -399,7 +399,7 @@ export function CopyButton({ value, label }: {value: string, label?: string}) {
 }
 
 
-export function Chip({ children, className, tone = 'neutral', title }: {children: ReactNode, className?: string, tone?: 'neutral' | 'danger' | 'warning' | 'success' | 'brand', title?: string}) {
+export function Chip({ children, className, tone = 'neutral', title }: {children: ReactNode, className?: string, tone?: 'neutral' | 'danger' | 'warning' | 'success' | 'brand' | 'fuchsia', title?: string}) {
   return (
     <span
       title={title}
@@ -409,6 +409,7 @@ export function Chip({ children, className, tone = 'neutral', title }: {children
           : (tone === 'warning') ? 'bg-warning/20 text-warning'
           : (tone === 'success') ? 'bg-success/20 text-[#6fd391]'
           : (tone === 'brand') ? 'bg-brand/25 text-[#aab2ff]'
+          : (tone === 'fuchsia') ? 'bg-[#eb459e]/20 text-[#f47fbf]'
           : 'bg-line-strong text-muted',
         className,
       )}
@@ -542,6 +543,7 @@ export const FLAG_STATUS_TITLES: Record<string, string> = {
   '1': 'Staff agreed it was bad content',
   '2': 'Staff decided it was fine (a false positive)',
   '3': 'Reported outside NotSoBot (like Discord Trust & Safety or NCMEC). Only a marker, it counts as confirmed.',
+  '4': 'A reviewer wasn’t sure and left it for someone else',
 };
 
 // The "Content flags" tiles of a user's or server's modal: what the safety scan found on the first row, how staff
@@ -550,14 +552,15 @@ export function ContentFlagTiles({ flags, flagsPath }: {flags: AdminUserContentF
   return (
     <section>
       <h3 className='section-label mb-2'>Content flags</h3>
-      <div className='grid grid-cols-2 gap-2 sm:grid-cols-4'>
+      <div className='grid grid-cols-2 gap-2 sm:grid-cols-5'>
         <StatTile label='Flagged' to={flagsPath('all')} value={flags.flagged.toLocaleString()} title={FLAGGED_TITLE}/>
         <StatTile label='Borderline' value={(flags.total - flags.flagged).toLocaleString()} title={BORDERLINE_TITLE}/>
-        <DateTile className='col-span-2' label='Last flagged' value={flags.last_flagged_at}/>
+        <DateTile className='col-span-2 sm:col-span-3' label='Last flagged' value={flags.last_flagged_at}/>
         <StatTile label='To review' to={flagsPath('0')} value={flags.pending.toLocaleString()} tone='text-warning' title={FLAG_STATUS_TITLES['0']}/>
+        <StatTile label='Unsure' to={flagsPath('4')} value={flags.unsure.toLocaleString()} tone='text-[#f47fbf]' title={FLAG_STATUS_TITLES['4']}/>
         <StatTile label='Confirmed' to={flagsPath('1')} value={flags.confirmed.toLocaleString()} tone='text-danger' title={FLAG_STATUS_TITLES['1']}/>
         <StatTile label='Cleared' to={flagsPath('2')} value={flags.dismissed.toLocaleString()} tone='text-muted' title={FLAG_STATUS_TITLES['2']}/>
-        <StatTile label='Reported' to={flagsPath('3')} value={flags.reported.toLocaleString()} tone='text-[#aab2ff]' title={FLAG_STATUS_TITLES['3']}/>
+        <StatTile className='col-span-2 sm:col-span-1' label='Reported' to={flagsPath('3')} value={flags.reported.toLocaleString()} tone='text-[#aab2ff]' title={FLAG_STATUS_TITLES['3']}/>
       </div>
     </section>
   );

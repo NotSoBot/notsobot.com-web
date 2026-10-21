@@ -2017,7 +2017,7 @@ function contentFlagMatches(flag: ContentFlag, sha256: boolean, pdq: boolean): A
 
 function statusCounts(flags: Array<ContentFlag>) {
   const count = (status: number) => flags.filter((flag) => flag.status === status).length;
-  return {pending: count(0), confirmed: count(1), dismissed: count(2), reported: count(3)};
+  return {pending: count(0), confirmed: count(1), dismissed: count(2), reported: count(3), unsure: count(4)};
 }
 
 route('GET', '/admin/content-flags/(\\d+)/matches', ([ , flagId ]) => {
@@ -2098,8 +2098,8 @@ route('PATCH', '/admin/content-flags/(\\d+)', ([ , flagId ], { body }) => {
   }
   if (body.status !== undefined) {
     const status = Number(body.status);
-    if (![0, 1, 2, 3].includes(status)) {
-      throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'status must be 0-3', {field: 'status'});
+    if (![0, 1, 2, 3, 4].includes(status)) {
+      throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'status must be 0-4', {field: 'status'});
     }
     const others = contentFlagMatches(flag, !!body.match_sha256, !!body.match_pdq).filter((other) => other.status === 0);
     // a reviewer set it, so it isn't an auto-confirm anymore
@@ -2302,6 +2302,7 @@ function adminGuildDetail(guildId: string) {
       pending: flags.filter((flag) => flag.status === 0).length,
       reported: flags.filter((flag) => flag.status === 3).length,
       total: flags.length,
+      unsure: flags.filter((flag) => flag.status === 4).length,
     },
     first_seen: (commands) ? new Date(Date.UTC(2020, Number(BigInt(guildId) % 48n), 1)).toISOString() : null,
     counts: {
@@ -2635,6 +2636,7 @@ route('GET', '/admin/stats/moderation', (_match, { query }) => {
     return (times.length) ? new Date(Math.min(...times)).toISOString() : null;
   };
   const pendingFlags = state.contentFlags.filter((flag) => flag.status === 0 && !flag.user?.blocked);
+  const unsureFlags = state.contentFlags.filter((flag) => flag.status === 4 && !flag.user?.blocked);
   const openReports = state.reports.filter((report) => report.status === 0);
   const pendingListings = state.adminDirectory.filter((item) => item.verified === 1);
   const editRequests = state.adminDirectory.filter((item) => item.edit_request?.status === 1);
@@ -2645,6 +2647,8 @@ route('GET', '/admin/stats/moderation', (_match, { query }) => {
       pending: pendingFlags.length,
       needs_human_review: pendingFlags.filter((flag) => flag.needs_human_review).length,
       oldest_pending_at: oldest(pendingFlags.map((flag) => flag.created)),
+      unsure: unsureFlags.length,
+      oldest_unsure_at: oldest(unsureFlags.map((flag) => flag.created)),
       created: state.contentFlags.filter((flag) => since <= time(flag.created)).length,
       reviewed: state.contentFlags.filter((flag) => flag.status !== 0).length,
     },

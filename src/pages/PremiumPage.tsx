@@ -169,20 +169,20 @@ export function PremiumPage() {
         <HowToSubscribe signedIn={!!user}/>
       </PageHeader>
 
-      <section aria-labelledby='premium-tiers' className='mb-16'>
-        <h2 id='premium-tiers' className='section-label mb-4'>Tiers</h2>
+      <section id='premium-tiers' aria-labelledby='premium-tiers-title' className='mb-16 scroll-mt-24'>
+        <h2 id='premium-tiers-title' className='section-label mb-4'>Tiers</h2>
         <div className='grid gap-6 lg:grid-cols-3'>
           {TIERS.map((tier) => <TierCard key={tier.id} tier={tier} current={current === tier.id}/>)}
         </div>
       </section>
 
-      <section aria-labelledby='premium-servers' className='mb-16'>
+      <section id='premium-servers' aria-labelledby='premium-servers-title' className='mb-16 scroll-mt-24'>
         <div className='card grid gap-6 p-6 md:grid-cols-[1fr_1.4fr] md:p-8'>
           <div>
             <div className='mb-4 flex size-12 items-center justify-center rounded-lg bg-brand/10'>
               <Server className='size-6 text-brand'/>
             </div>
-            <h2 id='premium-servers' className='mb-2 text-2xl text-white'>Premium servers</h2>
+            <h2 id='premium-servers-title' className='mb-2 text-2xl text-white'>Premium servers</h2>
             <p className='text-muted'>
               Plus and Plus AI come with 2 premium server slots. Put one on a server or group DM and everyone there gets
               these perks while they use NotSoBot, and you keep your own premium. Add one with <code className='text-code'>/settings premium-servers add</code> in
@@ -207,8 +207,8 @@ export function PremiumPage() {
         </div>
       </section>
 
-      <section aria-labelledby='premium-compare'>
-        <h2 id='premium-compare' className='section-label mb-4'>Compare tiers</h2>
+      <section id='premium-compare' aria-labelledby='premium-compare-title' className='scroll-mt-24'>
+        <h2 id='premium-compare-title' className='section-label mb-4'>Compare tiers</h2>
         <ComparisonTable current={current}/>
         <p className='mt-3 text-xs text-subtle'>
           Limits are per command, and media processing includes downloading any links you give it. Without premium, the largest file follows your Discord upload limit, so Nitro and

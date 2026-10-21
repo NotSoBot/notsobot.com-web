@@ -159,7 +159,8 @@ export function MetricGrid({ className, children }: {className?: string, childre
 
 // a number with what it is above it and more about it below. `to` links the whole tile to the list behind it, `title`
 // explains it in an ⓘ next to the label (above the link, a button can't go inside one)
-export function Metric({ label, value, detail, color, title, to, tone }: {
+export function Metric({ className, label, value, detail, color, title, to, tone }: {
+  className?: string,
   label: string,
   value: ReactNode,
   detail?: ReactNode,
@@ -169,7 +170,7 @@ export function Metric({ label, value, detail, color, title, to, tone }: {
   tone?: 'warning' | 'danger',
 }) {
   return (
-    <div className={cn('relative min-w-0 rounded-md border border-line bg-deep px-3 py-2.5', to && 'group/metric transition-colors hover:border-brand')}>
+    <div className={cn('relative min-w-0 rounded-md border border-line bg-deep px-3 py-2.5', to && 'group/metric transition-colors hover:border-brand', className)}>
       {(to) ? <Link to={to} aria-label={label} className='absolute inset-0 rounded-md'/> : null}
       <p className='flex items-center gap-1.5 text-xs text-subtle'>
         {(color) ? <span aria-hidden className='size-2 shrink-0 rounded-full' style={{background: color}}/> : null}
