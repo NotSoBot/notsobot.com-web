@@ -29,6 +29,10 @@ import {
   type ContentFlag,
   type GuildRule,
   type GuildRuleInput,
+  type Identity,
+  type IdentityLogin,
+  type IdentityLoginReveal,
+  type IdentityProxyItem,
   type Report,
   type ReportMessage,
   type Tag,
@@ -3260,6 +3264,554 @@ route('DELETE', '/admin/applications/access/(\\d+)', ([ , userId ]) => {
   user.flags &= ~API_ACCESS;
   return applicationAccessItem(user);
 });
+
+// owner only identities and proxies (`/admin/identities`): 30 static proxies (24 with a youtube account, a few in
+// geopy, google and strict too), 6 geo proxies only in geopy, 1 rotating proxy in global, and a couple unused
+type MockProxy = IdentityProxyItem & {password: string | null};
+const MOCK_IDENTITY_SERVICES = {
+  youtube: {kind: 'cookies', cooldown: 60, backoff: [300, 1200, 3600, 21600], secret_optional: false, shared: false},
+  google: {kind: 'cookies', cooldown: 5, backoff: [45, 300, 1800], secret_optional: true, shared: false},
+  geopy: {kind: 'none', cooldown: 2, backoff: [60, 300, 1800], secret_optional: false, shared: false},
+  global: {kind: 'none', cooldown: 0, backoff: [0], secret_optional: false, shared: true},
+  strict: {kind: 'none', cooldown: 0, backoff: [0], secret_optional: false, shared: true},
+} as const;
+type MockService = keyof typeof MOCK_IDENTITY_SERVICES;
+
+function mockProxy(id: number, host: string, port: number, labels: Array<string>, username = 'dan', password: string | null = 'secret'): MockProxy {
+  return {
+    id, scheme: 'http', host, port, username, password, has_password: password !== null, labels, exit_ip: host,
+    status: 'active', down: false, created: Date.now() - 40 * 86400 * 1000, identities: [],
+  };
+}
+
+const mockProxies: Array<MockProxy> = [
+  ...Array.from({length: 30}, (_, index) => mockProxy(index + 1, '23.142.16.250', 14450 + index, ['static'])),
+  ...Array.from({length: 6}, (_, index) => mockProxy(31 + index, `203.0.113.${10 + index}`, 8000, ['geo', 'eu'], 'geo', `geo-pass-${index}`)),
+  mockProxy(37, '10.9.9.9', 3128, ['rotating'], 'rot', 'rotpass'),
+  mockProxy(38, '198.51.100.5', 9000, [], '', null),
+];
+mockProxies[7].status = 'disabled';
+mockProxies[11].down = true;
+const mockIdentityBreaker = {until: 0};
+
+function mockProxyPublic(proxy: MockProxy): Identity['proxy'] {
+  const { password: _password, identities: _identities, ...rest } = proxy;
+  return rest;
+}
+
+function newMockIdentity(service: MockService, name: string, proxy: MockProxy, overrides: Partial<Identity> = {}): Identity {
+  const now = Date.now();
+  return {
+    id: `${service}:${name}`, service, kind: MOCK_IDENTITY_SERVICES[service].kind, status: 'active', proxy: mockProxyPublic(proxy),
+    in_pool: true, next_at: now - 1000, leased_ms: 0, streak: 0, strikes: 0, last_ok: null, last_error: null, last_error_at: null,
+    secret_updated: null, has_secret: false, has_login: false, login_updated: null, created: now, ...overrides,
+  };
+}
+
+const mockIdentities: Array<Identity> = [
+  ...Array.from({length: 24}, (_, index) => {
+    const now = Date.now();
+    const dead = index === 3 || index === 17;
+    const flagged = index % 5 === 1;
+    return newMockIdentity('youtube', String(index).padStart(3, '0'), mockProxies[index], {
+      status: (dead) ? 'dead' : (index === 20) ? 'disabled' : 'active',
+      next_at: (flagged) ? now + 4 * 60 * 1000 + index * 1000 : (index % 3 === 0) ? now + 40 * 1000 : now - 1000,
+      leased_ms: (index === 2 || index === 9) ? 95 * 1000 : 0,
+      streak: (flagged) ? 1 + (index % 3) : 0,
+      strikes: (dead) ? 3 : 0,
+      last_ok: (index === 22) ? null : now - (index + 1) * 7 * 60 * 1000,
+      last_error: (dead) ? 'cookie_suspect: video unavailable, this content isn’t available' : (flagged) ? 'ip_flagged: bot check' : null,
+      last_error_at: (dead || flagged) ? now - index * 60 * 1000 : null,
+      secret_updated: now - index * 3600 * 1000,
+      has_secret: true,
+      has_login: index % 4 !== 3,
+      login_updated: (index % 4 !== 3) ? now - 2 * 86400 * 1000 : null,
+      created: now - 40 * 86400 * 1000,
+    });
+  }),
+  ...[24, 25, 26, 27].flatMap((index) => [
+    newMockIdentity('google', `23.142.16.250-${14450 + index}`, mockProxies[index], {has_secret: index % 2 === 0}),
+    newMockIdentity('geopy', `23.142.16.250-${14450 + index}`, mockProxies[index]),
+  ]),
+  ...mockProxies.slice(30, 36).map((proxy) => newMockIdentity('geopy', `${proxy.host}-${proxy.port}`, proxy)),
+  newMockIdentity('global', '10.9.9.9-3128', mockProxies[36]),
+  ...[0, 1, 2].map((index) => newMockIdentity('strict', `23.142.16.250-${14450 + index}`, mockProxies[index])),
+  // assigned to youtube, waiting for their cookies
+  ...[28, 29].map((index) => newMockIdentity('youtube', `23.142.16.250-${14450 + index}`, mockProxies[index], {status: 'pending', in_pool: false})),
+];
+
+function mockIdentitiesPayload() {
+  const now = Date.now();
+  for (const identity of mockIdentities) {
+    const proxy = mockProxies.find((other) => other.id === identity.proxy.id)!;
+    identity.proxy = mockProxyPublic(proxy);
+    identity.in_pool = identity.status === 'active' && proxy.status === 'active';
+  }
+  for (const proxy of mockProxies) {
+    proxy.has_password = proxy.password !== null;
+    proxy.identities = mockIdentities.filter((identity) => identity.proxy.id === proxy.id).map(({ id, service, status }) => ({id, service, status}));
+  }
+  const labels = [...new Set(mockProxies.flatMap((proxy) => proxy.labels))].sort();
+  return {
+    identities: mockIdentities,
+    labels: labels.map((name, index) => ({id: index + 1, name, proxies: mockProxies.filter((proxy) => proxy.labels.includes(name)).length})),
+    proxies: mockProxies.map(({ password: _password, ...rest }) => rest),
+    services: Object.entries(MOCK_IDENTITY_SERVICES).map(([ service, policy ]) => {
+      const mine = mockIdentities.filter((identity) => identity.service === service);
+      const count = (status: string) => mine.filter((identity) => identity.status === status).length;
+      const counts = {active: count('active'), dead: count('dead'), disabled: count('disabled'), pending: count('pending')};
+      return {
+        service, kind: policy.kind,
+        counts,
+        pool: mine.filter((identity) => identity.in_pool).length,
+        available: mine.filter((identity) => identity.in_pool && !identity.leased_ms && (identity.next_at ?? 0) <= now && !identity.proxy.down).length,
+        flagged_recently: mine.filter((identity) => identity.streak).length,
+        paused_for: (service === 'youtube') ? Math.max(0, Math.round((mockIdentityBreaker.until - now) / 1000)) : 0,
+        cooldown: policy.cooldown, backoff: [...policy.backoff], cookie_strikes: 3, secret_optional: policy.secret_optional, shared: policy.shared,
+      };
+    }),
+  };
+}
+
+function mockLabels() {
+  return mockIdentitiesPayload().labels;
+}
+
+function findMockIdentity(identityId: string): Identity {
+  const identity = mockIdentities.find((other) => other.id === decodeURIComponent(identityId));
+  if (!identity) {
+    throw new MockError(404, ApiErrorCodes.UNKNOWN_IDENTITY, 'Unknown Identity');
+  }
+  return identity;
+}
+
+function findMockProxy(proxyId: unknown): MockProxy {
+  const proxy = mockProxies.find((other) => other.id === Number(proxyId));
+  if (!proxy) {
+    throw new MockError(404, ApiErrorCodes.UNKNOWN_IDENTITY, `Unknown proxy ${String(proxyId)}`);
+  }
+  return proxy;
+}
+
+function mockService(service: string) {
+  if (!(service in MOCK_IDENTITY_SERVICES)) {
+    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, `unknown service '${service}'`);
+  }
+  return MOCK_IDENTITY_SERVICES[service as MockService];
+}
+
+function checkMockProxyFree(service: string, proxy: MockProxy, ignoreId?: string) {
+  const holder = mockIdentities.find((other) => other.service === service && other.proxy.id === proxy.id && other.id !== ignoreId);
+  if (holder) {
+    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, `${proxy.host}:${proxy.port} already holds ${holder.id}, one ${service} account per ip`);
+  }
+}
+
+function checkMockCookies(service: string, cookies: unknown) {
+  const policy = mockService(service);
+  if (policy.kind === 'none') {
+    if (cookies) {
+      throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, `${service} identities have no secret`);
+    }
+    return;
+  }
+  if (!cookies && policy.secret_optional) {
+    return;
+  }
+  if (typeof cookies === 'string' && /^\s*[[{]/.test(cookies)) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(cookies);
+    } catch {
+      throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'not a cookies.txt or cookie json export (not valid json)');
+    }
+    const list = (Array.isArray(parsed)) ? parsed : (parsed as {cookies?: unknown})?.cookies;
+    if (!Array.isArray(list) || !list.some((cookie) => String(cookie?.domain ?? '').endsWith(`${service}.com`))) {
+      throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, `no ${service} cookies in the file`);
+    }
+    return;
+  }
+  if (typeof cookies !== 'string' || !new RegExp(`${service}\\.com\t`).test(cookies)) {
+    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, `no ${service} cookies in the file`);
+  }
+}
+
+// the api's `parse_proxy_line`, without ipv6
+function parseMockProxyLine(line: string, scheme: string) {
+  const url = line.match(/^(?:(\w+):\/\/)?(?:([^:@]*)(?::(.*))?@)?([^:@/]+):(\d+)$/);
+  if (url && (line.includes('://') || line.includes('@'))) {
+    return {scheme: url[1] || scheme, username: url[2] ?? '', password: url[3] ?? null, host: url[4], port: Number(url[5])};
+  }
+  const parts = line.split(':');
+  if (parts.length === 2 && /^\d+$/.test(parts[1])) {
+    return {scheme, host: parts[0], port: Number(parts[1]), username: '', password: null};
+  }
+  if (4 <= parts.length && /^\d+$/.test(parts[1])) {
+    return {scheme, host: parts[0], port: Number(parts[1]), username: parts[2], password: parts.slice(3).join(':')};
+  }
+  throw new Error('not host:port, host:port:user:pass or a proxy url');
+}
+
+route('GET', '/admin/identities', () => {
+  requireBotOwner();
+  return mockIdentitiesPayload();
+});
+
+route('POST', '/admin/identities', (_match, { body }) => {
+  requireBotOwner();
+  const service = String(body.service || '') as MockService;
+  const name = String(body.name || '').trim();
+  const id = `${service}:${name}`;
+  if (mockIdentities.some((other) => other.id === id)) {
+    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, `${id} already exists`);
+  }
+  checkMockCookies(service, body.cookies);
+  const proxy = findMockProxy(body.proxy_id);
+  checkMockProxyFree(service, proxy);
+  const login = body.login as IdentityLogin | undefined;
+  if (login && (!login.username || !login.password)) {
+    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'a login needs a username and a password');
+  }
+  const now = Date.now();
+  const identity = newMockIdentity(service, name, proxy, {
+    status: (body.status === 'disabled') ? 'disabled' : 'active', has_secret: !!body.cookies, secret_updated: (body.cookies) ? now : null,
+    has_login: !!login, login_updated: (login) ? now : null,
+  });
+  if (login) {
+    mockIdentityLogins.set(identity.id, login);
+  }
+  mockIdentities.push(identity);
+  mockIdentities.sort((a, b) => a.id.localeCompare(b.id));
+  return mockIdentitiesPayload().identities.find((other) => other.id === identity.id);
+});
+
+route('POST', '/admin/identities/assign', (_match, { body }) => {
+  requireBotOwner();
+  const service = String(body.service || '') as MockService;
+  const policy = mockService(service);
+  // accounts wait for their cookies
+  const accounts = policy.kind === 'cookies' && !policy.secret_optional;
+  const added: Array<string> = [];
+  const skipped: Array<number> = [];
+  for (const proxyId of (body.proxy_ids as Array<number>) ?? []) {
+    const proxy = findMockProxy(proxyId);
+    if (mockIdentities.some((other) => other.service === service && other.proxy.id === proxy.id)) {
+      skipped.push(proxy.id);
+      continue;
+    }
+    let name = `${proxy.host.replace(/:/g, '_')}-${proxy.port}`;
+    if (mockIdentities.some((other) => other.id === `${service}:${name}`)) {
+      name = `${name}-${proxy.id}`;
+    }
+    const identity = newMockIdentity(service, name, proxy, {status: (accounts) ? 'pending' : (body.status === 'disabled') ? 'disabled' : 'active', in_pool: !accounts});
+    mockIdentities.push(identity);
+    added.push(identity.id);
+  }
+  mockIdentities.sort((a, b) => a.id.localeCompare(b.id));
+  return {added, skipped, missing: []};
+});
+
+route('POST', '/admin/identities/unassign', (_match, { body }) => {
+  requireBotOwner();
+  const service = String(body.service || '');
+  const policy = mockService(service);
+  const accounts = policy.kind === 'cookies' && !policy.secret_optional;
+  const ids = new Set((body.proxy_ids as Array<number>) ?? []);
+  const mine = mockIdentities.filter((identity) => identity.service === service && ids.has(identity.proxy.id));
+  const removed = mine.filter((identity) => !accounts || (identity.status === 'pending' && !identity.has_secret)).map((identity) => identity.id);
+  for (const id of removed) {
+    mockIdentities.splice(mockIdentities.findIndex((identity) => identity.id === id), 1);
+  }
+  return {removed, kept: mine.map((identity) => identity.id).filter((id) => !removed.includes(id))};
+});
+
+route('POST', '/admin/identities/cookies', (_match, { body }) => {
+  requireBotOwner();
+  const results = ((body.items as Array<{identity_id: string, cookies: string}>) ?? []).map(({ identity_id, cookies }) => {
+    try {
+      const identity = findMockIdentity(identity_id);
+      checkMockCookies(identity.service, cookies);
+      identity.has_secret = true;
+      identity.secret_updated = Date.now();
+      if (identity.status === 'dead' || identity.status === 'pending') {
+        identity.status = 'active';
+        identity.streak = 0;
+        identity.strikes = 0;
+        identity.next_at = Date.now();
+      }
+      return {identity_id, status: identity.status};
+    } catch (error) {
+      return {identity_id, error: (error instanceof MockError) ? error.message : 'failed'};
+    }
+  });
+  return {results};
+});
+
+route('POST', '/admin/identities/services/([^/]+)/resume', () => {
+  requireBotOwner();
+  mockIdentityBreaker.until = 0;
+});
+
+route('POST', '/admin/identities/sync', () => {
+  requireBotOwner();
+  return {flushed: 3, identities: mockIdentities.length, removed: 0};
+});
+
+route('POST', '/admin/identities/proxies/bulk', (_match, { body }) => {
+  requireBotOwner();
+  const apply = body.apply === true;
+  const labels = ((body.labels as Array<string>) ?? []).map((label) => label.trim().toLowerCase()).filter(Boolean);
+  const scheme = String(body.scheme || 'http');
+  const counts = {added: 0, updated: 0, skipped: 0, failed: 0};
+  const seen = new Set<string>();
+  const results = String(body.proxies || '').split('\n').map((line, index) => ({line: line.trim(), number: index + 1}))
+    .filter(({ line }) => line && !line.startsWith('#'))
+    .map(({ line, number }) => {
+      let parsed;
+      try {
+        parsed = parseMockProxyLine(line, scheme);
+      } catch (error) {
+        counts.failed += 1;
+        return {line: number, outcome: 'failed' as const, error: (error as Error).message};
+      }
+      const label = (parsed.username) ? `${parsed.username}@${parsed.host}:${parsed.port}` : `${parsed.host}:${parsed.port}`;
+      const key = `${parsed.scheme}|${parsed.host}|${parsed.port}|${parsed.username}`;
+      const base = {line: number, proxy: label, has_password: parsed.password !== null};
+      if (seen.has(key)) {
+        counts.skipped += 1;
+        return {...base, outcome: 'skipped' as const, error: 'twice in the list'};
+      }
+      seen.add(key);
+      const existing = mockProxies.find((proxy) => `${proxy.scheme}|${proxy.host}|${proxy.port}|${proxy.username}` === key);
+      if (existing) {
+        if (!body.update_existing) {
+          counts.skipped += 1;
+          return {...base, proxy_id: existing.id, outcome: 'skipped' as const, error: 'already added'};
+        }
+        if (apply) {
+          if (parsed.password !== null) {
+            existing.password = parsed.password;
+          }
+          existing.labels = [...new Set([...existing.labels, ...labels])].sort();
+        }
+        counts.updated += 1;
+        return {...base, proxy_id: existing.id, outcome: (apply) ? 'updated' as const : 'would_update' as const};
+      }
+      let id: number | undefined;
+      if (apply) {
+        id = Math.max(0, ...mockProxies.map((proxy) => proxy.id)) + 1;
+        mockProxies.push({...mockProxy(id, parsed.host, parsed.port, [...labels].sort(), parsed.username, parsed.password), scheme: parsed.scheme as MockProxy['scheme'], exit_ip: null});
+      }
+      counts.added += 1;
+      return {...base, proxy_id: id, outcome: (apply) ? 'added' as const : 'would_add' as const};
+    });
+  if (!results.length) {
+    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'no proxies in the list');
+  }
+  return {applied: apply, ...counts, results};
+});
+
+route('PATCH', '/admin/identities/proxies', (_match, { body }) => {
+  requireBotOwner();
+  const updated: Array<number> = [];
+  for (const proxyId of (body.proxy_ids as Array<number>) ?? []) {
+    const proxy = findMockProxy(proxyId);
+    if (body.status) {
+      proxy.status = body.status as MockProxy['status'];
+    }
+    if (typeof body.username === 'string') {
+      proxy.username = body.username;
+    }
+    if (body.clear_password) {
+      proxy.password = null;
+    } else if (typeof body.password === 'string') {
+      proxy.password = body.password;
+    }
+    const remove = new Set((body.remove_labels as Array<string>) ?? []);
+    proxy.labels = [...new Set([...proxy.labels.filter((label) => !remove.has(label)), ...((body.add_labels as Array<string>) ?? []).map((label) => label.trim().toLowerCase())])].filter(Boolean).sort();
+    updated.push(proxy.id);
+  }
+  return {updated, failed: []};
+});
+
+route('POST', '/admin/identities/proxies/delete', (_match, { body }) => {
+  requireBotOwner();
+  const deleted: Array<number> = [];
+  const inUse: Array<{id: number, identities: Array<string>}> = [];
+  for (const proxyId of (body.proxy_ids as Array<number>) ?? []) {
+    const identities = mockIdentities.filter((identity) => identity.proxy.id === Number(proxyId)).map((identity) => identity.id);
+    if (identities.length) {
+      inUse.push({id: Number(proxyId), identities});
+      continue;
+    }
+    const index = mockProxies.findIndex((proxy) => proxy.id === Number(proxyId));
+    if (index !== -1) {
+      mockProxies.splice(index, 1);
+      deleted.push(Number(proxyId));
+    }
+  }
+  return {deleted, in_use: inUse};
+});
+
+route('PATCH', '/admin/identities/proxies/(\\d+)', ([ , proxyId ], { body }) => {
+  requireBotOwner();
+  const proxy = findMockProxy(proxyId);
+  const next = {
+    scheme: (body.scheme as MockProxy['scheme']) ?? proxy.scheme,
+    host: (typeof body.host === 'string') ? body.host.trim().toLowerCase() : proxy.host,
+    port: (body.port !== undefined) ? Number(body.port) : proxy.port,
+    username: (typeof body.username === 'string') ? body.username : proxy.username,
+  };
+  const other = mockProxies.find((item) => item.id !== proxy.id && item.scheme === next.scheme && item.host === next.host && item.port === next.port && item.username === next.username);
+  if (other) {
+    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, `that's proxy #${other.id} already`);
+  }
+  Object.assign(proxy, next);
+  if (body.clear_password) {
+    proxy.password = null;
+  } else if (typeof body.password === 'string') {
+    proxy.password = body.password;
+  }
+  if (Array.isArray(body.labels)) {
+    proxy.labels = [...new Set((body.labels as Array<string>).map((label) => label.trim().toLowerCase()).filter(Boolean))].sort();
+  }
+  if (body.status) {
+    proxy.status = body.status as MockProxy['status'];
+  }
+  return mockIdentitiesPayload().proxies.find((item) => item.id === proxy.id);
+});
+
+const mockProxyRevealHistory = new Map<number, IdentityLoginReveal['history']>();
+
+route('POST', '/admin/identities/proxies/(\\d+)/reveal', ([ , proxyId ]) => {
+  requireBotOwner();
+  const proxy = findMockProxy(proxyId);
+  const history = mockProxyRevealHistory.get(proxy.id) ?? [];
+  history.unshift({action: 'proxy_reveal', user_id: mockUser.id, created: Date.now()});
+  mockProxyRevealHistory.set(proxy.id, history.slice(0, 10));
+  const auth = (proxy.username) ? `${encodeURIComponent(proxy.username)}${(proxy.password !== null) ? `:${encodeURIComponent(proxy.password)}` : ''}@` : '';
+  return {username: proxy.username, password: proxy.password, url: `${proxy.scheme}://${auth}${proxy.host}:${proxy.port}`, history};
+});
+
+route('PATCH', '/admin/identities/labels/(\\d+)', ([ , labelId ], { body }) => {
+  requireBotOwner();
+  const label = mockLabels().find((item) => item.id === Number(labelId));
+  if (!label) {
+    throw new MockError(404, ApiErrorCodes.UNKNOWN_IDENTITY, `Unknown label ${labelId}`);
+  }
+  const name = String(body.name || '').trim().toLowerCase();
+  for (const proxy of mockProxies) {
+    proxy.labels = [...new Set(proxy.labels.map((item) => (item === label.name) ? name : item))].sort();
+  }
+  return {id: label.id, name};
+});
+
+route('DELETE', '/admin/identities/labels/(\\d+)', ([ , labelId ]) => {
+  requireBotOwner();
+  const label = mockLabels().find((item) => item.id === Number(labelId));
+  if (label) {
+    for (const proxy of mockProxies) {
+      proxy.labels = proxy.labels.filter((item) => item !== label.name);
+    }
+  }
+});
+
+route('PATCH', '/admin/identities/([^/]+)', ([ , identityId ], { body }) => {
+  requireBotOwner();
+  const identity = findMockIdentity(identityId);
+  if (body.proxy_id !== undefined) {
+    const proxy = findMockProxy(body.proxy_id);
+    checkMockProxyFree(identity.service, proxy, identity.id);
+    identity.proxy = mockProxyPublic(proxy);
+  }
+  if (body.cookies !== undefined) {
+    checkMockCookies(identity.service, body.cookies);
+    identity.has_secret = true;
+    identity.secret_updated = Date.now();
+    if (identity.status === 'dead') {
+      identity.status = 'active';
+    }
+  }
+  if (body.status !== undefined) {
+    identity.status = body.status as Identity['status'];
+  }
+  if (identity.status === 'active' && (body.cookies !== undefined || body.status !== undefined)) {
+    identity.streak = 0;
+    identity.strikes = 0;
+    identity.next_at = Date.now();
+  }
+  return mockIdentitiesPayload().identities.find((other) => other.id === identity.id);
+});
+
+route('DELETE', '/admin/identities/([^/]+)', ([ , identityId ]) => {
+  requireBotOwner();
+  const identity = findMockIdentity(identityId);
+  mockIdentities.splice(mockIdentities.indexOf(identity), 1);
+});
+
+// saved logins, fake ones made up on first reveal for the identities that start with one
+const mockIdentityLogins = new Map<string, IdentityLogin>();
+const mockIdentityLoginHistory = new Map<string, IdentityLoginReveal['history']>();
+
+function mockLoginAudit(identityId: string, action: IdentityLoginReveal['history'][number]['action']) {
+  const history = mockIdentityLoginHistory.get(identityId) ?? [{action: 'login_set', user_id: '0', created: Date.now() - 2 * 86400 * 1000}];
+  history.unshift({action, user_id: mockUser.id, created: Date.now()});
+  mockIdentityLoginHistory.set(identityId, history.slice(0, 10));
+}
+
+route('PUT', '/admin/identities/([^/]+)/login', ([ , identityId ], { body }) => {
+  requireBotOwner();
+  const identity = findMockIdentity(identityId);
+  if (!body.username || !body.password) {
+    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'a login needs a username and a password');
+  }
+  if (body.channel_url && !String(body.channel_url).startsWith('http')) {
+    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'channel_url has to be a link');
+  }
+  mockIdentityLogins.set(identity.id, {
+    username: String(body.username),
+    password: String(body.password),
+    recovery_email: (body.recovery_email) ? String(body.recovery_email) : null,
+    channel_email: (body.channel_email) ? String(body.channel_email) : null,
+    channel_url: (body.channel_url) ? String(body.channel_url) : null,
+    notes: (body.notes) ? String(body.notes) : null,
+  });
+  identity.has_login = true;
+  identity.login_updated = Date.now();
+  mockLoginAudit(identity.id, 'login_set');
+  return identity;
+});
+
+route('DELETE', '/admin/identities/([^/]+)/login', ([ , identityId ]) => {
+  requireBotOwner();
+  const identity = findMockIdentity(identityId);
+  mockIdentityLogins.delete(identity.id);
+  identity.has_login = false;
+  identity.login_updated = null;
+  mockLoginAudit(identity.id, 'login_clear');
+  return identity;
+});
+
+route('POST', '/admin/identities/([^/]+)/login/reveal', ([ , identityId ]) => {
+  requireBotOwner();
+  const identity = findMockIdentity(identityId);
+  if (!identity.has_login) {
+    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, `${identity.id} has no saved login`);
+  }
+  const name = identity.id.split(':')[1].replace(/^\d+\./, '');
+  const login = mockIdentityLogins.get(identity.id) ?? {
+    username: `${name}@gmail.com`,
+    password: `mock-pass-${name}`,
+    recovery_email: `${name}.recovery@gmail.com`,
+    channel_email: `${name}.channel@pages.plusgoogle.com`,
+    channel_url: 'https://www.youtube.com/channel/UCmockchannel',
+    notes: null,
+  };
+  mockIdentityLogins.set(identity.id, login);
+  mockLoginAudit(identity.id, 'login_reveal');
+  return {login, updated: identity.login_updated, history: mockIdentityLoginHistory.get(identity.id)};
+});
+
 
 // the dashboard shape leaves out the platform id and the owner
 function meVoice({ created, id, name, platform_type }: (typeof state.voices)[number]) {

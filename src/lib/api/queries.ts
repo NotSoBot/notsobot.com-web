@@ -43,6 +43,7 @@ export const queryKeys = {
   adminUsers: (token: string | null, filters: object) => ['users', '@me', token, 'admin', 'users', filters] as const,
   adminContentFlags: (token: string | null, filters: object) => ['users', '@me', token, 'admin', 'content-flags', filters] as const,
   adminEntitlements: (token: string | null, filters: object) => ['users', '@me', token, 'admin', 'entitlements', filters] as const,
+  adminIdentities: (token: string | null) => ['users', '@me', token, 'admin', 'identities'] as const,
   adminFileStats: (token: string | null, expiringDays: number) => ['users', '@me', token, 'admin', 'stats', 'files', expiringDays] as const,
   adminStats: (token: string | null, area: string, days: number) => ['users', '@me', token, 'admin', 'stats', area, days] as const,
   adminReports: (token: string | null, filters: object) => ['users', '@me', token, 'admin', 'reports', filters] as const,

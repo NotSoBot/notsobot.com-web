@@ -42,6 +42,7 @@ const ADMIN_BLURBS: Record<string, string> = {
   [Routes.DASHBOARD_ADMIN_VOICES]: 'Every voice cloned with the bot.',
   [Routes.DASHBOARD_OWNER_API_ACCESS]: 'Who can create API applications.',
   [Routes.DASHBOARD_OWNER_ENTITLEMENTS]: 'Discord subscriptions and the premium owners give.',
+  [Routes.DASHBOARD_OWNER_IDENTITIES]: 'The accounts and proxies the api uses, and how each is holding up.',
   [Routes.DASHBOARD_OWNER_STATS]: 'Numbers across the whole API, like file storage.',
 };
 

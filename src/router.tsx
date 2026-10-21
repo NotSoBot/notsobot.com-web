@@ -130,12 +130,13 @@ const routes: Array<RouteObject> = [
                   {path: Routes.DASHBOARD_ADMIN_VOICES, lazy: async () => ({Component: (await import('@/pages/dashboard/admin/AdminVoicesPage')).AdminVoicesPage}), handle: PAGES.DASHBOARD_ADMIN_VOICES},
                 ],
               },
-              // NotSoBot owners only: everyone's purchase history, who can make API applications and api-wide stats
+              // NotSoBot owners only: everyone's purchase history, who can make API applications, the download identities and api-wide stats
               {
                 element: <RequireStaff owner/>,
                 children: [
                   {path: Routes.DASHBOARD_OWNER_API_ACCESS, lazy: async () => ({Component: (await import('@/pages/dashboard/admin/OwnerApiAccessPage')).OwnerApiAccessPage}), handle: PAGES.DASHBOARD_OWNER_API_ACCESS},
                   {path: Routes.DASHBOARD_OWNER_ENTITLEMENTS, lazy: async () => ({Component: (await import('@/pages/dashboard/admin/AdminEntitlementsPage')).AdminEntitlementsPage}), handle: PAGES.DASHBOARD_OWNER_ENTITLEMENTS},
+                  {path: Routes.DASHBOARD_OWNER_IDENTITIES, lazy: async () => ({Component: (await import('@/pages/dashboard/admin/OwnerIdentitiesPage')).OwnerIdentitiesPage}), handle: PAGES.DASHBOARD_OWNER_IDENTITIES},
                   {path: Routes.DASHBOARD_OWNER_STATS, lazy: async () => ({Component: (await import('@/pages/dashboard/admin/OwnerStatsPage')).OwnerStatsPage}), handle: PAGES.DASHBOARD_OWNER_STATS},
                 ],
               },

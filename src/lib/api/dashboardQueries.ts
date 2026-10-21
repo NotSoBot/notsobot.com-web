@@ -18,6 +18,12 @@ import type {
   AdminApplicationsPage,
   AdminGuildPatch,
   AdminGuildsSortBy,
+  AdminIdentities,
+  AdminIdentityCreate,
+  AdminIdentityPatch,
+  AdminProxiesBulk,
+  AdminProxiesPatch,
+  AdminProxyPatch,
   AdminTagBlob,
   AdminTagStoragePage,
   AdminTagVariable,
@@ -40,6 +46,8 @@ import type {
   ContentFlagType,
   ContentFlagsPage,
   GuildRule,
+  Identity,
+  IdentityLogin,
   GuildRuleInput,
   MeTagsDirectoryFilter,
   MeTagsSortBy,
@@ -2064,6 +2072,205 @@ export function useRevokeApplicationAccessMutation() {
   return useMutation({
     mutationFn: (userId: string) => api.revokeAdminApplicationAccess(userId),
     onSettled: invalidate,
+  });
+}
+
+
+// leases, cooldowns and backoffs move by the second, so the page keeps itself current while it's open
+const ADMIN_IDENTITIES_REFETCH_INTERVAL = 10 * 1000;
+
+export function useAdminIdentitiesQuery() {
+  const { token } = useAuth();
+  return useQuery({
+    queryKey: queryKeys.adminIdentities(token),
+    queryFn: ({ signal }) => api.fetchAdminIdentities(signal),
+    refetchInterval: ADMIN_IDENTITIES_REFETCH_INTERVAL,
+  });
+}
+
+// the changed identity goes into the cache right away, the refetch brings the service counts and proxies along
+function useAdminIdentitiesCache() {
+  const { token } = useAuth();
+  const queryClient = useQueryClient();
+  const key = queryKeys.adminIdentities(token);
+  return {
+    put: (identity: Identity) => queryClient.setQueryData<AdminIdentities>(key, (data) => {
+      if (!data) {
+        return data;
+      }
+      const exists = data.identities.some((other) => other.id === identity.id);
+      const identities = (exists)
+        ? data.identities.map((other) => (other.id === identity.id) ? identity : other)
+        : [...data.identities, identity].sort((a, b) => a.id.localeCompare(b.id));
+      return {...data, identities};
+    }),
+    remove: (identityId: string) => queryClient.setQueryData<AdminIdentities>(key, (data) => {
+      return (data) ? {...data, identities: data.identities.filter((other) => other.id !== identityId)} : data;
+    }),
+    invalidate: () => queryClient.invalidateQueries({queryKey: key}),
+  };
+}
+
+export function useCreateIdentityMutation() {
+  const cache = useAdminIdentitiesCache();
+  return useMutation({
+    mutationFn: (body: AdminIdentityCreate) => api.createAdminIdentity(body),
+    onSuccess: cache.put,
+    onSettled: cache.invalidate,
+  });
+}
+
+export function usePatchIdentityMutation() {
+  const cache = useAdminIdentitiesCache();
+  return useMutation({
+    mutationFn: ({ identityId, body }: {identityId: string, body: AdminIdentityPatch}) => api.patchAdminIdentity(identityId, body),
+    onSuccess: cache.put,
+    onSettled: cache.invalidate,
+  });
+}
+
+export function useDeleteIdentityMutation() {
+  const cache = useAdminIdentitiesCache();
+  return useMutation({
+    mutationFn: (identityId: string) => api.deleteAdminIdentity(identityId),
+    onSuccess: (_result, identityId) => cache.remove(identityId),
+    onSettled: cache.invalidate,
+  });
+}
+
+export function useSetIdentityLoginMutation() {
+  const cache = useAdminIdentitiesCache();
+  return useMutation({
+    mutationFn: ({ identityId, login }: {identityId: string, login: IdentityLogin}) => api.putAdminIdentityLogin(identityId, login),
+    onSuccess: cache.put,
+  });
+}
+
+export function useClearIdentityLoginMutation() {
+  const cache = useAdminIdentitiesCache();
+  return useMutation({
+    mutationFn: (identityId: string) => api.deleteAdminIdentityLogin(identityId),
+    onSuccess: cache.put,
+  });
+}
+
+// the password only lives in the component that asked for it: never in the query cache, and dropped from the mutation
+// cache as soon as nothing shows it (`gcTime: 0`)
+export function useRevealIdentityLoginMutation() {
+  return useMutation({
+    mutationFn: (identityId: string) => api.revealAdminIdentityLogin(identityId),
+    gcTime: 0,
+  });
+}
+
+export function useAssignIdentitiesMutation() {
+  const cache = useAdminIdentitiesCache();
+  return useMutation({
+    mutationFn: ({ service, proxyIds, status }: {service: string, proxyIds: Array<number>, status?: 'active' | 'disabled'}) => {
+      return api.assignAdminIdentities(service, proxyIds, status);
+    },
+    onSettled: cache.invalidate,
+  });
+}
+
+export function useUnassignIdentitiesMutation() {
+  const cache = useAdminIdentitiesCache();
+  return useMutation({
+    mutationFn: ({ service, proxyIds }: {service: string, proxyIds: Array<number>}) => api.unassignAdminIdentities(service, proxyIds),
+    onSettled: cache.invalidate,
+  });
+}
+
+// the dashboard sends at most this many per request, a hundred cookie files go in a few
+const IDENTITY_COOKIES_CHUNK = 20;
+
+export function useBulkIdentityCookiesMutation() {
+  const cache = useAdminIdentitiesCache();
+  return useMutation({
+    mutationFn: async (items: Array<{identity_id: string, cookies: string}>) => {
+      const results: Array<{identity_id: string, status?: string, error?: string}> = [];
+      for (let start = 0; start < items.length; start += IDENTITY_COOKIES_CHUNK) {
+        results.push(...(await api.bulkAdminIdentityCookies(items.slice(start, start + IDENTITY_COOKIES_CHUNK))).results);
+      }
+      return results;
+    },
+    onSettled: cache.invalidate,
+  });
+}
+
+export function useBulkAddProxiesMutation() {
+  const cache = useAdminIdentitiesCache();
+  return useMutation({
+    mutationFn: (body: AdminProxiesBulk) => api.bulkAddAdminProxies(body),
+    onSuccess: (result) => {
+      if (result.applied) {
+        void cache.invalidate();
+      }
+    },
+  });
+}
+
+export function usePatchProxiesMutation() {
+  const cache = useAdminIdentitiesCache();
+  return useMutation({
+    mutationFn: (body: AdminProxiesPatch) => api.patchAdminProxies(body),
+    onSettled: cache.invalidate,
+  });
+}
+
+export function usePatchProxyMutation() {
+  const cache = useAdminIdentitiesCache();
+  return useMutation({
+    mutationFn: ({ proxyId, body }: {proxyId: number, body: AdminProxyPatch}) => api.patchAdminProxy(proxyId, body),
+    onSettled: cache.invalidate,
+  });
+}
+
+export function useDeleteProxiesMutation() {
+  const cache = useAdminIdentitiesCache();
+  return useMutation({
+    mutationFn: (proxyIds: Array<number>) => api.deleteAdminProxies(proxyIds),
+    onSettled: cache.invalidate,
+  });
+}
+
+// like a login: kept only by the component showing it, never cached
+export function useRevealProxyMutation() {
+  return useMutation({
+    mutationFn: (proxyId: number) => api.revealAdminProxy(proxyId),
+    gcTime: 0,
+  });
+}
+
+export function useRenameIdentityLabelMutation() {
+  const cache = useAdminIdentitiesCache();
+  return useMutation({
+    mutationFn: ({ labelId, name }: {labelId: number, name: string}) => api.renameAdminIdentityLabel(labelId, name),
+    onSettled: cache.invalidate,
+  });
+}
+
+export function useDeleteIdentityLabelMutation() {
+  const cache = useAdminIdentitiesCache();
+  return useMutation({
+    mutationFn: (labelId: number) => api.deleteAdminIdentityLabel(labelId),
+    onSettled: cache.invalidate,
+  });
+}
+
+export function useResumeIdentityServiceMutation() {
+  const cache = useAdminIdentitiesCache();
+  return useMutation({
+    mutationFn: (service: string) => api.resumeAdminIdentityService(service),
+    onSettled: cache.invalidate,
+  });
+}
+
+export function useSyncIdentitiesMutation() {
+  const cache = useAdminIdentitiesCache();
+  return useMutation({
+    mutationFn: () => api.syncAdminIdentities(),
+    onSettled: cache.invalidate,
   });
 }
 

@@ -392,6 +392,7 @@ export const ApiErrorCodes = {
   UNKNOWN_GUILD_LIST_ITEM: 10022,
   UNKNOWN_LLM_MEMORY: 10023,
   UNKNOWN_PREMIUM_SERVER: 10025,
+  UNKNOWN_IDENTITY: 10027,
   UNKNOWN_SERVER: 10012,
   UNKNOWN_REPORT: 10017,
   UNKNOWN_REMINDER: 10007,
@@ -1503,6 +1504,189 @@ export interface ApplicationAccessItem {
 export interface ApplicationAccessPage {
   count: number,
   items: Array<ApplicationAccessItem>,
+}
+
+
+// `/admin/identities` (owners only): an account on a site plus the one proxy it's always used through, and the proxies
+// themselves (added in bulk, labeled, then assigned to services). timestamps are epoch ms
+// pending: made by assigning a proxy to a service with accounts, never used until it gets its cookies
+export type IdentityStatus = 'active' | 'dead' | 'disabled' | 'pending';
+export type ProxyScheme = 'http' | 'https' | 'socks5' | 'socks5h';
+
+export interface IdentityProxy {
+  id: number,
+  scheme: ProxyScheme,
+  host: string,
+  port: number,
+  username: string,
+  // the password itself only comes from `POST /admin/identities/proxies/<id>/reveal`
+  has_password: boolean,
+  labels: Array<string>,
+  exit_ip: string | null,
+  status: 'active' | 'disabled',
+  // refused connections recently, everything on it waits a couple of minutes
+  down: boolean,
+  created: number | null,
+}
+
+// what each identity on a proxy is, one per service
+export interface IdentityProxyItem extends IdentityProxy {
+  identities: Array<{id: string, service: string, status: IdentityStatus}>,
+}
+
+export interface IdentityLabel {
+  id: number,
+  name: string,
+  proxies: number,
+}
+
+export interface Identity {
+  id: string,
+  service: string,
+  kind: 'cookies' | 'none',
+  status: IdentityStatus,
+  proxy: IdentityProxy,
+  // in the rotation, `next_at` is when it may be used again (in the past means ready)
+  in_pool: boolean,
+  next_at: number | null,
+  // a download is using it, for this many more ms at most
+  leased_ms: number,
+  // ip flags in a row (each one benches it longer) and cookie failures in a row (enough of them kill it)
+  streak: number,
+  strikes: number,
+  last_ok: number | null,
+  last_error: string | null,
+  last_error_at: number | null,
+  secret_updated: number | null,
+  has_secret: boolean,
+  // a saved login, for signing in again to export new cookies. only whether there is one, revealing it is audited
+  has_login: boolean,
+  login_updated: number | null,
+  created: number | null,
+}
+
+export interface IdentityLogin {
+  username: string,
+  password: string,
+  recovery_email?: string | null,
+  // the youtube channel's own email (a brand account's), next to its link
+  channel_email?: string | null,
+  channel_url?: string | null,
+  notes?: string | null,
+}
+
+export type IdentityAuditEntry = {
+  action: 'login_reveal' | 'login_set' | 'login_clear' | 'proxy_reveal',
+  // "0" is the cli script
+  user_id: string,
+  created: number | null,
+};
+
+// `POST /admin/identities/<id>/login/reveal`, the history includes this reveal
+export interface IdentityLoginReveal {
+  login: IdentityLogin,
+  updated: number | null,
+  history: Array<IdentityAuditEntry>,
+}
+
+// `POST /admin/identities/proxies/<id>/reveal`, audited the same way
+export interface ProxyReveal {
+  username: string,
+  password: string | null,
+  url: string,
+  history: Array<IdentityAuditEntry>,
+}
+
+export interface IdentityService {
+  service: string,
+  kind: Identity['kind'],
+  counts: Record<IdentityStatus, number>,
+  pool: number,
+  available: number,
+  flagged_recently: number,
+  // seconds left on a pause, after too many of its identities got flagged at once
+  paused_for: number,
+  cooldown: number,
+  backoff: Array<number>,
+  cookie_strikes: number,
+  // a cookies service whose identities earn their jar (google's captcha clearances) instead of having one uploaded
+  secret_optional: boolean,
+  // never leased or rate limited, every use picks one at random (`global`, the general proxy)
+  shared: boolean,
+}
+
+export interface AdminIdentities {
+  identities: Array<Identity>,
+  labels: Array<IdentityLabel>,
+  proxies: Array<IdentityProxyItem>,
+  services: Array<IdentityService>,
+}
+
+export interface AdminIdentityCreate {
+  service: string,
+  name: string,
+  proxy_id: number,
+  cookies?: string,
+  status?: 'active' | 'disabled',
+  login?: IdentityLogin,
+}
+
+export interface AdminIdentityPatch {
+  cookies?: string,
+  status?: IdentityStatus,
+  // re-pairing with another proxy
+  proxy_id?: number,
+}
+
+// `POST /admin/identities/proxies/bulk`: a pasted list, one proxy per line, previewed unless `apply`
+export interface AdminProxiesBulk {
+  proxies: string,
+  labels?: Array<string>,
+  scheme?: ProxyScheme,
+  // an existing one gets the pasted password and the labels instead of being skipped
+  update_existing?: boolean,
+  apply: boolean,
+}
+
+export interface AdminProxiesBulkResult {
+  applied: boolean,
+  added: number,
+  updated: number,
+  skipped: number,
+  failed: number,
+  // never the line or a password
+  results: Array<{
+    line: number,
+    outcome: 'would_add' | 'added' | 'would_update' | 'updated' | 'skipped' | 'failed',
+    proxy?: string,
+    proxy_id?: number,
+    has_password?: boolean,
+    error?: string,
+  }>,
+}
+
+// `PATCH /admin/identities/proxies`, the same change on every one of them
+export interface AdminProxiesPatch {
+  proxy_ids: Array<number>,
+  status?: 'active' | 'disabled',
+  username?: string,
+  password?: string,
+  clear_password?: boolean,
+  add_labels?: Array<string>,
+  remove_labels?: Array<string>,
+}
+
+export interface AdminProxyPatch {
+  scheme?: ProxyScheme,
+  host?: string,
+  port?: number,
+  username?: string,
+  password?: string,
+  clear_password?: boolean,
+  // the whole set
+  labels?: Array<string>,
+  status?: 'active' | 'disabled',
+  exit_ip?: string | null,
 }
 
 

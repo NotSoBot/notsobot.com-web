@@ -30,6 +30,13 @@ import type {
   AdminTagStoragePage,
   AdminTagVariable,
   AdminUsersSortBy,
+  AdminIdentities,
+  AdminIdentityCreate,
+  AdminIdentityPatch,
+  AdminProxiesBulk,
+  AdminProxiesBulkResult,
+  AdminProxiesPatch,
+  AdminProxyPatch,
   AdminVoice,
   AdminVoicesPage,
   Application,
@@ -38,6 +45,13 @@ import type {
   ApplicationsPage,
   ApplicationWithToken,
   Command,
+  Identity,
+  IdentityLabel,
+  IdentityLogin,
+  IdentityStatus,
+  IdentityLoginReveal,
+  IdentityProxyItem,
+  ProxyReveal,
   ContentFlag,
   ContentFlagMatches,
   ContentFlagPatch,
@@ -1028,6 +1042,99 @@ export const api = {
   // their applications stop working until it's given back, they aren't disabled
   revokeAdminApplicationAccess: (userId: string) => {
     return apiRequest<ApplicationAccessItem>(ApiEndpoints.ADMIN_APPLICATION_ACCESS_USER(userId), {method: 'DELETE'});
+  },
+
+  // owners only, every identity at once (a hundred or so), with each service's pool and the proxies
+  fetchAdminIdentities: (signal?: AbortSignal) => {
+    return apiRequest<AdminIdentities>(ApiEndpoints.ADMIN_IDENTITIES, {signal});
+  },
+
+  createAdminIdentity: (body: AdminIdentityCreate) => {
+    return apiRequest<Identity>(ApiEndpoints.ADMIN_IDENTITIES, {method: 'POST', body});
+  },
+
+  // new cookies bring a dead identity back; provider + port re-pair it with another proxy
+  patchAdminIdentity: (identityId: string, body: AdminIdentityPatch) => {
+    return apiRequest<Identity>(ApiEndpoints.ADMIN_IDENTITY(identityId), {method: 'PATCH', body});
+  },
+
+  deleteAdminIdentity: (identityId: string) => {
+    return apiRequest<void>(ApiEndpoints.ADMIN_IDENTITY(identityId), {method: 'DELETE'});
+  },
+
+  putAdminIdentityLogin: (identityId: string, body: IdentityLogin) => {
+    return apiRequest<Identity>(ApiEndpoints.ADMIN_IDENTITY_LOGIN(identityId), {method: 'PUT', body});
+  },
+
+  deleteAdminIdentityLogin: (identityId: string) => {
+    return apiRequest<Identity>(ApiEndpoints.ADMIN_IDENTITY_LOGIN(identityId), {method: 'DELETE'});
+  },
+
+  // every call is written to the identity's audit log, so it's a POST
+  revealAdminIdentityLogin: (identityId: string) => {
+    return apiRequest<IdentityLoginReveal>(ApiEndpoints.ADMIN_IDENTITY_LOGIN_REVEAL(identityId), {method: 'POST'});
+  },
+
+  // identities of a service without accounts (global, geopy, google) on each proxy that has none yet
+  assignAdminIdentities: (service: string, proxyIds: Array<number>, status: 'active' | 'disabled' = 'active') => {
+    return apiRequest<{added: Array<string>, skipped: Array<number>, missing: Array<number>}>(ApiEndpoints.ADMIN_IDENTITIES_ASSIGN, {
+      method: 'POST',
+      body: {service, proxy_ids: proxyIds, status},
+    });
+  },
+
+  unassignAdminIdentities: (service: string, proxyIds: Array<number>) => {
+    return apiRequest<{removed: Array<string>, kept: Array<string>}>(ApiEndpoints.ADMIN_IDENTITIES_UNASSIGN, {method: 'POST', body: {service, proxy_ids: proxyIds}});
+  },
+
+  // cookies for many identities at once (a pending one becomes active), a result per item
+  bulkAdminIdentityCookies: (items: Array<{identity_id: string, cookies: string}>) => {
+    return apiRequest<{results: Array<{identity_id: string, status?: IdentityStatus, error?: string}>}>(ApiEndpoints.ADMIN_IDENTITIES_COOKIES, {
+      method: 'POST',
+      body: {items},
+    });
+  },
+
+  // a preview unless `apply`
+  bulkAddAdminProxies: (body: AdminProxiesBulk) => {
+    return apiRequest<AdminProxiesBulkResult>(ApiEndpoints.ADMIN_IDENTITY_PROXIES_BULK, {method: 'POST', body});
+  },
+
+  patchAdminProxies: (body: AdminProxiesPatch) => {
+    return apiRequest<{updated: Array<number>, failed: Array<{id: number, error: string}>}>(ApiEndpoints.ADMIN_IDENTITY_PROXIES, {method: 'PATCH', body});
+  },
+
+  patchAdminProxy: (proxyId: number, body: AdminProxyPatch) => {
+    return apiRequest<IdentityProxyItem>(ApiEndpoints.ADMIN_IDENTITY_PROXY(proxyId), {method: 'PATCH', body});
+  },
+
+  // only the unused ones go, the rest come back in `in_use`
+  deleteAdminProxies: (proxyIds: Array<number>) => {
+    return apiRequest<{deleted: Array<number>, in_use: Array<{id: number, identities: Array<string>}>}>(ApiEndpoints.ADMIN_IDENTITY_PROXIES_DELETE, {
+      method: 'POST',
+      body: {proxy_ids: proxyIds},
+    });
+  },
+
+  // every call is audited, so it's a POST
+  revealAdminProxy: (proxyId: number) => {
+    return apiRequest<ProxyReveal>(ApiEndpoints.ADMIN_IDENTITY_PROXY_REVEAL(proxyId), {method: 'POST'});
+  },
+
+  renameAdminIdentityLabel: (labelId: number, name: string) => {
+    return apiRequest<Pick<IdentityLabel, 'id' | 'name'>>(ApiEndpoints.ADMIN_IDENTITY_LABEL(labelId), {method: 'PATCH', body: {name}});
+  },
+
+  deleteAdminIdentityLabel: (labelId: number) => {
+    return apiRequest<void>(ApiEndpoints.ADMIN_IDENTITY_LABEL(labelId), {method: 'DELETE'});
+  },
+
+  resumeAdminIdentityService: (service: string) => {
+    return apiRequest<void>(ApiEndpoints.ADMIN_IDENTITY_SERVICE_RESUME(service), {method: 'POST'});
+  },
+
+  syncAdminIdentities: () => {
+    return apiRequest<{flushed: number, identities: number, removed: number}>(ApiEndpoints.ADMIN_IDENTITIES_SYNC, {method: 'POST'});
   },
 
   fetchAdminGuilds: (params: {
