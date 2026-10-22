@@ -28,6 +28,17 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 
 export const CHANGELOG: Array<ChangelogDay> = [
   {
+    date: '2026-10-22',
+    title: 'Server log timestamps, Threads and YouTube downloads',
+    items: [
+      {kind: 'improved', text: 'Server logs show when something happened in each viewer\'s own timezone and language: how long ago (the full date on hover), and in component-style logs the exact date and time at the bottom too. Usernames show as they are written, without stray backslashes.'},
+      {kind: 'improved', text: 'YouTube downloads are more reliable, NotSoBot keeps the tokens YouTube asks for ready instead of making new ones for every download.'},
+      {kind: 'improved', text: 'Threads downloads say what went wrong: a deleted post, a profile link instead of a post, or Threads asking to log in (try again in a few minutes).'},
+      {kind: 'fixed', text: 'Downloading newer Threads posts finding no media.'},
+      {kind: 'improved', text: '`.code` runs Node.js 26.12.1 instead of 26.12.0.'},
+    ],
+  },
+  {
     date: '2026-10-21',
     title: 'VEGAS effects, website reports and new time limits',
     items: [

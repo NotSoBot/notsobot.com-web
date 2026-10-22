@@ -177,7 +177,7 @@ export const TAG_DOC_GUIDE: Array<TagDocGuideSection> = [
     body: [
       'Tags can run real code in a sandbox: use a programming language as the function name, like `{python:print("hi")}` or `{js:console.log(1 + 1)}`. Whatever the program prints is added to the tag\'s output at that spot, so code and normal TagScript can be mixed freely.',
       'The code can also be wrapped in a ``` code block inside the function (`{python:```py ... ```}`). The language written after the opening backticks is ignored; the function name decides the language. An empty function does nothing.',
-      'Language names are not case sensitive, and the internal names work too (`{node:...}`, `{golang:...}`, `{c_plus_plus:...}`). A specific version can be requested after a dash, like `{python-3.12.15:...}` or `{node-26.12.0:...}`; it has to be one of the versions in the table, written in full. Without one, the default version is used.',
+      'Language names are not case sensitive, and the internal names work too (`{node:...}`, `{golang:...}`, `{c_plus_plus:...}`). A specific version can be requested after a dash, like `{python-3.12.15:...}` or `{node-26.12.1:...}`; it has to be one of the versions in the table, written in full. Without one, the default version is used.',
       'Each code run counts as one network request (files loaded with `load` lines do not cost extra). Other tags cannot be run from inside code: a `{tag}` inside a code function is left as plain text.',
       'The table lists every language and the names you can call it by. Python, Node.js, Bun and Lua also get a ready-made `discord` object with the tag\'s context, variables and storage (see "The `discord` object" below).',
     ].join('\n\n'),
@@ -207,7 +207,7 @@ export const TAG_DOC_GUIDE: Array<TagDocGuideSection> = [
         ['Lua', 'lua', 'Versions 5.4.9 and 5.5.1 (default), with dkjson and base64. Has the `discord` object.'],
         ['NASM (32-bit)', 'nasm, nasm32, asm, assembly', ''],
         ['NASM (64-bit)', 'nasm64, asm64, assembly64', ''],
-        ['Node.js', 'javascript, js, node.js, node, jsx', 'Versions 22.23.3, 24.22.0 (default) and 26.12.0. Has the `discord` object.'],
+        ['Node.js', 'javascript, js, node.js, node, jsx', 'Versions 22.23.3, 24.22.0 (default) and 26.12.1. Has the `discord` object.'],
         ['Perl', 'perl, pl, pm', ''],
         ['PHP', 'php', ''],
         ['Prolog', 'prolog, pro', ''],
