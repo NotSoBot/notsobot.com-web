@@ -61,6 +61,8 @@ import type {
   ContentFlagsPage,
   CommandStat,
   EntitlementsPage,
+  GuildLLMKnowledge,
+  GuildLLMKnowledgePage,
   LLMMemoriesPage,
   LLMMemory,
   LLMMemoryPatch,
@@ -547,6 +549,11 @@ export const api = {
     return apiRequest<MeVoice>(ApiEndpoints.USER_ME_VOICE(voiceId), {method: 'PATCH', body});
   },
 
+  // also deletes it on its cloning service and every clip it's made from
+  deleteMeVoice: (voiceId: string) => {
+    return apiRequest<void>(ApiEndpoints.USER_ME_VOICE(voiceId), {method: 'DELETE'});
+  },
+
   // the api converts it to the mp3 it keeps (the first minute) and adds it to the voice on the cloning service
   uploadMeVoiceClip: (voiceId: string, file: File) => {
     const body = new FormData();
@@ -576,6 +583,23 @@ export const api = {
 
   fetchMeGuild: (guildId: string, signal?: AbortSignal) => {
     return apiRequest<UserGuild>(ApiEndpoints.USER_ME_GUILD(guildId), {signal});
+  },
+
+  // what the server's admins told NotSoAI about it, any member can read it and Manage Server changes it
+  fetchMeGuildLLMKnowledge: (guildId: string, signal?: AbortSignal) => {
+    return apiRequest<GuildLLMKnowledgePage>(guildEndpoints('me', guildId).LLM_KNOWLEDGE, {signal});
+  },
+
+  createMeGuildLLMKnowledge: (guildId: string, content: string) => {
+    return apiRequest<GuildLLMKnowledge>(guildEndpoints('me', guildId).LLM_KNOWLEDGE, {method: 'POST', body: {content}});
+  },
+
+  patchMeGuildLLMKnowledge: (guildId: string, knowledgeId: string, content: string) => {
+    return apiRequest<GuildLLMKnowledge>(guildEndpoints('me', guildId).LLM_KNOWLEDGE_ITEM(knowledgeId), {method: 'PATCH', body: {content}});
+  },
+
+  deleteMeGuildLLMKnowledge: (guildId: string, knowledgeId: string) => {
+    return apiRequest<void>(guildEndpoints('me', guildId).LLM_KNOWLEDGE_ITEM(knowledgeId), {method: 'DELETE'});
   },
 
   // the server edits below go through `/users/@me/guilds` (`scope: 'me'`) or `/admin/guilds` (`'admin'`), same bodies

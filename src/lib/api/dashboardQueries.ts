@@ -46,6 +46,8 @@ import type {
   ContentFlagPatch,
   ContentFlagType,
   ContentFlagsPage,
+  GuildLLMKnowledge,
+  GuildLLMKnowledgePage,
   GuildRule,
   Identity,
   IdentityLogin,
@@ -194,11 +196,17 @@ export function errorMessage(error: unknown, fallback = 'Something went wrong. T
       case ApiErrorCodes.MAX_VOICE_CLIPS:
         return `A voice can have up to ${(error.body as {limit?: number} | null)?.limit ?? 10} audio clips. Delete one first.`;
       case ApiErrorCodes.VOICE_CLIP_LAST:
-        return 'A voice needs at least one clip. Replace it instead, or delete the voice with the bot’s voice delete command.';
+        return 'A voice needs at least one clip. Replace it instead, or delete the whole voice.';
       case ApiErrorCodes.UNKNOWN_REMINDER:
         return 'That reminder doesn’t exist anymore. It may have already been sent or deleted with the bot.';
       case ApiErrorCodes.UNKNOWN_LLM_MEMORY:
         return 'NotSoAI already forgot that one.';
+      case ApiErrorCodes.UNKNOWN_GUILD_LLM_KNOWLEDGE:
+        return 'That was already removed. Someone else may have deleted it.';
+      case ApiErrorCodes.MAX_GUILD_LLM_KNOWLEDGE: {
+        const remaining = (error.body as {remaining?: number} | null)?.remaining;
+        return (remaining === undefined) ? 'This server already gave NotSoAI as much as it can know. Remove one first.' : `That’s too long, only ${remaining.toLocaleString()} characters are left. Shorten it or remove another one first.`;
+      }
       case ApiErrorCodes.PREMIUM_REQUIRED:
         return 'You need NotSoPremium Plus (or Plus AI) for this.';
       case ApiErrorCodes.MAX_PREMIUM_SERVERS:
@@ -988,6 +996,23 @@ export function usePatchMeVoiceMutation() {
 }
 
 
+export function useDeleteMeVoiceMutation() {
+  const { token } = useAuth();
+  const queryClient = useQueryClient();
+  const key = queryKeys.meVoices(token);
+  return useMutation({
+    mutationFn: (voiceId: string) => api.deleteMeVoice(voiceId),
+    onSuccess: (_result, voiceId) => {
+      queryClient.setQueryData<VoicesPage>(key, (page) => {
+        return (page) ? {count: Math.max(0, page.count - 1), items: page.items.filter((other) => other.id !== voiceId)} : page;
+      });
+      // a staff member deleting one of their own voices
+      void queryClient.invalidateQueries({queryKey: [...queryKeys.admin(token), 'voices']});
+    },
+  });
+}
+
+
 export interface VoiceClipUpload {
   voiceId: string,
   // replaces this clip when given, otherwise it's added
@@ -1105,6 +1130,61 @@ export function useMeGuildQuery(guildId: string) {
     queryKey: queryKeys.meGuild(token, guildId),
     queryFn: ({ signal }) => api.fetchMeGuild(guildId, signal),
     retry: retryDiscordRefresh,
+  });
+}
+
+
+/* what the server told NotSoAI */
+
+export function useMeGuildLLMKnowledgeQuery(guildId: string) {
+  const { token } = useAuth();
+  return useQuery({
+    queryKey: queryKeys.meGuildLLMKnowledge(token, guildId),
+    queryFn: ({ signal }) => api.fetchMeGuildLLMKnowledge(guildId, signal),
+    retry: retryDiscordRefresh,
+  });
+}
+
+
+export type GuildLLMKnowledgeAction =
+  | {kind: 'add', content: string}
+  | {kind: 'edit', knowledgeId: string, content: string}
+  | {kind: 'remove', knowledgeId: string};
+
+// adds, edits and removes go straight into the cached list, the api returns what it stored
+export function useGuildLLMKnowledgeMutation(guildId: string) {
+  const { token } = useAuth();
+  const queryClient = useQueryClient();
+  const key = queryKeys.meGuildLLMKnowledge(token, guildId);
+  return useMutation({
+    mutationFn: async (action: GuildLLMKnowledgeAction): Promise<GuildLLMKnowledge | null> => {
+      switch (action.kind) {
+        case 'add': return api.createMeGuildLLMKnowledge(guildId, action.content);
+        case 'edit': return api.patchMeGuildLLMKnowledge(guildId, action.knowledgeId, action.content);
+        case 'remove': {
+          await api.deleteMeGuildLLMKnowledge(guildId, action.knowledgeId);
+          return null;
+        }
+      }
+    },
+    onSuccess: (item, action) => {
+      queryClient.setQueryData<GuildLLMKnowledgePage>(key, (page) => {
+        if (!page) {
+          return page;
+        }
+        switch (action.kind) {
+          case 'add': return {...page, items: [...page.items, item!]};
+          case 'edit': return {...page, items: page.items.map((other) => (other.id === item!.id) ? item! : other)};
+          case 'remove': return {...page, items: page.items.filter((other) => other.id !== action.knowledgeId)};
+        }
+      });
+    },
+    // someone else removed it, show the list as it is now
+    onError: (error) => {
+      if (error instanceof ApiRequestError && error.code === ApiErrorCodes.UNKNOWN_GUILD_LLM_KNOWLEDGE) {
+        void queryClient.invalidateQueries({queryKey: key});
+      }
+    },
   });
 }
 

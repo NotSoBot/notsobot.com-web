@@ -257,6 +257,27 @@ export const TAG_DOC_FUNCTIONS_PART1: Array<TagDocFunction> = [
     ],
   },
   {
+    id: 'API_SEARCH_IMAGES',
+    names: ['api.search.images'],
+    category: 'search',
+    summary: 'Searches images with your search provider and outputs the results as JSON.',
+    description: 'Outputs an object like `{"provider": "GOOGLE", "results": [...]}` with up to 10 results, each with `image` (the image URL), `title` and `url` (the page it\'s on). The same fields whichever provider is used.',
+    syntax: '{api.search.images:query}',
+    args: [
+      {name: 'query', description: 'The search query (only the first 1024 characters are used).'},
+    ],
+    examples: [
+      {code: '{traversejson:results[0].image|{api.search.images:cute cats}}', result: 'The URL of the first image result.'},
+      {code: '{traversejson:provider|{api.search.images:sunsets}}', result: 'Which search engine was used, like `BING`.'},
+    ],
+    notes: [
+      'Uses the image search provider of the person running the tag (`/settings set search-provider`), then the server\'s, then Google.',
+      'Counts against the network request limit. Repeating the same query in one run (here or in {search.images}) reuses the cached result without counting again.',
+      'SafeSearch is enabled unless the channel allows NSFW content.',
+      'An empty query outputs nothing.',
+    ],
+  },
+  {
     id: 'API_SEARCH_IMGUR',
     names: ['api.search.imgur'],
     category: 'search',
@@ -331,6 +352,27 @@ export const TAG_DOC_FUNCTIONS_PART1: Array<TagDocFunction> = [
     notes: [
       'Counts against the network request limit. Repeating the same term in one run reuses the cached result without counting again, random definitions are never cached.',
       'Outputs `[]` if nothing was found.',
+    ],
+  },
+  {
+    id: 'API_SEARCH_WEB',
+    names: ['api.search.web'],
+    category: 'search',
+    summary: 'Searches the web with your search provider and outputs the results as JSON.',
+    description: 'Outputs an object like `{"provider": "DUCK_DUCK_GO", "results": [...]}` with up to 10 results, each with `title`, `url` and `description`. The same fields whichever provider is used.',
+    syntax: '{api.search.web:query}',
+    args: [
+      {name: 'query', description: 'The search query (only the first 1024 characters are used).'},
+    ],
+    examples: [
+      {code: '{traversejson:results[0].url|{api.search.web:notsobot}}', result: 'The URL of the first result.'},
+      {code: '{traversejson:results[0].description|{api.search.web:weather in tokyo}}', result: 'The first result\'s snippet.'},
+    ],
+    notes: [
+      'Uses the web search provider of the person running the tag (`/settings set search-provider`), then the server\'s, then DuckDuckGo.',
+      'Counts against the network request limit. Repeating the same query in one run (here or in {search.web}) reuses the cached result without counting again.',
+      'SafeSearch is enabled unless the channel allows NSFW content.',
+      'An empty query outputs nothing.',
     ],
   },
   {

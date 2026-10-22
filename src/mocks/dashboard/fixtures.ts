@@ -77,8 +77,9 @@ export function createSettings(): UserSettings {
     ml_llm_memory_disabled: false,
     ml_llm_model: 'ANTHROPIC_CLAUDE_HAIKU_5_5',
     ml_llm_personality: 'You are a sarcastic but helpful assistant who loves cats.',
-    opted_out_content: null,
     response_display: 0,
+    search_provider_images: null,
+    search_provider_web: 2,
     timezone: 'America/New_York',
     tts_voice: null,
     units: 'METRIC',
@@ -192,6 +193,8 @@ export function createGuildSettings(): UserGuild['settings'] {
     ml_llm_personality: null,
     response_display: null,
     rules_admin_bypass: true,
+    search_provider_images: null,
+    search_provider_web: null,
   };
 }
 

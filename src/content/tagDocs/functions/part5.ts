@@ -86,6 +86,27 @@ export const TAG_DOC_FUNCTIONS_PART5: Array<TagDocFunction> = [
     ],
   },
   {
+    id: 'TAG_CREATE',
+    names: ['tag.create'],
+    category: 'tags',
+    summary: 'Saves a new tag for the person who asked NotSoAI. Only NotSoAI can use this.',
+    description: 'Creates a tag owned by the person who asked NotSoAI, in the current server (or DM), and outputs its name. The content is parsed like any other argument, so wrap TagScript in {ignore} to save the code itself instead of its output.',
+    syntax: '{tag.create:name|content}',
+    args: [
+      {name: 'name', description: 'The new tag\'s name, up to 64 characters. It is saved in lowercase.'},
+      {name: 'content', description: 'The tag\'s content, up to 2000 characters. Everything after the first `|` is used.'},
+    ],
+    examples: [
+      {code: '{tag.create:greet|{ignore:hi {user}!}}', result: '`greet`, and running `tag greet` says hi to whoever runs it'},
+    ],
+    notes: [
+      'Only NotSoAI can use this, and only in its own reply: in a user\'s tag, or a button NotSoAI made, the function is left as plain text.',
+      'Only makes new tags. Errors if a tag with that name already exists in the server, even one of your own.',
+      'NotSoAI can only create one tag per message.',
+      'Counts against the API manipulation limit (1 per run by default) and the network request limit.',
+    ],
+  },
+  {
     id: 'TAG_ID',
     names: ['tagid'],
     category: 'tags',

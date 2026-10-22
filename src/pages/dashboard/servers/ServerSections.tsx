@@ -53,7 +53,7 @@ function useGuildEdit(guildId: string) {
 }
 
 
-function RemoveButton({ label, busy, disabled, onClick }: {label: string, busy: boolean, disabled: boolean, onClick: () => void}) {
+export function RemoveButton({ label, busy, disabled, onClick }: {label: string, busy: boolean, disabled: boolean, onClick: () => void}) {
   return (
     <button
       type='button'
@@ -69,7 +69,7 @@ function RemoveButton({ label, busy, disabled, onClick }: {label: string, busy: 
 }
 
 
-function EditButton({ label, disabled, onClick }: {label: string, disabled: boolean, onClick: () => void}) {
+export function EditButton({ label, disabled, onClick }: {label: string, disabled: boolean, onClick: () => void}) {
   return (
     <button
       type='button'

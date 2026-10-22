@@ -16,6 +16,7 @@ import {
   LOCALE_CHOICES,
   PERSONALITY_MAX,
   RESPONSE_DISPLAY_CHOICES,
+  SEARCH_PROVIDER_CHOICES,
   TIMEZONE_CHOICES,
   TTS_VOICE_CHOICES,
   UNITS_CHOICES,
@@ -27,7 +28,7 @@ import { YourDataSection } from './YourDataSection';
 import { DEFAULT_VANITY, describeVanity, exampleVanityLink, vanityError } from './vanity';
 
 
-type Values = Omit<UserSettings, 'opted_out_content' | 'file_upload_name'>;
+type Values = Omit<UserSettings, 'file_upload_name'>;
 type SectionProps = {settings: UserSettings, onDirtyChange: (section: string, dirty: boolean) => void};
 
 
@@ -71,6 +72,7 @@ export function SettingsPage() {
           <RegionSection settings={settings} onDirtyChange={onDirtyChange}/>
           <MediaSection settings={settings} onDirtyChange={onDirtyChange}/>
           <DisplaySection settings={settings} onDirtyChange={onDirtyChange}/>
+          <SearchSection settings={settings} onDirtyChange={onDirtyChange}/>
           <VoiceSection settings={settings} onDirtyChange={onDirtyChange}/>
         </div>
       )}
@@ -272,6 +274,21 @@ function DisplaySection({ settings, onDirtyChange }: SectionProps) {
       </Field>
       <Field label='Slash command responses' hint='Ephemeral replies are only visible to you.'>
         {(props) => <ChoiceSelect {...props} choices={APPLICATION_COMMAND_RESPONSE_CHOICES} value={section.values.application_command_response_type} onChange={(value) => section.set('application_command_response_type', value ?? 0)}/>}
+      </Field>
+    </SectionForm>
+  );
+}
+
+
+function SearchSection({ settings, onDirtyChange }: SectionProps) {
+  const section = useSettingsSection('Search', settings, ['search_provider_web', 'search_provider_images'], onDirtyChange);
+  return (
+    <SectionForm title='Search' accent='#57f287' description='Which search engine the search and image commands use.' section={section}>
+      <Field label='Web search' hint='Server default, then DuckDuckGo.'>
+        {(props) => <ChoiceSelect {...props} noneLabel='Server default' choices={SEARCH_PROVIDER_CHOICES} value={section.values.search_provider_web} onChange={(value) => section.set('search_provider_web', value)}/>}
+      </Field>
+      <Field label='Image search' hint='Server default, then Google.'>
+        {(props) => <ChoiceSelect {...props} noneLabel='Server default' choices={SEARCH_PROVIDER_CHOICES} value={section.values.search_provider_images} onChange={(value) => section.set('search_provider_images', value)}/>}
       </Field>
     </SectionForm>
   );

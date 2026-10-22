@@ -2029,6 +2029,94 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     ],
   },
   {
+    name: 'snapchat',
+    category: 'compose',
+    summary: 'Puts a Snapchat style caption on the media, white text on a see-through black bar across the width.',
+    syntax: 'snapchat MEDIA_KEY POSITION=50 ...TEXT',
+    args: [
+      media(),
+      {name: 'POSITION', default: '50', range: '0..100', description: 'where the bar\'s center goes, 0 is the top and 100 the bottom'},
+      {name: 'TEXT', rest: true, description: 'the caption, up to 200 characters'},
+    ],
+    examples: [
+      {code: '{mediascript:load {iv} img\nsnapchat img POSITION=75 me at 3am\nrender img}', result: 'The last image or video with a "me at 3am" Snapchat caption in its lower part.'},
+    ],
+  },
+  {
+    name: 'tiktok',
+    category: 'compose',
+    summary: 'Puts TikTok style text on the media, every line in its own rounded box.',
+    syntax: 'tiktok MEDIA_KEY POSITION=50 DARK=false ...TEXT',
+    args: [
+      media(),
+      {name: 'POSITION', default: '50', range: '0..100', description: 'where the text\'s center goes, 0 is the top and 100 the bottom'},
+      {name: 'DARK', default: 'false', description: 'black boxes with white text instead of white boxes with black text'},
+      {name: 'TEXT', rest: true, description: 'the text, up to 200 characters'},
+    ],
+    examples: [
+      {code: '{mediascript:load {iv} img\ntiktok img POSITION=30 pov: you forgot your charger\nrender img}', result: 'The last image or video with TikTok text in its upper part.'},
+    ],
+  },
+  {
+    name: 'subtitle',
+    category: 'compose',
+    summary: 'Puts movie subtitles along the bottom of the media, white with a black outline.',
+    syntax: 'subtitle MEDIA_KEY YELLOW=false ...TEXT',
+    args: [
+      media(),
+      {name: 'YELLOW', default: 'false', description: 'DVD style yellow subtitles instead of white'},
+      {name: 'TEXT', rest: true, description: 'the subtitles, up to 200 characters'},
+    ],
+  },
+  {
+    name: 'news',
+    category: 'compose',
+    summary: 'Puts a TV news lower third on the media: a red label tab over a white headline bar, with an optional ticker under it.',
+    syntax: 'news MEDIA_KEY LABEL="BREAKING NEWS" ...TEXT',
+    args: [
+      media(),
+      {name: 'LABEL', default: 'BREAKING NEWS', description: 'the red tab, up to 30 characters'},
+      {name: 'TEXT', rest: true, description: '`headline | ticker`, headline up to 150 characters, the ticker after `|` is optional'},
+    ],
+    examples: [
+      {code: '{mediascript:load {iv} img\nnews img LABEL=LIVE local man finds bug in prod | more at 11\nrender img}', result: 'The last image or video with a LIVE news headline and a ticker.'},
+    ],
+  },
+  {
+    name: 'notification',
+    category: 'compose',
+    summary: 'Puts an iPhone Messages notification banner along the top of the media.',
+    syntax: 'notification MEDIA_KEY ...TEXT',
+    args: [
+      media(),
+      {name: 'TEXT', rest: true, description: '`title | message`, or just the message under the title "Messages"'},
+    ],
+  },
+  {
+    name: 'youtube',
+    category: 'compose',
+    summary: 'Turns the media into a YouTube watch page with a title, channel and made up views.',
+    syntax: 'youtube MEDIA_KEY CHANNEL=NotSoBot ...TEXT',
+    args: [
+      media(),
+      {name: 'CHANNEL', default: 'NotSoBot', description: 'the channel name, up to 50 characters'},
+      {name: 'TEXT', rest: true, description: 'the video title, up to 100 characters'},
+    ],
+  },
+  {
+    name: 'demotivate',
+    category: 'compose',
+    summary: 'Turns the media into a demotivational poster: framed on black with a big serif title and a line under it.',
+    syntax: 'demotivate MEDIA_KEY ...TEXT',
+    args: [
+      media(),
+      {name: 'TEXT', rest: true, description: '`title | line`, the line after `|` is optional'},
+    ],
+    examples: [
+      {code: '{mediascript:load {iv} img\ndemotivate img teamwork | none of us is as dumb as all of us\nrender img}', result: 'The last image or video as a TEAMWORK demotivational poster.'},
+    ],
+  },
+  {
     name: 'watchmojo',
     category: 'compose',
     summary: 'Turns the media into a WatchMojo video thumbnail.',

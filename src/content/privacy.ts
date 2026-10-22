@@ -3,7 +3,7 @@ import type { LegalDocument } from './legal';
 export const PRIVACY_POLICY: LegalDocument = {
   title: "Privacy Policy",
   effective: "October 13, 2026",
-  lastUpdated: "October 21, 2026",
+  lastUpdated: "October 22, 2026",
   intro: "This Privacy Policy explains what information NotSoBot collects, why, who it's shared with, how long it's kept, and how You can get a copy of it or have it deleted.",
   sections: [
     {
@@ -20,7 +20,7 @@ export const PRIVACY_POLICY: LegalDocument = {
         {type: 'list', items: [
           "Discord account information: your user ID, username, discriminator, avatar, account flags, and the ID of your DM channel with NotSoBot. This comes from Discord when You use a command.",
           "Your settings: language, timezone, units, response display preferences, file upload preferences, selected AI models and personality, and text-to-speech voice.",
-          "Server information and settings for servers NotSoBot is in: server ID, name, icon, features, language, timezone, custom prefixes, AI settings, and the rules for who can use which commands along with who added each rule.",
+          "Server information and settings for servers NotSoBot is in: server ID, name, icon, features, language, timezone, custom prefixes, AI settings, what the server's admins told NotSoAI about the server along with who added each one, and the rules for who can use which commands along with who added each rule.",
           "Logging settings: if a server enables logging, the channel and webhook used to post logs, including the webhook token. Log events are sent to that webhook and are not kept by Us.",
           "Command replies: the IDs of your command message, its channel, the command used, and NotSoBot's reply, so that editing or deleting your command can update or remove the reply.",
           "Command usage statistics: which command was used, when, and the server, channel and user IDs involved.",
@@ -94,7 +94,7 @@ export const PRIVACY_POLICY: LegalDocument = {
         {type: 'list', items: [
           "Discord, to run the bot, process purchases, and log You in to the website.",
           "AI providers, listed in Section 8, which receive the prompt and any media You give an AI command in order to generate your result.",
-          "Search, information and media sources, such as Google, DuckDuckGo, Wolfram Alpha, YouTube and Reddit, which receive the search terms or links You give a command that looks something up.",
+          "Search, information and media sources, such as Google, DuckDuckGo, Bing, Yandex, Wolfram Alpha, YouTube and Reddit, which receive the search terms or links You give a command that looks something up.",
           "Backblaze, which stores files You ask NotSoBot to host.",
           "Cloudflare, which hosts and protects the website. When You send a report from the website without logging in, Cloudflare Turnstile checks that You're not a bot. It receives your IP address and information about your browser to do this.",
           "Sentry, which receives error reports when something breaks. These can include the IDs and command details involved in the error.",
@@ -108,7 +108,7 @@ export const PRIVACY_POLICY: LegalDocument = {
       blocks: [
         {type: 'paragraph', text: "Nothing is sent to these companies unless someone uses an AI feature. Data is only sent when:"},
         {type: 'list', items: [
-          "You use the ai command. Your prompt and any media You attach are sent. If You use it as a reply, the messages You're replying to are sent too, up to 5 in a reply chain, including each author's name. Unless You've turned memory off, the facts NotSoAI remembers about You are sent too (only the ones for that server and the ones that apply everywhere). They're never sent when a tag uses AI.",
+          "You use the ai command. Your prompt and any media You attach are sent. If You use it as a reply, the messages You're replying to are sent too, up to 5 in a reply chain, including each author's name. If You reply to one of NotSoAI's answers to You, your earlier prompts in that conversation and what it answered are sent too, up to 4 of them. Anything the server's admins told NotSoAI about the server is sent too. Unless You've turned memory off, the facts NotSoAI remembers about You are sent too (only the ones for that server and the ones that apply everywhere). They're never sent when a tag uses AI.",
           "You run a tag that uses AI. The tag's prompt is sent, which can include text and media You give the tag. The tag's creator chooses the model.",
           "You clone a voice, or use a cloned voice for text-to-speech.",
         ]},
@@ -154,7 +154,7 @@ export const PRIVACY_POLICY: LegalDocument = {
         {type: 'paragraph', text: "You can ask Us for a copy of your information, to correct it, or to delete it, by using the report command or emailing privacy@notsocompany.com. We may ask You to confirm that You own the Discord account involved. We'll respond within 30 days. Some information may be kept where We need it for legal reasons, to deal with abuse, or for safety records. Deleting your information may remove your tags, settings and premium perks."},
         {type: 'paragraph', text: "You can also:"},
         {type: 'list', items: [
-          "delete your own tags, reminders and cloned voices with NotSoBot's commands",
+          "delete your own tags, reminders and cloned voices with NotSoBot's commands or on the website's dashboard",
           "see, edit or delete what NotSoAI remembers about You, or turn its memory off, with the /settings ai-memory commands or on the website's dashboard",
           "remove NotSoBot from a server You manage, or remove the user-installed app from your account",
           "revoke the website's access to your Discord account in Discord's settings under Authorized Apps",

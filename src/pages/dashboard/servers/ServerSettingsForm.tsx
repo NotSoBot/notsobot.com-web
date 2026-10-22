@@ -11,6 +11,7 @@ import {
   LOCALE_CHOICES,
   PERSONALITY_MAX,
   RESPONSE_DISPLAY_CHOICES,
+  SEARCH_PROVIDER_CHOICES,
   TIMEZONE_CHOICES,
 } from '../settings/settingsChoices';
 import { PersonalityHint } from '../settings/PersonalityHint';
@@ -37,6 +38,8 @@ export function ServerSettingsForm({ guild, onDirtyChange }: {guild: UserGuild, 
     ml_llm_model: guild.settings.ml_llm_model,
     ml_diffusion_model: guild.settings.ml_diffusion_model,
     response_display: guild.settings.response_display,
+    search_provider_images: guild.settings.search_provider_images,
+    search_provider_web: guild.settings.search_provider_web,
   }), [guild]);
   const draft = useDraft(saved);
   const { values } = draft;
@@ -100,6 +103,12 @@ export function ServerSettingsForm({ guild, onDirtyChange }: {guild: UserGuild, 
           </Field>
           <Field label='Response display'>
             {(props) => <ChoiceSelect {...props} noneLabel='Default' choices={RESPONSE_DISPLAY_CHOICES} value={values.response_display} onChange={(value) => draft.set('response_display', value)}/>}
+          </Field>
+          <Field label='Web search' hint='Each member’s own setting wins over this.'>
+            {(props) => <ChoiceSelect {...props} noneLabel='Default (DuckDuckGo)' choices={SEARCH_PROVIDER_CHOICES} value={values.search_provider_web} onChange={(value) => draft.set('search_provider_web', value)}/>}
+          </Field>
+          <Field label='Image search' hint='Each member’s own setting wins over this.'>
+            {(props) => <ChoiceSelect {...props} noneLabel='Default (Google)' choices={SEARCH_PROVIDER_CHOICES} value={values.search_provider_images} onChange={(value) => draft.set('search_provider_images', value)}/>}
           </Field>
         </fieldset>
         {(mutation.isError && draft.dirty) ? <InlineError>{errorMessage(mutation.error, 'Couldn’t save the server settings.')}</InlineError> : null}

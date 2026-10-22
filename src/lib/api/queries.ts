@@ -34,6 +34,7 @@ export const queryKeys = {
   meFiles: (token: string | null, filters?: object) => ['users', '@me', token, 'files', ...((filters) ? [filters] : [])] as const,
   meGuilds: (token: string | null) => ['users', '@me', token, 'guilds'] as const,
   meGuild: (token: string | null, guildId: string) => ['users', '@me', token, 'guilds', guildId] as const,
+  meGuildLLMKnowledge: (token: string | null, guildId: string) => ['users', '@me', token, 'guilds', guildId, 'llm', 'knowledge'] as const,
   // admin (owner only); under the session too so logging out drops it
   admin: (token: string | null) => ['users', '@me', token, 'admin'] as const,
   adminTags: (token: string | null, filters: object) => ['users', '@me', token, 'admin', 'all-tags', filters] as const,

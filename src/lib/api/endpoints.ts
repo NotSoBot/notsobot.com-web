@@ -139,6 +139,9 @@ export function guildEndpoints(scope: GuildScope, guildId: string) {
     RULES_DELETE: `${base}/rules/delete`,
     RULE: (ruleId: string) => `${base}/rules/${ruleId}`,
     LOGGERS_DELETE: `${base}/loggers/delete`,
+    // only under `/users/@me/guilds`, staff don't edit it
+    LLM_KNOWLEDGE: `${base}/llm/knowledge`,
+    LLM_KNOWLEDGE_ITEM: (knowledgeId: string) => `${base}/llm/knowledge/${knowledgeId}`,
     DATA_EXPORT: `${base}/data/export`,
     DATA_DELETE: `${base}/data/delete`,
   };

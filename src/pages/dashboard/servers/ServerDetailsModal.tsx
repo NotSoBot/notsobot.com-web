@@ -11,6 +11,7 @@ import { errorMessage, isDiscordGrantError, isScopeMismatch, useMeGuildQuery, us
 
 import { Chip, CopyableValue } from '../admin/adminUi';
 import { PanelSkeleton, Skeleton, UnsavedChangesGuard } from '../ui';
+import { AIKnowledgeSection } from './AIKnowledgeSection';
 import { GuildIcon } from './GuildIcon';
 import { AREA_LABEL, AREA_PERMISSION } from './guildMeta';
 import { ServerDataSection } from './ServerDataSection';
@@ -139,6 +140,7 @@ function ServerDetails({ guild, onDirtyChange }: {guild: UserGuild, onDirtyChang
 
         <PrefixesSection guild={guild}/>
         <ServerSettingsForm guild={guild} onDirtyChange={onDirtyChange}/>
+        <AIKnowledgeSection guild={guild}/>
         <RulesSection guild={guild}/>
         <LoggersSection guild={guild}/>
         <ServerDataSection guild={guild}/>

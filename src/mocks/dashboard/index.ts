@@ -27,6 +27,7 @@ import {
   type AdminTagDirectoryItem,
   type AdminUserRef,
   type ContentFlag,
+  type GuildLLMKnowledge,
   type GuildRule,
   type GuildRuleInput,
   type Identity,
@@ -89,6 +90,11 @@ const state = {
   files: createFiles(),
   commandUses: createCommandUses(),
   llmMemories: createLLMMemories(),
+  // what each server told NotSoAI, by guild id; the first server starts with a couple
+  guildLLMKnowledge: new Map<string, Array<GuildLLMKnowledge>>([[guilds[0].summary.id, [
+    {content: 'The #support channel is for help with the bot, staff usually answer within a day.', created: new Date(Date.now() - 9 * 86400000).toISOString(), guild_id: guilds[0].summary.id, id: '1300000000000000101', user_id: '1000000000000000001'},
+    {content: 'Members get the Regular role after a week of chatting.', created: new Date(Date.now() - 2 * 86400000).toISOString(), guild_id: guilds[0].summary.id, id: '1300000000000000102', user_id: '1000000000000000001'},
+  ]]]),
   reminders: createReminders(),
   reports: createReports(adminUsers),
   reportMessages: new Map<string, Array<ReportMessage>>(),
@@ -339,7 +345,7 @@ route('PATCH', '/users/@me/settings', (_match, { body }) => {
   if (body.file_upload_vanity === 'error') {
     throw new MockError(400, 50030, 'Invalid Vanity');
   }
-  const { file_upload_name: _readOnly, opted_out_content: _alsoReadOnly, ...writable } = body;
+  const { file_upload_name: _readOnly, ...writable } = body;
   state.settings = {...state.settings, ...writable};
   return state.settings;
 });
@@ -1080,7 +1086,7 @@ route('PATCH', '/users/@me/guilds/(\\d+)', ([ , guildId ], { body }) => {
   if (ADMIN_BYPASS_SETTINGS.some((key) => key in body)) {
     requireEditable(guildId, 'rules_admin');
   }
-  const settingsKeys = ['ml_diffusion_model', 'ml_llm_model', 'ml_llm_personality', 'response_display'] as const;
+  const settingsKeys = ['ml_diffusion_model', 'ml_llm_model', 'ml_llm_personality', 'response_display', 'search_provider_images', 'search_provider_web'] as const;
   for (const key of settingsKeys) {
     if (key in body) {
       (detail.settings as unknown as Record<string, unknown>)[key] = body[key];
@@ -1226,6 +1232,7 @@ route('GET', '/(users/@me|admin)/guilds/(\\d+)/data/export', ([ , scope, guildId
   }));
   return {
     guild: detail,
+    llm_knowledge: state.guildLLMKnowledge.get(guildId) ?? [],
     notes: [
       'Logger webhook URLs (webhook id and token) are left out because they are sensitive data: anyone with a webhook URL can post messages in that channel.',
       'Content of directory tags is left out, including the directory or DM tags that aliases in this server point to.',
@@ -1244,6 +1251,7 @@ route('POST', '/(users/@me|admin)/guilds/(\\d+)/data/delete', ([ , scope, guildI
   const { detail } = (scope === 'admin') ? findAdminGuild(guildId).entry : requireOwner(guildId);
   const before = state.tags.length;
   state.tags = state.tags.filter((tag) => tag.server_id !== guildId);
+  state.guildLLMKnowledge.delete(guildId);
   Object.assign(detail, {
     disabled_logger_events: 0,
     locale: null,
@@ -2378,7 +2386,7 @@ route('PATCH', '/admin/guilds/(\\d+)', ([ , guildId ], { body }) => {
     requireBotOwner();
   }
   const { detail } = findAdminGuild(guildId).entry;
-  const settingsKeys = ['ml_diffusion_model', 'ml_llm_model', 'ml_llm_personality', 'response_display'] as const;
+  const settingsKeys = ['ml_diffusion_model', 'ml_llm_model', 'ml_llm_personality', 'response_display', 'search_provider_images', 'search_provider_web'] as const;
   for (const key of settingsKeys) {
     if (key in body) {
       (detail.settings as unknown as Record<string, unknown>)[key] = body[key];
@@ -2968,6 +2976,88 @@ route('DELETE', '/users/@me/reminders/(\\d+)', ([ , reminderId ]) => {
   state.reminders = state.reminders.filter((other) => other.id !== reminderId);
 });
 
+// what a server told NotSoAI: mirrors the `/llm/knowledge` routes in `views/me_guilds.py`
+const GUILD_LLM_KNOWLEDGE_LIMITS = {amount: 10, total_length: 1000};
+
+function guildLLMKnowledge(guildId: string): Array<GuildLLMKnowledge> {
+  let items = state.guildLLMKnowledge.get(guildId);
+  if (!items) {
+    state.guildLLMKnowledge.set(guildId, items = []);
+  }
+  return items;
+}
+
+function guildLLMKnowledgeContent(body: Record<string, unknown>): string {
+  const content = (typeof body.content === 'string') ? body.content.trim() : '';
+  if (!content || GUILD_LLM_KNOWLEDGE_LIMITS.total_length < content.length) {
+    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, `Content must be 1 to ${GUILD_LLM_KNOWLEDGE_LIMITS.total_length} characters`);
+  }
+  // same stand-ins for the content scanner as reminders
+  if (content.toLowerCase().includes('blockme')) {
+    throw new MockError(400, ApiErrorCodes.TEXT_BLOCKED_GUIDELINES, 'The ai knowledge was blocked because it may violate Discord\'s Community Guidelines');
+  }
+  return content;
+}
+
+// every entry's characters together, `content` replacing the one being edited
+function checkGuildLLMKnowledgeRoom(guildId: string, content: string, excluding?: string) {
+  const used = guildLLMKnowledge(guildId).filter((other) => other.id !== excluding).reduce((total, other) => total + other.content.length, 0);
+  if (GUILD_LLM_KNOWLEDGE_LIMITS.total_length < used + content.length) {
+    const remaining = Math.max(GUILD_LLM_KNOWLEDGE_LIMITS.total_length - used, 0);
+    throw new MockError(400, ApiErrorCodes.MAX_GUILD_LLM_KNOWLEDGE, `NotSoAI can only know ${GUILD_LLM_KNOWLEDGE_LIMITS.total_length} characters about a server, ${remaining} are left`, {remaining, total_length: GUILD_LLM_KNOWLEDGE_LIMITS.total_length});
+  }
+}
+
+function findGuildLLMKnowledge(guildId: string, knowledgeId: string): GuildLLMKnowledge {
+  const item = guildLLMKnowledge(guildId).find((other) => other.id === knowledgeId);
+  if (!item) {
+    throw new MockError(404, ApiErrorCodes.UNKNOWN_GUILD_LLM_KNOWLEDGE, 'Unknown AI Knowledge');
+  }
+  return item;
+}
+
+route('GET', '/users/@me/guilds/(\\d+)/llm/knowledge', ([ , guildId ]) => {
+  findGuild(guildId);
+  return {items: guildLLMKnowledge(guildId), limits: GUILD_LLM_KNOWLEDGE_LIMITS};
+});
+
+route('POST', '/users/@me/guilds/(\\d+)/llm/knowledge', ([ , guildId ], { body }) => {
+  requireEditable(guildId, 'settings');
+  const items = guildLLMKnowledge(guildId);
+  if (GUILD_LLM_KNOWLEDGE_LIMITS.amount <= items.length) {
+    throw new MockError(400, ApiErrorCodes.MAX_GUILD_LLM_KNOWLEDGE, `Servers can only give NotSoAI ${GUILD_LLM_KNOWLEDGE_LIMITS.amount} things to know`);
+  }
+  const content = guildLLMKnowledgeContent(body);
+  checkGuildLLMKnowledgeRoom(guildId, content);
+  const item: GuildLLMKnowledge = {
+    content,
+    created: new Date().toISOString(),
+    guild_id: guildId,
+    id: String(Math.max(1300000000000000200, ...items.map((other) => Number(other.id))) + 1),
+    user_id: mockUser.id,
+  };
+  items.push(item);
+  return item;
+});
+
+route('PATCH', '/users/@me/guilds/(\\d+)/llm/knowledge/(\\d+)', ([ , guildId, knowledgeId ], { body }) => {
+  requireEditable(guildId, 'settings');
+  const item = findGuildLLMKnowledge(guildId, knowledgeId);
+  const content = guildLLMKnowledgeContent(body);
+  if (content !== item.content) {
+    checkGuildLLMKnowledgeRoom(guildId, content, knowledgeId);
+    item.content = content;
+    item.user_id = mockUser.id;
+  }
+  return item;
+});
+
+route('DELETE', '/users/@me/guilds/(\\d+)/llm/knowledge/(\\d+)', ([ , guildId, knowledgeId ]) => {
+  requireEditable(guildId, 'settings');
+  findGuildLLMKnowledge(guildId, knowledgeId);
+  state.guildLLMKnowledge.set(guildId, guildLLMKnowledge(guildId).filter((other) => other.id !== knowledgeId));
+});
+
 // ai memory: mirrors `views/me_llm_memories.py`
 route('GET', '/users/@me/llm/memories', () => {
   return {items: state.llmMemories, limits: {global: 25, server: 15}};
@@ -3269,11 +3359,13 @@ route('DELETE', '/admin/applications/access/(\\d+)', ([ , userId ]) => {
 });
 
 // owner only identities and proxies (`/admin/identities`): 30 static proxies (24 with a youtube account, a few in
-// geopy, google and strict too), 6 geo proxies only in geopy, 1 rotating proxy in global, and a couple unused
+// geopy, google, google_images and strict too), 6 geo proxies only in geopy, 1 rotating proxy in global, and a couple
+// unused
 type MockProxy = IdentityProxyItem & {password: string | null};
 const MOCK_IDENTITY_SERVICES = {
   youtube: {kind: 'cookies', cooldown: 60, backoff: [300, 1200, 3600, 21600], secret_optional: false, shared: false},
-  google: {kind: 'cookies', cooldown: 5, backoff: [45, 300, 1800], secret_optional: true, shared: false},
+  google: {kind: 'cookies', cooldown: 20, backoff: [600, 3600, 21600], secret_optional: true, shared: false},
+  google_images: {kind: 'cookies', cooldown: 5, backoff: [45, 300, 1800], secret_optional: true, shared: false},
   geopy: {kind: 'none', cooldown: 2, backoff: [60, 300, 1800], secret_optional: false, shared: false},
   global: {kind: 'none', cooldown: 0, backoff: [0], secret_optional: false, shared: true},
   strict: {kind: 'none', cooldown: 0, backoff: [0], secret_optional: false, shared: true},
@@ -3341,6 +3433,7 @@ const mockIdentities: Array<Identity> = [
   ...[0, 1, 2].map((index) => newMockIdentity('strict', `23.142.16.250-${14450 + index}`, mockProxies[index])),
   // assigned to youtube, waiting for their cookies
   ...[28, 29].map((index) => newMockIdentity('youtube', `23.142.16.250-${14450 + index}`, mockProxies[index], {status: 'pending', in_pool: false})),
+  ...[28, 29].map((index) => newMockIdentity('google_images', `23.142.16.250-${14450 + index}`, mockProxies[index], {has_secret: index === 28})),
 ];
 
 function mockIdentitiesPayload() {
@@ -3965,6 +4058,15 @@ route('GET', '/users/@me/voices', () => {
 route('PATCH', '/users/@me/voices/(\\d+)', ([ , voiceId ], { body }) => {
   findOwnVoice(voiceId);
   return meVoice(renameVoice(voiceId, body));
+});
+
+route('DELETE', '/users/@me/voices/(\\d+)', ([ , voiceId ]) => {
+  const voice = findOwnVoice(voiceId);
+  for (const clip of state.voiceClips.get(voice.id) ?? []) {
+    voiceClipAudio.delete(clip.id);
+  }
+  state.voiceClips.delete(voice.id);
+  state.voices = state.voices.filter((other) => other.id !== voice.id);
 });
 
 route('POST', '/users/@me/voices/(\\d+)/clips', ([ , voiceId ], { body }) => {

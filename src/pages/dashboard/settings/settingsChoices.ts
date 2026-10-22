@@ -28,6 +28,14 @@ export const RESPONSE_DISPLAY_CHOICES: ReadonlyArray<Choice<number>> = [
   {value: 2, label: 'Legacy'},
 ];
 
+// `UserSettingsSearchProviders`, null follows the server's setting, then DuckDuckGo for web and Google for images
+export const SEARCH_PROVIDER_CHOICES: ReadonlyArray<Choice<number>> = [
+  {value: 2, label: 'Bing'},
+  {value: 1, label: 'DuckDuckGo'},
+  {value: 0, label: 'Google'},
+  {value: 3, label: 'Yandex'},
+];
+
 // `UserSettingsApplicationCommandResponseTypes`
 export const APPLICATION_COMMAND_RESPONSE_CHOICES: ReadonlyArray<Choice<number>> = [
   {value: 0, label: 'Automatic'},

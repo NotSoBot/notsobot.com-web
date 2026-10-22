@@ -9,6 +9,7 @@ import { api, type MeVoice, type VoiceClip } from '@/lib/api';
 import {
   errorMessage,
   useDeleteMeVoiceClipMutation,
+  useDeleteMeVoiceMutation,
   useMeVoicesQuery,
   usePatchMeVoiceMutation,
   useUploadMeVoiceClipMutation,
@@ -33,9 +34,12 @@ function formatDuration(ms: number): string {
 
 export function VoicesPage() {
   const { user } = useAuth();
+  const toast = useToast();
   const { data, isPending, isError, error, isRefetching, refetch } = useMeVoicesQuery();
   const rename = usePatchMeVoiceMutation();
+  const remove = useDeleteMeVoiceMutation();
   const [ renaming, setRenaming ] = useState<MeVoice | null>(null);
+  const [ deleting, setDeleting ] = useState<MeVoice | null>(null);
   const items = data?.items ?? [];
   const canUpload = hasPremiumPlus(user);
 
@@ -61,19 +65,50 @@ export function VoicesPage() {
           ) : null}
           <ul className='space-y-3'>
             {items.map((voice) => (
-              <VoiceCard key={voice.id} voice={voice} canUpload={canUpload} onRename={() => setRenaming(voice)}/>
+              <VoiceCard
+                key={voice.id}
+                voice={voice}
+                canUpload={canUpload}
+                onRename={() => setRenaming(voice)}
+                onDelete={() => {
+                  remove.reset();
+                  setDeleting(voice);
+                }}
+              />
             ))}
           </ul>
         </>
       )}
 
       {(renaming) ? <RenameVoiceDialog voice={renaming} mutation={rename} onClose={() => setRenaming(null)}/> : null}
+
+      {(deleting) ? (
+        <ConfirmDialog
+          title={`Delete ${deleting.name}?`}
+          description={`It’s deleted here and on ${voicePlatformLabel(deleting.platform_type)}, along with every audio clip it’s made from. Tags and commands that use it stop working. This can’t be undone.`}
+          confirmLabel='Delete voice'
+          pending={remove.isPending}
+          error={(remove.isError) ? errorMessage(remove.error, 'Couldn’t delete the voice.') : null}
+          onConfirm={() => {
+            remove.mutate(deleting.id, {
+              onSuccess: () => {
+                toast('Voice deleted');
+                setDeleting(null);
+              },
+            });
+          }}
+          onClose={() => {
+            remove.reset();
+            setDeleting(null);
+          }}
+        />
+      ) : null}
     </>
   );
 }
 
 
-function VoiceCard({ voice, canUpload, onRename }: {voice: MeVoice, canUpload: boolean, onRename: () => void}) {
+function VoiceCard({ voice, canUpload, onRename, onDelete }: {voice: MeVoice, canUpload: boolean, onRename: () => void, onDelete: () => void}) {
   const toast = useToast();
   const upload = useUploadMeVoiceClipMutation();
   const remove = useDeleteMeVoiceClipMutation();
@@ -141,6 +176,10 @@ function VoiceCard({ voice, canUpload, onRename }: {voice: MeVoice, canUpload: b
               Add clip
             </button>
           ) : null}
+          <button type='button' className='btn btn-sm btn-secondary' disabled={upload.isPending} aria-label={`Delete ${voice.name}`} onClick={onDelete}>
+            <Trash2 className='size-4'/>
+            <span className='hidden sm:inline'>Delete</span>
+          </button>
         </div>
         <input
           ref={fileInput}
@@ -239,7 +278,7 @@ function ClipRow({ voiceId, clip, canUpload, canDelete, busy, replacing, onRepla
           className='btn btn-sm btn-secondary'
           disabled={!canDelete || replacing}
           aria-label={`Delete ${clip.name}`}
-          title={(canDelete) ? 'Delete clip' : 'A voice needs at least one clip, replace it instead'}
+          title={(canDelete) ? 'Delete clip' : 'A voice needs at least one clip, replace it or delete the voice instead'}
           onClick={onDelete}
         >
           <Trash2 className='size-4'/>

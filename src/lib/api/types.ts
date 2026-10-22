@@ -400,6 +400,8 @@ export const ApiErrorCodes = {
   UNKNOWN_VOICE: 10003,
   UNKNOWN_VOICE_CLIP: 10028,
   MAX_VOICE_CLIPS: 30026,
+  UNKNOWN_GUILD_LLM_KNOWLEDGE: 10029,
+  MAX_GUILD_LLM_KNOWLEDGE: 30027,
   // a voice can't lose its last audio clip, it's deleted with the bot instead
   VOICE_CLIP_LAST: 50042,
   MISSING_ACCESS: 20004,
@@ -487,15 +489,17 @@ export interface UserSettings {
   ml_llm_memory_disabled: boolean,
   ml_llm_model: string | null,
   ml_llm_personality: string | null,
-  opted_out_content: string | null,
   response_display: number | null,
+  // `UserSettingsSearchProviders`, null follows the server's setting
+  search_provider_images: number | null,
+  search_provider_web: number | null,
   timezone: string | null,
   tts_voice: string | null,
   units: string | null,
 }
 
-// `file_upload_name` and `opted_out_content` are read-only
-export type UserSettingsPatch = Partial<Omit<UserSettings, 'opted_out_content' | 'file_upload_name'>>;
+// `file_upload_name` is read-only
+export type UserSettingsPatch = Partial<Omit<UserSettings, 'file_upload_name'>>;
 
 
 // `Tag.to_dict()` (with content)
@@ -590,6 +594,22 @@ export interface LLMMemoriesPage {
 // `content` max 200
 export interface LLMMemoryPatch {
   content: string,
+}
+
+// something a server's admins told NotSoAI about it, in every NotSoAI prompt there
+export interface GuildLLMKnowledge {
+  content: string,
+  created: string,
+  guild_id: string,
+  id: string,
+  // who added it, or last edited it
+  user_id: string,
+}
+
+export interface GuildLLMKnowledgePage {
+  items: Array<GuildLLMKnowledge>,
+  // how many a server can have, and how many characters all of them can add up to
+  limits: {amount: number, total_length: number},
 }
 
 // `ApplicationFlags` bits on `Application.flags`
@@ -795,6 +815,9 @@ export interface GuildSettings {
   response_display: number | null,
   // if the server owner and admins skip the rules (rules can override it)
   rules_admin_bypass: boolean,
+  // `UserSettingsSearchProviders`, null is DuckDuckGo for web and Google for images
+  search_provider_images: number | null,
+  search_provider_web: number | null,
 }
 
 // `rules` covers command and category rules, `rules_admin` rules covering everything and the owner/admin bypass
@@ -824,6 +847,7 @@ export interface UserGuild {
 // directory tags (including what aliases here point to outside the server) are left out, `notes` says so inside the file
 export interface UserGuildDataExport {
   guild: Omit<UserGuild, 'editable' | 'owner' | 'permissions'>,
+  llm_knowledge: Array<GuildLLMKnowledge>,
   notes: Array<string>,
   tags: Array<Tag>,
   timestamp: number,
@@ -842,6 +866,8 @@ export interface UserGuildPatch {
   ml_llm_model?: string | null,
   ml_diffusion_model?: string | null,
   response_display?: number | null,
+  search_provider_images?: number | null,
+  search_provider_web?: number | null,
   rules_admin_bypass?: boolean | null,
 }
 

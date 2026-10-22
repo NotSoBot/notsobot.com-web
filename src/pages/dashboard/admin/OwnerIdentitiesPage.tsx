@@ -33,7 +33,7 @@ import { cn, NO_AUTOFILL } from '@/lib/utils';
 import { DashboardHeader, EmptyState, ErrorPanel, Field, Skeleton } from '../ui';
 import { Chip, DetailList, ExactDate, FiltersButton, Hint, InfoTip, StatTile, useSearchParamState } from './adminUi';
 import { BulkAddIdentitiesDialog } from './BulkAddIdentitiesDialog';
-import { AuditHistory, LabelChips, ProxyCredentials, ProxyPicker, REVEAL_MS, SecretValue, SortSelect, TwoFactorValue, ago, descending, formatSpan, proxyLabel, useNow } from './identitiesUi';
+import { AuditHistory, LabelChips, ProxyCredentials, ProxyPicker, REVEAL_MS, SecretValue, SortSelect, TwoFactorValue, ago, descending, formatSpan, proxyLabel, serviceTitle, useNow } from './identitiesUi';
 import { LOGIN_LINE_FORMATS, LOGIN_LINE_LABELS, loginLineFormatLabel, nameFromUsername, parseLoginLine } from './loginLine';
 import { ProxiesTab, compareAddresses } from './ProxiesTab';
 
@@ -593,17 +593,17 @@ function ServiceCard({ service, selected, onSelect }: {service: IdentityService,
       onClick={onSelect}
     >
       <div className='flex items-center gap-2'>
-        <h2 className='text-base font-semibold text-white capitalize'>
+        <h2 className='text-base font-semibold text-white'>
           <button
             type='button'
             aria-pressed={selected}
-            className='cursor-pointer rounded capitalize hover:underline focus-visible:outline-2 focus-visible:outline-brand'
+            className='cursor-pointer rounded hover:underline focus-visible:outline-2 focus-visible:outline-brand'
             onClick={(event) => {
               event.stopPropagation();
               onSelect();
             }}
           >
-            {service.service}
+            {serviceTitle(service.service)}
           </button>
         </h2>
         <Hint text={kindText(service)}><span className='text-xs text-subtle'>{kindLabel(service)}</span></Hint>
@@ -1353,7 +1353,7 @@ function AddIdentityDialog({ data, onShowProxies, onClose, onAdded }: {
   const exists = data.identities.some((other) => other.id === `${service}:${name.trim()}`);
   const proxy = data.proxies.find((item) => item.id === proxyId);
   const taken = proxy?.identities.find((identity) => identity.service === service);
-  // kind none has no secret, and google's jar is earned from captcha solves, so it's only optional there
+  // kind none has no secret, and the google services' jars are earned from captcha solves, so it's only optional there
   const takesCookies = policy?.kind === 'cookies';
   const needsCookies = takesCookies && !policy?.secret_optional;
   const validLogin = !withLogin || (!!login.username.trim() && !!login.password);
@@ -1395,8 +1395,8 @@ function AddIdentityDialog({ data, onShowProxies, onClose, onAdded }: {
         <div className='mt-4 grid grid-cols-2 gap-3'>
           <Field label='Service'>
             {(props) => (
-              <select {...props} className='input capitalize' value={service} onChange={(event) => setService(event.target.value)} disabled={create.isPending}>
-                {data.services.map((item) => <option key={item.service} value={item.service}>{item.service}</option>)}
+              <select {...props} className='input' value={service} onChange={(event) => setService(event.target.value)} disabled={create.isPending}>
+                {data.services.map((item) => <option key={item.service} value={item.service}>{serviceTitle(item.service)}</option>)}
               </select>
             )}
           </Field>

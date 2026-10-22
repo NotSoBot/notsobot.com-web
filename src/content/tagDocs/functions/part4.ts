@@ -278,6 +278,50 @@ export const TAG_DOC_FUNCTIONS_PART4: Array<TagDocFunction> = [
     ],
   },
   {
+    id: 'SEARCH_IMAGES',
+    names: ['search.images', 's.images'],
+    category: 'search',
+    summary: 'Searches images with your search provider and outputs an image URL.',
+    syntax: '{search.images:index?|query}',
+    args: [
+      SEARCH_PAGE_ARG,
+      {name: 'query', description: 'What to search for. Cut to 1024 characters.'},
+    ],
+    examples: [
+      {code: '{s.images:dog}', result: 'The URL of a random dog image from the results'},
+      {code: '{s.images:0|dog}', result: 'The URL of the first result'},
+    ],
+    notes: [
+      'Uses the image search provider of the person running the tag (`/settings set search-provider`), then the server\'s, then Google.',
+      'Counts as one network request.',
+      SEARCH_CACHE_NOTE,
+      'Safe search is on unless the channel allows NSFW content.',
+      'Outputs nothing if there are no results or the query is empty.',
+    ],
+  },
+  {
+    id: 'SEARCH_WEB',
+    names: ['search.web', 's.web'],
+    category: 'search',
+    summary: 'Searches the web with your search provider and outputs a result\'s URL.',
+    syntax: '{search.web:index?|query}',
+    args: [
+      SEARCH_PAGE_ARG,
+      {name: 'query', description: 'What to search for. Cut to 1024 characters.'},
+    ],
+    examples: [
+      {code: '{s.web:0|notsobot}', result: 'The URL of the first result'},
+      {code: '{s.web:{args}}', result: 'A random result for whatever was passed into the tag'},
+    ],
+    notes: [
+      'Uses the web search provider of the person running the tag (`/settings set search-provider`), then the server\'s, then DuckDuckGo.',
+      'Counts as one network request.',
+      SEARCH_CACHE_NOTE,
+      'Safe search is on unless the channel allows NSFW content.',
+      'Outputs nothing if there are no results or the query is empty.',
+    ],
+  },
+  {
     id: 'SEARCH_YOUTUBE',
     names: ['search.youtube', 'search.yt', 's.youtube', 's.yt'],
     category: 'search',
@@ -321,16 +365,43 @@ export const TAG_DOC_FUNCTIONS_PART4: Array<TagDocFunction> = [
     ],
   },
   {
+    id: 'SETTINGS_SET_SERVER',
+    names: ['settings.set.server'],
+    category: 'ai',
+    summary: 'Reads or changes this server\'s settings, like its timezone or search provider. Only NotSoAI can use this, for members with Manage Server.',
+    description: 'With no arguments, outputs every server setting as a JSON object. With just a setting, outputs its current value. With a value, saves it and outputs `true`, or `false` if it was already set to that. Use `clear` to reset it, so everyone falls back to their own setting and then the default.\n\nThe settings are `AI_MODEL`, `AI_PERSONALITY`, `IMAGINE_MODEL`, `LOCALE`, `RESPONSE_DISPLAY` (`DEFAULT`/`NO_EMBED`/`LEGACY`), `SEARCH_PROVIDER_IMAGES` and `SEARCH_PROVIDER_WEB` (`GOOGLE`/`DUCK_DUCK_GO`/`BING`/`YANDEX`) and `TIMEZONE`.',
+    syntax: '{settings.set.server:setting?|value?}',
+    args: [
+      {name: 'setting', description: 'Which setting, like `TIMEZONE` or `search provider web`. Leave out to output every setting.', optional: true},
+      {name: 'value', description: 'The new value, or `clear` to reset it. Leave out to read the current one.', optional: true},
+    ],
+    examples: [
+      {code: '{settings.set.server:SEARCH_PROVIDER_WEB|bing}', result: 'true'},
+      {code: '{settings.set.server:TIMEZONE}', result: 'Europe/London'},
+    ],
+    notes: [
+      'Only NotSoAI can use this, and only in its own reply: in a user\'s tag, or a button NotSoAI made, the function is left as plain text.',
+      'The person who asked NotSoAI needs the Manage Server permission, even just to read the settings. Otherwise it throws an error.',
+      'Only works in a server.',
+      'This permanently changes the server\'s NotSoBot settings for everyone, not just this run.',
+    ],
+  },
+  {
     id: 'SETTINGS_SET_SERVER_AI_PERSONALITY',
     names: ['settings.set.server.ai.personality'],
     category: 'ai',
-    summary: 'Not available yet: always left in the output as plain text.',
+    summary: 'Reads, sets or clears this server\'s NotSoAI personality. Only NotSoAI can use this, for members with Manage Server.',
+    description: 'The same as {settings.set.server} with `AI_PERSONALITY`, but the whole argument is the personality, so it can contain `|`.',
     syntax: '{settings.set.server.ai.personality:prompt?}',
     args: [
-      {name: 'prompt', description: 'The personality prompt.', optional: true},
+      {name: 'prompt', description: 'The personality prompt, or `clear` to clear it. Leave out to read the current one.', optional: true},
+    ],
+    examples: [
+      {code: '{settings.set.server.ai.personality:talk like a pirate}', result: 'true'},
     ],
     notes: [
-      'This function currently does nothing; it is always left in the output exactly as written.',
+      'Only NotSoAI can use this, in its own reply, and the person who asked needs the Manage Server permission.',
+      'NotSoBot filters the personality before saving it.',
     ],
   },
   {
@@ -338,7 +409,7 @@ export const TAG_DOC_FUNCTIONS_PART4: Array<TagDocFunction> = [
     names: ['settings.set.user'],
     category: 'ai',
     summary: 'Reads or changes the other settings of the person using the tag, like their units or AI model. Only NotSoAI can use this.',
-    description: 'With no arguments, outputs every setting (plus `AI_PERSONALITY`, `LOCALE` and `TIMEZONE`) as a JSON object. With just a setting, outputs its current value. With a value, saves it and outputs `true`, or `false` if it was already set to that. Use `clear` to reset it to the default.\n\nThe settings are `AI_MEMORY` (`on`/`off`), `AI_MODEL`, `APP_COMMAND_RESPONSE_TYPE` (`AUTOMATIC`/`EPHEMERAL`), `DOWNLOAD_QUALITY` (`1440p` to `144p`), `FALLBACKS_MEDIA_IMAGE` (`SEARCH_GOOGLE_IMAGES`/`SEARCH_DUCK_DUCK_GO_IMAGES`/`IMAGINE`), `FILE_UPLOAD_THRESHOLD` (`EXCEEDS_DISCORD_LIMIT`/`ALWAYS`/`NEVER`), `FILE_UPLOAD_TYPE` (`AUTOMATIC`/`TEMPORARY`), `FILE_VANITY`, `IMAGINE_MODEL`, `RESPONSE_DISPLAY` (`DEFAULT`/`NO_EMBED`/`LEGACY`) and `UNITS` (`IMPERIAL`/`METRIC`).',
+    description: 'With no arguments, outputs every setting (plus `AI_PERSONALITY`, `LOCALE` and `TIMEZONE`) as a JSON object. With just a setting, outputs its current value. With a value, saves it and outputs `true`, or `false` if it was already set to that. Use `clear` to reset it to the default.\n\nThe settings are `AI_MEMORY` (`on`/`off`), `AI_MODEL`, `APP_COMMAND_RESPONSE_TYPE` (`AUTOMATIC`/`EPHEMERAL`), `DOWNLOAD_QUALITY` (`1440p` to `144p`), `FALLBACKS_MEDIA_IMAGE` (`SEARCH_GOOGLE_IMAGES`/`SEARCH_DUCK_DUCK_GO_IMAGES`/`IMAGINE`), `FILE_UPLOAD_THRESHOLD` (`EXCEEDS_DISCORD_LIMIT`/`ALWAYS`/`NEVER`), `FILE_UPLOAD_TYPE` (`AUTOMATIC`/`TEMPORARY`), `FILE_VANITY`, `IMAGINE_MODEL`, `RESPONSE_DISPLAY` (`DEFAULT`/`NO_EMBED`/`LEGACY`), `SEARCH_PROVIDER_IMAGES` and `SEARCH_PROVIDER_WEB` (`GOOGLE`/`DUCK_DUCK_GO`/`BING`/`YANDEX`), `TTS_VOICE` (a built-in voice like `TIKTOK_EN_US_FEMALE_01`, or one of your cloned voices by name) and `UNITS` (`IMPERIAL`/`METRIC`).',
     syntax: '{settings.set.user:setting?|value?}',
     args: [
       {name: 'setting', description: 'Which setting, like `UNITS` or `ai model`. Leave out to output every setting.', optional: true},
