@@ -55,6 +55,9 @@ export const ApiEndpoints = Object.freeze({
   USER_ME_REPORT_MESSAGES: (reportId: string) => `/users/@me/reports/${reportId}/messages`,
   USER_ME_VOICES: '/users/@me/voices',
   USER_ME_VOICE: (voiceId: string) => `/users/@me/voices/${voiceId}`,
+  USER_ME_VOICE_CLIPS: (voiceId: string) => `/users/@me/voices/${voiceId}/clips`,
+  USER_ME_VOICE_CLIP: (voiceId: string, clipId: string) => `/users/@me/voices/${voiceId}/clips/${clipId}`,
+  USER_ME_VOICE_CLIP_AUDIO: (voiceId: string, clipId: string) => `/users/@me/voices/${voiceId}/clips/${clipId}/audio`,
   USER_ME_GUILDS: '/users/@me/guilds',
   USER_ME_GUILD: (guildId: string) => `/users/@me/guilds/${guildId}`,
   // planned, not built yet (the dashboard treats 404/405 as "not available yet")
@@ -98,6 +101,8 @@ export const ApiEndpoints = Object.freeze({
   ADMIN_IDENTITIES_ASSIGN: '/admin/identities/assign',
   ADMIN_IDENTITIES_UNASSIGN: '/admin/identities/unassign',
   ADMIN_IDENTITIES_COOKIES: '/admin/identities/cookies',
+  ADMIN_IDENTITIES_DELETE: '/admin/identities/delete',
+  ADMIN_IDENTITIES_BULK: '/admin/identities/bulk',
   ADMIN_IDENTITY_PROXIES: '/admin/identities/proxies',
   ADMIN_IDENTITY_PROXIES_BULK: '/admin/identities/proxies/bulk',
   ADMIN_IDENTITY_PROXIES_DELETE: '/admin/identities/proxies/delete',

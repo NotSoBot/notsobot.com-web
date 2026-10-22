@@ -32,6 +32,8 @@ export interface ApiRequestOptions extends Omit<RequestInit, 'body'> {
   // abort after this many ms so a hung request can't stall polling queries (0 disables)
   timeout?: number,
   query?: Record<string, QueryValue | Array<QueryValue>>,
+  // a successful response's body as a `Blob` (media) instead of json/text
+  responseType?: 'blob',
 }
 
 
@@ -66,7 +68,7 @@ export function apiUrl(path: string, query?: ApiRequestOptions['query']): string
  * - Clears the stored token when an authenticated request comes back 401 (except Discord-grant errors), so the UI falls back to logged-out.
  */
 export async function apiRequest<T = unknown>(path: string, options: ApiRequestOptions = {}): Promise<T> {
-  const { auth = true, body, query, timeout = DEFAULT_TIMEOUT, headers: rawHeaders, signal, ...init } = options;
+  const { auth = true, body, query, responseType, timeout = DEFAULT_TIMEOUT, headers: rawHeaders, signal, ...init } = options;
 
   const headers = new Headers(rawHeaders);
   headers.set('accept', 'application/json');
@@ -108,6 +110,10 @@ export async function apiRequest<T = unknown>(path: string, options: ApiRequestO
 
   if (response.status === 204) {
     return undefined as T;
+  }
+
+  if (responseType === 'blob') {
+    return await response.blob() as T;
   }
 
   const contentType = response.headers.get('content-type') || '';

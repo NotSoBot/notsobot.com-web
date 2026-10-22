@@ -31,6 +31,8 @@ import type {
   AdminTagVariable,
   AdminUsersSortBy,
   AdminIdentities,
+  AdminIdentitiesBulkCreate,
+  AdminIdentitiesBulkResult,
   AdminIdentityCreate,
   AdminIdentityPatch,
   AdminProxiesBulk,
@@ -111,7 +113,7 @@ import type {
   UserSettingsPatch,
   UserFilesPage,
   UserFilesSortBy,
-  Voice,
+  MeVoice,
   VoicePatch,
   VoicesPage,
 } from './types';
@@ -542,7 +544,30 @@ export const api = {
   },
 
   patchMeVoice: (voiceId: string, body: VoicePatch) => {
-    return apiRequest<Voice>(ApiEndpoints.USER_ME_VOICE(voiceId), {method: 'PATCH', body});
+    return apiRequest<MeVoice>(ApiEndpoints.USER_ME_VOICE(voiceId), {method: 'PATCH', body});
+  },
+
+  // the api converts it to the mp3 it keeps (the first minute) and adds it to the voice on the cloning service
+  uploadMeVoiceClip: (voiceId: string, file: File) => {
+    const body = new FormData();
+    body.append('file', file);
+    return apiRequest<MeVoice>(ApiEndpoints.USER_ME_VOICE_CLIPS(voiceId), {method: 'POST', body, timeout: 120_000});
+  },
+
+  // the new audio gets a new clip id, the old clip is deleted once it's in
+  replaceMeVoiceClip: (voiceId: string, clipId: string, file: File) => {
+    const body = new FormData();
+    body.append('file', file);
+    return apiRequest<MeVoice>(ApiEndpoints.USER_ME_VOICE_CLIP(voiceId, clipId), {method: 'PUT', body, timeout: 120_000});
+  },
+
+  deleteMeVoiceClip: (voiceId: string, clipId: string) => {
+    return apiRequest<MeVoice>(ApiEndpoints.USER_ME_VOICE_CLIP(voiceId, clipId), {method: 'DELETE'});
+  },
+
+  // an mp3, fetched with the token so it can't be linked to
+  fetchMeVoiceClipAudio: (voiceId: string, clipId: string, signal?: AbortSignal) => {
+    return apiRequest<Blob>(ApiEndpoints.USER_ME_VOICE_CLIP_AUDIO(voiceId, clipId), {signal, responseType: 'blob', timeout: 60_000});
   },
 
   fetchMeGuilds:(signal?: AbortSignal) => {
@@ -1053,6 +1078,11 @@ export const api = {
     return apiRequest<Identity>(ApiEndpoints.ADMIN_IDENTITIES, {method: 'POST', body});
   },
 
+  // up to 100, one that can't be added doesn't stop the rest
+  createAdminIdentities: (body: AdminIdentitiesBulkCreate) => {
+    return apiRequest<AdminIdentitiesBulkResult>(ApiEndpoints.ADMIN_IDENTITIES_BULK, {method: 'POST', body});
+  },
+
   // new cookies bring a dead identity back; provider + port re-pair it with another proxy
   patchAdminIdentity: (identityId: string, body: AdminIdentityPatch) => {
     return apiRequest<Identity>(ApiEndpoints.ADMIN_IDENTITY(identityId), {method: 'PATCH', body});
@@ -1060,6 +1090,14 @@ export const api = {
 
   deleteAdminIdentity: (identityId: string) => {
     return apiRequest<void>(ApiEndpoints.ADMIN_IDENTITY(identityId), {method: 'DELETE'});
+  },
+
+  // with their cookies and logins, the proxies stay. ids that don't exist (anymore) come back in `missing`
+  deleteAdminIdentities: (identityIds: Array<string>) => {
+    return apiRequest<{deleted: Array<string>, missing: Array<string>}>(ApiEndpoints.ADMIN_IDENTITIES_DELETE, {
+      method: 'POST',
+      body: {identity_ids: identityIds},
+    });
   },
 
   putAdminIdentityLogin: (identityId: string, body: IdentityLogin) => {

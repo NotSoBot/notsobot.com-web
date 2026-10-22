@@ -3,7 +3,7 @@ import type { LegalDocument } from './legal';
 export const TERMS_OF_SERVICE: LegalDocument = {
   title: "Terms of Service",
   effective: "November 12, 2026",
-  lastUpdated: "October 13, 2026",
+  lastUpdated: "October 21, 2026",
   intro: "Please read these Terms of Service carefully before using NotSoBot. They explain what you can and can't do with the Service, what we store when you use it, and how to reach us.",
   sections: [
     {
@@ -61,7 +61,7 @@ export const TERMS_OF_SERVICE: LegalDocument = {
       blocks: [
         {type: 'paragraph', text: "Some commands use artificial intelligence to generate text, images, audio, transcriptions, translations and descriptions of media. AI output can be wrong, offensive or misleading. Don't rely on it for medical, legal, financial or safety decisions, and check anything important yourself."},
         {type: 'paragraph', text: "AI providers only receive data when You use an AI feature: the ai command, a tag that uses AI, or voice cloning. The prompt, any media You provide, and any messages You reply to with the ai command are sent to the company that runs the AI model being used, only to generate Your result. Our Privacy Policy lists these companies. They handle it under their own terms and privacy policies. Other AI features, such as image generation and transcription, run on Our own servers. We do not use Discord message content to train machine learning or AI models."},
-        {type: 'paragraph', text: "Voice cloning sends the audio sample You provide to ElevenLabs to create a voice that only You can use through the Service. You may only clone your own voice, or a voice whose owner has given You explicit permission. Deleting a cloned voice also deletes it from ElevenLabs."},
+        {type: 'paragraph', text: "Voice cloning sends the audio You provide to fish.audio (ElevenLabs for voices cloned before October 21, 2026) to create a voice that only You can use through the Service. We keep the audio clips a voice is made from, so You can change them and so the voice can be moved to another cloning service. You may only clone your own voice, or a voice whose owner has given You explicit permission. Deleting a cloned voice also deletes it from the cloning service, along with its audio clips."},
       ],
     },
     {
@@ -80,7 +80,7 @@ export const TERMS_OF_SERVICE: LegalDocument = {
           "Reports You send with the report command, including the text, the server, channel and message IDs involved, and Our review notes.",
           "Uploaded files: files You ask NotSoBot to host, their file names, sizes, dimensions and file hashes (MD5, SHA-1 and BLAKE2b).",
           "AI requests: the prompt, including any messages You replied to with the ai command, along with the instructions, model, generated response, any error and token counts.",
-          "Cloned voices: the voice's name and the ID of the voice stored at ElevenLabs. The audio sample itself is not kept by Us.",
+          "Cloned voices: the voice's name, the ID of the voice stored at the voice cloning service, and the audio clips it was made from.",
           "Purchases: premium entitlements and subscription status received from Discord. Payments are processed by Discord, and We never see your payment details.",
           "Website and API use: if You log in to notsobot.com, a Discord OAuth2 access and refresh token with the scopes You approved, your login sessions and their browser user agent, and request logs including the IP address, user agent, path and response time.",
           "Safety records: information about content flagged by Our automated safety systems, described in Section 7.",

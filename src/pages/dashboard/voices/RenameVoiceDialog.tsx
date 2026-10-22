@@ -96,5 +96,9 @@ export function RenameVoiceDialog({ voice, mutation, onClose }: {
 
 
 export function voicePlatformLabel(platformType: number): string {
-  return (platformType === VoiceCloneTypes.ELEVENLABS) ? 'ElevenLabs' : `Type ${platformType}`;
+  switch (platformType) {
+    case VoiceCloneTypes.ELEVENLABS: return 'ElevenLabs';
+    case VoiceCloneTypes.FISH_AUDIO: return 'fish.audio';
+  }
+  return `Type ${platformType}`;
 }

@@ -116,6 +116,26 @@ export const TAG_DOC_FUNCTIONS_PART1: Array<TagDocFunction> = [
     ],
   },
   {
+    id: 'API_AUDIO_IDENTIFY',
+    names: ['api.audio.identify'],
+    category: 'search',
+    summary: 'Identifies the song playing in an audio or video and outputs the matches as JSON.',
+    description: 'Outputs an array of matches, the best one first. Each has `title`, `artists` (names), `album`, `cover_url`, `duration`, `timestamp` (where in the song your clip matched), `score` (confidence out of 100), `genres`, `label`, `release_date` and `urls` with its `apple_music`, `deezer`, `musicbrainz`, `spotify` and `youtube` links (`null` when it isn\'t on one). With no argument, the last audio or video in the chat is used.',
+    syntax: '{api.audio.identify[:url]}',
+    args: [
+      {name: 'url', description: 'An audio or video url. Defaults to the last audio or video in the chat.', optional: true},
+    ],
+    examples: [
+      {code: '{traversejson:[0].title|{api.audio.identify}}', result: 'The name of the song in the last audio or video.'},
+      {code: '{traversejson:[0].urls.spotify|{api.audio.identify:https://example.com/clip.mp4}}', result: 'The song\'s Spotify link.'},
+    ],
+    notes: [
+      'Counts against the network request limit twice, once to find the media and once to identify it. Identifying the same media again in one run reuses the cached result.',
+      '`duration` and `timestamp` are in milliseconds.',
+      'Outputs `[]` if no song was recognized, and throws an error if no audio or video can be found.',
+    ],
+  },
+  {
     id: 'API_CREATE_REMINDER',
     names: ['api.create.reminder'],
     category: 'network',
@@ -197,6 +217,26 @@ export const TAG_DOC_FUNCTIONS_PART1: Array<TagDocFunction> = [
     ],
   },
   {
+    id: 'API_INFO_INVITE',
+    names: ['api.info.invite'],
+    category: 'search',
+    summary: 'Looks up a Discord invite and outputs its server and channel as JSON.',
+    description: 'Outputs an object with `code`, `url`, `member_count`, `online_count`, `expires_at` (ISO date, `null` if it never expires), `inviter` (`id` and `username`), `channel` (`id`, `name`, `type`) and `guild` with the server\'s `id`, `name`, `description`, `created_at`, `features`, `verification_level`, `vanity_url_code`, `icon_url`, `banner_url` and `splash_url`.',
+    syntax: '{api.info.invite:code}',
+    args: [
+      {name: 'code', description: 'The invite code, or an invite link like `discord.gg/code` or `discord.com/invite/code`.'},
+    ],
+    examples: [
+      {code: '{traversejson:guild.name|{api.info.invite:9Ukuw9V}}', result: 'The name of the server the invite is for.'},
+      {code: '{traversejson:member_count|{api.info.invite:https://discord.gg/9Ukuw9V}}', result: 'How many members that server has.'},
+    ],
+    notes: [
+      'Counts against the network request limit. Looking up the same code again in one run reuses the cached result.',
+      'Throws an error if the invite does not exist or has expired.',
+      'Anything that is not an invite code or link outputs nothing.',
+    ],
+  },
+  {
     id: 'API_SEARCH_DUCKDUCKGO_IMAGES',
     names: ['api.search.duckduckgo.images'],
     category: 'search',
@@ -257,6 +297,24 @@ export const TAG_DOC_FUNCTIONS_PART1: Array<TagDocFunction> = [
     ],
   },
   {
+    id: 'API_SEARCH_STEAM',
+    names: ['api.search.steam'],
+    category: 'search',
+    summary: 'Searches Steam Community for users and outputs the results as JSON.',
+    description: 'Outputs an object like `{"count": number, "results": [...]}`, where `count` is the total number of matches. Each result has `username`, `url`, `avatar_url`, `real_name`, `country`, `country_flag_url`, `custom_url`, `past_names`, `steam_id` and `steam_id_64`. It finds accounts, not games.',
+    syntax: '{api.search.steam:query}',
+    args: [
+      {name: 'query', description: 'The name to search for (only the first 1024 characters are used).'},
+    ],
+    examples: [
+      {code: '{traversejson:results[0].url|{api.search.steam:NotSoSuper}}', result: 'The profile link of the best match.'},
+    ],
+    notes: [
+      'Counts against the network request limit. Repeating the same search in one run reuses the cached result without counting again.',
+      'An empty query outputs nothing.',
+    ],
+  },
+  {
     id: 'API_SEARCH_URBAN',
     names: ['api.search.urban'],
     category: 'search',
@@ -311,6 +369,26 @@ export const TAG_DOC_FUNCTIONS_PART1: Array<TagDocFunction> = [
       'Counts against the network request limit. Repeating the same query in one run reuses the cached result without counting again.',
       '`fields` and `images` are empty if WolframAlpha didn\'t understand the query.',
       'An empty query outputs nothing.',
+    ],
+  },
+  {
+    id: 'API_UTILITIES_EXIF',
+    names: ['api.utilities.exif'],
+    category: 'media',
+    summary: 'Reads an image, audio or video\'s metadata and outputs it as JSON.',
+    description: 'Outputs an object like `{"metadata": {...}, "channels": {...}, "exif": [...]}`. `metadata` has the `mimetype`, `width`, `height`, `size` (bytes), `duration` and `frames`. `channels` has the `image`, `video` and `audio` streams with their codecs, bitrates, frame rates and sample rates (an animated image\'s frame `delay`s, `loop` and gif `comment` too). `exif` is the photo\'s EXIF fields, each with a `name`, `value` and `description`. With no argument, the last media in the chat is used.',
+    syntax: '{api.utilities.exif[:url]}',
+    args: [
+      {name: 'url', description: 'A media url, user, or emoji. Defaults to the last media in the chat.', optional: true},
+    ],
+    examples: [
+      {code: '{traversejson:metadata.mimetype|{api.utilities.exif}}', result: 'The type of the last media, like `image/png`.'},
+      {code: '{traversejson:channels.video[0].frames_per_second|{api.utilities.exif}}', result: 'The frame rate of the last video.'},
+    ],
+    notes: [
+      'Counts against the network request limit twice, once to find the media and once to read it. Reading the same media again in one run reuses the cached result.',
+      'Durations and frame delays are in milliseconds.',
+      'Throws an error if no media can be found.',
     ],
   },
   {

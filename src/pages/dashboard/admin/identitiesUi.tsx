@@ -56,6 +56,29 @@ export function proxyLabel(proxy: Pick<IdentityProxy, 'host' | 'port' | 'usernam
 }
 
 
+// for sorting by a time or a count, biggest first, and the ones without any last (never succeeded, never added)
+export function descending(a: number | null | undefined, b: number | null | undefined): number {
+  return (b ?? -Infinity) - (a ?? -Infinity) || 0;
+}
+
+// `?sort=` in a tab's filters, the default one isn't kept in the url
+export function SortSelect<T extends string>({ options, value, defaultValue, onChange }: {
+  options: Array<{value: T, label: string}>,
+  value: T,
+  defaultValue: T,
+  onChange: (sort: string | null) => void,
+}) {
+  return (
+    <label className='flex items-center gap-2 text-sm text-muted'>
+      Sort
+      <select className='input w-52' value={value} onChange={(event) => onChange((event.target.value === defaultValue) ? null : event.target.value)}>
+        {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+      </select>
+    </label>
+  );
+}
+
+
 export function LabelChips({ labels, className }: {labels: Array<string>, className?: string}) {
   if (!labels.length) {
     return null;
@@ -73,6 +96,77 @@ export function SecretValue({ value }: {value: string}) {
     <span className='inline-flex max-w-full items-center gap-1.5'>
       <span className='min-w-0 font-mono break-all select-all'>{value}</span>
       <CopyButton value={value}/>
+    </span>
+  );
+}
+
+
+// an authenticator secret as apps take it (base32, spaces and padding allowed), null for anything else (backup codes)
+export function base32Bytes(value: string): Uint8Array<ArrayBuffer> | null {
+  const text = value.replace(/[\s=-]/g, '').toUpperCase();
+  if (text.length < 16 || !/^[A-Z2-7]+$/.test(text)) {
+    return null;
+  }
+  const bytes: Array<number> = [];
+  let buffer = 0;
+  let bits = 0;
+  for (const char of text) {
+    buffer = (buffer << 5) | 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'.indexOf(char);
+    bits += 5;
+    if (8 <= bits) {
+      bits -= 8;
+      bytes.push((buffer >> bits) & 0xff);
+    }
+  }
+  return new Uint8Array(bytes);
+}
+
+const TOTP_PERIOD_MS = 30 * 1000;
+
+// the 6 digit code an authenticator app shows right now (RFC 6238: HMAC-SHA1 of the 30 second step), worked out here
+// so the secret never goes anywhere else
+export async function totpCode(key: Uint8Array<ArrayBuffer>, step: number): Promise<string> {
+  const counter = new DataView(new ArrayBuffer(8));
+  counter.setUint32(0, Math.floor(step / 2 ** 32));
+  counter.setUint32(4, step % 2 ** 32);
+  const hmacKey = await crypto.subtle.importKey('raw', key, {name: 'HMAC', hash: 'SHA-1'}, false, ['sign']);
+  const digest = new Uint8Array(await crypto.subtle.sign('HMAC', hmacKey, counter.buffer));
+  const offset = digest[digest.length - 1] & 0x0f;
+  const binary = ((digest[offset] & 0x7f) << 24) | (digest[offset + 1] << 16) | (digest[offset + 2] << 8) | digest[offset + 3];
+  return String(binary % 1_000_000).padStart(6, '0');
+}
+
+// a saved 2fa value: the secret itself, and when it's an authenticator secret the current code with how long it lasts
+export function TwoFactorValue({ value, now }: {value: string, now: number}) {
+  const key = useMemo(() => base32Bytes(value), [value]);
+  const step = Math.floor(now / TOTP_PERIOD_MS);
+  const [ code, setCode ] = useState<{step: number, code: string} | null>(null);
+  useEffect(() => {
+    if (!key) {
+      return;
+    }
+    let cancelled = false;
+    void totpCode(key, step).then((next) => {
+      if (!cancelled) {
+        setCode({step, code: next});
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [key, step]);
+
+  return (
+    <span className='flex flex-col gap-1'>
+      <SecretValue value={value}/>
+      {(key && code?.step === step) ? (
+        <span className='inline-flex items-center gap-1.5 text-xs text-muted'>
+          Code now
+          <span className='font-mono text-sm text-white tabular-nums'>{code.code.slice(0, 3)} {code.code.slice(3)}</span>
+          <CopyButton value={code.code}/>
+          <span className='text-subtle tabular-nums'>{formatSpan(TOTP_PERIOD_MS - (now % TOTP_PERIOD_MS))}</span>
+        </span>
+      ) : null}
     </span>
   );
 }
@@ -214,6 +308,9 @@ export function ProxyPicker({ proxies, service, value, onChange, ignoreIdentityI
         disabled={disabled}
         onChange={(event) => onChange((event.target.value) ? Number(event.target.value) : null)}
       >
+        {/* what nothing picked matches: without it react selects the first proxy (shown picked, and clicking it does
+            nothing since it already is) */}
+        <option value='' hidden disabled/>
         {options.map(({ proxy, holder }) => (
           <option key={proxy.id} value={proxy.id} disabled={!!holder || proxy.status !== 'active'}>
             {proxyLabel(proxy)}

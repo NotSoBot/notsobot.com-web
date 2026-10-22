@@ -398,6 +398,10 @@ export const ApiErrorCodes = {
   UNKNOWN_REMINDER: 10007,
   UNKNOWN_FILE: 10002,
   UNKNOWN_VOICE: 10003,
+  UNKNOWN_VOICE_CLIP: 10028,
+  MAX_VOICE_CLIPS: 30026,
+  // a voice can't lose its last audio clip, it's deleted with the bot instead
+  VOICE_CLIP_LAST: 50042,
   MISSING_ACCESS: 20004,
   PREMIUM_REQUIRED: 20005,
   MAX_APPLICATIONS: 30001,
@@ -537,6 +541,7 @@ export interface TagPatch {
 // `VoiceCloneTypes`: where the cloned voice lives
 export const VoiceCloneTypes = {
   ELEVENLABS: 0,
+  FISH_AUDIO: 1,
 } as const;
 
 // a reminder made with the bot's `reminder` commands, read-only on the dashboard
@@ -626,9 +631,25 @@ export interface Voice {
   platform_type: number,
 }
 
+// the audio a voice was cloned from, kept by the api so the voice can be moved to another cloning service
+export interface VoiceClip {
+  created: ApiTimestamp,
+  // ms, only the first minute of an upload is kept
+  duration: number,
+  id: string,
+  // what it was uploaded as
+  name: string,
+  size: number,
+}
+
+// `/users/@me/voices` voices come with their clips, oldest first (voices cloned before clips were kept can have none)
+export interface MeVoice extends Voice {
+  clips: Array<VoiceClip>,
+}
+
 export interface VoicesPage {
   count: number,
-  items: Array<Voice>,
+  items: Array<MeVoice>,
 }
 
 // only the name can be changed from the dashboard (max 128)
@@ -1569,9 +1590,13 @@ export interface IdentityLogin {
   username: string,
   password: string,
   recovery_email?: string | null,
+  // as typed, spaces and dashes kept
+  recovery_phone?: string | null,
   // the youtube channel's own email (a brand account's), next to its link
   channel_email?: string | null,
   channel_url?: string | null,
+  // the authenticator secret (base32, the dashboard shows its current code) or backup codes
+  two_factor?: string | null,
   notes?: string | null,
 }
 
@@ -1629,6 +1654,17 @@ export interface AdminIdentityCreate {
   cookies?: string,
   status?: 'active' | 'disabled',
   login?: IdentityLogin,
+}
+
+// accounts from pasted logins, each on the proxy the dashboard picked; without cookies they're `pending`
+export interface AdminIdentitiesBulkCreate {
+  service: string,
+  items: Array<{name: string, proxy_id: number, login?: IdentityLogin}>,
+  status?: 'active' | 'disabled',
+}
+
+export interface AdminIdentitiesBulkResult {
+  results: Array<{name: string, identity_id?: string, status?: IdentityStatus, error?: string}>,
 }
 
 export interface AdminIdentityPatch {

@@ -42,6 +42,7 @@ import {
   type TagAuditEntry,
   type TagStorageType,
   type UserGuild,
+  type VoiceClip,
 } from '@/lib/api/types';
 import { toDate } from '@/lib/utils';
 
@@ -96,6 +97,8 @@ const state = {
   // the reports the mock user sent, filled in below
   ownReportIds: new Set<string>(),
   voices: createVoices(adminUsers),
+  // the clips the mock user's voices are made from, filled in below; the audio itself is in `voiceClipAudio`
+  voiceClips: new Map<string, Array<VoiceClip>>(),
   applications: createApplications(adminUsers),
   entitlements: createEntitlements(adminUsers),
   // premium server slots, a guild added two days ago (still locked) and a group dm from the bot three weeks ago
@@ -2700,7 +2703,7 @@ route('GET', '/admin/stats/content', (_match, { query }) => {
 });
 
 
-// voices: only the name can be changed, from either side
+// voices: the name can be changed from either side, the clips only by the owner (`/users/@me/voices/.../clips`)
 function findVoice(voiceId: string) {
   const voice = state.voices.find((other) => other.id === voiceId);
   if (!voice) {
@@ -3465,7 +3468,12 @@ route('POST', '/admin/identities', (_match, { body }) => {
   if (mockIdentities.some((other) => other.id === id)) {
     throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, `${id} already exists`);
   }
-  checkMockCookies(service, body.cookies);
+  const policy = mockService(service);
+  // an account without its cookies waits for them
+  const waits = policy.kind === 'cookies' && !policy.secret_optional && !body.cookies;
+  if (!waits) {
+    checkMockCookies(service, body.cookies);
+  }
   const proxy = findMockProxy(body.proxy_id);
   checkMockProxyFree(service, proxy);
   const login = body.login as IdentityLogin | undefined;
@@ -3474,7 +3482,7 @@ route('POST', '/admin/identities', (_match, { body }) => {
   }
   const now = Date.now();
   const identity = newMockIdentity(service, name, proxy, {
-    status: (body.status === 'disabled') ? 'disabled' : 'active', has_secret: !!body.cookies, secret_updated: (body.cookies) ? now : null,
+    status: (body.status === 'disabled') ? 'disabled' : (waits) ? 'pending' : 'active', has_secret: !!body.cookies, secret_updated: (body.cookies) ? now : null,
     has_login: !!login, login_updated: (login) ? now : null,
   });
   if (login) {
@@ -3483,6 +3491,38 @@ route('POST', '/admin/identities', (_match, { body }) => {
   mockIdentities.push(identity);
   mockIdentities.sort((a, b) => a.id.localeCompare(b.id));
   return mockIdentitiesPayload().identities.find((other) => other.id === identity.id);
+});
+
+route('POST', '/admin/identities/bulk', (_match, { body }) => {
+  requireBotOwner();
+  const service = String(body.service || '') as MockService;
+  const policy = mockService(service);
+  const now = Date.now();
+  const items = (body.items as Array<{name: string, proxy_id: number, login?: IdentityLogin}>) ?? [];
+  const results = items.map((item) => {
+    try {
+      const id = `${service}:${item.name}`;
+      if (mockIdentities.some((other) => other.id === id)) {
+        throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, `${id} already exists`);
+      }
+      const proxy = findMockProxy(item.proxy_id);
+      checkMockProxyFree(service, proxy);
+      const waits = policy.kind === 'cookies' && !policy.secret_optional;
+      const identity = newMockIdentity(service, item.name, proxy, {
+        status: (body.status === 'disabled') ? 'disabled' : (waits) ? 'pending' : 'active', in_pool: !waits,
+        has_login: !!item.login, login_updated: (item.login) ? now : null,
+      });
+      if (item.login) {
+        mockIdentityLogins.set(identity.id, item.login);
+      }
+      mockIdentities.push(identity);
+      return {name: item.name, identity_id: identity.id, status: identity.status};
+    } catch (error) {
+      return {name: item.name, error: (error instanceof MockError) ? error.message : String(error)};
+    }
+  });
+  mockIdentities.sort((a, b) => a.id.localeCompare(b.id));
+  return {results};
 });
 
 route('POST', '/admin/identities/assign', (_match, { body }) => {
@@ -3634,6 +3674,22 @@ route('PATCH', '/admin/identities/proxies', (_match, { body }) => {
   return {updated, failed: []};
 });
 
+route('POST', '/admin/identities/delete', (_match, { body }) => {
+  requireBotOwner();
+  const deleted: Array<string> = [];
+  const missing: Array<string> = [];
+  for (const identityId of (body.identity_ids as Array<string>) ?? []) {
+    const index = mockIdentities.findIndex((identity) => identity.id === identityId);
+    if (index === -1) {
+      missing.push(identityId);
+    } else {
+      mockIdentities.splice(index, 1);
+      deleted.push(identityId);
+    }
+  }
+  return {deleted, missing};
+});
+
 route('POST', '/admin/identities/proxies/delete', (_match, { body }) => {
   requireBotOwner();
   const deleted: Array<number> = [];
@@ -3772,8 +3828,10 @@ route('PUT', '/admin/identities/([^/]+)/login', ([ , identityId ], { body }) => 
     username: String(body.username),
     password: String(body.password),
     recovery_email: (body.recovery_email) ? String(body.recovery_email) : null,
+    recovery_phone: (body.recovery_phone) ? String(body.recovery_phone) : null,
     channel_email: (body.channel_email) ? String(body.channel_email) : null,
     channel_url: (body.channel_url) ? String(body.channel_url) : null,
+    two_factor: (body.two_factor) ? String(body.two_factor) : null,
     notes: (body.notes) ? String(body.notes) : null,
   });
   identity.has_login = true;
@@ -3803,8 +3861,11 @@ route('POST', '/admin/identities/([^/]+)/login/reveal', ([ , identityId ]) => {
     username: `${name}@gmail.com`,
     password: `mock-pass-${name}`,
     recovery_email: `${name}.recovery@gmail.com`,
+    recovery_phone: '+1 555 0100',
     channel_email: `${name}.channel@pages.plusgoogle.com`,
     channel_url: 'https://www.youtube.com/channel/UCmockchannel',
+    // the rfc 6238 test vector's secret, so the shown code can be checked against any authenticator
+    two_factor: 'GEZD GNBV GY3T QOJQ GEZD GNBV GY3T QOJQ',
     notes: null,
   };
   mockIdentityLogins.set(identity.id, login);
@@ -3813,9 +3874,87 @@ route('POST', '/admin/identities/([^/]+)/login/reveal', ([ , identityId ]) => {
 });
 
 
-// the dashboard shape leaves out the platform id and the owner
+// the dashboard shape leaves out the platform id and the owner, and has the clips
 function meVoice({ created, id, name, platform_type }: (typeof state.voices)[number]) {
-  return {created, id, name, platform_type};
+  return {created, id, name, platform_type, clips: state.voiceClips.get(id) ?? []};
+}
+
+function findOwnVoice(voiceId: string) {
+  const voice = findVoice(voiceId);
+  if (voice.user?.id !== mockUser.id) {
+    throw new MockError(404, ApiErrorCodes.UNKNOWN_VOICE, 'Unknown Voice Clone');
+  }
+  return voice;
+}
+
+function findOwnVoiceClip(voiceId: string, clipId: string) {
+  const voice = findOwnVoice(voiceId);
+  const clips = state.voiceClips.get(voice.id) ?? [];
+  const clip = clips.find((other) => other.id === clipId);
+  if (!clip) {
+    throw new MockError(404, ApiErrorCodes.UNKNOWN_VOICE_CLIP, 'Unknown Voice Clip');
+  }
+  return {voice, clips, clip};
+}
+
+// a short tone, so the seeded clips play something
+function toneWav(frequency: number, seconds: number): Blob {
+  const rate = 8000;
+  const samples = rate * seconds;
+  const view = new DataView(new ArrayBuffer(44 + samples * 2));
+  const text = (offset: number, value: string) => [...value].forEach((char, i) => view.setUint8(offset + i, char.charCodeAt(0)));
+  text(0, 'RIFF');
+  view.setUint32(4, 36 + samples * 2, true);
+  text(8, 'WAVEfmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, rate, true);
+  view.setUint32(28, rate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  text(36, 'data');
+  view.setUint32(40, samples * 2, true);
+  for (let i = 0; i < samples; i++) {
+    const fade = Math.min(1, i / 400, (samples - i) / 400);
+    view.setInt16(44 + i * 2, Math.sin(2 * Math.PI * frequency * i / rate) * 8000 * fade, true);
+  }
+  return new Blob([view], {type: 'audio/wav'});
+}
+
+const voiceClipAudio = new Map<string, Blob>();
+
+// the mock user's first voice has two clips, the second was cloned before clips were kept and has none
+{
+  const [ first ] = state.voices.filter((voice) => voice.user?.id === mockUser.id);
+  if (first) {
+    const seeded = [
+      {name: 'narration take 1.m4a', frequency: 330, seconds: 4},
+      {name: 'podcast intro.mp3', frequency: 440, seconds: 6},
+    ].map(({ name, frequency, seconds }, i) => {
+      const id = (BigInt(first.id) + BigInt(i + 1) * 4194304n).toString();
+      const audio = toneWav(frequency, seconds);
+      voiceClipAudio.set(id, audio);
+      return {created: first.created, duration: seconds * 1000, id, name, size: audio.size};
+    });
+    state.voiceClips.set(first.id, seeded);
+  }
+}
+
+// like `prepare_voice_clip`: audio or video, and only the first minute is kept
+function mockVoiceClip(body: Record<string, unknown>): VoiceClip {
+  const file = body.file;
+  if (!(file instanceof File)) {
+    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'file is required', {field: 'file'});
+  }
+  if (!/^(audio|video)\//.test(file.type)) {
+    throw new MockError(400, ApiErrorCodes.INVALID_FILE_TYPE, 'File must be audio or video');
+  }
+  const id = mockId();
+  voiceClipAudio.set(id, file);
+  // the mock can't probe it, a guess from the size (~128kbps) is close enough
+  const duration = Math.max(2000, Math.min(60000, Math.round(file.size / 16)));
+  return {created: new Date().toISOString(), duration, id, name: file.name.slice(0, 128), size: file.size};
 }
 
 route('GET', '/users/@me/voices', () => {
@@ -3824,10 +3963,43 @@ route('GET', '/users/@me/voices', () => {
 });
 
 route('PATCH', '/users/@me/voices/(\\d+)', ([ , voiceId ], { body }) => {
-  if (findVoice(voiceId).user?.id !== mockUser.id) {
-    throw new MockError(404, ApiErrorCodes.UNKNOWN_VOICE, 'Unknown Voice Clone');
-  }
+  findOwnVoice(voiceId);
   return meVoice(renameVoice(voiceId, body));
+});
+
+route('POST', '/users/@me/voices/(\\d+)/clips', ([ , voiceId ], { body }) => {
+  const voice = findOwnVoice(voiceId);
+  const clips = state.voiceClips.get(voice.id) ?? [];
+  if (10 <= clips.length) {
+    throw new MockError(400, ApiErrorCodes.MAX_VOICE_CLIPS, 'Voices can have up to 10 audio clips', {limit: 10});
+  }
+  state.voiceClips.set(voice.id, [...clips, mockVoiceClip(body)]);
+  return meVoice(voice);
+});
+
+// the new clip gets a new id and goes at the end, like the api
+route('PUT', '/users/@me/voices/(\\d+)/clips/(\\d+)', ([ , voiceId, clipId ], { body }) => {
+  const { voice, clips, clip } = findOwnVoiceClip(voiceId, clipId);
+  const added = mockVoiceClip(body);
+  voiceClipAudio.delete(clip.id);
+  state.voiceClips.set(voice.id, [...clips.filter((other) => other.id !== clip.id), added]);
+  return meVoice(voice);
+});
+
+route('DELETE', '/users/@me/voices/(\\d+)/clips/(\\d+)', ([ , voiceId, clipId ]) => {
+  const { voice, clips, clip } = findOwnVoiceClip(voiceId, clipId);
+  if (clips.length <= 1) {
+    throw new MockError(400, ApiErrorCodes.VOICE_CLIP_LAST, 'A voice needs at least one audio clip, delete the voice instead');
+  }
+  voiceClipAudio.delete(clip.id);
+  state.voiceClips.set(voice.id, clips.filter((other) => other.id !== clip.id));
+  return meVoice(voice);
+});
+
+route('GET', '/users/@me/voices/(\\d+)/clips/(\\d+)/audio', ([ , voiceId, clipId ]) => {
+  const { clip } = findOwnVoiceClip(voiceId, clipId);
+  const audio = voiceClipAudio.get(clip.id) ?? toneWav(220, 2);
+  return new Response(audio, {status: 200, headers: {'content-type': audio.type || 'audio/mpeg'}});
 });
 
 route('GET', '/admin/voices', (_match, { query }) => {
@@ -3956,6 +4128,10 @@ export function installDashboardMocks(): void {
       }
       try {
         const result = handler(match, {method, query: url.searchParams, body});
+        // media routes answer with the bytes themselves
+        if (result instanceof Response) {
+          return result;
+        }
         // hand out copies so the app can't mutate the fake database through the query cache
         return json((result === undefined) ? 204 : 200, (result === undefined) ? undefined : structuredClone(result));
       } catch (error) {

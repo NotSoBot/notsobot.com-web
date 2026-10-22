@@ -19,6 +19,7 @@ import type {
   AdminGuildPatch,
   AdminGuildsSortBy,
   AdminIdentities,
+  AdminIdentitiesBulkCreate,
   AdminIdentityCreate,
   AdminIdentityPatch,
   AdminProxiesBulk,
@@ -82,7 +83,7 @@ import type {
   UserGuildPatch,
   UserSettings,
   UserSettingsPatch,
-  Voice,
+  MeVoice,
   VoicesPage,
   WebsiteReportBody,
 } from './types';
@@ -188,6 +189,12 @@ export function errorMessage(error: unknown, fallback = 'Something went wrong. T
         return 'You’ve reached the limit of applications you can have. Delete one first.';
       case ApiErrorCodes.UNKNOWN_VOICE:
         return 'That voice doesn’t exist anymore. It may have been deleted with the bot.';
+      case ApiErrorCodes.UNKNOWN_VOICE_CLIP:
+        return 'That clip doesn’t exist anymore.';
+      case ApiErrorCodes.MAX_VOICE_CLIPS:
+        return `A voice can have up to ${(error.body as {limit?: number} | null)?.limit ?? 10} audio clips. Delete one first.`;
+      case ApiErrorCodes.VOICE_CLIP_LAST:
+        return 'A voice needs at least one clip. Replace it instead, or delete the voice with the bot’s voice delete command.';
       case ApiErrorCodes.UNKNOWN_REMINDER:
         return 'That reminder doesn’t exist anymore. It may have already been sent or deleted with the bot.';
       case ApiErrorCodes.UNKNOWN_LLM_MEMORY:
@@ -959,17 +966,51 @@ export function useMeVoicesQuery() {
 }
 
 
-export function usePatchMeVoiceMutation() {
+// every voice route answers with the voice and its clips, which replaces it in the list
+function useSetMeVoice() {
   const { token } = useAuth();
   const queryClient = useQueryClient();
   const key = queryKeys.meVoices(token);
+  return (voice: MeVoice) => {
+    queryClient.setQueryData<VoicesPage>(key, (page) => {
+      return (page) ? {...page, items: page.items.map((other) => (other.id === voice.id) ? voice : other)} : page;
+    });
+  };
+}
+
+
+export function usePatchMeVoiceMutation() {
+  const setVoice = useSetMeVoice();
   return useMutation({
     mutationFn: ({ voiceId, name }: VoiceRename) => api.patchMeVoice(voiceId, {name}),
-    onSuccess: (voice: Voice) => {
-      queryClient.setQueryData<VoicesPage>(key, (page) => {
-        return (page) ? {...page, items: page.items.map((other) => (other.id === voice.id) ? voice : other)} : page;
-      });
+    onSuccess: setVoice,
+  });
+}
+
+
+export interface VoiceClipUpload {
+  voiceId: string,
+  // replaces this clip when given, otherwise it's added
+  clipId?: string,
+  file: File,
+}
+
+export function useUploadMeVoiceClipMutation() {
+  const setVoice = useSetMeVoice();
+  return useMutation({
+    mutationFn: ({ voiceId, clipId, file }: VoiceClipUpload) => {
+      return (clipId) ? api.replaceMeVoiceClip(voiceId, clipId, file) : api.uploadMeVoiceClip(voiceId, file);
     },
+    onSuccess: setVoice,
+  });
+}
+
+
+export function useDeleteMeVoiceClipMutation() {
+  const setVoice = useSetMeVoice();
+  return useMutation({
+    mutationFn: ({ voiceId, clipId }: {voiceId: string, clipId: string}) => api.deleteMeVoiceClip(voiceId, clipId),
+    onSuccess: setVoice,
   });
 }
 
@@ -2104,8 +2145,9 @@ function useAdminIdentitiesCache() {
         : [...data.identities, identity].sort((a, b) => a.id.localeCompare(b.id));
       return {...data, identities};
     }),
-    remove: (identityId: string) => queryClient.setQueryData<AdminIdentities>(key, (data) => {
-      return (data) ? {...data, identities: data.identities.filter((other) => other.id !== identityId)} : data;
+    remove: (identityId: string | Array<string>) => queryClient.setQueryData<AdminIdentities>(key, (data) => {
+      const ids = new Set((Array.isArray(identityId)) ? identityId : [identityId]);
+      return (data) ? {...data, identities: data.identities.filter((other) => !ids.has(other.id))} : data;
     }),
     invalidate: () => queryClient.invalidateQueries({queryKey: key}),
   };
@@ -2134,6 +2176,26 @@ export function useDeleteIdentityMutation() {
   return useMutation({
     mutationFn: (identityId: string) => api.deleteAdminIdentity(identityId),
     onSuccess: (_result, identityId) => cache.remove(identityId),
+    onSettled: cache.invalidate,
+  });
+}
+
+// sent in chunks by the dialog, the list reloads once at the end (`invalidate`)
+export function useBulkCreateIdentitiesMutation() {
+  const cache = useAdminIdentitiesCache();
+  return {
+    ...useMutation({
+      mutationFn: (body: AdminIdentitiesBulkCreate) => api.createAdminIdentities(body),
+    }),
+    invalidate: cache.invalidate,
+  };
+}
+
+export function useDeleteIdentitiesMutation() {
+  const cache = useAdminIdentitiesCache();
+  return useMutation({
+    mutationFn: (identityIds: Array<string>) => api.deleteAdminIdentities(identityIds),
+    onSuccess: (result) => cache.remove(result.deleted),
     onSettled: cache.invalidate,
   });
 }

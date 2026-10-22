@@ -21,6 +21,15 @@ export function hasPremiumPlusAI(user: {flags: number, premium_type: number} | n
 }
 
 
+// Plus's perks (the api's `has_premium_plus`), Plus AI includes them
+export function hasPremiumPlus(user: {flags: number, premium_type: number} | null | undefined): boolean {
+  if (!user) {
+    return false;
+  }
+  return hasPremiumPlusAI(user) || user.premium_type === UserPremiumTypes.PREMIUM_PLUS;
+}
+
+
 export function premiumLabel(premiumType: number): string {
   return LABELS[premiumType] ?? 'Free';
 }

@@ -7,6 +7,10 @@ import { cn } from '@/lib/utils';
 
 // open modals, innermost last: Escape only closes the top one, so a confirm dialog over a modal doesn't close both
 const openModals: Array<symbol> = [];
+// the page's own styles from before the first modal opened, put back once the last one closes. each modal saving and
+// restoring its own breaks when they close together in another order (deleting from a confirm over a modal closes
+// both, the outer one first): the inner one would put back the `hidden` it found and the page would stay unscrollable
+let pageStyles: {overflow: string, position: string} | null = null;
 
 // for keyboard shortcuts of a modal that shouldn't fire while another one is open over it
 export function openModalCount(): number {
@@ -35,23 +39,27 @@ export function Modal({ labelledBy, onClose, className, stickyClose = false, chi
     const previouslyFocused = document.activeElement as HTMLElement | null;
     closeRef.current?.focus({preventScroll: true});
     const self = Symbol('modal');
+    if (!openModals.length) {
+      pageStyles = {overflow: document.body.style.overflow, position: document.documentElement.style.position};
+      document.body.style.overflow = 'hidden';
+      // so the dimming can cover the whole page, see below
+      document.documentElement.style.position = 'relative';
+    }
     openModals.push(self);
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && openModals.at(-1) === self) {
         onCloseRef.current();
       }
     };
-    const { overflow } = document.body.style;
-    const { position } = document.documentElement.style;
-    document.body.style.overflow = 'hidden';
-    // so the dimming can cover the whole page, see below
-    document.documentElement.style.position = 'relative';
     document.addEventListener('keydown', onKeyDown);
     return () => {
       document.removeEventListener('keydown', onKeyDown);
       openModals.splice(openModals.indexOf(self), 1);
-      document.body.style.overflow = overflow;
-      document.documentElement.style.position = position;
+      if (!openModals.length && pageStyles) {
+        document.body.style.overflow = pageStyles.overflow;
+        document.documentElement.style.position = pageStyles.position;
+        pageStyles = null;
+      }
       previouslyFocused?.focus?.({preventScroll: true});
     };
   }, []);

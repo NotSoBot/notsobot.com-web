@@ -4,7 +4,7 @@
 // A saved login (for signing in again to export new cookies) and the proxy's password can be revealed, the api writes
 // down every reveal. The proxies themselves are managed on the Proxies page (`OwnerProxiesPage`).
 
-import { ArrowRightLeft, EyeOff, Fingerprint, KeyRound, Network, Pause, Pencil, Play, Plus, Power, RefreshCw, Trash2, Upload } from 'lucide-react';
+import { ArrowDown, ArrowRightLeft, ArrowUp, EyeOff, Fingerprint, KeyRound, ListPlus, Network, Pause, Pencil, Play, Plus, Power, RefreshCw, RotateCcw, Trash2, Upload, X } from 'lucide-react';
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
 
@@ -19,6 +19,7 @@ import {
   useAdminIdentitiesQuery,
   useClearIdentityLoginMutation,
   useCreateIdentityMutation,
+  useDeleteIdentitiesMutation,
   useDeleteIdentityMutation,
   usePatchIdentityMutation,
   useResumeIdentityServiceMutation,
@@ -31,8 +32,10 @@ import { cn, NO_AUTOFILL } from '@/lib/utils';
 
 import { DashboardHeader, EmptyState, ErrorPanel, Field, Skeleton } from '../ui';
 import { Chip, DetailList, ExactDate, FiltersButton, Hint, InfoTip, StatTile, useSearchParamState } from './adminUi';
-import { AuditHistory, LabelChips, ProxyCredentials, ProxyPicker, REVEAL_MS, SecretValue, ago, formatSpan, proxyLabel, useNow } from './identitiesUi';
-import { ProxiesTab } from './ProxiesTab';
+import { BulkAddIdentitiesDialog } from './BulkAddIdentitiesDialog';
+import { AuditHistory, LabelChips, ProxyCredentials, ProxyPicker, REVEAL_MS, SecretValue, SortSelect, TwoFactorValue, ago, descending, formatSpan, proxyLabel, useNow } from './identitiesUi';
+import { LOGIN_LINE_FORMATS, LOGIN_LINE_LABELS, loginLineFormatLabel, nameFromUsername, parseLoginLine } from './loginLine';
+import { ProxiesTab, compareAddresses } from './ProxiesTab';
 
 
 const TABS = [
@@ -74,6 +77,64 @@ const SERVICE_ORDER: Record<string, number> = {global: 0, strict: 1};
 
 function globalFirst(a: string, aService: string, b: string, bService: string): number {
   return (SERVICE_ORDER[aService] ?? 2) - (SERVICE_ORDER[bService] ?? 2) || a.localeCompare(b, undefined, {numeric: true});
+}
+
+// `?sort=` on the identities tab, ties keep the service order
+type IdentitySort = 'service' | 'name' | 'name_desc' | 'state' | 'state_desc' | 'proxy' | 'proxy_desc' | 'last_ok' | 'stale' |
+  'last_error' | 'first_error' | 'flags' | 'newest' | 'oldest';
+const IDENTITY_SORTS: Array<{value: IdentitySort, label: string}> = [
+  {value: 'service', label: 'Service, then name'},
+  {value: 'name', label: 'Name'},
+  {value: 'name_desc', label: 'Name, Z to A'},
+  // in the State filter's order, ready first
+  {value: 'state', label: 'State'},
+  {value: 'state_desc', label: 'State, reversed'},
+  {value: 'proxy', label: 'Proxy'},
+  {value: 'proxy_desc', label: 'Proxy, reversed'},
+  {value: 'last_ok', label: 'Last success'},
+  // the ones that never succeeded first
+  {value: 'stale', label: 'Longest without a success'},
+  {value: 'last_error', label: 'Latest error'},
+  {value: 'first_error', label: 'Oldest error'},
+  // ip flags in a row and account failures
+  {value: 'flags', label: 'Most flagged'},
+  {value: 'newest', label: 'Newest added'},
+  {value: 'oldest', label: 'Oldest added'},
+];
+
+function identityName(identity: Identity): string {
+  return identity.id.split(':').slice(1).join(':');
+}
+
+// the list's column headers: the first click sorts the way that column is usually wanted (newest first for times), the
+// second the other way, the third goes back to the default
+const COLUMN_SORTS: Record<'name' | 'state' | 'proxy' | 'last_ok' | 'last_error', [IdentitySort, IdentitySort]> = {
+  name: ['name', 'name_desc'],
+  state: ['state', 'state_desc'],
+  proxy: ['proxy', 'proxy_desc'],
+  last_ok: ['last_ok', 'stale'],
+  last_error: ['last_error', 'first_error'],
+};
+
+// `state` is the badge's kind (it changes with the time), worked out once per identity by the list
+function compareIdentities(sort: IdentitySort, a: Identity, b: Identity, state: (identity: Identity) => IdentityStateKey): number {
+  const rank = (identity: Identity) => STATE_FILTERS.findIndex((item) => item.value === state(identity));
+  const order = (sort === 'name') ? identityName(a).localeCompare(identityName(b), undefined, {numeric: true})
+    : (sort === 'name_desc') ? identityName(b).localeCompare(identityName(a), undefined, {numeric: true})
+    : (sort === 'state') ? rank(a) - rank(b)
+    : (sort === 'state_desc') ? rank(b) - rank(a)
+    : (sort === 'proxy') ? compareAddresses(a.proxy, b.proxy)
+    : (sort === 'proxy_desc') ? compareAddresses(b.proxy, a.proxy)
+    : (sort === 'last_ok') ? descending(a.last_ok, b.last_ok)
+    : (sort === 'stale') ? (a.last_ok ?? -Infinity) - (b.last_ok ?? -Infinity) || 0
+    : (sort === 'last_error') ? descending(a.last_error_at, b.last_error_at)
+    // the ones without an error last either way
+    : (sort === 'first_error') ? (a.last_error_at ?? Infinity) - (b.last_error_at ?? Infinity) || 0
+    : (sort === 'flags') ? descending(a.streak + a.strikes, b.streak + b.strikes)
+    : (sort === 'newest') ? descending(a.created, b.created)
+    : (sort === 'oldest') ? descending(b.created, a.created)
+    : 0;
+  return order || globalFirst(a.id, a.service, b.id, b.service);
 }
 
 // what a service's identities carry besides their ip, next to its name on the card
@@ -122,7 +183,26 @@ function Tile({ text, children }: {text: string, children: ReactNode}) {
 const TILE = 'h-full [&>p:first-child]:truncate';
 
 
+// the badge's kind, its label has the time left in it (`Benched 3m`)
+type IdentityStateKey = 'dead' | 'disabled' | 'pending' | 'proxy_off' | 'shared' | 'in_use' | 'syncing' | 'proxy_down' | 'benched' | 'cooldown' | 'ready';
+
+// `?state=`, in the order they're checked
+const STATE_FILTERS: Array<{value: IdentityStateKey, label: string}> = [
+  {value: 'ready', label: 'Ready'},
+  {value: 'in_use', label: 'In use'},
+  {value: 'cooldown', label: 'Cooldown'},
+  {value: 'benched', label: 'Benched'},
+  {value: 'proxy_down', label: 'Proxy down'},
+  {value: 'syncing', label: 'Waiting for sync'},
+  {value: 'shared', label: 'Shared'},
+  {value: 'proxy_off', label: 'Proxy off'},
+  {value: 'pending', label: 'Needs cookies'},
+  {value: 'disabled', label: 'Disabled'},
+  {value: 'dead', label: 'Dead'},
+];
+
 interface IdentityState {
+  key: IdentityStateKey,
   label: string,
   tone: 'neutral' | 'danger' | 'warning' | 'success' | 'brand',
   title: string,
@@ -131,36 +211,36 @@ interface IdentityState {
 // what's stopping it from being used right now, if anything, in the order the api checks
 function identityState(identity: Identity, now: number): IdentityState {
   if (identity.status === 'dead') {
-    return {label: 'Dead', tone: 'danger', title: 'Out of rotation until it gets new cookies'};
+    return {key: 'dead', label: 'Dead', tone: 'danger', title: 'Out of rotation until it gets new cookies'};
   }
   if (identity.status === 'disabled') {
-    return {label: 'Disabled', tone: 'neutral', title: 'Turned off by an owner'};
+    return {key: 'disabled', label: 'Disabled', tone: 'neutral', title: 'Turned off by an owner'};
   }
   if (identity.status === 'pending') {
-    return {label: 'Needs cookies', tone: 'warning', title: 'Assigned to the service, used once it gets an account’s cookies (Upload cookies)'};
+    return {key: 'pending', label: 'Needs cookies', tone: 'warning', title: 'Assigned to the service, used once it gets an account’s cookies (Upload cookies)'};
   }
   if (identity.proxy.status === 'disabled') {
-    return {label: 'Proxy off', tone: 'neutral', title: 'Its proxy is disabled'};
+    return {key: 'proxy_off', label: 'Proxy off', tone: 'neutral', title: 'Its proxy is disabled'};
   }
   if (SHARED_SERVICES.has(identity.service)) {
-    return {label: 'Shared', tone: 'success', title: 'Picked at random by any request, never rate limited'};
+    return {key: 'shared', label: 'Shared', tone: 'success', title: 'Picked at random by any request, never rate limited'};
   }
   if (identity.leased_ms) {
-    return {label: 'In use', tone: 'brand', title: `A download has it, for ${formatSpan(identity.leased_ms)} at most`};
+    return {key: 'in_use', label: 'In use', tone: 'brand', title: `A download has it, for ${formatSpan(identity.leased_ms)} at most`};
   }
   if (!identity.in_pool) {
-    return {label: 'Waiting for sync', tone: 'warning', title: 'Not in the rotation yet, the next sync (within a minute) adds it'};
+    return {key: 'syncing', label: 'Waiting for sync', tone: 'warning', title: 'Not in the rotation yet, the next sync (within a minute) adds it'};
   }
   if (identity.proxy.down) {
-    return {label: 'Proxy down', tone: 'warning', title: 'Its proxy refused connections, everything on it waits a couple of minutes'};
+    return {key: 'proxy_down', label: 'Proxy down', tone: 'warning', title: 'Its proxy refused connections, everything on it waits a couple of minutes'};
   }
   if (identity.next_at && now < identity.next_at) {
     const left = formatSpan(identity.next_at - now);
     return (identity.streak)
-      ? {label: `Benched ${left}`, tone: 'warning', title: `Flagged ${identity.streak} time${(identity.streak === 1) ? '' : 's'} in a row, each one benches it longer`}
-      : {label: `Cooldown ${left}`, tone: 'neutral', title: 'Resting between uses'};
+      ? {key: 'benched', label: `Benched ${left}`, tone: 'warning', title: `Flagged ${identity.streak} time${(identity.streak === 1) ? '' : 's'} in a row, each one benches it longer`}
+      : {key: 'cooldown', label: `Cooldown ${left}`, tone: 'neutral', title: 'Resting between uses'};
   }
-  return {label: 'Ready', tone: 'success', title: 'Next in line when a download needs one'};
+  return {key: 'ready', label: 'Ready', tone: 'success', title: 'Next in line when a download needs one'};
 }
 
 
@@ -253,25 +333,56 @@ function IdentitiesTab({ data, now, onShowProxies }: {data: AdminIdentities, now
   const status = searchParams.get('status') || '';
   const query = searchParams.get('q') || '';
   const service = searchParams.get('service') || '';
+  const sort = IDENTITY_SORTS.find((item) => item.value === searchParams.get('sort'))?.value ?? 'service';
+  const state = STATE_FILTERS.find((item) => item.value === searchParams.get('state'))?.value ?? '';
   const [ filtersOpen, setFiltersOpen ] = useState(false);
-  const [ dialog, setDialog ] = useState<'add' | 'cookies' | null>(null);
+  const [ dialog, setDialog ] = useState<'add' | 'logins' | 'cookies' | null>(null);
   const [ openId, setOpenId ] = useState<string | null>(null);
-  const activeFilters = [status, service].filter(Boolean).length;
+  const [ selected, setSelected ] = useState<Set<string>>(new Set());
+  const [ deleting, setDeleting ] = useState(false);
+  const activeFilters = [status, service, state, sort !== 'service'].filter(Boolean).length;
   const pendingCount = data.identities.filter((identity) => identity.status === 'pending').length;
 
-  const identities = useMemo(() => {
+  // every other filter, with how many are in each state of those (the counts next to the states)
+  const { identities, stateCounts } = useMemo(() => {
     const text = query.trim().toLowerCase();
-    return data.identities.filter((identity) => (
+    const matching = data.identities.filter((identity) => (
       (!status || identity.status === status) &&
       (!service || identity.service === service) &&
       (!text || identity.id.toLowerCase().includes(text) || proxyLabel(identity.proxy).toLowerCase().includes(text))
-    )).sort((a, b) => globalFirst(a.id, a.service, b.id, b.service));
-  }, [data, status, service, query]);
+    ));
+    const counts = new Map<IdentityStateKey, number>();
+    const states = new Map(matching.map((identity) => {
+      const key = identityState(identity, now).key;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+      return [identity.id, key];
+    }));
+    return {
+      identities: matching
+        .filter((identity) => !state || states.get(identity.id) === state)
+        .sort((a, b) => compareIdentities(sort, a, b, (identity) => states.get(identity.id) ?? 'ready')),
+      stateCounts: counts,
+    };
+  }, [data, status, service, query, sort, state, now]);
   const services = useMemo(() => [...data.services].sort((a, b) => globalFirst(a.service, a.service, b.service, b.service)), [data.services]);
   const open = data.identities.find((identity) => identity.id === openId) ?? null;
 
+  // only what's still listed counts as selected, like the proxies tab
+  const selectedIds = identities.filter((identity) => selected.has(identity.id)).map((identity) => identity.id);
+  const allSelected = !!identities.length && identities.every((identity) => selected.has(identity.id));
+  const toggle = (id: string) => setSelected((current) => {
+    const next = new Set(current);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    return next;
+  });
+
   return (
-    <>
+    // the room the floating selection bar takes, so it never covers the last rows (and nothing moves when it shows)
+    <div className='pb-20'>
       <div className='mb-6 grid gap-4 md:grid-cols-2'>
         {services.map((item) => (
           <ServiceCard
@@ -298,6 +409,10 @@ function IdentitiesTab({ data, now, onShowProxies }: {data: AdminIdentities, now
           <span className='max-sm:sr-only'>Upload cookies</span>
           {(pendingCount) ? <span className='rounded bg-warning/20 px-1.5 text-xs text-warning tabular-nums'>{pendingCount}</span> : null}
         </button>
+        <button type='button' className='btn btn-secondary shrink-0' onClick={() => setDialog('logins')} title='Many accounts at once from a pasted list of logins, each on the next free proxy'>
+          <ListPlus className='size-4'/>
+          <span className='max-sm:sr-only'>Add from logins</span>
+        </button>
         <button type='button' className='btn btn-primary shrink-0' onClick={() => setDialog('add')}>
           <Plus className='size-4'/>
           <span className='max-sm:sr-only'>Add identity</span>
@@ -320,6 +435,17 @@ function IdentitiesTab({ data, now, onShowProxies }: {data: AdminIdentities, now
               {(Object.keys(STATUS_LABELS) as Array<IdentityStatus>).map((value) => <option key={value} value={value}>{STATUS_LABELS[value]}</option>)}
             </select>
           </label>
+          {/* what the badges say right now, cooldowns and benches end on their own so the list changes as it's watched */}
+          <label className='flex items-center gap-2 text-sm text-muted'>
+            State
+            <select className='input w-48' value={state} onChange={(event) => update({state: event.target.value})}>
+              <option value=''>Any</option>
+              {STATE_FILTERS.map((item) => (
+                <option key={item.value} value={item.value}>{item.label} ({(stateCounts.get(item.value) ?? 0).toLocaleString()})</option>
+              ))}
+            </select>
+          </label>
+          <SortSelect options={IDENTITY_SORTS} value={sort} defaultValue='service' onChange={(value) => update({sort: value})}/>
         </div>
       </div>
 
@@ -332,16 +458,118 @@ function IdentitiesTab({ data, now, onShowProxies }: {data: AdminIdentities, now
         <EmptyState icon={<Fingerprint className='size-10'/>} title='No identities match'>Try a different search or filter.</EmptyState>
       ) : (
         <ul className='card divide-y divide-line'>
+          <li className='flex items-center text-xs text-subtle'>
+            <label className='flex shrink-0 cursor-pointer items-center self-stretch py-2.5 pr-1 pl-4 sm:pl-5'>
+              <input
+                type='checkbox'
+                aria-label='Select every listed identity'
+                checked={allSelected}
+                onChange={() => setSelected((allSelected) ? new Set() : new Set(identities.map((identity) => identity.id)))}
+              />
+            </label>
+            <div className={cn(ROW_GRID, 'py-2.5 pr-4 pl-2 font-medium uppercase sm:pr-5')}>
+              <span className='flex min-w-0 items-center gap-1.5'>
+                <SortHeader column='name' sort={sort} onSort={(value) => update({sort: value})}>Name</SortHeader>
+                <span className='font-normal normal-case tabular-nums'>{identities.length.toLocaleString()}</span>
+              </span>
+              <span className='flex justify-center max-sm:hidden'>
+                <SortHeader column='state' sort={sort} onSort={(value) => update({sort: value})}>State</SortHeader>
+              </span>
+              <span className='flex justify-center max-sm:hidden'>
+                <SortHeader column='proxy' sort={sort} onSort={(value) => update({sort: value})}>Proxy</SortHeader>
+              </span>
+              <span className='flex justify-center max-sm:hidden'>
+                <SortHeader column='last_ok' sort={sort} onSort={(value) => update({sort: value})}>Last success</SortHeader>
+              </span>
+              <span className='flex max-xl:hidden'>
+                <SortHeader column='last_error' sort={sort} onSort={(value) => update({sort: value})}>Last error</SortHeader>
+              </span>
+            </div>
+          </li>
           {identities.map((identity) => (
-            <IdentityRow key={identity.id} identity={identity} now={now} onOpen={() => setOpenId(identity.id)}/>
+            <IdentityRow
+              key={identity.id}
+              identity={identity}
+              now={now}
+              selected={selected.has(identity.id)}
+              onToggle={() => toggle(identity.id)}
+              onOpen={() => setOpenId(identity.id)}
+            />
           ))}
         </ul>
       )}
 
+      {/* fixed to the bottom of the window, so selecting doesn't push the list down */}
+      {(selectedIds.length) ? (
+        <div className='fixed inset-x-0 bottom-4 z-30 flex justify-center px-4'>
+          <div className='flex max-w-full flex-wrap items-center gap-2 rounded-lg border border-brand/40 bg-surface-2 px-3 py-2 shadow-xl shadow-black/40'>
+            <span className='text-sm text-fg tabular-nums'>{selectedIds.length.toLocaleString()} selected</span>
+            <button type='button' className='btn btn-sm border border-danger/40 bg-danger/10 text-danger hover:bg-danger/20' onClick={() => setDeleting(true)}>
+              <Trash2 className='size-4'/>
+              Delete
+            </button>
+            <button type='button' className='btn btn-ghost btn-sm' onClick={() => setSelected(new Set())} aria-label='Clear the selection'>
+              <X className='size-4'/>
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {(deleting) ? (
+        <DeleteIdentitiesDialog
+          identities={data.identities.filter((identity) => selectedIds.includes(identity.id))}
+          onClose={() => setDeleting(false)}
+          onDeleted={(ids) => setSelected((current) => new Set([...current].filter((id) => !ids.includes(id))))}
+        />
+      ) : null}
+
       {(dialog === 'add') ? <AddIdentityDialog data={data} onShowProxies={onShowProxies} onClose={() => setDialog(null)} onAdded={(identity) => setOpenId(identity.id)}/> : null}
+      {(dialog === 'logins') ? <BulkAddIdentitiesDialog data={data} onClose={() => setDialog(null)}/> : null}
       {(dialog === 'cookies') ? <UploadCookiesDialog data={data} onClose={() => setDialog(null)}/> : null}
       {(open) ? <IdentityModal identity={open} data={data} now={now} onClose={() => setOpenId(null)}/> : null}
-    </>
+    </div>
+  );
+}
+
+
+// deleting what has cookies or a login asks for the count typed, they're gone for good (the proxies stay)
+function DeleteIdentitiesDialog({ identities, onClose, onDeleted }: {
+  identities: Array<Identity>,
+  onClose: () => void,
+  onDeleted: (ids: Array<string>) => void,
+}) {
+  const toast = useToast();
+  const remove = useDeleteIdentitiesMutation();
+  const withCookies = identities.filter((identity) => identity.has_secret).length;
+  const withLogin = identities.filter((identity) => identity.has_login).length;
+  const lost = [
+    (withCookies) && `${withCookies.toLocaleString()} ha${(withCookies === 1) ? 's' : 've'} cookies`,
+    (withLogin) && `${withLogin.toLocaleString()} a saved login`,
+  ].filter(Boolean).join(' and ');
+  const count = identities.length.toLocaleString();
+
+  return (
+    <ConfirmDialog
+      title={`Delete ${count} identit${(identities.length === 1) ? 'y' : 'ies'}?`}
+      description={(lost) ? (
+        `${lost}, deleted with them and there’s no way to get them back. Their proxies stay, free for other accounts.`
+      ) : 'None of them have cookies or a login. Their proxies stay, free for other accounts.'}
+      confirmLabel='Delete'
+      confirmPhrase={(lost) ? `delete ${identities.length}` : undefined}
+      pending={remove.isPending}
+      error={(remove.isError) ? errorMessage(remove.error, 'Couldn’t delete the identities.') : null}
+      onConfirm={() => remove.mutate(identities.map((identity) => identity.id), {
+        onSuccess: (result) => {
+          toast(`Deleted ${result.deleted.length.toLocaleString()}` + ((result.missing.length) ? `, ${result.missing.length} were already gone` : ''));
+          onDeleted([...result.deleted, ...result.missing]);
+          onClose();
+        },
+      })}
+      onClose={() => {
+        remove.reset();
+        onClose();
+      }}
+    />
   );
 }
 
@@ -445,22 +673,61 @@ function ServiceCard({ service, selected, onSelect }: {service: IdentityService,
 }
 
 
-function IdentityRow({ identity, now, onOpen }: {identity: Identity, now: number, onOpen: () => void}) {
-  const state = identityState(identity, now);
+// a column header that sorts the list by it, with an arrow for which way it is now (the first way is down)
+function SortHeader({ column, sort, onSort, children }: {
+  column: keyof typeof COLUMN_SORTS,
+  sort: IdentitySort,
+  onSort: (sort: IdentitySort | null) => void,
+  children: ReactNode,
+}) {
+  const [ first, second ] = COLUMN_SORTS[column];
+  const active = (sort === first) ? 'first' : (sort === second) ? 'second' : null;
   return (
-    <li>
-      <button
-        type='button'
-        className='flex w-full cursor-pointer flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-left first:rounded-t-[inherit] last:rounded-b-[inherit] hover:bg-surface-2 sm:px-5'
-        onClick={onOpen}
-      >
-        <span className='min-w-0 flex-1 basis-48 truncate font-mono text-sm text-white'>{identity.id}</span>
-        <Hint text={state.title}><Chip tone={state.tone}>{state.label}</Chip></Hint>
-        <span className='w-36 shrink-0 truncate font-mono text-xs text-muted tabular-nums'>{proxyLabel(identity.proxy)}</span>
-        <span className='w-32 shrink-0 text-xs text-subtle max-sm:hidden'>ok {ago(identity.last_ok, now)}</span>
-        <span className='min-w-0 basis-full truncate text-xs text-subtle sm:basis-64 sm:flex-1'>
-          {(identity.last_error) ? <>{ago(identity.last_error_at, now)}: {identity.last_error}</> : null}
+    <button
+      type='button'
+      className={cn('inline-flex cursor-pointer items-center gap-1 uppercase transition-colors hover:text-fg', active && 'text-fg')}
+      aria-label={`Sort by ${String(children).toLowerCase()}${(active === 'first') ? ', reversed' : (active === 'second') ? ', back to the default' : ''}`}
+      onClick={() => onSort((active === 'first') ? second : (active === 'second') ? null : first)}
+    >
+      {children}
+      {(active === 'first') ? <ArrowDown aria-hidden className='size-3'/> : (active === 'second') ? <ArrowUp aria-hidden className='size-3'/> : null}
+    </button>
+  );
+}
+
+
+// the columns of the list (and its header): name, state, proxy, last success, last error. fixed widths, so a long badge
+// doesn't push the rest of its row out of line with the others. the error gets its own column only on wide screens,
+// under the row otherwise; on phones only the name and state are on the row
+const ROW_GRID = cn(
+  'grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1',
+  'sm:grid-cols-[minmax(8rem,1fr)_8.5rem_11rem_6.5rem] xl:grid-cols-[minmax(9rem,1fr)_8.5rem_11rem_6.5rem_minmax(0,1.2fr)]',
+);
+
+function IdentityRow({ identity, now, selected, onToggle, onOpen }: {
+  identity: Identity,
+  now: number,
+  selected: boolean,
+  onToggle: () => void,
+  onOpen: () => void,
+}) {
+  const state = identityState(identity, now);
+  const error = (identity.last_error) ? `${ago(identity.last_error_at, now)}: ${identity.last_error}` : '';
+  return (
+    <li className={cn('flex items-center last:rounded-b-[inherit] hover:bg-surface-2', selected && 'bg-brand/5')}>
+      <label className='flex shrink-0 cursor-pointer items-center self-stretch pr-1 pl-4 sm:pl-5'>
+        <input type='checkbox' aria-label={`Select ${identity.id}`} checked={selected} onChange={onToggle}/>
+      </label>
+      <button type='button' className={cn(ROW_GRID, 'cursor-pointer py-3 pr-4 pl-2 text-left sm:pr-5')} onClick={onOpen}>
+        <span className='truncate font-mono text-sm text-white'>{identity.id}</span>
+        <span className='flex justify-end sm:justify-center'>
+          <Hint text={state.title} className='inline-flex'><Chip tone={state.tone}>{state.label}</Chip></Hint>
         </span>
+        <span className='truncate text-center font-mono text-xs text-muted tabular-nums max-sm:hidden' title={proxyLabel(identity.proxy)}>
+          {proxyLabel(identity.proxy)}
+        </span>
+        <span className='text-center text-xs text-subtle tabular-nums max-sm:hidden'>{ago(identity.last_ok, now)}</span>
+        <span className='col-span-full truncate text-xs text-subtle empty:hidden xl:col-span-1 xl:empty:block' title={error || undefined}>{error}</span>
       </button>
     </li>
   );
@@ -476,6 +743,9 @@ function IdentityModal({ identity, data, now, onClose }: {identity: Identity, da
   const [ deleting, setDeleting ] = useState(false);
   const state = identityState(identity, now);
   const policy = data.services.find((item) => item.service === identity.service);
+  // dead with its cookies still there (a wrong call, or fixed since), or active but flagged (benched comes with a flag)
+  const resettable = (identity.status === 'dead' && (identity.has_secret || !needsCookies(policy))) ||
+    (identity.status === 'active' && (!!identity.streak || !!identity.strikes));
   const busy = patch.isPending || remove.isPending;
 
   const setStatus = (status: IdentityStatus, message: string) => patch.mutate({identityId: identity.id, body: {status}}, {
@@ -488,7 +758,17 @@ function IdentityModal({ identity, data, now, onClose }: {identity: Identity, da
         <div className='flex flex-wrap items-center gap-2 pr-10'>
           <h2 id={titleId} className='font-mono text-lg font-semibold text-white'>{identity.id}</h2>
           <Chip tone={STATUS_TONES[identity.status]}>{STATUS_LABELS[identity.status]}</Chip>
-          {(identity.status === 'active') ? <Hint text={state.title}><Chip tone={state.tone}>{state.label}</Chip></Hint> : null}
+          {/* a flex wrapper, a plain span puts the chip on a text baseline below the status chip next to it */}
+          {(identity.status === 'active') ? <Hint text={state.title} className='inline-flex'><Chip tone={state.tone}>{state.label}</Chip></Hint> : null}
+          {/* next to the status it resets, the actions below stay one row */}
+          {(resettable) ? (
+            <Hint text='Back to active and ready now, with its ip flags and account failures at 0. Its cookies stay as they are.'>
+              <button type='button' className='btn btn-ghost btn-sm' disabled={busy} onClick={() => setStatus('active', `Reset ${identity.id}`)}>
+                <RotateCcw className='size-4'/>
+                Reset
+              </button>
+            </Hint>
+          ) : null}
         </div>
 
         <DetailList
@@ -696,12 +976,14 @@ function LoginSection({ identity, now }: {identity: Identity, now: number}) {
               ['Username', <SecretValue key='u' value={revealed.login.username}/>],
               ['Password', <SecretValue key='p' value={revealed.login.password}/>],
               (!!revealed.login.recovery_email) && ['Recovery email', <SecretValue key='r' value={revealed.login.recovery_email ?? ''}/>],
+              (!!revealed.login.recovery_phone) && ['Recovery phone', <SecretValue key='rp' value={revealed.login.recovery_phone ?? ''}/>],
               (!!revealed.login.channel_email) && ['Channel email', <SecretValue key='ce' value={revealed.login.channel_email ?? ''}/>],
               (!!revealed.login.channel_url) && ['Channel', (
                 <a key='c' className='break-all text-brand hover:underline' href={revealed.login.channel_url ?? undefined} target='_blank' rel='noreferrer noopener'>
                   {revealed.login.channel_url}
                 </a>
               )],
+              (!!revealed.login.two_factor) && ['2FA', <TwoFactorValue key='2fa' value={revealed.login.two_factor ?? ''} now={now}/>],
               (!!revealed.login.notes) && ['Notes', revealed.login.notes],
             ]}
           />
@@ -752,7 +1034,67 @@ function LoginSection({ identity, now }: {identity: Identity, now: number}) {
 }
 
 
-export const EMPTY_LOGIN: IdentityLogin = {username: '', password: '', recovery_email: '', channel_email: '', channel_url: '', notes: ''};
+// a whole login pasted as one line (`username:password:…`), filling the fields below it as it's typed. the fields an
+// earlier paste filled are emptied when the new one doesn't have them, the rest stay as they were
+function LoginLineField({ login, onChange, disabled }: {login: IdentityLogin, onChange: (login: IdentityLogin) => void, disabled?: boolean}) {
+  const [ line, setLine ] = useState('');
+  const [ format, setFormat ] = useState(LOGIN_LINE_FORMATS[0].value);
+  const filled = useRef<Array<keyof IdentityLogin>>([]);
+  const fields = LOGIN_LINE_FORMATS.find((item) => item.value === format)?.fields ?? null;
+  const parsed = (line.trim()) ? parseLoginLine(line, fields) : null;
+
+  const apply = (nextLine: string, nextFormat: string) => {
+    setLine(nextLine);
+    setFormat(nextFormat);
+    const result = parseLoginLine(nextLine, LOGIN_LINE_FORMATS.find((item) => item.value === nextFormat)?.fields ?? null);
+    if (!result) {
+      return;
+    }
+    const next: IdentityLogin = {...login};
+    for (const field of filled.current) {
+      if (field !== 'username' && field !== 'password') {
+        next[field] = '';
+      }
+    }
+    Object.assign(next, result);
+    filled.current = Object.keys(result) as Array<keyof IdentityLogin>;
+    onChange(next);
+  };
+
+  const hint = (!line.trim()) ? 'Fills in the fields below. Work it out tells the parts apart by what they look like.'
+    : (!parsed) ? null
+    : `Filled in ${(Object.keys(parsed) as Array<keyof IdentityLogin>).map((field) => LOGIN_LINE_LABELS[field]).join(', ')}.` +
+      ((!fields && parsed.password.includes(':')) ? ' The password has a “:” in it, check it’s right.' : '');
+  const error = (line.trim() && !parsed) ? `Doesn’t fit ${loginLineFormatLabel(fields ?? [])}${(fields) ? '' : ' at least'}.` : null;
+
+  return (
+    <Field className='mb-4' label={<>Paste a login <span className='font-normal text-subtle'>(optional)</span></>} hint={hint} error={error}>
+      {(props) => (
+        <div className='flex flex-col gap-2 sm:flex-row'>
+          {/* masked like the password field, what it filled shows below */}
+          <input
+            {...props}
+            {...NO_AUTOFILL}
+            type='password'
+            className='input min-w-0 flex-1 font-mono'
+            placeholder='username:password:…'
+            value={line}
+            onChange={(event) => apply(event.target.value, format)}
+            disabled={disabled}
+          />
+          <select className='input font-mono text-xs sm:w-64' aria-label='Format' value={format} onChange={(event) => apply(line, event.target.value)} disabled={disabled}>
+            {LOGIN_LINE_FORMATS.map((item) => <option key={item.value} value={item.value}>{loginLineFormatLabel(item.fields, true)}</option>)}
+          </select>
+        </div>
+      )}
+    </Field>
+  );
+}
+
+
+export const EMPTY_LOGIN: IdentityLogin = {
+  username: '', password: '', recovery_email: '', recovery_phone: '', channel_email: '', channel_url: '', two_factor: '', notes: '',
+};
 
 // trimmed, empty optional fields left out (null), the password as typed
 function cleanLogin(login: IdentityLogin): IdentityLogin {
@@ -760,8 +1102,10 @@ function cleanLogin(login: IdentityLogin): IdentityLogin {
     username: login.username.trim(),
     password: login.password,
     recovery_email: login.recovery_email?.trim() || null,
+    recovery_phone: login.recovery_phone?.trim() || null,
     channel_email: login.channel_email?.trim() || null,
     channel_url: login.channel_url?.trim() || null,
+    two_factor: login.two_factor?.trim() || null,
     notes: login.notes?.trim() || null,
   };
 }
@@ -770,6 +1114,7 @@ function LoginFields({ login, onChange, disabled }: {login: IdentityLogin, onCha
   const update = (field: keyof IdentityLogin) => (event: {target: {value: string}}) => onChange({...login, [field]: event.target.value});
   return (
     <>
+      <LoginLineField login={login} onChange={onChange} disabled={disabled}/>
       <div className='grid gap-3 sm:grid-cols-2'>
         <Field label='Username'>
           {(props) => <input {...props} {...NO_AUTOFILL} className='input font-mono' value={login.username} onChange={update('username')} disabled={disabled}/>}
@@ -780,6 +1125,9 @@ function LoginFields({ login, onChange, disabled }: {login: IdentityLogin, onCha
         <Field label={<>Recovery email <span className='font-normal text-subtle'>(optional)</span></>}>
           {(props) => <input {...props} {...NO_AUTOFILL} className='input font-mono' value={login.recovery_email ?? ''} onChange={update('recovery_email')} disabled={disabled}/>}
         </Field>
+        <Field label={<>Recovery phone <span className='font-normal text-subtle'>(optional)</span></>}>
+          {(props) => <input {...props} {...NO_AUTOFILL} type='tel' className='input font-mono' placeholder='+1 555 0100' value={login.recovery_phone ?? ''} onChange={update('recovery_phone')} disabled={disabled}/>}
+        </Field>
         <Field label={<>Channel email <span className='font-normal text-subtle'>(optional)</span></>}>
           {(props) => <input {...props} {...NO_AUTOFILL} className='input font-mono' value={login.channel_email ?? ''} onChange={update('channel_email')} disabled={disabled}/>}
         </Field>
@@ -787,6 +1135,13 @@ function LoginFields({ login, onChange, disabled }: {login: IdentityLogin, onCha
           {(props) => <input {...props} {...NO_AUTOFILL} className='input' placeholder='https://www.youtube.com/channel/…' value={login.channel_url ?? ''} onChange={update('channel_url')} disabled={disabled}/>}
         </Field>
       </div>
+      <Field
+        className='mt-3'
+        label={<>2FA <span className='font-normal text-subtle'>(optional)</span></>}
+        hint='The authenticator secret (the reveal then shows its current code), or backup codes.'
+      >
+        {(props) => <input {...props} {...NO_AUTOFILL} type='password' className='input font-mono' value={login.two_factor ?? ''} onChange={update('two_factor')} disabled={disabled}/>}
+      </Field>
       <Field className='mt-3' label={<>Notes <span className='font-normal text-subtle'>(optional)</span></>}>
         {(props) => <input {...props} {...NO_AUTOFILL} className='input' value={login.notes ?? ''} onChange={update('notes')} disabled={disabled}/>}
       </Field>
@@ -971,7 +1326,8 @@ function MoveIdentityForm({ identity, data, onDone }: {identity: Identity, data:
 }
 
 
-// one account on one of the proxies, with its cookies and (optionally) its login. a service without accounts (global,
+// one account on one of the proxies, with its cookies and (optionally) its login. without the cookies an account is
+// added waiting for them (pending), out of the rotation until they're uploaded. a service without accounts (global,
 // geopy) works here too, though assigning on the Proxies page does many at once
 function AddIdentityDialog({ data, onShowProxies, onClose, onAdded }: {
   data: AdminIdentities,
@@ -983,7 +1339,8 @@ function AddIdentityDialog({ data, onShowProxies, onClose, onAdded }: {
   const toast = useToast();
   const create = useCreateIdentityMutation();
   const [ service, setService ] = useState(data.services.find((item) => item.service === 'youtube')?.service ?? data.services[0]?.service ?? '');
-  const [ name, setName ] = useState('');
+  // null until it's typed in, it follows the login's username until then
+  const [ typedName, setTypedName ] = useState<string | null>(null);
   const [ proxyId, setProxyId ] = useState<number | null>(null);
   const [ cookies, setCookies ] = useState('');
   const [ withLogin, setWithLogin ] = useState(false);
@@ -991,6 +1348,7 @@ function AddIdentityDialog({ data, onShowProxies, onClose, onAdded }: {
   const [ startDisabled, setStartDisabled ] = useState(false);
 
   const policy = data.services.find((item) => item.service === service);
+  const name = typedName ?? ((withLogin && policy?.kind === 'cookies') ? nameFromUsername(login.username) : '');
   const validName = /^[^:\s]{1,48}$/.test(name.trim());
   const exists = data.identities.some((other) => other.id === `${service}:${name.trim()}`);
   const proxy = data.proxies.find((item) => item.id === proxyId);
@@ -999,7 +1357,7 @@ function AddIdentityDialog({ data, onShowProxies, onClose, onAdded }: {
   const takesCookies = policy?.kind === 'cookies';
   const needsCookies = takesCookies && !policy?.secret_optional;
   const validLogin = !withLogin || (!!login.username.trim() && !!login.password);
-  const valid = !!service && validName && !!proxy && !taken && !exists && (!needsCookies || !!cookies.trim()) && validLogin;
+  const valid = !!service && validName && !!proxy && !taken && !exists && validLogin;
 
   return (
     <Modal labelledBy={titleId} onClose={() => !create.isPending && onClose()} className='max-w-xl'>
@@ -1044,7 +1402,7 @@ function AddIdentityDialog({ data, onShowProxies, onClose, onAdded }: {
           </Field>
           <Field label='Name' hint={(service) ? `Saved as ${service}:${name.trim() || '…'}` : undefined} error={(name && !validName) ? 'No spaces or “:”, at most 48.' : (exists) ? 'That one exists already.' : undefined}>
             {(props) => (
-              <input {...props} {...NO_AUTOFILL} className='input font-mono' value={name} placeholder='101' onChange={(event) => setName(event.target.value)} disabled={create.isPending}/>
+              <input {...props} {...NO_AUTOFILL} className='input font-mono' value={name} placeholder={(withLogin) ? 'from the login’s username' : '101'} onChange={(event) => setTypedName(event.target.value)} disabled={create.isPending}/>
             )}
           </Field>
         </div>
@@ -1059,8 +1417,10 @@ function AddIdentityDialog({ data, onShowProxies, onClose, onAdded }: {
             value={cookies}
             onChange={setCookies}
             disabled={create.isPending}
-            optional={!needsCookies}
-            hint={(needsCookies) ? undefined : 'It earns its own from captcha solves on this proxy, leave it empty unless you have a jar from this ip.'}
+            optional
+            hint={(needsCookies) ? (
+              'A cookies.txt or a cookie JSON export, from a browser signed in through this identity’s proxy. Without it the identity waits for them (Needs cookies) and isn’t used until they’re uploaded.'
+            ) : 'It earns its own from captcha solves on this proxy, leave it empty unless you have a jar from this ip.'}
           />
         ) : null}
 

@@ -13,7 +13,7 @@ import { SearchInput } from '@/components/ui/SearchInput';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
 import { Routes } from '@/config';
-import type { AdminIdentities, AdminProxiesBulkResult, IdentityProxyItem, IdentityService, ProxyScheme } from '@/lib/api';
+import type { AdminIdentities, AdminProxiesBulkResult, IdentityProxy, IdentityProxyItem, IdentityService, ProxyScheme } from '@/lib/api';
 import {
   errorMessage,
   useAssignIdentitiesMutation,
@@ -29,7 +29,7 @@ import { cn, NO_AUTOFILL } from '@/lib/utils';
 
 import { EmptyState, Field } from '../ui';
 import { Chip, FiltersButton, Hint, useSearchParamState } from './adminUi';
-import { LabelChips, ProxyCredentials, proxyAddress, proxyLabel, useNow } from './identitiesUi';
+import { LabelChips, ProxyCredentials, SortSelect, descending, proxyAddress, proxyLabel, useNow } from './identitiesUi';
 
 
 const SCHEMES: Array<ProxyScheme> = ['http', 'https', 'socks5', 'socks5h'];
@@ -45,6 +45,31 @@ function needsCookies(service: IdentityService | undefined): boolean {
 }
 
 
+// `?sort=` on the proxies tab
+type ProxySort = 'address' | 'newest' | 'oldest' | 'most_used' | 'least_used';
+const PROXY_SORTS: Array<{value: ProxySort, label: string}> = [
+  {value: 'address', label: 'Address'},
+  {value: 'newest', label: 'Newest added'},
+  {value: 'oldest', label: 'Oldest added'},
+  {value: 'most_used', label: 'Most services'},
+  {value: 'least_used', label: 'Fewest services'},
+];
+
+// numbers compared as numbers, so 10.0.0.2 comes before 10.0.0.10
+export function compareAddresses(a: Pick<IdentityProxy, 'host' | 'port' | 'username' | 'id'>, b: Pick<IdentityProxy, 'host' | 'port' | 'username' | 'id'>): number {
+  return a.host.localeCompare(b.host, undefined, {numeric: true}) || a.port - b.port || (a.username ?? '').localeCompare(b.username ?? '') || a.id - b.id;
+}
+
+function compareProxies(sort: ProxySort, a: IdentityProxyItem, b: IdentityProxyItem): number {
+  const order = (sort === 'newest') ? descending(a.created, b.created) || b.id - a.id
+    : (sort === 'oldest') ? descending(b.created, a.created) || a.id - b.id
+    : (sort === 'most_used') ? b.identities.length - a.identities.length
+    : (sort === 'least_used') ? a.identities.length - b.identities.length
+    : 0;
+  return order || compareAddresses(a, b);
+}
+
+
 export function ProxiesTab({ data }: {data: AdminIdentities}) {
   const { searchParams, update } = useSearchParamState();
   const [ selected, setSelected ] = useState<Set<number>>(new Set());
@@ -56,7 +81,8 @@ export function ProxiesTab({ data }: {data: AdminIdentities}) {
   const label = searchParams.get('label') || '';
   const used = searchParams.get('used') || '';
   const status = searchParams.get('status') || '';
-  const activeFilters = [label, used, status].filter(Boolean).length;
+  const sort = PROXY_SORTS.find((item) => item.value === searchParams.get('sort'))?.value ?? 'address';
+  const activeFilters = [label, used, status, sort !== 'address'].filter(Boolean).length;
 
   const proxies = useMemo(() => {
     const text = query.trim().toLowerCase();
@@ -65,8 +91,8 @@ export function ProxiesTab({ data }: {data: AdminIdentities}) {
       (!status || ((status === 'down') ? proxy.down : proxy.status === status)) &&
       (!used || ((used === 'unused') ? !proxy.identities.length : proxy.identities.some((identity) => identity.service === used))) &&
       (!text || proxyLabel(proxy).toLowerCase().includes(text) || proxy.identities.some((identity) => identity.id.toLowerCase().includes(text)))
-    ));
-  }, [data, query, label, used, status]);
+    )).sort((a, b) => compareProxies(sort, a, b));
+  }, [data, query, label, used, status, sort]);
 
   // only what's still listed and still exists counts as selected
   const visibleIds = new Set(proxies.map((proxy) => proxy.id));
@@ -127,6 +153,7 @@ export function ProxiesTab({ data }: {data: AdminIdentities}) {
                   <option value='down'>Down</option>
                 </select>
               </label>
+              <SortSelect options={PROXY_SORTS} value={sort} defaultValue='address' onChange={(value) => update({sort: value})}/>
               <button type='button' className='btn btn-ghost btn-sm' onClick={() => setDialog('labels')} disabled={!data.labels.length}>
                 <Tag className='size-4'/>
                 Manage labels

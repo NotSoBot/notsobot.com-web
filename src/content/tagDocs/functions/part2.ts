@@ -89,16 +89,6 @@ export const TAG_DOC_FUNCTIONS_PART2: Array<TagDocFunction> = [
     ],
   },
   {
-    id: 'DISCORD',
-    names: ['discord'],
-    category: 'meta',
-    summary: 'Not implemented yet. It is always left as plain text.',
-    syntax: '{discord:path}',
-    examples: [
-      {code: '{discord:user.id}', result: '{discord:user.id}'},
-    ],
-  },
-  {
     id: 'EMBED_JSON',
     names: ['embedjson'],
     category: 'output',
@@ -229,16 +219,6 @@ export const TAG_DOC_FUNCTIONS_PART2: Array<TagDocFunction> = [
     ],
     notes: [
       'In DMs it outputs `0`.',
-    ],
-  },
-  {
-    id: 'HASTEBIN',
-    names: ['hastebin', 'haste'],
-    category: 'network',
-    summary: 'Not implemented yet. It is always left as plain text.',
-    syntax: '{hastebin:text}',
-    examples: [
-      {code: '{hastebin:hello}', result: '{hastebin:hello}'},
     ],
   },
   {
