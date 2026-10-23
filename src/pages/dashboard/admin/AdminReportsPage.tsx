@@ -2,7 +2,7 @@
 // and bug and tag reports from the website, which can be anonymous (no reporter, so no conversation).
 // `content` is whatever the reporter typed, so it's only ever rendered as plain text.
 
-import { ArrowUpRight, Check, ExternalLink, EyeOff, Inbox, type LucideIcon, MessagesSquare, RotateCcw, X } from 'lucide-react';
+import { ArrowUpRight, Check, ExternalLink, EyeOff, Inbox, Languages, type LucideIcon, MessagesSquare, RotateCcw, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 
@@ -12,7 +12,7 @@ import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
 import { Routes } from '@/config';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
-import { ReportStatuses, ReportTypes, type Report, type ReportPatch, type ReportStatus } from '@/lib/api';
+import { ReportStatuses, ReportTypes, type Report, type ReportPatch, type ReportStatus, type ReportTranslation } from '@/lib/api';
 import {
   ADMIN_PAGE_SIZE,
   errorMessage,
@@ -21,6 +21,7 @@ import {
   useAdminReportsQuery,
   usePatchAdminReportMutation,
   usePostAdminReportMessageMutation,
+  useTranslateAdminReportMutation,
 } from '@/lib/api/dashboardQueries';
 import { cn, formatDateTime } from '@/lib/utils';
 
@@ -287,6 +288,9 @@ function ReportDetails({ report, onFilterReporter, onFilterTarget, navigation }:
   const [ notes, setNotes ] = useState(report.notes ?? '');
   useEffect(() => setNotes(report.notes ?? ''), [report.notes]);
   const notesDirty = notes !== (report.notes ?? '');
+  // what they wrote in english, only kept while it's open (the modal's keyed by report, so it resets between them)
+  const translationMutation = useTranslateAdminReportMutation();
+  const [ translation, setTranslation ] = useState<ReportTranslation | null>(null);
 
   const status = statusInfo(report.status);
   const type = typeInfo(report.type);
@@ -301,6 +305,17 @@ function ReportDetails({ report, onFilterReporter, onFilterTarget, navigation }:
     }
     mutation.mutate({reportId: report.id, patch}, {
       onSuccess: () => toast(`Report ${report.id}: ${(value === ReportStatuses.OPEN) ? 'reopened' : statusInfo(value).label.toLowerCase()}`),
+      onError: (error) => toast(errorMessage(error), 'error'),
+    });
+  };
+  const translate = () => {
+    translationMutation.mutate({reportId: report.id}, {
+      onSuccess: (result) => {
+        setTranslation(result);
+        if (!result.translation && result.translation_language !== 'en') {
+          toast(`Report ${report.id}: no translation returned`, 'error');
+        }
+      },
       onError: (error) => toast(errorMessage(error), 'error'),
     });
   };
@@ -435,11 +450,35 @@ function ReportDetails({ report, onFilterReporter, onFilterTarget, navigation }:
         <div className='mt-4'>
           <div className='mb-1 flex min-h-8 items-center justify-between gap-2'>
             <h3 className='section-label'>Report</h3>
-            <CopyButton value={report.content} label='Copy'/>
+            <div className='flex items-center gap-1'>
+              {(!translation) ? (
+                <button type='button' className='btn btn-ghost btn-sm' disabled={translationMutation.isPending} onClick={translate}>
+                  {(translationMutation.isPending) ? <Spinner className='size-3.5'/> : <Languages aria-hidden className='size-4'/>}
+                  Translate
+                </button>
+              ) : null}
+              <CopyButton value={report.content} label='Copy'/>
+            </div>
           </div>
           {/* monospaced like the flag modal's prompts and the list's rows, reports often quote commands and output */}
           <p className='rounded-md border border-line bg-deep px-3 py-2 font-mono text-sm whitespace-pre-wrap break-words text-fg focus:border-line-strong focus:outline-none' {...selectAllScope}>{report.content}</p>
+          {(translation && !translation.translation && translation.translation_language === 'en') ? (
+            <p className='mt-2 text-xs text-subtle'>Already in English, no translation needed.</p>
+          ) : null}
         </div>
+
+        {/* like the content flags' translation, but not stored */}
+        {(translation?.translation) ? (
+          <div className='mt-4'>
+            <div className='mb-1 flex min-h-8 items-center justify-between gap-2'>
+              <h3 className='section-label'>
+                Translation <span className='normal-case tracking-normal text-subtle'>({translation.translation_language ?? '?'} → en)</span>
+              </h3>
+              <CopyButton value={translation.translation} label='Copy'/>
+            </div>
+            <p className='rounded-md border border-line bg-deep px-3 py-2 font-mono text-sm whitespace-pre-wrap break-words text-fg focus:border-line-strong focus:outline-none' {...selectAllScope}>{translation.translation}</p>
+          </div>
+        ) : null}
 
         <form
           className='mt-4'
@@ -536,6 +575,7 @@ function ReportConversation({ report }: {report: Report}) {
   const toast = useToast();
   const messages = useAdminReportMessagesQuery(report.id);
   const send = usePostAdminReportMessageMutation(report.id);
+  const translation = useTranslateAdminReportMutation();
   return (
     <ReportThread
       viewer='staff'
@@ -550,6 +590,10 @@ function ReportConversation({ report }: {report: Report}) {
       })}
       sending={send.isPending}
       notice={(report.status !== ReportStatuses.OPEN) ? 'Replying doesn’t reopen the report.' : undefined}
+      onTranslate={(messageId) => translation.mutateAsync({reportId: report.id, messageId}).catch((error) => {
+        toast(errorMessage(error), 'error');
+        throw error;
+      })}
     />
   );
 }

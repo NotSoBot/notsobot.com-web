@@ -636,7 +636,9 @@ export function createReportMessages(reports: Array<Report>): Map<string, Array<
     ];
     // the rest are waiting on the reporter
     if (i % 9 === 0) {
-      items.push({author: 'reporter', author_id: report.user?.id ?? '0', content: 'Around an hour before I sent it, in #general. It happened twice.', created: at(1.5), id: `${report.id}02`, status: null});
+      // some not in english, for the admin side's Translate
+      const content = (i % 18 === 0) ? '送信する1時間ほど前、#generalで。2回起きました。' : 'Around an hour before I sent it, in #general. It happened twice.';
+      items.push({author: 'reporter', author_id: report.user?.id ?? '0', content, created: at(1.5), id: `${report.id}02`, status: null});
     }
     if (report.status !== 0 && report.reviewed_at) {
       items.push({author: 'staff', author_id: mockUser.id, content: null, created: report.reviewed_at, id: `${report.id}03`, status: report.status as ReportMessage['status']});

@@ -81,6 +81,7 @@ import type {
   Report,
   ReportMessage,
   ReportMessagesPage,
+  ReportTranslation,
   ReportPatch,
   ReportsPage,
   GuildRule,
@@ -116,7 +117,14 @@ import type {
   UserFilesPage,
   UserFilesSortBy,
   MeVoice,
+  VoiceNode,
+  VoiceNodeCreate,
+  VoiceNodeEdit,
+  VoiceNodeStatsItem,
+  VoiceNodeTest,
+  VoiceNodeWithPassword,
   VoicePatch,
+  VoiceTransfer,
   VoicesPage,
 } from './types';
 
@@ -552,6 +560,11 @@ export const api = {
   // also deletes it on its cloning service and every clip it's made from
   deleteMeVoice: (voiceId: string) => {
     return apiRequest<void>(ApiEndpoints.USER_ME_VOICE(voiceId), {method: 'DELETE'});
+  },
+
+  // clones it again on another service from its clips, then deletes it from the old one
+  transferMeVoice: (voiceId: string, body: VoiceTransfer) => {
+    return apiRequest<MeVoice>(ApiEndpoints.USER_ME_VOICE_TRANSFER(voiceId), {method: 'POST', body, timeout: 120_000});
   },
 
   // the api converts it to the mp3 it keeps (the first minute) and adds it to the voice on the cloning service
@@ -997,6 +1010,12 @@ export const api = {
     return apiRequest<ReportMessage>(ApiEndpoints.ADMIN_REPORT_MESSAGES(reportId), {method: 'POST', body: {content}});
   },
 
+  // what the reporter wrote, or one of the conversation's messages with `messageId`
+  translateAdminReport: (reportId: string, messageId?: string) => {
+    const endpoint = (messageId) ? ApiEndpoints.ADMIN_REPORT_MESSAGE_TRANSLATE(reportId, messageId) : ApiEndpoints.ADMIN_REPORT_TRANSLATE(reportId);
+    return apiRequest<ReportTranslation>(endpoint, {method: 'POST'});
+  },
+
   fetchAdminEntitlements: (params: {
     userId?: string,
     provider?: string | null,
@@ -1091,6 +1110,41 @@ export const api = {
   // their applications stop working until it's given back, they aren't disabled
   revokeAdminApplicationAccess: (userId: string) => {
     return apiRequest<ApplicationAccessItem>(ApiEndpoints.ADMIN_APPLICATION_ACCESS_USER(userId), {method: 'DELETE'});
+  },
+
+  // owners only, the music nodes (a handful)
+  fetchAdminVoiceNodes: (signal?: AbortSignal) => {
+    return apiRequest<{nodes: Array<VoiceNode>}>(ApiEndpoints.ADMIN_VOICE_NODES, {signal});
+  },
+
+  // every node's live counts, asked for at once by the api
+  fetchAdminVoiceNodesStats: (signal?: AbortSignal) => {
+    return apiRequest<{nodes: Array<VoiceNodeStatsItem>}>(ApiEndpoints.ADMIN_VOICE_NODES_STATS, {signal});
+  },
+
+  // comes back with its password (a random one without `password`)
+  createAdminVoiceNode: (body: VoiceNodeCreate) => {
+    return apiRequest<VoiceNodeWithPassword>(ApiEndpoints.ADMIN_VOICE_NODES, {method: 'POST', body});
+  },
+
+  editAdminVoiceNode: (nodeId: string, body: VoiceNodeEdit) => {
+    return apiRequest<VoiceNode>(ApiEndpoints.ADMIN_VOICE_NODE(nodeId), {method: 'PATCH', body});
+  },
+
+  revealAdminVoiceNode: (nodeId: string) => {
+    return apiRequest<VoiceNodeWithPassword>(ApiEndpoints.ADMIN_VOICE_NODE_REVEAL(nodeId), {method: 'POST'});
+  },
+
+  resetAdminVoiceNodePassword: (nodeId: string) => {
+    return apiRequest<VoiceNodeWithPassword>(ApiEndpoints.ADMIN_VOICE_NODE_PASSWORD_RESET(nodeId), {method: 'POST'});
+  },
+
+  testAdminVoiceNode: (nodeId: string) => {
+    return apiRequest<VoiceNodeTest>(ApiEndpoints.ADMIN_VOICE_NODE_TEST(nodeId), {method: 'POST'});
+  },
+
+  deleteAdminVoiceNode: (nodeId: string) => {
+    return apiRequest<void>(ApiEndpoints.ADMIN_VOICE_NODE(nodeId), {method: 'DELETE'});
   },
 
   // owners only, every identity at once (a hundred or so), with each service's pool and the proxies

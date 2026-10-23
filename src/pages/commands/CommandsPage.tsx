@@ -12,6 +12,8 @@ import { cn, formatCompact } from '@/lib/utils';
 import { CommandCard, TrendingCard } from './CommandCards';
 import { CommandDrawer } from './CommandDrawer';
 import {
+  ACCESS_OPTIONS,
+  accessFromParam,
   buildEntries,
   CATEGORY_ORDER,
   categoryMeta,
@@ -19,6 +21,7 @@ import {
   compareByName,
   compareByUses,
   entryFromPath,
+  matchesAccess,
   TYPE_OPTIONS,
   typeOptionFromParam,
 } from './commandMeta';
@@ -26,7 +29,7 @@ import {
 
 // Filters live in the URL (shareable) and the last-used set is remembered, so coming back to a
 // plain /commands (e.g. from the navbar) restores them. An explicit filter in the URL wins.
-const FILTER_PARAMS = ['type', 'category', 'in', 'q', 'sort'] as const;
+const FILTER_PARAMS = ['type', 'category', 'in', 'access', 'q', 'sort'] as const;
 const STORAGE_FILTERS = 'commands:filters';
 
 const PAGE_SIZE = 60;
@@ -42,6 +45,7 @@ export function CommandsPage() {
   const typeOption = typeOptionFromParam(searchParams.get('type'));
   const category = (searchParams.get('category') || '').toUpperCase() || null;
   const dmOnly = searchParams.get('in') === 'dms';
+  const access = accessFromParam(searchParams.get('access'));
   const sort: Sort = (searchParams.get('sort') === 'az') ? 'az' : 'popular';
   const query = searchParams.get('q') || '';
   // the open command is the path, /commands/:commandId(/:commandType)
@@ -96,10 +100,10 @@ export function CommandsPage() {
   const weekTotal = useMemo(() => entries.reduce((sum, entry) => sum + entry.uses, 0), [entries]);
   const totalRanked = useMemo(() => entries.filter((entry) => entry.rank).length, [entries]);
 
-  // type + DM narrow everything (counts, trending, list); category and search only the list
+  // type, DM and free/premium narrow everything (counts, trending, list); category and search only the list
   const scoped = useMemo(() => entries.filter(({ metadata }) => {
-    return (!typeOption.types || typeOption.types.includes(metadata.type)) && (!dmOnly || metadata.dmable);
-  }), [entries, typeOption, dmOnly]);
+    return (!typeOption.types || typeOption.types.includes(metadata.type)) && (!dmOnly || metadata.dmable) && matchesAccess(metadata, access);
+  }), [entries, typeOption, dmOnly, access]);
 
   const categoryCounts = useMemo(() => {
     const counts = new Map<string, number>();
@@ -149,7 +153,7 @@ export function CommandsPage() {
     if (results && results.getBoundingClientRect().top < 0) {
       results.scrollIntoView({block: 'start'});
     }
-  }, [typeOption.param, category, dmOnly, deferredQuery, sort]);
+  }, [typeOption.param, category, dmOnly, access, deferredQuery, sort]);
 
   const selected = (commandId) ? entryFromPath(entries, commandId, commandType) : undefined;
   const siblings = (selected) ? entries.filter((entry) => entry.command.id === selected.command.id && entry.key !== selected.key) : [];
@@ -165,7 +169,7 @@ export function CommandsPage() {
   }, [entries, goTo, location.search]);
   const closeCommand = useCallback(() => goTo(Routes.COMMANDS, location.search), [goTo, location.search]);
 
-  const activeFilterCount = Number(typeOption.types !== null) + Number(!!category) + Number(dmOnly);
+  const activeFilterCount = Number(typeOption.types !== null) + Number(!!category) + Number(dmOnly) + Number(access !== 'all');
 
   return (
     <>
@@ -200,7 +204,7 @@ export function CommandsPage() {
             {(trending.length) ? (
               <div className='-mx-4 sm:mx-0'>
                 <ul
-                  key={`${typeOption.param}:${category}:${dmOnly}`}
+                  key={`${typeOption.param}:${category}:${dmOnly}:${access}`}
                   className={cn(
                     'grid animate-fade-in auto-cols-[15.5rem] grid-flow-col gap-3 overflow-x-auto overflow-y-hidden overscroll-x-contain px-4 pb-2 sm:px-0',
                     'snap-x snap-mandatory scroll-px-4 sm:scroll-px-0 [&>li]:snap-start',
@@ -266,6 +270,12 @@ export function CommandsPage() {
                   options={TYPE_OPTIONS.map((option) => ({value: option.param, label: option.label}))}
                   onChange={(value) => updateParams({type: (value === 'all') ? null : value})}
                 />
+                <Segmented
+                  label='Free or premium'
+                  value={access}
+                  options={ACCESS_OPTIONS.map((option) => ({value: option.value, label: option.label}))}
+                  onChange={(value) => updateParams({access: (value === 'all') ? null : value})}
+                />
                 <DmToggle checked={dmOnly} onChange={(value) => updateParams({in: value ? 'dms' : null})}/>
                 <Segmented
                   label='Sort'
@@ -284,7 +294,7 @@ export function CommandsPage() {
               {(activeFilterCount) ? (
                 <button
                   type='button'
-                  onClick={() => updateParams({type: null, category: null, in: null})}
+                  onClick={() => updateParams({type: null, category: null, in: null, access: null})}
                   className='cursor-pointer text-muted transition-colors hover:text-white'
                 >
                   Clear filters

@@ -3,7 +3,7 @@ import type { LegalDocument } from './legal';
 export const PRIVACY_POLICY: LegalDocument = {
   title: "Privacy Policy",
   effective: "October 13, 2026",
-  lastUpdated: "October 22, 2026",
+  lastUpdated: "October 23, 2026",
   intro: "This Privacy Policy explains what information NotSoBot collects, why, who it's shared with, how long it's kept, and how You can get a copy of it or have it deleted.",
   sections: [
     {
@@ -27,7 +27,7 @@ export const PRIVACY_POLICY: LegalDocument = {
           "Tags: names, content, variables, attached media, usage counts and directory listings for tags You create.",
           "Reminders: reminder text, times, and the channel and message they belong to.",
           "Reports You send with the report command or from the website, including the text, the server, channel and message IDs involved, and Our review notes. Bug and tag reports sent from the website without logging in aren't linked to any account. Instead We keep a one-way hash of the IP address they came from, to limit how many can be sent and to spot abuse. The IP address itself isn't stored with the report.",
-          "Uploaded files: files You ask NotSoBot to host, their file names, sizes, dimensions and file hashes (MD5, SHA-1 and BLAKE2b).",
+          "Uploaded files: files You ask NotSoBot to host, their file names, sizes, dimensions and a file hash (BLAKE2b).",
           "AI requests: the prompt, including any messages You replied to with the ai command, along with the instructions, model, generated response, any error and token counts.",
           "AI memory: short facts NotSoAI saves about You when You ask it to remember something, whether each one applies everywhere or only in one server, when it was saved, and whether You've turned memory off.",
           "Cloned voices: the voice's name, the ID of the voice stored at the voice cloning service (fish.audio, or ElevenLabs for older voices), and the audio clips You cloned it from.",

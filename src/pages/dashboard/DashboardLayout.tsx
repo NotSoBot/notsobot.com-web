@@ -1,4 +1,4 @@
-import { AlarmClock, AudioLines, Blocks, Brain, ChartColumn, Crown, Files, Fingerprint, Flag, Inbox, KeyRound, LayoutDashboard, MessageSquareWarning, Server, Settings, ShieldCheck, SquareTerminal, Tags, type LucideIcon, Users } from 'lucide-react';
+import { AlarmClock, AudioLines, Blocks, Brain, ChartColumn, Crown, Files, Fingerprint, Flag, Inbox, KeyRound, LayoutDashboard, MessageSquareWarning, RadioTower, Server, Settings, ShieldCheck, SquareTerminal, Tags, type LucideIcon, Users } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { NavLink, Outlet } from 'react-router';
 
@@ -67,6 +67,7 @@ export const OWNER_SECTIONS: ReadonlyArray<Section> = [
   {to: Routes.DASHBOARD_OWNER_ENTITLEMENTS, label: 'Entitlements', icon: Crown, color: '#f0b232'},
   {to: Routes.DASHBOARD_OWNER_IDENTITIES, label: 'Identities', icon: Fingerprint, color: '#eb459e'},
   {to: Routes.DASHBOARD_OWNER_STATS, label: 'Stats', icon: ChartColumn, color: '#00b0f4'},
+  {to: Routes.DASHBOARD_OWNER_VOICE_NODES, label: 'Voice Nodes', icon: RadioTower, color: '#5865f2'},
 ];
 
 

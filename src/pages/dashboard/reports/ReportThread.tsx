@@ -2,13 +2,13 @@
 // admin one. Staff are only ever "NotSoAdmin" to the reporter; the admin side also shows which staff member it was.
 // Status changes are in the thread too, so it reads as the report's history. Messages are only ever rendered as plain text.
 
-import { MessagesSquare, Send } from 'lucide-react';
+import { Languages, MessagesSquare, Send } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 
 import logo from '@/assets/logos/NotSoLogo.svg';
 import { Spinner } from '@/components/ui/Spinner';
 import { UserAvatar } from '@/components/ui/UserAvatar';
-import { ReportStatuses, type ReportMessage, type User } from '@/lib/api';
+import { ReportStatuses, type ReportMessage, type ReportTranslation, type User } from '@/lib/api';
 import { errorMessage } from '@/lib/api/dashboardQueries';
 import { userDisplayTag } from '@/lib/discord';
 import { cn, formatDateTime } from '@/lib/utils';
@@ -28,7 +28,7 @@ const STATUS_VERBS: Record<number, string> = {
 };
 
 
-export function ReportThread({ viewer, reporter, messages, loading, error, onRetry, onSend, sending, notice, actions }: {
+export function ReportThread({ viewer, reporter, messages, loading, error, onRetry, onSend, sending, notice, actions, onTranslate }: {
   // who's looking: the reporter sees themself as "You", staff see the reporter's name and which staff member replied
   viewer: 'staff' | 'reporter',
   reporter: Pick<User, 'id' | 'avatar' | 'discriminator' | 'username'> | null,
@@ -43,6 +43,8 @@ export function ReportThread({ viewer, reporter, messages, loading, error, onRet
   notice?: ReactNode,
   // next to the send button, e.g. the reporter's Reopen
   actions?: ReactNode,
+  // staff only, puts a Translate button on the reporter's messages. Rejects on failure (the caller says why)
+  onTranslate?: (messageId: string) => Promise<ReportTranslation>,
 }) {
   const [ draft, setDraft ] = useState('');
   const content = draft.trim();
@@ -79,7 +81,7 @@ export function ReportThread({ viewer, reporter, messages, loading, error, onRet
               {(message.content === null) ? (
                 <StatusEvent message={message} viewer={viewer} reporterName={reporterName}/>
               ) : (
-                <Message message={message} viewer={viewer} reporter={reporter} reporterName={reporterName}/>
+                <Message message={message} viewer={viewer} reporter={reporter} reporterName={reporterName} onTranslate={onTranslate}/>
               )}
             </li>
           ))}
@@ -133,13 +135,25 @@ function StaffAvatar({ className }: {className?: string}) {
 }
 
 
-function Message({ message, viewer, reporter, reporterName }: {
+function Message({ message, viewer, reporter, reporterName, onTranslate }: {
   message: ReportMessage,
   viewer: 'staff' | 'reporter',
   reporter: Pick<User, 'id' | 'avatar' | 'discriminator' | 'username'> | null,
   reporterName: string,
+  onTranslate?: (messageId: string) => Promise<ReportTranslation>,
 }) {
   const fromStaff = message.author === 'staff';
+  // only kept while the thread's open, it isn't stored
+  const [ translation, setTranslation ] = useState<ReportTranslation | null>(null);
+  const [ translating, setTranslating ] = useState(false);
+  const canTranslate = !!onTranslate && !fromStaff && !translation;
+  const translate = () => {
+    if (!onTranslate) {
+      return;
+    }
+    setTranslating(true);
+    onTranslate(message.id).then(setTranslation, () => {}).finally(() => setTranslating(false));
+  };
   return (
     <div className={cn('flex items-start gap-2.5', (fromStaff === (viewer === 'staff')) && 'flex-row-reverse')}>
       {(fromStaff) ? (
@@ -157,8 +171,27 @@ function Message({ message, viewer, reporter, reporterName }: {
             <span className='font-mono text-xs text-subtle' title='The staff member who sent it, the reporter only sees NotSoAdmin'>{message.author_id}</span>
           ) : null}
           <span className='text-xs text-subtle'><ExactDate value={message.created} format={formatDateTime}/></span>
+          {(canTranslate) ? (
+            <button
+              type='button'
+              className='ml-auto inline-flex cursor-pointer items-center gap-1 self-center text-xs text-subtle hover:text-fg disabled:cursor-default'
+              disabled={translating}
+              onClick={translate}
+            >
+              {(translating) ? <Spinner className='size-3'/> : <Languages aria-hidden className='size-3.5'/>}
+              Translate
+            </button>
+          ) : null}
         </div>
         <p className='mt-1 text-sm whitespace-pre-wrap break-words text-fg'>{message.content}</p>
+        {(translation?.translation) ? (
+          <div className='mt-2 border-t border-line pt-2'>
+            <p className='text-xs text-subtle'>Translated from {translation.translation_language ?? '?'}</p>
+            <p className='mt-0.5 text-sm whitespace-pre-wrap break-words text-fg'>{translation.translation}</p>
+          </div>
+        ) : (translation) ? (
+          <p className='mt-1 text-xs text-subtle'>{(translation.translation_language === 'en') ? 'Already in English.' : 'No translation returned.'}</p>
+        ) : null}
       </div>
     </div>
   );

@@ -17,6 +17,7 @@ export const CommandCategories = {
   FUN: 'FUN',
   INFO: 'INFO',
   MODERATION: 'MODERATION',
+  MUSIC: 'MUSIC',
   OWNER: 'OWNER',
   PERSONAL: 'PERSONAL',
   SEARCH: 'SEARCH',
@@ -92,10 +93,15 @@ export interface CommandMetadata {
   // command's), for mentioning it as `</name:id>`. missing from commands uploaded before it existed
   external_id?: string | null,
   name: string,
+  // who can use it, null/missing for everyone (commands uploaded before it existed have none)
+  premium?: CommandPremium | null,
   ratelimits: Array<{duration: number, key: string | null, limit: number, type: string}>,
   type: CommandType,
   usage: string,
 }
+
+// `premium_server`: NotSoPremium, or a Premium Server (or one bot staff gave access)
+export type CommandPremium = 'premium' | 'premium_plus' | 'premium_server';
 
 
 // `GET /commands/stats`: usage per (command id, command type), optionally since a timestamp
@@ -402,8 +408,11 @@ export const ApiErrorCodes = {
   MAX_VOICE_CLIPS: 30026,
   UNKNOWN_GUILD_LLM_KNOWLEDGE: 10029,
   MAX_GUILD_LLM_KNOWLEDGE: 30027,
+  UNKNOWN_VOICE_NODE: 10031,
   // a voice can't lose its last audio clip, it's deleted with the bot instead
   VOICE_CLIP_LAST: 50042,
+  // a voice cloned before its audio was kept can't be moved to another cloning service
+  VOICE_HAS_NO_CLIPS: 50043,
   MISSING_ACCESS: 20004,
   PREMIUM_REQUIRED: 20005,
   MAX_APPLICATIONS: 30001,
@@ -612,12 +621,74 @@ export interface GuildLLMKnowledgePage {
   limits: {amount: number, total_length: number},
 }
 
+// a music node (notsobot.voice), owners only. Its password (the node's `VOICE_PASSWORD`) only comes back when it's made,
+// reset or revealed
+export interface VoiceNode {
+  created: ApiTimestamp,
+  enabled: boolean,
+  id: string,
+  name: string,
+  // `http://host:2333`
+  url: string,
+}
+
+export interface VoiceNodeWithPassword extends VoiceNode {
+  password: string,
+}
+
+export interface VoiceNodeCreate {
+  enabled?: boolean,
+  name: string,
+  // a random one without it
+  password?: string,
+  url: string,
+}
+
+export type VoiceNodeEdit = Partial<VoiceNodeCreate>;
+
+// a node's live counts (its `GET /stats`), asked for by the api
+export interface VoiceNodeStats {
+  cpu: {cores: number, load: number},
+  // bytes
+  memory: {heap: number, rss: number, system_free: number, system_total: number},
+  // paused ones, the node has the bot leave after a while (`VOICE_PAUSE_TIMEOUT`)
+  paused: number,
+  players: number,
+  // players sending audio (not paused or waiting)
+  playing: number,
+  sessions: number,
+  // milliseconds
+  uptime: number,
+  version: string,
+  workers: Array<{paused: number, players: number, playing: number}>,
+}
+
+export interface VoiceNodeStatsItem {
+  // why it couldn't be asked (down, a wrong password, an untrusted certificate)
+  error: string | null,
+  id: string,
+  latency: number | null,
+  stats: VoiceNodeStats | null,
+}
+
+// the api asking the node for its `/version` with its password, like the bot does
+export interface VoiceNodeTest {
+  // why it isn't ok (unreachable, a wrong password, an untrusted certificate)
+  error: string | null,
+  // milliseconds, when it answered at all
+  latency: number | null,
+  ok: boolean,
+  version: string | null,
+}
+
 // `ApplicationFlags` bits on `Application.flags`
 export const ApplicationFlags = {
   // the bot's own application, only changed in the database
   NOTSOBOT: 1 << 0,
   // staff turned it off, its token doesn't work (it doesn't either while the owner has no API access)
   DISABLED: 1 << 1,
+  // notsobot.voice, the music node: gets the next track of a server's music queue, only changed in the database
+  NOTSOMUSIC: 1 << 2,
 } as const;
 
 // an API application, for calling notsobot.api with `Authorization: Bot <token>`
@@ -675,6 +746,11 @@ export interface VoicesPage {
 // only the name can be changed from the dashboard (max 128)
 export interface VoicePatch {
   name: string,
+}
+
+// `VoiceCloneTypes`, the service it gets cloned on again from its clips
+export interface VoiceTransfer {
+  platform_type: number,
 }
 
 
@@ -914,6 +990,7 @@ export interface AdminGuild extends UserGuild {
 export const GuildFeatures = {
   AI_ACCESS: 'AI_ACCESS',
   FREE_CUSTOM_COMMANDS: 'FREE_CUSTOM_COMMANDS',
+  MUSIC_ACCESS: 'MUSIC_ACCESS',
 } as const;
 export type GuildFeature = (typeof GuildFeatures)[keyof typeof GuildFeatures];
 
@@ -1497,6 +1574,13 @@ export interface ReportMessage {
 
 export interface ReportMessagesPage {
   items: Array<ReportMessage>,
+}
+
+// `POST /admin/reports/<id>/translate` (or a message's): the text in english, not stored. Like a content flag's,
+// `translation_language` is the detected source language, `en` with no `translation` means it was already english
+export interface ReportTranslation {
+  translation: string | null,
+  translation_language: string | null,
 }
 
 

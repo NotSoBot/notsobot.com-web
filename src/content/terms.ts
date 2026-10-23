@@ -3,7 +3,7 @@ import type { LegalDocument } from './legal';
 export const TERMS_OF_SERVICE: LegalDocument = {
   title: "Terms of Service",
   effective: "November 12, 2026",
-  lastUpdated: "October 21, 2026",
+  lastUpdated: "October 23, 2026",
   intro: "Please read these Terms of Service carefully before using NotSoBot. They explain what you can and can't do with the Service, what we store when you use it, and how to reach us.",
   sections: [
     {
@@ -78,7 +78,7 @@ export const TERMS_OF_SERVICE: LegalDocument = {
           "Tags: names, content, variables, attached media, usage counts and directory listings for tags You create.",
           "Reminders: reminder text, times, and the channel and message they belong to.",
           "Reports You send with the report command, including the text, the server, channel and message IDs involved, and Our review notes.",
-          "Uploaded files: files You ask NotSoBot to host, their file names, sizes, dimensions and file hashes (MD5, SHA-1 and BLAKE2b).",
+          "Uploaded files: files You ask NotSoBot to host, their file names, sizes, dimensions and a file hash (BLAKE2b).",
           "AI requests: the prompt, including any messages You replied to with the ai command, along with the instructions, model, generated response, any error and token counts.",
           "Cloned voices: the voice's name, the ID of the voice stored at the voice cloning service, and the audio clips it was made from.",
           "Purchases: premium entitlements and subscription status received from Discord. Payments are processed by Discord, and We never see your payment details.",

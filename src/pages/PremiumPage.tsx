@@ -38,6 +38,7 @@ const TIERS: Array<Tier> = [
       'Tags run for 70 seconds instead of 40',
       'Your own custom commands that follow you everywhere, DMs included',
       'Image commands find an image for you when there’s nothing to edit',
+      'Play music in voice channels: search for a song, or play a track link or a file, with a queue',
     ],
   },
   {
@@ -107,6 +108,8 @@ const COMPARISON: Array<{group: string, icon: LucideIcon, rows: Array<{label: st
     icon: Server,
     rows: [
       {label: 'Personal custom commands', values: [false, true, true, true]},
+      // the bot's `music` commands (premium, premium servers, or a server staff gave `MUSIC_ACCESS`)
+      {label: 'Music commands', values: [false, true, true, true]},
       {label: 'Premium server slots', values: [false, false, '2', '2']},
       {label: 'Voice clones', values: [false, false, '1', '3']},
     ],
@@ -132,6 +135,7 @@ const SERVER_PERKS: Array<{label: string, free?: string, server?: string}> = [
   {label: 'Download quality', free: '720p', server: '1080p'},
   {label: 'Processing queue', free: 'Shared', server: 'Priority'},
   {label: 'Custom commands for the server'},
+  {label: 'Music commands for everyone in the server'},
   {label: 'Image commands find an image for you when there’s nothing to edit'},
   // the api's `MAX_SERVER_AI_MESSAGES` every `SERVER_AI_MESSAGES_WINDOW`, shared by everyone in the server
   {label: 'NotSoAI with a faster, lighter model, 50 messages every 12 hours for each Plus AI slot on the server'},

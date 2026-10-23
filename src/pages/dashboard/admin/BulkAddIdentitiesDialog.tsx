@@ -13,7 +13,7 @@ import { errorMessage, useBulkCreateIdentitiesMutation } from '@/lib/api/dashboa
 import { cn, NO_AUTOFILL } from '@/lib/utils';
 
 import { Field } from '../ui';
-import { proxyLabel } from './identitiesUi';
+import { proxyLabel, serviceTitle } from './identitiesUi';
 import { LOGIN_LINE_FORMATS, LOGIN_LINE_LABELS, loginLineFormatLabel, nameFromUsername, parseLoginLine, type ParsedLoginLine } from './loginLine';
 import { compareAddresses } from './ProxiesTab';
 
@@ -189,8 +189,8 @@ export function BulkAddIdentitiesDialog({ data, onClose }: {data: AdminIdentitie
         <div className='mt-4 grid gap-3 sm:grid-cols-3'>
           <Field label='Service'>
             {(props) => (
-              <select {...props} className='input capitalize' value={service} onChange={(event) => edit(() => { setService(event.target.value); setPicks({}); })} disabled={sending}>
-                {services.map((item) => <option key={item.service} value={item.service}>{item.service}</option>)}
+              <select {...props} className='input' value={service} onChange={(event) => edit(() => { setService(event.target.value); setPicks({}); })} disabled={sending}>
+                {services.map((item) => <option key={item.service} value={item.service}>{serviceTitle(item.service)}</option>)}
               </select>
             )}
           </Field>

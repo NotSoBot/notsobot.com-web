@@ -20,6 +20,10 @@ export const GUILD_FEATURE_INFO: Record<GuildFeature, {label: string, descriptio
     label: 'Free custom commands',
     description: 'Tags can run as custom commands here without a member giving it their premium.',
   },
+  [GuildFeatures.MUSIC_ACCESS]: {
+    label: 'Music access',
+    description: 'The music commands work for everyone in this server, like a premium server.',
+  },
 };
 
 const FEATURES = Object.values(GuildFeatures);

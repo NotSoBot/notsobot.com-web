@@ -28,12 +28,31 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 
 export const CHANGELOG: Array<ChangelogDay> = [
   {
+    date: '2026-10-23',
+    title: 'Music, waveforms and replying to reports from DMs',
+    items: [
+      {kind: 'new', text: '**Music** in voice channels: `.music play` (`/music play`) searches for a song to pick from, or plays a Spotify, Deezer, Tidal, Apple Music or YouTube Music track link or a link to a file, in your voice channel. Then `.music queue`, `queue remove`, `queue remove all` (`-from` a user), `skip`, `seek`, `pause`, `resume`, `info` and `leave`. For NotSoPremium users and premium servers. A server can queue up to 250 tracks, and after 2 minutes paused the bot leaves and clears the queue.'},
+      {kind: 'new', text: '`.waveform` and `/media-av-tools waveform` draw the sound of an audio file or video as a waveform image, with `-color` and `-split` to draw each channel separately.'},
+      {kind: 'new', text: 'PDFs work in image commands, which use the first page, and `.extract media` gives back every page as images (up to 120).'},
+      {kind: 'improved', text: '`/media-aiv-tools convert` converts audio, images and videos in one command, replacing `/media-av-tools convert` and `/media-iv-tools convert`.'},
+      {kind: 'improved', text: 'Reply to one of NotSoBot\'s DMs about your report to send staff a message on it, the same as replying on the dashboard.'},
+      {kind: 'improved', text: '`.clean <amount>` and `/clean` count command uses (the message that used a command and all of NotSoBot\'s responses to it) instead of single messages.'},
+      {kind: 'improved', text: 'The website\'s command list marks the commands that need premium.'},
+      {kind: 'fixed', text: 'Facebook share links (`facebook.com/share/v/...`) in `.download` and media commands.'},
+      {kind: 'removed', text: 'Animated results from `.mimic` and `.faceswap` (and MediaScript `faceswap`): GIFs and videos use their first frame and give a still image. `.kirkify` still follows along.'},
+      {kind: 'removed', text: '`.voice record`. Clone a voice from an audio file or link with `.voice clone` instead.'},
+    ],
+  },
+  {
     date: '2026-10-22',
     title: 'Text styles, server log timestamps and downloads',
     items: [
       {kind: 'new', text: 'Text styles for images and videos, all under `.text` and `/media-iv-text`: `.text snapchat` (a see-through caption bar, `-position` moves it), `.text tiktok` (every line in a rounded box, `-dark` for black boxes), `.text subtitle` (movie subtitles, `-yellow` for DVD yellow), `.text news` (a BREAKING NEWS lower third, `headline | ticker`, `-label` changes the red tab) and `.text notification` (an iPhone notification, `title | message`).'},
       {kind: 'new', text: '`.text youtube` and `/media-iv-text youtube` put the media in a YouTube watch page with your title, your name as the channel (or `-channel`) and made up views. `.text demotivate` and `/media-iv-text demotivate` turn it into a demotivational poster, like `.text demotivate Teamwork | none of us is as dumb as all of us`.'},
       {kind: 'new', text: '**MediaScript:** `snapchat`, `tiktok`, `subtitle`, `news`, `notification`, `youtube` and `demotivate`.'},
+      {kind: 'new', text: '**TagScript:** `{medialist:type|max|text}` gives a JSON array of up to 10 media URLs from the message, its reply and the text, like `{foreach:{medialist:image}|{attach:{get:valuex}}}` to go through every image sent with the tag.'},
+      {kind: 'new', text: 'Deezer links work in `.download` and media commands. Deezer only gives out 30 second previews without an account, so that\'s what you get. For an album, playlist or artist (its top tracks), `.download -position` picks the track.'},
+      {kind: 'improved', text: 'Commands and TagScript looking for the last media in a channel go back 25 messages instead of 50.'},
       {kind: 'improved', text: 'Server logs show when something happened in each viewer\'s own timezone and language: how long ago (the full date on hover), and in component-style logs the exact date and time at the bottom too. Usernames show as they are written, without stray backslashes.'},
       {kind: 'improved', text: 'YouTube downloads are more reliable, NotSoBot keeps the tokens YouTube asks for ready instead of making new ones for every download.'},
       {kind: 'improved', text: 'Threads downloads say what went wrong: a deleted post, a profile link instead of a post, or Threads asking to log in (try again in a few minutes).'},
@@ -41,6 +60,8 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'improved', text: '`.download` takes TikTok embed and player links (`tiktok.com/embed/...`, `/player/v1/...`).'},
       {kind: 'improved', text: '`.code` runs Node.js 26.12.1 instead of 26.12.0.'},
       {kind: 'new', text: 'Your dashboard\'s **Voices** page can delete a cloned voice, along with every audio clip it\'s made from.'},
+      {kind: 'new', text: 'Your dashboard\'s **Voices** page can move a voice you cloned on ElevenLabs to fish.audio. It\'s cloned again from its audio clips and keeps its name, so everything using it keeps working.'},
+      {kind: 'improved', text: 'Text to speech with voices cloned on ElevenLabs uses ElevenLabs\' newer v4 Turbo model, so they may sound a little different.'},
       {kind: 'new', text: 'Pick your search engine: `/settings set search-provider` (or the Search section of your dashboard settings) sets the one `.search` and `.image` use for you, choosing from Bing, DuckDuckGo, Google and Yandex for web and image searches separately, and `/server set search-provider` (or the server\'s dashboard page) sets the server\'s default. Without either, web searches use DuckDuckGo and image searches Google.'},
       {kind: 'new', text: '`.search` (`.web`) and `/search web` search the web with your search provider. New search commands: `.bing` and `.bing image` (`/search bing web` and `images`), `.yandex` (`.ya`) and `.yandex image` (`/search yandex web` and `images`), and `.openverse` (`/search openverse`) for openly licensed images.'},
       {kind: 'removed', text: 'The `-safe` option on search, `.download` and `.screenshot` commands (and `safe` on `/download`), safe search is always on.'},
@@ -48,6 +69,9 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'fixed', text: '`.google` showing "0 results" now that Google doesn\'t say how many there are.'},
       {kind: 'new', text: 'NotSoAI can read or change your web and image search providers, like "use Bing for my searches". **TagScript:** `{settings.set.user}` takes `SEARCH_PROVIDER_WEB` and `SEARCH_PROVIDER_IMAGES`.'},
       {kind: 'improved', text: 'NotSoAI knows the server\'s timezone, imagine model and search providers when you haven\'t set your own, so dates and times match the server.'},
+      {kind: 'improved', text: 'NotSoAI can reply with voice notes. Ask it to say something in a voice message, or "only reply to me with voice messages from now on" to have it remember.'},
+      {kind: 'improved', text: '**MediaScript:** `tts` without a voice uses your Default TTS Voice instead of always `TIKTOK_EN_US_FEMALE_01`.'},
+      {kind: 'new', text: '`/settings set tts-voice` sets your default text-to-speech voice, a built-in one or one of your cloned voices. Without a voice it shows your current one, `clear` goes back to the default.'},
       {kind: 'new', text: 'NotSoAI can search the web, and it searches images with your search provider (then the server\'s). **TagScript:** `{search.web}` and `{search.images}` output one result, `{api.search.web}` and `{api.search.images}` output the results as JSON, all using your search provider.'},
       {kind: 'new', text: 'NotSoAI can read and change the server\'s settings for members with **Manage Server**: AI model and personality, imagine model, language, response display, search providers and timezone. Like "set this server\'s timezone to Tokyo". **TagScript:** `{settings.set.server}`, and `{settings.set.server.ai.personality}` works now.'},
       {kind: 'new', text: 'NotSoAI can change your default text-to-speech voice, including your cloned voices by name. **TagScript:** `{settings.set.user}` takes `TTS_VOICE`.'},
@@ -390,6 +414,7 @@ export const CHANGELOG: Array<ChangelogDay> = [
     date: '2026-06-08',
     title: 'Threads downloads and fixes',
     items: [
+      {kind: 'improved', text: 'The **Klattsch** `.tts` voice reads Japanese kana, plays several voices at once with `[voice=N]` (for chords and harmonies), and keeps English words you mix in with phonemes instead of skipping them.'},
       {kind: 'new', text: '`.download` supports Threads.'},
       {kind: 'improved', text: 'Instagram downloads are more reliable.'},
       {kind: 'fixed', text: 'AI personalities getting stuck in a loop when they used `{ai:}` themselves.'},

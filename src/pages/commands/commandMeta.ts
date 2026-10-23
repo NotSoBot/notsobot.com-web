@@ -5,6 +5,7 @@ import {
   Hash,
   Image,
   Info,
+  Music,
   PartyPopper,
   Puzzle,
   Search,
@@ -20,7 +21,7 @@ import {
 
 import { enabledCommandVariants } from '@/lib/commandAvailability';
 import { commandPath as commandPathFor, commandTypeFromPath } from '@/lib/commandPaths';
-import { CommandCategories, CommandTypes, LegacyCommandCategories, type Command, type CommandMetadata, type CommandStat, type CommandType } from '@/lib/api';
+import { CommandCategories, CommandTypes, LegacyCommandCategories, type Command, type CommandMetadata, type CommandPremium, type CommandStat, type CommandType } from '@/lib/api';
 
 
 export interface TypeOption {
@@ -60,6 +61,41 @@ export const TYPE_LABELS: Record<CommandType, string> = {
 };
 
 
+// a premium command's badge, and who it's for (the drawer's explanation)
+export const PREMIUM_META: Record<CommandPremium, {badge: string, label: string, description: string}> = {
+  premium: {
+    badge: 'Premium',
+    label: 'NotSoPremium only',
+    description: 'Needs NotSoPremium.',
+  },
+  premium_plus: {
+    badge: 'Premium+',
+    label: 'NotSoPremium Plus only',
+    description: 'Needs NotSoPremium Plus.',
+  },
+  premium_server: {
+    badge: 'Premium',
+    label: 'Premium only',
+    description: 'Works for anyone with NotSoPremium, and for everyone in a Premium Server (a server someone gave their NotSoPremium Plus perks to).',
+  },
+};
+
+export const ACCESS_OPTIONS = [
+  {value: 'all', label: 'All'},
+  {value: 'free', label: 'Free'},
+  {value: 'premium', label: 'Premium'},
+] as const;
+export type Access = (typeof ACCESS_OPTIONS)[number]['value'];
+
+export function accessFromParam(param: string | null): Access {
+  return (param === 'free' || param === 'premium') ? param : 'all';
+}
+
+export function matchesAccess(metadata: CommandMetadata, access: Access): boolean {
+  return access === 'all' || (access === 'premium') === !!metadata.premium;
+}
+
+
 export interface CategoryMeta {
   label: string,
   icon: LucideIcon,
@@ -78,6 +114,7 @@ export const CATEGORY_META: Record<string, CategoryMeta> = {
   [CommandCategories.FUN]: {label: 'Fun', icon: PartyPopper, color: '#fb923c'},
   [CommandCategories.INFO]: {label: 'Info', icon: Info, color: '#38bdf8'},
   [CommandCategories.MODERATION]: {label: 'Moderation', icon: Shield, color: '#ef4444'},
+  [CommandCategories.MUSIC]: {label: 'Music', icon: Music, color: '#e11d48'},
   [CommandCategories.SERVER]: {label: 'Server Setup', icon: Server, color: '#94a3b8'},
   [CommandCategories.PERSONAL]: {label: 'Personal Settings', icon: User, color: '#c084fc'},
   [CommandCategories.UTILITY]: {label: 'Utility', icon: Puzzle, color: '#eab308'},

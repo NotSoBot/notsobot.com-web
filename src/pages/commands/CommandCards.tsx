@@ -1,10 +1,10 @@
-import { MessageSquare, TrendingUp, User } from 'lucide-react';
+import { Crown, MessageSquare, TrendingUp, User } from 'lucide-react';
 import type { CSSProperties } from 'react';
 
-import { CommandTypes, type CommandType } from '@/lib/api';
+import { CommandTypes, type CommandPremium, type CommandType } from '@/lib/api';
 import { cn, formatCompact, formatNumber } from '@/lib/utils';
 
-import { categoryMeta, PREFIXES, type Entry } from './commandMeta';
+import { categoryMeta, PREFIXES, PREMIUM_META, type Entry } from './commandMeta';
 
 
 // cards read their accent from `--cat`
@@ -19,6 +19,23 @@ export function CommandName({ type, name, className }: {type: CommandType, name:
     <span className={cn('inline-flex min-w-0 items-center gap-1.5 font-mono', className)}>
       {(Icon) ? <Icon aria-hidden className='size-4 shrink-0 text-muted'/> : null}
       <span className='truncate'>{(Icon) ? null : <span className='text-subtle'>{PREFIXES[type]}</span>}{name}</span>
+    </span>
+  );
+}
+
+
+export function PremiumBadge({ premium, className }: {premium?: CommandPremium | null, className?: string}) {
+  if (!premium) {
+    return null;
+  }
+  const meta = PREMIUM_META[premium];
+  return (
+    <span
+      title={meta.label}
+      className={cn('inline-flex shrink-0 items-center gap-1 rounded bg-warning/15 px-1.5 py-0.5 text-xs font-medium whitespace-nowrap text-warning', className)}
+    >
+      <Crown aria-hidden className='size-3'/>
+      {meta.badge}
     </span>
   );
 }
@@ -81,6 +98,7 @@ export function CommandCard({ entry, onOpen }: {entry: Entry, onOpen: () => void
         <div className='mt-auto flex items-center justify-between gap-2'>
           <div className='flex min-w-0 items-center gap-1.5'>
             <CategoryBadge category={entry.category}/>
+            <PremiumBadge premium={metadata.premium}/>
             {(metadata.dmable) ? <span className='rounded bg-success/15 px-1.5 py-0.5 text-xs font-medium text-success'>DM</span> : null}
           </div>
           <UsesLabel entry={entry}/>

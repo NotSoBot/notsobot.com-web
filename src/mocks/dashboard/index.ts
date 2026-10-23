@@ -22,6 +22,7 @@ import {
   TAG_DIRECTORY_ASSETS_MAX,
   TagDirectoryCategories,
   TagDirectoryVerificationStates,
+  VoiceCloneTypes,
   type AdminCopyrightStrike,
   type AdminDirectoryTag,
   type AdminTagDirectoryItem,
@@ -2219,6 +2220,30 @@ route('POST', '/admin/reports/(\\d+)/messages', ([ , reportId ], { body }) => {
   return addReportMessage(report, {author: 'staff', author_id: mockUser.id, content: reportMessageContent(body), status: null});
 });
 
+// like the content flags' translate: anything ascii counts as english already
+function mockReportTranslation(text: string) {
+  const english = !/[^\x00-\x7f]/.test(text);
+  return {translation: (english) ? null : `[mock english] ${text}`, translation_language: (english) ? 'en' : 'ja'};
+}
+
+route('POST', '/admin/reports/(\\d+)/translate', ([ , reportId ]) => {
+  requireStaff();
+  return mockReportTranslation(findReport(reportId).content);
+});
+
+route('POST', '/admin/reports/(\\d+)/messages/(\\d+)/translate', ([ , reportId, messageId ]) => {
+  requireStaff();
+  const report = findReport(reportId);
+  const message = state.reportMessages.get(report.id)?.find((other) => other.id === messageId);
+  if (!message) {
+    throw new MockError(404, ApiErrorCodes.UNKNOWN_REPORT, 'Unknown Report Message');
+  }
+  if (!message.content) {
+    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'Report message has no text to translate');
+  }
+  return mockReportTranslation(message.content);
+});
+
 route('GET', '/admin/reports', (_match, { query }) => {
   requireStaff();
   const type = query.get('type');
@@ -3548,6 +3573,67 @@ function parseMockProxyLine(line: string, scheme: string) {
   throw new Error('not host:port, host:port:user:pass or a proxy url');
 }
 
+/* voice nodes (owner): one online, one disabled and still draining, one offline */
+
+const mockVoiceNodes = [
+  {created: '2026-10-20T18:00:00.000Z', enabled: true, id: '1430000000000000001', name: 'us-va-01', url: 'https://us-va-01.voice.nsb.gg'},
+  {created: '2026-10-21T09:30:00.000Z', enabled: false, id: '1430000000000000002', name: 'de-fra-01', url: 'https://de-fra-01.voice.nsb.gg'},
+  {created: '2026-10-22T14:10:00.000Z', enabled: true, id: '1430000000000000003', name: 'us-sjc-01', url: 'https://us-sjc-01.voice.nsb.gg'},
+];
+
+function findMockVoiceNode(nodeId: string) {
+  const node = mockVoiceNodes.find((item) => item.id === nodeId);
+  if (!node) {
+    throw new MockError(404, ApiErrorCodes.UNKNOWN_VOICE_NODE, 'Unknown Voice Node');
+  }
+  return node;
+}
+
+function mockVoiceNodeStats(players: number, playing: number, paused: number, workers: number) {
+  return {
+    cpu: {cores: workers + 1, load: 0.12 + players / 400},
+    memory: {heap: 18 * 1024 * 1024, rss: (90 + players * 2) * 1024 * 1024, system_free: 2.1 * 1024 ** 3, system_total: 4 * 1024 ** 3},
+    paused,
+    players,
+    playing,
+    sessions: 2,
+    uptime: (31 * 60 + 7) * 60 * 1000,
+    version: '4.0.0-notsobot',
+    workers: Array.from({length: workers}, (_, index) => ({
+      paused: (index === 0) ? paused : 0,
+      players: Math.floor(players / workers) + ((index < players % workers) ? 1 : 0),
+      playing: Math.floor(playing / workers),
+    })),
+  };
+}
+
+route('GET', '/admin/voice-nodes', () => {
+  requireBotOwner();
+  return {nodes: mockVoiceNodes};
+});
+
+route('GET', '/admin/voice-nodes/stats', () => {
+  requireBotOwner();
+  // jitters a little so the live counter visibly moves
+  const wobble = Math.floor(Math.random() * 3);
+  return {
+    nodes: [
+      {error: null, id: mockVoiceNodes[0].id, latency: 38 + wobble, stats: mockVoiceNodeStats(57 + wobble, 49 + wobble, 6, 5)},
+      {error: null, id: mockVoiceNodes[1].id, latency: 112, stats: mockVoiceNodeStats(4, 3, 1, 3)},
+      {error: 'The node didn\u2019t answer in 5 seconds', id: mockVoiceNodes[2].id, latency: null, stats: null},
+    ],
+  };
+});
+
+route('POST', '/admin/voice-nodes/(\\d+)/test', ([ , nodeId ]) => {
+  requireBotOwner();
+  const node = findMockVoiceNode(nodeId);
+  if (node.id === mockVoiceNodes[2].id) {
+    return {error: 'The node didn\u2019t answer in 5 seconds', latency: null, ok: false, version: null};
+  }
+  return {error: null, latency: 41, ok: true, version: '4.0.0-notsobot'};
+});
+
 route('GET', '/admin/identities', () => {
   requireBotOwner();
   return mockIdentitiesPayload();
@@ -4069,6 +4155,23 @@ route('DELETE', '/users/@me/voices/(\\d+)', ([ , voiceId ]) => {
   state.voices = state.voices.filter((other) => other.id !== voice.id);
 });
 
+// cloned again from its clips on the other service, the old one is deleted
+route('POST', '/users/@me/voices/(\\d+)/transfer', ([ , voiceId ], { body }) => {
+  const voice = findOwnVoice(voiceId);
+  const platformType = Number(body.platform_type);
+  if (platformType !== VoiceCloneTypes.FISH_AUDIO) {
+    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'Voices can only be moved to fish.audio');
+  }
+  if (voice.platform_type === platformType) {
+    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'This voice is already on fish.audio');
+  }
+  if (!state.voiceClips.get(voice.id)?.length) {
+    throw new MockError(400, ApiErrorCodes.VOICE_HAS_NO_CLIPS, 'This voice was cloned before its audio was kept, so it can\'t be moved yet');
+  }
+  voice.platform_type = platformType;
+  return meVoice(voice);
+});
+
 route('POST', '/users/@me/voices/(\\d+)/clips', ([ , voiceId ], { body }) => {
   const voice = findOwnVoice(voiceId);
   const clips = state.voiceClips.get(voice.id) ?? [];
@@ -4197,7 +4300,53 @@ declare global {
 }
 
 
-const MOCK_PUBLIC_PATHS = ['/tags/directory', '/reports/anonymous'];
+/* public commands page: a few free ones and the premium kinds (music is premium or a premium server) */
+
+function mockCommand(id: string, name: string, category: string, description: string, premium: null | string, types: Array<number> = [0]) {
+  return {
+    enabled: true,
+    id,
+    media: [],
+    metadata: types.map((type) => ({
+      aliases: [],
+      args: [],
+      category,
+      credits: [],
+      description,
+      dmable: !id.startsWith('music.'),
+      enabled: true,
+      examples: [`${name}`],
+      external_id: (type === 0) ? null : '1430000000000000999',
+      name,
+      premium,
+      ratelimits: [],
+      type,
+      usage: '',
+    })),
+  };
+}
+
+const mockCommands = [
+  mockCommand('music.play', 'music play', 'MUSIC', 'Search for a song to pick from (or play a track link, or a link to a file) in your voice channel', 'premium_server', [0, 1]),
+  mockCommand('music.skip', 'music skip', 'MUSIC', 'Skip to the next track in the music queue', 'premium_server', [0, 1]),
+  mockCommand('music.queue', 'music queue', 'MUSIC', 'Show what the music is playing and what is queued after it', 'premium_server'),
+  mockCommand('ai', 'ai', 'AI', 'Talk to NotSoAI', 'premium_server', [0, 1]),
+  mockCommand('voice.clone', 'voice clone', 'AUDIO', 'Clone a voice for Text-to-Speech', 'premium_plus'),
+  mockCommand('tag.show', 'tag', 'TAGS', 'Show a tag', null, [0, 1]),
+  mockCommand('media.iv.deepfry', 'deepfry', 'EFFECTS', 'Deepfry an image', null),
+];
+
+route('GET', '/commands', () => mockCommands);
+route('GET', '/commands/stats', () => mockCommands.flatMap((command, index) => command.metadata.map((metadata) => ({
+  count: 5000 - index * 600,
+  id: command.id,
+  name: metadata.name,
+  since: Date.now() - 7 * 24 * 60 * 60 * 1000,
+  type: metadata.type,
+}))));
+
+
+const MOCK_PUBLIC_PATHS = ['/tags/directory', '/reports/anonymous', '/commands', '/commands/stats'];
 
 export function installDashboardMocks(): void {
   const realFetch = window.fetch.bind(window);

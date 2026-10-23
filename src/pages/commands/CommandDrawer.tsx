@@ -1,13 +1,15 @@
-import { X } from 'lucide-react';
+import { Crown, X } from 'lucide-react';
 import { useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { Link } from 'react-router';
 
 import { ImageComparison } from '@/components/ui/ImageComparison';
+import { Routes } from '@/config';
 import { CommandMediaTypes, type Command } from '@/lib/api';
 import { cn, formatNumber } from '@/lib/utils';
 
-import { CategoryBadge, categoryStyle, CommandName } from './CommandCards';
-import { PREFIXES, TYPE_LABELS, type Entry } from './commandMeta';
+import { CategoryBadge, categoryStyle, CommandName, PremiumBadge } from './CommandCards';
+import { PREFIXES, PREMIUM_META, TYPE_LABELS, type Entry } from './commandMeta';
 
 
 export function CommandDrawer({ entry, siblings, totalRanked, onSelect, onClose }: {
@@ -64,6 +66,7 @@ export function CommandDrawer({ entry, siblings, totalRanked, onSelect, onClose 
               <div className='flex flex-wrap items-center gap-2'>
                 <CategoryBadge category={entry.category}/>
                 <span className='rounded bg-surface-3 px-2 py-0.5 text-xs text-muted'>{TYPE_LABELS[metadata.type]}</span>
+                <PremiumBadge premium={metadata.premium} className='px-2'/>
                 {(metadata.dmable) ? <span className='rounded bg-success/15 px-2 py-0.5 text-xs font-medium text-success'>Works in DMs</span> : null}
               </div>
               <button ref={closeRef} type='button' aria-label='Close' onClick={onClose} className='btn btn-ghost -mr-2 p-2'>
@@ -74,6 +77,16 @@ export function CommandDrawer({ entry, siblings, totalRanked, onSelect, onClose 
               <CommandName type={metadata.type} name={metadata.name} className='text-2xl font-semibold text-white'/>
             </h2>
             <p className='mt-2 text-muted'>{metadata.description || 'No description available'}</p>
+            {(metadata.premium) ? (
+              <div className='mt-3 flex items-start gap-2.5 rounded-md border border-warning/30 bg-warning/10 px-3 py-2.5 text-sm'>
+                <Crown aria-hidden className='mt-0.5 size-4 shrink-0 text-warning'/>
+                <p className='text-muted'>
+                  <span className='font-medium text-white'>{PREMIUM_META[metadata.premium].label}.</span>{' '}
+                  {PREMIUM_META[metadata.premium].description}{' '}
+                  <Link to={Routes.PREMIUM} className='font-medium text-warning hover:underline'>See NotSoPremium</Link>
+                </p>
+              </div>
+            ) : null}
 
             <dl className='mt-4 grid grid-cols-2 gap-2'>
               <div className='rounded-md bg-deep px-3 py-2'>

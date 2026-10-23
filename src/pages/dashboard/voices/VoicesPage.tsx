@@ -1,20 +1,21 @@
-import { AudioLines, Pause, Pencil, Play, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { AudioLines, ChevronDown, Fish, Pause, Pencil, Play, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import { useAuth } from '@/auth';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
-import { api, type MeVoice, type VoiceClip } from '@/lib/api';
+import { api, VoiceCloneTypes, type MeVoice, type VoiceClip } from '@/lib/api';
 import {
   errorMessage,
   useDeleteMeVoiceClipMutation,
   useDeleteMeVoiceMutation,
   useMeVoicesQuery,
   usePatchMeVoiceMutation,
+  useTransferMeVoiceMutation,
   useUploadMeVoiceClipMutation,
 } from '@/lib/api/dashboardQueries';
-import { formatDate, formatMemory } from '@/lib/utils';
+import { cn, formatDate, formatMemory } from '@/lib/utils';
 
 import { Chip } from '../admin/adminUi';
 import { hasPremiumPlus } from '../premium';
@@ -38,8 +39,10 @@ export function VoicesPage() {
   const { data, isPending, isError, error, isRefetching, refetch } = useMeVoicesQuery();
   const rename = usePatchMeVoiceMutation();
   const remove = useDeleteMeVoiceMutation();
+  const transfer = useTransferMeVoiceMutation();
   const [ renaming, setRenaming ] = useState<MeVoice | null>(null);
   const [ deleting, setDeleting ] = useState<MeVoice | null>(null);
+  const [ transferring, setTransferring ] = useState<MeVoice | null>(null);
   const items = data?.items ?? [];
   const canUpload = hasPremiumPlus(user);
 
@@ -70,6 +73,10 @@ export function VoicesPage() {
                 voice={voice}
                 canUpload={canUpload}
                 onRename={() => setRenaming(voice)}
+                onTransfer={(voice.platform_type === VoiceCloneTypes.ELEVENLABS) ? () => {
+                  transfer.reset();
+                  setTransferring(voice);
+                } : undefined}
                 onDelete={() => {
                   remove.reset();
                   setDeleting(voice);
@@ -81,6 +88,29 @@ export function VoicesPage() {
       )}
 
       {(renaming) ? <RenameVoiceDialog voice={renaming} mutation={rename} onClose={() => setRenaming(null)}/> : null}
+
+      {(transferring) ? (
+        <ConfirmDialog
+          title={`Move ${transferring.name} to fish.audio?`}
+          description={`It’s cloned again on fish.audio from its ${transferring.clips.length} audio ${(transferring.clips.length === 1) ? 'clip' : 'clips'}, then deleted from ElevenLabs. Its name stays the same, so tags and commands that use it keep working, but it may sound a little different. Voices can’t be moved back to ElevenLabs.`}
+          confirmLabel='Move voice'
+          tone='primary'
+          pending={transfer.isPending}
+          error={(transfer.isError) ? errorMessage(transfer.error, 'Couldn’t move the voice.') : null}
+          onConfirm={() => {
+            transfer.mutate({voiceId: transferring.id, platformType: VoiceCloneTypes.FISH_AUDIO}, {
+              onSuccess: (voice) => {
+                toast(`${voice.name} moved to fish.audio`);
+                setTransferring(null);
+              },
+            });
+          }}
+          onClose={() => {
+            transfer.reset();
+            setTransferring(null);
+          }}
+        />
+      ) : null}
 
       {(deleting) ? (
         <ConfirmDialog
@@ -108,7 +138,14 @@ export function VoicesPage() {
 }
 
 
-function VoiceCard({ voice, canUpload, onRename, onDelete }: {voice: MeVoice, canUpload: boolean, onRename: () => void, onDelete: () => void}) {
+// `onTransfer` only for voices that can be moved to fish.audio
+function VoiceCard({ voice, canUpload, onRename, onTransfer, onDelete }: {
+  voice: MeVoice,
+  canUpload: boolean,
+  onRename: () => void,
+  onTransfer?: () => void,
+  onDelete: () => void,
+}) {
   const toast = useToast();
   const upload = useUploadMeVoiceClipMutation();
   const remove = useDeleteMeVoiceClipMutation();
@@ -116,6 +153,7 @@ function VoiceCard({ voice, canUpload, onRename, onDelete }: {voice: MeVoice, ca
   // the clip the next picked file replaces, null adds one
   const replacing = useRef<string | null>(null);
   const [ deleting, setDeleting ] = useState<VoiceClip | null>(null);
+  const [ showClips, setShowClips ] = useState(false);
 
   const full = VOICE_CLIPS_MAX <= voice.clips.length;
   const pendingClipId = (upload.isPending) ? (upload.variables?.clipId ?? null) : undefined;
@@ -129,7 +167,11 @@ function VoiceCard({ voice, canUpload, onRename, onDelete }: {voice: MeVoice, ca
   const uploadFile = (file: File) => {
     const clipId = replacing.current ?? undefined;
     upload.mutate({voiceId: voice.id, clipId, file}, {
-      onSuccess: () => toast((clipId) ? 'Clip replaced' : 'Clip added'),
+      onSuccess: () => {
+        toast((clipId) ? 'Clip replaced' : 'Clip added');
+        // shown so the added clip is visible
+        setShowClips(true);
+      },
     });
   };
 
@@ -176,7 +218,20 @@ function VoiceCard({ voice, canUpload, onRename, onDelete }: {voice: MeVoice, ca
               Add clip
             </button>
           ) : null}
-          <button type='button' className='btn btn-sm btn-secondary' disabled={upload.isPending} aria-label={`Delete ${voice.name}`} onClick={onDelete}>
+          {(onTransfer) ? (
+            <button
+              type='button'
+              className='btn btn-sm btn-secondary'
+              disabled={upload.isPending || !voice.clips.length}
+              aria-label={`Move ${voice.name} to fish.audio`}
+              title={(voice.clips.length) ? 'Clone it again on fish.audio from its clips' : 'Its clips have to be copied over before it can be moved'}
+              onClick={onTransfer}
+            >
+              <Fish className='size-4'/>
+              <span className='hidden sm:inline'>Move to fish.audio</span>
+            </button>
+          ) : null}
+          <button type='button' className='btn btn-sm btn-danger' disabled={upload.isPending} aria-label={`Delete ${voice.name}`} onClick={onDelete}>
             <Trash2 className='size-4'/>
             <span className='hidden sm:inline'>Delete</span>
           </button>
@@ -204,6 +259,22 @@ function VoiceCard({ voice, canUpload, onRename, onDelete }: {voice: MeVoice, ca
       ) : null}
 
       {(voice.clips.length) ? (
+        <button
+          type='button'
+          aria-expanded={showClips}
+          onClick={() => setShowClips((value) => !value)}
+          className='flex w-full cursor-pointer items-center justify-between gap-2 border-t border-line px-4 py-2 text-xs text-muted transition-colors hover:text-white'
+        >
+          {(showClips) ? 'Hide clips' : `Show ${voice.clips.length} ${(voice.clips.length === 1) ? 'clip' : 'clips'}`}
+          <ChevronDown className={cn('size-3.5 transition-transform', showClips && 'rotate-180')}/>
+        </button>
+      ) : null}
+
+      {(!voice.clips.length) ? (
+        <p className='border-t border-line px-4 py-3 text-sm text-muted'>
+          This voice was cloned before NotSoBot kept the audio it’s made from. Its clips show up here once they’ve been copied over.
+        </p>
+      ) : (showClips) ? (
         <ul className='divide-y divide-line border-t border-line'>
           {voice.clips.map((clip) => (
             <ClipRow
@@ -222,11 +293,7 @@ function VoiceCard({ voice, canUpload, onRename, onDelete }: {voice: MeVoice, ca
             />
           ))}
         </ul>
-      ) : (
-        <p className='border-t border-line px-4 py-3 text-sm text-muted'>
-          This voice was cloned before NotSoBot kept the audio it’s made from. Its clips show up here once they’ve been copied over.
-        </p>
-      )}
+      ) : null}
 
       {(deleting) ? (
         <ConfirmDialog

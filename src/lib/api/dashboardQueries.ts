@@ -86,6 +86,8 @@ import type {
   UserSettings,
   UserSettingsPatch,
   MeVoice,
+  VoiceNodeCreate,
+  VoiceNodeEdit,
   VoicesPage,
   WebsiteReportBody,
 } from './types';
@@ -197,6 +199,8 @@ export function errorMessage(error: unknown, fallback = 'Something went wrong. T
         return `A voice can have up to ${(error.body as {limit?: number} | null)?.limit ?? 10} audio clips. Delete one first.`;
       case ApiErrorCodes.VOICE_CLIP_LAST:
         return 'A voice needs at least one clip. Replace it instead, or delete the whole voice.';
+      case ApiErrorCodes.VOICE_HAS_NO_CLIPS:
+        return 'This voice was cloned before NotSoBot kept the audio it’s made from, so it can’t be moved until its clips show up here.';
       case ApiErrorCodes.UNKNOWN_REMINDER:
         return 'That reminder doesn’t exist anymore. It may have already been sent or deleted with the bot.';
       case ApiErrorCodes.UNKNOWN_LLM_MEMORY:
@@ -991,6 +995,17 @@ export function usePatchMeVoiceMutation() {
   const setVoice = useSetMeVoice();
   return useMutation({
     mutationFn: ({ voiceId, name }: VoiceRename) => api.patchMeVoice(voiceId, {name}),
+    onSuccess: setVoice,
+  });
+}
+
+
+export function useTransferMeVoiceMutation() {
+  const setVoice = useSetMeVoice();
+  return useMutation({
+    mutationFn: ({ voiceId, platformType }: {voiceId: string, platformType: number}) => {
+      return api.transferMeVoice(voiceId, {platform_type: platformType});
+    },
     onSuccess: setVoice,
   });
 }
@@ -1973,6 +1988,13 @@ export function usePostAdminReportMessageMutation(reportId: string) {
   });
 }
 
+// nothing's cached: the result only lives in the component that asked for it, and goes with the modal
+export function useTranslateAdminReportMutation() {
+  return useMutation({
+    mutationFn: ({ reportId, messageId }: {reportId: string, messageId?: string}) => api.translateAdminReport(reportId, messageId),
+  });
+}
+
 
 export interface AdminEntitlementsFilters {
   userId: string,
@@ -2192,6 +2214,80 @@ export function useRevokeApplicationAccessMutation() {
   const invalidate = useInvalidateApplicationAccess();
   return useMutation({
     mutationFn: (userId: string) => api.revokeAdminApplicationAccess(userId),
+    onSettled: invalidate,
+  });
+}
+
+
+export function useAdminVoiceNodesQuery() {
+  const { token } = useAuth();
+  return useQuery({
+    queryKey: queryKeys.adminVoiceNodes(token),
+    queryFn: ({ signal }) => api.fetchAdminVoiceNodes(signal),
+  });
+}
+
+// the counts move by the second, so they're asked for again every few seconds while the page is open
+const ADMIN_VOICE_NODES_STATS_REFETCH_INTERVAL = 5 * 1000;
+
+export function useAdminVoiceNodesStatsQuery() {
+  const { token } = useAuth();
+  return useQuery({
+    queryKey: queryKeys.adminVoiceNodesStats(token),
+    queryFn: ({ signal }) => api.fetchAdminVoiceNodesStats(signal),
+    refetchInterval: ADMIN_VOICE_NODES_STATS_REFETCH_INTERVAL,
+  });
+}
+
+function useInvalidateAdminVoiceNodes() {
+  const { token } = useAuth();
+  const queryClient = useQueryClient();
+  // the stats are under the list's key too, a node added/removed shows up in both
+  return () => queryClient.invalidateQueries({queryKey: queryKeys.adminVoiceNodes(token)});
+}
+
+export function useCreateVoiceNodeMutation() {
+  const invalidate = useInvalidateAdminVoiceNodes();
+  return useMutation({
+    mutationFn: (body: VoiceNodeCreate) => api.createAdminVoiceNode(body),
+    onSettled: invalidate,
+    // the password it came back with isn't kept around
+    gcTime: 0,
+  });
+}
+
+export function useEditVoiceNodeMutation() {
+  const invalidate = useInvalidateAdminVoiceNodes();
+  return useMutation({
+    mutationFn: ({ nodeId, body }: {nodeId: string, body: VoiceNodeEdit}) => api.editAdminVoiceNode(nodeId, body),
+    onSettled: invalidate,
+  });
+}
+
+export function useRevealVoiceNodeMutation() {
+  return useMutation({
+    mutationFn: (nodeId: string) => api.revealAdminVoiceNode(nodeId),
+    gcTime: 0,
+  });
+}
+
+export function useResetVoiceNodePasswordMutation() {
+  return useMutation({
+    mutationFn: (nodeId: string) => api.resetAdminVoiceNodePassword(nodeId),
+    gcTime: 0,
+  });
+}
+
+export function useTestVoiceNodeMutation() {
+  return useMutation({
+    mutationFn: (nodeId: string) => api.testAdminVoiceNode(nodeId),
+  });
+}
+
+export function useDeleteVoiceNodeMutation() {
+  const invalidate = useInvalidateAdminVoiceNodes();
+  return useMutation({
+    mutationFn: (nodeId: string) => api.deleteAdminVoiceNode(nodeId),
     onSettled: invalidate,
   });
 }

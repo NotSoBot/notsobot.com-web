@@ -337,18 +337,19 @@ export const MEDIASCRIPT_GUIDE: Array<TagDocGuideSection> = [
     id: 'ms-klattsch',
     title: 'Klattsch phoneme syntax',
     body: [
-      'The `KLATTSCH` voice is a speech synthesizer you can steer by hand. Its text can be plain English words, ARPABET phonemes (like `HH AH L OW`), or a mix of both. English words are converted to phonemes for you; phonemes you write are kept as they are.',
+      'The `KLATTSCH` voice is a speech synthesizer you can steer by hand. Its text can be plain English words, ARPABET phonemes (like `HH AH L OW`), Japanese kana, or any mix of them, like `AY+8 M really S AO+10 R IY`. Words and kana are converted to phonemes for you (with intonation for English); phonemes and controls you write are kept as they are. Kanji can\'t be read, so write Japanese in kana.',
       'Suffixes on a phoneme change its pitch or stress: `PH!` stresses it (a short lift and a longer sound), `PH+N` / `PH-N` glides the pitch up or down by N Hz and keeps the new pitch for what follows, and `PH(+N)` / `PH(-N)` is a one-off ornament where the pitch returns afterwards. Wrap phonemes in `( P P P )` (with spaces around the parentheses) to squeeze them into one syllable, which is handy for diphthongs and quick unstressed syllables.',
-      'Pauses: `,` is 100 ms, `;` is 200 ms, `.` is 300 ms and `pN` is exactly N ms.',
-      'State tokens change the voice from that point on. Each is a letter: `xN` or `x=N` sets it, `x+N` / `x-N` nudges it, and a bare `x` resets it to the default. The long forms `[base=N]`, `[rate=N]`, `[scale=N]` and `[pause=N]` are the same as `bN`, `rN`, `sN` and `pN`.',
+      'Pauses: `,` is 100 ms, `;` is 200 ms, `.` is 300 ms and `pN` is exactly N ms. Pauses and parentheses need spaces around them (`D ,` not `D,`).',
+      'State tokens change the voice from that point on. Each is a letter: `xN` or `x=N` sets it, `x+N` / `x-N` nudges it, and a bare `x` resets it to the default. The defaults are a male voice at 120 Hz, speaking 110 ms per phoneme.',
+      '`[voice=N]` starts another voice that plays at the same time as the ones before it, starting over from the defaults. Use it for chords, harmonies and rounds, like `r600 bC3 AA [voice=1] r600 bE3 AA [voice=2] r600 bG3 AA` for a C major chord.',
       'Pitch rules: `!` and `(+N)` only affect one phoneme, `+N` / `-N` stick, `bN` jumps to an absolute pitch, and a bare `b` returns to the pitch the line started on. For example `AY+20 D IH+10 D` puts the last D at +30, while `AY(+20) D IH(+10) D` leaves every D at the base pitch.',
       'Style tips: statements end with the last stressed vowel falling 5 to 15 Hz; yes/no questions end rising 15 to 30 Hz; excitement uses a wider range with `g+0.2 r-20`; sadness uses `r+30 h+0.2 t-0.2 v2`; a whisper is `h0.7 g0.2 t-0.3`; a female voice is `s1.17 b220` and a child is `s1.3 b260`; for singing use note names (`bC4`), vibrato (`vN`, `wN`) and a slower rate. Use `!` at most once or twice per phrase, prefer `(+N)` ornaments for small accents, and don\'t restate defaults (the baseline voice is male).',
     ].join('\n\n'),
     table: {
       columns: ['Token', 'Controls', 'Example'],
       rows: [
-        ['b', 'Base pitch in Hz, or a note name. Bare `b` returns to the starting pitch', '`b140`, `bC4`, `bA#3`, `bDb5`'],
-        ['r', 'Rate in ms per phoneme (bigger is slower)', '`r+30`'],
+        ['b', 'Base pitch in Hz (default 120), or a note name. Bare `b` returns to the starting pitch', '`b140`, `bC4`, `bA#3`, `bDb5`'],
+        ['r', 'Rate in ms per phoneme (default 110, bigger is slower)', '`r+30`'],
         ['s', 'Formant scale: 1.0 male, 1.17 female, 1.3 child', '`s1.17`, `s+0.1`'],
         ['v', 'Vibrato depth in Hz (0 is off)', '`v2`'],
         ['w', 'Vibrato rate in Hz (default 5)', '`w6`'],
@@ -358,6 +359,7 @@ export const MEDIASCRIPT_GUIDE: Array<TagDocGuideSection> = [
         ['t', 'Spectral tilt, -0.9 (dark) to +0.9 (bright)', '`t-0.2`'],
         ['g', 'Vocal effort, 0 (lax) to 1 (tense), default 0.5', '`g+0.2`'],
         ['p', 'Pause of exactly N ms', '`p250`'],
+        ['[voice=N]', 'Another voice playing at the same time, from the defaults', '`bC3 AA [voice=1] bE3 AA`'],
       ],
     },
     examples: [
@@ -372,6 +374,14 @@ export const MEDIASCRIPT_GUIDE: Array<TagDocGuideSection> = [
       {
         code: '{mediascript:tts voice KLATTSCH {jsonify:AY+8 M S AO+10 R IY-30 D EY+10 V}\nrender voice audio/wav}',
         result: '"I\'m sorry Dave" with hand-tuned pitch.',
+      },
+      {
+        code: '{mediascript:tts voice KLATTSCH {jsonify:r300 v3 bC4 ( HH AE ) bC4 ( P IY ) bD4 ( B ER TH ) bC4 ( D EY )}\nrender voice audio/wav}',
+        result: 'The start of "Happy Birthday", one note per syllable.',
+      },
+      {
+        code: '{mediascript:tts voice KLATTSCH {jsonify:こんにちは、せかい}\nrender voice audio/wav}',
+        result: '"Konnichiwa, sekai" with the Japanese vowels.',
       },
     ],
   },
@@ -1024,16 +1034,17 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     syntax: 'tts MEDIA_KEY VOICE=TIKTOK_EN_US_FEMALE_01 ...TEXT',
     args: [
       media('the name for the audio'),
-      {name: 'VOICE', default: 'TIKTOK_EN_US_FEMALE_01', description: 'one of the voices in the Text-to-speech voices table, or the name or ID of one of your cloned voices'},
+      {name: 'VOICE', default: 'your Default TTS Voice', description: 'one of the voices in the Text-to-speech voices table, or the name or ID of one of your cloned voices'},
       {name: 'TEXT', rest: true, description: 'what to say, wrapped in `{jsonify:}`'},
     ],
     examples: [
       {code: '{mediascript:tts voice TIKTOK_EN_US_DISNEY_GHOSTFACE {jsonify:what\'s your favorite scary movie}\nrender voice audio/mp3}', result: 'An MP3 of Ghostface asking the question.'},
-      {code: '{mediascript:load {video} clip\ntts voice {jsonify:{args}}\naudioputmix clip voice\nrender clip}', result: 'Mixes the default voice reading the arguments over the last video.'},
+      {code: '{mediascript:load {video} clip\ntts voice {jsonify:{args}}\naudioputmix clip voice\nrender clip}', result: 'Mixes your default voice reading the arguments over the last video.'},
     ],
     notes: [
       'Text longer than 4096 characters is cut off. See the Klattsch section for the `KLATTSCH` phoneme voice.',
       'With NotSoPremium you can use your own cloned voices (from `voice clone`): `VOICE="my voice"` by name (any case) or ID, or `VOICE=CLONED` for your newest one. They are always the voices of whoever runs the script, and a built-in voice wins over a cloned voice with the same name.',
+      'Without `VOICE`, it uses the Default TTS Voice of whoever runs the script (`/settings set tts-voice`, or the Text-to-speech section of your dashboard settings), or `TIKTOK_EN_US_FEMALE_01` when they haven\'t set one. A cloned default needs NotSoPremium, without it the fallback is used.',
     ],
   },
   {
@@ -2200,11 +2211,14 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     summary: 'Swaps another media\'s face onto the faces in the media.',
     syntax: 'faceswap MEDIA_KEY FACE_MEDIA_KEY MAX_FACES=1',
     args: [
-      media('the media whose faces get replaced'),
+      media('the media whose faces get replaced (its first frame)'),
       {name: 'FACE_MEDIA_KEY', description: 'the media with the face to use (its first frame)'},
       {name: 'MAX_FACES', default: '1', range: '1..8', description: 'how many of the biggest faces to replace'},
     ],
-    notes: ['Uses AI, and counts towards the 20 AI requests a script can make (shared with `edit` and `imagine`).'],
+    notes: [
+      'The result is a still image: a gif or video gives its first frame.',
+      'Uses AI, and counts towards the 20 AI requests a script can make (shared with `edit` and `imagine`).',
+    ],
   },
   {
     name: 'bill',

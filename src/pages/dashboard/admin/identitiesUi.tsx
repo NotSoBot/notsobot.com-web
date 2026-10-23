@@ -50,6 +50,11 @@ export function proxyAddress(proxy: Pick<IdentityProxy, 'host' | 'port'>): strin
   return (proxy.host.includes(':')) ? `[${proxy.host}]:${proxy.port}` : `${proxy.host}:${proxy.port}`;
 }
 
+// a service id as a title, `google_images` is "Google Images" (css capitalize only does the first letter of a word)
+export function serviceTitle(service: string): string {
+  return service.split('_').map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+}
+
 // with the username when it has one, never the password
 export function proxyLabel(proxy: Pick<IdentityProxy, 'host' | 'port' | 'username'>): string {
   return (proxy.username) ? `${proxy.username}@${proxyAddress(proxy)}` : proxyAddress(proxy);
