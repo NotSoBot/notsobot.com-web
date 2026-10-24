@@ -409,6 +409,8 @@ export const ApiErrorCodes = {
   UNKNOWN_GUILD_LLM_KNOWLEDGE: 10029,
   MAX_GUILD_LLM_KNOWLEDGE: 30027,
   UNKNOWN_VOICE_NODE: 10031,
+  UNKNOWN_MUSIC_QUEUE_ITEM: 10030,
+  UNKNOWN_MUSIC_SESSION: 10032,
   // a voice can't lose its last audio clip, it's deleted with the bot instead
   VOICE_CLIP_LAST: 50042,
   // a voice cloned before its audio was kept can't be moved to another cloning service
@@ -620,6 +622,64 @@ export interface GuildLLMKnowledgePage {
   // how many a server can have, and how many characters all of them can add up to
   limits: {amount: number, total_length: number},
 }
+
+export type GuildMusicLoop = 'off' | 'track' | 'queue';
+
+// something queued in a server's music queue (the playing item is position 0)
+export interface GuildMusicQueueItem {
+  // the album/playlist it was queued with, its songs share it (each time it's queued). The name is only shown, two can
+  // have the same one
+  batch_id: string | null,
+  batch_name: string | null,
+  // when it was queued (unix milliseconds)
+  created: number,
+  guild_id: string,
+  id: string,
+  // 1 is next
+  position: number,
+  // `opus` for a song found by a search or a service link, `url` for a link (converted when it's next)
+  source: 'opus' | 'url',
+  status: 'converting' | 'playing' | 'queued' | 'ready',
+  // a link has none until it's converted
+  track: null | {
+    album: string | null,
+    artist: string | null,
+    // milliseconds
+    duration: number,
+    isrc: string | null,
+    thumbnail: string | null,
+    title: string,
+    url: string | null,
+  },
+  // where it's from (a song's service page, can be empty)
+  url: string,
+  // who queued it
+  user_id: string,
+}
+
+// what's playing in a server and what's queued. `session` is the bot being in a voice channel for it, null otherwise
+export interface GuildMusic {
+  current: GuildMusicQueueItem | null,
+  // the queue takes turns between who queued (everyone's first song, then everyone's second...), a server setting
+  fair_queue: boolean,
+  // paused too long, the bot left: `current` carries on from here (milliseconds) with the next `music play`
+  held_position: null | number,
+  // goes back to off when the bot leaves or the queue runs out
+  loop: GuildMusicLoop,
+  queue: Array<GuildMusicQueueItem>,
+  session: null | {
+    channel_id: string,
+    // the track would have ended by now
+    finished: boolean,
+    guild_id: string,
+    node_id: string | null,
+    paused: boolean,
+    // milliseconds into the track, when it was fetched
+    position: number,
+  },
+}
+
+export type GuildMusicControl = 'leave' | 'pause' | 'resume' | 'skip';
 
 // a music node (notsobot.voice), owners only. Its password (the node's `VOICE_PASSWORD`) only comes back when it's made,
 // reset or revealed
@@ -897,7 +957,7 @@ export interface GuildSettings {
 }
 
 // `rules` covers command and category rules, `rules_admin` rules covering everything and the owner/admin bypass
-export type GuildEditableArea = 'prefixes' | 'rules' | 'rules_admin' | 'loggers' | 'settings';
+export type GuildEditableArea = 'prefixes' | 'rules' | 'rules_admin' | 'loggers' | 'settings' | 'music';
 
 // `Guild.to_dict()` + the caller's permissions and what they may edit
 export interface UserGuild {

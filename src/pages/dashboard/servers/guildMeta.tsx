@@ -18,6 +18,7 @@ export const AREA_PERMISSION: Record<GuildEditableArea, string> = {
   rules_admin: 'Administrator',
   loggers: 'Manage Server',
   settings: 'Manage Server',
+  music: 'Manage Server',
 };
 
 export const AREA_LABEL: Record<GuildEditableArea, string> = {
@@ -26,6 +27,7 @@ export const AREA_LABEL: Record<GuildEditableArea, string> = {
   rules: 'Command and category rules',
   rules_admin: 'Rules for every command and the owner/admin bypass',
   loggers: 'Loggers',
+  music: 'Music',
 };
 
 // why a server's section can't be changed: a missing Discord permission, or in the admin panel, not being a bot owner

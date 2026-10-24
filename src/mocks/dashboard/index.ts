@@ -29,6 +29,8 @@ import {
   type AdminUserRef,
   type ContentFlag,
   type GuildLLMKnowledge,
+  type GuildMusic,
+  type GuildMusicQueueItem,
   type GuildRule,
   type GuildRuleInput,
   type Identity,
@@ -96,6 +98,8 @@ const state = {
     {content: 'The #support channel is for help with the bot, staff usually answer within a day.', created: new Date(Date.now() - 9 * 86400000).toISOString(), guild_id: guilds[0].summary.id, id: '1300000000000000101', user_id: '1000000000000000001'},
     {content: 'Members get the Regular role after a week of chatting.', created: new Date(Date.now() - 2 * 86400000).toISOString(), guild_id: guilds[0].summary.id, id: '1300000000000000102', user_id: '1000000000000000001'},
   ]]]),
+  // each server's music, made when it's first asked for (`guildMusic`)
+  guildMusic: new Map<string, GuildMusic>(),
   reminders: createReminders(),
   reports: createReports(adminUsers),
   reportMessages: new Map<string, Array<ReportMessage>>(),
@@ -2351,7 +2355,7 @@ function adminGuildDetail(guildId: string) {
       reminders: state.reminders.filter((reminder) => reminder.guild_id === guildId).length || Number(BigInt(guildId) % 9n),
     },
     // owners can edit every area, moderators none
-    editable: {loggers: state.owner, prefixes: state.owner, rules: state.owner, rules_admin: state.owner, settings: state.owner},
+    editable: {loggers: state.owner, music: state.owner, prefixes: state.owner, rules: state.owner, rules_admin: state.owner, settings: state.owner},
     owner: false,
     permissions: '0',
   };
@@ -3081,6 +3085,139 @@ route('DELETE', '/users/@me/guilds/(\\d+)/llm/knowledge/(\\d+)', ([ , guildId, k
   requireEditable(guildId, 'settings');
   findGuildLLMKnowledge(guildId, knowledgeId);
   state.guildLLMKnowledge.set(guildId, guildLLMKnowledge(guildId).filter((other) => other.id !== knowledgeId));
+});
+
+// what's playing: mirrors the `/music` routes in `views/me_guilds.py`. The first server is playing something, the
+// bot's controls (`MUSIC_CONTROL`) are acted on right away here
+function mockMusicItem(guildId: string, id: string, position: number, track: Partial<NonNullable<GuildMusicQueueItem['track']>> | null, url = ''): GuildMusicQueueItem {
+  return {
+    batch_id: null,
+    batch_name: null,
+    // queued a few minutes apart, the first longest ago
+    created: Date.now() - (10 - Math.min(position, 9)) * 5 * 60 * 1000,
+    guild_id: guildId,
+    id,
+    position,
+    source: (track) ? 'opus' : 'url',
+    status: (position) ? ((track) ? 'ready' : 'queued') : 'playing',
+    track: (track) ? {album: null, artist: null, duration: 0, isrc: null, thumbnail: null, title: '', url: null, ...track} : null,
+    url,
+    user_id: '1000000000000000001',
+  };
+}
+
+function guildMusic(guildId: string): GuildMusic {
+  let music = state.guildMusic.get(guildId);
+  if (!music) {
+    const playing = guildId === guilds[0].summary.id;
+    music = {current: null, fair_queue: false, held_position: null, loop: 'off', queue: [], session: null};
+    if (playing) {
+      music.current = mockMusicItem(guildId, '1400000000000000001', 0, {album: 'Melodrama', artist: 'Lorde', duration: 228000, thumbnail: 'https://placehold.co/96x96/1db954/fff?text=M', title: 'Green Light'}, 'https://open.spotify.com/track/6ie2Bw3xLj2JcGowOlcMhb');
+      music.queue = [
+        mockMusicItem(guildId, '1400000000000000002', 1, {album: 'Pure Heroine', artist: 'Lorde', duration: 190000, title: 'Royals'}, 'https://open.spotify.com/track/2dLLR6qlu5UJ5gk0dKz0h3'),
+        mockMusicItem(guildId, '1400000000000000003', 2, {artist: 'Lorde', duration: 211000, title: 'Ribs'}, 'https://open.spotify.com/track/2MvvoeRt8NcOXWESkxWn3g'),
+        mockMusicItem(guildId, '1400000000000000004', 3, null, 'https://notsobot.com/some/audio/file.mp3'),
+      ];
+      music.session = {channel_id: '1100000000000000001', finished: false, guild_id: guildId, node_id: null, paused: false, position: 64000};
+    }
+    state.guildMusic.set(guildId, music);
+  }
+  return music;
+}
+
+function renumberMusicQueue(music: GuildMusic) {
+  music.queue.forEach((item, index) => {
+    item.position = index + 1;
+  });
+}
+
+function findMusicQueueItem(music: GuildMusic, itemId: string): GuildMusicQueueItem {
+  const item = music.queue.find((other) => other.id === itemId);
+  if (!item) {
+    throw new MockError(404, ApiErrorCodes.UNKNOWN_MUSIC_QUEUE_ITEM, 'Unknown Music Queue Item');
+  }
+  return item;
+}
+
+route('GET', '/users/@me/guilds/(\\d+)/music', ([ , guildId ]) => {
+  findGuild(guildId);
+  return guildMusic(guildId);
+});
+
+route('PATCH', '/users/@me/guilds/(\\d+)/music', ([ , guildId ], { body }) => {
+  requireEditable(guildId, 'music');
+  const music = guildMusic(guildId);
+  if (body.loop !== undefined && body.loop !== 'off' && body.loop !== 'track' && body.loop !== 'queue') {
+    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'Loop must be off, track or queue');
+  }
+  if (body.fair_queue !== undefined && typeof(body.fair_queue) !== 'boolean') {
+    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'fair_queue must be a boolean');
+  }
+  if (body.loop !== undefined) {
+    music.loop = body.loop;
+  }
+  if (body.fair_queue !== undefined) {
+    music.fair_queue = body.fair_queue;
+  }
+  return music;
+});
+
+route('POST', '/users/@me/guilds/(\\d+)/music/control', ([ , guildId ], { body }) => {
+  requireEditable(guildId, 'music');
+  const music = guildMusic(guildId);
+  if (!music.session) {
+    throw new MockError(404, ApiErrorCodes.UNKNOWN_MUSIC_SESSION, 'Nothing is playing in this server');
+  }
+  switch (body.action) {
+    case 'pause':
+    case 'resume': {
+      music.session.paused = body.action === 'pause';
+    }; break;
+    case 'skip': {
+      const next = music.queue.shift();
+      if (music.loop === 'queue' && music.current) {
+        music.queue.push(music.current);
+      }
+      music.current = (next) ? {...next, position: 0, status: 'playing'} : null;
+      music.session.position = 0;
+      music.session.paused = false;
+      if (!music.current) {
+        music.session = null;
+        music.loop = 'off';
+      }
+      renumberMusicQueue(music);
+    }; break;
+    case 'leave': {
+      state.guildMusic.set(guildId, {current: null, fair_queue: music.fair_queue, held_position: null, loop: 'off', queue: [], session: null});
+    }; break;
+    default: throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'Unknown action');
+  }
+});
+
+route('PATCH', '/users/@me/guilds/(\\d+)/music/queue/(\\d+)', ([ , guildId, itemId ], { body }) => {
+  requireEditable(guildId, 'music');
+  const music = guildMusic(guildId);
+  const item = findMusicQueueItem(music, itemId);
+  music.queue = music.queue.filter((other) => other !== item);
+  music.queue.splice(Math.min(Math.max(Number(body.position) - 1, 0), music.queue.length), 0, item);
+  renumberMusicQueue(music);
+  return music;
+});
+
+route('DELETE', '/users/@me/guilds/(\\d+)/music/queue/(\\d+)', ([ , guildId, itemId ]) => {
+  requireEditable(guildId, 'music');
+  const music = guildMusic(guildId);
+  const item = findMusicQueueItem(music, itemId);
+  music.queue = music.queue.filter((other) => other !== item);
+  renumberMusicQueue(music);
+  return music;
+});
+
+route('POST', '/users/@me/guilds/(\\d+)/music/queue/delete', ([ , guildId ]) => {
+  requireEditable(guildId, 'music');
+  const music = guildMusic(guildId);
+  music.queue = [];
+  return music;
 });
 
 // ai memory: mirrors `views/me_llm_memories.py`

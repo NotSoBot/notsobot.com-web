@@ -62,6 +62,9 @@ import type {
   CommandStat,
   EntitlementsPage,
   GuildLLMKnowledge,
+  GuildMusic,
+  GuildMusicControl,
+  GuildMusicLoop,
   GuildLLMKnowledgePage,
   LLMMemoriesPage,
   LLMMemory,
@@ -613,6 +616,32 @@ export const api = {
 
   deleteMeGuildLLMKnowledge: (guildId: string, knowledgeId: string) => {
     return apiRequest<void>(guildEndpoints('me', guildId).LLM_KNOWLEDGE_ITEM(knowledgeId), {method: 'DELETE'});
+  },
+
+  // what's playing and queued, any member can see it and Manage Server changes it. Pausing, resuming, skipping and
+  // leaving go to the bot (the api only checks it's playing), the rest answers with the queue as it is now
+  fetchMeGuildMusic: (guildId: string, signal?: AbortSignal) => {
+    return apiRequest<GuildMusic>(guildEndpoints('me', guildId).MUSIC, {signal});
+  },
+
+  patchMeGuildMusic: (guildId: string, patch: {fair_queue?: boolean, loop?: GuildMusicLoop}) => {
+    return apiRequest<GuildMusic>(guildEndpoints('me', guildId).MUSIC, {method: 'PATCH', body: patch});
+  },
+
+  controlMeGuildMusic: (guildId: string, action: GuildMusicControl) => {
+    return apiRequest<void>(guildEndpoints('me', guildId).MUSIC_CONTROL, {method: 'POST', body: {action}});
+  },
+
+  moveMeGuildMusicQueueItem: (guildId: string, itemId: string, position: number) => {
+    return apiRequest<GuildMusic>(guildEndpoints('me', guildId).MUSIC_QUEUE_ITEM(itemId), {method: 'PATCH', body: {position}});
+  },
+
+  deleteMeGuildMusicQueueItem: (guildId: string, itemId: string) => {
+    return apiRequest<GuildMusic>(guildEndpoints('me', guildId).MUSIC_QUEUE_ITEM(itemId), {method: 'DELETE'});
+  },
+
+  clearMeGuildMusicQueue: (guildId: string) => {
+    return apiRequest<GuildMusic>(guildEndpoints('me', guildId).MUSIC_QUEUE_DELETE, {method: 'POST', body: {}});
   },
 
   // the server edits below go through `/users/@me/guilds` (`scope: 'me'`) or `/admin/guilds` (`'admin'`), same bodies

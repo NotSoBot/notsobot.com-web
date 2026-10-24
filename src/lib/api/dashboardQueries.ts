@@ -47,6 +47,9 @@ import type {
   ContentFlagType,
   ContentFlagsPage,
   GuildLLMKnowledge,
+  GuildMusic,
+  GuildMusicControl,
+  GuildMusicLoop,
   GuildLLMKnowledgePage,
   GuildRule,
   Identity,
@@ -1197,6 +1200,66 @@ export function useGuildLLMKnowledgeMutation(guildId: string) {
     // someone else removed it, show the list as it is now
     onError: (error) => {
       if (error instanceof ApiRequestError && error.code === ApiErrorCodes.UNKNOWN_GUILD_LLM_KNOWLEDGE) {
+        void queryClient.invalidateQueries({queryKey: key});
+      }
+    },
+  });
+}
+
+
+/* what's playing in the server */
+
+// how often what's playing is fetched again while it's open, a track's position moves on its own in between
+const GUILD_MUSIC_REFETCH_INTERVAL = 10 * 1000;
+
+export function useMeGuildMusicQuery(guildId: string) {
+  const { token } = useAuth();
+  return useQuery({
+    queryKey: queryKeys.meGuildMusic(token, guildId),
+    queryFn: ({ signal }) => api.fetchMeGuildMusic(guildId, signal),
+    refetchInterval: GUILD_MUSIC_REFETCH_INTERVAL,
+    retry: retryDiscordRefresh,
+  });
+}
+
+
+export type GuildMusicAction =
+  | {kind: 'loop', loop: GuildMusicLoop}
+  | {kind: 'fair_queue', enabled: boolean}
+  | {kind: 'control', action: GuildMusicControl}
+  | {kind: 'move', itemId: string, position: number}
+  | {kind: 'remove', itemId: string}
+  | {kind: 'clear'};
+
+// queue changes answer with the queue as it is now; the bot's controls take a moment, so it's fetched again shortly
+export function useGuildMusicMutation(guildId: string) {
+  const { token } = useAuth();
+  const queryClient = useQueryClient();
+  const key = queryKeys.meGuildMusic(token, guildId);
+  return useMutation({
+    mutationFn: async (action: GuildMusicAction): Promise<GuildMusic | null> => {
+      switch (action.kind) {
+        case 'loop': return api.patchMeGuildMusic(guildId, {loop: action.loop});
+        case 'fair_queue': return api.patchMeGuildMusic(guildId, {fair_queue: action.enabled});
+        case 'move': return api.moveMeGuildMusicQueueItem(guildId, action.itemId, action.position);
+        case 'remove': return api.deleteMeGuildMusicQueueItem(guildId, action.itemId);
+        case 'clear': return api.clearMeGuildMusicQueue(guildId);
+        case 'control': {
+          await api.controlMeGuildMusic(guildId, action.action);
+          return null;
+        }
+      }
+    },
+    onSuccess: (music) => {
+      if (music) {
+        queryClient.setQueryData<GuildMusic>(key, music);
+      } else {
+        setTimeout(() => void queryClient.invalidateQueries({queryKey: key}), 1500);
+      }
+    },
+    // someone else changed the queue or the bot left, show it as it is now
+    onError: (error) => {
+      if (error instanceof ApiRequestError && (error.code === ApiErrorCodes.UNKNOWN_MUSIC_QUEUE_ITEM || error.code === ApiErrorCodes.UNKNOWN_MUSIC_SESSION)) {
         void queryClient.invalidateQueries({queryKey: key});
       }
     },

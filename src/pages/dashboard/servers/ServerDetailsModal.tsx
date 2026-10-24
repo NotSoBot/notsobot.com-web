@@ -14,6 +14,7 @@ import { PanelSkeleton, Skeleton, UnsavedChangesGuard } from '../ui';
 import { AIKnowledgeSection } from './AIKnowledgeSection';
 import { GuildIcon } from './GuildIcon';
 import { AREA_LABEL, AREA_PERMISSION } from './guildMeta';
+import { MusicSection } from './MusicSection';
 import { ServerDataSection } from './ServerDataSection';
 import { LoggersSection, PrefixesSection, RulesSection } from './ServerSections';
 import { ServerSettingsForm } from './ServerSettingsForm';
@@ -141,6 +142,7 @@ function ServerDetails({ guild, onDirtyChange }: {guild: UserGuild, onDirtyChang
         <PrefixesSection guild={guild}/>
         <ServerSettingsForm guild={guild} onDirtyChange={onDirtyChange}/>
         <AIKnowledgeSection guild={guild}/>
+        <MusicSection guild={guild}/>
         <RulesSection guild={guild}/>
         <LoggersSection guild={guild}/>
         <ServerDataSection guild={guild}/>

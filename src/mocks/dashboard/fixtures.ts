@@ -353,7 +353,7 @@ export function guildEditable(summary: UserGuildSummary): UserGuild['editable'] 
   const permissions = BigInt(summary.permissions);
   const admin = summary.owner || !!(permissions & ADMINISTRATOR);
   const manage = admin || !!(permissions & MANAGE_GUILD);
-  return {prefixes: manage, rules: manage, rules_admin: admin, loggers: manage, settings: manage};
+  return {prefixes: manage, rules: manage, rules_admin: admin, loggers: manage, settings: manage, music: manage};
 }
 
 
