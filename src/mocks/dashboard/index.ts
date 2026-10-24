@@ -3598,7 +3598,7 @@ function mockVoiceNodeStats(players: number, playing: number, paused: number, wo
     playing,
     sessions: 2,
     uptime: (31 * 60 + 7) * 60 * 1000,
-    version: '4.0.0-notsobot',
+    version: '0.0.1',
     workers: Array.from({length: workers}, (_, index) => ({
       paused: (index === 0) ? paused : 0,
       players: Math.floor(players / workers) + ((index < players % workers) ? 1 : 0),
@@ -3631,7 +3631,7 @@ route('POST', '/admin/voice-nodes/(\\d+)/test', ([ , nodeId ]) => {
   if (node.id === mockVoiceNodes[2].id) {
     return {error: 'The node didn\u2019t answer in 5 seconds', latency: null, ok: false, version: null};
   }
-  return {error: null, latency: 41, ok: true, version: '4.0.0-notsobot'};
+  return {error: null, latency: 41, ok: true, version: '0.0.1'};
 });
 
 route('GET', '/admin/identities', () => {
@@ -4331,7 +4331,7 @@ const mockCommands = [
   mockCommand('music.skip', 'music skip', 'MUSIC', 'Skip to the next track in the music queue', 'premium_server', [0, 1]),
   mockCommand('music.queue', 'music queue', 'MUSIC', 'Show what the music is playing and what is queued after it', 'premium_server'),
   mockCommand('ai', 'ai', 'AI', 'Talk to NotSoAI', 'premium_server', [0, 1]),
-  mockCommand('voice.clone', 'voice clone', 'AUDIO', 'Clone a voice for Text-to-Speech', 'premium_plus'),
+  mockCommand('voice.clone', 'tts voice create', 'AUDIO', 'Clone a voice for Text-to-Speech', 'premium_plus'),
   mockCommand('tag.show', 'tag', 'TAGS', 'Show a tag', null, [0, 1]),
   mockCommand('media.iv.deepfry', 'deepfry', 'EFFECTS', 'Deepfry an image', null),
 ];

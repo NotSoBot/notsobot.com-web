@@ -2,7 +2,7 @@
 // passwords) from the api, disabled ones drain (no new servers, the ones on them move off between tracks). A password
 // only shows here when a node is made, revealed or given a new one. One compact row per node with its live counts
 
-import { Activity, KeyRound, Pencil, Plus, RadioTower, Trash2 } from 'lucide-react';
+import { Activity, Check, KeyRound, Pencil, Plus, RadioTower, Trash2, X } from 'lucide-react';
 import { type ReactNode, useEffect, useId, useState } from 'react';
 
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -154,6 +154,8 @@ function NodeRow({ node, stats: item, test, onTest, onPassword, onEdit, onDelete
   const offline = !!item && !stats;
   const draining = !node.enabled && !!stats && 0 < stats.players;
   const status = (offline) ? 'Offline' : (!stats) ? 'Checking…' : (draining) ? 'Draining' : (node.enabled) ? 'Online' : 'Disabled';
+  // phones show the last test on the Test button, there's no room for its chip
+  const tested = describeTest(test);
   const megabytes = (bytes: number) => `${Math.round(bytes / (1024 * 1024)).toLocaleString()} MB`;
   // the full url is its tooltip
   const host = node.url.replace(/^https?:\/\//, '').replace(/\/+$/, '');
@@ -181,8 +183,20 @@ function NodeRow({ node, stats: item, test, onTest, onPassword, onEdit, onDelete
           <span className='min-w-0 truncate font-mono text-xs text-muted' title={node.url}>{host}</span>
         </div>
         <div className='flex shrink-0 items-center'>
+          <TestChip result={test}/>
           <IconButton label='Test' onClick={onTest} disabled={test === 'testing'}>
-            {(test === 'testing') ? <Spinner className='size-4'/> : <Activity aria-hidden className='size-4'/>}
+            {(test === 'testing') ? (
+              <Spinner className='size-4'/>
+            ) : (tested) ? (
+              <>
+                <Activity aria-hidden className='size-4 max-sm:hidden'/>
+                {(tested.failed) ?
+                  <X aria-hidden className='size-4 text-danger sm:hidden'/> :
+                  <Check aria-hidden className='size-4 text-success sm:hidden'/>}
+              </>
+            ) : (
+              <Activity aria-hidden className='size-4'/>
+            )}
           </IconButton>
           <IconButton label='Password' onClick={onPassword}><KeyRound aria-hidden className='size-4'/></IconButton>
           <IconButton label='Edit' onClick={onEdit}><Pencil aria-hidden className='size-4'/></IconButton>
@@ -211,10 +225,6 @@ function NodeRow({ node, stats: item, test, onTest, onPassword, onEdit, onDelete
           {(stats) ? `up ${formatUptime(stats.uptime)} • ` : null}added {formatDate(node.created)}
         </span>
       </div>
-      {/* a failed test saying what the live check already does isn't repeated */}
-      {(offline && test && typeof(test) === 'object' && ('failed' in test || !test.ok) && ('failed' in test ? test.failed : test.error) === item?.error) ?
-        null :
-        <TestResult result={test}/>}
     </li>
   );
 }
@@ -253,27 +263,39 @@ function formatUptime(milliseconds: number): string {
 }
 
 
-// a node's last test, on its own line under the details (until the page is left): reachable with its version and how
-// long it took, or why not
-function TestResult({ result }: {result?: NodeTestState}) {
-  if (!result) {
+// a finished test, short (how long it took, or that it failed) and whole (its version, or why not)
+function describeTest(result?: NodeTestState): {failed: boolean, short: string, message: string} | null {
+  if (!result || result === 'testing') {
     return null;
   }
-  const className = 'mt-0.5 truncate pl-5 text-xs';
-  if (result === 'testing') {
-    return <p className={cn(className, 'text-subtle')}>Testing…</p>;
-  }
   if ('failed' in result) {
-    return <p role='alert' className={cn(className, 'text-danger')} title={result.failed}>Test failed: {result.failed}</p>;
+    return {failed: true, short: 'Failed', message: `Test failed: ${result.failed}`};
   }
   if (!result.ok) {
-    return (
-      <p role='alert' className={cn(className, 'text-danger')} title={result.error ?? undefined}>
-        Test failed: {result.error}{(result.latency !== null) ? ` (${result.latency.toLocaleString()} ms)` : null}
-      </p>
-    );
+    const latency = (result.latency !== null) ? ` (${result.latency.toLocaleString()} ms)` : '';
+    return {failed: true, short: 'Failed', message: `Test failed: ${result.error ?? 'Unknown error'}${latency}`};
   }
-  return <p className={cn(className, 'text-success')}>Test ok, {result.version} in {(result.latency ?? 0).toLocaleString()} ms</p>;
+  const latency = `${(result.latency ?? 0).toLocaleString()} ms`;
+  return {failed: false, short: latency, message: `Test ok, ${result.version} in ${latency}`};
+}
+
+// a node's last test as a chip next to its Test button (until the page is left), the whole message is its tooltip and
+// what screen readers hear. Phones don't have the room (it would cut off the Draining chip), the button's icon shows
+// it there instead. Nothing while testing, the button's spinner says so
+function TestChip({ result }: {result?: NodeTestState}) {
+  const test = describeTest(result);
+  if (!test) {
+    return null;
+  }
+  return (
+    <span role={(test.failed) ? 'alert' : 'status'}>
+      <span className='sr-only'>{test.message}</span>
+      <Chip className='mr-1 gap-1 tabular-nums max-sm:hidden' tone={(test.failed) ? 'danger' : 'success'} title={test.message}>
+        {(test.failed) ? <X aria-hidden className='size-3'/> : <Check aria-hidden className='size-3'/>}
+        <span aria-hidden>{test.short}</span>
+      </Chip>
+    </span>
+  );
 }
 
 

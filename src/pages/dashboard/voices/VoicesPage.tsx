@@ -50,7 +50,7 @@ export function VoicesPage() {
     <>
       <DashboardHeader
         title='Your Voices'
-        description={<>Voices you cloned with the bot’s <code className='text-fg'>voice clone</code> command, and the audio clips they’re made from.</>}
+        description={<>Voices you cloned with the bot’s <code className='text-fg'>tts voice create</code> command, and the audio clips they’re made from.</>}
       />
 
       {(isPending) ? (
@@ -59,7 +59,7 @@ export function VoicesPage() {
         <ErrorPanel title='Couldn’t load your voices' message={errorMessage(error)} onRetry={() => refetch()} retrying={isRefetching}/>
       ) : (!items.length) ? (
         <EmptyState icon={<AudioLines className='size-10'/>} title='No cloned voices yet'>
-          Clone one in Discord with <code className='text-fg'>voice clone</code> and an audio clip of someone speaking.
+          Clone one in Discord with <code className='text-fg'>tts voice create</code> and an audio clip of someone speaking.
         </EmptyState>
       ) : (
         <>

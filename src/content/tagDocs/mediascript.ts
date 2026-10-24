@@ -1043,7 +1043,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     ],
     notes: [
       'Text longer than 4096 characters is cut off. See the Klattsch section for the `KLATTSCH` phoneme voice.',
-      'With NotSoPremium you can use your own cloned voices (from `voice clone`): `VOICE="my voice"` by name (any case) or ID, or `VOICE=CLONED` for your newest one. They are always the voices of whoever runs the script, and a built-in voice wins over a cloned voice with the same name.',
+      'With NotSoPremium you can use your own cloned voices (from `tts voice create` or `/tts voice create`): `VOICE="my voice"` by name (any case) or ID, or `VOICE=CLONED` for your newest one. They are always the voices of whoever runs the script, and a built-in voice wins over a cloned voice with the same name.',
       'Without `VOICE`, it uses the Default TTS Voice of whoever runs the script (`/settings set tts-voice`, or the Text-to-speech section of your dashboard settings), or `TIKTOK_EN_US_FEMALE_01` when they haven\'t set one. A cloned default needs NotSoPremium, without it the fallback is used.',
     ],
   },

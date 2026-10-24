@@ -671,7 +671,7 @@ export interface VoiceNodeStatsItem {
   stats: VoiceNodeStats | null,
 }
 
-// the api asking the node for its `/version` with its password, like the bot does
+// the api asking the node for its `/stats` with its password, the version is its package.json one
 export interface VoiceNodeTest {
   // why it isn't ok (unreachable, a wrong password, an untrusted certificate)
   error: string | null,
@@ -714,7 +714,7 @@ export interface ApplicationsPage {
   limit: number,
 }
 
-// a voice cloned with the bot's `voice clone` command
+// a voice cloned with the bot's `tts voice create` command
 export interface Voice {
   created: ApiTimestamp,
   id: string,
