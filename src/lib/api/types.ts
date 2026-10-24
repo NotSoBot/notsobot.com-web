@@ -689,7 +689,14 @@ export interface GuildMusicQueueItem {
 
 // what's playing in a server and what's queued. `session` is the bot being in a voice channel for it, null otherwise
 export interface GuildMusic {
+  // seconds the end of a song fades into the next (0 off, up to 12), only with `premium` (kept without it)
+  crossfade: number,
   current: GuildMusicQueueItem | null,
+  // DJ mode (on by default): controlling the music in Discord needs Manage Server or the DJ role, with no votes;
+  // anyone can still add songs
+  dj_only: boolean,
+  // the role that makes people DJs, null for roles with "NotSoMusic" in their name
+  dj_role_id: null | string,
   // the queue takes turns between who queued (everyone's first song, then everyone's second...), a server setting
   fair_queue: boolean,
   // paused too long, the bot left: `current` carries on from here (milliseconds) with the next `music play`
@@ -720,17 +727,25 @@ export interface GuildMusic {
   // 24/7 (on by default): the bot stays in voice when the queue runs out or it's paused. Only does anything with
   // `premium`, kept for when it comes back
   stay: boolean,
-  // skipping someone else's song in Discord is a vote (half of who's listening)
+  // without DJ mode, skipping/pausing/resuming someone else's song in Discord is a vote (half of who's listening)
+  vote_pause: boolean,
+  vote_resume: boolean,
   vote_skip: boolean,
 }
 
 // what PATCH changes, the ones given. `max_duration` 0 clears it
 export interface GuildMusicSettings {
+  crossfade?: number,
+  dj_only?: boolean,
+  // null clears it
+  dj_role_id?: null | string,
   fair_queue?: boolean,
   loop?: GuildMusicLoop,
   max_duration?: number,
   no_duplicates?: boolean,
   stay?: boolean,
+  vote_pause?: boolean,
+  vote_resume?: boolean,
   vote_skip?: boolean,
 }
 

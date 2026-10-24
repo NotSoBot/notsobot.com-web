@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronUp, Crown, ListMusic, Music, Pause, Play, SkipForward, Square } from 'lucide-react';
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useId, useState, type FormEvent, type ReactNode } from 'react';
 import { Link } from 'react-router';
 
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -11,6 +11,7 @@ import type { GuildMusic, GuildMusicLoop, GuildMusicQueueItem, UserGuild } from 
 import { errorMessage, useGuildMusicMutation, useMeGuildMusicQuery, type GuildMusicAction } from '@/lib/api/dashboardQueries';
 import { cn } from '@/lib/utils';
 
+import { isSnowflake } from '../tags/tagMeta';
 import { Field, Panel, Skeleton, Toggle } from '../ui';
 import { EntryMention, useReadOnlyMessage } from './guildMeta';
 import { RemoveButton } from './ServerSections';
@@ -35,15 +36,18 @@ export function MusicSection({ guild }: {guild: UserGuild}) {
   const [ busyKey, setBusyKey ] = useState<string | null>(null);
   const [ confirming, setConfirming ] = useState<'clear' | 'leave' | null>(null);
 
-  const run = async (key: string, action: GuildMusicAction, success?: string) => {
+  // whether it went through
+  const run = async (key: string, action: GuildMusicAction, success?: string): Promise<boolean> => {
     setBusyKey(key);
     try {
       await mutation.mutateAsync(action);
       if (success) {
         toast(success);
       }
+      return true;
     } catch (error) {
       toast(errorMessage(error, 'Couldn’t change the music.'), 'error');
+      return false;
     } finally {
       setBusyKey(null);
     }
@@ -169,7 +173,7 @@ export function MusicSection({ guild }: {guild: UserGuild}) {
       )}
 
       {(music) ? (
-        <MusicSettings music={music} editable={editable} busyKey={busyKey} disabled={mutation.isPending} run={run}/>
+        <MusicSettings guildId={guild.id} music={music} editable={editable} busyKey={busyKey} disabled={mutation.isPending} run={run}/>
       ) : null}
 
       {(confirming === 'clear') ? (
@@ -202,13 +206,21 @@ export function MusicSection({ guild }: {guild: UserGuild}) {
 }
 
 
-// the server's music settings (`music settings` in Discord): the queue's rules, voting to skip and 24/7
-function MusicSettings({ music, editable, busyKey, disabled, run }: {
+// what the vote settings make a vote in Discord (someone else's song, half of who's listening), off without DJ mode
+const VOTE_SETTINGS: ReadonlyArray<{key: 'vote_skip' | 'vote_pause' | 'vote_resume', label: string, description: string, on: string, off: string}> = [
+  {key: 'vote_skip', label: 'Vote to skip someone else’s song', description: 'Skipping a song someone else queued takes votes from half of who’s listening. Off skips it right away. Your own songs never need a vote.', on: 'Skipping takes a vote now', off: 'Skipping doesn’t take a vote now'},
+  {key: 'vote_pause', label: 'Vote to pause someone else’s song', description: 'Pausing a song someone else queued takes votes from half of who’s listening.', on: 'Pausing takes a vote now', off: 'Pausing doesn’t take a vote now'},
+  {key: 'vote_resume', label: 'Vote to resume someone else’s song', description: 'Resuming a song someone else queued takes votes too. Resuming after NotSoBot left or was disconnected never does.', on: 'Resuming takes a vote now', off: 'Resuming doesn’t take a vote now'},
+];
+
+// the server's music settings (`music settings` in Discord): who controls the music, the queue's rules and 24/7
+function MusicSettings({ guildId, music, editable, busyKey, disabled, run }: {
+  guildId: string,
   music: GuildMusic,
   editable: boolean,
   busyKey: string | null,
   disabled: boolean,
-  run: (key: string, action: GuildMusicAction, success?: string) => Promise<void>,
+  run: (key: string, action: GuildMusicAction, success?: string) => Promise<boolean>,
 }) {
   const locked = !editable || disabled;
   return (
@@ -230,16 +242,38 @@ function MusicSettings({ music, editable, busyKey, disabled, run }: {
         </div>
         <div className='px-3 py-2.5'>
           <Toggle
-            checked={music.vote_skip}
+            checked={music.dj_only}
             disabled={locked}
-            label='Vote to skip someone else’s song'
-            description='In Discord, skipping a song someone else queued takes votes from half of who’s listening. Off skips it right away. Your own songs never need a vote.'
+            label='DJ mode'
+            description='In Discord, only DJs (Manage Server or the DJ role) can skip, pause, loop, seek, change effects or the volume, make NotSoBot leave, and move or remove other people’s songs. Anyone can still add songs.'
             onChange={(value) => void run(
-              'vote_skip',
-              {kind: 'settings', settings: {vote_skip: value}},
-              (value) ? 'Skipping takes a vote now' : 'Skipping doesn’t take a vote now',
+              'dj_only',
+              {kind: 'settings', settings: {dj_only: value}},
+              (value) ? 'Only DJs control the music now' : 'Everyone controls the music now, with votes',
             )}
           />
+          <DjRoleSetting guildId={guildId} music={music} editable={editable} busyKey={busyKey} disabled={disabled} run={run}/>
+        </div>
+        <div className='px-3 py-2.5'>
+          {(music.dj_only) ? (
+            <p className='mb-2 text-xs text-subtle'>DJ mode is on, so nobody votes: these only apply with it off.</p>
+          ) : null}
+          <div className={cn('space-y-3', music.dj_only && 'opacity-60')}>
+            {VOTE_SETTINGS.map((setting) => (
+              <Toggle
+                key={setting.key}
+                checked={music[setting.key]}
+                disabled={locked || music.dj_only}
+                label={setting.label}
+                description={setting.description}
+                onChange={(value) => void run(
+                  setting.key,
+                  {kind: 'settings', settings: {[setting.key]: value}},
+                  (value) ? setting.on : setting.off,
+                )}
+              />
+            ))}
+          </div>
         </div>
         <div className='px-3 py-2.5'>
           <Toggle
@@ -268,15 +302,10 @@ function MusicSettings({ music, editable, busyKey, disabled, run }: {
             )}
           />
           {(!music.premium) ? (
-            <p className='mt-2 flex items-start gap-2 rounded-md border border-[#f0b232]/30 bg-[#f0b232]/10 px-3 py-2 text-xs text-fg'>
-              <Crown aria-hidden className='mt-px size-3.5 shrink-0 text-[#f0b232]'/>
-              <span>
-                24/7 only works on premium servers, until then NotSoBot leaves like it usually does.{' '}
-                <Link to={Routes.DASHBOARD_PREMIUM} className='text-brand hover:underline'>Give this server a premium slot</Link>
-              </span>
-            </p>
+            <PremiumNote>24/7 only works on premium servers, until then NotSoBot leaves like it usually does.</PremiumNote>
           ) : null}
         </div>
+        <CrossfadeSetting music={music} editable={editable} busy={busyKey === 'crossfade'} run={run}/>
         <p className='flex items-center gap-2 px-3 py-2.5 text-xs text-subtle'>
           <ListMusic aria-hidden className='size-3.5 shrink-0'/>
           <span>
@@ -290,13 +319,170 @@ function MusicSettings({ music, editable, busyKey, disabled, run }: {
 }
 
 
+// the role that makes people DJs. The API doesn't list a server's roles so it's an ID, like the rules. With none picked,
+// roles with "NotSoMusic" in their name count. Never @everyone (its ID is the server's), that's DJ mode off
+function DjRoleSetting({ guildId, music, editable, busyKey, disabled, run }: {
+  guildId: string,
+  music: GuildMusic,
+  editable: boolean,
+  busyKey: string | null,
+  disabled: boolean,
+  run: (key: string, action: GuildMusicAction, success?: string) => Promise<boolean>,
+}) {
+  const saved = music.dj_role_id ?? '';
+  const [ draft, setDraft ] = useState(saved);
+  // it's fetched again every few seconds, only a change from somewhere else replaces what's typed
+  useEffect(() => setDraft(saved), [saved]);
+
+  const everyone = draft === guildId;
+  const valid = isSnowflake(draft) && !everyone;
+  const changed = draft !== saved;
+
+  return (
+    <form
+      className='mt-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start'
+      onSubmit={(event: FormEvent) => {
+        event.preventDefault();
+        if (editable && !disabled && valid && changed) {
+          void run('dj_role', {kind: 'settings', settings: {dj_role_id: draft}}, 'The DJ role changed');
+        }
+      }}
+    >
+      <Field
+        className='flex-1'
+        label='DJ role ID'
+        hint={(saved) ? (
+          'People with this role are DJs, and so is anyone with Manage Server. Roles named NotSoMusic don’t count while one is picked.'
+        ) : (
+          'None picked: roles with “NotSoMusic” in their name make people DJs, and so does Manage Server. Turn on Developer Mode in Discord and use “Copy ID” on a role to pick one.'
+        )}
+        error={(everyone) ? (
+          'That’s @everyone. To let everyone control the music, turn DJ mode off instead.'
+        ) : (draft && !isSnowflake(draft)) ? 'IDs are 15–21 digits. Turn on Developer Mode in Discord and use “Copy ID”.' : null}
+      >
+        {(props) => (
+          <input
+            {...props}
+            className='input font-mono'
+            inputMode='numeric'
+            placeholder='None'
+            value={draft}
+            disabled={!editable}
+            onChange={(event) => setDraft(event.target.value.replace(/[<>@&!\s]/g, ''))}
+            autoComplete='off'
+          />
+        )}
+      </Field>
+      {(editable) ? (
+        <button type='submit' className='btn btn-secondary shrink-0 sm:mt-[1.625rem] sm:h-[2.375rem]' disabled={disabled || !valid || !changed}>
+          {(busyKey === 'dj_role') ? <Spinner className='size-4'/> : null}
+          {(saved) ? 'Change' : 'Pick'}
+        </button>
+      ) : null}
+      {(editable && saved) ? (
+        <button
+          type='button'
+          className='btn btn-ghost shrink-0 sm:mt-[1.625rem] sm:h-[2.375rem]'
+          disabled={disabled}
+          onClick={() => void run('dj_role-none', {kind: 'settings', settings: {dj_role_id: null}}, 'No DJ role, roles named NotSoMusic count again')}
+        >
+          {(busyKey === 'dj_role-none') ? <Spinner className='size-4'/> : null}
+          None
+        </button>
+      ) : null}
+    </form>
+  );
+}
+
+
+// how many seconds the end of a song fades into the next, saved a moment after the slider stops moving. It stays usable
+// while that's sent so a few arrow key presses in a row all count
+function CrossfadeSetting({ music, editable, busy, run }: {
+  music: GuildMusic,
+  editable: boolean,
+  busy: boolean,
+  run: (key: string, action: GuildMusicAction, success?: string) => Promise<boolean>,
+}) {
+  const id = useId();
+  const [ draft, setDraft ] = useState(music.crossfade);
+  // it's fetched again every few seconds, only a change from somewhere else moves the slider
+  useEffect(() => setDraft(music.crossfade), [music.crossfade]);
+
+  // back to the saved one if it fails. `run` is made again every render, only a new value schedules a save
+  useEffect(() => {
+    if (draft === music.crossfade) {
+      return;
+    }
+    const saved = music.crossfade;
+    const timeout = setTimeout(() => {
+      void run(
+        'crossfade',
+        {kind: 'settings', settings: {crossfade: draft}},
+        (draft) ? `Songs fade into the next over ${draft} seconds now` : 'Turned crossfade off',
+      ).then((ok) => {
+        if (!ok) {
+          setDraft(saved);
+        }
+      });
+    }, CROSSFADE_SAVE_DELAY);
+    return () => clearTimeout(timeout);
+  }, [draft, music.crossfade]);
+
+  return (
+    <div className='px-3 py-2.5'>
+      <div className='flex items-baseline justify-between gap-4'>
+        <label htmlFor={id} className='text-sm font-medium text-fg'>Crossfade</label>
+        <span className='flex items-center gap-1.5 text-sm text-fg tabular-nums'>
+          {(busy) ? <Spinner className='size-3.5'/> : null}
+          {(draft) ? `${draft}s` : 'Off'}
+        </span>
+      </div>
+      <p className='mt-0.5 text-xs text-subtle'>The end of a song fades into the next one over this many seconds.</p>
+      <input
+        id={id}
+        type='range'
+        min={0}
+        max={MAX_CROSSFADE}
+        step={1}
+        value={draft}
+        disabled={!editable}
+        aria-valuetext={(draft) ? `${draft} seconds` : 'Off'}
+        onChange={(event) => setDraft(Number(event.target.value))}
+        className='mt-2 w-full cursor-pointer accent-[#1db954] disabled:cursor-not-allowed disabled:opacity-60'
+      />
+      <div aria-hidden className='flex justify-between text-xs text-subtle'>
+        <span>Off</span>
+        <span>{MAX_CROSSFADE}s</span>
+      </div>
+      {(!music.premium) ? (
+        <PremiumNote>Crossfade only works on premium servers, until then songs play one after the other.</PremiumNote>
+      ) : null}
+    </div>
+  );
+}
+
+
+// a music setting that's kept without premium but only does anything with it
+function PremiumNote({ children }: {children: ReactNode}) {
+  return (
+    <p className='mt-2 flex items-start gap-2 rounded-md border border-[#f0b232]/30 bg-[#f0b232]/10 px-3 py-2 text-xs text-fg'>
+      <Crown aria-hidden className='mt-px size-3.5 shrink-0 text-[#f0b232]'/>
+      <span>
+        {children}{' '}
+        <Link to={Routes.DASHBOARD_PREMIUM} className='text-brand hover:underline'>Give this server a premium slot</Link>
+      </span>
+    </p>
+  );
+}
+
+
 // the longest song that can be queued, typed as `m:ss` (or `h:mm:ss`), empty for no limit
 function MaxDurationSetting({ music, editable, busy, disabled, run }: {
   music: GuildMusic,
   editable: boolean,
   busy: boolean,
   disabled: boolean,
-  run: (key: string, action: GuildMusicAction, success?: string) => Promise<void>,
+  run: (key: string, action: GuildMusicAction, success?: string) => Promise<boolean>,
 }) {
   const saved = (music.max_duration) ? formatTime(music.max_duration * 1000) : '';
   const [ draft, setDraft ] = useState(saved);
@@ -481,6 +667,11 @@ function musicItemTitle(item: GuildMusicQueueItem): string {
   }
 }
 
+
+// the longest crossfade (seconds), the API's cap
+const MAX_CROSSFADE = 12;
+// how long the crossfade slider waits after it last moved to save (milliseconds)
+const CROSSFADE_SAVE_DELAY = 600;
 
 // the longest a server can limit songs to (seconds), the API's cap
 const MAX_SONG_LENGTH = 24 * 60 * 60;

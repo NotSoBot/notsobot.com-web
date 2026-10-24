@@ -3114,15 +3114,20 @@ function guildMusicPremium(guildId: string): boolean {
 }
 
 // nothing playing, with the server's settings (they stay when the bot leaves)
-function emptyGuildMusic({ fair_queue, max_duration, no_duplicates, stay, vote_skip }: Pick<GuildMusic, 'fair_queue' | 'max_duration' | 'no_duplicates' | 'stay' | 'vote_skip'>): GuildMusic {
-  return {current: null, fair_queue, held_position: null, loop: 'off', max_duration, no_duplicates, premium: false, queue: [], queue_limit: 100, session: null, stay, vote_skip};
+type GuildMusicSettingKey = 'crossfade' | 'dj_only' | 'dj_role_id' | 'fair_queue' | 'max_duration' | 'no_duplicates' | 'stay' | 'vote_pause' | 'vote_resume' | 'vote_skip';
+
+const MUSIC_BOOLEAN_SETTINGS = ['dj_only', 'fair_queue', 'no_duplicates', 'stay', 'vote_pause', 'vote_resume', 'vote_skip'] as const;
+
+function emptyGuildMusic(settings: Pick<GuildMusic, GuildMusicSettingKey>): GuildMusic {
+  const { crossfade, dj_only, dj_role_id, fair_queue, max_duration, no_duplicates, stay, vote_pause, vote_resume, vote_skip } = settings;
+  return {crossfade, current: null, dj_only, dj_role_id, fair_queue, held_position: null, loop: 'off', max_duration, no_duplicates, premium: false, queue: [], queue_limit: 100, session: null, stay, vote_pause, vote_resume, vote_skip};
 }
 
 function guildMusic(guildId: string): GuildMusic {
   let music = state.guildMusic.get(guildId);
   if (!music) {
     const playing = guildId === guilds[0].summary.id;
-    music = emptyGuildMusic({fair_queue: false, max_duration: null, no_duplicates: false, stay: true, vote_skip: true});
+    music = emptyGuildMusic({crossfade: 0, dj_only: true, dj_role_id: null, fair_queue: false, max_duration: null, no_duplicates: false, stay: true, vote_pause: true, vote_resume: true, vote_skip: true});
     if (playing) {
       music.current = mockMusicItem(guildId, '1400000000000000001', 0, {album: 'Melodrama', artist: 'Lorde', duration: 228000, thumbnail: 'https://placehold.co/96x96/1db954/fff?text=M', title: 'Green Light'}, 'https://open.spotify.com/track/6ie2Bw3xLj2JcGowOlcMhb');
       music.queue = [
@@ -3167,10 +3172,18 @@ route('PATCH', '/users/@me/guilds/(\\d+)/music', ([ , guildId ], { body }) => {
   if (body.loop !== undefined && body.loop !== 'off' && body.loop !== 'track' && body.loop !== 'queue') {
     throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'Loop must be off, track or queue');
   }
-  for (const key of ['fair_queue', 'no_duplicates', 'stay', 'vote_skip'] as const) {
+  for (const key of MUSIC_BOOLEAN_SETTINGS) {
     if (body[key] !== undefined && typeof(body[key]) !== 'boolean') {
       throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, `${key} must be a boolean`);
     }
+  }
+  // like the api, any snowflake (it doesn't check it's a role, the dashboard keeps @everyone out)
+  if (body.dj_role_id !== undefined && body.dj_role_id !== null && !/^\d{15,21}$/.test(String(body.dj_role_id))) {
+    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'dj_role_id must be a snowflake or null');
+  }
+  // a premium perk like 24/7, it can be set either way
+  if (body.crossfade !== undefined && (typeof(body.crossfade) !== 'number' || !Number.isInteger(body.crossfade) || body.crossfade < 0 || 12 < body.crossfade)) {
+    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'crossfade must be 0 to 12 seconds');
   }
   if (body.max_duration !== undefined && (typeof(body.max_duration) !== 'number' || !Number.isInteger(body.max_duration) || body.max_duration < 0 || 24 * 60 * 60 < body.max_duration)) {
     throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'max_duration must be 0 to 86400 seconds');
@@ -3179,10 +3192,16 @@ route('PATCH', '/users/@me/guilds/(\\d+)/music', ([ , guildId ], { body }) => {
     music.loop = body.loop;
   }
   // 24/7 can be set either way, it only does anything with premium
-  for (const key of ['fair_queue', 'no_duplicates', 'stay', 'vote_skip'] as const) {
+  for (const key of MUSIC_BOOLEAN_SETTINGS) {
     if (body[key] !== undefined) {
       music[key] = body[key] as boolean;
     }
+  }
+  if (body.dj_role_id !== undefined) {
+    music.dj_role_id = (body.dj_role_id as string | null);
+  }
+  if (body.crossfade !== undefined) {
+    music.crossfade = body.crossfade as number;
   }
   if (body.max_duration !== undefined) {
     music.max_duration = (body.max_duration as number) || null;

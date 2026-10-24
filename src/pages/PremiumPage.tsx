@@ -49,7 +49,7 @@ const TIERS: Array<Tier> = [
     includes: 'NotSoPremium',
     perks: [
       '2 premium server slots: everyone in those servers or group DMs gets premium perks, and you keep yours',
-      'Music perks on your premium servers: 24/7, a 1,000 song queue, album and playlist links and live effects',
+      'Music perks on your premium servers: 24/7, a 1,000 song queue, album and playlist links, live effects, volume and crossfade',
       '90 seconds to process media, 100 to run tags and 45 to run code',
       'Clone a voice for text to speech',
     ],
@@ -143,6 +143,7 @@ const SERVER_PERKS: Array<{label: string, free?: string, server?: string}> = [
   {label: 'Music stays in voice 24/7'},
   {label: 'Album and playlist links in music'},
   {label: 'Live music effects like nightcore, slowed + reverb and 8D'},
+  {label: 'Music volume and crossfade between songs'},
   {label: 'Text to speech in voice channels for everyone in the server'},
   {label: 'Image commands find an image for you when there’s nothing to edit'},
   // the api's `MAX_SERVER_AI_MESSAGES` every `SERVER_AI_MESSAGES_WINDOW`, shared by everyone in the server

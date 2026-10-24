@@ -3623,6 +3623,17 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
       {name: 'SIZE', default: 'XXXL', range: 'XL, XXL, XXXL'},
     ],
   },
+  {
+    name: 'faceforehead',
+    aliases: ['forehead'],
+    category: 'distort',
+    summary: 'Makes the biggest face\'s forehead taller, SMOOTHBRAIN squishes it instead.',
+    syntax: 'faceforehead MEDIA_KEY SIZE=FIVEHEAD',
+    args: [
+      media(),
+      {name: 'SIZE', default: 'FIVEHEAD', range: 'SMOOTHBRAIN, FIVEHEAD, SIXHEAD, SEVENHEAD'},
+    ],
+  },
 
   // audio
   {
