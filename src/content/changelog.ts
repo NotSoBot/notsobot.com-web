@@ -28,6 +28,16 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 
 export const CHANGELOG: Array<ChangelogDay> = [
   {
+    date: '2026-10-24',
+    title: 'Quotes and Discord emojis',
+    items: [
+      {kind: 'new', text: '`.quote` turns a message into an image of it, just like Discord shows it: reply to a message with `.quote`, give it a message link, or `.quote @user` for their latest message. `.quote some text` (or `.quote @user some text`) makes one up. Add `-light` for the light theme or `-compact` for compact mode. Also `/fun quote`, and right click a message for **Apps → Quote**.'},
+      {kind: 'improved', text: 'Asking NotSoAI to always talk a certain way (a character, an accent, "talk like a pirate") sets your AI personality instead of saving it as a memory, even if you say to remember it.'},
+      {kind: 'improved', text: 'Emojis in `.caption`, `.meme` and the other text commands look like Discord\'s (Twemoji).'},
+      {kind: 'fixed', text: 'The `.music play` reply staying on "Connecting" after NotSoBot joins your channel, it updates once the song starts. Skipping the last song says nothing\'s playing instead of leaving the old buttons.'},
+    ],
+  },
+  {
     date: '2026-10-23',
     title: 'Music, waveforms and replying to reports from DMs',
     items: [
