@@ -154,6 +154,34 @@ export interface InfoDiscordShard {
 }
 
 
+// `GET /info/voice`: the music nodes for the status page, enabled ones and disabled ones still draining players
+export interface InfoVoice {
+  nodes: Array<InfoVoiceNode>,
+}
+
+export interface InfoVoiceNode {
+  enabled: boolean,
+  id: string,
+  // milliseconds, the api asking it
+  latency: number | null,
+  name: string,
+  // null when the api couldn't reach it
+  stats: {
+    // load average over its cores, 1 is fully busy
+    cpu: number,
+    // players decoding for live effects
+    effects: number,
+    // bytes (rss)
+    memory: number,
+    paused: number,
+    players: number,
+    playing: number,
+    // milliseconds
+    uptime: number,
+    version: string,
+  } | null,
+}
+
 export interface User {
   avatar: string | null,
   blocked: boolean,
@@ -411,6 +439,8 @@ export const ApiErrorCodes = {
   UNKNOWN_VOICE_NODE: 10031,
   UNKNOWN_MUSIC_QUEUE_ITEM: 10030,
   UNKNOWN_MUSIC_SESSION: 10032,
+  // queuing an album or playlist link needs a premium server
+  MUSIC_PREMIUM_REQUIRED: 50048,
   // a voice can't lose its last audio clip, it's deleted with the bot instead
   VOICE_CLIP_LAST: 50042,
   // a voice cloned before its audio was kept can't be moved to another cloning service
@@ -666,7 +696,15 @@ export interface GuildMusic {
   held_position: null | number,
   // goes back to off when the bot leaves or the queue runs out
   loop: GuildMusicLoop,
+  // the longest song that can be queued (seconds), null for no limit
+  max_duration: null | number,
+  // a song can't be queued while it's queued or playing already
+  no_duplicates: boolean,
+  // a premium server slot or `MUSIC_ACCESS`: 24/7 and the bigger `queue_limit`
+  premium: boolean,
   queue: Array<GuildMusicQueueItem>,
+  // how many songs the queue holds (100, 1,000 with premium)
+  queue_limit: number,
   session: null | {
     channel_id: string,
     // the track would have ended by now
@@ -676,7 +714,24 @@ export interface GuildMusic {
     paused: boolean,
     // milliseconds into the track, when it was fetched
     position: number,
+    // 24/7, it stays when the queue runs out
+    stay: boolean,
   },
+  // 24/7 (on by default): the bot stays in voice when the queue runs out or it's paused. Only does anything with
+  // `premium`, kept for when it comes back
+  stay: boolean,
+  // skipping someone else's song in Discord is a vote (half of who's listening)
+  vote_skip: boolean,
+}
+
+// what PATCH changes, the ones given. `max_duration` 0 clears it
+export interface GuildMusicSettings {
+  fair_queue?: boolean,
+  loop?: GuildMusicLoop,
+  max_duration?: number,
+  no_duplicates?: boolean,
+  stay?: boolean,
+  vote_skip?: boolean,
 }
 
 export type GuildMusicControl = 'leave' | 'pause' | 'resume' | 'skip';

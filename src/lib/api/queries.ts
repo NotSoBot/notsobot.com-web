@@ -8,6 +8,7 @@ export const queryKeys = {
   commands: ['commands'] as const,
   commandStats: (since: string) => ['commands', 'stats', {since}] as const,
   infoDiscord: ['info', 'discord'] as const,
+  infoVoice: ['info', 'voice'] as const,
   tagDirectory: (filters: TagDirectoryFilters) => ['tags', 'directory', filters] as const,
   tagDirectoryItem: (id: string) => ['tags', 'directory', 'item', id] as const,
   // keyed on the token so switching accounts never shows a stale user
@@ -109,6 +110,17 @@ export function useInfoDiscordQuery({ poll = true }: {poll?: boolean} = {}) {
     queryFn: ({ signal }) => api.fetchInfoDiscord(signal),
     refetchInterval: (poll) ? 5000 : false,
     staleTime: (poll) ? 0 : 60 * 1000,
+    refetchIntervalInBackground: false,
+  });
+}
+
+// the status page's voice nodes, the api asks them at most every 5s
+export function useInfoVoiceQuery() {
+  return useQuery({
+    queryKey: queryKeys.infoVoice,
+    queryFn: ({ signal }) => api.fetchInfoVoice(signal),
+    refetchInterval: 5000,
+    staleTime: 0,
     refetchIntervalInBackground: false,
   });
 }

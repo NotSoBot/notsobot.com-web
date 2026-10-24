@@ -50,6 +50,7 @@ import type {
   GuildMusic,
   GuildMusicControl,
   GuildMusicLoop,
+  GuildMusicSettings,
   GuildLLMKnowledgePage,
   GuildRule,
   Identity,
@@ -1225,7 +1226,7 @@ export function useMeGuildMusicQuery(guildId: string) {
 
 export type GuildMusicAction =
   | {kind: 'loop', loop: GuildMusicLoop}
-  | {kind: 'fair_queue', enabled: boolean}
+  | {kind: 'settings', settings: GuildMusicSettings}
   | {kind: 'control', action: GuildMusicControl}
   | {kind: 'move', itemId: string, position: number}
   | {kind: 'remove', itemId: string}
@@ -1240,7 +1241,7 @@ export function useGuildMusicMutation(guildId: string) {
     mutationFn: async (action: GuildMusicAction): Promise<GuildMusic | null> => {
       switch (action.kind) {
         case 'loop': return api.patchMeGuildMusic(guildId, {loop: action.loop});
-        case 'fair_queue': return api.patchMeGuildMusic(guildId, {fair_queue: action.enabled});
+        case 'settings': return api.patchMeGuildMusic(guildId, action.settings);
         case 'move': return api.moveMeGuildMusicQueueItem(guildId, action.itemId, action.position);
         case 'remove': return api.deleteMeGuildMusicQueueItem(guildId, action.itemId);
         case 'clear': return api.clearMeGuildMusicQueue(guildId);

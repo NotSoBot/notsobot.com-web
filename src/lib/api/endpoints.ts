@@ -7,6 +7,7 @@ export const ApiEndpoints = Object.freeze({
   HELP_DISCORD_BOT: '/help/discord/bot',
   HELP_DISCORD_SERVER: '/help/discord/server',
   INFO_DISCORD: '/info/discord',
+  INFO_VOICE: '/info/voice',
   JOB: (jobId: string) => `/jobs/${jobId}`,
   // the website's report forms when logged out
   REPORTS_ANONYMOUS: '/reports/anonymous',

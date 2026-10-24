@@ -38,7 +38,7 @@ const TIERS: Array<Tier> = [
       'Tags run for 70 seconds instead of 40',
       'Your own custom commands that follow you everywhere, DMs included',
       'Image commands find an image for you when there’s nothing to edit',
-      'Play music in voice channels: search for a song, or play a track link or a file, with a queue',
+      'Say text to speech in your voice channel with tts play, queued like a song',
     ],
   },
   {
@@ -49,6 +49,7 @@ const TIERS: Array<Tier> = [
     includes: 'NotSoPremium',
     perks: [
       '2 premium server slots: everyone in those servers or group DMs gets premium perks, and you keep yours',
+      'Music perks on your premium servers: 24/7, a 1,000 song queue, album and playlist links and live effects',
       '90 seconds to process media, 100 to run tags and 45 to run code',
       'Clone a voice for text to speech',
     ],
@@ -108,8 +109,10 @@ const COMPARISON: Array<{group: string, icon: LucideIcon, rows: Array<{label: st
     icon: Server,
     rows: [
       {label: 'Personal custom commands', values: [false, true, true, true]},
-      // the bot's `music` commands (premium, premium servers, or a server staff gave `MUSIC_ACCESS`)
-      {label: 'Music commands', values: [false, true, true, true]},
+      // music is free, its perks come from a premium server slot (or `MUSIC_ACCESS`), not the user's own premium
+      {label: 'Music in voice channels', values: [true, true, true, true]},
+      // `tts play` (premium, premium servers, or a server staff gave `MUSIC_ACCESS`)
+      {label: 'Text to speech in voice channels', values: [false, true, true, true]},
       {label: 'Premium server slots', values: [false, false, '2', '2']},
       {label: 'Voice clones', values: [false, false, '1', '3']},
     ],
@@ -135,7 +138,12 @@ const SERVER_PERKS: Array<{label: string, free?: string, server?: string}> = [
   {label: 'Download quality', free: '720p', server: '1080p'},
   {label: 'Processing queue', free: 'Shared', server: 'Priority'},
   {label: 'Custom commands for the server'},
-  {label: 'Music commands for everyone in the server'},
+  // the api's `MAX_MUSIC_QUEUE_AMOUNT` and `MAX_MUSIC_QUEUE_PREMIUM_AMOUNT`
+  {label: 'Music queue', free: '100 songs', server: '1,000 songs'},
+  {label: 'Music stays in voice 24/7'},
+  {label: 'Album and playlist links in music'},
+  {label: 'Live music effects like nightcore, slowed + reverb and 8D'},
+  {label: 'Text to speech in voice channels for everyone in the server'},
   {label: 'Image commands find an image for you when there’s nothing to edit'},
   // the api's `MAX_SERVER_AI_MESSAGES` every `SERVER_AI_MESSAGES_WINDOW`, shared by everyone in the server
   {label: 'NotSoAI with a faster, lighter model, 50 messages every 12 hours for each Plus AI slot on the server'},

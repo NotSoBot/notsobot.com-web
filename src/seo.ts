@@ -89,6 +89,7 @@ export const PAGES: Readonly<Record<keyof typeof Routes, PageMeta>> = Object.fre
     description: 'What NotSoPremium, Plus and Plus AI unlock: bigger files, longer time limits, custom commands, premium servers, voice cloning and NotSoAI.',
   },
   STATUS: {title: 'Status', description: 'Live NotSoBot shard and cluster health.', index: true},
+  STATUS_VOICE: {title: 'Voice Status', description: 'Live health of the NotSoBot voice nodes that play music.', index: true},
   TAG_DIRECTORY: {
     title: 'Tag Directory',
     description: 'Search community-made NotSoBot tags: custom commands you can use in any server.',

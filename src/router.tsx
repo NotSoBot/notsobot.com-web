@@ -17,7 +17,8 @@ import { TermsPage } from '@/pages/legal/TermsPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { PremiumPage } from '@/pages/PremiumPage';
 import { RouteErrorPage } from '@/pages/RouteErrorPage';
-import { StatusPage } from '@/pages/StatusPage';
+import { StatusPage } from '@/pages/status/StatusPage';
+import { VoiceStatusPage } from '@/pages/status/VoiceStatusPage';
 import { TagDirectoryPage } from '@/pages/tags/TagDirectoryPage';
 import { NOT_FOUND_PAGE, PAGES, type PageMeta } from '@/seo';
 
@@ -49,6 +50,7 @@ const routes: Array<RouteObject> = [
       // not in the navbar or footer yet
       {path: Routes.PREMIUM, element: <PremiumPage/>, handle: PAGES.PREMIUM},
       {path: Routes.STATUS, element: <StatusPage/>, handle: PAGES.STATUS},
+      {path: Routes.STATUS_VOICE, element: <VoiceStatusPage/>, handle: PAGES.STATUS_VOICE},
       {
         path: Routes.TAG_DIRECTORY,
         element: <TagDirectoryPage/>,

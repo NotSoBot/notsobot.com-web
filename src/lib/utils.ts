@@ -25,6 +25,17 @@ export function formatMemory(bytes: number, decimals = 0): string {
 }
 
 
+// `45m`, `5h 12m`, `3d 4h`
+export function formatUptime(milliseconds: number): string {
+  const minutes = Math.floor(milliseconds / 60000);
+  if (minutes < 60) {
+    return `${minutes}m`;
+  }
+  const hours = Math.floor(minutes / 60);
+  return (hours < 48) ? `${hours}h ${minutes % 60}m` : `${Math.floor(hours / 24)}d ${hours % 24}h`;
+}
+
+
 export function formatNumber(value: number): string {
   return value.toLocaleString();
 }

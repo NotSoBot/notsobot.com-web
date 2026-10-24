@@ -64,7 +64,7 @@ import type {
   GuildLLMKnowledge,
   GuildMusic,
   GuildMusicControl,
-  GuildMusicLoop,
+  GuildMusicSettings,
   GuildLLMKnowledgePage,
   LLMMemoriesPage,
   LLMMemory,
@@ -90,6 +90,7 @@ import type {
   GuildRule,
   GuildRuleInput,
   InfoDiscord,
+  InfoVoice,
   JobResponse,
   Tag,
   TagAsset,
@@ -171,6 +172,10 @@ export const api = {
   fetchInfoDiscord: (signal?: AbortSignal) => {
     // polled every 2s, so give up quickly and let the next poll try again
     return apiRequest<InfoDiscord>(ApiEndpoints.INFO_DISCORD, {auth: false, signal, timeout: 5000});
+  },
+
+  fetchInfoVoice: (signal?: AbortSignal) => {
+    return apiRequest<InfoVoice>(ApiEndpoints.INFO_VOICE, {auth: false, signal, timeout: 5000});
   },
 
   fetchTagDirectory: (params: {
@@ -624,7 +629,7 @@ export const api = {
     return apiRequest<GuildMusic>(guildEndpoints('me', guildId).MUSIC, {signal});
   },
 
-  patchMeGuildMusic: (guildId: string, patch: {fair_queue?: boolean, loop?: GuildMusicLoop}) => {
+  patchMeGuildMusic: (guildId: string, patch: GuildMusicSettings) => {
     return apiRequest<GuildMusic>(guildEndpoints('me', guildId).MUSIC, {method: 'PATCH', body: patch});
   },
 

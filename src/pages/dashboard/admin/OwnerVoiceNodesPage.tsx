@@ -21,7 +21,7 @@ import {
   useRevealVoiceNodeMutation,
   useTestVoiceNodeMutation,
 } from '@/lib/api/dashboardQueries';
-import { cn, formatDate, NO_AUTOFILL } from '@/lib/utils';
+import { cn, formatDate, formatUptime, NO_AUTOFILL } from '@/lib/utils';
 
 import { DashboardHeader, EmptyState, ErrorPanel, Field, Skeleton, Toggle } from '../ui';
 import { Chip, CopyButton, InfoTip } from './adminUi';
@@ -252,16 +252,6 @@ function IconButton({ label, onClick, disabled, className, children }: {
     </button>
   );
 }
-
-function formatUptime(milliseconds: number): string {
-  const minutes = Math.floor(milliseconds / 60000);
-  if (minutes < 60) {
-    return `${minutes}m`;
-  }
-  const hours = Math.floor(minutes / 60);
-  return (hours < 48) ? `${hours}h ${minutes % 60}m` : `${Math.floor(hours / 24)}d ${hours % 24}h`;
-}
-
 
 // a finished test, short (how long it took, or that it failed) and whole (its version, or why not)
 function describeTest(result?: NodeTestState): {failed: boolean, short: string, message: string} | null {

@@ -10,6 +10,8 @@ import { useInfoDiscordQuery } from '@/lib/api/queries';
 import { COUNTER_GROUPS, COUNTERS, FEATURED_COUNTERS, formatCompact, sumCounts, type Counter, type ShardCounts } from '@/lib/shardCounts';
 import { cn, formatMemory, formatNumber, shardIdForGuild } from '@/lib/utils';
 
+import { StatTile, StatusSwitcher } from './statusUi';
+
 
 // a cluster that hasn't reported in this long is considered dead
 const CLUSTER_DEAD_AFTER = 45 * 1000;
@@ -98,6 +100,7 @@ export function StatusPage() {
   return (
     <div className='container-page py-8'>
       <h1 className='sr-only'>Status</h1>
+      <StatusSwitcher/>
 
       <div className='mb-8'>
         <SearchInput
@@ -157,20 +160,6 @@ export function StatusPage() {
           <p className='py-6 text-center text-muted'>Status info isn't available right now. We'll keep trying.</p>
         )}
       </section>
-    </div>
-  );
-}
-
-
-function StatTile({ label, value, className = 'text-brand' }: {label: string, value: string | null, className?: string}) {
-  return (
-    <div className='rounded-lg bg-deep p-4 text-center'>
-      {(value !== null) ? (
-        <div className={cn('mb-1 text-xl font-bold whitespace-nowrap tabular-nums sm:text-2xl lg:text-3xl', className)}>{value}</div>
-      ) : (
-        <div className='mx-auto mb-2 h-8 w-24 animate-pulse rounded bg-surface-3'/>
-      )}
-      <div className='text-sm text-muted'>{label}</div>
     </div>
   );
 }

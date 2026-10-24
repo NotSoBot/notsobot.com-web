@@ -50,6 +50,7 @@ export const Routes = Object.freeze({
   LEGAL_TERMS_OF_SERVICE: '/legal/tos',
   PREMIUM: '/premium',
   STATUS: '/status',
+  STATUS_VOICE: '/status/voice',
   TAG_DIRECTORY: '/tags/directory',
   TAG_DOCS: '/docs/tags',
   TAG_DOCS_MEDIASCRIPT: '/docs/mediascript',

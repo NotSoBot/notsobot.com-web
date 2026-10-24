@@ -3106,11 +3106,23 @@ function mockMusicItem(guildId: string, id: string, position: number, track: Par
   };
 }
 
+// a premium server slot (the second server has one) or `MUSIC_ACCESS`, checked every time like the API so taking the
+// slot off shows up right away
+function guildMusicPremium(guildId: string): boolean {
+  const features = state.adminGuilds.find((other) => other.entry.summary.id === guildId)?.entry.detail.features ?? [];
+  return state.premiumServers.some((server) => server.server_id === guildId) || features.includes('MUSIC_ACCESS');
+}
+
+// nothing playing, with the server's settings (they stay when the bot leaves)
+function emptyGuildMusic({ fair_queue, max_duration, no_duplicates, stay, vote_skip }: Pick<GuildMusic, 'fair_queue' | 'max_duration' | 'no_duplicates' | 'stay' | 'vote_skip'>): GuildMusic {
+  return {current: null, fair_queue, held_position: null, loop: 'off', max_duration, no_duplicates, premium: false, queue: [], queue_limit: 100, session: null, stay, vote_skip};
+}
+
 function guildMusic(guildId: string): GuildMusic {
   let music = state.guildMusic.get(guildId);
   if (!music) {
     const playing = guildId === guilds[0].summary.id;
-    music = {current: null, fair_queue: false, held_position: null, loop: 'off', queue: [], session: null};
+    music = emptyGuildMusic({fair_queue: false, max_duration: null, no_duplicates: false, stay: true, vote_skip: true});
     if (playing) {
       music.current = mockMusicItem(guildId, '1400000000000000001', 0, {album: 'Melodrama', artist: 'Lorde', duration: 228000, thumbnail: 'https://placehold.co/96x96/1db954/fff?text=M', title: 'Green Light'}, 'https://open.spotify.com/track/6ie2Bw3xLj2JcGowOlcMhb');
       music.queue = [
@@ -3118,9 +3130,14 @@ function guildMusic(guildId: string): GuildMusic {
         mockMusicItem(guildId, '1400000000000000003', 2, {artist: 'Lorde', duration: 211000, title: 'Ribs'}, 'https://open.spotify.com/track/2MvvoeRt8NcOXWESkxWn3g'),
         mockMusicItem(guildId, '1400000000000000004', 3, null, 'https://notsobot.com/some/audio/file.mp3'),
       ];
-      music.session = {channel_id: '1100000000000000001', finished: false, guild_id: guildId, node_id: null, paused: false, position: 64000};
+      music.session = {channel_id: '1100000000000000001', finished: false, guild_id: guildId, node_id: null, paused: false, position: 64000, stay: false};
     }
     state.guildMusic.set(guildId, music);
+  }
+  music.premium = guildMusicPremium(guildId);
+  music.queue_limit = (music.premium) ? 1000 : 100;
+  if (music.session) {
+    music.session.stay = music.stay && music.premium;
   }
   return music;
 }
@@ -3150,16 +3167,27 @@ route('PATCH', '/users/@me/guilds/(\\d+)/music', ([ , guildId ], { body }) => {
   if (body.loop !== undefined && body.loop !== 'off' && body.loop !== 'track' && body.loop !== 'queue') {
     throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'Loop must be off, track or queue');
   }
-  if (body.fair_queue !== undefined && typeof(body.fair_queue) !== 'boolean') {
-    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'fair_queue must be a boolean');
+  for (const key of ['fair_queue', 'no_duplicates', 'stay', 'vote_skip'] as const) {
+    if (body[key] !== undefined && typeof(body[key]) !== 'boolean') {
+      throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, `${key} must be a boolean`);
+    }
+  }
+  if (body.max_duration !== undefined && (typeof(body.max_duration) !== 'number' || !Number.isInteger(body.max_duration) || body.max_duration < 0 || 24 * 60 * 60 < body.max_duration)) {
+    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'max_duration must be 0 to 86400 seconds');
   }
   if (body.loop !== undefined) {
     music.loop = body.loop;
   }
-  if (body.fair_queue !== undefined) {
-    music.fair_queue = body.fair_queue;
+  // 24/7 can be set either way, it only does anything with premium
+  for (const key of ['fair_queue', 'no_duplicates', 'stay', 'vote_skip'] as const) {
+    if (body[key] !== undefined) {
+      music[key] = body[key] as boolean;
+    }
   }
-  return music;
+  if (body.max_duration !== undefined) {
+    music.max_duration = (body.max_duration as number) || null;
+  }
+  return guildMusic(guildId);
 });
 
 route('POST', '/users/@me/guilds/(\\d+)/music/control', ([ , guildId ], { body }) => {
@@ -3188,7 +3216,7 @@ route('POST', '/users/@me/guilds/(\\d+)/music/control', ([ , guildId ], { body }
       renumberMusicQueue(music);
     }; break;
     case 'leave': {
-      state.guildMusic.set(guildId, {current: null, fair_queue: music.fair_queue, held_position: null, loop: 'off', queue: [], session: null});
+      state.guildMusic.set(guildId, emptyGuildMusic(music));
     }; break;
     default: throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'Unknown action');
   }
@@ -3758,6 +3786,30 @@ route('GET', '/admin/voice-nodes/stats', () => {
       {error: null, id: mockVoiceNodes[0].id, latency: 38 + wobble, stats: mockVoiceNodeStats(57 + wobble, 49 + wobble, 6, 5)},
       {error: null, id: mockVoiceNodes[1].id, latency: 112, stats: mockVoiceNodeStats(4, 3, 1, 3)},
       {error: 'The node didn\u2019t answer in 5 seconds', id: mockVoiceNodes[2].id, latency: null, stats: null},
+    ],
+  };
+});
+
+// the status page's public view of the same three: no urls or errors, the draining one stays while it has players
+route('GET', '/info/voice', () => {
+  const wobble = Math.floor(Math.random() * 3);
+  const publicStats = (stats: ReturnType<typeof mockVoiceNodeStats>) => ({
+    cpu: stats.cpu.load,
+    // a few of them with live effects on
+    effects: Math.floor(stats.players / 8),
+    memory: stats.memory.rss,
+    paused: stats.paused,
+    players: stats.players,
+    playing: stats.playing,
+    uptime: stats.uptime,
+    version: stats.version,
+  });
+  const [ online, draining, offline ] = mockVoiceNodes;
+  return {
+    nodes: [
+      {enabled: online.enabled, id: online.id, latency: 38 + wobble, name: online.name, stats: publicStats(mockVoiceNodeStats(57 + wobble, 49 + wobble, 6, 5))},
+      {enabled: draining.enabled, id: draining.id, latency: 112, name: draining.name, stats: publicStats(mockVoiceNodeStats(4, 3, 1, 3))},
+      {enabled: offline.enabled, id: offline.id, latency: null, name: offline.name, stats: null},
     ],
   };
 });
@@ -4483,7 +4535,7 @@ route('GET', '/commands/stats', () => mockCommands.flatMap((command, index) => c
 }))));
 
 
-const MOCK_PUBLIC_PATHS = ['/tags/directory', '/reports/anonymous', '/commands', '/commands/stats'];
+const MOCK_PUBLIC_PATHS = ['/tags/directory', '/reports/anonymous', '/commands', '/commands/stats', '/info/voice'];
 
 export function installDashboardMocks(): void {
   const realFetch = window.fetch.bind(window);
