@@ -3,7 +3,7 @@ import type { LegalDocument } from './legal';
 export const PRIVACY_POLICY: LegalDocument = {
   title: "Privacy Policy",
   effective: "October 13, 2026",
-  lastUpdated: "October 23, 2026",
+  lastUpdated: "October 24, 2026",
   intro: "This Privacy Policy explains what information NotSoBot collects, why, who it's shared with, how long it's kept, and how You can get a copy of it or have it deleted.",
   sections: [
     {
@@ -21,6 +21,7 @@ export const PRIVACY_POLICY: LegalDocument = {
           "Discord account information: your user ID, username, discriminator, avatar, account flags, and the ID of your DM channel with NotSoBot. This comes from Discord when You use a command.",
           "Your settings: language, timezone, units, response display preferences, file upload preferences, selected AI models and personality, and text-to-speech voice.",
           "Server information and settings for servers NotSoBot is in: server ID, name, icon, features, language, timezone, custom prefixes, AI settings, what the server's admins told NotSoAI about the server along with who added each one, and the rules for who can use which commands along with who added each rule.",
+          "Warnings a server's moderators give with the warn command: the server, the warned member's user ID, the moderator's user ID, the reason and when it was given. The warned member is sent the warning in a DM.",
           "Logging settings: if a server enables logging, the channel and webhook used to post logs, including the webhook token. Log events are sent to that webhook and are not kept by Us.",
           "Command replies: the IDs of your command message, its channel, the command used, and NotSoBot's reply, so that editing or deleting your command can update or remove the reply.",
           "Command usage statistics: which command was used, when, and the server, channel and user IDs involved.",
@@ -100,7 +101,7 @@ export const PRIVACY_POLICY: LegalDocument = {
           "Sentry, which receives error reports when something breaks. These can include the IDs and command details involved in the error.",
         ]},
         {type: 'paragraph', text: "Each of these providers handles data under its own terms and privacy policy. We may also share information when the law requires it, for example to respond to a valid court order, or when We believe it's needed to protect someone's safety or to investigate a violation of Our Terms of Service. If NotSoBot is ever transferred to a new owner, your information would be transferred with it and would remain covered by this policy."},
-        {type: 'paragraph', text: "Some information is visible to other people because of how the Service works. For example, tags You create can be seen by members of that server, tags in the public directory can be seen by anyone, and server administrators can see who added entries to their server's settings."},
+        {type: 'paragraph', text: "Some information is visible to other people because of how the Service works. For example, tags You create can be seen by members of that server, tags in the public directory can be seen by anyone, server administrators can see who added entries to their server's settings, and a server's moderators can see the warnings given there, including who gave them."},
       ],
     },
     {
@@ -142,6 +143,7 @@ export const PRIVACY_POLICY: LegalDocument = {
           "Cached server lists for the dashboard expire after about a minute.",
           "Tags, reminders and cloned voices are deleted when You delete them. Deleting a cloned voice also deletes it from the voice cloning service, along with the audio clips it was made from.",
           "AI memories are kept until You delete them, ask NotSoAI to forget them, or delete your information. Turning memory off stops NotSoAI from seeing or saving them but doesn't delete the ones already saved.",
+          "Warnings are kept until a server's moderators remove them, or until the server's own expiry setting deletes them (they don't expire unless the server sets one). They're the server's records, so they stay if the warned member or the moderator leaves the server or deletes their Discord account, and deleting your information doesn't remove warnings a server gave You.",
           "Server settings are kept if NotSoBot is removed from a server, so they still apply if it's added back. A server owner can ask Us to delete them.",
           "Safety records are kept to prevent repeat abuse, and for as long as the law requires for anything We report.",
           "Other information is kept while You use the Service, and deleted when You ask Us to delete it or when We no longer need it.",

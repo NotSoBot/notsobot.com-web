@@ -18,6 +18,7 @@ import { MusicSection } from './MusicSection';
 import { ServerDataSection } from './ServerDataSection';
 import { LoggersSection, PrefixesSection, RulesSection } from './ServerSections';
 import { ServerSettingsForm } from './ServerSettingsForm';
+import { WarningsSection } from './WarningsSection';
 import { ScopeMismatchCard } from './ServersPage';
 
 
@@ -145,6 +146,7 @@ function ServerDetails({ guild, onDirtyChange }: {guild: UserGuild, onDirtyChang
         <MusicSection guild={guild}/>
         <RulesSection guild={guild}/>
         <LoggersSection guild={guild}/>
+        <WarningsSection guild={guild}/>
         <ServerDataSection guild={guild}/>
       </div>
     </>

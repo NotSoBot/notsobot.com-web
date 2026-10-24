@@ -72,8 +72,16 @@ export interface Command {
   metadata: Array<CommandMetadata>,
 }
 
+export interface CommandArgChoice {
+  // readable label, empty when the value is readable enough
+  description: string,
+  value: string,
+}
+
 export interface CommandArg {
   aliases: Array<string>,
+  // missing on commands uploaded before choices were sent
+  choices?: Array<CommandArgChoice>,
   description: string,
   name: string,
   prefix: string,
@@ -439,6 +447,8 @@ export const ApiErrorCodes = {
   UNKNOWN_VOICE_NODE: 10031,
   UNKNOWN_MUSIC_QUEUE_ITEM: 10030,
   UNKNOWN_MUSIC_SESSION: 10032,
+  UNKNOWN_GUILD_WARNING: 10033,
+  MAX_GUILD_WARNINGS: 30029,
   // queuing an album or playlist link needs a premium server
   MUSIC_PREMIUM_REQUIRED: 50048,
   // a voice can't lose its last audio clip, it's deleted with the bot instead
@@ -645,6 +655,25 @@ export interface GuildLLMKnowledge {
   id: string,
   // who added it, or last edited it
   user_id: string,
+}
+
+// `warn` in the bot, a note on a member's record in a server
+export interface GuildWarning {
+  created: string,
+  guild_id: string,
+  id: string,
+  moderator_id: string,
+  reason: string | null,
+  user_id: string,
+}
+
+// newest first; `count`/`active` are for every warning that matched, not only this page
+export interface GuildWarningsPage {
+  active: number,
+  count: number,
+  warnings: Array<GuildWarning>,
+  // the server's `warnings_window`, older ones aren't active
+  window: number,
 }
 
 export interface GuildLLMKnowledgePage {
@@ -1024,10 +1053,15 @@ export interface GuildSettings {
   // `UserSettingsSearchProviders`, null is DuckDuckGo for web and Google for images
   search_provider_images: number | null,
   search_provider_web: number | null,
+  // seconds until a warning gets deleted, null: never
+  warnings_expire: number | null,
+  // seconds a warning counts towards a member's active warnings
+  warnings_window: number,
 }
 
-// `rules` covers command and category rules, `rules_admin` rules covering everything and the owner/admin bypass
-export type GuildEditableArea = 'prefixes' | 'rules' | 'rules_admin' | 'loggers' | 'settings' | 'music';
+// `rules` covers command and category rules, `rules_admin` rules covering everything and the owner/admin bypass,
+// `moderation` the server's warnings (Timeout Members)
+export type GuildEditableArea = 'prefixes' | 'rules' | 'rules_admin' | 'loggers' | 'settings' | 'music' | 'moderation';
 
 // `Guild.to_dict()` + the caller's permissions and what they may edit
 export interface UserGuild {
@@ -1058,6 +1092,7 @@ export interface UserGuildDataExport {
   tags: Array<Tag>,
   timestamp: number,
   version: number,
+  warnings: Array<GuildWarning>,
 }
 
 export interface UserGuildDataDelete {
@@ -1075,6 +1110,10 @@ export interface UserGuildPatch {
   search_provider_images?: number | null,
   search_provider_web?: number | null,
   rules_admin_bypass?: boolean | null,
+  // seconds, null: warnings never expire
+  warnings_expire?: number | null,
+  // seconds, null resets it to 30 days
+  warnings_window?: number | null,
 }
 
 

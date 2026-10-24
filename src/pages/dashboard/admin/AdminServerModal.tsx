@@ -12,7 +12,9 @@ import { ApiErrorCodes, ApiRequestError, type AdminGuild, type AdminGuildSummary
 import { errorMessage, GuildScopeContext, useAdminGuildQuery, usePatchAdminGuildMutation } from '@/lib/api/dashboardQueries';
 import { cn, snowflakeTimestamp } from '@/lib/utils';
 
+import { AIKnowledgeSection } from '../servers/AIKnowledgeSection';
 import { GuildIcon } from '../servers/GuildIcon';
+import { MusicSection } from '../servers/MusicSection';
 import { ServerDataSection } from '../servers/ServerDataSection';
 import { LoggersSection, PrefixesSection, RulesSection } from '../servers/ServerSections';
 import { ServerSettingsForm } from '../servers/ServerSettingsForm';
@@ -307,6 +309,8 @@ function ServerDetails({ guild, navigation, onDirtyChange }: {guild: AdminGuild,
               onDirtyChange(dirty);
             }}
           />
+          <AIKnowledgeSection guild={guild}/>
+          <MusicSection guild={guild}/>
           <RulesSection guild={guild}/>
           <LoggersSection guild={guild}/>
           <ServerDataSection guild={guild}/>

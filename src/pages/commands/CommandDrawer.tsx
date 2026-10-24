@@ -5,7 +5,7 @@ import { Link } from 'react-router';
 
 import { ImageComparison } from '@/components/ui/ImageComparison';
 import { Routes } from '@/config';
-import { CommandMediaTypes, type Command } from '@/lib/api';
+import { CommandMediaTypes, type Command, type CommandArgChoice } from '@/lib/api';
 import { cn, formatNumber } from '@/lib/utils';
 
 import { CategoryBadge, categoryStyle, CommandName, PremiumBadge } from './CommandCards';
@@ -129,6 +129,7 @@ export function CommandDrawer({ entry, siblings, totalRanked, onSelect, onClose 
                         <span className='ml-2 font-mono text-xs text-subtle'>({arg.aliases.map((alias) => `${arg.prefix}${alias}`).join(', ')})</span>
                       ) : null}
                       {(arg.description) ? <p className='mt-1 text-sm text-muted'>{arg.description}</p> : null}
+                      {(arg.choices?.length) ? <ArgChoices choices={arg.choices}/> : null}
                     </div>
                   ))}
                 </div>
@@ -234,5 +235,27 @@ function Section({ title, children }: {title: string, children: ReactNode}) {
       <h3 className='section-label mb-2'>{title}</h3>
       {children}
     </section>
+  );
+}
+
+// the values a `oneOf` arg takes, by the label people type (extensions, model names), deduped since some share one (mp3)
+function ArgChoices({ choices }: {choices: Array<CommandArgChoice>}) {
+  const labels = new Map<string, Array<string>>();
+  for (const choice of choices) {
+    const label = choice.description || choice.value;
+    labels.set(label, [...(labels.get(label) ?? []), choice.value]);
+  }
+  return (
+    <div className='mt-2 flex flex-wrap gap-1.5'>
+      {Array.from(labels).map(([label, values]) => (
+        <span
+          key={label}
+          className='rounded bg-surface-3 px-2 py-0.5 font-mono text-xs text-fg'
+          title={(values.length > 1 || values[0] !== label) ? values.join(', ') : undefined}
+        >
+          {label}
+        </span>
+      ))}
+    </div>
   );
 }

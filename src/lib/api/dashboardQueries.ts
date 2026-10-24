@@ -1155,11 +1155,12 @@ export function useMeGuildQuery(guildId: string) {
 
 /* what the server told NotSoAI */
 
-export function useMeGuildLLMKnowledgeQuery(guildId: string) {
+export function useGuildLLMKnowledgeQuery(guildId: string) {
   const { token } = useAuth();
+  const scope = useGuildScope();
   return useQuery({
-    queryKey: queryKeys.meGuildLLMKnowledge(token, guildId),
-    queryFn: ({ signal }) => api.fetchMeGuildLLMKnowledge(guildId, signal),
+    queryKey: queryKeys.guildLLMKnowledge(token, scope, guildId),
+    queryFn: ({ signal }) => api.fetchGuildLLMKnowledge(scope, guildId, signal),
     retry: retryDiscordRefresh,
   });
 }
@@ -1173,15 +1174,16 @@ export type GuildLLMKnowledgeAction =
 // adds, edits and removes go straight into the cached list, the api returns what it stored
 export function useGuildLLMKnowledgeMutation(guildId: string) {
   const { token } = useAuth();
+  const scope = useGuildScope();
   const queryClient = useQueryClient();
-  const key = queryKeys.meGuildLLMKnowledge(token, guildId);
+  const key = queryKeys.guildLLMKnowledge(token, scope, guildId);
   return useMutation({
     mutationFn: async (action: GuildLLMKnowledgeAction): Promise<GuildLLMKnowledge | null> => {
       switch (action.kind) {
-        case 'add': return api.createMeGuildLLMKnowledge(guildId, action.content);
-        case 'edit': return api.patchMeGuildLLMKnowledge(guildId, action.knowledgeId, action.content);
+        case 'add': return api.createGuildLLMKnowledge(scope, guildId, action.content);
+        case 'edit': return api.patchGuildLLMKnowledge(scope, guildId, action.knowledgeId, action.content);
         case 'remove': {
-          await api.deleteMeGuildLLMKnowledge(guildId, action.knowledgeId);
+          await api.deleteGuildLLMKnowledge(scope, guildId, action.knowledgeId);
           return null;
         }
       }
@@ -1208,16 +1210,54 @@ export function useGuildLLMKnowledgeMutation(guildId: string) {
 }
 
 
+/* the server's warnings */
+
+const GUILD_WARNINGS_PAGE_SIZE = 25;
+
+// newest first, a page at a time (`fetchNextPage` for older ones), only theirs with a `userId`
+export function useGuildWarningsQuery(guildId: string, userId: string | null, enabled = true) {
+  const { token } = useAuth();
+  const scope = useGuildScope();
+  return useInfiniteQuery({
+    queryKey: queryKeys.guildWarnings(token, scope, guildId, userId ?? ''),
+    queryFn: ({ pageParam, signal }) => api.fetchGuildWarnings(scope, guildId, {before: pageParam, limit: GUILD_WARNINGS_PAGE_SIZE, userId: userId ?? undefined}, signal),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (page) => (page.warnings.length < GUILD_WARNINGS_PAGE_SIZE) ? undefined : page.warnings[page.warnings.length - 1]?.id,
+    enabled: !!token && enabled,
+    retry: retryDiscordRefresh,
+  });
+}
+
+
+export type GuildWarningsAction =
+  | {kind: 'remove', warningId: string}
+  | {kind: 'clear', userId: string};
+
+// counts and pages shift after either, so every list of the server's warnings is fetched again
+export function useGuildWarningsMutation(guildId: string) {
+  const { token } = useAuth();
+  const scope = useGuildScope();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (action: GuildWarningsAction): Promise<unknown> => {
+      return (action.kind === 'remove') ? api.deleteGuildWarning(scope, guildId, action.warningId) : api.clearGuildWarnings(scope, guildId, [action.userId]);
+    },
+    onSettled: () => queryClient.invalidateQueries({queryKey: queryKeys.guildWarnings(token, scope, guildId)}),
+  });
+}
+
+
 /* what's playing in the server */
 
 // how often what's playing is fetched again while it's open, a track's position moves on its own in between
 const GUILD_MUSIC_REFETCH_INTERVAL = 10 * 1000;
 
-export function useMeGuildMusicQuery(guildId: string) {
+export function useGuildMusicQuery(guildId: string) {
   const { token } = useAuth();
+  const scope = useGuildScope();
   return useQuery({
-    queryKey: queryKeys.meGuildMusic(token, guildId),
-    queryFn: ({ signal }) => api.fetchMeGuildMusic(guildId, signal),
+    queryKey: queryKeys.guildMusic(token, scope, guildId),
+    queryFn: ({ signal }) => api.fetchGuildMusic(scope, guildId, signal),
     refetchInterval: GUILD_MUSIC_REFETCH_INTERVAL,
     retry: retryDiscordRefresh,
   });
@@ -1235,18 +1275,19 @@ export type GuildMusicAction =
 // queue changes answer with the queue as it is now; the bot's controls take a moment, so it's fetched again shortly
 export function useGuildMusicMutation(guildId: string) {
   const { token } = useAuth();
+  const scope = useGuildScope();
   const queryClient = useQueryClient();
-  const key = queryKeys.meGuildMusic(token, guildId);
+  const key = queryKeys.guildMusic(token, scope, guildId);
   return useMutation({
     mutationFn: async (action: GuildMusicAction): Promise<GuildMusic | null> => {
       switch (action.kind) {
-        case 'loop': return api.patchMeGuildMusic(guildId, {loop: action.loop});
-        case 'settings': return api.patchMeGuildMusic(guildId, action.settings);
-        case 'move': return api.moveMeGuildMusicQueueItem(guildId, action.itemId, action.position);
-        case 'remove': return api.deleteMeGuildMusicQueueItem(guildId, action.itemId);
-        case 'clear': return api.clearMeGuildMusicQueue(guildId);
+        case 'loop': return api.patchGuildMusic(scope, guildId, {loop: action.loop});
+        case 'settings': return api.patchGuildMusic(scope, guildId, action.settings);
+        case 'move': return api.moveGuildMusicQueueItem(scope, guildId, action.itemId, action.position);
+        case 'remove': return api.deleteGuildMusicQueueItem(scope, guildId, action.itemId);
+        case 'clear': return api.clearGuildMusicQueue(scope, guildId);
         case 'control': {
-          await api.controlMeGuildMusic(guildId, action.action);
+          await api.controlGuildMusic(scope, guildId, action.action);
           return null;
         }
       }
@@ -1277,7 +1318,7 @@ export type GuildAction =
   | {kind: 'settings', patch: UserGuildPatch};
 
 
-// Which routes the server sections (prefixes, settings, rules, loggers, data) edit through: yours (`/users/@me/guilds`,
+// Which routes the server sections (prefixes, settings, AI knowledge, music, rules, loggers, data) read and edit through: yours (`/users/@me/guilds`,
 // the default) or staff's (`/admin/guilds`, the admin server modal provides it).
 export const GuildScopeContext = createContext<GuildScope>('me');
 
@@ -1314,7 +1355,11 @@ export function useGuildMutation(guildId: string) {
           return api.patchGuild(scope, guildId, action.patch);
       }
     },
-    onSettled: () => queryClient.invalidateQueries({queryKey: guildQueryKey(scope, token, guildId)}),
+    onSettled: (_data, _error, action) => Promise.all([
+      queryClient.invalidateQueries({queryKey: guildQueryKey(scope, token, guildId)}),
+      // which warnings count as active (and which are left) depends on these
+      (action.kind === 'settings' && ('warnings_window' in action.patch || 'warnings_expire' in action.patch)) ? queryClient.invalidateQueries({queryKey: queryKeys.guildWarnings(token, scope, guildId)}) : null,
+    ]),
   });
 }
 

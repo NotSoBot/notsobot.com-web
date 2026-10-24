@@ -7,7 +7,7 @@ import type { GuildLLMKnowledge, UserGuild } from '@/lib/api';
 import {
   errorMessage,
   useGuildLLMKnowledgeMutation,
-  useMeGuildLLMKnowledgeQuery,
+  useGuildLLMKnowledgeQuery,
   type GuildLLMKnowledgeAction,
 } from '@/lib/api/dashboardQueries';
 
@@ -26,7 +26,7 @@ export function AIKnowledgeSection({ guild }: {guild: UserGuild}) {
   const editable = guild.editable.settings;
   const readOnlyMessage = useReadOnlyMessage();
   const toast = useToast();
-  const { data, isPending, error } = useMeGuildLLMKnowledgeQuery(guild.id);
+  const { data, isPending, error } = useGuildLLMKnowledgeQuery(guild.id);
   const mutation = useGuildLLMKnowledgeMutation(guild.id);
   const [ busyKey, setBusyKey ] = useState<string | null>(null);
   const [ editingId, setEditingId ] = useState<string | null>(null);

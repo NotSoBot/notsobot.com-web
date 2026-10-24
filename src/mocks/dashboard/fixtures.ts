@@ -179,6 +179,7 @@ export function emptyBlobs(): TagBlobs {
 
 const MANAGE_GUILD = 1n << 5n;
 const ADMINISTRATOR = 1n << 3n;
+const MODERATE_MEMBERS = 1n << 40n;
 
 
 export interface MockGuild {
@@ -195,6 +196,8 @@ export function createGuildSettings(): UserGuild['settings'] {
     rules_admin_bypass: true,
     search_provider_images: null,
     search_provider_web: null,
+    warnings_expire: null,
+    warnings_window: 30 * 24 * 60 * 60,
   };
 }
 
@@ -353,7 +356,8 @@ export function guildEditable(summary: UserGuildSummary): UserGuild['editable'] 
   const permissions = BigInt(summary.permissions);
   const admin = summary.owner || !!(permissions & ADMINISTRATOR);
   const manage = admin || !!(permissions & MANAGE_GUILD);
-  return {prefixes: manage, rules: manage, rules_admin: admin, loggers: manage, settings: manage, music: manage};
+  const moderate = admin || !!(permissions & MODERATE_MEMBERS);
+  return {prefixes: manage, rules: manage, rules_admin: admin, loggers: manage, settings: manage, music: manage, moderation: moderate};
 }
 
 

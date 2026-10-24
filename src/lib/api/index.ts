@@ -66,6 +66,8 @@ import type {
   GuildMusicControl,
   GuildMusicSettings,
   GuildLLMKnowledgePage,
+  GuildWarning,
+  GuildWarningsPage,
   LLMMemoriesPage,
   LLMMemory,
   LLMMemoryPatch,
@@ -606,47 +608,66 @@ export const api = {
     return apiRequest<UserGuild>(ApiEndpoints.USER_ME_GUILD(guildId), {signal});
   },
 
-  // what the server's admins told NotSoAI about it, any member can read it and Manage Server changes it
-  fetchMeGuildLLMKnowledge: (guildId: string, signal?: AbortSignal) => {
-    return apiRequest<GuildLLMKnowledgePage>(guildEndpoints('me', guildId).LLM_KNOWLEDGE, {signal});
+  // what the server's admins told NotSoAI about it, any member can read it and Manage Server changes it (staff: any
+  // server through `/admin/guilds`, owners change it)
+  fetchGuildLLMKnowledge: (scope: GuildScope, guildId: string, signal?: AbortSignal) => {
+    return apiRequest<GuildLLMKnowledgePage>(guildEndpoints(scope, guildId).LLM_KNOWLEDGE, {signal});
   },
 
-  createMeGuildLLMKnowledge: (guildId: string, content: string) => {
-    return apiRequest<GuildLLMKnowledge>(guildEndpoints('me', guildId).LLM_KNOWLEDGE, {method: 'POST', body: {content}});
+  createGuildLLMKnowledge: (scope: GuildScope, guildId: string, content: string) => {
+    return apiRequest<GuildLLMKnowledge>(guildEndpoints(scope, guildId).LLM_KNOWLEDGE, {method: 'POST', body: {content}});
   },
 
-  patchMeGuildLLMKnowledge: (guildId: string, knowledgeId: string, content: string) => {
-    return apiRequest<GuildLLMKnowledge>(guildEndpoints('me', guildId).LLM_KNOWLEDGE_ITEM(knowledgeId), {method: 'PATCH', body: {content}});
+  patchGuildLLMKnowledge: (scope: GuildScope, guildId: string, knowledgeId: string, content: string) => {
+    return apiRequest<GuildLLMKnowledge>(guildEndpoints(scope, guildId).LLM_KNOWLEDGE_ITEM(knowledgeId), {method: 'PATCH', body: {content}});
   },
 
-  deleteMeGuildLLMKnowledge: (guildId: string, knowledgeId: string) => {
-    return apiRequest<void>(guildEndpoints('me', guildId).LLM_KNOWLEDGE_ITEM(knowledgeId), {method: 'DELETE'});
+  deleteGuildLLMKnowledge: (scope: GuildScope, guildId: string, knowledgeId: string) => {
+    return apiRequest<void>(guildEndpoints(scope, guildId).LLM_KNOWLEDGE_ITEM(knowledgeId), {method: 'DELETE'});
   },
 
-  // what's playing and queued, any member can see it and Manage Server changes it. Pausing, resuming, skipping and
-  // leaving go to the bot (the api only checks it's playing), the rest answers with the queue as it is now
-  fetchMeGuildMusic: (guildId: string, signal?: AbortSignal) => {
-    return apiRequest<GuildMusic>(guildEndpoints('me', guildId).MUSIC, {signal});
+  // the server's warnings, newest first (a member's, or everyone's), Timeout Members sees and removes them
+  fetchGuildWarnings: (scope: GuildScope, guildId: string, options: {before?: string, limit?: number, userId?: string}, signal?: AbortSignal) => {
+    return apiRequest<GuildWarningsPage>(guildEndpoints(scope, guildId).WARNINGS, {
+      query: {before: options.before, limit: options.limit, user_id: options.userId},
+      signal,
+    });
   },
 
-  patchMeGuildMusic: (guildId: string, patch: GuildMusicSettings) => {
-    return apiRequest<GuildMusic>(guildEndpoints('me', guildId).MUSIC, {method: 'PATCH', body: patch});
+  deleteGuildWarning: (scope: GuildScope, guildId: string, warningId: string) => {
+    return apiRequest<GuildWarning>(guildEndpoints(scope, guildId).WARNING(warningId), {method: 'DELETE'});
   },
 
-  controlMeGuildMusic: (guildId: string, action: GuildMusicControl) => {
-    return apiRequest<void>(guildEndpoints('me', guildId).MUSIC_CONTROL, {method: 'POST', body: {action}});
+  // every warning they have here, how many each had by user id
+  clearGuildWarnings: (scope: GuildScope, guildId: string, userIds: Array<string>) => {
+    return apiRequest<{deleted: Record<string, number>}>(guildEndpoints(scope, guildId).WARNINGS_DELETE, {method: 'POST', body: {user_ids: userIds}});
   },
 
-  moveMeGuildMusicQueueItem: (guildId: string, itemId: string, position: number) => {
-    return apiRequest<GuildMusic>(guildEndpoints('me', guildId).MUSIC_QUEUE_ITEM(itemId), {method: 'PATCH', body: {position}});
+  // what's playing and queued, any member can see it and Manage Server changes it (staff and owners, like above).
+  // Pausing, resuming, skipping and leaving go to the bot (the api only checks it's playing), the rest answers with the
+  // queue as it is now
+  fetchGuildMusic: (scope: GuildScope, guildId: string, signal?: AbortSignal) => {
+    return apiRequest<GuildMusic>(guildEndpoints(scope, guildId).MUSIC, {signal});
   },
 
-  deleteMeGuildMusicQueueItem: (guildId: string, itemId: string) => {
-    return apiRequest<GuildMusic>(guildEndpoints('me', guildId).MUSIC_QUEUE_ITEM(itemId), {method: 'DELETE'});
+  patchGuildMusic: (scope: GuildScope, guildId: string, patch: GuildMusicSettings) => {
+    return apiRequest<GuildMusic>(guildEndpoints(scope, guildId).MUSIC, {method: 'PATCH', body: patch});
   },
 
-  clearMeGuildMusicQueue: (guildId: string) => {
-    return apiRequest<GuildMusic>(guildEndpoints('me', guildId).MUSIC_QUEUE_DELETE, {method: 'POST', body: {}});
+  controlGuildMusic: (scope: GuildScope, guildId: string, action: GuildMusicControl) => {
+    return apiRequest<void>(guildEndpoints(scope, guildId).MUSIC_CONTROL, {method: 'POST', body: {action}});
+  },
+
+  moveGuildMusicQueueItem: (scope: GuildScope, guildId: string, itemId: string, position: number) => {
+    return apiRequest<GuildMusic>(guildEndpoints(scope, guildId).MUSIC_QUEUE_ITEM(itemId), {method: 'PATCH', body: {position}});
+  },
+
+  deleteGuildMusicQueueItem: (scope: GuildScope, guildId: string, itemId: string) => {
+    return apiRequest<GuildMusic>(guildEndpoints(scope, guildId).MUSIC_QUEUE_ITEM(itemId), {method: 'DELETE'});
+  },
+
+  clearGuildMusicQueue: (scope: GuildScope, guildId: string) => {
+    return apiRequest<GuildMusic>(guildEndpoints(scope, guildId).MUSIC_QUEUE_DELETE, {method: 'POST', body: {}});
   },
 
   // the server edits below go through `/users/@me/guilds` (`scope: 'me'`) or `/admin/guilds` (`'admin'`), same bodies

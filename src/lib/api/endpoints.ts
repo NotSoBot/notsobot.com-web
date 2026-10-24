@@ -149,14 +149,15 @@ export function guildEndpoints(scope: GuildScope, guildId: string) {
     RULES_DELETE: `${base}/rules/delete`,
     RULE: (ruleId: string) => `${base}/rules/${ruleId}`,
     LOGGERS_DELETE: `${base}/loggers/delete`,
-    // only under `/users/@me/guilds`, staff don't edit it
     LLM_KNOWLEDGE: `${base}/llm/knowledge`,
     LLM_KNOWLEDGE_ITEM: (knowledgeId: string) => `${base}/llm/knowledge/${knowledgeId}`,
-    // only under `/users/@me/guilds` too
     MUSIC: `${base}/music`,
     MUSIC_CONTROL: `${base}/music/control`,
     MUSIC_QUEUE_DELETE: `${base}/music/queue/delete`,
     MUSIC_QUEUE_ITEM: (itemId: string) => `${base}/music/queue/${itemId}`,
+    WARNINGS: `${base}/warnings`,
+    WARNINGS_DELETE: `${base}/warnings/delete`,
+    WARNING: (warningId: string) => `${base}/warnings/${warningId}`,
     DATA_EXPORT: `${base}/data/export`,
     DATA_DELETE: `${base}/data/delete`,
   };

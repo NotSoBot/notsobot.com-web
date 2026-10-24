@@ -4,6 +4,8 @@ import { Routes } from '@/config';
 import type { GuildEditableArea } from '@/lib/api';
 import { useGuildScope } from '@/lib/api/dashboardQueries';
 
+import type { Choice } from '../settings/botChoices';
+
 
 // the server opens as a modal over the server list
 export function dashboardServerPath(guildId: string): string {
@@ -19,6 +21,7 @@ export const AREA_PERMISSION: Record<GuildEditableArea, string> = {
   loggers: 'Manage Server',
   settings: 'Manage Server',
   music: 'Manage Server',
+  moderation: 'Timeout Members',
 };
 
 export const AREA_LABEL: Record<GuildEditableArea, string> = {
@@ -28,12 +31,44 @@ export const AREA_LABEL: Record<GuildEditableArea, string> = {
   rules_admin: 'Rules for every command and the owner/admin bypass',
   loggers: 'Loggers',
   music: 'Music',
+  moderation: 'Warnings',
 };
 
 // why a server's section can't be changed: a missing Discord permission, or in the admin panel, not being a bot owner
 export function useReadOnlyMessage(): (area: GuildEditableArea) => string {
   const staff = useGuildScope() === 'admin';
   return (area) => (staff) ? 'Only bot owners can change a server’s settings.' : `You need the ${AREA_PERMISSION[area]} permission in this server to change this.`;
+}
+
+
+// the server's warning settings, in seconds like the api: "30 days", "1 year", "12 hours"
+export function formatSeconds(seconds: number): string {
+  const days = seconds / 86400;
+  if (Number.isInteger(days / 365)) {
+    return `${days / 365} year${(days === 365) ? '' : 's'}`;
+  }
+  if (Number.isInteger(days)) {
+    return `${days} day${(days === 1) ? '' : 's'}`;
+  }
+  const hours = Math.round(seconds / 3600);
+  return `${hours} hour${(hours === 1) ? '' : 's'}`;
+}
+
+// the bot's `WARNINGS_WINDOW_DEFAULT`
+export const WARNINGS_WINDOW_DEFAULT = 30 * 86400;
+
+// a stored value the list doesn't have (`set warnings` takes any duration) still shows as a duration
+function withSeconds(choices: Array<number>, value: number | null, defaultValue: number | null): ReadonlyArray<Choice<number>> {
+  const values = (value === null || choices.includes(value)) ? choices : [...choices, value].sort((a, b) => a - b);
+  return values.map((seconds) => ({value: seconds, label: `${formatSeconds(seconds)}${(seconds === defaultValue) ? ' (default)' : ''}`}));
+}
+
+export function warningsWindowChoices(value: number | null): ReadonlyArray<Choice<number>> {
+  return withSeconds([1, 3, 7, 14, 30, 60, 90, 180, 365].map((days) => days * 86400), value, WARNINGS_WINDOW_DEFAULT);
+}
+
+export function warningsExpireChoices(value: number | null): ReadonlyArray<Choice<number>> {
+  return withSeconds([30, 60, 90, 180, 365, 730, 1825].map((days) => days * 86400), value, null);
 }
 
 
@@ -74,6 +109,7 @@ export const LOGGER_TYPES: ReadonlyArray<{value: number, label: string, descript
   {value: 4, label: 'Channels', description: 'Channel creates, deletes and updates'},
   {value: 5, label: 'Bans', description: 'Bans and unbans'},
   {value: 6, label: 'Roles', description: 'Role creates, deletes and updates'},
+  {value: 7, label: 'Moderation', description: 'Warnings given, removed and cleared'},
 ];
 
 export function loggerTypeLabel(type: number): string {

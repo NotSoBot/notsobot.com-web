@@ -17,7 +17,7 @@ import {
 import { PersonalityHint } from '../settings/PersonalityHint';
 import { useDraft } from '../settings/useDraft';
 import { CharCounter, Field, InlineError, Panel, SaveBar } from '../ui';
-import { useReadOnlyMessage } from './guildMeta';
+import { useReadOnlyMessage, warningsExpireChoices, warningsWindowChoices } from './guildMeta';
 
 
 // the owner/admin bypass is changed from the rules panel
@@ -40,6 +40,8 @@ export function ServerSettingsForm({ guild, onDirtyChange }: {guild: UserGuild, 
     response_display: guild.settings.response_display,
     search_provider_images: guild.settings.search_provider_images,
     search_provider_web: guild.settings.search_provider_web,
+    warnings_window: guild.settings.warnings_window,
+    warnings_expire: guild.settings.warnings_expire,
   }), [guild]);
   const draft = useDraft(saved);
   const { values } = draft;
@@ -109,6 +111,12 @@ export function ServerSettingsForm({ guild, onDirtyChange }: {guild: UserGuild, 
           </Field>
           <Field label='Image search' hint='Each member’s own setting wins over this.'>
             {(props) => <ChoiceSelect {...props} noneLabel='Default (Google)' choices={SEARCH_PROVIDER_CHOICES} value={values.search_provider_images} onChange={(value) => draft.set('search_provider_images', value)}/>}
+          </Field>
+          <Field label='Warnings count as active for' hint='How far back a member’s active warnings go.'>
+            {(props) => <ChoiceSelect {...props} choices={warningsWindowChoices(values.warnings_window)} value={values.warnings_window} onChange={(value) => draft.set('warnings_window', value)}/>}
+          </Field>
+          <Field label='Delete warnings after' hint='Older warnings are removed for good.'>
+            {(props) => <ChoiceSelect {...props} noneLabel='Never (default)' choices={warningsExpireChoices(values.warnings_expire)} value={values.warnings_expire} onChange={(value) => draft.set('warnings_expire', value)}/>}
           </Field>
         </fieldset>
         {(mutation.isError && draft.dirty) ? <InlineError>{errorMessage(mutation.error, 'Couldn’t save the server settings.')}</InlineError> : null}

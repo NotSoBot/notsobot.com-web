@@ -29,6 +29,7 @@ import {
   type AdminUserRef,
   type ContentFlag,
   type GuildLLMKnowledge,
+  type GuildWarning,
   type GuildMusic,
   type GuildMusicQueueItem,
   type GuildRule,
@@ -97,6 +98,12 @@ const state = {
   guildLLMKnowledge: new Map<string, Array<GuildLLMKnowledge>>([[guilds[0].summary.id, [
     {content: 'The #support channel is for help with the bot, staff usually answer within a day.', created: new Date(Date.now() - 9 * 86400000).toISOString(), guild_id: guilds[0].summary.id, id: '1300000000000000101', user_id: '1000000000000000001'},
     {content: 'Members get the Regular role after a week of chatting.', created: new Date(Date.now() - 2 * 86400000).toISOString(), guild_id: guilds[0].summary.id, id: '1300000000000000102', user_id: '1000000000000000001'},
+  ]]]),
+  // each server's warnings by guild id, newest last; the first server starts with a few (one past the 30 day window)
+  guildWarnings: new Map<string, Array<GuildWarning>>([[guilds[0].summary.id, [
+    {created: new Date(Date.now() - 45 * 86400000).toISOString(), guild_id: guilds[0].summary.id, id: '1300000000000000301', moderator_id: mockUser.id, reason: 'Spamming in #general', user_id: '1000000000000000002'},
+    {created: new Date(Date.now() - 6 * 86400000).toISOString(), guild_id: guilds[0].summary.id, id: '1300000000000000302', moderator_id: mockUser.id, reason: 'Posting memes in #support', user_id: '1000000000000000002'},
+    {created: new Date(Date.now() - 2 * 3600000).toISOString(), guild_id: guilds[0].summary.id, id: '1300000000000000303', moderator_id: '1000000000000000003', reason: null, user_id: '1000000000000000004'},
   ]]]),
   // each server's music, made when it's first asked for (`guildMusic`)
   guildMusic: new Map<string, GuildMusic>(),
@@ -1056,6 +1063,11 @@ function findAdminGuild(guildId: string) {
   return item;
 }
 
+// looking is for any staff
+function scopedGuildRead(scope: string, guildId: string) {
+  return (scope === 'admin') ? findAdminGuild(guildId).entry : findGuild(guildId);
+}
+
 function scopedGuild(scope: string, guildId: string, area: keyof ReturnType<typeof guildEditable>) {
   if (scope === 'admin') {
     // editing any server is owners only
@@ -1091,11 +1103,15 @@ route('PATCH', '/users/@me/guilds/(\\d+)', ([ , guildId ], { body }) => {
   if (ADMIN_BYPASS_SETTINGS.some((key) => key in body)) {
     requireEditable(guildId, 'rules_admin');
   }
-  const settingsKeys = ['ml_diffusion_model', 'ml_llm_model', 'ml_llm_personality', 'response_display', 'search_provider_images', 'search_provider_web'] as const;
+  const settingsKeys = ['ml_diffusion_model', 'ml_llm_model', 'ml_llm_personality', 'response_display', 'search_provider_images', 'search_provider_web', 'warnings_expire'] as const;
   for (const key of settingsKeys) {
     if (key in body) {
       (detail.settings as unknown as Record<string, unknown>)[key] = body[key];
     }
+  }
+  if ('warnings_window' in body) {
+    // null resets it to 30 days
+    detail.settings.warnings_window = (body.warnings_window as number | null) ?? 30 * 24 * 60 * 60;
   }
   applyAdminBypassSettings(detail, body);
   if ('locale' in body) {
@@ -1246,6 +1262,7 @@ route('GET', '/(users/@me|admin)/guilds/(\\d+)/data/export', ([ , scope, guildId
     tags,
     timestamp: Date.now(),
     version: 1,
+    warnings: state.guildWarnings.get(guildId) ?? [],
   };
 });
 
@@ -1257,6 +1274,7 @@ route('POST', '/(users/@me|admin)/guilds/(\\d+)/data/delete', ([ , scope, guildI
   const before = state.tags.length;
   state.tags = state.tags.filter((tag) => tag.server_id !== guildId);
   state.guildLLMKnowledge.delete(guildId);
+  state.guildWarnings.delete(guildId);
   Object.assign(detail, {
     disabled_logger_events: 0,
     locale: null,
@@ -2355,7 +2373,7 @@ function adminGuildDetail(guildId: string) {
       reminders: state.reminders.filter((reminder) => reminder.guild_id === guildId).length || Number(BigInt(guildId) % 9n),
     },
     // owners can edit every area, moderators none
-    editable: {loggers: state.owner, music: state.owner, prefixes: state.owner, rules: state.owner, rules_admin: state.owner, settings: state.owner},
+    editable: {loggers: state.owner, moderation: state.owner, music: state.owner, prefixes: state.owner, rules: state.owner, rules_admin: state.owner, settings: state.owner},
     owner: false,
     permissions: '0',
   };
@@ -2415,11 +2433,15 @@ route('PATCH', '/admin/guilds/(\\d+)', ([ , guildId ], { body }) => {
     requireBotOwner();
   }
   const { detail } = findAdminGuild(guildId).entry;
-  const settingsKeys = ['ml_diffusion_model', 'ml_llm_model', 'ml_llm_personality', 'response_display', 'search_provider_images', 'search_provider_web'] as const;
+  const settingsKeys = ['ml_diffusion_model', 'ml_llm_model', 'ml_llm_personality', 'response_display', 'search_provider_images', 'search_provider_web', 'warnings_expire'] as const;
   for (const key of settingsKeys) {
     if (key in body) {
       (detail.settings as unknown as Record<string, unknown>)[key] = body[key];
     }
+  }
+  if ('warnings_window' in body) {
+    // null resets it to 30 days
+    detail.settings.warnings_window = (body.warnings_window as number | null) ?? 30 * 24 * 60 * 60;
   }
   applyAdminBypassSettings(detail, body);
   if ('locale' in body) {
@@ -3005,7 +3027,7 @@ route('DELETE', '/users/@me/reminders/(\\d+)', ([ , reminderId ]) => {
   state.reminders = state.reminders.filter((other) => other.id !== reminderId);
 });
 
-// what a server told NotSoAI: mirrors the `/llm/knowledge` routes in `views/me_guilds.py`
+// what a server told NotSoAI: mirrors the `/llm/knowledge` routes in `views/me_guilds.py` (and `views/admin.py`)
 const GUILD_LLM_KNOWLEDGE_LIMITS = {amount: 10, total_length: 1000};
 
 function guildLLMKnowledge(guildId: string): Array<GuildLLMKnowledge> {
@@ -3045,13 +3067,13 @@ function findGuildLLMKnowledge(guildId: string, knowledgeId: string): GuildLLMKn
   return item;
 }
 
-route('GET', '/users/@me/guilds/(\\d+)/llm/knowledge', ([ , guildId ]) => {
-  findGuild(guildId);
+route('GET', '/(users/@me|admin)/guilds/(\\d+)/llm/knowledge', ([ , scope, guildId ]) => {
+  scopedGuildRead(scope, guildId);
   return {items: guildLLMKnowledge(guildId), limits: GUILD_LLM_KNOWLEDGE_LIMITS};
 });
 
-route('POST', '/users/@me/guilds/(\\d+)/llm/knowledge', ([ , guildId ], { body }) => {
-  requireEditable(guildId, 'settings');
+route('POST', '/(users/@me|admin)/guilds/(\\d+)/llm/knowledge', ([ , scope, guildId ], { body }) => {
+  scopedGuild(scope, guildId, 'settings');
   const items = guildLLMKnowledge(guildId);
   if (GUILD_LLM_KNOWLEDGE_LIMITS.amount <= items.length) {
     throw new MockError(400, ApiErrorCodes.MAX_GUILD_LLM_KNOWLEDGE, `Servers can only give NotSoAI ${GUILD_LLM_KNOWLEDGE_LIMITS.amount} things to know`);
@@ -3069,8 +3091,8 @@ route('POST', '/users/@me/guilds/(\\d+)/llm/knowledge', ([ , guildId ], { body }
   return item;
 });
 
-route('PATCH', '/users/@me/guilds/(\\d+)/llm/knowledge/(\\d+)', ([ , guildId, knowledgeId ], { body }) => {
-  requireEditable(guildId, 'settings');
+route('PATCH', '/(users/@me|admin)/guilds/(\\d+)/llm/knowledge/(\\d+)', ([ , scope, guildId, knowledgeId ], { body }) => {
+  scopedGuild(scope, guildId, 'settings');
   const item = findGuildLLMKnowledge(guildId, knowledgeId);
   const content = guildLLMKnowledgeContent(body);
   if (content !== item.content) {
@@ -3081,13 +3103,55 @@ route('PATCH', '/users/@me/guilds/(\\d+)/llm/knowledge/(\\d+)', ([ , guildId, kn
   return item;
 });
 
-route('DELETE', '/users/@me/guilds/(\\d+)/llm/knowledge/(\\d+)', ([ , guildId, knowledgeId ]) => {
-  requireEditable(guildId, 'settings');
+route('DELETE', '/(users/@me|admin)/guilds/(\\d+)/llm/knowledge/(\\d+)', ([ , scope, guildId, knowledgeId ]) => {
+  scopedGuild(scope, guildId, 'settings');
   findGuildLLMKnowledge(guildId, knowledgeId);
   state.guildLLMKnowledge.set(guildId, guildLLMKnowledge(guildId).filter((other) => other.id !== knowledgeId));
 });
 
-// what's playing: mirrors the `/music` routes in `views/me_guilds.py`. The first server is playing something, the
+// the server's warnings: mirrors `me_guild_warnings` in `views/guild_warnings.py` (there are no staff routes for them)
+function guildWarnings(guildId: string): Array<GuildWarning> {
+  return state.guildWarnings.get(guildId) ?? [];
+}
+
+route('GET', '/users/@me/guilds/(\\d+)/warnings', ([ , guildId ], { query }) => {
+  const { detail } = requireEditable(guildId, 'moderation');
+  const userId = query.get('user_id');
+  const before = query.get('before');
+  const limit = Number(query.get('limit')) || 25;
+  const { warnings_expire: expire, warnings_window: window } = detail.settings;
+  // expired ones are hidden before the cleaner deletes them
+  const matched = guildWarnings(guildId)
+    .filter((warning) => (!userId || warning.user_id === userId) && (!expire || Date.now() - expire * 1000 <= Date.parse(warning.created)))
+    .reverse();
+  const page = matched.filter((warning) => !before || BigInt(warning.id) < BigInt(before)).slice(0, limit);
+  return {
+    active: matched.filter((warning) => Date.now() - window * 1000 <= Date.parse(warning.created)).length,
+    count: matched.length,
+    warnings: page,
+    window,
+  };
+});
+
+route('DELETE', '/users/@me/guilds/(\\d+)/warnings/(\\d+)', ([ , guildId, warningId ]) => {
+  requireEditable(guildId, 'moderation');
+  const warning = guildWarnings(guildId).find((other) => other.id === warningId);
+  if (!warning) {
+    throw new MockError(404, ApiErrorCodes.UNKNOWN_GUILD_WARNING, 'Unknown Warning');
+  }
+  state.guildWarnings.set(guildId, guildWarnings(guildId).filter((other) => other !== warning));
+  return warning;
+});
+
+route('POST', '/users/@me/guilds/(\\d+)/warnings/delete', ([ , guildId ], { body }) => {
+  requireEditable(guildId, 'moderation');
+  const userIds = (Array.isArray(body.user_ids)) ? body.user_ids.map(String) : [];
+  const deleted = Object.fromEntries(userIds.map((userId: string) => [userId, guildWarnings(guildId).filter((warning) => warning.user_id === userId).length]));
+  state.guildWarnings.set(guildId, guildWarnings(guildId).filter((warning) => !userIds.includes(warning.user_id)));
+  return {deleted};
+});
+
+// what's playing: mirrors the `/music` routes in `views/me_guilds.py` (and `views/admin.py`). The first server is playing something, the
 // bot's controls (`MUSIC_CONTROL`) are acted on right away here
 function mockMusicItem(guildId: string, id: string, position: number, track: Partial<NonNullable<GuildMusicQueueItem['track']>> | null, url = ''): GuildMusicQueueItem {
   return {
@@ -3161,13 +3225,13 @@ function findMusicQueueItem(music: GuildMusic, itemId: string): GuildMusicQueueI
   return item;
 }
 
-route('GET', '/users/@me/guilds/(\\d+)/music', ([ , guildId ]) => {
-  findGuild(guildId);
+route('GET', '/(users/@me|admin)/guilds/(\\d+)/music', ([ , scope, guildId ]) => {
+  scopedGuildRead(scope, guildId);
   return guildMusic(guildId);
 });
 
-route('PATCH', '/users/@me/guilds/(\\d+)/music', ([ , guildId ], { body }) => {
-  requireEditable(guildId, 'music');
+route('PATCH', '/(users/@me|admin)/guilds/(\\d+)/music', ([ , scope, guildId ], { body }) => {
+  scopedGuild(scope, guildId, 'music');
   const music = guildMusic(guildId);
   if (body.loop !== undefined && body.loop !== 'off' && body.loop !== 'track' && body.loop !== 'queue') {
     throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'Loop must be off, track or queue');
@@ -3209,8 +3273,8 @@ route('PATCH', '/users/@me/guilds/(\\d+)/music', ([ , guildId ], { body }) => {
   return guildMusic(guildId);
 });
 
-route('POST', '/users/@me/guilds/(\\d+)/music/control', ([ , guildId ], { body }) => {
-  requireEditable(guildId, 'music');
+route('POST', '/(users/@me|admin)/guilds/(\\d+)/music/control', ([ , scope, guildId ], { body }) => {
+  scopedGuild(scope, guildId, 'music');
   const music = guildMusic(guildId);
   if (!music.session) {
     throw new MockError(404, ApiErrorCodes.UNKNOWN_MUSIC_SESSION, 'Nothing is playing in this server');
@@ -3241,8 +3305,8 @@ route('POST', '/users/@me/guilds/(\\d+)/music/control', ([ , guildId ], { body }
   }
 });
 
-route('PATCH', '/users/@me/guilds/(\\d+)/music/queue/(\\d+)', ([ , guildId, itemId ], { body }) => {
-  requireEditable(guildId, 'music');
+route('PATCH', '/(users/@me|admin)/guilds/(\\d+)/music/queue/(\\d+)', ([ , scope, guildId, itemId ], { body }) => {
+  scopedGuild(scope, guildId, 'music');
   const music = guildMusic(guildId);
   const item = findMusicQueueItem(music, itemId);
   music.queue = music.queue.filter((other) => other !== item);
@@ -3251,8 +3315,8 @@ route('PATCH', '/users/@me/guilds/(\\d+)/music/queue/(\\d+)', ([ , guildId, item
   return music;
 });
 
-route('DELETE', '/users/@me/guilds/(\\d+)/music/queue/(\\d+)', ([ , guildId, itemId ]) => {
-  requireEditable(guildId, 'music');
+route('DELETE', '/(users/@me|admin)/guilds/(\\d+)/music/queue/(\\d+)', ([ , scope, guildId, itemId ]) => {
+  scopedGuild(scope, guildId, 'music');
   const music = guildMusic(guildId);
   const item = findMusicQueueItem(music, itemId);
   music.queue = music.queue.filter((other) => other !== item);
@@ -3260,8 +3324,8 @@ route('DELETE', '/users/@me/guilds/(\\d+)/music/queue/(\\d+)', ([ , guildId, ite
   return music;
 });
 
-route('POST', '/users/@me/guilds/(\\d+)/music/queue/delete', ([ , guildId ]) => {
-  requireEditable(guildId, 'music');
+route('POST', '/(users/@me|admin)/guilds/(\\d+)/music/queue/delete', ([ , scope, guildId ]) => {
+  scopedGuild(scope, guildId, 'music');
   const music = guildMusic(guildId);
   music.queue = [];
   return music;

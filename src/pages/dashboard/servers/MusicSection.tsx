@@ -8,7 +8,7 @@ import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
 import { Routes } from '@/config';
 import type { GuildMusic, GuildMusicLoop, GuildMusicQueueItem, UserGuild } from '@/lib/api';
-import { errorMessage, useGuildMusicMutation, useMeGuildMusicQuery, type GuildMusicAction } from '@/lib/api/dashboardQueries';
+import { errorMessage, useGuildMusicMutation, useGuildMusicQuery, useGuildScope, type GuildMusicAction } from '@/lib/api/dashboardQueries';
 import { cn } from '@/lib/utils';
 
 import { isSnowflake } from '../tags/tagMeta';
@@ -31,7 +31,7 @@ export function MusicSection({ guild }: {guild: UserGuild}) {
   const editable = guild.editable.music;
   const readOnlyMessage = useReadOnlyMessage();
   const toast = useToast();
-  const { data: music, isPending, error, dataUpdatedAt } = useMeGuildMusicQuery(guild.id);
+  const { data: music, isPending, error, dataUpdatedAt } = useGuildMusicQuery(guild.id);
   const mutation = useGuildMusicMutation(guild.id);
   const [ busyKey, setBusyKey ] = useState<string | null>(null);
   const [ confirming, setConfirming ] = useState<'clear' | 'leave' | null>(null);
@@ -462,14 +462,20 @@ function CrossfadeSetting({ music, editable, busy, run }: {
 }
 
 
-// a music setting that's kept without premium but only does anything with it
+// a music setting that's kept without premium but only does anything with it. Staff (the admin server modal) can't use
+// their own premium slots on someone's server, the Music access feature counts instead
 function PremiumNote({ children }: {children: ReactNode}) {
+  const staff = useGuildScope() === 'admin';
   return (
     <p className='mt-2 flex items-start gap-2 rounded-md border border-[#f0b232]/30 bg-[#f0b232]/10 px-3 py-2 text-xs text-fg'>
       <Crown aria-hidden className='mt-px size-3.5 shrink-0 text-[#f0b232]'/>
       <span>
         {children}{' '}
-        <Link to={Routes.DASHBOARD_PREMIUM} className='text-brand hover:underline'>Give this server a premium slot</Link>
+        {(staff) ? (
+          <>The Music access feature counts as premium.</>
+        ) : (
+          <Link to={Routes.DASHBOARD_PREMIUM} className='text-brand hover:underline'>Give this server a premium slot</Link>
+        )}
       </span>
     </p>
   );
