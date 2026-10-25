@@ -2843,6 +2843,21 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     ],
   },
   {
+    name: 'dance',
+    category: 'distort',
+    summary: 'Cuts out the subject and makes it squash and stretch to a beat over its filled-in background.',
+    syntax: 'dance MEDIA_KEY AMOUNT=20 BPM=120 MODEL=ISNET_GENERAL_USE',
+    args: [
+      media(),
+      {name: 'AMOUNT', default: '20', range: '1..60', description: 'how far it squashes and stretches, a percent of its height'},
+      {name: 'BPM', default: '120', range: '30..300', description: 'beats per minute, it changes pose every beat'},
+      {name: 'MODEL', default: 'ISNET_GENERAL_USE', range: 'BIREFNET_COD, BIREFNET_DIS, BIREFNET_GENERAL, BIREFNET_GENERAL_LITE, BIREFNET_HRSOD, BIREFNET_MASSIVE, BIREFNET_PORTRAIT, BRIA_RMBG, ISNET_ANIME, ISNET_GENERAL_USE, SILUETA, U2NET, U2NETP, U2NET_CLOTH_SEG, U2NET_HUMAN_SEG', description: 'the background removal model that finds the subject'},
+    ],
+    notes: [
+      'Always makes a looping GIF of one bounce from the first frame: GIFs and videos use their first frame, so the background is only removed once.',
+    ],
+  },
+  {
     name: 'datamosh',
     category: 'filters',
     summary: 'Duplicates video P-frames for a smeary datamosh glitch.',
@@ -3045,12 +3060,12 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     args: [
       media(),
       {name: 'ANGLE', default: '0', range: '0..359', description: 'direction of the sorting'},
-      {name: 'INTERVAL', default: 'THRESHOLD', range: 'EDGES, NONE, RANDOM, THRESHOLD, WAVES', description: 'how the runs are picked'},
-      {name: 'SORT_BY', default: 'LIGHTNESS', range: 'HUE, INTENSITY, LIGHTNESS, MAXIMUM, MINIMUM, SATURATION'},
+      {name: 'INTERVAL', default: 'THRESHOLD', range: 'EDGES, IMAGE, NONE, RANDOM, THRESHOLD, WAVES', description: 'how the runs are picked, IMAGE sorts every pixel as one run'},
+      {name: 'SORT_BY', default: 'LIGHTNESS', range: 'COLOR, HUE, INTENSITY, LIGHTNESS, MAXIMUM, MINIMUM, SATURATION', description: 'COLOR groups by dominant color, then brightness'},
       {name: 'LOWER', default: '0.25', range: '0..1', description: 'THRESHOLD only sorts pixels between LOWER and UPPER'},
       {name: 'UPPER', default: '0.8', range: '0..1'},
       {name: 'LENGTH', default: '50', range: '2..1000', description: 'run length for RANDOM and WAVES'},
-      {name: 'RANDOMNESS', default: '0', range: '0..100', description: 'percent of runs left unsorted'},
+      {name: 'RANDOMNESS', default: '0', range: '0..100', description: 'percent of runs left unsorted (pixels for IMAGE)'},
       {name: 'REVERSE', default: 'false'},
       {name: 'SEED', default: 'none', range: '0..2147483647', description: 'the same seed gives the same result; none is random'},
     ],
@@ -3438,6 +3453,24 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     syntax: 'shaketriggered MEDIA_KEY',
     args: [media()],
     notes: ['Turns a still image into a 4-frame GIF.'],
+  },
+  {
+    name: 'bounce',
+    category: 'distort',
+    summary: 'Makes the media bounce like a bouncing webm, every frame its own size.',
+    syntax: 'bounce MEDIA_KEY AXIS=HEIGHT STYLE=BOUNCE BOUNCES=2.0 MINIMUM=5 DURATION=3.0',
+    args: [
+      media(),
+      {name: 'AXIS', default: 'HEIGHT', range: 'both, height, width', description: 'which side bounces'},
+      {name: 'STYLE', default: 'BOUNCE', range: 'bounce, random, wave', description: 'bounce drops and snaps back up, wave is smooth, random is any size every frame'},
+      {name: 'BOUNCES', default: '2.0', range: '0.1..10.0', description: 'bounces per second'},
+      {name: 'MINIMUM', default: '5', range: '1..100', description: 'the smallest size, a percent of the original'},
+      {name: 'DURATION', default: '3.0', range: '0.5..30.0', description: 'seconds, for still images'},
+    ],
+    notes: [
+      'Always a webm, the only format whose frames can each be their own size. Do it last, later actions make the frames one size again.',
+      'Discord only shows the bounce when the link is pasted in a message, the uploaded file plays at the first frame\'s size.',
+    ],
   },
   {
     name: 'slide',

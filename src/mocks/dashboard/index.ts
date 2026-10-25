@@ -1104,6 +1104,10 @@ route('PATCH', '/users/@me/guilds/(\\d+)', ([ , guildId ], { body }) => {
     requireEditable(guildId, 'rules_admin');
   }
   const settingsKeys = ['ml_diffusion_model', 'ml_llm_model', 'ml_llm_personality', 'response_display', 'search_provider_images', 'search_provider_web', 'warnings_expire'] as const;
+  if ('warnings_actions' in body) {
+    // the api sorts the ladder, null turns it off
+    detail.settings.warnings_actions = [...((body.warnings_actions as UserGuild['settings']['warnings_actions'] | null) || [])].sort((x, y) => x.threshold - y.threshold);
+  }
   for (const key of settingsKeys) {
     if (key in body) {
       (detail.settings as unknown as Record<string, unknown>)[key] = body[key];
@@ -2434,6 +2438,10 @@ route('PATCH', '/admin/guilds/(\\d+)', ([ , guildId ], { body }) => {
   }
   const { detail } = findAdminGuild(guildId).entry;
   const settingsKeys = ['ml_diffusion_model', 'ml_llm_model', 'ml_llm_personality', 'response_display', 'search_provider_images', 'search_provider_web', 'warnings_expire'] as const;
+  if ('warnings_actions' in body) {
+    // the api sorts the ladder, null turns it off
+    detail.settings.warnings_actions = [...((body.warnings_actions as UserGuild['settings']['warnings_actions'] | null) || [])].sort((x, y) => x.threshold - y.threshold);
+  }
   for (const key of settingsKeys) {
     if (key in body) {
       (detail.settings as unknown as Record<string, unknown>)[key] = body[key];
@@ -3178,20 +3186,20 @@ function guildMusicPremium(guildId: string): boolean {
 }
 
 // nothing playing, with the server's settings (they stay when the bot leaves)
-type GuildMusicSettingKey = 'crossfade' | 'dj_only' | 'dj_role_id' | 'fair_queue' | 'max_duration' | 'no_duplicates' | 'stay' | 'vote_pause' | 'vote_resume' | 'vote_skip';
+type GuildMusicSettingKey = 'crossfade' | 'dj_only' | 'dj_role_id' | 'fair_queue' | 'max_duration' | 'no_duplicates' | 'pause_alone' | 'stay' | 'vote_pause' | 'vote_resume' | 'vote_skip';
 
-const MUSIC_BOOLEAN_SETTINGS = ['dj_only', 'fair_queue', 'no_duplicates', 'stay', 'vote_pause', 'vote_resume', 'vote_skip'] as const;
+const MUSIC_BOOLEAN_SETTINGS = ['dj_only', 'fair_queue', 'no_duplicates', 'pause_alone', 'stay', 'vote_pause', 'vote_resume', 'vote_skip'] as const;
 
 function emptyGuildMusic(settings: Pick<GuildMusic, GuildMusicSettingKey>): GuildMusic {
-  const { crossfade, dj_only, dj_role_id, fair_queue, max_duration, no_duplicates, stay, vote_pause, vote_resume, vote_skip } = settings;
-  return {crossfade, current: null, dj_only, dj_role_id, fair_queue, held_position: null, loop: 'off', max_duration, no_duplicates, premium: false, queue: [], queue_limit: 100, session: null, stay, vote_pause, vote_resume, vote_skip};
+  const { crossfade, dj_only, dj_role_id, fair_queue, max_duration, no_duplicates, pause_alone, stay, vote_pause, vote_resume, vote_skip } = settings;
+  return {crossfade, current: null, dj_only, dj_role_id, fair_queue, held_position: null, loop: 'off', max_duration, no_duplicates, pause_alone, premium: false, queue: [], queue_limit: 100, session: null, stay, vote_pause, vote_resume, vote_skip};
 }
 
 function guildMusic(guildId: string): GuildMusic {
   let music = state.guildMusic.get(guildId);
   if (!music) {
     const playing = guildId === guilds[0].summary.id;
-    music = emptyGuildMusic({crossfade: 0, dj_only: true, dj_role_id: null, fair_queue: false, max_duration: null, no_duplicates: false, stay: true, vote_pause: true, vote_resume: true, vote_skip: true});
+    music = emptyGuildMusic({crossfade: 0, dj_only: true, dj_role_id: null, fair_queue: false, max_duration: null, no_duplicates: false, pause_alone: false, stay: true, vote_pause: true, vote_resume: true, vote_skip: true});
     if (playing) {
       music.current = mockMusicItem(guildId, '1400000000000000001', 0, {album: 'Melodrama', artist: 'Lorde', duration: 228000, thumbnail: 'https://placehold.co/96x96/1db954/fff?text=M', title: 'Green Light'}, 'https://open.spotify.com/track/6ie2Bw3xLj2JcGowOlcMhb');
       music.queue = [

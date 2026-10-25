@@ -28,6 +28,27 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 
 export const CHANGELOG: Array<ChangelogDay> = [
   {
+    date: '2026-10-25',
+    title: 'Interpolate, dance and warning steps',
+    items: [
+      {kind: 'new', text: '`.interpolate` (`.interleave`) cuts two medias into small pieces and alternates between them, like `.interpolate @cakedan @notsobot`. `-segment` sets how long each piece is (0.1 to 10 seconds, 0.125 by default) and the shorter one loops until the longer one ends unless you add `-noloop`. Also `/media-aiv interpolate`.'},
+      {kind: 'new', text: '`.dance` (`/media-iv-animate dance`) cuts out whatever\'s in an image and makes it squash and stretch to a beat over its background, as a looping GIF. `-amount` for how much (1 to 60), `-bpm` for how fast (30 to 300) and `-model` for the background removal model. Also the `dance` **MediaScript** action.'},
+      {kind: 'new', text: '`.hidden` (`/media-iv-filter hidden`) hides an image or video in a fine checkerboard, it shows when you step back or squint. `-share` for how much shows through (1 to 50) and `-size` for the checker squares (1 to 10 pixels).'},
+      {kind: 'improved', text: '`.pixelsort -interval IMAGE -sort COLOR` (`.pxlsrt`) sorts the whole image into bands of color. Also in **MediaScript** `pixelsort`.'},
+      {kind: 'new', text: 'Warning steps: `.set warnings -step 3 -action mute -duration 1h` mutes, kicks or bans a member once a warning brings their active warnings to that number, with `-clean` to delete their messages on a kick or ban. A step is skipped when the moderator couldn\'t have done it themselves. Also `/server set warnings` and in your server\'s dashboard settings.'},
+      {kind: 'improved', text: '`.warn` shows the member\'s earlier warnings under it, with buttons for whoever warned them to undo it (the DM too) or mute, kick or ban them with the reason filled in.'},
+      {kind: 'new', text: '`.music 247 pause on` pauses the music when everyone leaves NotSoBot\'s voice channel and carries on when someone comes back (off by default). Also in your server\'s dashboard.'},
+      {kind: 'improved', text: 'With DJ mode off, anyone in NotSoBot\'s voice channel can make it leave or clear the queue.'},
+      {kind: 'fixed', text: 'Music stopping when NotSoBot is dragged to another voice channel.'},
+      {kind: 'improved', text: '**MediaScript:** `interpolate` is faster, and audio and video stay in sync to the end.'},
+      {kind: 'fixed', text: '**MediaScript:** `interpolate` dropping the second media\'s audio when the first one had none (like a gif first), and only showing a still image for part of the video.'},
+      {kind: 'new', text: '`.bounce` (`/media-iv-animate bounce`) makes an image or video bounce like a bouncing webm, every frame its own size. `-axis` for which side (`height`, `width` or `both`), `-style` for how (`bounce`, `wave` or `random`), `-bounces` per second (0.1 to 10), `-minimum` for the smallest size (1 to 100% of the original) and `-duration` for still images (0.5 to 30 seconds). Also the `bounce` **MediaScript** action.'},
+      {kind: 'fixed', text: 'Effects on a bouncing webm (one whose frames change size) keep the bounce instead of stretching every frame to the first one\'s size, and captions or overlays on one no longer come out as a single frame.'},
+      {kind: 'improved', text: 'Results that bounce say to paste their link in a message, Discord only shows the bounce in pasted links.'},
+      {kind: 'improved', text: '**MediaScript:** a webm that wasn\'t changed is saved as it is instead of being encoded again, so a bouncing webm keeps bouncing.'},
+    ],
+  },
+  {
     date: '2026-10-24',
     title: 'Free music, effects, quotes and Asian flags',
     items: [

@@ -41,8 +41,12 @@ export function useReadOnlyMessage(): (area: GuildEditableArea) => string {
 }
 
 
-// the server's warning settings, in seconds like the api: "30 days", "1 year", "12 hours"
+// the server's warning settings, in seconds like the api: "30 days", "1 year", "12 hours", "10 minutes"
 export function formatSeconds(seconds: number): string {
+  if (seconds < 3600) {
+    const minutes = Math.max(Math.round(seconds / 60), 1);
+    return `${minutes} minute${(minutes === 1) ? '' : 's'}`;
+  }
   const days = seconds / 86400;
   if (Number.isInteger(days / 365)) {
     return `${days / 365} year${(days === 365) ? '' : 's'}`;

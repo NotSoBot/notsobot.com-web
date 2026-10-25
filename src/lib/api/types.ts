@@ -92,7 +92,7 @@ export interface CommandMetadata {
   args: Array<CommandArg>,
   category: CommandCategory | string,
   // who made the command (or the program behind it). missing from commands uploaded before it existed
-  credits?: Array<{id: string, name: string, url?: string}>,
+  credits?: Array<{id?: string, name: string, url?: string}>,
   description: string | null,
   dmable: boolean,
   enabled: boolean,
@@ -736,6 +736,8 @@ export interface GuildMusic {
   max_duration: null | number,
   // a song can't be queued while it's queued or playing already
   no_duplicates: boolean,
+  // with 24/7: paused while nobody else is in the voice channel, it carries on when someone's back (off by default)
+  pause_alone: boolean,
   // a premium server slot or `MUSIC_ACCESS`: 24/7 and the bigger `queue_limit`
   premium: boolean,
   queue: Array<GuildMusicQueueItem>,
@@ -772,6 +774,7 @@ export interface GuildMusicSettings {
   loop?: GuildMusicLoop,
   max_duration?: number,
   no_duplicates?: boolean,
+  pause_alone?: boolean,
   stay?: boolean,
   vote_pause?: boolean,
   vote_resume?: boolean,
@@ -1053,10 +1056,24 @@ export interface GuildSettings {
   // `UserSettingsSearchProviders`, null is DuckDuckGo for web and Google for images
   search_provider_images: number | null,
   search_provider_web: number | null,
+  // the warning ladder sorted by threshold, empty: off
+  warnings_actions: Array<GuildWarningAction>,
   // seconds until a warning gets deleted, null: never
   warnings_expire: number | null,
   // seconds a warning counts towards a member's active warnings
   warnings_window: number,
+}
+
+// a step of the warning ladder: what the bot does once a warning brings a member's active warnings to exactly
+// `threshold`, skipped when the moderator couldn't do it themselves
+export interface GuildWarningAction {
+  action: 'ban' | 'kick' | 'mute',
+  // seconds of their messages to delete (kick/ban), 0: none
+  clean: number,
+  // seconds, a mute's length (required, up to 28 days) or a ban's (null: permanent, 1 minute to 365 days), null for kicks
+  duration: number | null,
+  // 1-100, unique within the ladder
+  threshold: number,
 }
 
 // `rules` covers command and category rules, `rules_admin` rules covering everything and the owner/admin bypass,
@@ -1110,6 +1127,8 @@ export interface UserGuildPatch {
   search_provider_images?: number | null,
   search_provider_web?: number | null,
   rules_admin_bypass?: boolean | null,
+  // replaces the whole ladder (up to 10 steps), null or empty turns it off
+  warnings_actions?: Array<GuildWarningAction> | null,
   // seconds, null: warnings never expire
   warnings_expire?: number | null,
   // seconds, null resets it to 30 days
@@ -1682,6 +1701,8 @@ export const MeCommandResults = {
   RAN: 'ran',
   RATELIMITED: 'ratelimited',
   RUN_ERROR: 'run_error',
+  // the user's own tag or code erroring, not ours
+  SCRIPT_ERROR: 'script_error',
 } as const;
 export type MeCommandResult = (typeof MeCommandResults)[keyof typeof MeCommandResults];
 

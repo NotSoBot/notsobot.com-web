@@ -196,6 +196,7 @@ export function createGuildSettings(): UserGuild['settings'] {
     rules_admin_bypass: true,
     search_provider_images: null,
     search_provider_web: null,
+    warnings_actions: [],
     warnings_expire: null,
     warnings_window: 30 * 24 * 60 * 60,
   };

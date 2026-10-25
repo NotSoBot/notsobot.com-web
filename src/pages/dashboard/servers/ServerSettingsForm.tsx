@@ -18,6 +18,7 @@ import { PersonalityHint } from '../settings/PersonalityHint';
 import { useDraft } from '../settings/useDraft';
 import { CharCounter, Field, InlineError, Panel, SaveBar } from '../ui';
 import { useReadOnlyMessage, warningsExpireChoices, warningsWindowChoices } from './guildMeta';
+import { WarningActionsEditor, warningActionsError } from './WarningActionsEditor';
 
 
 // the owner/admin bypass is changed from the rules panel
@@ -42,10 +43,13 @@ export function ServerSettingsForm({ guild, onDirtyChange }: {guild: UserGuild, 
     search_provider_web: guild.settings.search_provider_web,
     warnings_window: guild.settings.warnings_window,
     warnings_expire: guild.settings.warnings_expire,
+    warnings_actions: guild.settings.warnings_actions ?? [],
   }), [guild]);
   const draft = useDraft(saved);
   const { values } = draft;
   const personality = values.ml_llm_personality ?? '';
+  const warningActions = values.warnings_actions ?? [];
+  const actionsError = warningActionsError(warningActions);
 
   useEffect(() => {
     onDirtyChange(draft.dirty);
@@ -55,7 +59,7 @@ export function ServerSettingsForm({ guild, onDirtyChange }: {guild: UserGuild, 
     <form
       onSubmit={(event) => {
         event.preventDefault();
-        if (!draft.dirty || mutation.isPending || PERSONALITY_MAX < personality.length) {
+        if (!draft.dirty || mutation.isPending || PERSONALITY_MAX < personality.length || actionsError) {
           return;
         }
         mutation.mutate({kind: 'settings', patch: draft.changes}, {
@@ -118,6 +122,12 @@ export function ServerSettingsForm({ guild, onDirtyChange }: {guild: UserGuild, 
           <Field label='Delete warnings after' hint='Older warnings are removed for good.'>
             {(props) => <ChoiceSelect {...props} noneLabel='Never (default)' choices={warningsExpireChoices(values.warnings_expire)} value={values.warnings_expire} onChange={(value) => draft.set('warnings_expire', value)}/>}
           </Field>
+          <WarningActionsEditor
+            value={warningActions}
+            onChange={(value) => draft.set('warnings_actions', value)}
+            disabled={!editable}
+            error={actionsError}
+          />
         </fieldset>
         {(mutation.isError && draft.dirty) ? <InlineError>{errorMessage(mutation.error, 'Couldn’t save the server settings.')}</InlineError> : null}
         {(editable) ? <SaveBar dirty={draft.dirty} pending={mutation.isPending} onDiscard={draft.reset}/> : null}

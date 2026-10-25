@@ -178,15 +178,19 @@ export function CommandDrawer({ entry, siblings, totalRanked, onSelect, onClose 
               <Section title='Credits'>
                 <div className='flex flex-wrap gap-2'>
                   {metadata.credits.map((credit) => (
-                    <span key={credit.id} className='flex overflow-hidden rounded bg-surface-3 text-sm'>
-                      <a
-                        href={`https://discord.com/users/${credit.id}`}
-                        target='_blank'
-                        rel='noopener noreferrer'
-                        className='px-2.5 py-1 text-fg transition-colors hover:text-white'
-                      >
-                        {credit.name}
-                      </a>
+                    <span key={credit.id || credit.name} className='flex overflow-hidden rounded bg-surface-3 text-sm'>
+                      {(credit.id) ? (
+                        <a
+                          href={`https://discord.com/users/${credit.id}`}
+                          target='_blank'
+                          rel='noopener noreferrer'
+                          className='px-2.5 py-1 text-fg transition-colors hover:text-white'
+                        >
+                          {credit.name}
+                        </a>
+                      ) : (
+                        <span className='px-2.5 py-1 text-fg'>{credit.name}</span>
+                      )}
                       {(credit.url) ? (
                         <a
                           href={credit.url}

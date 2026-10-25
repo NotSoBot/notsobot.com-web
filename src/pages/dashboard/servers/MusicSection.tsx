@@ -305,6 +305,19 @@ function MusicSettings({ guildId, music, editable, busyKey, disabled, run }: {
             <PremiumNote>24/7 only works on premium servers, until then NotSoBot leaves like it usually does.</PremiumNote>
           ) : null}
         </div>
+        <div className='px-3 py-2.5'>
+          <Toggle
+            checked={music.pause_alone}
+            disabled={locked || !music.stay}
+            label='Pause when everyone leaves'
+            description='With 24/7 on, NotSoBot pauses when nobody else is in its voice channel, and carries on when someone comes back.'
+            onChange={(value) => void run(
+              'pause_alone',
+              {kind: 'settings', settings: {pause_alone: value}},
+              (value) ? 'NotSoBot pauses when everyone leaves now' : 'NotSoBot keeps playing to an empty channel now',
+            )}
+          />
+        </div>
         <CrossfadeSetting music={music} editable={editable} busy={busyKey === 'crossfade'} run={run}/>
         <p className='flex items-center gap-2 px-3 py-2.5 text-xs text-subtle'>
           <ListMusic aria-hidden className='size-3.5 shrink-0'/>

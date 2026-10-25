@@ -21,6 +21,7 @@ export const RESULT_LABELS: Record<string, {label: string, tone: Tone}> = {
   [MeCommandResults.RAN]: {label: 'Ran', tone: 'success'},
   [MeCommandResults.RUN_ERROR]: {label: 'Errored', tone: 'danger'},
   [MeCommandResults.FAIL]: {label: 'Failed', tone: 'danger'},
+  [MeCommandResults.SCRIPT_ERROR]: {label: 'Script errored', tone: 'warning'},
   [MeCommandResults.ARGUMENT_ERROR]: {label: 'Bad arguments', tone: 'warning'},
   [MeCommandResults.MISSING_PERMISSIONS]: {label: 'Missing permissions', tone: 'warning'},
   [MeCommandResults.BOT_MISSING_PERMISSIONS]: {label: 'Bot missing permissions', tone: 'warning'},
