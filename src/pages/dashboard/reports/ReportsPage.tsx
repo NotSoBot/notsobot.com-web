@@ -5,6 +5,7 @@
 
 import { ExternalLink, MessageSquareWarning, MessagesSquare, RotateCcw } from 'lucide-react';
 import { useState } from 'react';
+import { useSearchParams } from 'react-router';
 
 import logo from '@/assets/logos/NotSoLogo.svg';
 import { useAuth } from '@/auth';
@@ -29,9 +30,12 @@ import { cn, formatDateTime, toDate } from '@/lib/utils';
 
 import { AdminModalFooter, AdminTagModal, LinkedItemModal, useOpenListItem } from '../admin/AdminTagModal';
 import { Chip, CopyableValue, CopyButton, DETAIL_LIST_STACKED, DetailList, ExactDate, FiltersButton, Pagination, selectAllScope, useSearchParamState, useStepBackFromEmptyPage } from '../admin/adminUi';
+import { Segmented } from '@/components/ui/Segmented';
+
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from '../ui';
 import { REPORT_STATUSES, REPORT_TARGET_LABELS, reportJumpUrl, reportStatusInfo, reportTypeInfo, ROW_EDGE_BAR } from './reportLabels';
 import { REPORT_STAFF_NAME, ReportThread } from './ReportThread';
+import { ServerReportsTab } from './ServerReportsTab';
 
 
 function parseStatus(value: string | null): number | null {
@@ -88,8 +92,37 @@ function reportUpdated(report: MeReport): MeReport['created'] {
 const TITLE_ID = 'report-modal-title';
 
 
-// the list, with the open report (`/dashboard/reports/<id>`, so it can be linked) in a modal over it
+const TABS = [
+  {value: 'bot', label: 'Bot'},
+  {value: 'servers', label: 'Servers'},
+];
+
+// Bot (the reports to the NotSoBot developers, the default) and Servers (the reports to servers' moderators), each with
+// its own search and filters, so switching clears them
 export function ReportsPage() {
+  const [ searchParams, setSearchParams ] = useSearchParams();
+  const tab = (searchParams.get('tab') === 'servers') ? 'servers' : 'bot';
+  return (
+    <>
+      <DashboardHeader
+        title='Your Reports'
+        description={(tab === 'servers') ? (
+          <>Reports you’ve sent to servers’ moderators with the bot’s <code className='text-fg'>report</code> command or <span className='text-fg'>Report to Mods</span>. They’re only ever “the moderators” to you.</>
+        ) : (
+          <>Reports you’ve sent to the NotSoBot developers with the bot’s <code className='text-fg'>report</code> commands or from the website.</>
+        )}
+      />
+      <div className='mb-4'>
+        <Segmented label='Reports sent to' value={tab} options={TABS} onChange={(value) => setSearchParams((value === 'bot') ? {} : {tab: value}, {replace: true})}/>
+      </div>
+      {(tab === 'servers') ? <ServerReportsTab/> : <BotReportsTab/>}
+    </>
+  );
+}
+
+
+// the list, with the open report (`/dashboard/reports/<id>`, so it can be linked) in a modal over it
+function BotReportsTab() {
   const { searchParams, page, update, setPage } = useSearchParamState();
   const status = parseStatus(searchParams.get('status'));
   const sortBy = SORTS.find((sort) => sort.value === searchParams.get('sort'))?.value ?? 'updated';
@@ -117,11 +150,6 @@ export function ReportsPage() {
 
   return (
     <>
-      <DashboardHeader
-        title='Your Reports'
-        description={<>Reports you’ve sent to the NotSoBot developers with the bot’s <code className='text-fg'>report</code> commands or from the website.</>}
-      />
-
       <div className='mb-4 flex gap-2'>
         <SearchInput
           className='min-w-0 flex-1'

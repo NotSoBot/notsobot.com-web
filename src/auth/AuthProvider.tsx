@@ -3,7 +3,8 @@ import { useCallback, useEffect, useMemo, useState, useSyncExternalStore, type R
 
 import { config } from '@/config';
 import { api, ApiEndpoints, ApiRequestError, apiUrl } from '@/lib/api';
-import { queryKeys } from '@/lib/api/queries';
+import { removeStored } from '@/hooks/usePersistentState';
+import { SAVED_GUILDS_KEY, queryKeys } from '@/lib/api/queries';
 
 import { AuthContext, type AuthContextValue, type AuthStatus } from './AuthContext';
 import { markLoginPending, saveReturnTo } from './returnTo';
@@ -38,10 +39,11 @@ export function AuthProvider({ children }: {children: ReactNode}) {
     }
   }, [meQuery.error, token]);
 
-  // Forget any per-user cached data once logged out (including logouts from another tab).
+  // Forget any per-user cached data once logged out (including logouts from another tab), the saved server list too.
   useEffect(() => {
     if (!token) {
       queryClient.removeQueries({queryKey: ['users', '@me']});
+      removeStored(SAVED_GUILDS_KEY);
     }
   }, [queryClient, token]);
 

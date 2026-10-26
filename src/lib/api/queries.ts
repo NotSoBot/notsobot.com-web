@@ -5,6 +5,9 @@ import { api } from './index';
 import { TagDirectorySortByFilters, type MeTagsDirectoryFilter, type MeTagsSortBy, type TagDirectoryFilters, type TagDirectoryItem } from './types';
 
 
+// where the dashboard keeps the last server list between visits (`useMeGuildsQuery`), cleared on logout
+export const SAVED_GUILDS_KEY = 'servers:last';
+
 export const queryKeys = {
   commands: ['commands'] as const,
   commandStats: (since: string) => ['commands', 'stats', {since}] as const,
@@ -31,6 +34,7 @@ export const queryKeys = {
   meLLMMemories: (token: string | null) => ['users', '@me', token, 'llm', 'memories'] as const,
   meReminders: (token: string | null) => ['users', '@me', token, 'reminders'] as const,
   meReports: (token: string | null, filters: object) => ['users', '@me', token, 'reports', filters] as const,
+  sentGuildReports: (token: string | null, filters?: object) => ['users', '@me', token, 'sent-guild-reports', ...((filters === undefined) ? [] : [filters])] as const,
   meReportsUnread: (token: string | null) => ['users', '@me', token, 'reports-unread'] as const,
   meVoices: (token: string | null) => ['users', '@me', token, 'voices'] as const,
   meFiles: (token: string | null, filters?: object) => ['users', '@me', token, 'files', ...((filters) ? [filters] : [])] as const,
@@ -45,7 +49,7 @@ export const queryKeys = {
   // every page and user filter of a server's warnings sit under the first five
   guildWarnings: (token: string | null, scope: GuildScope, guildId: string, userId?: string) => ['users', '@me', token, 'guild-warnings', scope, guildId, ...((userId === undefined) ? [] : [userId])] as const,
   // and every page and status filter of its members' reports (`all` for no filter)
-  guildReports: (token: string | null, scope: GuildScope, guildId: string, status?: string) => ['users', '@me', token, 'guild-reports', scope, guildId, ...((status === undefined) ? [] : [status])] as const,
+  guildReports: (token: string | null, scope: GuildScope, guildId: string, filters?: object) => ['users', '@me', token, 'guild-reports', scope, guildId, ...((filters === undefined) ? [] : [filters])] as const,
   // admin (owner only); under the session too so logging out drops it
   admin: (token: string | null) => ['users', '@me', token, 'admin'] as const,
   adminTags: (token: string | null, filters: object) => ['users', '@me', token, 'admin', 'all-tags', filters] as const,

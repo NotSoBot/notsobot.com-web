@@ -1,11 +1,20 @@
-import { Crown, Eye, KeyRound, Search, Server, Settings2 } from 'lucide-react';
-import { useMemo } from 'react';
+import { Crown, Eye, KeyRound, Pin, PinOff, Search, Server, Settings2 } from 'lucide-react';
+import { useEffect, useMemo } from 'react';
 import { Link } from 'react-router';
 
 import { useAuth } from '@/auth';
 import { SearchInput } from '@/components/ui/SearchInput';
+import { useToast } from '@/components/ui/Toast';
+import { readStored, writeStored } from '@/hooks/usePersistentState';
 import { ApiEndpoints, apiUrl, type UserGuildSummary } from '@/lib/api';
-import { errorMessage, isDiscordGrantError, isScopeMismatch, useMeGuildsQuery } from '@/lib/api/dashboardQueries';
+import {
+  errorMessage,
+  isDiscordGrantError,
+  isScopeMismatch,
+  useMeGuildsQuery,
+  useMeSettingsQuery,
+  usePatchMeSettingsMutation,
+} from '@/lib/api/dashboardQueries';
 import { cn } from '@/lib/utils';
 
 import { useSearchParamState } from '../admin/adminUi';
@@ -14,12 +23,64 @@ import { GuildIcon } from './GuildIcon';
 import { dashboardServerPath } from './guildMeta';
 
 
-export function ServersPage() {
-  const { data, isPending, isError, error, refetch, isRefetching } = useMeGuildsQuery();
+// the page's sections, in order. A pinned server is only in Pinned, the rest go by what you can do there
+const SECTIONS: Array<{key: SectionKey, title: string}> = [
+  {key: 'pinned', title: 'Pinned'},
+  {key: 'owned', title: 'Servers you own'},
+  {key: 'manage', title: 'Servers you can manage'},
+  {key: 'member', title: 'Other servers'},
+];
+type SectionKey = 'pinned' | 'owned' | 'manage' | 'member';
 
-  // ones you can manage first, then alphabetical
+function sectionOf(guild: UserGuildSummary, pinned: Set<string>): SectionKey {
+  if (pinned.has(guild.id)) {
+    return 'pinned';
+  }
+  return (guild.owner) ? 'owned' : (guild.can_manage) ? 'manage' : 'member';
+}
+
+
+// where the first version kept pins, in the browser. They're moved onto the account once
+const LEGACY_PINNED_KEY = 'servers:pinned';
+const MAX_PINNED = 100;
+
+export function ServersPage() {
+  const toast = useToast();
+  const { data, isPending, isError, error, refetch, isRefetching } = useMeGuildsQuery();
+  // on the account (user settings), so every device has them, in the order they were pinned. A server you've left just
+  // stops showing up. The settings save optimistically, so a pin moves right away and moves back if it fails
+  const settings = useMeSettingsQuery();
+  const patchSettings = usePatchMeSettingsMutation();
+  const pinnedIds = useMemo(() => settings.data?.dashboard_pinned_guilds ?? [], [settings.data]);
+  const pinned = useMemo(() => new Set(pinnedIds), [pinnedIds]);
+  const savePins = (ids: Array<string>) => {
+    patchSettings.mutate({dashboard_pinned_guilds: ids.slice(0, MAX_PINNED)}, {
+      onError: (saveError) => toast(errorMessage(saveError, 'Couldn’t save your pinned servers.'), 'error'),
+    });
+  };
+  const togglePin = (guildId: string) => {
+    savePins((pinned.has(guildId)) ? pinnedIds.filter((id) => id !== guildId) : [...pinnedIds, guildId]);
+  };
+  // pins from before they were saved on the account, added to the account's once and then forgotten here
+  useEffect(() => {
+    if (!settings.data) {
+      return;
+    }
+    const legacy = readStored<Array<string>>(LEGACY_PINNED_KEY, []);
+    if (!Array.isArray(legacy) || !legacy.length) {
+      return;
+    }
+    writeStored(LEGACY_PINNED_KEY, []);
+    const merged = [...settings.data.dashboard_pinned_guilds, ...legacy.filter((id) => !settings.data.dashboard_pinned_guilds.includes(id))];
+    if (merged.length !== settings.data.dashboard_pinned_guilds.length) {
+      savePins(merged);
+    }
+    // runs when the settings first load, the stored pins are cleared so it's only ever once
+  }, [!!settings.data]);
+
+  // alphabetical within each section, pinned ones in the order they were pinned
   const guilds = useMemo(() => {
-    return (data ?? []).slice().sort((a, b) => Number(b.can_manage) - Number(a.can_manage) || a.name.localeCompare(b.name));
+    return (data ?? []).slice().sort((a, b) => a.name.localeCompare(b.name));
   }, [data]);
 
   // `?q=` filters by name (or an exact id), kept in the url so it's still there coming back from a server
@@ -29,6 +90,15 @@ export function ServersPage() {
     const search = query.trim().toLowerCase();
     return (search) ? guilds.filter((guild) => guild.name.toLowerCase().includes(search) || guild.id === search) : guilds;
   }, [guilds, query]);
+  const sections = useMemo(() => {
+    return SECTIONS.map((section) => {
+      const items = shown.filter((guild) => sectionOf(guild, pinned) === section.key);
+      if (section.key === 'pinned') {
+        items.sort((a, b) => pinnedIds.indexOf(a.id) - pinnedIds.indexOf(b.id));
+      }
+      return {...section, items};
+    }).filter((section) => section.items.length);
+  }, [shown, pinned, pinnedIds]);
 
   return (
     <>
@@ -59,9 +129,20 @@ export function ServersPage() {
             aria-label='Search servers'
           />
           {(shown.length) ? (
-            <ul className='grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3'>
-              {shown.map((guild) => <ServerCard key={guild.id} guild={guild}/>)}
-            </ul>
+            <div className='space-y-6'>
+              {sections.map((section) => (
+                <section key={section.key} aria-labelledby={`servers-${section.key}`}>
+                  <h2 id={`servers-${section.key}`} className='section-label mb-2'>
+                    {section.title} <span className='normal-case tracking-normal text-subtle'>({section.items.length})</span>
+                  </h2>
+                  <ul className='grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3'>
+                    {section.items.map((guild) => (
+                      <ServerCard key={guild.id} guild={guild} pinned={pinned.has(guild.id)} onTogglePin={() => togglePin(guild.id)}/>
+                    ))}
+                  </ul>
+                </section>
+              ))}
+            </div>
           ) : (
             <EmptyState icon={<Search className='size-10'/>} title='No servers found'>Try a different search.</EmptyState>
           )}
@@ -72,9 +153,12 @@ export function ServersPage() {
 }
 
 
-function ServerCard({ guild }: {guild: UserGuildSummary}) {
+// the pin is a badge on the icon's corner, outside the link (a button can't go inside one): always shown once it's pinned,
+// on hover (or always on phones) otherwise
+function ServerCard({ guild, pinned, onTogglePin }: {guild: UserGuildSummary, pinned: boolean, onTogglePin: () => void}) {
+  const PinIcon = (pinned) ? PinOff : Pin;
   return (
-    <li>
+    <li className='group/server relative'>
       <Link
         to={dashboardServerPath(guild.id)}
         className={cn(
@@ -100,6 +184,19 @@ function ServerCard({ guild }: {guild: UserGuildSummary}) {
           {(guild.can_manage) ? 'Manage' : 'View'}
         </span>
       </Link>
+      <button
+        type='button'
+        className={cn(
+          'absolute top-2 left-2 flex size-6 cursor-pointer items-center justify-center rounded-full border border-line bg-surface-1 shadow transition focus-visible:opacity-100',
+          (pinned) ? 'text-brand' : 'text-subtle opacity-0 group-hover/server:opacity-100 hover:text-white max-sm:opacity-100',
+        )}
+        aria-pressed={pinned}
+        aria-label={(pinned) ? `Unpin ${guild.name}` : `Pin ${guild.name} to the top`}
+        title={(pinned) ? 'Unpin' : 'Pin to the top'}
+        onClick={onTogglePin}
+      >
+        <PinIcon aria-hidden className='size-3.5'/>
+      </button>
     </li>
   );
 }

@@ -538,6 +538,8 @@ export const DiscordSkus = {
 // `UserSettings.to_dict()`
 export interface UserSettings {
   application_command_response_type: number,
+  // the servers pinned to the top of the Servers page, in the order they were pinned (the dashboard's own, up to 100)
+  dashboard_pinned_guilds: Array<string>,
   download_quality: string | null,
   fallbacks_media_image: number,
   file_upload_name: string | null,
@@ -729,22 +731,75 @@ export interface GuildReport {
   message_content: string | null,
   // the text was cleared 30 days after the report, not a message that never had any
   message_content_deleted: boolean,
-  // when the text gets cleared, while there's still text
+  // when the text (and image) gets cleared, while there's still something to clear
   message_content_expires_at: string | null,
   message_id: string | null,
+  // an image of the reported message drawn like `quote` (its images, embed and author too) is kept, from
+  // `REPORT_QUOTE`. Drawn without any images when the safety scan flagged it; cleared with the text
+  message_quote: boolean,
   reason: string,
   status: ReportStatus,
+  // the reporter turned off the bot's DMs about it (the moderators' replies and status changes), they only see those on
+  // their dashboard
+  reporter_muted: boolean,
   // the reported member, or the reported message's author
   target_id: string,
+  // member reports only, an image of the reported member as they looked (avatar, name, username) is kept, from
+  // `REPORT_MEMBER`. Same rules and lifetime as `message_quote`
+  target_quote: boolean,
   type: number,
   // the reporter
   user_id: string,
+  // replies between the reporter and the moderators (not status changes), and who sent the last one
+  last_reply: {author: GuildReportMessageAuthor, created: ApiTimestamp} | null,
+  replies: number,
 }
 
-// newest first; `count` is every report with that status, not only this page
+// a report's kept images: the reported message (`message_quote`) and the reported member (`target_quote`)
+export type GuildReportImageKind = 'member' | 'message';
+
+// the moderators are only ever "the moderators" to the reporter, the bot DMs them the moderators' side
+export type GuildReportMessageAuthor = 'moderator' | 'reporter';
+
+// one entry in a member's report's conversation with the moderators: a reply (`content`) or a status change (`status`).
+// From the bot's Respond buttons (the reports logger's for moderators, the reporter's DMs) or the dashboard
+export interface GuildReportMessage {
+  author: GuildReportMessageAuthor,
+  // which moderator (or the reporter) it was
+  author_id: string,
+  content: string | null,
+  created: ApiTimestamp,
+  id: string,
+  status: ReportStatus | null,
+}
+
+export interface GuildReportMessagesPage {
+  items: Array<GuildReportMessage>,
+}
+
+// a report the user sent to a server's moderators, as they see it on their own Reports page: never which moderator handled
+// it (they're only ever "the moderators"), with the server it's in (`null` once NotSoBot forgot it)
+export type SentGuildReport = Omit<GuildReport, 'handled_by'> & {
+  guild: {icon: string | null, id: string, name: string} | null,
+};
+
+export interface SentGuildReportsPage {
+  count: number,
+  items: Array<SentGuildReport>,
+}
+
+// newest first; `count` is every report that matched, not only this page. `users` are the reporters, reported members and
+// moderators who handled them by id, only the ones NotSoBot has seen
+// one report (`GET .../reports/<id>`), for links to it from the bot's logger messages
+export interface GuildReportItem {
+  report: GuildReport,
+  users: Record<string, GuildContentUser>,
+}
+
 export interface GuildReportsPage {
   count: number,
   reports: Array<GuildReport>,
+  users: Record<string, GuildContentUser>,
 }
 
 export interface GuildLLMKnowledgePage {
@@ -1777,6 +1832,8 @@ export interface Report {
   user: User | null,
   // admin routes only: an anonymous report's sender, the same hash on several means they came from the same place
   ip_hash?: string | null,
+  // admin routes only: the reported user of user and message reports, null when they aren't in our database
+  target_user?: User | null,
   // replies in the report's conversation (status changes don't count) and who sent the last one
   replies: number,
   last_reply: {author: ReportMessageAuthor, created: ApiTimestamp} | null,

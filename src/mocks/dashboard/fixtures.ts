@@ -66,6 +66,7 @@ const owner: User = {
 export function createSettings(): UserSettings {
   return {
     application_command_response_type: 0,
+    dashboard_pinned_guilds: [],
     download_quality: '720p',
     fallbacks_media_image: 0,
     file_upload_name: null,
@@ -577,6 +578,20 @@ const REPORT_CONTENT = [
   ['tag posts a different nsfw image every time it\'s used', 'tag is just a mass ping of every role in the server'],
 ];
 
+function reportUser(user: AdminUser) {
+  return {
+    avatar: user.avatar,
+    blocked: user.blocked,
+    blocked_on: null,
+    blocked_reason: user.blocked_reason,
+    bot: false,
+    discriminator: user.discriminator,
+    flags: user.flags,
+    id: user.id,
+    username: user.username,
+  };
+}
+
 export function createReports(users: Array<AdminUser>): Array<Report> {
   const reports: Array<Report> = [];
   for (let i = 0; i < 37; i++) {
@@ -614,17 +629,9 @@ export function createReports(users: Array<AdminUser>): Array<Report> {
       last_activity: null,
       // a few bug reports came from the website logged out, two of them from the same place
       ip_hash: (anonymous) ? ['4f1c9a7e2b6d8053', '9a3e5d71c0b2f846'][Math.floor(i / 12) % 2].padEnd(64, '0') : null,
-      user: (anonymous) ? null : {
-        avatar: reporter.avatar,
-        blocked: reporter.blocked,
-        blocked_on: null,
-        blocked_reason: reporter.blocked_reason,
-        bot: false,
-        discriminator: reporter.discriminator,
-        flags: reporter.flags,
-        id: reporter.id,
-        username: reporter.username,
-      },
+      user: (anonymous) ? null : reportUser(reporter),
+      // like the api, the reported user of user and message reports when they're in the database (one never is)
+      target_user: (type === 1 || type === 3) && i % 9 !== 0 ? reportUser(users[[4, 12, 4, 21][Math.floor(i / 6) % 4]]) : null,
     });
   }
   return reports;

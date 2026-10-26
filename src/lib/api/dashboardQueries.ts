@@ -5,12 +5,13 @@ import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClie
 import { createContext, useContext } from 'react';
 
 import { useAuth } from '@/auth';
+import { readStored, writeStored } from '@/hooks/usePersistentState';
 import { formatDate } from '@/lib/utils';
 
 import { ApiRequestError } from './client';
 import type { AdminStatsArea, GuildScope } from './endpoints';
 import { api } from './index';
-import { queryKeys, useReportsUnreadQuery } from './queries';
+import { SAVED_GUILDS_KEY, queryKeys, useReportsUnreadQuery } from './queries';
 import type {
   AdminApplication,
   AdminApplicationPatch,
@@ -62,6 +63,10 @@ import type {
   LLMMemory,
   LLMMemoryPatch,
   PremiumServersPage,
+  GuildReportImageKind,
+  GuildReportMessage,
+  GuildReportMessagesPage,
+  UserGuildSummary,
   Reminder,
   ReminderPatch,
   RemindersPage,
@@ -770,6 +775,55 @@ export function useMeCommandsQuery(filters: MeCommandsFilters) {
 
 export const ME_REPORTS_PAGE_SIZE = 25;
 
+// the reports they sent to servers' moderators, newest first a page at a time
+export function useSentGuildReportsQuery(filters: {query: string, status: ReportStatus | null, page: number}) {
+  const { token } = useAuth();
+  return useQuery({
+    queryKey: queryKeys.sentGuildReports(token, filters),
+    queryFn: ({ signal }) => api.fetchSentGuildReports({
+      limit: ME_REPORTS_PAGE_SIZE,
+      offset: filters.page * ME_REPORTS_PAGE_SIZE,
+      query: filters.query,
+      status: filters.status,
+    }, signal),
+    placeholderData: keepPreviousData,
+    enabled: !!token,
+  });
+}
+
+export function useSentGuildReportMessagesQuery(reportId: string) {
+  const { token } = useAuth();
+  return useQuery({
+    queryKey: [...queryKeys.sentGuildReports(token), 'messages', reportId],
+    queryFn: ({ signal }) => api.fetchSentGuildReportMessages(reportId, signal),
+    refetchInterval: REPORT_MESSAGES_REFETCH_INTERVAL,
+    enabled: !!token,
+  });
+}
+
+// turning the bot's DMs about one off or on, the list is refetched after
+export function useMuteSentGuildReportMutation(reportId: string) {
+  const { token } = useAuth();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (muted: boolean) => api.patchSentGuildReport(reportId, muted),
+    onSettled: () => queryClient.invalidateQueries({queryKey: queryKeys.sentGuildReports(token)}),
+  });
+}
+
+// the list (its reply counts) is refetched after
+export function usePostSentGuildReportMessageMutation(reportId: string) {
+  const { token } = useAuth();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (content: string) => api.postSentGuildReportMessage(reportId, content),
+    onSuccess: (message: GuildReportMessage) => {
+      queryClient.setQueryData<GuildReportMessagesPage>([...queryKeys.sentGuildReports(token), 'messages', reportId], (page) => (page) ? {...page, items: [...page.items, message]} : page);
+    },
+    onSettled: () => queryClient.invalidateQueries({queryKey: queryKeys.sentGuildReports(token)}),
+  });
+}
+
 // a report's conversation is checked again this often while it's open, so a reply from the other side shows up
 const REPORT_MESSAGES_REFETCH_INTERVAL = 30 * 1000;
 
@@ -1133,11 +1187,32 @@ function retryDiscordRefresh(failureCount: number, error: Error): boolean {
   return !(error instanceof ApiRequestError && error.status < 500) && failureCount < 2;
 }
 
+// the last server list in this browser (`SAVED_GUILDS_KEY`), shown right away on the next visit while it's fetched again.
+// Only the account that saved it gets it back, and logging out clears it (`AuthProvider`)
+
+function readSavedGuilds(userId: string | undefined): Array<UserGuildSummary> | undefined {
+  if (!userId) {
+    return undefined;
+  }
+  const saved = readStored<{userId: string, guilds: Array<UserGuildSummary>} | null>(SAVED_GUILDS_KEY, null);
+  return (saved && saved.userId === userId && Array.isArray(saved.guilds)) ? saved.guilds : undefined;
+}
+
 export function useMeGuildsQuery() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const userId = user?.id;
   return useQuery({
     queryKey: queryKeys.meGuilds(token),
-    queryFn: ({ signal }) => api.fetchMeGuilds(signal),
+    queryFn: async ({ signal }) => {
+      const guilds = await api.fetchMeGuilds(signal);
+      if (userId) {
+        writeStored(SAVED_GUILDS_KEY, {userId, guilds});
+      }
+      return guilds;
+    },
+    // the saved copy counts as old, so it's shown and fetched again at once
+    initialData: () => readSavedGuilds(userId),
+    initialDataUpdatedAt: 0,
     staleTime: 60 * 1000,
     retry: retryDiscordRefresh,
   });
@@ -1262,18 +1337,49 @@ export function useGuildWarningsMutation(guildId: string) {
 
 /* members' reports to the server's moderators */
 
-const GUILD_REPORTS_PAGE_SIZE = 25;
+export const GUILD_REPORTS_PAGE_SIZE = 25;
 
-// newest first, a page at a time (`fetchNextPage` for older ones), only that status with one
-export function useGuildReportsQuery(guildId: string, status: ReportStatus | null, enabled = true) {
+export interface GuildReportsFilters {
+  // `null` for any
+  awaitingReply: boolean | null,
+  page: number,
+  query: string,
+  // the moderators' to-do list: open ones and handled ones the reporter replied to since (`status` is ignored with it)
+  queue: boolean,
+  status: ReportStatus | null,
+  type: number | null,
+}
+
+// newest first, a page at a time like the admin reports
+export function useGuildReportsQuery(guildId: string, filters: GuildReportsFilters, enabled = true) {
   const { token } = useAuth();
   const scope = useGuildScope();
-  return useInfiniteQuery({
-    queryKey: queryKeys.guildReports(token, scope, guildId, (status === null) ? 'all' : String(status)),
-    queryFn: ({ pageParam, signal }) => api.fetchGuildReports(scope, guildId, {before: pageParam, limit: GUILD_REPORTS_PAGE_SIZE, status: status ?? undefined}, signal),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (page) => (page.reports.length < GUILD_REPORTS_PAGE_SIZE) ? undefined : page.reports[page.reports.length - 1]?.id,
+  return useQuery({
+    queryKey: queryKeys.guildReports(token, scope, guildId, filters),
+    queryFn: ({ signal }) => api.fetchGuildReports(scope, guildId, {
+      awaitingReply: filters.awaitingReply ?? undefined,
+      limit: GUILD_REPORTS_PAGE_SIZE,
+      offset: filters.page * GUILD_REPORTS_PAGE_SIZE,
+      query: filters.query,
+      queue: filters.queue || undefined,
+      status: filters.status ?? undefined,
+      type: filters.type ?? undefined,
+    }, signal),
+    placeholderData: keepPreviousData,
     enabled: !!token && enabled,
+    retry: retryDiscordRefresh,
+  });
+}
+
+// a report linked to (the bot's View Report button), whatever page or filter it's on. Under the reports' key, so a status
+// change refetches it too
+export function useGuildReportQuery(guildId: string, reportId: string | null) {
+  const { token } = useAuth();
+  const scope = useGuildScope();
+  return useQuery({
+    queryKey: [...queryKeys.guildReports(token, scope, guildId), 'report', reportId],
+    queryFn: ({ signal }) => api.fetchGuildReport(scope, guildId, reportId!, signal),
+    enabled: !!token && !!reportId,
     retry: retryDiscordRefresh,
   });
 }
@@ -1285,6 +1391,52 @@ export function useGuildReportMutation(guildId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ reportId, status }: {reportId: string, status: ReportStatus}) => api.patchGuildReport(scope, guildId, reportId, status),
+    // a status change is added to its conversation too (the messages' keys are under the reports')
+    onSettled: () => queryClient.invalidateQueries({queryKey: queryKeys.guildReports(token, scope, guildId)}),
+  });
+}
+
+function guildReportMessagesKey(token: string | null, scope: GuildScope, guildId: string, reportId: string) {
+  return [...queryKeys.guildReports(token, scope, guildId), 'messages', reportId] as const;
+}
+
+// a report's image of the reported message or member, it never changes (it's only ever cleared, and the report says so).
+// Not under the reports' key, so a status change doesn't download it again
+export function useGuildReportImageQuery(guildId: string, reportId: string, kind: GuildReportImageKind) {
+  const { token } = useAuth();
+  const scope = useGuildScope();
+  return useQuery({
+    queryKey: ['users', '@me', token, 'guild-report-image', scope, guildId, reportId, kind],
+    queryFn: ({ signal }) => api.fetchGuildReportImage(scope, guildId, reportId, kind, signal),
+    staleTime: Infinity,
+    enabled: !!token,
+    retry: retryDiscordRefresh,
+  });
+}
+
+// only fetched while the conversation's open, refetched now and then for the reporter's replies (from the bot's DMs)
+export function useGuildReportMessagesQuery(guildId: string, reportId: string) {
+  const { token } = useAuth();
+  const scope = useGuildScope();
+  return useQuery({
+    queryKey: guildReportMessagesKey(token, scope, guildId, reportId),
+    queryFn: ({ signal }) => api.fetchGuildReportMessages(scope, guildId, reportId, signal),
+    refetchInterval: REPORT_MESSAGES_REFETCH_INTERVAL,
+    enabled: !!token,
+    retry: retryDiscordRefresh,
+  });
+}
+
+// replies as "the moderators"; the lists (their reply counts) are refetched after
+export function usePostGuildReportMessageMutation(guildId: string, reportId: string) {
+  const { token } = useAuth();
+  const scope = useGuildScope();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (content: string) => api.postGuildReportMessage(scope, guildId, reportId, content),
+    onSuccess: (message: GuildReportMessage) => {
+      queryClient.setQueryData<GuildReportMessagesPage>(guildReportMessagesKey(token, scope, guildId, reportId), (page) => (page) ? {...page, items: [...page.items, message]} : page);
+    },
     onSettled: () => queryClient.invalidateQueries({queryKey: queryKeys.guildReports(token, scope, guildId)}),
   });
 }

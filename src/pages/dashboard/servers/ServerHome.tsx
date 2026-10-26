@@ -19,7 +19,7 @@ export function ServerHome({ guild }: {guild: UserGuild}) {
   const tags = useGuildTagsQuery(guild.id, '');
   const reminders = useGuildRemindersQuery(guild.id, guild.editable.reminders);
   const warnings = useGuildWarningsQuery(guild.id, null, moderator);
-  const reports = useGuildReportsQuery(guild.id, ReportStatuses.OPEN, moderator);
+  const reports = useGuildReportsQuery(guild.id, {awaitingReply: null, page: 0, query: '', queue: false, status: ReportStatuses.OPEN, type: null}, moderator);
 
   const created = snowflakeTimestamp(guild.id);
   const blockRules = guild.rules.filter((rule) => !rule.value.allow).length;
@@ -69,7 +69,7 @@ export function ServerHome({ guild }: {guild: UserGuild}) {
             />
             <StatTile
               label='Open reports'
-              value={count(reports.data?.pages[0]?.count)}
+              value={count(reports.data?.count)}
               tone='text-danger'
               to={dashboardServerPath(guild.id, 'reports')}
             />

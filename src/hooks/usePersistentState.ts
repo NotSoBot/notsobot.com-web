@@ -22,6 +22,15 @@ export function writeStored(key: string, value: unknown): void {
 }
 
 
+export function removeStored(key: string): void {
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    // storage unavailable, there's nothing to remove
+  }
+}
+
+
 export function usePersistentState<T>(key: string, fallback: T) {
   const [ value, setValue ] = useState<T>(() => readStored(key, fallback));
 

@@ -73,7 +73,13 @@ import type {
   GuildWarning,
   GuildWarningsPage,
   GuildReport,
+  GuildReportImageKind,
+  GuildReportMessage,
+  GuildReportMessagesPage,
+  GuildReportItem,
   GuildReportsPage,
+  SentGuildReport,
+  SentGuildReportsPage,
   LLMMemoriesPage,
   LLMMemory,
   LLMMemoryPatch,
@@ -481,6 +487,30 @@ export const api = {
     });
   },
 
+  // the reports they sent to servers' moderators, newest first. `query` is the reason or the reported message's text, or a
+  // report id
+  fetchSentGuildReports: (params: {query?: string, status?: number | null, offset?: number, limit?: number}, signal?: AbortSignal) => {
+    return apiRequest<SentGuildReportsPage>(ApiEndpoints.USER_ME_GUILD_REPORTS, {
+      query: {limit: params.limit, offset: params.offset, query: params.query || undefined, status: params.status ?? undefined},
+      signal,
+    });
+  },
+
+  // turning the bot's DMs about it off (or back on), the only thing they can change on it
+  patchSentGuildReport: (reportId: string, muted: boolean) => {
+    return apiRequest<SentGuildReport>(ApiEndpoints.USER_ME_GUILD_REPORT(reportId), {method: 'PATCH', body: {muted}});
+  },
+
+  // the conversation with the moderators, who are only ever "the moderators" here
+  fetchSentGuildReportMessages: (reportId: string, signal?: AbortSignal) => {
+    return apiRequest<GuildReportMessagesPage>(ApiEndpoints.USER_ME_GUILD_REPORT_MESSAGES(reportId), {signal});
+  },
+
+  // the same as the Respond button on the bot's DM about it, it goes in the report's thread
+  postSentGuildReportMessage: (reportId: string, content: string) => {
+    return apiRequest<GuildReportMessage>(ApiEndpoints.USER_ME_GUILD_REPORT_MESSAGES(reportId), {method: 'POST', body: {content}});
+  },
+
   // `query` is what they wrote, or a report id
   fetchMeReports: (params: {query?: string, status?: number | null, sortBy?: MeReportsSortBy, offset?: number, limit?: number}, signal?: AbortSignal) => {
     return apiRequest<MeReportsPage>(ApiEndpoints.USER_ME_REPORTS, {
@@ -673,17 +703,56 @@ export const api = {
     return apiRequest<{deleted: Record<string, number>}>(guildEndpoints(scope, guildId).WARNINGS_DELETE, {method: 'POST', body: {user_ids: userIds}});
   },
 
-  // members' reports to the server's moderators, newest first (only one status, or all), Timeout Members sees and handles them
-  fetchGuildReports: (scope: GuildScope, guildId: string, options: {before?: string, limit?: number, status?: ReportStatus}, signal?: AbortSignal) => {
+  // members' reports to the server's moderators, newest first a page at a time, Timeout Members sees and handles them.
+  // `query` is the reason or the reported message's text, or `#<id>`, `user:<reporter>`, `target:<member>` or a bare id
+  fetchGuildReports: (scope: GuildScope, guildId: string, options: {
+    awaitingReply?: boolean,
+    limit?: number,
+    offset?: number,
+    query?: string,
+    queue?: boolean,
+    status?: ReportStatus,
+    type?: number,
+  }, signal?: AbortSignal) => {
     return apiRequest<GuildReportsPage>(guildEndpoints(scope, guildId).REPORTS, {
-      query: {before: options.before, limit: options.limit, status: options.status},
+      query: {
+        awaiting_reply: options.awaitingReply,
+        limit: options.limit,
+        offset: options.offset,
+        query: options.query || undefined,
+        queue: options.queue,
+        status: options.status,
+        type: options.type,
+      },
       signal,
     });
+  },
+
+  // one report with the people on it, for the bot's View Report links
+  fetchGuildReport: (scope: GuildScope, guildId: string, reportId: string, signal?: AbortSignal) => {
+    return apiRequest<GuildReportItem>(guildEndpoints(scope, guildId).REPORT(reportId), {signal});
   },
 
   // resolves, dismisses or reopens it, the caller is who handled it
   patchGuildReport: (scope: GuildScope, guildId: string, reportId: string, status: ReportStatus) => {
     return apiRequest<GuildReport>(guildEndpoints(scope, guildId).REPORT(reportId), {method: 'PATCH', body: {status}});
+  },
+
+  // the reported message's image (a png, only with `message_quote`) or the reported member's (only with `target_quote`)
+  fetchGuildReportImage: (scope: GuildScope, guildId: string, reportId: string, kind: GuildReportImageKind, signal?: AbortSignal) => {
+    const endpoints = guildEndpoints(scope, guildId);
+    const path = (kind === 'message') ? endpoints.REPORT_QUOTE(reportId) : endpoints.REPORT_MEMBER(reportId);
+    return apiRequest<Blob>(path, {signal, responseType: 'blob', timeout: 60_000});
+  },
+
+  // the conversation with the reporter, oldest first with the status changes
+  fetchGuildReportMessages: (scope: GuildScope, guildId: string, reportId: string, signal?: AbortSignal) => {
+    return apiRequest<GuildReportMessagesPage>(guildEndpoints(scope, guildId).REPORT_MESSAGES(reportId), {signal});
+  },
+
+  // a reply as "the moderators", the bot DMs it to the reporter and posts it in the report's thread
+  postGuildReportMessage: (scope: GuildScope, guildId: string, reportId: string, content: string) => {
+    return apiRequest<GuildReportMessage>(guildEndpoints(scope, guildId).REPORT_MESSAGES(reportId), {method: 'POST', body: {content}});
   },
 
   // what's playing and queued, any member can see it and Manage Server changes it (staff and owners, like above).

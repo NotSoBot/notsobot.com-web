@@ -51,6 +51,10 @@ export const ApiEndpoints = Object.freeze({
   USER_ME_REMINDERS: '/users/@me/reminders',
   USER_ME_REMINDER: (reminderId: string) => `/users/@me/reminders/${reminderId}`,
   USER_ME_REPORTS: '/users/@me/reports',
+  // the reports they sent to servers' moderators
+  USER_ME_GUILD_REPORTS: '/users/@me/guild-reports',
+  USER_ME_GUILD_REPORT: (reportId: string) => `/users/@me/guild-reports/${reportId}`,
+  USER_ME_GUILD_REPORT_MESSAGES: (reportId: string) => `/users/@me/guild-reports/${reportId}/messages`,
   USER_ME_REPORTS_UNREAD: '/users/@me/reports/unread',
   USER_ME_REPORT: (reportId: string) => `/users/@me/reports/${reportId}`,
   USER_ME_REPORT_MESSAGES: (reportId: string) => `/users/@me/reports/${reportId}/messages`,
@@ -160,6 +164,9 @@ export function guildEndpoints(scope: GuildScope, guildId: string) {
     WARNING: (warningId: string) => `${base}/warnings/${warningId}`,
     REPORTS: `${base}/reports`,
     REPORT: (reportId: string) => `${base}/reports/${reportId}`,
+    REPORT_MESSAGES: (reportId: string) => `${base}/reports/${reportId}/messages`,
+    REPORT_QUOTE: (reportId: string) => `${base}/reports/${reportId}/quote`,
+    REPORT_MEMBER: (reportId: string) => `${base}/reports/${reportId}/member`,
     DATA_EXPORT: `${base}/data/export`,
     DATA_DELETE: `${base}/data/delete`,
   };

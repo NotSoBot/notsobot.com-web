@@ -387,7 +387,24 @@ function ReportDetails({ report, onFilterReporter, onFilterTarget, navigation }:
           <>
             <span className='text-xs text-subtle'>Reported {REPORT_TARGET_LABELS[report.type] ?? 'target'}</span>
             <div className='flex min-h-8 min-w-0 items-center gap-2'>
-              {(report.target_id) ? (
+              {(report.target_user) ? (
+                // in our database, shown like the reporter
+                <>
+                  <Link
+                    to={adminUserPath(report.target_user.id)}
+                    title='Open in users'
+                    className='group/user -ml-1.5 flex min-w-0 items-center gap-1.5 rounded-md py-1 pr-2 pl-1.5 transition-colors hover:bg-surface-3'
+                  >
+                    <UserCell user={report.target_user} size='sm'/>
+                    <ArrowUpRight aria-hidden className='size-3.5 shrink-0 text-subtle transition-colors group-hover/user:text-brand'/>
+                  </Link>
+                  <div className='flex shrink-0 flex-col items-center gap-0.5'>
+                    <FilterButton label='Show reports about this user' onClick={() => onFilterTarget(report.target_user!.id)}/>
+                    <CopyButton value={report.target_user.id}/>
+                  </div>
+                  {(report.target_user.blocked) ? <Chip tone='danger' title={report.target_user.blocked_reason ?? undefined}>Blocked</Chip> : null}
+                </>
+              ) : (report.target_id) ? (
                 <>
                   <CopyableValue value={report.target_id} truncate={0} {...targetLink}/>
                   <FilterButton label='Show reports about this target' onClick={() => onFilterTarget(report.target_id!)}/>

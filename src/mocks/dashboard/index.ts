@@ -29,7 +29,9 @@ import {
   type AdminUserRef,
   type ContentFlag,
   type GuildLLMKnowledge,
+  type GuildContentUser,
   type GuildReport,
+  type GuildReportMessage,
   type GuildWarning,
   type GuildMusic,
   type GuildMusicQueueItem,
@@ -112,13 +114,27 @@ const state = {
   // members' reports to each server's moderators by guild id, newest last; the first server (which gets a reports logger
   // below) starts with open, resolved and dismissed ones, one of them a message without text
   guildReports: new Map<string, Array<GuildReport>>([[guilds[0].summary.id, [
-    mockGuildReport({channel_id: '1200000000000000011', created: new Date(Date.now() - 35 * 86400000).toISOString(), handled_at: new Date(Date.now() - 34 * 86400000).toISOString(), handled_by: mockUser.id, id: '1300000000000000400', message_content_deleted: true, message_id: '1250000000000000400', reason: 'Spamming the same message in every channel', status: 1, target_id: '1000000000000000006', type: 1, user_id: '1000000000000000002'}),
+    mockGuildReport({channel_id: '1200000000000000011', created: new Date(Date.now() - 35 * 86400000).toISOString(), handled_at: new Date(Date.now() - 34 * 86400000).toISOString(), handled_by: mockUser.id, id: '1300000000000000400', message_content_deleted: true, target_quote: false, message_id: '1250000000000000400', reason: 'Spamming the same message in every channel', status: 1, target_id: '1000000000000000006', type: 1, user_id: '1000000000000000002'}),
     mockGuildReport({created: new Date(Date.now() - 12 * 86400000).toISOString(), handled_at: new Date(Date.now() - 11 * 86400000).toISOString(), handled_by: mockUser.id, id: '1300000000000000401', reason: 'Keeps DMing me invite links after I asked them to stop', status: 1, target_id: '1000000000000000002', user_id: '1000000000000000005'}),
     mockGuildReport({channel_id: '1200000000000000011', created: new Date(Date.now() - 5 * 86400000).toISOString(), handled_at: new Date(Date.now() - 4 * 86400000).toISOString(), handled_by: '1000000000000000003', id: '1300000000000000402', message_content: 'lol imagine needing help with a discord bot', message_id: '1250000000000000402', reason: 'Being rude in #support', status: 2, target_id: '1000000000000000004', type: 1, user_id: '1000000000000000005'}),
     mockGuildReport({channel_id: '1200000000000000012', created: new Date(Date.now() - 26 * 3600000).toISOString(), id: '1300000000000000403', message_id: '1250000000000000403', reason: 'NSFW image in a SFW channel', target_id: '1000000000000000002', type: 1, user_id: '1000000000000000004'}),
-    mockGuildReport({channel_id: '1200000000000000011', created: new Date(Date.now() - 40 * 60000).toISOString(), id: '1300000000000000404', message_content: 'FREE NITRO!!! claim here before it runs out -> discord-gift.example/claim\nonly 50 left', message_id: '1250000000000000404', reason: 'Scam link, probably a hacked account', target_id: '1000000000000000006', type: 1, user_id: '1000000000000000002'}),
+    mockGuildReport({channel_id: '1200000000000000011', created: new Date(Date.now() - 40 * 60000).toISOString(), id: '1300000000000000404', message_content: 'FREE NITRO!!! claim here before it runs out -> discord-gift.example/claim\nonly 50 left', message_id: '1250000000000000404', message_quote: true, reason: 'Scam link, probably a hacked account', target_id: '1000000000000000006', type: 1, user_id: '1000000000000000002'}),
     mockGuildReport({created: new Date(Date.now() - 5 * 60000).toISOString(), id: '1300000000000000405', reason: 'Their username and avatar are a slur', target_id: '1000000000000000007', user_id: '1000000000000000004'}),
+    // sent by the mock user, for their own Reports page's Servers tab
+    mockGuildReport({channel_id: '1200000000000000011', created: new Date(Date.now() - 2 * 86400000).toISOString(), handled_at: new Date(Date.now() - 86400000).toISOString(), handled_by: '1000000000000000003', id: '1300000000000000406', message_content: 'everyone go spam the other server lol', message_id: '1250000000000000406', reason: 'Trying to start a raid', status: 1, target_id: '1000000000000000006', type: 1, user_id: mockUser.id}),
+    mockGuildReport({created: new Date(Date.now() - 3 * 3600000).toISOString(), id: '1300000000000000407', reason: 'Impersonating a moderator', target_id: '1000000000000000002', user_id: mockUser.id}),
   ]]]),
+  // the conversations on members' reports by report id, oldest first: the open scam link report has a back and forth
+  guildReportMessages: new Map<string, Array<GuildReportMessage>>([
+    ['1300000000000000406', [
+      {author: 'moderator', author_id: '1000000000000000003', content: null, created: new Date(Date.now() - 86400000).toISOString(), id: '1300000000000000506', status: 1},
+      {author: 'moderator', author_id: '1000000000000000003', content: 'Thanks, they\'ve been banned.', created: new Date(Date.now() - 86000000).toISOString(), id: '1300000000000000507', status: null},
+    ]],
+    ['1300000000000000404', [
+      {author: 'moderator', author_id: mockUser.id, content: 'Thanks, do you know if anyone clicked it?', created: new Date(Date.now() - 30 * 60000).toISOString(), id: '1300000000000000504', status: null},
+      {author: 'reporter', author_id: '1000000000000000002', content: 'Not sure, a couple people reacted to it before it got buried', created: new Date(Date.now() - 20 * 60000).toISOString(), id: '1300000000000000505', status: null},
+    ]],
+  ]),
   // each server's music, made when it's first asked for (`guildMusic`)
   guildMusic: new Map<string, GuildMusic>(),
   reminders: createReminders(),
@@ -3356,8 +3372,31 @@ route('POST', '/users/@me/guilds/(\\d+)/warnings/delete', ([ , guildId ], { body
 // routes for them either). Members can only report in a server with a reports logger, so the first server has one
 function mockGuildReport(report: Partial<GuildReport> & Pick<GuildReport, 'created' | 'id' | 'reason' | 'target_id' | 'user_id'>): GuildReport {
   // like the api, only while there's text to clear
-  const expires = (report.message_content) ? new Date(Date.parse(report.created) + 30 * 86400000).toISOString() : null;
-  return {channel_id: null, guild_id: guilds[0].summary.id, handled_at: null, handled_by: null, message_content: null, message_content_deleted: false, message_content_expires_at: expires, message_id: null, status: 0, type: 0, ...report};
+  const expires = (report.message_content || report.message_quote || (!report.type && report.target_quote !== false)) ? new Date(Date.parse(report.created) + 30 * 86400000).toISOString() : null;
+  return {channel_id: null, guild_id: guilds[0].summary.id, handled_at: null, handled_by: null, last_reply: null, message_content: null, message_content_deleted: false, message_content_expires_at: expires, message_id: null, message_quote: false, replies: 0, reporter_muted: false, status: 0, type: 0, ...report, target_quote: report.target_quote ?? !report.type};
+}
+
+// mirrors `guild_report_reply_stats` in `utilities/tools/guild_reports.py`, status changes don't count
+function guildReportPayload(report: GuildReport): GuildReport {
+  const replies = (state.guildReportMessages.get(report.id) ?? []).filter((message) => message.content !== null);
+  const last = replies[replies.length - 1];
+  return {...report, last_reply: (last) ? {author: last.author, created: last.created} : null, replies: replies.length};
+}
+
+function addGuildReportMessage(report: GuildReport, message: Omit<GuildReportMessage, 'created' | 'id'>): GuildReportMessage {
+  const thread = state.guildReportMessages.get(report.id) ?? [];
+  const created: GuildReportMessage = {...message, created: new Date().toISOString(), id: `${report.id}${Date.now()}`};
+  thread.push(created);
+  state.guildReportMessages.set(report.id, thread);
+  return created;
+}
+
+function findGuildReport(guildId: string, reportId: string): GuildReport {
+  const report = guildReports(guildId).find((other) => other.id === reportId);
+  if (!report) {
+    throw new MockError(404, ApiErrorCodes.UNKNOWN_GUILD_REPORT, 'Unknown Report');
+  }
+  return report;
 }
 
 guilds[0].detail.loggers.push({added: new Date(Date.now() - 30 * 86400000).toISOString(), channel_id: '1200000000000000023', disabled_events: 0, guild_id: guilds[0].summary.id, type: 8, user_id: mockUser.id});
@@ -3366,24 +3405,73 @@ function guildReports(guildId: string): Array<GuildReport> {
   return state.guildReports.get(guildId) ?? [];
 }
 
+// mirrors `search_guild_reports_payload` in `utilities/tools/guild_reports.py`
+function mockGuildReportMatches(report: GuildReport, search: string): boolean {
+  let text = search;
+  const scoped: Array<boolean> = [];
+  text = text.replace(/(?<!\S)(?:(id|user|reporter|target)\s*:\s*|#)(\d{1,20})(?!\S)/gi, (_match, scope: string | undefined, id: string) => {
+    const kind = (scope || 'id').toLowerCase();
+    scoped.push((kind === 'id') ? report.id === id : (kind === 'target') ? report.target_id === id : report.user_id === id);
+    return ' ';
+  }).trim();
+  if (scoped.some((matched) => !matched)) {
+    return false;
+  }
+  if (/^\d+$/.test(text)) {
+    return [report.id, report.user_id, report.target_id].includes(text);
+  }
+  const needle = text.toLowerCase();
+  return !needle || report.reason.toLowerCase().includes(needle) || (report.message_content ?? '').toLowerCase().includes(needle);
+}
+
+// the people on the mock reports NotSoBot "has seen", the last reported member hasn't so it shows as just their id
+const MOCK_REPORT_USERS: Record<string, string> = {
+  '1000000000000000002': 'slimeking',
+  '1000000000000000003': 'quietmod',
+  '1000000000000000004': 'reporterbob',
+  '1000000000000000005': 'nightowl',
+  '1000000000000000006': 'hackedfriend',
+};
+
+function mockReportUsers(reports: Array<GuildReport>) {
+  const users: Record<string, GuildContentUser> = {};
+  for (const id of reports.flatMap((report) => [report.user_id, report.target_id, report.handled_by])) {
+    if (id === mockUser.id) {
+      users[id] = {avatar: mockUser.avatar ?? null, bot: false, discriminator: mockUser.discriminator, id, username: mockUser.username};
+    } else if (id && MOCK_REPORT_USERS[id]) {
+      users[id] = {avatar: null, bot: false, discriminator: '0', id, username: MOCK_REPORT_USERS[id]};
+    }
+  }
+  return users;
+}
+
 route('GET', '/users/@me/guilds/(\\d+)/reports', ([ , guildId ], { query }) => {
   requireEditable(guildId, 'moderation');
   const status = query.get('status');
-  const before = query.get('before');
+  const type = query.get('type');
+  const awaiting = query.get('awaiting_reply');
+  const search = (query.get('query') ?? '').trim();
+  const offset = Number(query.get('offset')) || 0;
   const limit = Number(query.get('limit')) || 25;
-  const matched = guildReports(guildId).filter((report) => status === null || report.status === Number(status)).reverse();
-  return {
-    count: matched.length,
-    reports: matched.filter((report) => !before || BigInt(report.id) < BigInt(before)).slice(0, limit),
-  };
+  const matched = guildReports(guildId).map(guildReportPayload).filter((report) => {
+    return (status === null || report.status === Number(status)) &&
+      (type === null || report.type === Number(type)) &&
+      (awaiting === null || (report.last_reply?.author === 'reporter') === (awaiting === 'true')) &&
+      (!search || mockGuildReportMatches(report, search));
+  }).reverse();
+  const page = matched.slice(offset, offset + limit);
+  return {count: matched.length, reports: page, users: mockReportUsers(page)};
+});
+
+route('GET', '/users/@me/guilds/(\\d+)/reports/(\\d+)', ([ , guildId, reportId ]) => {
+  requireEditable(guildId, 'moderation');
+  const report = guildReportPayload(findGuildReport(guildId, reportId));
+  return {report, users: mockReportUsers([report])};
 });
 
 route('PATCH', '/users/@me/guilds/(\\d+)/reports/(\\d+)', ([ , guildId, reportId ], { body }) => {
   requireEditable(guildId, 'moderation');
-  const report = guildReports(guildId).find((other) => other.id === reportId);
-  if (!report) {
-    throw new MockError(404, ApiErrorCodes.UNKNOWN_GUILD_REPORT, 'Unknown Report');
-  }
+  const report = findGuildReport(guildId, reportId);
   const status = Number(body.status) as GuildReport['status'];
   if (report.status !== status) {
     // reopening forgets who handled it
@@ -3392,8 +3480,111 @@ route('PATCH', '/users/@me/guilds/(\\d+)/reports/(\\d+)', ([ , guildId, reportId
       handled_by: (status === 0) ? null : mockUser.id,
       status,
     });
+    addGuildReportMessage(report, {author: 'moderator', author_id: mockUser.id, content: null, status});
+  }
+  return guildReportPayload(report);
+});
+
+// the api's is a png drawn like `quote`, an svg of the same thing here (the routes can't wait on a canvas)
+function mockQuoteImage(report: GuildReport): Blob {
+  const escape = (value: string) => value.replace(/[&<>]/g, (char) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;'})[char]!);
+  const lines = (report.message_content ?? '').split('\n').map((line, i) => `<text x="72" y="${58 + i * 22}" fill="#dbdee1" font-size="16">${escape(line)}</text>`).join('');
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="${88 + (report.message_content ?? '').split('\n').length * 22}" font-family="sans-serif"><rect width="100%" height="100%" fill="#313338"/><circle cx="36" cy="38" r="20" fill="#5865f2"/><text x="72" y="34" fill="#f2f3f5" font-size="16" font-weight="600">hackedfriend</text><text x="190" y="34" fill="#949ba4" font-size="12">${escape(new Date(Date.parse(report.created)).toLocaleString())}</text>${lines}</svg>`;
+  return new Blob([svg], {type: 'image/svg+xml'});
+}
+
+route('GET', '/users/@me/guilds/(\\d+)/reports/(\\d+)/quote', ([ , guildId, reportId ]) => {
+  requireEditable(guildId, 'moderation');
+  const report = findGuildReport(guildId, reportId);
+  if (!report.message_quote) {
+    throw new MockError(404, ApiErrorCodes.UNKNOWN_GUILD_REPORT, 'Unknown Report Quote');
+  }
+  return new Response(mockQuoteImage(report), {status: 200, headers: {'content-type': 'image/svg+xml'}});
+});
+
+// like the quote's, an svg of the api's png: the member's avatar, then their nickname over their username
+function mockMemberImage(report: GuildReport): Blob {
+  const suffix = report.target_id.slice(-2);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="88" font-family="sans-serif"><rect width="100%" height="100%" fill="#313338"/><circle cx="44" cy="44" r="28" fill="#5865f2"/><text x="84" y="40" fill="#f2f3f5" font-size="16" font-weight="600">Member ${suffix}</text><text x="84" y="60" fill="#949ba4" font-size="14">member${suffix}</text></svg>`;
+  return new Blob([svg], {type: 'image/svg+xml'});
+}
+
+route('GET', '/users/@me/guilds/(\\d+)/reports/(\\d+)/member', ([ , guildId, reportId ]) => {
+  requireEditable(guildId, 'moderation');
+  const report = findGuildReport(guildId, reportId);
+  if (!report.target_quote) {
+    throw new MockError(404, ApiErrorCodes.UNKNOWN_GUILD_REPORT, 'Unknown Report Image');
+  }
+  return new Response(mockMemberImage(report), {status: 200, headers: {'content-type': 'image/svg+xml'}});
+});
+
+// mirrors `me_sent_guild_reports` in `views/guild_reports.py`: the mock user's own reports to servers' moderators
+function sentGuildReports(): Array<GuildReport> {
+  return [...state.guildReports.values()].flat().filter((report) => report.user_id === mockUser.id);
+}
+
+function findSentGuildReport(reportId: string): GuildReport {
+  const report = sentGuildReports().find((other) => other.id === reportId);
+  if (!report) {
+    throw new MockError(404, ApiErrorCodes.UNKNOWN_GUILD_REPORT, 'Unknown Report');
   }
   return report;
+}
+
+route('GET', '/users/@me/guild-reports', (_match, { query }) => {
+  const status = query.get('status');
+  const search = (query.get('query') ?? '').trim().replace(/^#/, '').toLowerCase();
+  const offset = Number(query.get('offset')) || 0;
+  const limit = Number(query.get('limit')) || 25;
+  const matched = sentGuildReports().filter((report) => {
+    return (status === null || report.status === Number(status)) &&
+      (!search || report.id === search || report.reason.toLowerCase().includes(search) || (report.message_content ?? '').toLowerCase().includes(search));
+  }).reverse();
+  const items = matched.slice(offset, offset + limit).map((report) => {
+    const { handled_by: _handledBy, ...rest } = guildReportPayload(report);
+    const entry = state.guilds.find((other) => other.summary.id === report.guild_id);
+    return {...rest, guild: (entry) ? {icon: entry.summary.icon, id: entry.summary.id, name: entry.summary.name} : null};
+  });
+  return {count: matched.length, items};
+});
+
+route('PATCH', '/users/@me/guild-reports/(\\d+)', ([ , reportId ], { body }) => {
+  const report = findSentGuildReport(reportId);
+  report.reporter_muted = !!body.muted;
+  const { handled_by: _handledBy, ...rest } = guildReportPayload(report);
+  const entry = state.guilds.find((other) => other.summary.id === report.guild_id);
+  return {...rest, guild: (entry) ? {icon: entry.summary.icon, id: entry.summary.id, name: entry.summary.name} : null};
+});
+
+route('GET', '/users/@me/guild-reports/(\\d+)/messages', ([ , reportId ]) => {
+  const report = findSentGuildReport(reportId);
+  return {items: (state.guildReportMessages.get(report.id) ?? []).map(({ author_id: _authorId, ...message }) => message)};
+});
+
+route('POST', '/users/@me/guild-reports/(\\d+)/messages', ([ , reportId ], { body }) => {
+  const report = findSentGuildReport(reportId);
+  const content = (typeof body.content === 'string') ? body.content.trim() : '';
+  if (!content || content.length > 1000) {
+    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'content must be 1-1000 characters', {field: 'content'});
+  }
+  const { author_id: _authorId, ...message } = addGuildReportMessage(report, {author: 'reporter', author_id: mockUser.id, content, status: null});
+  return message;
+});
+
+route('GET', '/users/@me/guilds/(\\d+)/reports/(\\d+)/messages', ([ , guildId, reportId ]) => {
+  requireEditable(guildId, 'moderation');
+  const report = findGuildReport(guildId, reportId);
+  return {items: state.guildReportMessages.get(report.id) ?? []};
+});
+
+route('POST', '/users/@me/guilds/(\\d+)/reports/(\\d+)/messages', ([ , guildId, reportId ], { body }) => {
+  requireEditable(guildId, 'moderation');
+  const report = findGuildReport(guildId, reportId);
+  const content = (typeof body.content === 'string') ? body.content.trim() : '';
+  if (!content || content.length > 1000) {
+    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'content must be 1-1000 characters', {field: 'content'});
+  }
+  return addGuildReportMessage(report, {author: 'moderator', author_id: mockUser.id, content, status: null});
 });
 
 // what's playing: mirrors the `/music` routes in `views/me_guilds.py` (and `views/admin.py`). The first server is playing something, the
