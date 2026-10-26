@@ -72,6 +72,7 @@ import type {
   ReportMessage,
   ReportMessagesPage,
   ReportPatch,
+  ReportStatus,
   ReportsPage,
   Tag,
   TagBlobsPut,
@@ -1247,6 +1248,36 @@ export function useGuildWarningsMutation(guildId: string) {
 }
 
 
+/* members' reports to the server's moderators */
+
+const GUILD_REPORTS_PAGE_SIZE = 25;
+
+// newest first, a page at a time (`fetchNextPage` for older ones), only that status with one
+export function useGuildReportsQuery(guildId: string, status: ReportStatus | null, enabled = true) {
+  const { token } = useAuth();
+  const scope = useGuildScope();
+  return useInfiniteQuery({
+    queryKey: queryKeys.guildReports(token, scope, guildId, (status === null) ? 'all' : String(status)),
+    queryFn: ({ pageParam, signal }) => api.fetchGuildReports(scope, guildId, {before: pageParam, limit: GUILD_REPORTS_PAGE_SIZE, status: status ?? undefined}, signal),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (page) => (page.reports.length < GUILD_REPORTS_PAGE_SIZE) ? undefined : page.reports[page.reports.length - 1]?.id,
+    enabled: !!token && enabled,
+    retry: retryDiscordRefresh,
+  });
+}
+
+// a report moves between the status filters (and their counts), so every list of the server's reports is fetched again
+export function useGuildReportMutation(guildId: string) {
+  const { token } = useAuth();
+  const scope = useGuildScope();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ reportId, status }: {reportId: string, status: ReportStatus}) => api.patchGuildReport(scope, guildId, reportId, status),
+    onSettled: () => queryClient.invalidateQueries({queryKey: queryKeys.guildReports(token, scope, guildId)}),
+  });
+}
+
+
 /* what's playing in the server */
 
 // how often what's playing is fetched again while it's open, a track's position moves on its own in between
@@ -1399,8 +1430,8 @@ export function useDeleteGuildDataMutation(guildId: string) {
   });
 }
 
-export function useRequestDataExportMutation() {
-  return useMutation({mutationFn: () => api.requestMeDataExport()});
+export function useExportMeDataMutation() {
+  return useMutation({mutationFn: () => api.exportMeData()});
 }
 
 export function useDeleteMeMutation() {

@@ -117,3 +117,17 @@ export function decodeHash(hash: string): string {
     return raw;
   }
 }
+
+// saves `data` as a pretty-printed .json file (the dashboard's data exports)
+export function downloadJson(filename: string, data: unknown) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  // give the browser a moment to start the download before the url goes away
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}

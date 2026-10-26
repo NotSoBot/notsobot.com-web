@@ -114,6 +114,7 @@ export const LOGGER_TYPES: ReadonlyArray<{value: number, label: string, descript
   {value: 5, label: 'Bans', description: 'Bans and unbans'},
   {value: 6, label: 'Roles', description: 'Role creates, deletes and updates'},
   {value: 7, label: 'Moderation', description: 'Warnings given, removed and cleared'},
+  {value: 8, label: 'Reports', description: 'Members’ reports to the server’s moderators'},
 ];
 
 export function loggerTypeLabel(type: number): string {

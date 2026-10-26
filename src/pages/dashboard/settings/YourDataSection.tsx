@@ -6,7 +6,9 @@ import { useAuth } from '@/auth';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Spinner } from '@/components/ui/Spinner';
 import { Routes, Urls } from '@/config';
-import { errorMessage, isNotAvailableYet, useDeleteMeMutation, useRequestDataExportMutation } from '@/lib/api/dashboardQueries';
+import type { UserDataExport } from '@/lib/api';
+import { errorMessage, isNotAvailableYet, useDeleteMeMutation, useExportMeDataMutation } from '@/lib/api/dashboardQueries';
+import { downloadJson } from '@/lib/utils';
 
 import { Panel } from '../ui';
 
@@ -54,26 +56,45 @@ function Notice({ tone, children }: {tone: 'info' | 'success' | 'error', childre
 }
 
 
+
+function exportFilename(data: UserDataExport): string {
+  const date = new Date(data.timestamp).toISOString().slice(0, 10);
+  return `notsobot-data-${data.user.id}-${date}.json`;
+}
+
+
 function ExportPanel() {
-  const exportData = useRequestDataExportMutation();
+  const exportData = useExportMeDataMutation();
+  const [ filename, setFilename ] = useState<string | null>(null);
+  const runExport = () => {
+    setFilename(null);
+    exportData.mutate(undefined, {
+      onSuccess: (data) => {
+        const name = exportFilename(data);
+        downloadJson(name, data);
+        setFilename(name);
+      },
+    });
+  };
+
   return (
     <Panel headingLevel={3} title='Export my data' accent='#5865f2' description='Get a copy of everything NotSoBot stores about you.'>
       <ul className='list-disc space-y-1 pl-5 text-sm text-muted'>
-        <li>Your account record and settings</li>
-        <li>Your tags, including their variables and blobs</li>
-        <li>Reminders, command usage and other records tied to your Discord ID</li>
+        <li>Your account, settings and login sessions</li>
+        <li>Your tags (with their variables and blobs), reminders, uploaded files, cloned voices, API applications, AI memories and recent AI requests</li>
+        <li>Command usage, premium purchases and reports you’ve sent</li>
       </ul>
-      <p className='mt-3 text-sm text-muted'>Preparing an export can take a while.</p>
-      <button type='button' className='btn btn-primary mt-4' disabled={exportData.isPending || exportData.isSuccess} onClick={() => exportData.mutate()}>
+      <p className='mt-3 text-sm text-muted'>It downloads as a JSON file. Tokens and the files themselves aren’t in it (files are listed with their links), the file says what’s left out and why.</p>
+      <button type='button' className='btn btn-primary mt-4' disabled={exportData.isPending} onClick={runExport}>
         {(exportData.isPending) ? <Spinner className='size-4 border-white/40 border-t-white'/> : <Download aria-hidden className='size-4'/>}
-        {(exportData.isPending) ? 'Requesting…' : 'Request export'}
+        {(exportData.isPending) ? 'Preparing…' : 'Download my data'}
       </button>
-      {(exportData.isSuccess) ? (
-        <Notice tone='success'>Export requested. It can take a while to be ready.</Notice>
+      {(exportData.isSuccess && filename) ? (
+        <Notice tone='success'>Downloaded as <span className='font-mono'>{filename}</span>.</Notice>
       ) : (isNotAvailableYet(exportData.error)) ? (
         <NotAvailableYet/>
       ) : (exportData.isError) ? (
-        <Notice tone='error'>{errorMessage(exportData.error, 'Couldn’t request the export.')}</Notice>
+        <Notice tone='error'>{errorMessage(exportData.error, 'Couldn’t export your data.')}</Notice>
       ) : null}
     </Panel>
   );
@@ -89,9 +110,10 @@ function DeletePanel() {
   return (
     <Panel headingLevel={3} title='Delete my data' accent='#ed4245' description='Permanently remove what NotSoBot stores about you.'>
       <ul className='list-disc space-y-1 pl-5 text-sm text-muted'>
-        <li>Your settings, tags (with their variables and blobs), reminders, AI memories and saved voices are deleted.</li>
+        <li>Your settings, tags (with their variables and blobs), reminders, uploaded files, cloned voices, API applications, AI requests and memories, and command history are deleted.</li>
         <li>Tags others use in their servers stop working.</li>
-        <li>You’ll be logged out everywhere. Using NotSoBot again later creates a fresh record.</li>
+        <li>You’ll be logged out everywhere and the website’s access to your Discord account is revoked. Using NotSoBot again later creates a fresh record.</li>
+        <li>Premium purchases, reports you’ve sent and safety records stay, and so do server records like warnings a server gave you.</li>
         <li>This can’t be undone. Export first if you want a copy.</li>
       </ul>
       <button type='button' className='btn btn-danger mt-4' onClick={() => setConfirming(true)}>

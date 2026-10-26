@@ -29,7 +29,7 @@ const CHANGES = [
   'Tags can no longer show media from outside links. Embeds and components can only show files the tag uploaded through NotSoBot, or Discord’s own images like avatars and emojis.',
   'All tag text is checked against Discord’s Community Guidelines, including text inside embeds, buttons, menus, and other components.',
   'Flagged content is logged to a review queue, and repeat offenders are flagged and dealt with.',
-  'There is now a report system: use /report to report a user or server abusing NotSoBot to the developers.',
+  'There is now a report system: use /bot report to report a user or server abusing NotSoBot to the developers.',
 ];
 
 

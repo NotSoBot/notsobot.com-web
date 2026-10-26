@@ -60,9 +60,16 @@ export const CommandMediaTypes = {
   BEFORE: 1,
 } as const;
 
+// a command's preview (made by the api from the bot's `PREVIEW`): the inputs are `BEFORE` in `position` order, the
+// result is the one `AFTER`. width/height are 0 for audio, duration is 0 for still images
 export interface CommandMedia {
+  duration: number,
+  height: number,
+  mimetype: string,
+  position: number,
   type: (typeof CommandMediaTypes)[keyof typeof CommandMediaTypes],
   url: string,
+  width: number,
 }
 
 export interface Command {
@@ -70,6 +77,8 @@ export interface Command {
   id: string,
   media: Array<CommandMedia>,
   metadata: Array<CommandMetadata>,
+  // what the preview shows, as typed without the prefix (`caption when the bot works`)
+  preview_example: string | null,
 }
 
 export interface CommandArgChoice {
@@ -448,6 +457,7 @@ export const ApiErrorCodes = {
   UNKNOWN_MUSIC_QUEUE_ITEM: 10030,
   UNKNOWN_MUSIC_SESSION: 10032,
   UNKNOWN_GUILD_WARNING: 10033,
+  UNKNOWN_GUILD_REPORT: 10034,
   MAX_GUILD_WARNINGS: 30029,
   // queuing an album or playlist link needs a premium server
   MUSIC_PREMIUM_REQUIRED: 50048,
@@ -674,6 +684,39 @@ export interface GuildWarningsPage {
   warnings: Array<GuildWarning>,
   // the server's `warnings_window`, older ones aren't active
   window: number,
+}
+
+// a member's `report` (or "Report to Mods") to the server's moderators, not NotSoBot's own `Report`s. `status` is the
+// same `ReportStatuses`
+export const GuildReportTypes = {
+  USER: 0,
+  MESSAGE: 1,
+} as const;
+
+export interface GuildReport {
+  // message reports only, where it was and its text when it was reported (`null` when it had none)
+  channel_id: string | null,
+  created: string,
+  guild_id: string,
+  // who resolved or dismissed it and when, `null` while it's open
+  handled_at: string | null,
+  handled_by: string | null,
+  id: string,
+  message_content: string | null,
+  message_id: string | null,
+  reason: string,
+  status: ReportStatus,
+  // the reported member, or the reported message's author
+  target_id: string,
+  type: number,
+  // the reporter
+  user_id: string,
+}
+
+// newest first; `count` is every report with that status, not only this page
+export interface GuildReportsPage {
+  count: number,
+  reports: Array<GuildReport>,
 }
 
 export interface GuildLLMKnowledgePage {
@@ -1114,6 +1157,63 @@ export interface UserGuildDataExport {
 
 export interface UserGuildDataDelete {
   tags_deleted: number,
+}
+
+// `GET /users/@me/data/export`, saved as a file. No tokens, file/voice clip bytes, other people's tag storage or staff
+// notes, `notes` says what's left out inside the file
+export interface UserDataExport {
+  applications: Array<Application>,
+  // per command, hourly rollup. null when the stats database couldn't be reached
+  command_usage: Array<{command_id: string, command_type: number, first_used: string | null, last_used: string | null, uses: number}> | null,
+  // the old bot's command history, newest first
+  commands: Array<Record<string, unknown>>,
+  entitlements: Array<Entitlement>,
+  files: Array<UserFile>,
+  llm: {
+    memories: Array<Omit<LLMMemory, 'guild'>>,
+    // newest first, the api keeps them for 30 days
+    responses: Array<{
+      content: string,
+      created: ApiTimestamp,
+      error: string | null,
+      guild_id: string | null,
+      id: string,
+      model: string,
+      parent_id: string | null,
+      prompt: string,
+      prompt_file_count: number,
+      server_id: string | null,
+      tokens_input: number,
+      tokens_output: number,
+    }>,
+  },
+  notes: Array<string>,
+  premium_servers: Omit<PremiumServersPage, 'items'> & {items: Array<Omit<PremiumServer, 'guild'>>},
+  reminders: Array<Reminder>,
+  reports: Array<Omit<MeReport, 'unread'> & {messages: Array<ReportMessage>}>,
+  sessions: Array<UserSession>,
+  settings: UserSettings,
+  // theirs only: what tags keep for them, and the global storage of their own tags
+  tag_storage: {
+    blobs: Array<{storage_id: string, storage_type: TagStorageType, tag_id: string, value: string}>,
+    variables: Array<TagVariable & {tag_id: string}>,
+  },
+  tags: Array<Omit<Tag, 'assets' | 'directory' | 'user'> & {
+    assets: Array<Omit<TagAsset, 'provenance'>>,
+    directory: {
+      category: number,
+      content_public: boolean,
+      created: string,
+      description: string,
+      edited: string | null,
+      title: string,
+      verified: number,
+    } | null,
+  }>,
+  timestamp: number,
+  user: UserMe,
+  version: number,
+  voices: Array<MeVoice>,
 }
 
 // `rules_admin_bypass` needs the `rules_admin` area, null resets it to true
@@ -1611,7 +1711,7 @@ export interface JobResponse {
   },
 }
 
-// what users send with the bot's `/report` command
+// what users send with the bot's `/bot report` command
 export const ReportTypes = {
   BUG: 0,
   USER: 1,

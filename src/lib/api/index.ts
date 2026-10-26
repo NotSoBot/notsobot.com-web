@@ -68,6 +68,8 @@ import type {
   GuildLLMKnowledgePage,
   GuildWarning,
   GuildWarningsPage,
+  GuildReport,
+  GuildReportsPage,
   LLMMemoriesPage,
   LLMMemory,
   LLMMemoryPatch,
@@ -88,6 +90,7 @@ import type {
   ReportMessagesPage,
   ReportTranslation,
   ReportPatch,
+  ReportStatus,
   ReportsPage,
   GuildRule,
   GuildRuleInput,
@@ -113,6 +116,7 @@ import type {
   TagVariables,
   UserGuild,
   UserGuildDataDelete,
+  UserDataExport,
   UserGuildDataExport,
   UserGuildPatch,
   UserGuildSummary,
@@ -643,6 +647,19 @@ export const api = {
     return apiRequest<{deleted: Record<string, number>}>(guildEndpoints(scope, guildId).WARNINGS_DELETE, {method: 'POST', body: {user_ids: userIds}});
   },
 
+  // members' reports to the server's moderators, newest first (only one status, or all), Timeout Members sees and handles them
+  fetchGuildReports: (scope: GuildScope, guildId: string, options: {before?: string, limit?: number, status?: ReportStatus}, signal?: AbortSignal) => {
+    return apiRequest<GuildReportsPage>(guildEndpoints(scope, guildId).REPORTS, {
+      query: {before: options.before, limit: options.limit, status: options.status},
+      signal,
+    });
+  },
+
+  // resolves, dismisses or reopens it, the caller is who handled it
+  patchGuildReport: (scope: GuildScope, guildId: string, reportId: string, status: ReportStatus) => {
+    return apiRequest<GuildReport>(guildEndpoints(scope, guildId).REPORT(reportId), {method: 'PATCH', body: {status}});
+  },
+
   // what's playing and queued, any member can see it and Manage Server changes it (staff and owners, like above).
   // Pausing, resuming, skipping and leaving go to the bot (the api only checks it's playing), the rest answers with the
   // queue as it is now
@@ -715,8 +732,9 @@ export const api = {
     return apiRequest<UserGuildDataDelete>(guildEndpoints(scope, guildId).DATA_DELETE, {method: 'POST', timeout: 60 * 1000});
   },
 
-  requestMeDataExport: () => {
-    return apiRequest<unknown>(ApiEndpoints.USER_ME_DATA_EXPORT, {method: 'POST'});
+  // everything NotSoBot stores about the caller, the dashboard saves it as a file
+  exportMeData: () => {
+    return apiRequest<UserDataExport>(ApiEndpoints.USER_ME_DATA_EXPORT, {timeout: 60 * 1000});
   },
 
   deleteMe: () => {

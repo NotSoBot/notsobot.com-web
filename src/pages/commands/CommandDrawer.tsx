@@ -3,12 +3,12 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router';
 
-import { ImageComparison } from '@/components/ui/ImageComparison';
 import { Routes } from '@/config';
-import { CommandMediaTypes, type Command, type CommandArgChoice } from '@/lib/api';
-import { cn, formatNumber } from '@/lib/utils';
+import { CommandTypes, type CommandArgChoice } from '@/lib/api';
+import { formatNumber } from '@/lib/utils';
 
 import { CategoryBadge, categoryStyle, CommandName, PremiumBadge } from './CommandCards';
+import { CommandPreview } from './CommandPreview';
 import { PREFIXES, PREMIUM_META, TYPE_LABELS, type Entry } from './commandMeta';
 
 
@@ -109,7 +109,15 @@ export function CommandDrawer({ entry, siblings, totalRanked, onSelect, onClose 
               </Section>
             ) : null}
 
-            <MediaPreview command={entry.command}/>
+            {(entry.command.media.length) ? (
+              <Section title='Preview'>
+                {/* the example is the prefixed command, whichever type this entry is */}
+                <CommandPreview
+                  command={entry.command}
+                  example={(entry.command.preview_example) ? `${PREFIXES[CommandTypes.PREFIXED]}${entry.command.preview_example}` : null}
+                />
+              </Section>
+            ) : null}
 
             {(metadata.examples.length) ? (
               <Section title='Examples'>
@@ -211,24 +219,6 @@ export function CommandDrawer({ entry, siblings, totalRanked, onSelect, onClose 
       </div>
     </>,
     document.body,
-  );
-}
-
-
-function MediaPreview({ command }: {command: Command}) {
-  const before = command.media?.find((media) => media.type === CommandMediaTypes.BEFORE);
-  const after = command.media?.find((media) => media.type === CommandMediaTypes.AFTER);
-  if (before && after) {
-    return <Section title='Preview'><ImageComparison before={before.url} after={after.url}/></Section>;
-  }
-  const single = after || before;
-  if (!single) {
-    return null;
-  }
-  return (
-    <Section title='Preview'>
-      <img src={single.url} alt='Command preview' loading='lazy' className={cn('size-64 rounded border border-line object-cover')}/>
-    </Section>
   );
 }
 

@@ -1,11 +1,17 @@
-import { useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
+import { useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
 
 import { cn } from '@/lib/utils';
 
 
 // Before/after slider for command previews. Pointer events cover mouse, touch and pen;
-// the handle is a focusable slider so it also works from the keyboard.
-export function ImageComparison({ before, after, className }: {before: string, after: string, className?: string}) {
+// the handle is a focusable slider so it also works from the keyboard. Both images are fitted (not cropped) into the
+// box, which takes `aspectRatio` (the result's), so a result a few pixels off the input's size still lines up
+export function ImageComparison({ before, after, aspectRatio = 1, className }: {
+  before: string,
+  after: string,
+  aspectRatio?: number,
+  className?: string,
+}) {
   const [ position, setPosition ] = useState(50);
   const [ dragging, setDragging ] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -35,6 +41,7 @@ export function ImageComparison({ before, after, className }: {before: string, a
     event.preventDefault();
   };
 
+  const style: CSSProperties = {aspectRatio};
   return (
     <div
       ref={containerRef}
@@ -49,17 +56,21 @@ export function ImageComparison({ before, after, className }: {before: string, a
       onPointerUp={() => setDragging(false)}
       onPointerCancel={() => setDragging(false)}
       onKeyDown={onKeyDown}
+      style={style}
       className={cn(
-        'relative size-64 touch-none overflow-hidden rounded border border-line select-none',
+        'relative w-full max-w-xs touch-none overflow-hidden rounded border border-line bg-deep select-none',
         dragging ? 'cursor-ew-resize' : 'cursor-pointer',
         className,
       )}
     >
-      <img src={after} alt='After' draggable={false} className='absolute inset-0 size-full object-cover'/>
-      <span className='absolute top-2 right-2 rounded bg-black/70 px-2 py-1 text-xs text-white'>After</span>
+      {/* clipped too (not just covered by "before"), so it doesn't show through a transparent "before" */}
+      <div className='absolute inset-0' style={{clipPath: `inset(0 0 0 ${position}%)`}}>
+        <img src={after} alt='After' draggable={false} className='size-full object-contain'/>
+        <span className='absolute top-2 right-2 rounded bg-black/70 px-2 py-1 text-xs text-white'>After</span>
+      </div>
 
       <div className='absolute inset-0' style={{clipPath: `inset(0 ${100 - position}% 0 0)`}}>
-        <img src={before} alt='Before' draggable={false} className='size-full object-cover'/>
+        <img src={before} alt='Before' draggable={false} className='size-full object-contain'/>
         <span className='absolute top-2 left-2 rounded bg-black/70 px-2 py-1 text-xs text-white'>Before</span>
       </div>
 

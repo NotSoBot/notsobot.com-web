@@ -3,7 +3,7 @@ import type { LegalDocument } from './legal';
 export const PRIVACY_POLICY: LegalDocument = {
   title: "Privacy Policy",
   effective: "October 13, 2026",
-  lastUpdated: "October 24, 2026",
+  lastUpdated: "October 25, 2026",
   intro: "This Privacy Policy explains what information NotSoBot collects, why, who it's shared with, how long it's kept, and how You can get a copy of it or have it deleted.",
   sections: [
     {
@@ -22,14 +22,15 @@ export const PRIVACY_POLICY: LegalDocument = {
           "Your settings: language, timezone, units, response display preferences, file upload preferences, selected AI models and personality, and text-to-speech voice.",
           "Server information and settings for servers NotSoBot is in: server ID, name, icon, features, language, timezone, custom prefixes, AI settings, what the server's admins told NotSoAI about the server along with who added each one, and the rules for who can use which commands along with who added each rule.",
           "Warnings a server's moderators give with the warn command: the server, the warned member's user ID, the moderator's user ID, the reason and when it was given. The warned member is sent the warning in a DM.",
+          "Reports members send to a server's moderators with /report, the report command or Report to Mods: the server, who sent it, who was reported, the reason, when it was sent, its status and the moderator who last resolved or dismissed it. A report of a message also keeps the message's channel and message IDs and its text from when it was reported, so moderators can still read it if the message is deleted.",
           "Logging settings: if a server enables logging, the channel and webhook used to post logs, including the webhook token. Log events are sent to that webhook and are not kept by Us.",
           "Command replies: the IDs of your command message, its channel, the command used, and NotSoBot's reply, so that editing or deleting your command can update or remove the reply.",
           "Command usage statistics: which command was used, when, and the server, channel and user IDs involved.",
           "Tags: names, content, variables, attached media, usage counts and directory listings for tags You create.",
           "Reminders: reminder text, times, and the channel and message they belong to.",
-          "Reports You send with the report command or from the website, including the text, the server, channel and message IDs involved, and Our review notes. Bug and tag reports sent from the website without logging in aren't linked to any account. Instead We keep a one-way hash of the IP address they came from, to limit how many can be sent and to spot abuse. The IP address itself isn't stored with the report.",
+          "Reports You send to Us with /bot report (or the bot report command), Report to NotSoBot, or from the website, including the text, the server, channel and message IDs involved, and Our review notes. Bug and tag reports sent from the website without logging in aren't linked to any account. Instead We keep a one-way hash of the IP address they came from, to limit how many can be sent and to spot abuse. The IP address itself isn't stored with the report.",
           "Uploaded files: files You ask NotSoBot to host, their file names, sizes, dimensions and a file hash (BLAKE2b).",
-          "AI requests: the prompt, including any messages You replied to with the ai command, along with the instructions, model, generated response, any error and token counts.",
+          "AI requests: the prompt, including any messages You replied to with the ai command, along with the model, generated response, any error and token counts.",
           "AI memory: short facts NotSoAI saves about You when You ask it to remember something, whether each one applies everywhere or only in one server, when it was saved, and whether You've turned memory off.",
           "Cloned voices: the voice's name, the ID of the voice stored at the voice cloning service (fish.audio, or ElevenLabs for older voices), and the audio clips You cloned it from.",
           "Purchases: premium entitlements and subscription status received from Discord.",
@@ -101,7 +102,7 @@ export const PRIVACY_POLICY: LegalDocument = {
           "Sentry, which receives error reports when something breaks. These can include the IDs and command details involved in the error.",
         ]},
         {type: 'paragraph', text: "Each of these providers handles data under its own terms and privacy policy. We may also share information when the law requires it, for example to respond to a valid court order, or when We believe it's needed to protect someone's safety or to investigate a violation of Our Terms of Service. If NotSoBot is ever transferred to a new owner, your information would be transferred with it and would remain covered by this policy."},
-        {type: 'paragraph', text: "Some information is visible to other people because of how the Service works. For example, tags You create can be seen by members of that server, tags in the public directory can be seen by anyone, server administrators can see who added entries to their server's settings, and a server's moderators can see the warnings given there, including who gave them."},
+        {type: 'paragraph', text: "Some information is visible to other people because of how the Service works. For example, tags You create can be seen by members of that server, tags in the public directory can be seen by anyone, server administrators can see who added entries to their server's settings, and a server's moderators can see the warnings given there, including who gave them, and the reports members sent them, including who sent each one."},
       ],
     },
     {
@@ -144,6 +145,7 @@ export const PRIVACY_POLICY: LegalDocument = {
           "Tags, reminders and cloned voices are deleted when You delete them. Deleting a cloned voice also deletes it from the voice cloning service, along with the audio clips it was made from.",
           "AI memories are kept until You delete them, ask NotSoAI to forget them, or delete your information. Turning memory off stops NotSoAI from seeing or saving them but doesn't delete the ones already saved.",
           "Warnings are kept until a server's moderators remove them, or until the server's own expiry setting deletes them (they don't expire unless the server sets one). They're the server's records, so they stay if the warned member or the moderator leaves the server or deletes their Discord account, and deleting your information doesn't remove warnings a server gave You.",
+          "Reports to a server's moderators are kept until the server's data is deleted. Like warnings, they're the server's records, so they stay if the member who sent one or the reported member leaves the server or deletes their Discord account, and deleting your information doesn't remove them.",
           "Server settings are kept if NotSoBot is removed from a server, so they still apply if it's added back. A server owner can ask Us to delete them.",
           "Safety records are kept to prevent repeat abuse, and for as long as the law requires for anything We report.",
           "Other information is kept while You use the Service, and deleted when You ask Us to delete it or when We no longer need it.",
@@ -153,9 +155,10 @@ export const PRIVACY_POLICY: LegalDocument = {
     {
       title: "Section 10 - Your Choices and Rights",
       blocks: [
-        {type: 'paragraph', text: "You can ask Us for a copy of your information, to correct it, or to delete it, by using the report command or emailing privacy@notsocompany.com. We may ask You to confirm that You own the Discord account involved. We'll respond within 30 days. Some information may be kept where We need it for legal reasons, to deal with abuse, or for safety records. Deleting your information may remove your tags, settings and premium perks."},
+        {type: 'paragraph', text: "You can ask Us for a copy of your information, to correct it, or to delete it, by using the report command or emailing privacy@notsocompany.com. We may ask You to confirm that You own the Discord account involved. We'll respond within 30 days. Some information may be kept where We need it for legal reasons, to deal with abuse, or for safety records. Deleting your information removes your tags, reminders, cloned voices, settings and the other information that's only yours. Your purchases and premium are kept, and so are reports You sent Us and the records servers keep that mention You, like warnings and reports to their moderators."},
         {type: 'paragraph', text: "You can also:"},
         {type: 'list', items: [
+          "delete your information yourself with Delete my data in the website dashboard's settings",
           "delete your own tags, reminders and cloned voices with NotSoBot's commands or on the website's dashboard",
           "see, edit or delete what NotSoAI remembers about You, or turn its memory off, with the /settings ai-memory commands or on the website's dashboard",
           "remove NotSoBot from a server You manage, or remove the user-installed app from your account",

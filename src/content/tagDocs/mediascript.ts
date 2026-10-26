@@ -1973,6 +1973,20 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     notes: ['Video can\'t be transparent, so removed areas in a video turn black.'],
   },
   {
+    name: 'colorremove',
+    category: 'compose',
+    summary: 'Removes the most used color (usually the background), like the color remove command.',
+    syntax: 'colorremove MEDIA_KEY COLOR=mostused SIMILARITY=0.1 BLEND=0 CONVERT=None',
+    args: [
+      media(),
+      {name: 'COLOR', default: 'mostused', description: 'the color to remove'},
+      {name: 'SIMILARITY', default: '0.1', range: '0.01..1.0', description: 'how close a color must be to be removed'},
+      {name: 'BLEND', default: '0', range: '0.0..1.0', description: 'how softly the edges blend'},
+      {name: 'CONVERT', default: 'None', description: 'an image or video mimetype to convert to'},
+    ],
+    notes: ['`chromakey` with different defaults. Video can\'t be transparent, so removed areas in a video turn black.'],
+  },
+  {
     name: 'backgroundremove',
     aliases: ['bgrm'],
     category: 'compose',
@@ -2149,6 +2163,14 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     ],
   },
   {
+    name: 'drawfaces',
+    category: 'compose',
+    summary: 'Puts a translucent numbered oval over every face found.',
+    syntax: 'drawfaces MEDIA_KEY',
+    args: [media()],
+    notes: ['Handy to see which faces the face effects will find.'],
+  },
+  {
     name: 'facehalloweenhat',
     category: 'compose',
     summary: 'Puts a Halloween hat on top of every head.',
@@ -2219,6 +2241,47 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
       'The result is a still image: a gif or video gives its first frame.',
       'Uses AI, and counts towards the 20 AI requests a script can make (shared with `edit` and `imagine`).',
     ],
+  },
+  {
+    name: 'faceswappreset',
+    category: 'compose',
+    summary: 'Swaps one of the bot\'s faces onto the faces in the media.',
+    syntax: 'faceswappreset MEDIA_KEY NAME MAX_FACES=8',
+    args: [
+      media(),
+      {name: 'NAME', range: 'BUSCEMI, CHAD, KIRK', description: 'whose face'},
+      {name: 'MAX_FACES', default: '8', range: '1..8', description: 'how many of the biggest faces to replace'},
+    ],
+    notes: ['Uses AI, and counts towards the 20 AI requests a script can make (shared with `edit` and `imagine`).'],
+  },
+  {
+    name: 'facefeaturesswap',
+    category: 'compose',
+    summary: 'Keeps the face but poses it like another media\'s face.',
+    syntax: 'facefeaturesswap MEDIA_KEY DRIVING_MEDIA_KEY REGIONS=ALL MODE=RELATIVE MULTIPLIER=1',
+    args: [
+      media('the media whose face gets posed (its first frame)'),
+      {name: 'DRIVING_MEDIA_KEY', description: 'the media with the pose and expression to copy (its first frame)'},
+      {name: 'REGIONS', default: 'ALL', range: 'ALL, EXPRESSION, POSE, LIPS, EYES', description: 'which parts to copy'},
+      {name: 'MODE', default: 'RELATIVE', range: 'RELATIVE, ABSOLUTE', description: '`RELATIVE` adds the driving face\'s expression to the face\'s own, `ABSOLUTE` copies it as it is'},
+      {name: 'MULTIPLIER', default: '1', range: '0..2', description: 'how strongly'},
+    ],
+    notes: [
+      'The result is a still image: a gif or video gives its first frame.',
+      'Uses AI, and counts towards the 20 AI requests a script can make (shared with `edit` and `imagine`).',
+    ],
+  },
+  {
+    name: 'facemood',
+    category: 'compose',
+    summary: 'Gives the faces in the media a mood.',
+    syntax: 'facemood MEDIA_KEY MOOD MAX_FACES=8',
+    args: [
+      media(),
+      {name: 'MOOD', range: 'ANGRY, GRUMPY, SAD, SMUG, SURPRISED'},
+      {name: 'MAX_FACES', default: '8', range: '1..8', description: 'how many of the biggest faces to change'},
+    ],
+    notes: ['Uses AI, and counts towards the 20 AI requests a script can make (shared with `edit` and `imagine`).'],
   },
   {
     name: 'bill',
@@ -2357,6 +2420,17 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     summary: 'Removes all color.',
     syntax: 'grayscale MEDIA_KEY',
     args: [media()],
+  },
+  {
+    name: 'hidden',
+    category: 'filters',
+    summary: 'Hides the media in a checkerboard, it only shows from far away or zoomed out.',
+    syntax: 'hidden MEDIA_KEY SHARE=10 SIZE=none',
+    args: [
+      media(),
+      {name: 'SHARE', default: '10', range: '1..50', description: 'how much of the media is mixed in'},
+      {name: 'SIZE', default: 'none', range: '1..32', description: 'the checker size in pixels, none picks one from the media\'s size'},
+    ],
   },
   {
     name: 'sepia',
@@ -3042,6 +3116,16 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     notes: ['A still image becomes an animated GIF.'],
   },
   {
+    name: 'paper',
+    category: 'filters',
+    summary: 'Turns the media into a tilted polaroid and bends it like a sheet of paper.',
+    syntax: 'paper MEDIA_KEY ANGLE=none',
+    args: [
+      media(),
+      {name: 'ANGLE', default: 'none', range: '-15..15', description: 'how far to tilt it, none picks a random angle'},
+    ],
+  },
+  {
     name: 'pix2pix',
     category: 'filters',
     summary: 'Redraws the media with a pix2pix model.',
@@ -3093,12 +3177,16 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
   {
     name: 'smile',
     category: 'filters',
-    summary: 'Makes everyone in the media smile.',
-    syntax: 'smile MEDIA_KEY',
-    args: [media()],
+    summary: 'Makes the faces in the media smile, like the smile command.',
+    syntax: 'smile MEDIA_KEY LEVEL=BIG MAX_FACES=8',
+    args: [
+      media(),
+      {name: 'LEVEL', default: 'BIG', range: 'SUBTLE, NORMAL, BIG, HUGE', description: 'from a closed mouth smile to a beaming one'},
+      {name: 'MAX_FACES', default: '8', range: '1..8', description: 'how many of the biggest faces to change'},
+    ],
     notes: [
+      'Only the faces change, the rest of the media stays as it is.',
       'Uses AI, and counts towards the 20 AI requests a script can make (shared with `edit` and `imagine`).',
-      'Videos and GIFs use their first frame.',
     ],
   },
   {
@@ -3920,6 +4008,18 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
       media(),
       {name: 'AMOUNT', range: '0..1000', description: 'volume level'},
     ],
+  },
+  {
+    name: 'waveform',
+    category: 'audio',
+    summary: 'Draws the audio\'s waveform as an image.',
+    syntax: 'waveform MEDIA_KEY COLOR=none SPLIT=false',
+    args: [
+      media('the audio or video'),
+      {name: 'COLOR', default: 'none', description: 'the waveform\'s color'},
+      {name: 'SPLIT', default: 'false', description: 'draw each channel on its own row'},
+    ],
+    notes: ['The result is an image with a transparent background.'],
   },
   {
     name: 'audioputconcat',

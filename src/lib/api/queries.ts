@@ -41,6 +41,8 @@ export const queryKeys = {
   guildMusic: (token: string | null, scope: GuildScope, guildId: string) => ['users', '@me', token, 'guild-music', scope, guildId] as const,
   // every page and user filter of a server's warnings sit under the first five
   guildWarnings: (token: string | null, scope: GuildScope, guildId: string, userId?: string) => ['users', '@me', token, 'guild-warnings', scope, guildId, ...((userId === undefined) ? [] : [userId])] as const,
+  // and every page and status filter of its members' reports (`all` for no filter)
+  guildReports: (token: string | null, scope: GuildScope, guildId: string, status?: string) => ['users', '@me', token, 'guild-reports', scope, guildId, ...((status === undefined) ? [] : [status])] as const,
   // admin (owner only); under the session too so logging out drops it
   admin: (token: string | null) => ['users', '@me', token, 'admin'] as const,
   adminTags: (token: string | null, filters: object) => ['users', '@me', token, 'admin', 'all-tags', filters] as const,

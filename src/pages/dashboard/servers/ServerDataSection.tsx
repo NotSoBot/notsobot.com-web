@@ -7,25 +7,13 @@ import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
 import type { UserGuild, UserGuildDataExport } from '@/lib/api';
 import { errorMessage, useDeleteGuildDataMutation, useExportGuildDataMutation, useGuildScope } from '@/lib/api/dashboardQueries';
+import { downloadJson } from '@/lib/utils';
 
 import { Panel } from '../ui';
 
 
 const DELETE_CONFIRM_PHRASE = 'delete server data';
 
-
-function downloadJson(filename: string, data: unknown) {
-  const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  // give the browser a moment to start the download before the url goes away
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
 
 function exportFilename(guildId: string, data: UserGuildDataExport): string {
   const date = new Date(data.timestamp).toISOString().slice(0, 10);

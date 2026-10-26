@@ -162,7 +162,7 @@ export function ChangelogPage() {
         <aside className='mt-12 flex flex-col items-start justify-between gap-4 rounded-lg border border-brand/30 bg-gradient-to-r from-brand/20 to-brand/5 p-6 sm:flex-row sm:items-center'>
           <div>
             <h2 className='mb-1 text-lg font-semibold text-white'>Found a bug or have an idea?</h2>
-            <p className='text-sm text-muted'>Use <code className='rounded bg-deep px-1.5 py-0.5 font-mono text-[0.85em] text-code'>.report bug</code> or tell us in the support server.</p>
+            <p className='text-sm text-muted'>Use <code className='rounded bg-deep px-1.5 py-0.5 font-mono text-[0.85em] text-code'>.bot report bug</code> or tell us in the support server.</p>
           </div>
           <div className='flex flex-wrap gap-2'>
             <a href={Routes.SUPPORT} className='btn btn-discord'>Join the support server</a>

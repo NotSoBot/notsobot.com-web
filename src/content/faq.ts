@@ -149,7 +149,7 @@ export const FAQ_QUESTIONS: Array<FaqQuestion> = [
     id: 'delete-data',
     section: 'privacy',
     question: 'How do I get my data deleted?',
-    answer: 'Email [privacy@notsocompany.com](mailto:privacy@notsocompany.com) from an address you can verify, and include your Discord user ID.',
+    answer: 'Log in to the [dashboard](/dashboard/settings#your-data) and use **Delete my data** at the bottom of your settings. You can also email [privacy@notsocompany.com](mailto:privacy@notsocompany.com) from an address you can verify, and include your Discord user ID.',
   },
   {
     id: 'support',

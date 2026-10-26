@@ -158,6 +158,8 @@ export function guildEndpoints(scope: GuildScope, guildId: string) {
     WARNINGS: `${base}/warnings`,
     WARNINGS_DELETE: `${base}/warnings/delete`,
     WARNING: (warningId: string) => `${base}/warnings/${warningId}`,
+    REPORTS: `${base}/reports`,
+    REPORT: (reportId: string) => `${base}/reports/${reportId}`,
     DATA_EXPORT: `${base}/data/export`,
     DATA_DELETE: `${base}/data/delete`,
   };

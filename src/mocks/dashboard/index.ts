@@ -29,6 +29,7 @@ import {
   type AdminUserRef,
   type ContentFlag,
   type GuildLLMKnowledge,
+  type GuildReport,
   type GuildWarning,
   type GuildMusic,
   type GuildMusicQueueItem,
@@ -46,7 +47,9 @@ import {
   type TagDirectoryItem,
   type TagAuditEntry,
   type TagStorageType,
+  type UserDataExport,
   type UserGuild,
+  type UserMe,
   type VoiceClip,
 } from '@/lib/api/types';
 import { toDate } from '@/lib/utils';
@@ -81,6 +84,7 @@ import {
   mockUser,
   sampleDirectoryAssets,
 } from './fixtures';
+import { MOCK_COMMAND_PREVIEWS } from './commandPreviews';
 
 
 const adminUsers = createAdminUsers();
@@ -104,6 +108,15 @@ const state = {
     {created: new Date(Date.now() - 45 * 86400000).toISOString(), guild_id: guilds[0].summary.id, id: '1300000000000000301', moderator_id: mockUser.id, reason: 'Spamming in #general', user_id: '1000000000000000002'},
     {created: new Date(Date.now() - 6 * 86400000).toISOString(), guild_id: guilds[0].summary.id, id: '1300000000000000302', moderator_id: mockUser.id, reason: 'Posting memes in #support', user_id: '1000000000000000002'},
     {created: new Date(Date.now() - 2 * 3600000).toISOString(), guild_id: guilds[0].summary.id, id: '1300000000000000303', moderator_id: '1000000000000000003', reason: null, user_id: '1000000000000000004'},
+  ]]]),
+  // members' reports to each server's moderators by guild id, newest last; the first server (which gets a reports logger
+  // below) starts with open, resolved and dismissed ones, one of them a message without text
+  guildReports: new Map<string, Array<GuildReport>>([[guilds[0].summary.id, [
+    mockGuildReport({created: new Date(Date.now() - 12 * 86400000).toISOString(), handled_at: new Date(Date.now() - 11 * 86400000).toISOString(), handled_by: mockUser.id, id: '1300000000000000401', reason: 'Keeps DMing me invite links after I asked them to stop', status: 1, target_id: '1000000000000000002', user_id: '1000000000000000005'}),
+    mockGuildReport({channel_id: '1200000000000000011', created: new Date(Date.now() - 5 * 86400000).toISOString(), handled_at: new Date(Date.now() - 4 * 86400000).toISOString(), handled_by: '1000000000000000003', id: '1300000000000000402', message_content: 'lol imagine needing help with a discord bot', message_id: '1250000000000000402', reason: 'Being rude in #support', status: 2, target_id: '1000000000000000004', type: 1, user_id: '1000000000000000005'}),
+    mockGuildReport({channel_id: '1200000000000000012', created: new Date(Date.now() - 26 * 3600000).toISOString(), id: '1300000000000000403', message_id: '1250000000000000403', reason: 'NSFW image in a SFW channel', target_id: '1000000000000000002', type: 1, user_id: '1000000000000000004'}),
+    mockGuildReport({channel_id: '1200000000000000011', created: new Date(Date.now() - 40 * 60000).toISOString(), id: '1300000000000000404', message_content: 'FREE NITRO!!! claim here before it runs out -> discord-gift.example/claim\nonly 50 left', message_id: '1250000000000000404', reason: 'Scam link, probably a hacked account', target_id: '1000000000000000006', type: 1, user_id: '1000000000000000002'}),
+    mockGuildReport({created: new Date(Date.now() - 5 * 60000).toISOString(), id: '1300000000000000405', reason: 'Their username and avatar are a slur', target_id: '1000000000000000007', user_id: '1000000000000000004'}),
   ]]]),
   // each server's music, made when it's first asked for (`guildMusic`)
   guildMusic: new Map<string, GuildMusic>(),
@@ -342,11 +355,15 @@ function scopeIds(query: URLSearchParams | Record<string, unknown>): Record<TagS
 
 /* user */
 
-route('GET', '/users/@me', () => ({
-  ...mockUser,
-  ...((state.blocked !== null) ? {blocked: true, blocked_on: '2026-09-02T17:41:08.000Z', blocked_reason: state.blocked || null} : {}),
-  flags: (state.owner) ? ((mockUser.flags | 1) & ~2) : (state.moderator) ? ((mockUser.flags | 2) & ~1) : (mockUser.flags & ~3),
-}));
+function meUser(): UserMe {
+  return {
+    ...mockUser,
+    ...((state.blocked !== null) ? {blocked: true, blocked_on: '2026-09-02T17:41:08.000Z', blocked_reason: state.blocked || null} : {}),
+    flags: (state.owner) ? ((mockUser.flags | 1) & ~2) : (state.moderator) ? ((mockUser.flags | 2) & ~1) : (mockUser.flags & ~3),
+  };
+}
+
+route('GET', '/users/@me', () => meUser());
 route('GET', '/auth/logout', () => undefined);
 route('GET', '/users/@me/settings', () => state.settings);
 route('PATCH', '/users/@me/settings', (_match, { body }) => {
@@ -362,13 +379,96 @@ route('PATCH', '/users/@me/settings', (_match, { body }) => {
   return state.settings;
 });
 
-// planned endpoints, not built yet
-route('POST', '/users/@me/data/export', () => {
-  throw new MockError(404, 0, '404: Not Found');
+// mirrors `utilities/tools/user_data.py` `export_user_data`, built from the other mocks' state
+route('GET', '/users/@me/data/export', (): UserDataExport => {
+  const tags = state.tags.filter((tag) => tag.user.id === mockUser.id);
+  const ownTagIds = new Set(tags.map((tag) => tag.id));
+  // theirs only: what tags keep for them (anyone's tag) and their own tags' global storage
+  const isTheirs = (tagId: string, key: string) => key === `0:${mockUser.id}` || (key === '3:0' && ownTagIds.has(tagId));
+  const storage = <T>(stored: Map<string, Map<string, T>>) => [...stored].flatMap(([ tagId, buckets ]) => [...buckets]
+    .filter(([ key ]) => isTheirs(tagId, key))
+    .map(([ key, value ]) => {
+      const [ type, storageId ] = key.split(':');
+      return {storage_id: storageId, storage_type: Number(type) as TagStorageType, tag_id: tagId, value};
+    }));
+  const usage = new Map<string, NonNullable<UserDataExport['command_usage']>[number]>();
+  for (const use of state.commandUses) {
+    const key = `${use.command_id}:${use.command_type}`;
+    const entry = usage.get(key) ?? {command_id: use.command_id, command_type: use.command_type, first_used: use.timestamp, last_used: use.timestamp, uses: 0};
+    entry.uses += 1;
+    entry.first_used = (toDate(use.timestamp) < toDate(entry.first_used ?? use.timestamp)) ? use.timestamp : entry.first_used;
+    entry.last_used = (toDate(entry.last_used ?? use.timestamp) < toDate(use.timestamp)) ? use.timestamp : entry.last_used;
+    usage.set(key, entry);
+  }
+  const { items: premiumServers, ...premiumServersRest } = premiumServersPage();
+  return {
+    applications: state.applications.filter((application) => application.owner_id === mockUser.id).map(meApplication),
+    command_usage: [...usage.values()].sort((a, b) => b.uses - a.uses),
+    commands: [],
+    entitlements: state.entitlements
+      .filter((entitlement) => entitlement.user?.id === mockUser.id)
+      .map(({ external_id: _externalId, user: _user, ...entitlement }) => entitlement),
+    files: state.files,
+    llm: {
+      memories: state.llmMemories.map(({ guild: _guild, ...memory }) => memory),
+      responses: [{
+        content: 'A group of flamingos is called a flamboyance.',
+        created: new Date(Date.now() - 3 * 86400000).toISOString(),
+        error: null,
+        guild_id: guilds[0].summary.id,
+        id: '1430000000000000001',
+        model: 'CLAUDE_SONNET',
+        parent_id: null,
+        prompt: 'what is a group of flamingos called',
+        prompt_file_count: 0,
+        server_id: guilds[0].summary.id,
+        tokens_input: 812,
+        tokens_output: 14,
+      }],
+    },
+    notes: [
+      'Tokens are left out: your API applications\' tokens, the website\'s login sessions and its access to your Discord account. Anyone with one of them could act as you.',
+      'Uploaded files, tag assets and voice clips are listed with their details and links, not their contents.',
+    ],
+    premium_servers: {...premiumServersRest, items: premiumServers.map(({ guild: _guild, ...server }) => server)},
+    reminders: state.reminders,
+    reports: ownReports().map((report) => {
+      const { unread: _unread, ...payload } = ownReportPayload(report);
+      const messages = (state.reportMessages.get(report.id) ?? []).map(({ author_id: _authorId, ...message }) => message);
+      return {...payload, messages};
+    }),
+    sessions: [{id: '1290000000000000500', user_agent: navigator.userAgent.slice(0, 128)}],
+    settings: state.settings,
+    tag_storage: {
+      blobs: storage(state.blobs),
+      variables: storage(state.variables).flatMap(({ value, ...scope }) => Object.entries(value).map(([ name, item ]) => ({...scope, name, value: item}))),
+    },
+    tags: tags.map(({ user: _user, directory: _directory, ...tag }) => {
+      const listing = state.directory.get(tag.id);
+      const reference = tag.reference_tag;
+      return {
+        ...tag,
+        assets: [],
+        directory: (listing) ? {
+          category: listing.category,
+          content_public: listing.content_public,
+          created: listing.created,
+          description: listing.description,
+          edited: listing.edited,
+          title: listing.title,
+          verified: listing.verified,
+        } : null,
+        reference_tag: (reference && reference.user.id !== mockUser.id) ? {...reference, content: ''} : reference,
+      };
+    }),
+    timestamp: Date.now(),
+    user: meUser(),
+    version: 1,
+    voices: state.voices.filter((voice) => voice.user?.id === mockUser.id).map(meVoice),
+  };
 });
-route('DELETE', '/users/@me', () => {
-  throw new MockError(405, 0, '405: Method Not Allowed');
-});
+// 204, the dashboard logs out right after (nothing is reset here, the mock state comes back on reload anyway)
+route('DELETE', '/users/@me', () => {});
 
 
 /* tags */
@@ -1258,6 +1358,7 @@ route('GET', '/(users/@me|admin)/guilds/(\\d+)/data/export', ([ , scope, guildId
   return {
     guild: detail,
     llm_knowledge: state.guildLLMKnowledge.get(guildId) ?? [],
+    reports: state.guildReports.get(guildId) ?? [],
     notes: [
       'Logger webhook URLs (webhook id and token) are left out because they are sensitive data: anyone with a webhook URL can post messages in that channel.',
       'Content of directory tags is left out, including the directory or DM tags that aliases in this server point to.',
@@ -1279,6 +1380,7 @@ route('POST', '/(users/@me|admin)/guilds/(\\d+)/data/delete', ([ , scope, guildI
   state.tags = state.tags.filter((tag) => tag.server_id !== guildId);
   state.guildLLMKnowledge.delete(guildId);
   state.guildWarnings.delete(guildId);
+  state.guildReports.delete(guildId);
   Object.assign(detail, {
     disabled_logger_events: 0,
     locale: null,
@@ -3159,6 +3261,48 @@ route('POST', '/users/@me/guilds/(\\d+)/warnings/delete', ([ , guildId ], { body
   return {deleted};
 });
 
+// members' reports to the server's moderators: mirrors `me_guild_reports` in `views/guild_reports.py` (there are no staff
+// routes for them either). Members can only report in a server with a reports logger, so the first server has one
+function mockGuildReport(report: Partial<GuildReport> & Pick<GuildReport, 'created' | 'id' | 'reason' | 'target_id' | 'user_id'>): GuildReport {
+  return {channel_id: null, guild_id: guilds[0].summary.id, handled_at: null, handled_by: null, message_content: null, message_id: null, status: 0, type: 0, ...report};
+}
+
+guilds[0].detail.loggers.push({added: new Date(Date.now() - 30 * 86400000).toISOString(), channel_id: '1200000000000000023', disabled_events: 0, guild_id: guilds[0].summary.id, type: 8, user_id: mockUser.id});
+
+function guildReports(guildId: string): Array<GuildReport> {
+  return state.guildReports.get(guildId) ?? [];
+}
+
+route('GET', '/users/@me/guilds/(\\d+)/reports', ([ , guildId ], { query }) => {
+  requireEditable(guildId, 'moderation');
+  const status = query.get('status');
+  const before = query.get('before');
+  const limit = Number(query.get('limit')) || 25;
+  const matched = guildReports(guildId).filter((report) => status === null || report.status === Number(status)).reverse();
+  return {
+    count: matched.length,
+    reports: matched.filter((report) => !before || BigInt(report.id) < BigInt(before)).slice(0, limit),
+  };
+});
+
+route('PATCH', '/users/@me/guilds/(\\d+)/reports/(\\d+)', ([ , guildId, reportId ], { body }) => {
+  requireEditable(guildId, 'moderation');
+  const report = guildReports(guildId).find((other) => other.id === reportId);
+  if (!report) {
+    throw new MockError(404, ApiErrorCodes.UNKNOWN_GUILD_REPORT, 'Unknown Report');
+  }
+  const status = Number(body.status) as GuildReport['status'];
+  if (report.status !== status) {
+    // reopening forgets who handled it
+    Object.assign(report, {
+      handled_at: (status === 0) ? null : new Date().toISOString(),
+      handled_by: (status === 0) ? null : mockUser.id,
+      status,
+    });
+  }
+  return report;
+});
+
 // what's playing: mirrors the `/music` routes in `views/me_guilds.py` (and `views/admin.py`). The first server is playing something, the
 // bot's controls (`MUSIC_CONTROL`) are acted on right away here
 function mockMusicItem(guildId: string, id: string, position: number, track: Partial<NonNullable<GuildMusicQueueItem['track']>> | null, url = ''): GuildMusicQueueItem {
@@ -4586,7 +4730,7 @@ function mockCommand(id: string, name: string, category: string, description: st
   return {
     enabled: true,
     id,
-    media: [],
+    media: MOCK_COMMAND_PREVIEWS[id]?.media ?? [],
     metadata: types.map((type) => ({
       aliases: [],
       args: [],
@@ -4603,6 +4747,7 @@ function mockCommand(id: string, name: string, category: string, description: st
       type,
       usage: '',
     })),
+    preview_example: MOCK_COMMAND_PREVIEWS[id]?.example ?? null,
   };
 }
 
@@ -4613,7 +4758,23 @@ const mockCommands = [
   mockCommand('ai', 'ai', 'AI', 'Talk to NotSoAI', 'premium_server', [0, 1]),
   mockCommand('voice.clone', 'tts voice create', 'AUDIO', 'Clone a voice for Text-to-Speech', 'premium_plus'),
   mockCommand('tag.show', 'tag', 'TAGS', 'Show a tag', null, [0, 1]),
-  mockCommand('media.iv.deepfry', 'deepfry', 'EFFECTS', 'Deepfry an image', null),
+  // one or two of each preview layout (./commandPreviews): slider, animated slider, side by side, video, audio, several inputs
+  mockCommand('media.iv.manipulation.swirl', 'swirl', 'EFFECTS', 'Swirl an Image or Video from the center', null, [0, 1]),
+  mockCommand('media.iv.manipulation.magik', 'magik', 'EFFECTS', 'Liquid rescale an Image or Video', null, [0, 1]),
+  mockCommand('media.iv.manipulation.deepfry', 'deepfry', 'EFFECTS', 'Deepfry an Image or Video', null),
+  mockCommand('media.iv.manipulation.magik.animated', 'magik gif', 'EFFECTS', 'Liquid rescale an Image into a gif', null),
+  mockCommand('media.iv.manipulation.caption', 'caption', 'EFFECTS', 'Add a caption bar above an Image or Video', null, [0, 1]),
+  mockCommand('media.iv.manipulation.demotivate', 'text demotivate', 'EFFECTS', 'Make a demotivational poster', null),
+  mockCommand('media.aiv.manipulation.adhd', 'adhd', 'EFFECTS', 'Stack gameplay footage under some media', null, [0, 1]),
+  mockCommand('media.av.manipulation.audio.pitch', 'audio pitch', 'AUDIO', 'Change the pitch of some audio', null),
+  mockCommand('media.av.manipulation.boost.bass', 'boost bass', 'AUDIO', 'Boost the bass of some audio', null),
+  mockCommand('media.a.tools.put.concat', 'audio put concat', 'AUDIO', 'Concat an Audio/Image/Video\'s audio with another audio file', null),
+  mockCommand('media.iv.manipulation.eyes.googly', 'eyes googly', 'EFFECTS', 'Put googly eyes on faces', null),
+  mockCommand('media.i.manipulation.face.clown', 'clown', 'EFFECTS', 'Turn faces into clowns', null),
+  mockCommand('media.iv.manipulation.overlay.flag.usa', 'overlay usa', 'EFFECTS', 'Put the USA flag over an Image or Video', null),
+  mockCommand('media.iv.manipulation.overlay.youtube', 'text youtube', 'EFFECTS', 'Make an Image look like a YouTube video', null),
+  mockCommand('media.i.create.einstein', 'einstein', 'IMAGE', 'Einstein writing your text on a chalkboard', null),
+  mockCommand('media.a.tools.put.replace', 'audio put replace', 'AUDIO', 'Replace the audio of some media with another audio file', null),
 ];
 
 route('GET', '/commands', () => mockCommands);

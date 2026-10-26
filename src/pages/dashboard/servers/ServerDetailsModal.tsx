@@ -13,6 +13,7 @@ import { Chip, CopyableValue } from '../admin/adminUi';
 import { PanelSkeleton, Skeleton, UnsavedChangesGuard } from '../ui';
 import { AIKnowledgeSection } from './AIKnowledgeSection';
 import { GuildIcon } from './GuildIcon';
+import { GuildReportsSection } from './GuildReportsSection';
 import { AREA_LABEL, AREA_PERMISSION } from './guildMeta';
 import { MusicSection } from './MusicSection';
 import { ServerDataSection } from './ServerDataSection';
@@ -147,6 +148,7 @@ function ServerDetails({ guild, onDirtyChange }: {guild: UserGuild, onDirtyChang
         <RulesSection guild={guild}/>
         <LoggersSection guild={guild}/>
         <WarningsSection guild={guild}/>
+        <GuildReportsSection guild={guild}/>
         <ServerDataSection guild={guild}/>
       </div>
     </>
