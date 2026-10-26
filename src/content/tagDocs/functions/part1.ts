@@ -150,7 +150,7 @@ export const TAG_DOC_FUNCTIONS_PART1: Array<TagDocFunction> = [
       {code: '{api.create.reminder:in 2 hours|drink water}', result: 'Creates the reminder and outputs its JSON.'},
     ],
     notes: [
-      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text.',
+      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it.',
       'Counts against the API manipulation limit (1 per run by default) and the network request limit.',
       'Throws an error if no time can be found in `time`.',
       'An empty argument outputs nothing.',
@@ -170,7 +170,7 @@ export const TAG_DOC_FUNCTIONS_PART1: Array<TagDocFunction> = [
       {code: '{api.delete.reminder:1}', result: '`true`'},
     ],
     notes: [
-      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text.',
+      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it.',
       'Counts against the API manipulation limit (1 per run by default) and the network request limit.',
       'Throws an error if the position is not a positive number or no reminder exists there.',
       'An empty argument outputs nothing.',
@@ -193,7 +193,7 @@ export const TAG_DOC_FUNCTIONS_PART1: Array<TagDocFunction> = [
       {code: '{api.edit.reminder:2||buy milk}', result: 'Changes reminder 2\'s text and outputs its JSON.'},
     ],
     notes: [
-      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text.',
+      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it.',
       'Counts against the API manipulation limit (1 per run by default) and the network request limit.',
       'Throws an error if the position is not a positive number, no reminder exists there, or the new time is in the past.',
     ],
@@ -212,7 +212,7 @@ export const TAG_DOC_FUNCTIONS_PART1: Array<TagDocFunction> = [
       {code: '{traversejson:count|{api.fetch.reminders}}', result: 'How many reminders the user has in this server.'},
     ],
     notes: [
-      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text.',
+      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it.',
       'Counts against the network request limit.',
     ],
   },

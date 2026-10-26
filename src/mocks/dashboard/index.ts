@@ -1268,7 +1268,7 @@ route('PUT', '/(users/@me|admin)/guilds/(\\d+)/rules', ([ , scope, guildId ], { 
   if (!items.length) {
     throw new MockError(400, 50001, 'Invalid Form Body');
   }
-  requireRulesAdmin(scope, guildId, items.some((item) => ruleCoversEverything(item) || item.admin_bypass === false));
+  requireRulesAdmin(scope, guildId, items.some((item) => ruleCoversEverything(item) || item.admin_bypass !== undefined));
   for (const item of items) {
     if (item.command === 'notacommand') {
       throw new MockError(404, 10005, 'Unknown Command');

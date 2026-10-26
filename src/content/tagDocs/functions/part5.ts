@@ -214,6 +214,7 @@ export const TAG_DOC_FUNCTIONS_PART5: Array<TagDocFunction> = [
     ],
     notes: [
       'Outputs nothing with an empty argument.',
+      'If the argument is not a number, the function is left in the output as plain text.',
     ],
   },
   {

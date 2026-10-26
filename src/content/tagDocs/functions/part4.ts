@@ -400,7 +400,7 @@ export const TAG_DOC_FUNCTIONS_PART4: Array<TagDocFunction> = [
       {code: '{settings.set.server.ai.personality:talk like a pirate}', result: 'true'},
     ],
     notes: [
-      'Only NotSoAI can use this, in its own reply, and the person who asked needs the Manage Server permission.',
+      'Only NotSoAI can use this, and only in its own reply: in a user\'s tag, or a button NotSoAI made, the function is left as plain text. The person who asked needs the Manage Server permission.',
       'NotSoBot filters the personality before saving it.',
     ],
   },
@@ -421,7 +421,7 @@ export const TAG_DOC_FUNCTIONS_PART4: Array<TagDocFunction> = [
       {code: '{settings.set.user:AI_MEMORY|off}', result: 'true'},
     ],
     notes: [
-      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text.',
+      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it.',
       'This permanently changes the NotSoBot settings of the person who asked NotSoAI, not just this run.',
       'Language, timezone and AI personality have their own functions: {settings.set.user.locale}, {settings.set.user.timezone} and {settings.set.user.ai.personality}.',
       'Throws an error if the setting or value is not recognised, or if the setting needs premium.',
@@ -443,7 +443,7 @@ export const TAG_DOC_FUNCTIONS_PART4: Array<TagDocFunction> = [
       {code: '{settings.set.user.ai.personality:clear}', result: 'true (or false if none was set)'},
     ],
     notes: [
-      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left in the output as plain text.',
+      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left in the output as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it.',
       'This permanently changes the NotSoBot settings of the person who asked NotSoAI, not just this run.',
     ],
   },
@@ -461,7 +461,7 @@ export const TAG_DOC_FUNCTIONS_PART4: Array<TagDocFunction> = [
       {code: '{settings.set.user.locale:spanish}', result: 'true'},
     ],
     notes: [
-      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text.',
+      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it.',
       'This permanently changes the NotSoBot settings of the person who asked NotSoAI, not just this run.',
       'Throws an error if the language is not recognised.',
     ],
@@ -481,7 +481,7 @@ export const TAG_DOC_FUNCTIONS_PART4: Array<TagDocFunction> = [
       {code: '{settings.set.user.timezone}', result: 'America/New_York'},
     ],
     notes: [
-      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text.',
+      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it.',
       'This permanently changes the NotSoBot settings of the person who asked NotSoAI, not just this run.',
       'Throws an error if the timezone is not recognised.',
     ],
@@ -855,8 +855,7 @@ export const TAG_DOC_FUNCTIONS_PART4: Array<TagDocFunction> = [
     ],
     notes: [
       'If the result would make the output larger than the max upload size, the tag errors.',
-      'A negative amount is an error.',
-      'Without a `|`, or if the amount is not a number, the function is left in the output as plain text.',
+      'Without a `|`, or if the amount is not a number or is negative, the function is left in the output as plain text.',
     ],
   },
   {
@@ -895,7 +894,7 @@ export const TAG_DOC_FUNCTIONS_PART4: Array<TagDocFunction> = [
       {code: '{reverse:hello}', result: 'olleh'},
     ],
     notes: [
-      'Emoji and some other special characters can break when reversed.',
+      'Single emoji stay whole, but emoji made of several parts (flags, skin tones, families) can break when reversed.',
     ],
   },
   {

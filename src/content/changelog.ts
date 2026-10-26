@@ -28,6 +28,26 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 
 export const CHANGELOG: Array<ChangelogDay> = [
   {
+    date: '2026-10-26',
+    title: 'TagScript fixes',
+    items: [
+      {kind: 'fixed', text: 'Buttons NotSoAI made could create, edit, delete or list your reminders and change your settings, and NotSoAI can let anyone press its buttons. Like its memory, only NotSoAI\'s own reply can do that now. **TagScript:** the `{api.*.reminder}` and `{settings.set.user}` functions are left as plain text in a button or menu.'},
+      {kind: 'fixed', text: '**TagScript:** searching or looking up words like `constructor` (`{search.web:constructor}`, `{api.search.urban:constructor}`) erroring or giving `undefined`.'},
+      {kind: 'fixed', text: '**TagScript:** an empty last value after a function being dropped, so `{set:{get:k}|}` errored. It sets an empty value like `{set:k|}` does, and `{and}`, `{choose}` and `{replace}` count an empty last value there too.'},
+      {kind: 'fixed', text: '**TagScript:** `{pagejson:null}`, `{repeat}` with a negative amount, `{range:1e3}` and `{unixsnowflake}` with something that isn\'t a number erroring. `{pagejson}` says the page is invalid and the others are left as plain text.'},
+      {kind: 'fixed', text: '**TagScript:** `{get:idx}`, `{get:valuex}` and `{get:error}` giving `undefined` (instead of nothing, or their default) after a `{tag}` call.'},
+      {kind: 'fixed', text: '**TagScript:** a button\'s `{math}` and `{replace}` erroring with too much processing time when the tag had used most of it, each press gets the full time.'},
+      {kind: 'fixed', text: '**TagScript:** objects and arrays that code (like `{js:}`) saves as variables coming out as `[object Object]`, they\'re saved as JSON. And code that only prints `{"pages": [...]}` no longer puts that JSON in the message too.'},
+      {kind: 'fixed', text: '**TagScript:** `{reverse}` breaking emoji, and `{mediascriptmaybeurl}` going past the 10 attachment limit (the extra files were dropped without saying).'},
+      {kind: 'fixed', text: 'Animated PNGs whose frames only redraw part of the image coming out wrong (or as a single frame) in media commands.'},
+      {kind: 'fixed', text: 'Effects on videos with a changing frame rate (like many phone recordings) failing for having too many frames, and effects that turn a long video into a GIF making one of thousands of frames.'},
+      {kind: 'fixed', text: '`.rip` failing on text with `&` or `<`, and a very long line making the tombstone as tall as it needed. Each line is cut at 40 characters, about what fits on the stone.'},
+      {kind: 'improved', text: 'Blocked users can still log in to the dashboard to see and export their data, delete it, and reply to or reopen their own reports to appeal.'},
+      {kind: 'improved', text: '**TagScript:** `{if}`\'s `>`, `>=`, `<`, `<=` and `~` compare numbers like `{max}` and `{min}`: `1e3` is 1000 and long decimals are compared exactly.'},
+      {kind: 'improved', text: '**TagScript:** `{variableschannel}`, `{variablesglobal}`, `{variablesserver}` and `{variablesuser}` share one request per run (one toward the network request limit), until the tag changes its storage.'},
+    ],
+  },
+  {
     date: '2026-10-25',
     title: 'Interpolate, dance and warning steps',
     items: [
