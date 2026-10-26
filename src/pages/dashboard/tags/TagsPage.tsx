@@ -50,7 +50,7 @@ export function TagsPage() {
   const debouncedQuery = useDebouncedValue(query.trim(), 300);
   const sortBy = findSort(searchParams.get('sort')) ?? 'newest';
   const directoryFilter = findDirectoryFilter(searchParams.get('directory')) ?? DIRECTORY_FILTERS[0];
-  // `?server=<id>`: only the tags in that server (the server modal's "Your tags")
+  // `?server=<id>`: only the tags in that server (a server page's "Your tags")
   const serverId = searchParams.get('server') || null;
   const filtered = !!debouncedQuery || directoryFilter.filter !== null || !!serverId;
   // the panel starts closed like the admin pages', the button counts the ones not on their default

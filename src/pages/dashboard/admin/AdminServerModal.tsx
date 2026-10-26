@@ -1,5 +1,5 @@
 import { AlertTriangle, Ban, ShieldCheck, Sparkles } from 'lucide-react';
-import { useId, useState, type KeyboardEvent } from 'react';
+import { useEffect, useId, useState, type KeyboardEvent } from 'react';
 
 import { isOwner, useAuth } from '@/auth';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -17,7 +17,7 @@ import { GuildIcon } from '../servers/GuildIcon';
 import { MusicSection } from '../servers/MusicSection';
 import { ServerDataSection } from '../servers/ServerDataSection';
 import { LoggersSection, PrefixesSection, RulesSection } from '../servers/ServerSections';
-import { ServerSettingsForm } from '../servers/ServerSettingsForm';
+import { ServerSettingsForm, useDirtyGroups, type SettingsGroup } from '../servers/ServerSettingsForm';
 import { PanelSkeleton, Skeleton, UnsavedChangesGuard } from '../ui';
 import { BLOCK_REASON_MAX } from './BlockUserDialog';
 import { Chip, ContentFlagTiles, CopyableValue, CopyButton, DateTile, ExactDate, StatTile } from './adminUi';
@@ -39,7 +39,7 @@ function adminListPath(route: string, params: Record<string, string>): string {
 type Navigation = {previousId: string | null, nextId: string | null, onNavigate: (id: string) => void};
 
 // Any server over the admin server list (`/dashboard/admin/servers/<id>`): what's happened in it, the same settings
-// sections as the user dashboard's server modal (all editable, through `/admin/guilds`), and editing its features and
+// sections as the user dashboard's server pages (all editable, through `/admin/guilds`), and editing its features and
 // blocking it in the footer, between Previous / Next. ← / → (and the footer's arrows) step through the list page's servers.
 export function AdminServerModal({ guildId, previousId, nextId, onNavigate, onClose }: {
   guildId: string,
@@ -160,7 +160,11 @@ function ServerDetails({ guild, navigation, onDirtyChange }: {guild: AdminGuild,
   const [ editingFeatures, setEditingFeatures ] = useState(false);
   const tabsId = useId();
   const [ tab, setTab ] = useState<ServerTab>('information');
-  const [ settingsDirty, setSettingsDirty ] = useState(false);
+  // the server settings are split into general, NotSoAI and warnings forms, each saved on its own
+  const { setter, any: settingsDirty } = useDirtyGroups<SettingsGroup>();
+  useEffect(() => {
+    onDirtyChange(settingsDirty);
+  }, [settingsDirty, onDirtyChange]);
   const created = snowflakeTimestamp(guild.id);
   const name = guild.name || 'Unnamed server';
   const flagsPath = (status: string) => adminListPath(Routes.DASHBOARD_ADMIN_FLAGS, {guild_id: guild.id, status, blocked: '1'});
@@ -302,14 +306,10 @@ function ServerDetails({ guild, navigation, onDirtyChange }: {guild: AdminGuild,
 
         <div id={`${tabsId}-settings-panel`} role='tabpanel' aria-labelledby={`${tabsId}-settings`} hidden={tab !== 'settings'} className='space-y-4'>
           <PrefixesSection guild={guild}/>
-          <ServerSettingsForm
-            guild={guild}
-            onDirtyChange={(dirty) => {
-              setSettingsDirty(dirty);
-              onDirtyChange(dirty);
-            }}
-          />
+          <ServerSettingsForm guild={guild} group='general' onDirtyChange={setter('general')}/>
+          <ServerSettingsForm guild={guild} group='ai' onDirtyChange={setter('ai')}/>
           <AIKnowledgeSection guild={guild}/>
+          <ServerSettingsForm guild={guild} group='warnings' onDirtyChange={setter('warnings')}/>
           <MusicSection guild={guild}/>
           <RulesSection guild={guild}/>
           <LoggersSection guild={guild}/>

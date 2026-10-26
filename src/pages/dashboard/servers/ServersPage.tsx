@@ -1,6 +1,6 @@
 import { Crown, Eye, KeyRound, Search, Server, Settings2 } from 'lucide-react';
-import { useCallback, useMemo } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router';
+import { useMemo } from 'react';
+import { Link } from 'react-router';
 
 import { useAuth } from '@/auth';
 import { SearchInput } from '@/components/ui/SearchInput';
@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 import { useSearchParamState } from '../admin/adminUi';
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from '../ui';
 import { GuildIcon } from './GuildIcon';
-import { ServerDetailsModal } from './ServerDetailsModal';
+import { dashboardServerPath } from './guildMeta';
 
 
 export function ServersPage() {
@@ -22,29 +22,13 @@ export function ServersPage() {
     return (data ?? []).slice().sort((a, b) => Number(b.can_manage) - Number(a.can_manage) || a.name.localeCompare(b.name));
   }, [data]);
 
-  // `?q=` filters by name (or an exact id), kept in the url so it's still there after closing a server
+  // `?q=` filters by name (or an exact id), kept in the url so it's still there coming back from a server
   const { searchParams, update } = useSearchParamState();
   const query = searchParams.get('q') || '';
   const shown = useMemo(() => {
     const search = query.trim().toLowerCase();
     return (search) ? guilds.filter((guild) => guild.name.toLowerCase().includes(search) || guild.id === search) : guilds;
   }, [guilds, query]);
-
-  // `?server=<id>` opens the server over the list, like `?tag=` on the tag list
-  const serverId = searchParams.get('server');
-  const location = useLocation();
-  const navigate = useNavigate();
-  const openedHere = (location.state as {serverOpenedHere?: boolean} | null)?.serverOpenedHere === true;
-  const closeServer = useCallback(() => {
-    if (openedHere) {
-      navigate(-1);
-    } else {
-      // arrived on a link with `?server=`, there's no list entry to go back to
-      const next = new URLSearchParams(searchParams);
-      next.delete('server');
-      navigate({search: next.toString()}, {replace: true, preventScrollReset: true});
-    }
-  }, [navigate, openedHere, searchParams]);
 
   return (
     <>
@@ -76,30 +60,23 @@ export function ServersPage() {
           />
           {(shown.length) ? (
             <ul className='grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3'>
-              {shown.map((guild) => <ServerCard key={guild.id} guild={guild} searchParams={searchParams}/>)}
+              {shown.map((guild) => <ServerCard key={guild.id} guild={guild}/>)}
             </ul>
           ) : (
             <EmptyState icon={<Search className='size-10'/>} title='No servers found'>Try a different search.</EmptyState>
           )}
         </>
       )}
-
-      {(serverId) ? <ServerDetailsModal key={serverId} guildId={serverId} onClose={closeServer}/> : null}
     </>
   );
 }
 
 
-function ServerCard({ guild, searchParams }: {guild: UserGuildSummary, searchParams: URLSearchParams}) {
-  // keep `?q=` alongside `?server=` so closing the server lands back on the same results
-  const search = new URLSearchParams(searchParams);
-  search.set('server', guild.id);
+function ServerCard({ guild }: {guild: UserGuildSummary}) {
   return (
     <li>
       <Link
-        to={{search: `?${search}`}}
-        state={{serverOpenedHere: true}}
-        preventScrollReset
+        to={dashboardServerPath(guild.id)}
         className={cn(
           'group card card-hover flex h-full items-center gap-3 p-4',
           (guild.can_manage) ? 'hover:border-brand' : 'hover:border-line-strong',

@@ -48,7 +48,7 @@ export function RemindersPage() {
   const guildNames = useMemo(() => new Map((guilds.data ?? []).map((guild) => [guild.id, guild.name])), [guilds.data]);
   const [ searchParams, setSearchParams ] = useSearchParams();
   const sortBy = SORTS.find((sort) => sort.value === searchParams.get('sort'))?.value ?? 'next';
-  // `?server=<id>`: only the reminders in that server (the server modal's "Your reminders")
+  // `?server=<id>`: only the reminders in that server (a server page's "Your reminders")
   const serverId = searchParams.get('server') || null;
   const items = useMemo(() => {
     return (data?.items ?? []).filter((reminder) => !serverId || reminder.guild_id === serverId).sort(SORTERS[sortBy]);

@@ -65,6 +65,10 @@ import type {
   GuildMusic,
   GuildMusicControl,
   GuildMusicSettings,
+  GuildCommandStats,
+  GuildReminder,
+  GuildRemindersPage,
+  GuildTagsPage,
   GuildLLMKnowledgePage,
   GuildWarning,
   GuildWarningsPage,
@@ -616,6 +620,28 @@ export const api = {
   // server through `/admin/guilds`, owners change it)
   fetchGuildLLMKnowledge: (scope: GuildScope, guildId: string, signal?: AbortSignal) => {
     return apiRequest<GuildLLMKnowledgePage>(guildEndpoints(scope, guildId).LLM_KNOWLEDGE, {signal});
+  },
+
+  // dashboard only, staff see command stats on the owner stats page
+  fetchGuildCommandStats: (guildId: string, days: number, signal?: AbortSignal) => {
+    return apiRequest<GuildCommandStats>(`${ApiEndpoints.USER_ME_GUILD(guildId)}/commands/stats`, {query: {days}, signal});
+  },
+
+  // a server's tags (any member) and reminders (Manage Messages), for its moderators. Dashboard only
+  fetchGuildTags: (guildId: string, options: {before?: string, limit?: number, query?: string}, signal?: AbortSignal) => {
+    return apiRequest<GuildTagsPage>(`${ApiEndpoints.USER_ME_GUILD(guildId)}/tags`, {query: {before: options.before, limit: options.limit, query: options.query}, signal});
+  },
+
+  deleteGuildTag: (guildId: string, tagId: string) => {
+    return apiRequest<void>(`${ApiEndpoints.USER_ME_GUILD(guildId)}/tags/${tagId}`, {method: 'DELETE'});
+  },
+
+  fetchGuildReminders: (guildId: string, options: {offset?: number, limit?: number}, signal?: AbortSignal) => {
+    return apiRequest<GuildRemindersPage>(`${ApiEndpoints.USER_ME_GUILD(guildId)}/reminders`, {query: {offset: options.offset, limit: options.limit}, signal});
+  },
+
+  moveGuildReminderToDms: (guildId: string, reminderId: string) => {
+    return apiRequest<GuildReminder>(`${ApiEndpoints.USER_ME_GUILD(guildId)}/reminders/${reminderId}/move-to-dms`, {method: 'POST'});
   },
 
   createGuildLLMKnowledge: (scope: GuildScope, guildId: string, content: string) => {

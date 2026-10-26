@@ -630,6 +630,30 @@ export interface RemindersPage {
   items: Array<Reminder>,
 }
 
+// who made a server's tag or reminder, on the moderator routes (no NotSoBot block status, that's staff only)
+export type GuildContentUser = Pick<User, 'avatar' | 'bot' | 'discriminator' | 'id' | 'username'>;
+
+// `GET /users/@me/guilds/<id>/tags`, any member. Removing one needs `editable.tags`
+export interface GuildTag extends Omit<Tag, 'user' | 'reference_tag'> {
+  user: GuildContentUser,
+  reference_tag: (Omit<Tag, 'user' | 'reference_tag'> & {user: GuildContentUser, reference_tag: null}) | null,
+}
+
+export interface GuildTagsPage {
+  count: number,
+  items: Array<GuildTag>,
+}
+
+// `GET /users/@me/guilds/<id>/reminders`, needs `editable.reminders` (Manage Messages)
+export interface GuildReminder extends Reminder {
+  user: GuildContentUser,
+}
+
+export interface GuildRemindersPage {
+  count: number,
+  items: Array<GuildReminder>,
+}
+
 // `content` max 512; `move_to_dms` moves a server reminder to the owner's dms (it can't be moved back from here)
 export interface ReminderPatch {
   content?: string,
@@ -703,6 +727,10 @@ export interface GuildReport {
   handled_by: string | null,
   id: string,
   message_content: string | null,
+  // the text was cleared 30 days after the report, not a message that never had any
+  message_content_deleted: boolean,
+  // when the text gets cleared, while there's still text
+  message_content_expires_at: string | null,
   message_id: string | null,
   reason: string,
   status: ReportStatus,
@@ -1121,7 +1149,7 @@ export interface GuildWarningAction {
 
 // `rules` covers command and category rules, `rules_admin` rules covering everything and the owner/admin bypass,
 // `moderation` the server's warnings (Timeout Members)
-export type GuildEditableArea = 'prefixes' | 'rules' | 'rules_admin' | 'loggers' | 'settings' | 'music' | 'moderation';
+export type GuildEditableArea = 'prefixes' | 'rules' | 'rules_admin' | 'loggers' | 'settings' | 'music' | 'moderation' | 'reminders' | 'tags';
 
 // `Guild.to_dict()` + the caller's permissions and what they may edit
 export interface UserGuild {
@@ -2256,6 +2284,15 @@ export interface AdminCommandStats extends AdminStatsWindow {
   top: Array<{command_id: string, count: number, users: number}>,
   types: Array<{type: CommandType, count: number}>,
   results: Array<{result: string, count: number}>,
+}
+
+// `/users/@me/guilds/<id>/commands/stats` (Manage Server): commands run in one server over the window, counts only.
+// `name` is null for a command the bot no longer has
+export interface GuildCommandStats extends AdminStatsWindow {
+  count: number,
+  users: number,
+  series: DailySeries<{count: number}>,
+  top: Array<{command_id: string, command_type: CommandType, count: number, name: string | null, users: number}>,
 }
 
 // `/admin/stats/api`: requests the api logged. Times are ms; `application: null` is requests without an application

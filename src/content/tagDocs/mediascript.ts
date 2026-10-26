@@ -968,6 +968,23 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     ],
   },
   {
+    name: 'reimagine',
+    category: 'generate',
+    summary: 'Replaces media with a new AI image of what it shows, like `.reimagine`.',
+    syntax: 'reimagine MEDIA_KEY ADD?',
+    args: [
+      media(),
+      {name: 'ADD', rest: true, description: 'extra words put on the end of the image\'s description'},
+    ],
+    examples: [
+      {code: '{mediascript:load {avatar} pfp\nreimagine pfp as a pixel art sprite\nrender pfp}', result: 'A new image of what the avatar shows, as pixel art.'},
+    ],
+    notes: [
+      'The image is described by AI first, and that description (plus `ADD`) is what gets drawn, so the result is a new picture, not an edit.',
+      'Videos use their first frame, and the result is always a still image.',
+    ],
+  },
+  {
     name: 'screenshot',
     category: 'generate',
     summary: 'Takes a screenshot of a web page.',
@@ -1026,6 +1043,24 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
       'The size is kept between 512 and 2048 pixels, with a shape it defaults to 1024x1024 and with a mask it fits the mask in it.',
       'Common words (like "the", "lol") are left out, and two words that keep showing up together become one.',
     ],
+  },
+  {
+    name: 'song',
+    category: 'generate',
+    summary: 'Makes a song out of chords, with a bass and drums.',
+    syntax: 'song MEDIA_KEY BPM=120 BARS=none SOUND=PLUCK DRUMS=true ...CHORDS',
+    args: [
+      {name: 'MEDIA_KEY', description: 'the name to store the song under'},
+      {name: 'BPM', default: '120', range: '40..240', description: 'beats per minute'},
+      {name: 'BARS', default: 'none', range: '1..160', description: 'how many bars, one chord a bar. none plays the chords twice'},
+      {name: 'SOUND', default: 'PLUCK', range: 'PLUCK, PAD, PIANO, CHIPTUNE', description: 'what the chords are played on'},
+      {name: 'DRUMS', default: 'true', description: 'play the drums'},
+      {name: 'CHORDS', rest: true, default: 'C Am F G', description: 'chord names like `C Am F G7 F#m7 Bbsus4`, or notes like `C4,E4,G4`'},
+    ],
+    examples: [
+      {code: '{mediascript:song music BPM=90 SOUND=pad Am F C G\nrender music}', result: 'Four chords on a pad at 90 bpm, twice.'},
+    ],
+    notes: ['The options only by name, the chords take everything else. Songs can be at most 60 seconds.'],
   },
   {
     name: 'tts',
@@ -3007,6 +3042,23 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     notes: [
       'Works best for simple edits.',
       'Words at the start of the prompt that match a media key are used as reference images, so wrap the prompt in `{jsonify:}` if it might start with one of your key names.',
+      'Videos use their first frame, and the result is always a still PNG.',
+    ],
+  },
+  {
+    name: 'mashup',
+    category: 'filters',
+    summary: 'Edits the first media with AI to look like both medias mixed together, like `.mashup`.',
+    syntax: 'mashup MEDIA_KEY MEDIA_KEY_2',
+    args: [
+      media(),
+      {name: 'MEDIA_KEY_2', description: 'the media to mix in'},
+    ],
+    examples: [
+      {code: '{mediascript:load {avatar} pfp\nload {image} other\nmashup pfp other\nrender pfp}', result: 'The avatar mixed with the last image in chat.'},
+    ],
+    notes: [
+      'Both are described by AI first, and the first one is edited to look like both descriptions.',
       'Videos use their first frame, and the result is always a still PNG.',
     ],
   },

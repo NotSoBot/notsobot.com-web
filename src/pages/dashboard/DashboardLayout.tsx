@@ -1,16 +1,18 @@
-import { AlarmClock, AudioLines, Blocks, Brain, ChartColumn, Crown, Files, Fingerprint, Flag, Inbox, KeyRound, LayoutDashboard, MessageSquareWarning, RadioTower, Server, Settings, ShieldCheck, SquareTerminal, Tags, type LucideIcon, Users } from 'lucide-react';
+import { AlarmClock, ArrowLeft, AudioLines, ChevronsUpDown, Blocks, Brain, ChartColumn, Crown, Files, Fingerprint, Flag, Inbox, KeyRound, LayoutDashboard, MessageSquareWarning, RadioTower, Server, Settings, ShieldCheck, SquareTerminal, Tags, type LucideIcon, Users } from 'lucide-react';
 import type { CSSProperties } from 'react';
-import { NavLink, Outlet } from 'react-router';
+import { Link, NavLink, Outlet, useLocation, useMatch, useNavigate } from 'react-router';
 
 import { isOwner, isStaff, useAuth } from '@/auth';
 import { BlockedNotice } from '@/components/ui/BlockedNotice';
 import { ToastProvider } from '@/components/ui/Toast';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { Routes } from '@/config';
-import { useMeReportsUnreadQuery } from '@/lib/api/dashboardQueries';
+import { useMeGuildQuery, useMeReportsUnreadQuery } from '@/lib/api/dashboardQueries';
 import { cn } from '@/lib/utils';
 
 import { premiumLabel } from './premium';
+import { GuildIcon } from './servers/GuildIcon';
+import { dashboardServerPath, SERVER_TAB_GROUPS } from './servers/guildMeta';
 
 
 interface Section {
@@ -19,7 +21,7 @@ interface Section {
   icon: LucideIcon,
   color: string,
   end?: boolean,
-  // shown indented under this one on desktop, right after it in the mobile row
+  // shown indented under this one, its own option in the phone menu
   children?: ReadonlyArray<Section>,
 }
 
@@ -76,6 +78,8 @@ export function DashboardLayout() {
   // reports with something from staff they haven't seen, as a badge on Reports
   const unreadReports = useMeReportsUnreadQuery();
   const contentBadges = {[Routes.DASHBOARD_REPORTS]: unreadReports.data?.count ?? 0};
+  // inside one of your servers the sidebar is that server's pages instead, so there's only ever one menu
+  const serverMatch = useMatch({path: Routes.DASHBOARD_SERVER, end: false});
 
   return (
     <ToastProvider>
@@ -88,35 +92,29 @@ export function DashboardLayout() {
             aria-label='Dashboard'
             className='lg:sticky lg:top-24 lg:-mr-2 lg:max-h-[calc(100dvh-7rem)] lg:self-start lg:overflow-y-auto lg:pr-2 lg:pb-2 lg:[scrollbar-width:thin]'
           >
-            {(user) ? (
-              <div className='mb-4 hidden items-center gap-3 px-1 lg:flex'>
-                <UserAvatar user={user} size={64} className='size-10 rounded-full bg-surface-3'/>
-                <div className='min-w-0'>
-                  <div className='truncate font-semibold text-white'>{user.username}</div>
-                  <div className='truncate text-xs text-subtle'>{premiumLabel(user.premium_type)}</div>
-                </div>
-              </div>
-            ) : null}
-            <h2 className='section-label mb-1.5 px-1 lg:mb-2'>Dashboard</h2>
-            <nav aria-label='Dashboard sections'>
-              <SectionList sections={DASHBOARD_SECTIONS}/>
-            </nav>
-            <nav aria-label='Content sections' className='mt-4 lg:mt-6'>
-              <h2 className='section-label mb-1.5 px-1 lg:mb-2'>Content</h2>
-              <SectionList sections={CONTENT_SECTIONS} badges={contentBadges}/>
-            </nav>
-            {(isStaff(user)) ? (
-              <nav aria-label='Admin sections' className='mt-4 lg:mt-6'>
-                <h2 className='section-label mb-1.5 px-1 lg:mb-2'>Admin</h2>
-                <SectionList sections={ADMIN_SECTIONS}/>
-              </nav>
-            ) : null}
-            {(isOwner(user)) ? (
-              <nav aria-label='Owner sections' className='mt-4 lg:mt-6'>
-                <h2 className='section-label mb-1.5 px-1 lg:mb-2'>Owner</h2>
-                <SectionList sections={OWNER_SECTIONS}/>
-              </nav>
-            ) : null}
+            {(serverMatch?.params.guildId) ? (
+              <ServerSidebar guildId={serverMatch.params.guildId}/>
+            ) : (
+              <>
+                {(user) ? (
+                  <div className='mb-4 hidden items-center gap-3 px-1 lg:flex'>
+                    <UserAvatar user={user} size={64} className='size-10 rounded-full bg-surface-3'/>
+                    <div className='min-w-0'>
+                      <div className='truncate font-semibold text-white'>{user.username}</div>
+                      <div className='truncate text-xs text-subtle'>{premiumLabel(user.premium_type)}</div>
+                    </div>
+                  </div>
+                ) : null}
+                <SectionMenu
+                  groups={[
+                    {label: 'Dashboard', sections: DASHBOARD_SECTIONS},
+                    {label: 'Content', sections: CONTENT_SECTIONS, badges: contentBadges},
+                    ...((isStaff(user)) ? [{label: 'Admin', sections: ADMIN_SECTIONS}] : []),
+                    ...((isOwner(user)) ? [{label: 'Owner', sections: OWNER_SECTIONS}] : []),
+                  ]}
+                />
+              </>
+            )}
           </aside>
 
           <div className='min-w-0'>
@@ -129,21 +127,137 @@ export function DashboardLayout() {
 }
 
 
-// `badges`: counts by section path, shown on the right of the link when there's any
+// One of your servers' pages in its groups, with the way back to the server list on top. The server's name and icon
+// come from the page's own query (it's the same one, so it's only fetched once)
+function ServerSidebar({ guildId }: {guildId: string}) {
+  const { data: guild } = useMeGuildQuery(guildId);
+  return (
+    <>
+      <Link to={Routes.DASHBOARD_SERVERS} className='mb-3 inline-flex items-center gap-1.5 px-1 text-sm text-muted hover:text-white lg:mb-4'>
+        <ArrowLeft aria-hidden className='size-4'/>
+        All servers
+      </Link>
+      {(guild) ? (
+        <div className='mb-4 hidden items-center gap-3 px-1 lg:flex'>
+          <GuildIcon guild={guild} size={64} className='size-10 shrink-0 text-xs'/>
+          <div className='min-w-0'>
+            <div className='truncate font-semibold text-white' title={guild.name}>{guild.name}</div>
+            <div className='truncate text-xs text-subtle'>{(guild.owner) ? 'Owner' : (Object.values(guild.editable).some(Boolean)) ? 'Can manage' : 'Member'}</div>
+          </div>
+        </div>
+      ) : null}
+      <SectionMenu
+        groups={SERVER_TAB_GROUPS.map((group) => ({
+          label: group.label,
+          sections: group.tabs.map((tab) => ({
+            to: dashboardServerPath(guildId, tab.id),
+            label: tab.label,
+            icon: tab.icon,
+            color: tab.color,
+            // Home is the server's own url, every other page is under it
+            end: tab.id === 'home',
+          })),
+        }))}
+      />
+    </>
+  );
+}
+
+
+interface SectionGroup {
+  label: string,
+  sections: ReadonlyArray<Section>,
+  // counts by section path, see `SectionList`
+  badges?: Record<string, number>,
+}
+
+// A sidebar's sections in their groups: a list per group on desktop, one menu on phones (`SectionSelect`) instead of a
+// row of buttons per group
+function SectionMenu({ groups }: {groups: ReadonlyArray<SectionGroup>}) {
+  return (
+    <>
+      <SectionSelect groups={groups}/>
+      {groups.map((group, i) => (
+        <nav key={group.label} aria-label={`${group.label} sections`} className={cn('hidden lg:block', (i) ? 'lg:mt-6' : null)}>
+          <h2 className='section-label mb-2 px-1'>{group.label}</h2>
+          <SectionList sections={group.sections} badges={group.badges}/>
+        </nav>
+      ))}
+    </>
+  );
+}
+
+
+// Phones: what looks like a button with the open page's icon is the native <select> (invisible, over it), so tapping
+// it opens the phone's own picker with the groups in it. The open page is the longest section path the url is under,
+// so a tag's url (`/dashboard/tags/<id>`) is Tags and the tag directory beats admin Tags. A count from `badges` shows
+// in the option's name, on the button when it's the open page, and as a dot when it's another one
+function SectionSelect({ groups }: {groups: ReadonlyArray<SectionGroup>}) {
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const path = pathname.replace(/\/$/, '');
+  const options = groups.map((group) => ({
+    label: group.label,
+    sections: group.sections.flatMap((section) => [section, ...(section.children ?? [])]).map((section) => ({
+      ...section,
+      badge: group.badges?.[section.to] ?? 0,
+    })),
+  }));
+  const all = options.flatMap((group) => group.sections);
+  const current = all
+    .filter((section) => path === section.to || path.startsWith(`${section.to}/`))
+    .sort((a, b) => b.to.length - a.to.length)[0];
+  const elsewhere = all.some((section) => section !== current && section.badge);
+
+  return (
+    <div style={{'--cat': current?.color ?? 'currentColor'} as CSSProperties} className='relative lg:hidden'>
+      <div aria-hidden className='flex items-center gap-2.5 rounded-md border border-brand/70 bg-surface-3 px-3 py-2.5 text-sm text-white'>
+        {(current) ? <current.icon className='size-4 shrink-0 text-[var(--cat)]'/> : null}
+        <span className='min-w-0 flex-1 truncate'>{current?.label ?? 'Choose a page'}</span>
+        {(current?.badge) ? (
+          <span className='min-w-5 rounded-full bg-brand px-1.5 text-center text-xs leading-5 font-semibold text-white tabular-nums'>{current.badge.toLocaleString()}</span>
+        ) : null}
+        {(elsewhere) ? <span className='size-2 shrink-0 rounded-full bg-brand'/> : null}
+        <ChevronsUpDown className='size-4 shrink-0 text-muted'/>
+      </div>
+      <select
+        aria-label={(elsewhere) ? 'Page (other pages have updates)' : 'Page'}
+        className='absolute inset-0 size-full cursor-pointer opacity-0'
+        value={current?.to ?? ''}
+        onChange={(event) => navigate(event.target.value)}
+      >
+        {(current) ? null : <option value='' disabled>Choose a page</option>}
+        {options.map((group) => (
+          <optgroup key={group.label} label={group.label}>
+            {group.sections.map((section) => (
+              <option key={section.to} value={section.to}>
+                {section.label}{(section.badge) ? ` (${section.badge.toLocaleString()} new)` : ''}
+              </option>
+            ))}
+          </optgroup>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+
+// A group's links, desktop only (phones get `SectionSelect`). `badges`: counts by section path, shown on the right of the
+// link when there's any
 function SectionList({ sections, badges }: {sections: ReadonlyArray<Section>, badges?: Record<string, number>}) {
   return (
-    <ul className='-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:-mx-6 sm:px-6 lg:mx-0 lg:flex-col lg:gap-0.5 lg:overflow-visible lg:px-0 lg:pb-0'>
+    <ul className='flex flex-col gap-0.5'>
       {sections.flatMap((section): Array<Section & {nested?: boolean, last?: boolean}> => [
         section,
         ...(section.children ?? []).map((child, i, children) => ({...child, nested: true, last: i === children.length - 1})),
       ]).map((section) => (
-        <li key={section.to} className={cn('shrink-0', (section.nested) && 'lg:relative lg:pl-8')}>
-          {/* desktop tree line: an elbow from the parent's icon into this link, plus a stem on to the next child */}
+        <li key={section.to} className={cn((section.nested) && 'relative pl-8')}>
+          {/* a tree line: an elbow from the parent's icon into this link, plus a stem on to the next child */}
           {(section.nested) ? (
             <>
-              <span aria-hidden className='pointer-events-none absolute -top-2.5 left-5 hidden h-[30px] w-2.5 rounded-bl-md border-b border-l border-subtle/70 lg:block'/>
+              <span aria-hidden className='pointer-events-none absolute -top-2.5 left-5 h-[30px] w-2.5 rounded-bl-md border-b border-l border-subtle/70'/>
               {(!section.last) ? (
-                <span aria-hidden className='pointer-events-none absolute top-5 -bottom-0.5 left-5 hidden border-l border-subtle/70 lg:block'/>
+                <span aria-hidden className='pointer-events-none absolute top-5 -bottom-0.5 left-5 border-l border-subtle/70'/>
               ) : null}
             </>
           ) : null}
@@ -152,8 +266,8 @@ function SectionList({ sections, badges }: {sections: ReadonlyArray<Section>, ba
             end={section.end}
             style={{'--cat': section.color} as CSSProperties}
             className={({ isActive }) => cn(
-              'flex items-center gap-2.5 rounded-md border px-3 py-2 text-sm whitespace-nowrap transition-colors lg:border-transparent',
-              (isActive) ? 'border-brand/70 bg-surface-3 text-white' : 'border-line text-muted hover:bg-surface-2 hover:text-white',
+              'flex items-center gap-2.5 rounded-md border border-transparent px-3 py-2 text-sm whitespace-nowrap transition-colors',
+              (isActive) ? 'bg-surface-3 text-white' : 'text-muted hover:bg-surface-2 hover:text-white',
             )}
           >
             <section.icon aria-hidden className='size-4 shrink-0 text-[var(--cat)]'/>

@@ -4,8 +4,8 @@ import { Link } from 'react-router';
 import { dashboardServerPath } from './guildMeta';
 
 
-// "Only in <server>" over a list filtered to one server (`?server=<id>`, from the server modal's shortcuts): the name opens
-// the server back up (`to`, the admin server modal on admin pages), the × shows everything again
+// "Only in <server>" over a list filtered to one server (`?server=<id>`, from a server page's shortcuts): the name opens
+// the server again (`to`, the admin server modal on admin pages), the × shows everything again
 export function ServerFilterChip({ guildId, name, to = dashboardServerPath(guildId), onClear }: {
   guildId: string,
   name: string | null | undefined,

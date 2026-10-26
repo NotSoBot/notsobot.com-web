@@ -1167,6 +1167,18 @@ export function useGuildLLMKnowledgeQuery(guildId: string) {
 }
 
 
+// commands run in one of your servers (Manage Server), counts only
+export function useGuildCommandStatsQuery(guildId: string, days: number, enabled = true) {
+  const { token } = useAuth();
+  return useQuery({
+    queryKey: queryKeys.guildCommandStats(token, guildId, days),
+    queryFn: ({ signal }) => api.fetchGuildCommandStats(guildId, days, signal),
+    enabled: !!token && enabled,
+    retry: retryDiscordRefresh,
+  });
+}
+
+
 export type GuildLLMKnowledgeAction =
   | {kind: 'add', content: string}
   | {kind: 'edit', knowledgeId: string, content: string}
@@ -1274,6 +1286,57 @@ export function useGuildReportMutation(guildId: string) {
   return useMutation({
     mutationFn: ({ reportId, status }: {reportId: string, status: ReportStatus}) => api.patchGuildReport(scope, guildId, reportId, status),
     onSettled: () => queryClient.invalidateQueries({queryKey: queryKeys.guildReports(token, scope, guildId)}),
+  });
+}
+
+
+/* the server's tags and reminders, for its moderators */
+
+const GUILD_TAGS_PAGE_SIZE = 25;
+const GUILD_REMINDERS_PAGE_SIZE = 25;
+
+// newest first, a page at a time, `query` matches a tag's name or content
+export function useGuildTagsQuery(guildId: string, query: string) {
+  const { token } = useAuth();
+  return useInfiniteQuery({
+    queryKey: queryKeys.guildTags(token, guildId, query),
+    queryFn: ({ pageParam, signal }) => api.fetchGuildTags(guildId, {before: pageParam, limit: GUILD_TAGS_PAGE_SIZE, query: query || undefined}, signal),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (page) => (page.items.length < GUILD_TAGS_PAGE_SIZE) ? undefined : page.items[page.items.length - 1]?.id,
+    enabled: !!token,
+    placeholderData: keepPreviousData,
+    retry: retryDiscordRefresh,
+  });
+}
+
+export function useGuildTagDeleteMutation(guildId: string) {
+  const { token } = useAuth();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (tagId: string) => api.deleteGuildTag(guildId, tagId),
+    onSettled: () => queryClient.invalidateQueries({queryKey: queryKeys.guildTags(token, guildId)}),
+  });
+}
+
+// the soonest first, a page at a time
+export function useGuildRemindersQuery(guildId: string, enabled = true) {
+  const { token } = useAuth();
+  return useInfiniteQuery({
+    queryKey: queryKeys.guildReminders(token, guildId),
+    queryFn: ({ pageParam, signal }) => api.fetchGuildReminders(guildId, {offset: pageParam, limit: GUILD_REMINDERS_PAGE_SIZE}, signal),
+    initialPageParam: 0,
+    getNextPageParam: (page, pages) => (page.items.length < GUILD_REMINDERS_PAGE_SIZE) ? undefined : pages.length * GUILD_REMINDERS_PAGE_SIZE,
+    enabled: !!token && enabled,
+    retry: retryDiscordRefresh,
+  });
+}
+
+export function useGuildReminderMoveMutation(guildId: string) {
+  const { token } = useAuth();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (reminderId: string) => api.moveGuildReminderToDms(guildId, reminderId),
+    onSettled: () => queryClient.invalidateQueries({queryKey: queryKeys.guildReminders(token, guildId)}),
   });
 }
 

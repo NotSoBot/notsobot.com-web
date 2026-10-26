@@ -1,4 +1,4 @@
-import { AtSign, Hash, Server, Shield } from 'lucide-react';
+import { AlarmClock, AtSign, ChartColumn, Hash, LayoutDashboard, ListChecks, MessageSquareWarning, Music, Server, Settings, Shield, Sparkles, Tags, TriangleAlert } from 'lucide-react';
 
 import { Routes } from '@/config';
 import type { GuildEditableArea } from '@/lib/api';
@@ -7,9 +7,34 @@ import { useGuildScope } from '@/lib/api/dashboardQueries';
 import type { Choice } from '../settings/botChoices';
 
 
-// the server opens as a modal over the server list
-export function dashboardServerPath(guildId: string): string {
-  return `${Routes.DASHBOARD_SERVERS}?${new URLSearchParams({server: guildId})}`;
+// a server's pages (`/dashboard/servers/:guildId/<id>`, Home is the server's own url), grouped like the dashboard's
+// sidebar lists them while a server is open
+export const SERVER_TAB_GROUPS = [
+  {label: 'Overview', tabs: [
+    {id: 'home', label: 'Home', icon: LayoutDashboard, color: '#5865f2'},
+    {id: 'commands', label: 'Commands', icon: ChartColumn, color: '#00b0f4'},
+  ]},
+  {label: 'Features', tabs: [
+    {id: 'music', label: 'Music', icon: Music, color: '#eb459e'},
+    {id: 'notsoai', label: 'NotSoAI', icon: Sparkles, color: '#a855f7'},
+    {id: 'reminders', label: 'Reminders', icon: AlarmClock, color: '#faa81a'},
+    {id: 'tags', label: 'Tags', icon: Tags, color: '#3ba55c'},
+  ]},
+  {label: 'Moderation', tabs: [
+    {id: 'reports', label: 'Reports', icon: MessageSquareWarning, color: '#ed4245'},
+    {id: 'rules', label: 'Rules', icon: ListChecks, color: '#5865f2'},
+    {id: 'warnings', label: 'Warnings', icon: TriangleAlert, color: '#fee75c'},
+  ]},
+  {label: 'Server', tabs: [
+    {id: 'settings', label: 'Settings', icon: Settings, color: '#00b0f4'},
+  ]},
+] as const;
+
+export type ServerTab = (typeof SERVER_TAB_GROUPS)[number]['tabs'][number]['id'];
+
+export function dashboardServerPath(guildId: string, tab: ServerTab = 'home'): string {
+  const base = Routes.DASHBOARD_SERVER.replace(':guildId', guildId);
+  return (tab === 'home') ? base : `${base}/${tab}`;
 }
 
 
@@ -22,6 +47,8 @@ export const AREA_PERMISSION: Record<GuildEditableArea, string> = {
   settings: 'Manage Server',
   music: 'Manage Server',
   moderation: 'Timeout Members',
+  reminders: 'Manage Messages',
+  tags: 'Manage Server or Ban Members',
 };
 
 export const AREA_LABEL: Record<GuildEditableArea, string> = {
@@ -31,7 +58,9 @@ export const AREA_LABEL: Record<GuildEditableArea, string> = {
   rules_admin: 'Rules for every command and the owner/admin bypass',
   loggers: 'Loggers',
   music: 'Music',
-  moderation: 'Warnings',
+  moderation: 'Warnings and reports',
+  reminders: 'Members’ reminders',
+  tags: 'Removing members’ tags',
 };
 
 // why a server's section can't be changed: a missing Discord permission, or in the admin panel, not being a bot owner

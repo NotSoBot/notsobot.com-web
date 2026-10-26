@@ -112,6 +112,7 @@ const state = {
   // members' reports to each server's moderators by guild id, newest last; the first server (which gets a reports logger
   // below) starts with open, resolved and dismissed ones, one of them a message without text
   guildReports: new Map<string, Array<GuildReport>>([[guilds[0].summary.id, [
+    mockGuildReport({channel_id: '1200000000000000011', created: new Date(Date.now() - 35 * 86400000).toISOString(), handled_at: new Date(Date.now() - 34 * 86400000).toISOString(), handled_by: mockUser.id, id: '1300000000000000400', message_content_deleted: true, message_id: '1250000000000000400', reason: 'Spamming the same message in every channel', status: 1, target_id: '1000000000000000006', type: 1, user_id: '1000000000000000002'}),
     mockGuildReport({created: new Date(Date.now() - 12 * 86400000).toISOString(), handled_at: new Date(Date.now() - 11 * 86400000).toISOString(), handled_by: mockUser.id, id: '1300000000000000401', reason: 'Keeps DMing me invite links after I asked them to stop', status: 1, target_id: '1000000000000000002', user_id: '1000000000000000005'}),
     mockGuildReport({channel_id: '1200000000000000011', created: new Date(Date.now() - 5 * 86400000).toISOString(), handled_at: new Date(Date.now() - 4 * 86400000).toISOString(), handled_by: '1000000000000000003', id: '1300000000000000402', message_content: 'lol imagine needing help with a discord bot', message_id: '1250000000000000402', reason: 'Being rude in #support', status: 2, target_id: '1000000000000000004', type: 1, user_id: '1000000000000000005'}),
     mockGuildReport({channel_id: '1200000000000000012', created: new Date(Date.now() - 26 * 3600000).toISOString(), id: '1300000000000000403', message_id: '1250000000000000403', reason: 'NSFW image in a SFW channel', target_id: '1000000000000000002', type: 1, user_id: '1000000000000000004'}),
@@ -2479,7 +2480,7 @@ function adminGuildDetail(guildId: string) {
       reminders: state.reminders.filter((reminder) => reminder.guild_id === guildId).length || Number(BigInt(guildId) % 9n),
     },
     // owners can edit every area, moderators none
-    editable: {loggers: state.owner, moderation: state.owner, music: state.owner, prefixes: state.owner, rules: state.owner, rules_admin: state.owner, settings: state.owner},
+    editable: {loggers: state.owner, moderation: state.owner, music: state.owner, prefixes: state.owner, reminders: state.owner, rules: state.owner, rules_admin: state.owner, settings: state.owner, tags: state.owner},
     owner: false,
     permissions: '0',
   };
@@ -3177,6 +3178,96 @@ function findGuildLLMKnowledge(guildId: string, knowledgeId: string): GuildLLMKn
   return item;
 }
 
+// a server's tags and reminders for its moderators: mirrors the `/tags` and `/reminders` routes in `views/me_guilds.py`
+function guildContentUser(user: {avatar: string | null, bot: boolean, discriminator: string, id: string, username: string}) {
+  return {avatar: user.avatar, bot: user.bot, discriminator: user.discriminator, id: user.id, username: user.username};
+}
+
+route('GET', '/users/@me/guilds/(\\d+)/tags', ([ , guildId ], { query }) => {
+  findGuild(guildId);
+  const search = (query.get('query') || '').toLowerCase();
+  const before = query.get('before');
+  const limit = Number(query.get('limit')) || 25;
+  const matching = state.tags
+    .filter((tag) => tag.server_id === guildId)
+    .filter((tag) => !search || tag.name.toLowerCase().includes(search) || tag.content.toLowerCase().includes(search))
+    .sort((a, b) => (BigInt(b.id) < BigInt(a.id)) ? -1 : 1);
+  const page = matching.filter((tag) => !before || BigInt(tag.id) < BigInt(before)).slice(0, limit);
+  return {
+    count: matching.length,
+    items: page.map(({ directory: _directory, ...tag }) => ({
+      ...tag,
+      user: guildContentUser(tag.user),
+      reference_tag: (tag.reference_tag) ? {...tag.reference_tag, user: guildContentUser(tag.reference_tag.user), reference_tag: null} : null,
+    })),
+  };
+});
+
+route('DELETE', '/users/@me/guilds/(\\d+)/tags/(\\d+)', ([ , guildId, tagId ]) => {
+  requireEditable(guildId, 'tags');
+  const index = state.tags.findIndex((tag) => tag.id === tagId && tag.server_id === guildId);
+  if (index === -1) {
+    throw new MockError(404, ApiErrorCodes.UNKNOWN_TAG, 'Unknown Tag');
+  }
+  state.tags.splice(index, 1);
+  return undefined;
+});
+
+route('GET', '/users/@me/guilds/(\\d+)/reminders', ([ , guildId ], { query }) => {
+  requireEditable(guildId, 'reminders');
+  const offset = Number(query.get('offset')) || 0;
+  const limit = Number(query.get('limit')) || 25;
+  const matching = state.reminders
+    .filter((reminder) => reminder.guild_id === guildId)
+    .sort((a, b) => Date.parse(a.timestamp_end ?? a.timestamp_start) - Date.parse(b.timestamp_end ?? b.timestamp_start));
+  return {
+    count: matching.length,
+    items: matching.slice(offset, offset + limit).map((reminder) => ({...reminder, user: guildContentUser(mockUser)})),
+  };
+});
+
+route('POST', '/users/@me/guilds/(\\d+)/reminders/(\\d+)/move-to-dms', ([ , guildId, reminderId ]) => {
+  requireEditable(guildId, 'reminders');
+  const reminder = state.reminders.find((item) => item.id === reminderId && item.guild_id === guildId);
+  if (!reminder) {
+    throw new MockError(404, ApiErrorCodes.UNKNOWN_REMINDER, 'Unknown Reminder');
+  }
+  Object.assign(reminder, {channel_id: null, guild_id: null, message_id: null});
+  return {...reminder, user: guildContentUser(mockUser)};
+});
+
+// a server's command stats: mirrors `/commands/stats` in `views/me_guilds.py`, made up but steady for each server
+const MOCK_GUILD_TOP_COMMANDS: Array<[string, number, string]> = [
+  ['media.iv.manipulation.magik', 0, 'magik'],
+  ['fun.tag', 0, 'tag'],
+  ['media.iv.manipulation.caption', 1, 'caption'],
+  ['tools.ai', 1, 'ai'],
+  ['music.play', 0, 'play'],
+  ['search.google', 0, 'google'],
+  ['media.iv.manipulation.deepfry', 0, 'deepfry'],
+  ['utils.help', 1, 'help'],
+];
+
+route('GET', '/users/@me/guilds/(\\d+)/commands/stats', ([ , guildId ], { query }) => {
+  scopedGuild('users/@me', guildId, 'settings');
+  const days = Math.min(Math.max(Number(query.get('days')) || 30, 1), 90);
+  const seed = Number(BigInt(guildId) % 97n);
+  const today = new Date();
+  const series = Array.from({length: days}, (_, i) => {
+    const date = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - (days - 1 - i)));
+    return {date: date.toISOString().slice(0, 10), count: 20 + ((seed * 7 + i * 13) % 60) + ((date.getUTCDay() % 6 === 0) ? 35 : 0)};
+  });
+  const count = series.reduce((sum, item) => sum + item.count, 0);
+  const top = MOCK_GUILD_TOP_COMMANDS.map(([ command_id, command_type, name ], i) => ({
+    command_id,
+    command_type,
+    count: Math.round(count / (2.2 + i * 1.6)),
+    name,
+    users: Math.max(1, 14 - i * 2),
+  }));
+  return {count, days, series, starts_at: `${series[0].date}T00:00:00+00:00`, top, users: 23 + (seed % 9)};
+});
+
 route('GET', '/(users/@me|admin)/guilds/(\\d+)/llm/knowledge', ([ , scope, guildId ]) => {
   scopedGuildRead(scope, guildId);
   return {items: guildLLMKnowledge(guildId), limits: GUILD_LLM_KNOWLEDGE_LIMITS};
@@ -3264,7 +3355,9 @@ route('POST', '/users/@me/guilds/(\\d+)/warnings/delete', ([ , guildId ], { body
 // members' reports to the server's moderators: mirrors `me_guild_reports` in `views/guild_reports.py` (there are no staff
 // routes for them either). Members can only report in a server with a reports logger, so the first server has one
 function mockGuildReport(report: Partial<GuildReport> & Pick<GuildReport, 'created' | 'id' | 'reason' | 'target_id' | 'user_id'>): GuildReport {
-  return {channel_id: null, guild_id: guilds[0].summary.id, handled_at: null, handled_by: null, message_content: null, message_id: null, status: 0, type: 0, ...report};
+  // like the api, only while there's text to clear
+  const expires = (report.message_content) ? new Date(Date.parse(report.created) + 30 * 86400000).toISOString() : null;
+  return {channel_id: null, guild_id: guilds[0].summary.id, handled_at: null, handled_by: null, message_content: null, message_content_deleted: false, message_content_expires_at: expires, message_id: null, status: 0, type: 0, ...report};
 }
 
 guilds[0].detail.loggers.push({added: new Date(Date.now() - 30 * 86400000).toISOString(), channel_id: '1200000000000000023', disabled_events: 0, guild_id: guilds[0].summary.id, type: 8, user_id: mockUser.id});

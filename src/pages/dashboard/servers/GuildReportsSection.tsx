@@ -42,7 +42,7 @@ export function GuildReportsSection({ guild }: {guild: UserGuild}) {
     <Panel
       title='Reports'
       accent='#ed4245'
-      description='Members’ reports to the moderators, from the report command and the Report to Mods menus. Handling one here also updates its message in the reports logger.'
+      description='Members’ reports to the moderators, from the report command and the Report to Mods menus. Handling one here also updates its message in the reports logger. A reported message’s text is kept for 30 days, then deleted, so save anything you need longer.'
       readOnly={(editable) ? undefined : readOnlyMessage('moderation')}
     >
       {(editable) ? <ReportsList guildId={guild.id} hasLogger={hasLogger}/> : <p className='text-sm text-muted'>Members’ reports are only shown to moderators.</p>}
@@ -150,7 +150,14 @@ function ReportRow({ report, showStatus, busy, disabled, onStatus }: {
         {(isMessage) ? (
           <div className='space-y-1 rounded-md border-l-2 border-line-strong bg-surface-2 px-2.5 py-1.5'>
             {(report.message_content) ? (
-              <p className='text-sm break-words whitespace-pre-wrap text-muted'>{report.message_content}</p>
+              <>
+                <p className='text-sm break-words whitespace-pre-wrap text-muted'>{report.message_content}</p>
+                {(report.message_content_expires_at) ? (
+                  <p className='text-xs text-subtle'>This text is deleted on {formatDate(report.message_content_expires_at)}</p>
+                ) : null}
+              </>
+            ) : (report.message_content_deleted) ? (
+              <p className='text-sm text-subtle italic'>The text was deleted 30 days after the report</p>
             ) : (
               <p className='text-sm text-subtle italic'>No text (attachments or embeds only)</p>
             )}

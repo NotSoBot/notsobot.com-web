@@ -180,6 +180,8 @@ export function emptyBlobs(): TagBlobs {
 const MANAGE_GUILD = 1n << 5n;
 const ADMINISTRATOR = 1n << 3n;
 const MODERATE_MEMBERS = 1n << 40n;
+const MANAGE_MESSAGES = 1n << 13n;
+const BAN_MEMBERS = 1n << 2n;
 
 
 export interface MockGuild {
@@ -358,7 +360,9 @@ export function guildEditable(summary: UserGuildSummary): UserGuild['editable'] 
   const admin = summary.owner || !!(permissions & ADMINISTRATOR);
   const manage = admin || !!(permissions & MANAGE_GUILD);
   const moderate = admin || !!(permissions & MODERATE_MEMBERS);
-  return {prefixes: manage, rules: manage, rules_admin: admin, loggers: manage, settings: manage, music: manage, moderation: moderate};
+  const messages = admin || !!(permissions & MANAGE_MESSAGES);
+  const ban = admin || !!(permissions & BAN_MEMBERS);
+  return {prefixes: manage, rules: manage, rules_admin: admin, loggers: manage, settings: manage, music: manage, moderation: moderate, reminders: messages, tags: manage || ban};
 }
 
 
