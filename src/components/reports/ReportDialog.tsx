@@ -1,6 +1,5 @@
-import { Bug, CheckCircle2, Flag, Info } from 'lucide-react';
-import { useId, useState, type ReactNode } from 'react';
-import { createPortal } from 'react-dom';
+import { CheckCircle2, Info } from 'lucide-react';
+import { useId, useState } from 'react';
 import { Link } from 'react-router';
 
 import { useAuth } from '@/auth';
@@ -8,28 +7,29 @@ import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
 import { Turnstile } from '@/components/ui/Turnstile';
 import { config } from '@/config';
-import { ApiErrorCodes, ApiRequestError, ReportTypes, type MeReport, type Tag } from '@/lib/api';
+import { translate, useI18n, type TranslationKey } from '@/i18n';
+import { ApiErrorCodes, ApiRequestError, ReportTypes, type MeReport } from '@/lib/api';
 import { errorMessage, useCreateReportMutation } from '@/lib/api/dashboardQueries';
 import { Routes } from '@/routes';
 import { CharCounter } from '@/pages/dashboard/ui';
+
+import type { ReportSubject } from './ReportButton';
 
 
 // the api's limit on a report's content, the tag reason line included
 const CONTENT_MAX = 2000;
 
-// a tag report's first line, so staff can sort them at a glance (the bot's `/tag report` is free text only)
+// a tag report's first line, so staff can sort them at a glance (the bot's `/tag report` is free text only). The
+// English text is what's sent, whatever language the site is in, `label` is what's shown
 const TAG_REASONS = [
-  'Harmful or malicious',
-  'Broken or doesn’t work',
-  'Spam or advertising',
-  'Stolen content',
-  'NSFW without the NSFW label',
-  'Something else',
-] as const;
-type TagReason = (typeof TAG_REASONS)[number];
-
-export type ReportSubject = {type: 'bug'} | {type: 'tag', tag: Pick<Tag, 'id' | 'name'>};
-
+  {value: 'Harmful or malicious', label: 'report.reason.harmful'},
+  {value: 'Broken or doesn’t work', label: 'report.reason.broken'},
+  {value: 'Spam or advertising', label: 'report.reason.spam'},
+  {value: 'Stolen content', label: 'report.reason.stolen'},
+  {value: 'NSFW without the NSFW label', label: 'report.reason.nsfw'},
+  {value: 'Something else', label: 'report.reason.other'},
+] as const satisfies ReadonlyArray<{value: string, label: TranslationKey}>;
+type TagReason = (typeof TAG_REASONS)[number]['value'];
 
 // the api's own message says which limit (hour or day) was hit, or why the captcha failed
 function reportErrorMessage(error: unknown): string {
@@ -38,60 +38,16 @@ function reportErrorMessage(error: unknown): string {
       return error.body.message;
     }
     if (error.code === ApiErrorCodes.SERVER_MISCONFIGURED) {
-      return 'Reporting without logging in isn’t available right now. Log in to send it.';
+      return translate('report.anonymous_unavailable');
     }
   }
-  return errorMessage(error, 'Couldn’t send the report.');
+  return errorMessage(error, translate('report.send_error'));
 }
 
 
-// Who can report from here: logged in it's one of their reports (staff can reply), logged out it's anonymous behind
-// the captcha when the site has one, otherwise they log in first. Null when there's no way to report at all.
-function useReportMode(): 'account' | 'anonymous' | 'login' | null {
-  const { isAuthenticated } = useAuth();
-  if (isAuthenticated) {
-    return 'account';
-  }
-  if (config.turnstileSiteKey) {
-    return 'anonymous';
-  }
-  return (config.authEnabled) ? 'login' : null;
-}
-
-
-// A button that opens the report dialog (or logs in first when anonymous reports aren't set up). `children` is the
-// button's content, the icon and label by default
-export function ReportButton({ subject, className, children }: {subject: ReportSubject, className?: string, children?: ReactNode}) {
-  const { login } = useAuth();
-  const mode = useReportMode();
-  const [ open, setOpen ] = useState(false);
-
-  if (!mode) {
-    return null;
-  }
-  const label = (subject.type === 'tag') ? 'Report tag' : 'Report a bug';
-  return (
-    <>
-      <button
-        type='button'
-        onClick={() => (mode === 'login') ? login() : setOpen(true)}
-        title={(mode === 'login') ? `Log in to ${label.toLowerCase()}` : (subject.type === 'tag') ? 'Report this tag to NotSoBot staff' : 'Tell NotSoBot staff about a bug'}
-        className={className}
-      >
-        {children ?? (
-          <>
-            {(subject.type === 'tag') ? <Flag aria-hidden className='size-4'/> : <Bug aria-hidden className='size-4'/>}
-            {label}
-          </>
-        )}
-      </button>
-      {(open) ? createPortal(<ReportDialog subject={subject} onClose={() => setOpen(false)}/>, document.body) : null}
-    </>
-  );
-}
-
-
-function ReportDialog({ subject, onClose }: {subject: ReportSubject, onClose: () => void}) {
+// opened by ReportButton (ReportButton.tsx), fetched the first time someone opens it
+export function ReportDialog({ subject, onClose }: {subject: ReportSubject, onClose: () => void}) {
+  const { t, rich } = useI18n();
   const titleId = useId();
   const reasonId = useId();
   const detailsId = useId();
@@ -133,21 +89,19 @@ function ReportDialog({ subject, onClose }: {subject: ReportSubject, onClose: ()
         <div className='p-5 sm:p-6'>
           <h2 id={titleId} className='flex items-center gap-2 pr-10 text-lg font-semibold text-white'>
             <CheckCircle2 aria-hidden className='size-5 text-success'/>
-            Report sent
+            {t('report.sent')}
           </h2>
           {(sent) ? (
             <p className='mt-2 text-sm text-muted'>
-              Thanks, NotSoBot staff will take a look. You’ll get a DM from NotSoBot when they reply or close it, and you can
-              follow it in{' '}
-              <Link to={Routes.DASHBOARD_REPORT.replace(':itemId', sent.id)} className='text-brand hover:underline'>your reports</Link>.
+              {rich('report.sent_account', {link: (chunk) => <Link to={Routes.DASHBOARD_REPORT.replace(':itemId', sent.id)} className='text-brand hover:underline'>{chunk}</Link>})}
             </p>
           ) : (
             <p className='mt-2 text-sm text-muted'>
-              Thanks, NotSoBot staff will take a look. It was sent anonymously, so they can’t reply to it.
+              {t('report.sent_anonymous')}
             </p>
           )}
           <div className='mt-6 flex justify-end'>
-            <button type='button' className='btn btn-primary' onClick={onClose}>Done</button>
+            <button type='button' className='btn btn-primary' onClick={onClose}>{t('report.done')}</button>
           </div>
         </div>
       ) : (
@@ -161,23 +115,21 @@ function ReportDialog({ subject, onClose }: {subject: ReportSubject, onClose: ()
           }}
         >
           <h2 id={titleId} className='pr-10 text-lg font-semibold text-white'>
-            {(subject.type === 'tag') ? `Report “${subject.tag.name}”` : 'Report a bug'}
+            {(subject.type === 'tag') ? t('report.tag_heading', {name: subject.tag.name}) : t('report.bug')}
           </h2>
           <p className='mt-2 text-sm text-muted'>
-            {(isTag) ?
-              'Sends the tag to NotSoBot staff to review.' :
-              'Tell NotSoBot staff about something that’s broken, on the bot or the website.'}
+            {t((isTag) ? 'report.tag_description' : 'report.bug_description')}
           </p>
 
           {(anonymous) ? (
             <p className='mt-4 flex gap-2 rounded-md border border-line bg-surface px-3 py-2 text-sm text-muted'>
               <Info aria-hidden className='mt-0.5 size-4 shrink-0 text-subtle'/>
               <span>
-                You’re not logged in, so this is sent anonymously and staff can’t reply to it.{' '}
+                {t('report.anonymous')}{' '}
                 {(config.authEnabled) ? (
-                  <button type='button' className='cursor-pointer text-brand hover:underline' onClick={() => login()}>Log in</button>
+                  <button type='button' className='cursor-pointer text-brand hover:underline' onClick={() => login()}>{t('common.log_in')}</button>
                 ) : null}
-                {(config.authEnabled) ? ' to hear back.' : null}
+                {(config.authEnabled) ? t('report.hear_back') : null}
               </span>
             </p>
           ) : null}
@@ -185,7 +137,7 @@ function ReportDialog({ subject, onClose }: {subject: ReportSubject, onClose: ()
           <div className='mt-5 space-y-4'>
             {(isTag) ? (
               <div>
-                <label htmlFor={reasonId} className='mb-1.5 block text-sm text-muted'>Reason</label>
+                <label htmlFor={reasonId} className='mb-1.5 block text-sm text-muted'>{t('report.reason')}</label>
                 <select
                   id={reasonId}
                   value={reason}
@@ -193,8 +145,8 @@ function ReportDialog({ subject, onClose }: {subject: ReportSubject, onClose: ()
                   disabled={create.isPending}
                   className='input'
                 >
-                  <option value='' disabled>Pick one…</option>
-                  {TAG_REASONS.map((item) => <option key={item} value={item}>{item}</option>)}
+                  <option value='' disabled>{t('report.pick')}</option>
+                  {TAG_REASONS.map((item) => <option key={item.value} value={item.value}>{t(item.label)}</option>)}
                 </select>
               </div>
             ) : null}
@@ -202,8 +154,8 @@ function ReportDialog({ subject, onClose }: {subject: ReportSubject, onClose: ()
             <div>
               <div className='mb-1.5 flex items-baseline justify-between gap-3'>
                 <label htmlFor={detailsId} className='text-sm text-muted'>
-                  {(isTag) ? 'Details' : 'What happened?'}
-                  {(isTag && !needsDetails) ? <span className='text-subtle'> (optional)</span> : null}
+                  {t((isTag) ? 'report.details' : 'report.what_happened')}
+                  {(isTag && !needsDetails) ? <span className='text-subtle'>{t('report.optional')}</span> : null}
                 </label>
                 <span className='shrink-0 text-xs text-subtle tabular-nums'><CharCounter length={content.length} max={CONTENT_MAX}/></span>
               </div>
@@ -213,9 +165,7 @@ function ReportDialog({ subject, onClose }: {subject: ReportSubject, onClose: ()
                 onChange={(event) => setDetails(event.target.value)}
                 disabled={create.isPending}
                 rows={(isTag) ? 4 : 6}
-                placeholder={(isTag) ?
-                  'Anything that helps staff check it, like what it does or where it was copied from.' :
-                  'Which command or page, what you expected to happen, and what happened instead (the error, if there was one).'}
+                placeholder={t((isTag) ? 'report.tag_placeholder' : 'report.bug_placeholder')}
                 className='input resize-y'
                 autoFocus={!isTag}
               />
@@ -231,10 +181,10 @@ function ReportDialog({ subject, onClose }: {subject: ReportSubject, onClose: ()
           ) : null}
 
           <div className='mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
-            <button type='button' className='btn btn-secondary' onClick={onClose} disabled={create.isPending}>Cancel</button>
+            <button type='button' className='btn btn-secondary' onClick={onClose} disabled={create.isPending}>{t('common.cancel')}</button>
             <button type='submit' className='btn btn-danger' disabled={!canSend}>
               {(create.isPending) ? <Spinner className='size-4 border-white/40 border-t-white'/> : null}
-              Send report
+              {t('report.send')}
             </button>
           </div>
         </form>

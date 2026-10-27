@@ -1,6 +1,7 @@
 import { Plus } from 'lucide-react';
 import { useId } from 'react';
 
+import { translate, useI18n } from '@/i18n';
 import type { GuildWarningAction } from '@/lib/api';
 
 import { ChoiceSelect } from '../settings/ChoiceSelect';
@@ -16,10 +17,11 @@ export const MAX_WARNING_THRESHOLD = 100;
 const HOUR = 3600;
 const DAY = 86400;
 
+// labels are getters, read in the language on screen
 const ACTION_CHOICES: ReadonlyArray<Choice<GuildWarningAction['action']>> = [
-  {value: 'mute', label: 'Mute'},
-  {value: 'kick', label: 'Kick'},
-  {value: 'ban', label: 'Ban'},
+  {value: 'mute', get label() { return translate('wactions.mute'); }},
+  {value: 'kick', get label() { return translate('wactions.kick'); }},
+  {value: 'ban', get label() { return translate('wactions.ban'); }},
 ];
 
 // a mute's length (discord's timeouts go up to 28 days), a ban's until the bot lifts it, how far back messages go
@@ -46,10 +48,10 @@ function withAction(step: GuildWarningAction, action: GuildWarningAction['action
 export function warningActionsError(steps: Array<GuildWarningAction>): string | null {
   const thresholds = steps.map((step) => step.threshold);
   if (thresholds.some((threshold) => !Number.isInteger(threshold) || threshold < 1 || MAX_WARNING_THRESHOLD < threshold)) {
-    return `Each step needs a number of warnings from 1 to ${MAX_WARNING_THRESHOLD}.`;
+    return translate('wactions.bad_threshold', {max: MAX_WARNING_THRESHOLD});
   }
   if (new Set(thresholds).size !== thresholds.length) {
-    return 'Two steps can’t be at the same number of warnings.';
+    return translate('wactions.duplicate');
   }
   return null;
 }
@@ -62,6 +64,7 @@ export function WarningActionsEditor({ value, onChange, disabled, error }: {
   disabled?: boolean,
   error?: string | null,
 }) {
+  const { t } = useI18n();
   const id = useId();
   const update = (index: number, step: GuildWarningAction) => onChange(value.map((x, i) => (i === index) ? step : x));
   const add = () => {
@@ -72,64 +75,64 @@ export function WarningActionsEditor({ value, onChange, disabled, error }: {
 
   return (
     <div className='min-w-0 md:col-span-2' role='group' aria-labelledby={`${id}-label`} aria-describedby={`${id}-hint`}>
-      <div id={`${id}-label`} className='mb-1.5 text-sm font-medium text-fg'>Warning actions</div>
+      <div id={`${id}-label`} className='mb-1.5 text-sm font-medium text-fg'>{t('wactions.label')}</div>
       {(value.length) ? (
         <ul className='flex flex-col gap-2'>
           {value.map((step, index) => (
             <li key={index} className='flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface-2 p-2'>
-              <span className='text-sm text-muted'>At</span>
+              <span className='text-sm text-muted'>{t('wactions.at')}</span>
               <input
                 type='number'
                 min={1}
                 max={MAX_WARNING_THRESHOLD}
                 className='input w-20'
-                aria-label='Active warnings'
+                aria-label={t('wactions.active_label')}
                 value={(Number.isNaN(step.threshold)) ? '' : step.threshold}
                 onChange={(event) => update(index, {...step, threshold: event.target.valueAsNumber})}
               />
-              <span className='text-sm text-muted'>active warnings</span>
+              <span className='text-sm text-muted'>{t('wactions.active')}</span>
               <div className='w-28'>
-                <ChoiceSelect aria-label='Action' choices={ACTION_CHOICES} value={step.action} onChange={(action) => update(index, withAction(step, action ?? 'mute'))}/>
+                <ChoiceSelect aria-label={t('wactions.action')} choices={ACTION_CHOICES} value={step.action} onChange={(action) => update(index, withAction(step, action ?? 'mute'))}/>
               </div>
               {(step.action === 'mute') ? (
                 <div className='w-32'>
-                  <ChoiceSelect aria-label='Mute for' choices={durationChoices(MUTE_DURATIONS, step.duration)} value={step.duration} onChange={(duration) => update(index, {...step, duration: duration ?? HOUR})}/>
+                  <ChoiceSelect aria-label={t('wactions.mute_for')} choices={durationChoices(MUTE_DURATIONS, step.duration)} value={step.duration} onChange={(duration) => update(index, {...step, duration: duration ?? HOUR})}/>
                 </div>
               ) : null}
               {(step.action === 'ban') ? (
                 <div className='w-36'>
-                  <ChoiceSelect aria-label='Ban for' noneLabel='Permanently' choices={durationChoices(BAN_DURATIONS, step.duration)} value={step.duration} onChange={(duration) => update(index, {...step, duration})}/>
+                  <ChoiceSelect aria-label={t('wactions.ban_for')} noneLabel={t('wactions.permanently')} choices={durationChoices(BAN_DURATIONS, step.duration)} value={step.duration} onChange={(duration) => update(index, {...step, duration})}/>
                 </div>
               ) : null}
               {(step.action !== 'mute') ? (
                 <div className='w-44'>
                   <ChoiceSelect
-                    aria-label='Delete their messages from'
-                    noneLabel='Keep messages'
-                    choices={durationChoices(CLEAN_DURATIONS, step.clean).map((choice) => ({...choice, label: `Delete last ${choice.label}`}))}
+                    aria-label={t('wactions.delete_from')}
+                    noneLabel={t('wactions.keep')}
+                    choices={durationChoices(CLEAN_DURATIONS, step.clean).map((choice) => ({...choice, label: t('wactions.delete_last', {duration: choice.label})}))}
                     value={step.clean || null}
                     onChange={(clean) => update(index, {...step, clean: clean ?? 0})}
                   />
                 </div>
               ) : null}
               <div className='ml-auto'>
-                <RemoveButton label='Remove step' busy={false} disabled={!!disabled} onClick={() => onChange(value.filter((_, i) => i !== index))}/>
+                <RemoveButton label={t('wactions.remove')} busy={false} disabled={!!disabled} onClick={() => onChange(value.filter((_, i) => i !== index))}/>
               </div>
             </li>
           ))}
         </ul>
       ) : (
-        <p className='rounded-lg border border-dashed border-border p-3 text-sm text-subtle'>Off. Warnings don’t do anything on their own.</p>
+        <p className='rounded-lg border border-dashed border-border p-3 text-sm text-subtle'>{t('wactions.off')}</p>
       )}
       <button type='button' className='btn btn-sm btn-secondary mt-2' disabled={disabled || MAX_WARNING_ACTIONS <= value.length} onClick={add}>
         <Plus aria-hidden className='size-4'/>
-        Add step
+        {t('wactions.add')}
       </button>
       {(error) ? (
         <p id={`${id}-hint`} className='mt-1.5 text-xs text-danger'>{error}</p>
       ) : (
         <p id={`${id}-hint`} className='mt-1.5 text-xs text-subtle'>
-          Happens when a warning brings someone to exactly that many active warnings. Skipped when whoever warned them doesn’t have the permission for it, so someone who does can decide.
+          {t('wactions.hint')}
         </p>
       )}
     </div>

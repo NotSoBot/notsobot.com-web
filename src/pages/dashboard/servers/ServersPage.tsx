@@ -6,6 +6,7 @@ import { useAuth } from '@/auth';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { useToast } from '@/components/ui/Toast';
 import { readStored, writeStored } from '@/hooks/usePersistentState';
+import { translate, useI18n, type TranslationKey } from '@/i18n';
 import { ApiEndpoints, apiUrl, type UserGuildSummary } from '@/lib/api';
 import {
   errorMessage,
@@ -24,11 +25,11 @@ import { dashboardServerPath } from './guildMeta';
 
 
 // the page's sections, in order. A pinned server is only in Pinned, the rest go by what you can do there
-const SECTIONS: Array<{key: SectionKey, title: string}> = [
-  {key: 'pinned', title: 'Pinned'},
-  {key: 'owned', title: 'Servers you own'},
-  {key: 'manage', title: 'Servers you can manage'},
-  {key: 'member', title: 'Other servers'},
+const SECTIONS: Array<{key: SectionKey, title: TranslationKey}> = [
+  {key: 'pinned', title: 'servers.section.pinned'},
+  {key: 'owned', title: 'servers.section.owned'},
+  {key: 'manage', title: 'servers.section.manage'},
+  {key: 'member', title: 'servers.section.member'},
 ];
 type SectionKey = 'pinned' | 'owned' | 'manage' | 'member';
 
@@ -45,6 +46,7 @@ const LEGACY_PINNED_KEY = 'servers:pinned';
 const MAX_PINNED = 100;
 
 export function ServersPage() {
+  const { t } = useI18n();
   const toast = useToast();
   const { data, isPending, isError, error, refetch, isRefetching } = useMeGuildsQuery();
   // on the account (user settings), so every device has them, in the order they were pinned. A server you've left just
@@ -55,7 +57,7 @@ export function ServersPage() {
   const pinned = useMemo(() => new Set(pinnedIds), [pinnedIds]);
   const savePins = (ids: Array<string>) => {
     patchSettings.mutate({dashboard_pinned_guilds: ids.slice(0, MAX_PINNED)}, {
-      onError: (saveError) => toast(errorMessage(saveError, 'Couldn’t save your pinned servers.'), 'error'),
+      onError: (saveError) => toast(errorMessage(saveError, translate('servers.pin_error')), 'error'),
     });
   };
   const togglePin = (guildId: string) => {
@@ -103,8 +105,8 @@ export function ServersPage() {
   return (
     <>
       <DashboardHeader
-        title='Servers'
-        description='Servers you share with NotSoBot. Manage the ones where you have the right permissions.'
+        title={t('dash.nav.servers')}
+        description={t('servers.description')}
       />
 
       {(isPending) ? (
@@ -114,10 +116,10 @@ export function ServersPage() {
       ) : (isDiscordGrantError(error)) ? (
         <ScopeMismatchCard reason='grant'/>
       ) : (isError) ? (
-        <ErrorPanel title='Couldn’t load your servers' message={errorMessage(error)} onRetry={() => refetch()} retrying={isRefetching}/>
+        <ErrorPanel title={t('servers.load_error')} message={errorMessage(error)} onRetry={() => refetch()} retrying={isRefetching}/>
       ) : (!guilds.length) ? (
-        <EmptyState icon={<Server className='size-10'/>} title='No servers with NotSoBot yet'>
-          <a href={apiUrl(ApiEndpoints.HELP_DISCORD_BOT)} className='mt-3 inline-flex btn btn-discord'>Add NotSoBot to a server</a>
+        <EmptyState icon={<Server className='size-10'/>} title={t('servers.empty')}>
+          <a href={apiUrl(ApiEndpoints.HELP_DISCORD_BOT)} className='mt-3 inline-flex btn btn-discord'>{t('servers.add')}</a>
         </EmptyState>
       ) : (
         <>
@@ -125,15 +127,15 @@ export function ServersPage() {
             className='mb-4'
             value={query}
             onValueChange={(value) => update({q: value})}
-            placeholder='Search by server name or ID...'
-            aria-label='Search servers'
+            placeholder={t('servers.search_placeholder')}
+            aria-label={t('servers.search_label')}
           />
           {(shown.length) ? (
             <div className='space-y-6'>
               {sections.map((section) => (
                 <section key={section.key} aria-labelledby={`servers-${section.key}`}>
                   <h2 id={`servers-${section.key}`} className='section-label mb-2'>
-                    {section.title} <span className='normal-case tracking-normal text-subtle'>({section.items.length})</span>
+                    {t(section.title)} <span className='normal-case tracking-normal text-subtle'>({section.items.length})</span>
                   </h2>
                   <ul className='grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3'>
                     {section.items.map((guild) => (
@@ -144,7 +146,7 @@ export function ServersPage() {
               ))}
             </div>
           ) : (
-            <EmptyState icon={<Search className='size-10'/>} title='No servers found'>Try a different search.</EmptyState>
+            <EmptyState icon={<Search className='size-10'/>} title={t('servers.empty_search')}>{t('servers.empty_search_description')}</EmptyState>
           )}
         </>
       )}
@@ -156,6 +158,7 @@ export function ServersPage() {
 // the pin is a badge on the icon's corner, outside the link (a button can't go inside one): always shown once it's pinned,
 // on hover (or always on phones) otherwise
 function ServerCard({ guild, pinned, onTogglePin }: {guild: UserGuildSummary, pinned: boolean, onTogglePin: () => void}) {
+  const { t } = useI18n();
   const PinIcon = (pinned) ? PinOff : Pin;
   return (
     <li className='group/server relative'>
@@ -170,9 +173,9 @@ function ServerCard({ guild, pinned, onTogglePin }: {guild: UserGuildSummary, pi
         <div className='min-w-0 flex-1'>
           <div className='flex items-center gap-1.5'>
             <span className='truncate font-medium text-white' title={guild.name}>{guild.name}</span>
-            {(guild.owner) ? <Crown aria-label='Owner' className='size-3.5 shrink-0 text-warning'/> : null}
+            {(guild.owner) ? <Crown aria-label={t('servers.owner')} className='size-3.5 shrink-0 text-warning'/> : null}
           </div>
-          <div className='mt-0.5 text-xs text-subtle'>{(guild.owner) ? 'Owner' : (guild.can_manage) ? 'Can manage' : 'Member'}</div>
+          <div className='mt-0.5 text-xs text-subtle'>{t((guild.owner) ? 'dash.role.owner' : (guild.can_manage) ? 'dash.role.manager' : 'dash.role.member')}</div>
         </div>
         <span
           className={cn(
@@ -181,7 +184,7 @@ function ServerCard({ guild, pinned, onTogglePin }: {guild: UserGuildSummary, pi
           )}
         >
           {(guild.can_manage) ? <Settings2 aria-hidden className='size-3.5'/> : <Eye aria-hidden className='size-3.5'/>}
-          {(guild.can_manage) ? 'Manage' : 'View'}
+          {t((guild.can_manage) ? 'servers.manage' : 'servers.view')}
         </span>
       </Link>
       <button
@@ -191,8 +194,8 @@ function ServerCard({ guild, pinned, onTogglePin }: {guild: UserGuildSummary, pi
           (pinned) ? 'text-brand' : 'text-subtle opacity-0 group-hover/server:opacity-100 hover:text-white max-sm:opacity-100',
         )}
         aria-pressed={pinned}
-        aria-label={(pinned) ? `Unpin ${guild.name}` : `Pin ${guild.name} to the top`}
-        title={(pinned) ? 'Unpin' : 'Pin to the top'}
+        aria-label={t((pinned) ? 'servers.unpin_label' : 'servers.pin_label', {name: guild.name})}
+        title={t((pinned) ? 'servers.unpin' : 'servers.pin')}
         onClick={onTogglePin}
       >
         <PinIcon aria-hidden className='size-3.5'/>
@@ -205,22 +208,19 @@ function ServerCard({ guild, pinned, onTogglePin }: {guild: UserGuildSummary, pi
 // `scope`: the session predates the `guilds` scope; `grant`: Discord revoked/expired the login
 export function ScopeMismatchCard({ reason = 'scope' }: {reason?: 'scope' | 'grant'}) {
   const { login } = useAuth();
+  const { t } = useI18n();
   return (
     <div className='card flex flex-col items-center gap-4 p-8 text-center sm:p-10'>
       <span className='flex size-12 items-center justify-center rounded-full bg-brand/20'>
         <KeyRound aria-hidden className='size-6 text-brand'/>
       </span>
       <div className='max-w-md'>
-        <h2 className='text-lg font-semibold text-white'>{(reason === 'grant') ? 'Discord needs you to log in again' : 'Let NotSoBot see your servers'}</h2>
+        <h2 className='text-lg font-semibold text-white'>{t((reason === 'grant') ? 'servers.grant_title' : 'servers.scope_title')}</h2>
         <p className='mt-1.5 text-sm text-muted'>
-          {(reason === 'grant') ? (
-            'Discord no longer accepts the login this session was made with (it expired or the app was deauthorized), so we can’t read your server list. Log in again to fix it.'
-          ) : (
-            'You logged in before the site could ask Discord for your server list. Log in again and allow “Know what servers you’re in” so we can show the servers you share with NotSoBot. Nothing else changes.'
-          )}
+          {t((reason === 'grant') ? 'servers.grant_description' : 'servers.scope_description')}
         </p>
       </div>
-      <button type='button' className='btn btn-discord' onClick={() => login()}>Log in again with Discord</button>
+      <button type='button' className='btn btn-discord' onClick={() => login()}>{t('servers.relogin')}</button>
     </div>
   );
 }

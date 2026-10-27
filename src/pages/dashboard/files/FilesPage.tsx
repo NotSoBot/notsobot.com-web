@@ -12,6 +12,7 @@ import { useToast } from '@/components/ui/Toast';
 import { Routes } from '@/config';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { usePersistentState } from '@/hooks/usePersistentState';
+import { translate, useI18n, type TranslationKey } from '@/i18n';
 import type { UserFile, UserFilesSortBy } from '@/lib/api';
 import { ME_FILES_PAGE_SIZE, errorMessage, useDeleteMeFilesMutation, useMeFilesQuery } from '@/lib/api/dashboardQueries';
 import { cn, formatDate, formatDateTime, formatExactDateTime, formatMemory, formatNumber, toDate } from '@/lib/utils';
@@ -22,17 +23,17 @@ import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from '../ui';
 
 type FilesView = 'list' | 'grid' | 'table';
 
-const VIEWS: Array<{value: FilesView, label: string, icon: LucideIcon}> = [
-  {value: 'list', label: 'List', icon: List},
-  {value: 'grid', label: 'Grid', icon: LayoutGrid},
-  {value: 'table', label: 'Table', icon: Table2},
+const VIEWS: Array<{value: FilesView, label: TranslationKey, icon: LucideIcon}> = [
+  {value: 'list', label: 'files.view.list', icon: List},
+  {value: 'grid', label: 'files.view.grid', icon: LayoutGrid},
+  {value: 'table', label: 'files.view.table', icon: Table2},
 ];
 
-const SORTS: Array<{value: UserFilesSortBy, label: string}> = [
-  {value: 'newest', label: 'Newest'},
-  {value: 'oldest', label: 'Oldest'},
-  {value: 'largest', label: 'Largest'},
-  {value: 'name', label: 'Name'},
+const SORTS: Array<{value: UserFilesSortBy, label: TranslationKey}> = [
+  {value: 'newest', label: 'files.sort.newest'},
+  {value: 'oldest', label: 'files.sort.oldest'},
+  {value: 'largest', label: 'files.sort.largest'},
+  {value: 'name', label: 'files.sort.name'},
 ];
 
 // bigger images just get the icon, so a page of huge gifs doesn't pull hundreds of megabytes
@@ -64,17 +65,18 @@ function formatSize(bytes: number): string {
 function formatExpiresIn(value: string): string {
   const minutes = Math.floor((toDate(value).getTime() - Date.now()) / 60000);
   if (minutes < 1) {
-    return 'in under a minute';
+    return translate('files.expires.now');
   }
   if (minutes < 60) {
-    return `in ${minutes}m`;
+    return translate('files.expires.minutes', {count: minutes});
   }
   const hours = Math.floor(minutes / 60);
-  return (hours < 48) ? `in ${hours}h` : `in ${Math.floor(hours / 24)}d`;
+  return (hours < 48) ? translate('files.expires.hours', {count: hours}) : translate('files.expires.days', {count: Math.floor(hours / 24)});
 }
 
 
 export function FilesPage() {
+  const { t, rich, plural } = useI18n();
   const { searchParams, page, update, setPage } = useSearchParamState();
   const query = searchParams.get('q') || '';
   const sortBy = SORTS.find((sort) => sort.value === searchParams.get('sort'))?.value ?? 'newest';
@@ -119,7 +121,7 @@ export function FilesPage() {
     }
     remove.mutate(deleting.map((file) => file.id), {
       onSuccess: () => {
-        toast((deleting.length === 1) ? 'File deleted' : `${deleting.length} files deleted`);
+        toast(plural('files.deleted', deleting.length));
         setSelected((previous) => new Set([...previous].filter((id) => !deleting.some((file) => file.id === id))));
         setDeleting(null);
       },
@@ -130,8 +132,8 @@ export function FilesPage() {
   return (
     <>
       <DashboardHeader
-        title='Your Files'
-        description={<>Results the bot uploaded to its file host for you instead of attaching them. When that happens is in <Link to={Routes.DASHBOARD_SETTINGS} className='text-code hover:underline'>Settings → Media</Link>.</>}
+        title={t('page.DASHBOARD_FILES')}
+        description={rich('files.description', {link: (chunk) => <Link to={Routes.DASHBOARD_SETTINGS} className='text-code hover:underline'>{chunk}</Link>})}
       />
 
       {/* the search, how they're shown, then the filters panel's button */}
@@ -140,8 +142,8 @@ export function FilesPage() {
           className='min-w-0 flex-1'
           value={query}
           onValueChange={(value) => update({q: value})}
-          placeholder='Search by file name or link...'
-          aria-label='Search files'
+          placeholder={t('files.search_placeholder')}
+          aria-label={t('files.search_label')}
         />
         <ViewMenu value={view} onChange={setView}/>
         <FiltersButton open={filtersOpen} onToggle={() => setFiltersOpen((value) => !value)} active={activeFilters} controls='file-filters'/>
@@ -149,17 +151,17 @@ export function FilesPage() {
 
       <div id='file-filters' hidden={!filtersOpen} className='card mb-4 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4'>
         <label className='text-sm'>
-          <span className='mb-1 block text-subtle'>Sort</span>
+          <span className='mb-1 block text-subtle'>{t('files.sort')}</span>
           <select className='input' value={sortBy} onChange={(event) => update({sort: (event.target.value === 'newest') ? null : event.target.value})}>
-            {SORTS.map((sort) => <option key={sort.value} value={sort.value}>{sort.label}</option>)}
+            {SORTS.map((sort) => <option key={sort.value} value={sort.value}>{t(sort.label)}</option>)}
           </select>
         </label>
         <label className='text-sm'>
-          <span className='mb-1 block text-subtle'>Temporary</span>
+          <span className='mb-1 block text-subtle'>{t('files.temporary')}</span>
           <select className='input' value={(temporary === null) ? '' : String(temporary)} onChange={(event) => update({temporary: event.target.value || null})}>
-            <option value=''>Any</option>
-            <option value='true'>Only temporary</option>
-            <option value='false'>Only permanent</option>
+            <option value=''>{t('files.any')}</option>
+            <option value='true'>{t('files.only_temporary')}</option>
+            <option value='false'>{t('files.only_permanent')}</option>
           </select>
         </label>
       </div>
@@ -169,10 +171,10 @@ export function FilesPage() {
       {(isPending || steppingBack) ? (
         <ListSkeleton/>
       ) : (isError && !items.length) ? (
-        <ErrorPanel title='Couldn’t load your files' message={errorMessage(error)} onRetry={() => refetch()} retrying={isRefetching}/>
+        <ErrorPanel title={t('files.load_error')} message={errorMessage(error)} onRetry={() => refetch()} retrying={isRefetching}/>
       ) : (!items.length) ? (
-        <EmptyState icon={<Files className='size-10'/>} title={(filtered) ? 'No files found' : 'No files yet'}>
-          {(filtered) ? 'Try a different search or filter.' : 'When a result is too big for Discord, the bot uploads it here instead.'}
+        <EmptyState icon={<Files className='size-10'/>} title={t((filtered) ? 'files.empty_filtered' : 'files.empty')}>
+          {t((filtered) ? 'files.empty_filtered_description' : 'files.empty_description')}
         </EmptyState>
       ) : (
         <>
@@ -198,15 +200,15 @@ export function FilesPage() {
 
       {(deleting) ? (
         <ConfirmDialog
-          title={(deleting.length === 1) ? `Delete “${deleting[0].filename || deleting[0].vanity}”?` : `Delete ${deleting.length} files?`}
+          title={(deleting.length === 1) ? t('files.delete_title', {name: deleting[0].filename || deleting[0].vanity}) : t('files.delete_title_other', {count: formatNumber(deleting.length)})}
           description={(deleting.length === 1) ? (
-            <>Its link <span className='font-mono text-fg break-all'>{deleting[0].urls.vanity}</span> stops working everywhere it was posted. This can’t be undone.</>
+            rich('files.delete_description', {link: (chunk) => <span className='font-mono text-fg break-all'>{chunk}</span>}, {url: deleting[0].urls.vanity})
           ) : (
-            <>Their links stop working everywhere they were posted. This can’t be undone.</>
+            t('files.delete_description_other')
           )}
-          confirmLabel={(deleting.length === 1) ? 'Delete file' : `Delete ${deleting.length} files`}
+          confirmLabel={(deleting.length === 1) ? t('files.delete_one') : t('files.delete_other', {count: formatNumber(deleting.length)})}
           pending={remove.isPending}
-          error={(remove.isError) ? errorMessage(remove.error, 'Couldn’t delete the files.') : null}
+          error={(remove.isError) ? errorMessage(remove.error, t('files.delete_error')) : null}
           onConfirm={confirmDelete}
           onClose={() => {
             remove.reset();
@@ -224,6 +226,7 @@ export function FilesPage() {
 // how much the user has on the file host, and how much of it the search matched
 // how the files are shown (list, grid or table), a dropdown next to the search box. Remembered per browser
 function ViewMenu({ value, onChange }: {value: FilesView, onChange: (value: FilesView) => void}) {
+  const { t } = useI18n();
   const [ open, setOpen ] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
@@ -259,15 +262,15 @@ function ViewMenu({ value, onChange }: {value: FilesView, onChange: (value: File
         aria-haspopup='menu'
         aria-expanded={open}
         aria-controls={menuId}
-        aria-label={`View: ${current.label}`}
+        aria-label={t('files.view_label', {view: t(current.label)})}
         onClick={() => setOpen((previous) => !previous)}
       >
         <current.icon aria-hidden className='size-4'/>
-        <span className='max-sm:hidden'>{current.label}</span>
+        <span className='max-sm:hidden'>{t(current.label)}</span>
         <ChevronDown aria-hidden className={cn('size-4 transition-transform', open && 'rotate-180')}/>
       </button>
       {(open) ? (
-        <div id={menuId} role='menu' aria-label='View' className='absolute right-0 z-30 mt-2 w-40 animate-fade-in rounded-lg border border-line bg-surface p-1.5 shadow-2xl shadow-black/40'>
+        <div id={menuId} role='menu' aria-label={t('files.view')} className='absolute right-0 z-30 mt-2 w-40 animate-fade-in rounded-lg border border-line bg-surface p-1.5 shadow-2xl shadow-black/40'>
           {VIEWS.map((option) => (
             <button
               key={option.value}
@@ -281,7 +284,7 @@ function ViewMenu({ value, onChange }: {value: FilesView, onChange: (value: File
               }}
             >
               <option.icon aria-hidden className='size-4 text-muted'/>
-              {option.label}
+              {t(option.label)}
               {(option.value === value) ? <Check aria-hidden className='ml-auto size-4 text-brand'/> : null}
             </button>
           ))}
@@ -293,16 +296,18 @@ function ViewMenu({ value, onChange }: {value: FilesView, onChange: (value: File
 
 
 function StorageSummary({ count, size, total, searching }: {count: number, size: number, total: {count: number, size: number}, searching: boolean}) {
-  const files = (value: number) => `${formatNumber(value)} ${(value === 1) ? 'file' : 'files'}`;
+  const { t, rich, plural } = useI18n();
+  const files = (value: number) => plural('files.count', value);
+  const b = (chunk: string) => <span className='text-fg'>{chunk}</span>;
   return (
     <p className='mb-4 text-sm text-muted'>
       {(searching) ? (
         <>
-          <span className='text-fg'>{files(count)}</span> matched, <span className='text-fg'>{formatSize(size)}</span>
-          <span className='text-subtle'> · {formatSize(total.size)} across all {files(total.count)}</span>
+          {rich('files.matched', {b}, {files: files(count), size: formatSize(size)})}
+          <span className='text-subtle'>{t('files.across', {size: formatSize(total.size), files: files(total.count)})}</span>
         </>
       ) : (
-        <><span className='text-fg'>{formatSize(total.size)}</span> used across <span className='text-fg'>{files(total.count)}</span></>
+        rich('files.used', {b}, {size: formatSize(total.size), files: files(total.count)})
       )}
     </p>
   );
@@ -311,10 +316,11 @@ function StorageSummary({ count, size, total, searching }: {count: number, size:
 
 // temporary uploads stop working at `expires_at`, so the badge says when
 function ExpiryChip({ file }: {file: UserFile}) {
+  const { t } = useI18n();
   if (!file.temporary || !file.expires_at) {
     return null;
   }
-  return <Chip tone='warning' title={`Temporary, expires ${formatExactDateTime(file.expires_at)}`}>Expires {formatExpiresIn(file.expires_at)}</Chip>;
+  return <Chip tone='warning' title={t('files.expires_title', {date: formatExactDateTime(file.expires_at)})}>{t('files.expires', {when: formatExpiresIn(file.expires_at)})}</Chip>;
 }
 
 
@@ -363,20 +369,22 @@ function FilePreview({ file, className, iconClassName = 'size-6' }: {file: UserF
 
 
 function OpenButton({ file, label = true }: {file: UserFile, label?: boolean}) {
+  const { t } = useI18n();
   return (
-    <a href={file.urls.vanity} target='_blank' rel='noopener noreferrer' className='btn btn-sm btn-secondary' aria-label='Open file' title='Open'>
+    <a href={file.urls.vanity} target='_blank' rel='noopener noreferrer' className='btn btn-sm btn-secondary' aria-label={t('files.open_label')} title={t('files.open')}>
       <ExternalLink className='size-4'/>
-      {(label) ? <span className='hidden sm:inline'>Open</span> : null}
+      {(label) ? <span className='hidden sm:inline'>{t('files.open')}</span> : null}
     </a>
   );
 }
 
 
 function DeleteButton({ onClick, label = true }: {onClick: () => void, label?: boolean}) {
+  const { t } = useI18n();
   return (
-    <button type='button' className='btn btn-sm btn-danger' onClick={onClick} aria-label='Delete file' title='Delete'>
+    <button type='button' className='btn btn-sm btn-danger' onClick={onClick} aria-label={t('files.delete_label')} title={t('common.delete')}>
       <Trash2 className='size-4'/>
-      {(label) ? <span className='hidden sm:inline'>Delete</span> : null}
+      {(label) ? <span className='hidden sm:inline'>{t('common.delete')}</span> : null}
     </button>
   );
 }
@@ -385,6 +393,7 @@ function DeleteButton({ onClick, label = true }: {onClick: () => void, label?: b
 /* list */
 
 function FilesList({ files, onDelete }: {files: Array<UserFile>, onDelete: (file: UserFile) => void}) {
+  const { t } = useI18n();
   return (
     <ul className='card divide-y divide-line'>
       {files.map((file) => {
@@ -404,7 +413,7 @@ function FilesList({ files, onDelete }: {files: Array<UserFile>, onDelete: (file
                   <span>{metadata.width}×{metadata.height}</span>
                 ) : null}
                 {(metadata.duration) ? <span>{formatDuration(metadata.duration)}</span> : null}
-                <span title={formatExactDateTime(file.created)}>Uploaded {formatDateTime(file.created)}</span>
+                <span title={formatExactDateTime(file.created)}>{t('files.uploaded', {date: formatDateTime(file.created)})}</span>
               </div>
             </div>
             <div className='flex shrink-0 flex-col gap-1.5 sm:flex-row'>
@@ -459,6 +468,7 @@ function FilesTable({ files, selected, onSelectedChange, onDelete, onDeleteSelec
   onDelete: (file: UserFile) => void,
   onDeleteSelected: () => void,
 }) {
+  const { t } = useI18n();
   const count = files.filter((file) => selected.has(file.id)).length;
   const all = count === files.length;
   const headerRef = useRef<HTMLInputElement>(null);
@@ -481,13 +491,13 @@ function FilesTable({ files, selected, onSelectedChange, onDelete, onDeleteSelec
   return (
     <>
       <div className='mb-3 flex min-h-9 flex-wrap items-center justify-between gap-2 text-sm text-muted'>
-        <span>{(count) ? `${count} selected` : 'Select files to delete several at once.'}</span>
+        <span>{(count) ? t('files.selected', {count: formatNumber(count)}) : t('files.select_hint')}</span>
         {(count) ? (
           <div className='flex gap-2'>
-            <button type='button' className='btn btn-sm btn-ghost' onClick={() => onSelectedChange(new Set())}>Clear</button>
+            <button type='button' className='btn btn-sm btn-ghost' onClick={() => onSelectedChange(new Set())}>{t('common.clear')}</button>
             <button type='button' className='btn btn-sm btn-danger' onClick={onDeleteSelected}>
               <Trash2 className='size-4'/>
-              Delete {count} {(count === 1) ? 'file' : 'files'}
+              {(count === 1) ? t('files.delete_one') : t('files.delete_other', {count: formatNumber(count)})}
             </button>
           </div>
         ) : null}
@@ -501,16 +511,16 @@ function FilesTable({ files, selected, onSelectedChange, onDelete, onDeleteSelec
                   ref={headerRef}
                   type='checkbox'
                   className='size-4 cursor-pointer accent-brand'
-                  aria-label='Select every file on this page'
+                  aria-label={t('files.select_all')}
                   checked={all}
                   onChange={() => onSelectedChange((all) ? new Set() : new Set(files.map((file) => file.id)))}
                 />
               </th>
-              <th scope='col' className='px-3 py-2.5 font-medium'>Name</th>
-              <th scope='col' className='w-24 px-3 py-2.5 font-medium'>Size</th>
-              <th scope='col' className='w-28 px-3 py-2.5 font-medium'>Uploaded</th>
-              <th scope='col' className='w-48 px-3 py-2.5 font-medium'>Link</th>
-              <th scope='col' className='w-28 px-3 py-2.5 font-medium'><span className='sr-only'>Actions</span></th>
+              <th scope='col' className='px-3 py-2.5 font-medium'>{t('files.col.name')}</th>
+              <th scope='col' className='w-24 px-3 py-2.5 font-medium'>{t('files.col.size')}</th>
+              <th scope='col' className='w-28 px-3 py-2.5 font-medium'>{t('files.col.uploaded')}</th>
+              <th scope='col' className='w-48 px-3 py-2.5 font-medium'>{t('files.col.link')}</th>
+              <th scope='col' className='w-28 px-3 py-2.5 font-medium'><span className='sr-only'>{t('files.col.actions')}</span></th>
             </tr>
           </thead>
           <tbody className='divide-y divide-line'>
@@ -520,7 +530,7 @@ function FilesTable({ files, selected, onSelectedChange, onDelete, onDeleteSelec
                   <input
                     type='checkbox'
                     className='size-4 cursor-pointer accent-brand'
-                    aria-label={`Select ${file.filename}`}
+                    aria-label={t('files.select', {name: file.filename})}
                     checked={selected.has(file.id)}
                     onChange={() => toggle(file.id)}
                   />

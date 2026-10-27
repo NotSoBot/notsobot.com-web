@@ -1,5 +1,6 @@
 import { useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
 
+import { useI18n } from '@/i18n';
 import { cn } from '@/lib/utils';
 
 
@@ -12,6 +13,7 @@ export function ImageComparison({ before, after, aspectRatio = 1, className }: {
   aspectRatio?: number,
   className?: string,
 }) {
+  const { t } = useI18n();
   const [ position, setPosition ] = useState(50);
   const [ dragging, setDragging ] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -47,7 +49,7 @@ export function ImageComparison({ before, after, aspectRatio = 1, className }: {
       ref={containerRef}
       role='slider'
       tabIndex={0}
-      aria-label='Before and after comparison'
+      aria-label={t('ui.comparison')}
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={Math.round(position)}
@@ -65,13 +67,13 @@ export function ImageComparison({ before, after, aspectRatio = 1, className }: {
     >
       {/* clipped too (not just covered by "before"), so it doesn't show through a transparent "before" */}
       <div className='absolute inset-0' style={{clipPath: `inset(0 0 0 ${position}%)`}}>
-        <img src={after} alt='After' draggable={false} className='size-full object-contain'/>
-        <span className='absolute top-2 right-2 rounded bg-black/70 px-2 py-1 text-xs text-white'>After</span>
+        <img src={after} alt={t('commands.preview.after')} draggable={false} className='size-full object-contain'/>
+        <span className='absolute top-2 right-2 rounded bg-black/70 px-2 py-1 text-xs text-white'>{t('commands.preview.after')}</span>
       </div>
 
       <div className='absolute inset-0' style={{clipPath: `inset(0 ${100 - position}% 0 0)`}}>
-        <img src={before} alt='Before' draggable={false} className='size-full object-contain'/>
-        <span className='absolute top-2 left-2 rounded bg-black/70 px-2 py-1 text-xs text-white'>Before</span>
+        <img src={before} alt={t('commands.preview.before')} draggable={false} className='size-full object-contain'/>
+        <span className='absolute top-2 left-2 rounded bg-black/70 px-2 py-1 text-xs text-white'>{t('commands.preview.before')}</span>
       </div>
 
       <div className='pointer-events-none absolute inset-y-0 w-0.5 bg-brand' style={{left: `${position}%`}}>

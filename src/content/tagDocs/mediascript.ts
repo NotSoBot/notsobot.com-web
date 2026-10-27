@@ -620,7 +620,8 @@ export const MEDIASCRIPT_GUIDE: Array<TagDocGuideSection> = [
         ['Threshold, Posterize, Blur', 'Yes', 'Matched to a Movie Maker render'],
         ['Brightness, Hue', 'Partly', 'Hue cycles every color through one hue like Movie Maker; both were matched to a single render and may be off at other settings'],
         ['Spin 360', 'Yes', 'Turns once and back to full size over the clip, from Movie Maker\'s own effect template'],
-        ['Edge Detection, Warp, Ripple, Cinematic', 'No', 'Skipped'],
+        ['Warp', 'Yes', 'Each row sways sideways along a wave that tightens and loosens over the clip, within a pixel of Movie Maker'],
+        ['Edge Detection, 3D Ripple, Cinematic', 'No', 'Skipped'],
         ['Transitions, captions and titles', 'No', 'Skipped'],
       ],
     },
@@ -778,7 +779,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
   {
     name: 'loadxyt',
     category: 'io',
-    summary: 'Loads a VivaVideo filter or fx template (.xyt) for `xytrender`.',
+    summary: 'Loads a VivaVideo filter, fx or frame template (.xyt) for `xytrender`.',
     syntax: 'loadxyt URL XYT_KEY',
     args: [
       {name: 'URL', description: 'link to the `.xyt` file, or `FILE_1`, `FILE_2`... for files attached to the tag'},
@@ -790,13 +791,13 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     notes: [
       'Files up to 16mb (or the script\'s download limit, if that\'s smaller), at most 10 per script, and they count toward the script\'s download limit.',
       'Xyt keys are separate from media keys. Loading the same link into the same key again (like inside `reexport`) is skipped.',
-      'Filter and fx templates work. Theme templates, templates with their own images and alpha frame effects aren\'t supported yet and fail to load.',
+      'Filter, fx and frame templates work. Theme templates, placeholder (`_dummy`) templates, shader effects with their own images and alpha frame effects aren\'t supported yet and fail to load.',
     ],
   },
   {
     name: 'xytrender',
     category: 'filters',
-    summary: 'Applies a VivaVideo template loaded by `loadxyt` with its own shaders.',
+    summary: 'Applies a VivaVideo template loaded by `loadxyt`: its own shaders, then its frames.',
     syntax: 'xytrender MEDIA_KEY XYT_KEY',
     args: [
       media(),
@@ -807,7 +808,8 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     ],
     notes: [
       'Images, gifs and videos stay what they are (a video keeps its audio). The template\'s keyframes play over the media\'s time, and a template that moves turns a still image into a gif of one play of it (at most 10 seconds).',
-      'A template whose shader doesn\'t compile errors with the compiler\'s message.',
+      'A frame template draws its pictures through their masks over the media, turned a quarter when they\'re portrait over landscape media (or the other way), fading in and out on their own cycles.',
+      'Shaders have to be GLSL ES 1.00 within its limits (counted loops, constant array indexes). One that isn\'t, or doesn\'t compile, errors with the reason.',
       'Outside of tags, the bot has the same thing as the `.xyt` command (the .xyt attached or its url first, then the media) and `/media-iv-filter xyt`.',
     ],
   },
@@ -1589,7 +1591,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
   {
     name: 'labelexcuse',
     category: 'text',
-    summary: 'Adds an "excuse me what the fuck" panel under the media.',
+    summary: 'Adds an "excuse me, what?" panel under the media.',
     syntax: 'labelexcuse MEDIA_KEY',
     args: [media()],
   },
@@ -2671,14 +2673,28 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
   {
     name: 'hueshifthsv',
     category: 'color',
-    summary: 'Shifts hue, saturation and brightness.',
+    summary: 'Shifts hue, saturation and brightness in HSV.',
     syntax: 'hueshifthsv MEDIA_KEY HUE=90 SATURATION=0 BRIGHTNESS=0',
     args: [
       media(),
       {name: 'HUE', default: '90', description: 'degrees to rotate the hue'},
-      {name: 'SATURATION', default: '0', description: 'saturation change'},
-      {name: 'BRIGHTNESS', default: '0', description: 'brightness change'},
+      {name: 'SATURATION', default: '0', description: 'saturation change in percent'},
+      {name: 'BRIGHTNESS', default: '0', description: 'brightness change in percent'},
     ],
+    notes: ['Lowering the saturation fades colors toward white (the gray of their brightest channel), raising the brightness keeps them colored. See `hueshifthsl` for the HSL version.'],
+  },
+  {
+    name: 'hueshifthsl',
+    category: 'color',
+    summary: 'Shifts hue, saturation and lightness in HSL.',
+    syntax: 'hueshifthsl MEDIA_KEY HUE=90 SATURATION=0 LIGHTNESS=0',
+    args: [
+      media(),
+      {name: 'HUE', default: '90', description: 'degrees to rotate the hue'},
+      {name: 'SATURATION', default: '0', description: 'saturation change in percent'},
+      {name: 'LIGHTNESS', default: '0', description: 'lightness change in percent'},
+    ],
+    notes: ['Lowering the saturation fades colors to gray, raising the lightness mixes them toward white. With only the hue changed it looks the same as `hueshifthsv`.'],
   },
   {
     name: 'hueshifthsvffmpeg',

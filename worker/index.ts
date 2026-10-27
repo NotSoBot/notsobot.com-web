@@ -16,8 +16,12 @@ import {
 } from '../src/lib/api/types';
 import { enabledCommandVariants } from '../src/lib/commandAvailability';
 import { commandTypeFromPath } from '../src/lib/commandPaths';
+import { DEFAULT_LANGUAGE, LANGUAGE_PREFIXES, languagePath, Languages, splitLanguagePath, type Language } from '../src/i18n/languages';
+import { Tags as SpanishTags } from '../src/i18n/locales/es/tags';
+import { Tags as PortugueseTags } from '../src/i18n/locales/pt/tags';
 import { Routes, TAG_ADD_PARAM, TAG_ADD_VALUE } from '../src/routes';
-import { NOT_FOUND_PAGE, PAGE_ALIASES, PAGES, pageTitle, SITE_NAME, type PageMeta } from '../src/seo';
+import { PAGE_ALIASES, PAGES, pageTitle, SITE_NAME, type PageKey, type PageMeta } from '../src/seo';
+import { localizedPage } from '../src/seoTranslations';
 
 
 interface Env {
@@ -35,6 +39,7 @@ interface Env {
 const UMAMI_SCRIPT_URL = 'https://oasis.notsobot.com/drink.js';
 
 interface Page {
+  key: PageKey,
   meta: PageMeta,
   // where the page really lives. null for paths with a `:param`, whose canonical url is the request's own path
   canonical: string | null,
@@ -52,19 +57,21 @@ function matcherFor(path: string): RegExp {
 // every path src/router.tsx renders a page (or redirect) for, from the same metadata the client uses.
 // anything else gets the not-found page and a 404, like the client-side `*` route
 const PAGE_LIST: Array<Page> = [
-  ...(Object.keys(PAGES) as Array<keyof typeof Routes>).map((key) => ({
+  ...(Object.keys(PAGES) as Array<PageKey>).map((key) => ({
+    key,
     meta: PAGES[key],
     canonical: (Routes[key].includes(':')) ? null : Routes[key],
     matcher: matcherFor(Routes[key]),
   })),
   ...Object.entries(PAGE_ALIASES).map(([ path, key ]) => ({
+    key,
     meta: PAGES[key],
     canonical: Routes[key],
     matcher: matcherFor(path),
   })),
 ];
 
-const SITEMAP_PATHS = (Object.keys(PAGES) as Array<keyof typeof Routes>)
+const SITEMAP_PATHS = (Object.keys(PAGES) as Array<PageKey>)
   .filter((key) => PAGES[key].index && !Routes[key].includes(':'))
   .map((key) => Routes[key]);
 
@@ -124,30 +131,143 @@ function scriptJson(value: unknown): string {
 }
 
 
-// same labels as src/pages/tags/tagDirectory.tsx, which can't be imported here (react)
-const TAG_CATEGORY_LABELS: Record<TagDirectoryCategory, string> = {
-  [TagDirectoryCategories.OTHER]: 'Other',
-  [TagDirectoryCategories.AI]: 'AI',
-  [TagDirectoryCategories.CLIPS]: 'Clips',
-  [TagDirectoryCategories.FILTERS]: 'Filters',
-  [TagDirectoryCategories.GAMES]: 'Games',
-  [TagDirectoryCategories.MEMES]: 'Memes',
-  [TagDirectoryCategories.UTILITY]: 'Utility',
-  [TagDirectoryCategories.LOGO_EDITING]: 'Logo Editing',
-};
+// The embeds' own words in each language. The tag labels match src/pages/tags/tagDirectory.tsx, which can't be
+// imported here (react), so English is repeated and the other languages come from the site's dictionaries.
+interface EmbedText {
+  tagCategories: Record<TagDirectoryCategory, string>,
+  verified: string,
+  pending: string,
+  unverified: string,
+  uses: (count: number) => string,
+  servers: (count: number) => string,
+  by: (username: string) => string,
+  // `tagShow` and `tagGet` are mentions or code
+  tagHowTo: (tagShow: string, tagGet: string, id: string) => string,
+  addToServer: string,
+  tagSiteName: string,
+  commandTypes: Record<CommandType, string>,
+  // the label before each way to run a command, then the context menu path to it
+  usage: {prefix: string, slash: string, userApp: string, messageApp: string, userMenu: string, messageMenu: string},
+  commandFallback: (type: string) => string,
+  commandSiteName: string,
+}
 
-const TAG_VERIFICATION_LABELS: Record<number, string> = {
-  [TagDirectoryVerificationStates.VERIFIED]: 'Verified',
-  [TagDirectoryVerificationStates.PENDING_VERIFICATION]: 'Pending Verification',
+function countOf(language: Language, count: number, one: string, other: string): string {
+  return `${count.toLocaleString((language === Languages.ENGLISH) ? 'en-US' : language)} ${(count === 1) ? one : other}`;
+}
+
+// a translated language's tag labels, straight from its dictionary
+function tagLabels(tags: Readonly<Record<keyof typeof SpanishTags, string>>): Pick<EmbedText, 'tagCategories' | 'verified' | 'pending' | 'unverified'> {
+  return {
+    tagCategories: {
+      [TagDirectoryCategories.OTHER]: tags['tag_category.other'],
+      [TagDirectoryCategories.AI]: tags['tag_category.ai'],
+      [TagDirectoryCategories.CLIPS]: tags['tag_category.clips'],
+      [TagDirectoryCategories.FILTERS]: tags['tag_category.filters'],
+      [TagDirectoryCategories.GAMES]: tags['tag_category.games'],
+      [TagDirectoryCategories.MEMES]: tags['tag_category.memes'],
+      [TagDirectoryCategories.UTILITY]: tags['tag_category.utility'],
+      [TagDirectoryCategories.LOGO_EDITING]: tags['tag_category.logo-editing'],
+    },
+    verified: tags['tags.verified'],
+    pending: tags['tags.pending'],
+    unverified: tags['tags.unverified'],
+  };
+}
+
+const EMBED_TEXT: Readonly<Record<Language, EmbedText>> = {
+  [Languages.ENGLISH]: {
+    tagCategories: {
+      [TagDirectoryCategories.OTHER]: 'Other',
+      [TagDirectoryCategories.AI]: 'AI',
+      [TagDirectoryCategories.CLIPS]: 'Clips',
+      [TagDirectoryCategories.FILTERS]: 'Filters',
+      [TagDirectoryCategories.GAMES]: 'Games',
+      [TagDirectoryCategories.MEMES]: 'Memes',
+      [TagDirectoryCategories.UTILITY]: 'Utility',
+      [TagDirectoryCategories.LOGO_EDITING]: 'Logo Editing',
+    },
+    verified: 'Verified',
+    pending: 'Pending Verification',
+    unverified: 'Unverified',
+    uses: (count) => countOf(Languages.ENGLISH, count, 'use', 'uses'),
+    servers: (count) => countOf(Languages.ENGLISH, count, 'server', 'servers'),
+    by: (username) => `by ${username}`,
+    tagHowTo: (tagShow, tagGet, id) => `-# Run ${tagShow} to try it or ${tagGet} to add it with \`${id}\`, or`,
+    addToServer: 'Add to Server',
+    tagSiteName: `${SITE_NAME} Tag Directory`,
+    commandTypes: {
+      [CommandTypes.PREFIXED]: 'Prefix command',
+      [CommandTypes.APPLICATION_SLASH]: 'Slash command',
+      [CommandTypes.APPLICATION_MENU_USER]: 'User context menu',
+      [CommandTypes.APPLICATION_MENU_MESSAGE]: 'Message context menu',
+    },
+    usage: {
+      prefix: 'Prefix',
+      slash: 'Slash',
+      userApp: 'User app',
+      messageApp: 'Message app',
+      userMenu: 'right-click a user → Apps →',
+      messageMenu: 'right-click a message → Apps →',
+    },
+    commandFallback: (type) => `A NotSoBot ${type.toLowerCase()}.`,
+    commandSiteName: `${SITE_NAME} Commands`,
+  },
+  [Languages.SPANISH]: {
+    ...tagLabels(SpanishTags),
+    uses: (count) => countOf(Languages.SPANISH, count, 'uso', 'usos'),
+    servers: (count) => countOf(Languages.SPANISH, count, 'servidor', 'servidores'),
+    by: (username) => `de ${username}`,
+    tagHowTo: (tagShow, tagGet, id) => `-# Usa ${tagShow} para probarlo o ${tagGet} para añadirlo con \`${id}\`, o`,
+    addToServer: 'Añadir al servidor',
+    tagSiteName: `Directorio de tags de ${SITE_NAME}`,
+    commandTypes: {
+      [CommandTypes.PREFIXED]: 'Comando con prefijo',
+      [CommandTypes.APPLICATION_SLASH]: 'Comando de barra',
+      [CommandTypes.APPLICATION_MENU_USER]: 'Menú contextual de usuario',
+      [CommandTypes.APPLICATION_MENU_MESSAGE]: 'Menú contextual de mensaje',
+    },
+    usage: {
+      prefix: 'Prefijo',
+      slash: 'Barra',
+      userApp: 'App de usuario',
+      messageApp: 'App de mensaje',
+      userMenu: 'clic derecho en un usuario → Aplicaciones →',
+      messageMenu: 'clic derecho en un mensaje → Aplicaciones →',
+    },
+    commandFallback: (type) => `Un ${type.charAt(0).toLowerCase()}${type.slice(1)} de ${SITE_NAME}.`,
+    commandSiteName: `Comandos de ${SITE_NAME}`,
+  },
+  [Languages.PORTUGUESE]: {
+    ...tagLabels(PortugueseTags),
+    uses: (count) => countOf(Languages.PORTUGUESE, count, 'uso', 'usos'),
+    servers: (count) => countOf(Languages.PORTUGUESE, count, 'servidor', 'servidores'),
+    by: (username) => `por ${username}`,
+    tagHowTo: (tagShow, tagGet, id) => `-# Use ${tagShow} para testar ou ${tagGet} para adicionar com \`${id}\`, ou`,
+    addToServer: 'Adicionar ao servidor',
+    tagSiteName: `Diretório de tags do ${SITE_NAME}`,
+    commandTypes: {
+      [CommandTypes.PREFIXED]: 'Comando com prefixo',
+      [CommandTypes.APPLICATION_SLASH]: 'Comando de barra',
+      [CommandTypes.APPLICATION_MENU_USER]: 'Menu de contexto de usuário',
+      [CommandTypes.APPLICATION_MENU_MESSAGE]: 'Menu de contexto de mensagem',
+    },
+    usage: {
+      prefix: 'Prefixo',
+      slash: 'Barra',
+      userApp: 'App de usuário',
+      messageApp: 'App de mensagem',
+      userMenu: 'botão direito num usuário → Apps →',
+      messageMenu: 'botão direito numa mensagem → Apps →',
+    },
+    commandFallback: (type) => `Um ${type.charAt(0).toLowerCase()}${type.slice(1)} do ${SITE_NAME}.`,
+    commandSiteName: `Comandos do ${SITE_NAME}`,
+  },
 };
 
 // discord cuts embed descriptions off around here anyway, this keeps the stats line after it visible
 const EMBED_DESCRIPTION_MAX_LENGTH = 280;
 
-
-function plural(count: number, word: string): string {
-  return `${count.toLocaleString('en-US')} ${word}${(count === 1) ? '' : 's'}`;
-}
 
 function truncate(value: string, length: number): string {
   return (value.length <= length) ? value : `${value.slice(0, length - 1).trimEnd()}…`;
@@ -190,16 +310,22 @@ async function fetchTagDirectoryItem(env: Env, tagId: string): Promise<TagDirect
 // a mention is null while the bot hasn't uploaded that command's id, it's plain text then
 function tagEmbed(
   env: Env,
+  language: Language,
   item: TagDirectoryItem,
   mentions: {tagGet: string | null, tagShow: string | null},
 ): Embed {
   const { tag } = item;
+  const words = EMBED_TEXT[language];
+  const verification: Record<number, string> = {
+    [TagDirectoryVerificationStates.VERIFIED]: words.verified,
+    [TagDirectoryVerificationStates.PENDING_VERIFICATION]: words.pending,
+  };
   const stats = [
-    TAG_VERIFICATION_LABELS[item.verified] ?? 'Unverified',
-    TAG_CATEGORY_LABELS[item.category] ?? TAG_CATEGORY_LABELS[TagDirectoryCategories.OTHER],
-    plural(tag.uses, 'use'),
-    plural(item.server_count, 'server'),
-    `by ${tag.user.username}`,
+    verification[item.verified] ?? words.unverified,
+    words.tagCategories[item.category] ?? words.tagCategories[TagDirectoryCategories.OTHER],
+    words.uses(tag.uses),
+    words.servers(item.server_count),
+    words.by(tag.user.username),
   ];
   if (tag.nsfw) {
     stats.unshift('NSFW');
@@ -224,7 +350,7 @@ function tagEmbed(
   }
   text.push({type: 10, content: `-# ${escapeMarkdown(stats.join(' · '))}`});
 
-  const addUrl = new URL(Routes.TAG_DIRECTORY_ITEM.replace(':tagId', item.id), `https://${env.SITE_DOMAIN}`);
+  const addUrl = new URL(languagePath(language, Routes.TAG_DIRECTORY_ITEM.replace(':tagId', item.id)), `https://${env.SITE_DOMAIN}`);
   addUrl.searchParams.set(TAG_ADD_PARAM, TAG_ADD_VALUE);
 
   const components: DiscordContainer = {
@@ -238,9 +364,9 @@ function tagEmbed(
         type: 9,
         components: [{
           type: 10,
-          content: `-# Run ${mentions.tagShow ?? '`/tag show`'} to try it or ${mentions.tagGet ?? '`/tag get`'} to add it with \`${item.id}\`, or`,
+          content: words.tagHowTo(mentions.tagShow ?? '`/tag show`', mentions.tagGet ?? '`/tag get`', item.id),
         }],
-        accessory: {type: 2, style: 5, label: 'Add to Server', url: addUrl.toString()},
+        accessory: {type: 2, style: 5, label: words.addToServer, url: addUrl.toString()},
       },
     ],
   };
@@ -249,7 +375,7 @@ function tagEmbed(
       title: (title) ? `${tag.name} — ${title}` : tag.name,
       description: [ (description) ? truncate(description, EMBED_DESCRIPTION_MAX_LENGTH) : null, stats.join(' · ') ].filter(Boolean).join('\n\n'),
     },
-    siteName: `${SITE_NAME} Tag Directory`,
+    siteName: words.tagSiteName,
     image,
     components,
   };
@@ -262,13 +388,6 @@ const COMMAND_NAME_PREFIXES: Record<CommandType, string> = {
   [CommandTypes.APPLICATION_SLASH]: '/',
   [CommandTypes.APPLICATION_MENU_USER]: '',
   [CommandTypes.APPLICATION_MENU_MESSAGE]: '',
-};
-
-const COMMAND_TYPE_LABELS: Record<CommandType, string> = {
-  [CommandTypes.PREFIXED]: 'Prefix command',
-  [CommandTypes.APPLICATION_SLASH]: 'Slash command',
-  [CommandTypes.APPLICATION_MENU_USER]: 'User context menu',
-  [CommandTypes.APPLICATION_MENU_MESSAGE]: 'Message context menu',
 };
 
 
@@ -306,14 +425,15 @@ function slashCommandMention(command: Command | undefined): string | null {
 
 
 // how to run one variant, labelled so it's clear they're all the same command under different names
-function commandUsage(metadata: CommandMetadata): string {
+function commandUsage(language: Language, metadata: CommandMetadata): string {
   const name = escapeMarkdown(metadata.name);
+  const { usage } = EMBED_TEXT[language];
   switch (metadata.type) {
     // with its arguments, like `.caption ?<emoji,user:id|mention,url> <...text>`. usage never has a backtick in it
-    case CommandTypes.PREFIXED: return `**Prefix** \`${[ `.${metadata.name}`, metadata.usage.trim() ].filter(Boolean).join(' ')}\``;
-    case CommandTypes.APPLICATION_SLASH: return `**Slash** ${mentionFor(metadata) ?? `\`/${metadata.name}\``}`;
-    case CommandTypes.APPLICATION_MENU_USER: return `**User app** right-click a user → Apps → ${name}`;
-    case CommandTypes.APPLICATION_MENU_MESSAGE: return `**Message app** right-click a message → Apps → ${name}`;
+    case CommandTypes.PREFIXED: return `**${usage.prefix}** \`${[ `.${metadata.name}`, metadata.usage.trim() ].filter(Boolean).join(' ')}\``;
+    case CommandTypes.APPLICATION_SLASH: return `**${usage.slash}** ${mentionFor(metadata) ?? `\`/${metadata.name}\``}`;
+    case CommandTypes.APPLICATION_MENU_USER: return `**${usage.userApp}** ${usage.userMenu} ${name}`;
+    case CommandTypes.APPLICATION_MENU_MESSAGE: return `**${usage.messageApp}** ${usage.messageMenu} ${name}`;
   }
 }
 
@@ -332,7 +452,9 @@ async function fetchCommandMetadata(env: Env, commandId: string, slug: string | 
 }
 
 
-function commandEmbed(command: Command, metadata: CommandMetadata): Embed {
+// the description comes from the api, in English
+function commandEmbed(language: Language, command: Command, metadata: CommandMetadata): Embed {
+  const words = EMBED_TEXT[language];
   const name = `${COMMAND_NAME_PREFIXES[metadata.type]}${metadata.name}`;
   const description = metadata.description?.trim() || '';
 
@@ -342,11 +464,11 @@ function commandEmbed(command: Command, metadata: CommandMetadata): Embed {
   }
   // every way to run it, whichever variant the link is for: prefix, then slash, then the context menus
   const variants = enabledCommandVariants(command).sort((x, y) => x.type - y.type);
-  text.push({type: 10, content: variants.map((variant) => `-# ${commandUsage(variant)}`).join('\n')});
+  text.push({type: 10, content: variants.map((variant) => `-# ${commandUsage(language, variant)}`).join('\n')});
 
   return {
-    meta: {title: name, description: description || `A NotSoBot ${COMMAND_TYPE_LABELS[metadata.type].toLowerCase()}.`},
-    siteName: `${SITE_NAME} Commands`,
+    meta: {title: name, description: description || words.commandFallback(words.commandTypes[metadata.type])},
+    siteName: words.commandSiteName,
     image: null,
     components: {type: 17, accent_color: EMBED_ACCENT_COLOR, components: text},
   };
@@ -361,9 +483,27 @@ function renderRobots(env: Env): string {
 }
 
 
+const LANGUAGES = Object.keys(LANGUAGE_PREFIXES) as Array<Language>;
+
+// every language's copy of a page, plus x-default (English, the site's root) for visitors whose language isn't one
+function alternateUrls(env: Env, path: string): Array<[string, string]> {
+  return [
+    ...LANGUAGES.map((language): [string, string] => [language, `https://${env.SITE_DOMAIN}${languagePath(language, path)}`]),
+    ['x-default', `https://${env.SITE_DOMAIN}${path}`],
+  ];
+}
+
+// each page once per language, each entry listing the others so search engines know they're translations
 function renderSitemap(env: Env): string {
-  const urls = SITEMAP_PATHS.map((path) => `<url><loc>${escapeHtml(`https://${env.SITE_DOMAIN}${path}`)}</loc></url>`);
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.join('')}</urlset>\n`;
+  const urls = SITEMAP_PATHS.flatMap((path) => {
+    const alternates = alternateUrls(env, path).map(([ hreflang, href ]) => {
+      return `<xhtml:link rel="alternate" hreflang="${hreflang}" href="${escapeHtml(href)}"/>`;
+    }).join('');
+    return LANGUAGES.map((language) => {
+      return `<url><loc>${escapeHtml(`https://${env.SITE_DOMAIN}${languagePath(language, path)}`)}</loc>${alternates}</url>`;
+    });
+  });
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">${urls.join('')}</urlset>\n`;
 }
 
 
@@ -412,9 +552,14 @@ export default {
       return new Response(renderSitemap(env), {headers: {'content-type': 'application/xml; charset=utf-8', 'cache-control': 'public, max-age=3600'}});
     }
 
+    // `/es/premium` is the Spanish copy of `/premium`, everything below works on the path without the prefix
+    const split = splitLanguagePath(url.pathname);
+    const language = split.language ?? DEFAULT_LANGUAGE;
+    const path = split.path;
+
     // anything else that looks like a file is served as-is, unless it's a page: command ids have dots in them
     // (/commands/media.iv.manipulation.caption)
-    const page = findPage(url.pathname);
+    const page = findPage(path);
     if ((!page && /\.[a-z0-9]+$/i.test(url.pathname)) || (request.method !== 'GET' && request.method !== 'HEAD')) {
       return env.ASSETS.fetch(request);
     }
@@ -425,17 +570,17 @@ export default {
       return shell;
     }
 
-    const fallback: Embed = {meta: page?.meta ?? NOT_FOUND_PAGE, siteName: SITE_NAME, image: null, components: null};
+    const fallback: Embed = {meta: localizedPage(page?.key ?? 'NOT_FOUND', language), siteName: SITE_NAME, image: null, components: null};
     let embed = fallback;
     // the path's segments after the page's own, like the tag id in /tags/directory/:tagId
-    const segments = url.pathname.replace(/\/+$/, '').split('/');
+    const segments = path.replace(/\/+$/, '').split('/');
     // api responses aren't validated, so one in an unexpected shape throws here. the page still renders, with the
     // generic embed
     try {
       if (page?.meta === PAGES.TAG_DIRECTORY_ITEM) {
         const [ item, commands ] = await Promise.all([ fetchTagDirectoryItem(env, segments[3] ?? ''), fetchCommands(env) ]);
         if (item) {
-          embed = tagEmbed(env, item, {
+          embed = tagEmbed(env, language, item, {
             tagGet: slashCommandMention(commands?.find((command) => command.id === TAG_GET_COMMAND_ID)),
             tagShow: slashCommandMention(commands?.find((command) => command.id === TAG_SHOW_COMMAND_ID)),
           });
@@ -449,7 +594,7 @@ export default {
         }
         const found = await fetchCommandMetadata(env, commandId, segments[3]);
         if (found) {
-          embed = commandEmbed(...found);
+          embed = commandEmbed(language, ...found);
         }
       }
     } catch (error) {
@@ -459,8 +604,9 @@ export default {
     const { meta, image } = embed;
     const indexable = (env.ALLOW_INDEXING === 'true') && Boolean(page?.meta.index);
     // always the main domain (not www.) and the real path (not a redirect like /privacy), so duplicates don't split
-    // search ranking. the not-found page gets none
-    const canonical = (page) ? `https://${env.SITE_DOMAIN}${page.canonical ?? url.pathname.replace(/\/+$/, '')}` : null;
+    // search ranking. each language is its own page, so its canonical keeps the prefix. the not-found page gets none
+    const canonicalPath = (page) ? (page.canonical ?? (path.replace(/\/+$/, '') || '/')) : null;
+    const canonical = (canonicalPath) ? `https://${env.SITE_DOMAIN}${languagePath(language, canonicalPath)}` : null;
 
     // `name` for regular and twitter tags, `property` for open graph ones (facebook/linkedin ignore `name="og:*"`)
     const metatags: Array<['name' | 'property', string, string]> = [
@@ -484,8 +630,11 @@ export default {
     let head = metatags.map(([ attribute, key, content ]) => {
       return `<meta ${attribute}="${escapeHtml(key)}" content="${escapeHtml(content)}"/>`;
     }).join('');
-    if (canonical) {
+    if (canonical && canonicalPath) {
       head += `<link rel="canonical" href="${escapeHtml(canonical)}"/>`;
+      for (const [ hreflang, href ] of alternateUrls(env, canonicalPath)) {
+        head += `<link rel="alternate" hreflang="${hreflang}" href="${escapeHtml(href)}"/>`;
+      }
     }
     // discord would drop an oversized one anyway, the og tags are used instead
     const componentEmbed = (embed.components) ? scriptJson({component: embed.components}) : null;
@@ -498,6 +647,7 @@ export default {
     }
 
     const response = new HTMLRewriter()
+      .on('html', {element: (element) => { element.setAttribute('lang', language); }})
       .on('meta[name="description"]', {element: (element) => { element.remove(); }})
       .on('meta[name="theme-color"]', {element: (element) => { element.setAttribute('content', THEME_COLOR); }})
       // setInnerContent escapes text by default

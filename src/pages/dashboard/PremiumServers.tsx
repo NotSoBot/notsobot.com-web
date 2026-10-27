@@ -13,6 +13,7 @@ import { SearchInput } from '@/components/ui/SearchInput';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
 import { Routes } from '@/config';
+import { translate, useI18n } from '@/i18n';
 import type { PremiumServer, UserGuildSummary } from '@/lib/api';
 import {
   errorMessage,
@@ -23,7 +24,7 @@ import {
   useMePremiumServersQuery,
   usePutMePremiumServerMutation,
 } from '@/lib/api/dashboardQueries';
-import { formatDate, formatExactDateTime, toDate } from '@/lib/utils';
+import { formatDate, formatExactDateTime, formatNumber, toDate } from '@/lib/utils';
 
 import { Chip } from './admin/adminUi';
 import { hasPremiumPlusAI } from './premium';
@@ -41,13 +42,14 @@ const SERVER_AI_MESSAGES_PER_SLOT = 50;
 
 
 function serverName(server: PremiumServer): string {
-  return server.guild?.name || ((server.guild) ? 'Unknown server' : 'Group DM or unknown server');
+  return server.guild?.name || translate((server.guild) ? 'pservers.unknown' : 'pservers.unknown_dm');
 }
 
 
 export function PremiumServers() {
   const { data, isPending, isError, error, isRefetching, refetch } = useMePremiumServersQuery();
   const { user } = useAuth();
+  const { t, rich, plural } = useI18n();
   const toast = useToast();
   const remove = useDeleteMePremiumServerMutation();
   const stack = usePutMePremiumServerMutation();
@@ -65,7 +67,7 @@ export function PremiumServers() {
     }
     remove.mutate(removing.server_id, {
       onSuccess: () => {
-        toast((1 < removing.slots) ? 'Took one of your slots off of that server' : 'Premium taken off of that server');
+        toast(t((1 < removing.slots) ? 'pservers.slot_removed' : 'pservers.removed'));
         setRemoving(null);
       },
     });
@@ -73,8 +75,8 @@ export function PremiumServers() {
 
   const addSlot = (server: PremiumServer) => {
     stack.mutate(server.server_id, {
-      onSuccess: () => toast(`${serverName(server)} has ${server.slots + 1} of your slots now`),
-      onError: (stackError) => toast(errorMessage(stackError, 'Couldn’t add another slot.'), 'error'),
+      onSuccess: () => toast(t('pservers.stacked', {name: serverName(server), count: server.slots + 1})),
+      onError: (stackError) => toast(errorMessage(stackError, t('pservers.stack_error')), 'error'),
     });
   };
 
@@ -82,17 +84,16 @@ export function PremiumServers() {
     <section className='mt-8'>
       <div className='mb-3 flex flex-wrap items-end justify-between gap-3'>
         <div>
-          <h2 className='section-label'>Servers with your premium</h2>
+          <h2 className='section-label'>{t('pservers.title')}</h2>
           <p className='mt-1 text-sm text-subtle'>
             {(data?.limit === null) ? (
-              'As an owner, you can give as many servers as you want your premium perks.'
-            ) : (
-              `NotSoPremium Plus gives you ${(data) ? data.limit.toLocaleString() : 'a couple of'} premium server slots.`
-            )}
-            {' '}Owning a server doesn’t give it premium, so give it one of yours. With Plus AI you can stack slots on one server,
-            each adds {SERVER_AI_MESSAGES_PER_SLOT} NotSoAI messages every 12 hours.
+              t('pservers.owner')
+            ) : (data) ? (
+              t('pservers.slots', {count: formatNumber(data.limit)})
+            ) : t('pservers.slots_unknown')}
+            {' '}{t('pservers.explain', {messages: SERVER_AI_MESSAGES_PER_SLOT})}
             {' '}
-            <Link to={`${Routes.PREMIUM}#premium-servers`} className='text-brand hover:underline'>See what a server gets</Link>
+            <Link to={`${Routes.PREMIUM}#premium-servers`} className='text-brand hover:underline'>{t('pservers.see_what')}</Link>
           </p>
         </div>
         {(data?.active) ? (
@@ -100,11 +101,11 @@ export function PremiumServers() {
             type='button'
             className='btn btn-sm btn-primary'
             disabled={full}
-            title={(full) ? 'All of your slots are in use, remove one first' : undefined}
+            title={(full) ? t('pservers.full') : undefined}
             onClick={() => setAdding(true)}
           >
             <Plus className='size-4'/>
-            Add server
+            {t('pservers.add')}
           </button>
         ) : null}
       </div>
@@ -112,29 +113,25 @@ export function PremiumServers() {
       {(isPending) ? (
         <ListSkeleton/>
       ) : (isError) ? (
-        <ErrorPanel title='Couldn’t load your servers' message={errorMessage(error)} onRetry={() => refetch()} retrying={isRefetching}/>
+        <ErrorPanel title={t('pservers.load_error')} message={errorMessage(error)} onRetry={() => refetch()} retrying={isRefetching}/>
       ) : (
         <>
           {(!data.active) ? (
             <p className='mb-3 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-fg'>
-              {(items.length) ? (
-                'You don’t have NotSoPremium Plus right now, so these servers aren’t getting anything until you do.'
-              ) : (
-                'Server slots come with NotSoPremium Plus and Plus AI.'
-              )}
+              {t((items.length) ? 'pservers.inactive' : 'pservers.needs_plus')}
             </p>
           ) : null}
           {(!items.length) ? (
-            <EmptyState icon={<Server className='size-10'/>} title='No servers yet'>
+            <EmptyState icon={<Server className='size-10'/>} title={t('pservers.empty')}>
               {(data.active) ? (
-                <>Add one here, or use <code className='text-fg'>/settings premium-servers add</code> in the server (or group DM).</>
+                rich('pservers.empty_active', {code: (chunk) => <code className='text-fg'>{chunk}</code>})
               ) : (
-                'Subscribe in Discord to give servers your premium.'
+                t('pservers.empty_inactive')
               )}
             </EmptyState>
           ) : (
             <>
-              <p className='mb-3 text-sm text-subtle'>{data.used.toLocaleString()} {(data.limit === null) ? '' : `of ${data.limit.toLocaleString()} `}slots used</p>
+              <p className='mb-3 text-sm text-subtle'>{(data.limit === null) ? t('pservers.used', {used: formatNumber(data.used)}) : t('pservers.used_of', {used: formatNumber(data.used), limit: formatNumber(data.limit)})}</p>
               <ul className='card divide-y divide-line'>
                 {items.map((server) => (
                   <ServerRow
@@ -159,15 +156,15 @@ export function PremiumServers() {
 
       {(removing) ? (
         <ConfirmDialog
-          title={(1 < removing.slots) ? `Take one of your slots off of ${serverName(removing)}?` : `Take your premium off of ${serverName(removing)}?`}
+          title={t((1 < removing.slots) ? 'pservers.remove_slot_title' : 'pservers.remove_title', {name: serverName(removing)})}
           description={(1 < removing.slots) ? (
-            `It keeps your other ${(removing.slots === 2) ? 'slot' : 'slots'}, but gets ${SERVER_AI_MESSAGES_PER_SLOT} fewer NotSoAI messages every 12 hours.`
+            plural('pservers.remove_slot_description', removing.slots - 1, {messages: SERVER_AI_MESSAGES_PER_SLOT})
           ) : (
-            'It loses your premium perks right away. You can give your slot to another server after.'
+            t('pservers.remove_description')
           )}
-          confirmLabel='Remove'
+          confirmLabel={t('common.remove')}
           pending={remove.isPending}
-          error={(remove.isError) ? errorMessage(remove.error, 'Couldn’t remove the server.') : null}
+          error={(remove.isError) ? errorMessage(remove.error, t('pservers.remove_error')) : null}
           onConfirm={confirmRemove}
           onClose={() => {
             remove.reset();
@@ -187,6 +184,7 @@ function ServerRow({ server, active, onStack, stacking, onRemove }: {
   stacking: boolean,
   onRemove: () => void,
 }) {
+  const { t } = useI18n();
   const name = serverName(server);
   // the lock only matters while they have premium plus, the api lets them remove it any time otherwise
   const locked = active && Date.now() < toDate(server.removable_at).getTime();
@@ -204,20 +202,20 @@ function ServerRow({ server, active, onStack, stacking, onRemove }: {
         <div className='flex flex-wrap items-center gap-2'>
           <span className='truncate font-medium text-white'>{name}</span>
           {(1 < server.slots) ? (
-            <Chip tone='brand' className='gap-1' title={`${server.slots * SERVER_AI_MESSAGES_PER_SLOT} NotSoAI messages every 12 hours from your slots`}>
+            <Chip tone='brand' className='gap-1' title={t('pservers.slot_messages', {messages: server.slots * SERVER_AI_MESSAGES_PER_SLOT})}>
               <Layers aria-hidden className='size-3'/>
-              {server.slots} slots
+              {t('pservers.slot_count', {count: server.slots})}
             </Chip>
           ) : null}
           {(locked) ? (
-            <Chip className='gap-1' title={`Servers are locked in for ${LOCK_HOURS} hours after getting your premium`}>
+            <Chip className='gap-1' title={t('pservers.locked_title', {hours: LOCK_HOURS})}>
               <Lock aria-hidden className='size-3'/>
-              Locked until {formatDate(server.removable_at, LOCK_FORMAT)}
+              {t('pservers.locked', {date: formatDate(server.removable_at, LOCK_FORMAT)})}
             </Chip>
           ) : null}
         </div>
         <div className='mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-subtle'>
-          <span title={formatExactDateTime(server.created)}>Added {formatDate(server.created)}</span>
+          <span title={formatExactDateTime(server.created)}>{t('pservers.added', {date: formatDate(server.created)})}</span>
           <span className='font-mono'>{server.server_id}</span>
         </div>
       </div>
@@ -226,24 +224,24 @@ function ServerRow({ server, active, onStack, stacking, onRemove }: {
           type='button'
           className='btn btn-sm btn-secondary shrink-0'
           disabled={stacking}
-          title={`Stack another slot here for ${SERVER_AI_MESSAGES_PER_SLOT} more NotSoAI messages every 12 hours`}
+          title={t('pservers.stack_title', {messages: SERVER_AI_MESSAGES_PER_SLOT})}
           onClick={onStack}
-          aria-label={`Add another slot to ${name}`}
+          aria-label={t('pservers.stack_label', {name})}
         >
           {(stacking) ? <Spinner className='size-4'/> : <Layers className='size-4'/>}
-          <span className='hidden sm:inline'>Add slot</span>
+          <span className='hidden sm:inline'>{t('pservers.add_slot')}</span>
         </button>
       ) : null}
       <button
         type='button'
         className='btn btn-sm btn-secondary shrink-0'
         disabled={locked}
-        title={(locked) ? `Can be removed ${formatDate(server.removable_at)}` : undefined}
+        title={(locked) ? t('pservers.removable', {date: formatDate(server.removable_at)}) : undefined}
         onClick={onRemove}
-        aria-label={`Remove ${name}`}
+        aria-label={t('pservers.remove_label', {name})}
       >
         <Trash2 className='size-4'/>
-        <span className='hidden sm:inline'>Remove</span>
+        <span className='hidden sm:inline'>{t('common.remove')}</span>
       </button>
     </li>
   );
@@ -251,6 +249,7 @@ function ServerRow({ server, active, onStack, stacking, onRemove }: {
 
 
 function AddServerDialog({ taken, onClose }: {taken: Array<string>, onClose: () => void}) {
+  const { t } = useI18n();
   const titleId = useId();
   const toast = useToast();
   const guilds = useMeGuildsQuery();
@@ -269,7 +268,7 @@ function AddServerDialog({ taken, onClose }: {taken: Array<string>, onClose: () 
     setPendingId(guild.id);
     put.mutate(guild.id, {
       onSuccess: () => {
-        toast(`${guild.name} has your premium now`);
+        toast(t('pservers.given', {name: guild.name}));
         onClose();
       },
       onSettled: () => setPendingId(null),
@@ -279,14 +278,14 @@ function AddServerDialog({ taken, onClose }: {taken: Array<string>, onClose: () 
   return (
     <Modal labelledBy={titleId} onClose={() => !put.isPending && onClose()} className='max-w-lg'>
       <div className='p-5 sm:p-6'>
-        <h2 id={titleId} className='pr-10 text-lg font-semibold text-white'>Give a server your premium</h2>
+        <h2 id={titleId} className='pr-10 text-lg font-semibold text-white'>{t('pservers.dialog_title')}</h2>
         <p className='mt-2 text-sm text-muted'>
-          Servers you share with NotSoBot. Once added, a server can’t be removed for {LOCK_HOURS} hours.
+          {t('pservers.dialog_description', {hours: LOCK_HOURS})}
         </p>
 
         {(put.isError) ? (
           <p role='alert' className='mt-4 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-fg'>
-            {errorMessage(put.error, 'Couldn’t give that server your premium.')}
+            {errorMessage(put.error, t('pservers.give_error'))}
           </p>
         ) : null}
 
@@ -300,13 +299,13 @@ function AddServerDialog({ taken, onClose }: {taken: Array<string>, onClose: () 
           ) : (isDiscordGrantError(guilds.error)) ? (
             <ScopeMismatchCard reason='grant'/>
           ) : (guilds.isError) ? (
-            <ErrorPanel title='Couldn’t load your servers' message={errorMessage(guilds.error)} onRetry={() => guilds.refetch()} retrying={guilds.isRefetching}/>
+            <ErrorPanel title={t('pservers.load_error')} message={errorMessage(guilds.error)} onRetry={() => guilds.refetch()} retrying={guilds.isRefetching}/>
           ) : (
             <>
-              <SearchInput value={query} onValueChange={setQuery} placeholder='Search your servers' size='sm' aria-label='Search your servers'/>
+              <SearchInput value={query} onValueChange={setQuery} placeholder={t('pservers.search')} size='sm' aria-label={t('pservers.search')}/>
               {(!available.length) ? (
                 <p className='mt-4 text-center text-sm text-subtle'>
-                  {(query) ? 'No servers match that.' : 'Every server you share with NotSoBot already has your premium.'}
+                  {t((query) ? 'pservers.no_match' : 'pservers.all_have')}
                 </p>
               ) : (
                 <ul className='mt-3 max-h-80 divide-y divide-line overflow-y-auto rounded-md border border-line'>
@@ -321,7 +320,7 @@ function AddServerDialog({ taken, onClose }: {taken: Array<string>, onClose: () 
                         onClick={() => add(guild)}
                       >
                         {(pendingId === guild.id) ? <Spinner className='size-4'/> : null}
-                        Give premium
+                        {t('pservers.give')}
                       </button>
                     </li>
                   ))}

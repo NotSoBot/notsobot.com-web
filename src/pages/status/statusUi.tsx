@@ -2,14 +2,15 @@ import { useMatch, useNavigate } from 'react-router';
 
 import { Segmented } from '@/components/ui/Segmented';
 import { Routes } from '@/config';
+import { useI18n, type TranslationKey } from '@/i18n';
 import { cn } from '@/lib/utils';
 
 
 type StatusView = 'shards' | 'voice';
 
-const VIEW_OPTIONS: Array<{value: StatusView, label: string}> = [
-  {value: 'shards', label: 'Shards'},
-  {value: 'voice', label: 'Voice Nodes'},
+const VIEW_OPTIONS: Array<{value: StatusView, label: TranslationKey}> = [
+  {value: 'shards', label: 'status.shards'},
+  {value: 'voice', label: 'status.voice_nodes'},
 ];
 
 const VIEW_PATHS: Readonly<Record<StatusView, string>> = {
@@ -20,14 +21,15 @@ const VIEW_PATHS: Readonly<Record<StatusView, string>> = {
 
 // the status pages' switcher, like the docs' TagScript/MediaScript one
 export function StatusSwitcher() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const view: StatusView = (useMatch(Routes.STATUS_VOICE)) ? 'voice' : 'shards';
   return (
     <div className='mb-6 flex justify-center'>
       <Segmented
-        label='Status'
+        label={t('status.label')}
         value={view}
-        options={VIEW_OPTIONS}
+        options={VIEW_OPTIONS.map((option) => ({value: option.value, label: t(option.label)}))}
         onChange={(value) => {
           navigate(VIEW_PATHS[value as StatusView], {replace: true});
           window.scrollTo({top: 0});

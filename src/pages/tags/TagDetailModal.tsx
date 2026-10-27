@@ -2,17 +2,18 @@ import { AlertTriangle, BarChart3, Calendar, ChevronLeft, ChevronRight, Hash, Se
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 
-import { ReportButton } from '@/components/reports/ReportDialog';
+import { ReportButton } from '@/components/reports/ReportButton';
 import { Markdown } from '@/components/ui/Markdown';
 import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
 import { UserAvatar } from '@/components/ui/UserAvatar';
+import { useI18n } from '@/i18n';
 import { TagDirectoryVerificationStates, type TagDirectoryItem } from '@/lib/api';
 import { useAdminTagDirectoryItemQuery, useMeTagDirectoryQuery } from '@/lib/api/dashboardQueries';
 import { useTagDirectoryItemQuery } from '@/lib/api/queries';
 import { Routes } from '@/routes';
 import { userDisplayTag } from '@/lib/discord';
-import { cn, formatDate, formatDateTime } from '@/lib/utils';
+import { cn, formatDate, formatDateTime, formatNumber } from '@/lib/utils';
 import { adminTagsPath, CopyButton } from '@/pages/dashboard/admin/adminUi';
 
 import { AddTagButton, categoryLabel, NsfwBadge, verificationInfo } from './tagDirectory';
@@ -32,6 +33,7 @@ export function TagDetailModal({ tagId, initialItem, previousId, nextId, onNavig
   onNavigate: (id: string) => void,
   onClose: () => void,
 }) {
+  const { t } = useI18n();
   const { data: item, isPending, isError, refetch } = useTagDirectoryItemQuery(tagId, initialItem);
   // keyed on the tag so stepping to another one leaves edit mode
   const [ editingId, setEditingId ] = useState<string | null>(null);
@@ -64,15 +66,15 @@ export function TagDetailModal({ tagId, initialItem, previousId, nextId, onNavig
     <Modal labelledBy={TITLE_ID} onClose={onClose}>
       {(isPending) ? (
         <div className='flex h-80 items-center justify-center'>
-          <h2 id={TITLE_ID} className='sr-only'>Loading tag</h2>
+          <h2 id={TITLE_ID} className='sr-only'>{t('tags.detail.loading')}</h2>
           <Spinner/>
         </div>
       ) : (isError) ? (
-        <TagMessage title="Couldn't load this tag" description='Something went wrong talking to NotSoBot. Try again in a moment.'>
-          <button type='button' className='btn btn-secondary' onClick={() => refetch()}>Retry</button>
+        <TagMessage title={t('tags.detail.load_error_title')} description={t('tags.detail.load_error_description')}>
+          <button type='button' className='btn btn-secondary' onClick={() => refetch()}>{t('common.retry')}</button>
         </TagMessage>
       ) : (!item) ? (
-        <TagMessage title='Tag Not Found' description="The tag you're looking for doesn't exist or has been removed from the directory."/>
+        <TagMessage title={t('tags.detail.not_found_title')} description={t('tags.detail.not_found_description')}/>
       ) : (
         <TagDetail item={item} editing={editing} onEditingChange={(value) => setEditingId((value) ? tagId : null)}/>
       )}
@@ -81,11 +83,11 @@ export function TagDetailModal({ tagId, initialItem, previousId, nextId, onNavig
         <footer className='flex items-center justify-between gap-3 border-t border-line px-6 py-3'>
           <button type='button' className='btn btn-ghost px-2' disabled={!previousId || editing} onClick={() => previousId && onNavigate(previousId)}>
             <ChevronLeft className='size-4'/>
-            Previous
+            {t('common.previous')}
           </button>
-          <span className='hidden text-xs text-subtle sm:block'>Use ← → to browse</span>
+          <span className='hidden text-xs text-subtle sm:block'>{t('tags.detail.browse_hint')}</span>
           <button type='button' className='btn btn-ghost px-2' disabled={!nextId || editing} onClick={() => nextId && onNavigate(nextId)}>
-            Next
+            {t('common.next')}
             <ChevronRight className='size-4'/>
           </button>
         </footer>
@@ -96,6 +98,7 @@ export function TagDetailModal({ tagId, initialItem, previousId, nextId, onNavig
 
 
 function TagDetail({ item, editing, onEditingChange }: {item: TagDirectoryItem, editing: boolean, onEditingChange: (editing: boolean) => void}) {
+  const { t, rich } = useI18n();
   const { tag } = item;
   const verification = verificationInfo(item.verified);
   const access = useListingAccess(item);
@@ -162,8 +165,8 @@ function TagDetail({ item, editing, onEditingChange }: {item: TagDirectoryItem, 
                 media={(staffManage && admin.data) ? (
                   <div className='space-y-5 rounded-md border border-line bg-deep p-4'>
                     <section>
-                      <h3 className='mb-1 font-semibold text-white'>Thumbnail</h3>
-                      <p className='mb-3 text-sm text-muted'>The small picture on the directory card. Images and videos are shrunk to a small PNG (videos use their first frame). Without one, the cover is used.</p>
+                      <h3 className='mb-1 font-semibold text-white'>{t('tags.detail.thumbnail')}</h3>
+                      <p className='mb-3 text-sm text-muted'>{t('tags.detail.thumbnail_description')}</p>
                       <ThumbnailManager assets={admin.data.assets} thumbnail={admin.data.thumbnail ?? null} manage={staffManage}/>
                     </section>
                     <div className='border-t border-line pt-5'>
@@ -182,17 +185,15 @@ function TagDetail({ item, editing, onEditingChange }: {item: TagDirectoryItem, 
               />
               {(staffManage) ? null : (access.owner && own.data && own.data.verified === TagDirectoryVerificationStates.VERIFIED) ? (
                 <p className='rounded-lg border border-line bg-surface p-4 text-sm text-muted'>
-                  This listing is verified, so its content, thumbnail and media are locked.{' '}
-                  <Link to={`${Routes.DASHBOARD_TAG_EDIT.replace(':tagId', item.id)}?tab=directory`} className='text-brand hover:underline'>
-                    Request changes in your dashboard
-                  </Link>
-                  {' '}and NotSoBot staff will review them.
+                  {rich('tags.detail.locked', {link: (chunk) => (
+                    <Link to={`${Routes.DASHBOARD_TAG_EDIT.replace(':tagId', item.id)}?tab=directory`} className='text-brand hover:underline'>{chunk}</Link>
+                  )})}
                 </p>
               ) : (access.owner && own.data) ? (
                 <div className='space-y-5 rounded-lg border border-line bg-surface p-4'>
                   <section>
-                    <h3 className='mb-1 font-semibold text-white'>Thumbnail</h3>
-                    <p className='mb-3 text-sm text-muted'>The small picture on the directory card. Images and videos are shrunk to a small PNG (videos use their first frame). Without one, the cover is used.</p>
+                    <h3 className='mb-1 font-semibold text-white'>{t('tags.detail.thumbnail')}</h3>
+                    <p className='mb-3 text-sm text-muted'>{t('tags.detail.thumbnail_description')}</p>
                     <ThumbnailManager
                       assets={own.data.assets}
                       thumbnail={own.data.thumbnail}
@@ -216,7 +217,7 @@ function TagDetail({ item, editing, onEditingChange }: {item: TagDirectoryItem, 
             <>
               {(item.description) ? (
                 <section>
-                  <h3 className='section-label mb-2'>Description</h3>
+                  <h3 className='section-label mb-2'>{t('tags.detail.description')}</h3>
                   <Markdown text={item.description} className='text-white'/>
                 </section>
               ) : null}
@@ -232,7 +233,7 @@ function TagDetail({ item, editing, onEditingChange }: {item: TagDirectoryItem, 
               {/* only filled in when the owner chose to show it */}
               {(item.content_public && tag.content) ? (
                 <section>
-                  <h3 className='section-label mb-2'>Content</h3>
+                  <h3 className='section-label mb-2'>{t('tags.detail.content')}</h3>
                   <pre className='max-h-96 overflow-auto rounded-md border border-line bg-deep p-3 font-mono text-sm whitespace-pre-wrap break-words text-fg'>{tag.content}</pre>
                 </section>
               ) : null}
@@ -243,16 +244,16 @@ function TagDetail({ item, editing, onEditingChange }: {item: TagDirectoryItem, 
           )}
 
           <div className='grid grid-cols-2 gap-3'>
-            <StatTile icon={BarChart3} label='Uses'><span className='text-2xl font-bold'>{tag.uses.toLocaleString()}</span></StatTile>
-            <StatTile icon={Server} label='Servers'><span className='text-2xl font-bold'>{item.server_count.toLocaleString()}</span></StatTile>
-            <StatTile icon={Calendar} label='Listed'><span className='text-sm font-medium'>{formatDate(item.created)}</span></StatTile>
-            <StatTile icon={Hash} label='Tag ID'>
+            <StatTile icon={BarChart3} label={t('tags.detail.uses')}><span className='text-2xl font-bold'>{formatNumber(tag.uses)}</span></StatTile>
+            <StatTile icon={Server} label={t('tags.detail.servers')}><span className='text-2xl font-bold'>{formatNumber(item.server_count)}</span></StatTile>
+            <StatTile icon={Calendar} label={t('tags.detail.listed')}><span className='text-sm font-medium'>{formatDate(item.created)}</span></StatTile>
+            <StatTile icon={Hash} label={t('tags.detail.tag_id')}>
               <span className='flex min-w-0 items-center gap-1'>
                 {/* staff jump straight to the tag in the admin panel */}
                 {(access.staff) ? (
                   <Link
                     to={adminTagsPath(`id:${item.id}`)}
-                    title='Open in the admin panel'
+                    title={t('tags.detail.open_admin')}
                     className='truncate font-mono text-sm underline-offset-2 hover:text-brand hover:underline'
                   >
                     {item.id}
@@ -269,14 +270,14 @@ function TagDetail({ item, editing, onEditingChange }: {item: TagDirectoryItem, 
           <TagServersSection item={item} access={access}/>
 
           <section>
-            <h3 className='section-label mb-1'>Tag Information</h3>
+            <h3 className='section-label mb-1'>{t('tags.detail.information')}</h3>
             <dl className='divide-y divide-line'>
-              <InfoRow label='Created'>{formatDateTime(tag.created)}</InfoRow>
-              {(tag.edited) ? <InfoRow label='Last Edited'>{formatDateTime(tag.edited)}</InfoRow> : null}
-              {(tag.last_used) ? <InfoRow label='Last Used'>{formatDateTime(tag.last_used)}</InfoRow> : null}
-              <InfoRow label='Locked'>{tag.locked ? 'Yes' : 'No'}</InfoRow>
-              <InfoRow label='Command Tag'>{tag.is_command ? 'Yes' : 'No'}</InfoRow>
-              {(tag.reference_tag) ? <InfoRow label='Alias Of'>{tag.reference_tag.name}</InfoRow> : null}
+              <InfoRow label={t('tags.detail.created')}>{formatDateTime(tag.created)}</InfoRow>
+              {(tag.edited) ? <InfoRow label={t('tags.detail.last_edited')}>{formatDateTime(tag.edited)}</InfoRow> : null}
+              {(tag.last_used) ? <InfoRow label={t('tags.detail.last_used')}>{formatDateTime(tag.last_used)}</InfoRow> : null}
+              <InfoRow label={t('tags.detail.is_locked')}>{t(tag.locked ? 'common.yes' : 'common.no')}</InfoRow>
+              <InfoRow label={t('tags.detail.command_tag')}>{t(tag.is_command ? 'common.yes' : 'common.no')}</InfoRow>
+              {(tag.reference_tag) ? <InfoRow label={t('tags.detail.alias_of')}>{tag.reference_tag.name}</InfoRow> : null}
             </dl>
           </section>
         </div>
@@ -284,13 +285,13 @@ function TagDetail({ item, editing, onEditingChange }: {item: TagDirectoryItem, 
         <aside className='space-y-4'>
           <ManageListingCard item={item} access={access} editing={editing} onEdit={() => onEditingChange(true)}/>
           <section className='card p-5'>
-            <h3 className='section-label mb-4'>Created By</h3>
+            <h3 className='section-label mb-4'>{t('tags.detail.created_by')}</h3>
             <div className='flex items-center gap-3'>
               <UserAvatar user={tag.user} size={128} className='size-14 shrink-0 rounded-full bg-surface-3'/>
               <div className='min-w-0'>
                 <div className='flex items-center gap-2'>
                   <span className='truncate font-medium text-white'>{userDisplayTag(tag.user)}</span>
-                  {(tag.user.bot) ? <span className='rounded bg-brand px-1.5 py-0.5 text-[10px] font-medium text-white'>BOT</span> : null}
+                  {(tag.user.bot) ? <span className='rounded bg-brand px-1.5 py-0.5 text-[10px] font-medium text-white'>{t('tags.detail.bot')}</span> : null}
                 </div>
                 <p className='truncate font-mono text-xs text-subtle'>{tag.user.id}</p>
               </div>

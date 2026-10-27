@@ -5,14 +5,12 @@ import { isOwner, useAuth } from '@/auth';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
+import { translate, translatePlural, useI18n } from '@/i18n';
 import type { UserGuild, UserGuildDataExport } from '@/lib/api';
 import { errorMessage, useDeleteGuildDataMutation, useExportGuildDataMutation, useGuildScope } from '@/lib/api/dashboardQueries';
 import { downloadJson } from '@/lib/utils';
 
 import { Panel } from '../ui';
-
-
-const DELETE_CONFIRM_PHRASE = 'delete server data';
 
 
 function exportFilename(guildId: string, data: UserGuildDataExport): string {
@@ -23,14 +21,14 @@ function exportFilename(guildId: string, data: UserGuildDataExport): string {
 
 // Owner only: download or wipe what NotSoBot stores for this server. From the admin panel only bot owners can do either.
 export function ServerDataSection({ guild }: {guild: UserGuild}) {
+  const { t } = useI18n();
   const toast = useToast();
   const { user } = useAuth();
   const staff = useGuildScope() === 'admin';
   const canExport = (staff) ? isOwner(user) : guild.owner;
   const canDelete = canExport;
   const readOnly = (canExport) ? undefined
-    : (staff) ? 'Only bot owners can export or delete a server’s data.'
-    : 'Only the server owner can export or delete this server’s data.';
+    : t((staff) ? 'sdata.staff_only' : 'sdata.owner_only');
   const exportData = useExportGuildDataMutation(guild.id);
   const deleteData = useDeleteGuildDataMutation(guild.id);
   const [ confirmingDelete, setConfirmingDelete ] = useState(false);
@@ -39,9 +37,9 @@ export function ServerDataSection({ guild }: {guild: UserGuild}) {
     exportData.mutate(undefined, {
       onSuccess: (data) => {
         downloadJson(exportFilename(guild.id, data), data);
-        toast('Server data exported');
+        toast(translate('sdata.exported'));
       },
-      onError: (error) => toast(errorMessage(error, 'Couldn’t export the server’s data.'), 'error'),
+      onError: (error) => toast(errorMessage(error, translate('sdata.export_error')), 'error'),
     });
   };
 
@@ -49,45 +47,39 @@ export function ServerDataSection({ guild }: {guild: UserGuild}) {
     deleteData.mutate(undefined, {
       onSuccess: ({ tags_deleted }) => {
         setConfirmingDelete(false);
-        toast(`Server data deleted${(tags_deleted) ? ` (${tags_deleted.toLocaleString()} ${(tags_deleted === 1) ? 'tag' : 'tags'})` : ''}`);
+        toast((tags_deleted) ? translatePlural('sdata.deleted_tags', tags_deleted) : translate('sdata.deleted'));
       },
     });
   };
 
   return (
     <Panel
-      title='Server data'
+      title={t('sdata.title')}
       accent='#ed4245'
-      description='Export or delete everything NotSoBot stores for this server.'
+      description={t('sdata.description')}
       readOnly={readOnly}
     >
       <div className='space-y-5'>
         <div className='flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between'>
           <div className='min-w-0 text-sm'>
-            <p className='font-medium text-white'>Export</p>
-            <p className='mt-0.5 text-muted'>A JSON file with this server’s settings, prefixes, rules, loggers and tags.</p>
+            <p className='font-medium text-white'>{t('sdata.export')}</p>
+            <p className='mt-0.5 text-muted'>{t('sdata.export_description')}</p>
           </div>
           <button type='button' className='btn btn-secondary shrink-0' onClick={runExport} disabled={!canExport || exportData.isPending}>
             {(exportData.isPending) ? <Spinner className='size-4'/> : <Download aria-hidden className='size-4'/>}
-            Export data
+            {t('sdata.export_button')}
           </button>
         </div>
 
         <p className='flex items-start gap-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-fg'>
           <ShieldAlert aria-hidden className='mt-0.5 size-4 shrink-0 text-warning'/>
-          <span>
-            Logger webhook URLs aren’t included because they’re sensitive data: anyone with one can post in that channel.
-            Tag variables, tag blobs and the content of directory tags aren’t included either.
-          </span>
+          <span>{t('sdata.export_note')}</span>
         </p>
 
         <div className='flex flex-col gap-3 border-t border-line pt-5 sm:flex-row sm:items-start sm:justify-between'>
           <div className='min-w-0 text-sm'>
-            <p className='font-medium text-white'>Delete</p>
-            <p className='mt-0.5 text-muted'>
-              Removes this server’s tags and their storage, settings, prefixes, rules and loggers (their webhooks too).
-              NotSoBot stays in the server with default settings.
-            </p>
+            <p className='font-medium text-white'>{t('sdata.delete')}</p>
+            <p className='mt-0.5 text-muted'>{t('sdata.delete_description')}</p>
           </div>
           <button
             type='button'
@@ -96,24 +88,24 @@ export function ServerDataSection({ guild }: {guild: UserGuild}) {
             disabled={!canDelete || deleteData.isPending}
           >
             <Trash2 aria-hidden className='size-4'/>
-            Delete data
+            {t('sdata.delete_button')}
           </button>
         </div>
       </div>
 
       {(confirmingDelete) ? (
         <ConfirmDialog
-          title={`Delete ${guild.name}’s data?`}
+          title={t('sdata.confirm_title', {name: guild.name})}
           description={(
             <>
-              <p>This deletes every tag made in this server along with its variables and blobs, all server settings, prefixes, rules and loggers. It can’t be undone, so export first if you might want it back.</p>
-              <p className='mt-2'>Members’ own data (their reminders, personal tags and command history) isn’t touched.</p>
+              <p>{t('sdata.confirm_1')}</p>
+              <p className='mt-2'>{t('sdata.confirm_2')}</p>
             </>
           )}
-          confirmLabel='Delete server data'
-          confirmPhrase={DELETE_CONFIRM_PHRASE}
+          confirmLabel={t('sdata.confirm')}
+          confirmPhrase={t('sdata.phrase')}
           pending={deleteData.isPending}
-          error={(deleteData.isError) ? errorMessage(deleteData.error, 'Couldn’t delete the server’s data.') : null}
+          error={(deleteData.isError) ? errorMessage(deleteData.error, t('sdata.delete_error')) : null}
           onConfirm={confirmDelete}
           onClose={() => {
             deleteData.reset();

@@ -7,9 +7,10 @@ import { DetailModalHeader, DetailModalStrip, ModalFooter } from '@/components/u
 import { stripMarkdown } from '@/components/ui/Markdown';
 import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
+import { useI18n } from '@/i18n';
 import type { Tag } from '@/lib/api';
 import { errorMessage, useMeTagDirectoryQuery, useMeTagQuery } from '@/lib/api/dashboardQueries';
-import { formatDateTime } from '@/lib/utils';
+import { formatDateTime, formatNumber } from '@/lib/utils';
 import { tagDirectoryItemPath, VerificationBadge } from '@/pages/tags/tagDirectory';
 import { MediaSection } from '@/pages/tags/TagMedia';
 
@@ -31,6 +32,7 @@ export function TagDetailsModal({ tagId, guildNames, previousId, nextId, onNavig
   onClose: () => void,
 }) {
   // shows the list's copy right away (`placeholderData`), then the fresh one
+  const { t } = useI18n();
   const { data: tag, isPending, isError, error, refetch } = useMeTagQuery(tagId);
 
   const navigation = useRef({previousId, nextId, onNavigate});
@@ -60,15 +62,15 @@ export function TagDetailsModal({ tagId, guildNames, previousId, nextId, onNavig
         <TagDetails tag={tag} guildNames={guildNames}/>
       ) : (isPending) ? (
         <div className='flex h-80 items-center justify-center'>
-          <h2 id={TITLE_ID} className='sr-only'>Loading tag</h2>
+          <h2 id={TITLE_ID} className='sr-only'>{t('dtags.modal.loading')}</h2>
           <Spinner/>
         </div>
       ) : (
         <div className='px-6 py-16 text-center'>
           <AlertTriangle className='mx-auto mb-4 size-14 text-danger'/>
-          <h2 id={TITLE_ID} className='mb-3 text-2xl font-bold text-white'>{(isError) ? 'Couldn’t load this tag' : 'Tag not found'}</h2>
-          <p className='mb-6 text-muted'>{errorMessage(error, 'It may have been deleted.')}</p>
-          {(isError) ? <button type='button' className='btn btn-secondary' onClick={() => refetch()}>Retry</button> : null}
+          <h2 id={TITLE_ID} className='mb-3 text-2xl font-bold text-white'>{t((isError) ? 'dtags.modal.load_error' : 'dtags.modal.not_found')}</h2>
+          <p className='mb-6 text-muted'>{errorMessage(error, t('dtags.modal.maybe_deleted'))}</p>
+          {(isError) ? <button type='button' className='btn btn-secondary' onClick={() => refetch()}>{t('common.retry')}</button> : null}
         </div>
       )}
 
@@ -77,8 +79,8 @@ export function TagDetailsModal({ tagId, guildNames, previousId, nextId, onNavig
         {(tag) ? (
           <button type='button' className='btn btn-primary min-w-0 flex-1 px-2 sm:flex-none sm:px-3' onClick={() => onEdit(tag.id)}>
             <Pencil aria-hidden className='hidden size-4 shrink-0 sm:block'/>
-            <span className='truncate sm:hidden'>Edit</span>
-            <span className='hidden sm:inline'>Edit tag</span>
+            <span className='truncate sm:hidden'>{t('common.edit')}</span>
+            <span className='hidden sm:inline'>{t('dtags.modal.edit')}</span>
           </button>
         ) : null}
       </ModalFooter>
@@ -89,19 +91,20 @@ export function TagDetailsModal({ tagId, guildNames, previousId, nextId, onNavig
 
 // the tag's header, shared with its editor: `title` is the h2's content, `meta` the line under it
 export function TagModalHeader({ tag, titleId, title, meta }: {tag: Tag, titleId: string, title: ReactNode, meta: ReactNode}) {
+  const { t } = useI18n();
   return (
     <DetailModalHeader
       titleId={titleId}
-      leading={<Chip className='w-12 shrink-0 justify-center'>{(tag.reference_tag) ? 'alias' : 'tag'}</Chip>}
+      leading={<Chip className='w-12 shrink-0 justify-center'>{t((tag.reference_tag) ? 'dtags.chip.alias' : 'dtags.chip.tag')}</Chip>}
       title={title}
       titleTooltip={tag.name}
       mono
       meta={meta}
       states={[
-        (tag.locked) ? <Chip key='locked' tone='warning' title='Locked: it can’t be edited or deleted right now' className='gap-1'><Lock aria-hidden className='size-3'/>locked</Chip> : null,
-        (tag.nsfw) ? <Chip key='nsfw' tone='danger' title='Only runs in age-restricted channels'>NSFW</Chip> : null,
-        (tag.is_command) ? <Chip key='command' tone='brand' title='Runs as a command of its own'>command</Chip> : null,
-        (tag.is_on_directory) ? <Chip key='directory' tone='success' title='Listed on the tag directory'>directory</Chip> : null,
+        (tag.locked) ? <Chip key='locked' tone='warning' title={t('dtags.chip.locked_title')} className='gap-1'><Lock aria-hidden className='size-3'/>{t('dtags.chip.locked')}</Chip> : null,
+        (tag.nsfw) ? <Chip key='nsfw' tone='danger' title={t('dtags.chip.nsfw_title')}>{t('tags.nsfw')}</Chip> : null,
+        (tag.is_command) ? <Chip key='command' tone='brand' title={t('dtags.chip.command_title')}>{t('dtags.chip.command')}</Chip> : null,
+        (tag.is_on_directory) ? <Chip key='directory' tone='success' title={t('dtags.chip.directory_title')}>{t('dtags.chip.directory')}</Chip> : null,
       ]}
     />
   );
@@ -123,6 +126,7 @@ export function TagLocationStrip({ tag, guildNames, children }: {tag: Tag, guild
 
 function TagDetails({ tag, guildNames }: {tag: Tag, guildNames: Map<string, string>}) {
   const { user } = useAuth();
+  const { t, rich } = useI18n();
   const location = tagLocation(tag, user, guildNames);
 
   return (
@@ -131,7 +135,7 @@ function TagDetails({ tag, guildNames }: {tag: Tag, guildNames: Map<string, stri
         tag={tag}
         titleId={TITLE_ID}
         title={tag.name}
-        meta={<>Created <ExactDate value={tag.created} format={formatDateTime}/></>}
+        meta={rich('dtags.created_at', {date: () => <ExactDate value={tag.created} format={formatDateTime}/>})}
       />
       <TagLocationStrip tag={tag} guildNames={guildNames}/>
 
@@ -143,40 +147,40 @@ function TagDetails({ tag, guildNames }: {tag: Tag, guildNames: Map<string, stri
             className={DETAIL_LIST_STACKED}
             items={[
               // phones only, the title's can be cut off there
-              ['Name', <CopyableValue value={tag.name} truncate={0}/>, 'sm:hidden'],
-              ['Uses', <span className='tabular-nums'>{tag.uses.toLocaleString()}</span>],
-              ['Last used', (tag.last_used) ? <ExactDate value={tag.last_used} format={formatDateTime}/> : 'Never'],
-              ['Created', <ExactDate value={tag.created} format={formatDateTime}/>],
-              ['Edited', (tag.edited) ? <ExactDate value={tag.edited} format={formatDateTime}/> : 'Never'],
+              [t('dtags.detail.name'), <CopyableValue value={tag.name} truncate={0}/>, 'sm:hidden'],
+              [t('dtags.detail.uses'), <span className='tabular-nums'>{formatNumber(tag.uses)}</span>],
+              [t('dtags.detail.last_used'), (tag.last_used) ? <ExactDate value={tag.last_used} format={formatDateTime}/> : t('common.never')],
+              [t('dtags.detail.created'), <ExactDate value={tag.created} format={formatDateTime}/>],
+              [t('dtags.detail.edited'), (tag.edited) ? <ExactDate value={tag.edited} format={formatDateTime}/> : t('common.never')],
             ]}
           />
           <DetailList
             className={DETAIL_LIST_STACKED}
             items={[
-              ['Tag', <CopyableValue value={tag.id} truncate={0}/>],
-              (location.id) ? [(location.kind === 'server') ? 'Server' : 'Channel', <CopyableValue value={location.id} truncate={0}/>] : null,
-              ['Locked', (tag.locked) ? 'Yes' : 'No'],
-              ['Command tag', (tag.is_command) ? 'Yes' : 'No'],
-              ['NSFW', (tag.nsfw) ? 'Yes' : 'No'],
+              [t('dtags.detail.tag'), <CopyableValue value={tag.id} truncate={0}/>],
+              (location.id) ? [t((location.kind === 'server') ? 'dtags.detail.server' : 'dtags.detail.channel'), <CopyableValue value={location.id} truncate={0}/>] : null,
+              [t('dtags.detail.locked'), t((tag.locked) ? 'common.yes' : 'common.no')],
+              [t('dtags.detail.command'), t((tag.is_command) ? 'common.yes' : 'common.no')],
+              [t('dtags.detail.nsfw'), t((tag.nsfw) ? 'common.yes' : 'common.no')],
             ]}
           />
         </div>
 
         <div className='mt-4'>
           <div className='mb-1 flex min-h-8 items-center justify-between gap-2'>
-            <h3 className='section-label'>Content</h3>
-            {(!tag.reference_tag && tag.content) ? <CopyButton value={tag.content} label='Copy'/> : null}
+            <h3 className='section-label'>{t('dtags.detail.content')}</h3>
+            {(!tag.reference_tag && tag.content) ? <CopyButton value={tag.content} label={t('common.copy')}/> : null}
           </div>
           {(tag.reference_tag) ? (
             <p className='rounded-md border border-line bg-deep px-3 py-2 text-sm text-muted'>
-              An alias of <span className='font-medium text-white'>{tag.reference_tag.name}</span>, it runs that tag’s content.
+              {rich('dtags.detail.alias', {b: (chunk) => <span className='font-medium text-white'>{chunk}</span>}, {name: tag.reference_tag.name})}
             </p>
           ) : (
             <pre
               className='max-h-96 overflow-auto rounded-md border border-line bg-deep px-3 py-2 font-mono text-sm whitespace-pre-wrap break-words text-fg focus:border-line-strong focus:outline-none'
               {...selectAllScope}
             >
-              {tag.content || <span className='text-subtle italic'>(empty)</span>}
+              {tag.content || <span className='text-subtle italic'>{t('tags.listing.empty')}</span>}
             </pre>
           )}
         </div>
@@ -190,13 +194,14 @@ function TagDetails({ tag, guildNames }: {tag: Tag, guildNames: Map<string, stri
 
 // the tag's directory listing at a glance, it's managed from the editor's Directory tab
 function DirectorySection({ tag }: {tag: Tag}) {
+  const { t } = useI18n();
   const { data: directory, isPending } = useMeTagDirectoryQuery(tag.id);
   return (
     <div className='mt-4'>
       <div className='mb-1 flex min-h-8 items-center justify-between gap-2'>
-        <h3 className='section-label'>Tag directory</h3>
+        <h3 className='section-label'>{t('dtags.detail.directory')}</h3>
         <Link to={tagDirectoryItemPath(tag.id)} className='btn btn-ghost btn-sm'>
-          View in directory
+          {t('dtags.detail.view_directory')}
           <ArrowUpRight aria-hidden className='size-4'/>
         </Link>
       </div>
@@ -213,7 +218,7 @@ function DirectorySection({ tag }: {tag: Tag}) {
             {(directory.assets.length) ? <MediaSection assets={directory.assets} nsfw={tag.nsfw} tagName={tag.name}/> : null}
           </>
         ) : (
-          <p className='text-sm text-muted'>Listed on the tag directory.</p>
+          <p className='text-sm text-muted'>{t('dtags.detail.listed')}</p>
         )}
       </div>
     </div>

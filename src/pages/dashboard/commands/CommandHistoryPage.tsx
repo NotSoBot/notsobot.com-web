@@ -7,12 +7,13 @@ import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from
 import { Link } from 'react-router';
 
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { useI18n } from '@/i18n';
 import { CommandTypes, type Command, type CommandType, type MeCommandUse } from '@/lib/api';
 import { ME_COMMANDS_PAGE_SIZE, errorMessage, useMeCommandsQuery, useMeGuildsQuery } from '@/lib/api/dashboardQueries';
 import { useCommandsQuery } from '@/lib/api/queries';
 import { enabledCommandVariants } from '@/lib/commandAvailability';
 import { commandPath } from '@/lib/commandPaths';
-import { cn, formatDate, formatDateTime, formatExactDateTime, NO_AUTOFILL } from '@/lib/utils';
+import { cn, formatDate, formatDateTime, formatExactDateTime, formatNumber, NO_AUTOFILL } from '@/lib/utils';
 
 import { Chip, FilterButton, FiltersButton, IdFilter, Pagination, useSearchParamState, useStepBackFromEmptyPage } from '../admin/adminUi';
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from '../ui';
@@ -34,6 +35,7 @@ function channelUrl(use: MeCommandUse): string {
 
 
 export function CommandHistoryPage() {
+  const { t } = useI18n();
   const { searchParams, page, update, setPage } = useSearchParamState();
   const serverId = searchParams.get('server') || null;
   const channelId = searchParams.get('channel') || '';
@@ -71,26 +73,26 @@ export function CommandHistoryPage() {
     onChange: setPage,
     fetching: isFetching && isPlaceholderData,
   };
-  const serverName = (guildId: string | null) => (guildId) ? (guildNames.get(guildId) ?? null) : 'Direct messages';
+  const serverName = (guildId: string | null) => (guildId) ? (guildNames.get(guildId) ?? null) : t('history.dms');
 
   return (
     <>
       <DashboardHeader
-        title='Command History'
-        description='Every command you’ve used with NotSoBot, newest first. New ones can take a minute to show up.'
+        title={t('dash.nav.commands')}
+        description={t('history.description')}
       >
         <FiltersButton open={filtersOpen} onToggle={() => setFiltersOpen((value) => !value)} active={activeFilters} controls='command-history-filters'/>
       </DashboardHeader>
 
       <div className='mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2'>
         <SummaryCard
-          label={(filtered) ? 'Matching commands' : 'Commands used'}
+          label={t((filtered) ? 'history.matching' : 'history.used')}
           color='#5865f2'
-          value={(isPending) ? null : (data) ? data.count.toLocaleString() : '—'}
-          detail={(filtered && data) ? `of ${data.total.toLocaleString()} in total` : undefined}
+          value={(isPending) ? null : (data) ? formatNumber(data.count) : '—'}
+          detail={(filtered && data) ? t('history.of_total', {total: formatNumber(data.total)}) : undefined}
         />
         <SummaryCard
-          label='First command with NotSoBot'
+          label={t('history.first')}
           color='#3ba55c'
           value={(isPending) ? null : (data?.first_used) ? (
             <time dateTime={data.first_used} title={formatExactDateTime(data.first_used)}>{formatDate(data.first_used)}</time>
@@ -105,30 +107,30 @@ export function CommandHistoryPage() {
 
       <div id='command-history-filters' hidden={!filtersOpen} className='card mb-4 grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3'>
         <label className='text-sm'>
-          <span className='mb-1 block text-subtle'>Server</span>
+          <span className='mb-1 block text-subtle'>{t('history.server')}</span>
           <select className='input' value={serverId ?? ''} onChange={(event) => update({server: event.target.value})}>
-            <option value=''>Any server</option>
-            <option value={DMS}>Direct messages</option>
+            <option value=''>{t('history.any_server')}</option>
+            <option value={DMS}>{t('history.dms')}</option>
             {(guilds.data ?? []).slice().sort((a, b) => a.name.localeCompare(b.name)).map((guild) => (
               <option key={guild.id} value={guild.id}>{guild.name}</option>
             ))}
             {/* a server they've left (or the list couldn't load) still filters, by its id */}
-            {(serverId && serverId !== DMS && !guildNames.has(serverId)) ? <option value={serverId}>Server {serverId}</option> : null}
+            {(serverId && serverId !== DMS && !guildNames.has(serverId)) ? <option value={serverId}>{t('history.server_id', {id: serverId})}</option> : null}
           </select>
         </label>
-        <IdFilter label='Channel id' placeholder='Any channel' value={channelId} onChange={(value) => update({channel: value})}/>
+        <IdFilter label={t('history.channel_id')} placeholder={t('history.any_channel')} value={channelId} onChange={(value) => update({channel: value})}/>
         <CommandFilter value={commandId} commands={commands.data} onChange={(value) => update({command: value})}/>
         <label className='text-sm'>
-          <span className='mb-1 block text-subtle'>Type</span>
+          <span className='mb-1 block text-subtle'>{t('history.type')}</span>
           <select className='input' value={(commandType === null) ? '' : String(commandType)} onChange={(event) => update({type: event.target.value || null})}>
-            <option value=''>Any type</option>
+            <option value=''>{t('history.any_type')}</option>
             {Object.entries(COMMAND_TYPE_LABELS).map(([ value, label ]) => <option key={value} value={value}>{label}</option>)}
           </select>
         </label>
         <label className='text-sm'>
-          <span className='mb-1 block text-subtle'>Result</span>
+          <span className='mb-1 block text-subtle'>{t('history.result')}</span>
           <select className='input' value={result ?? ''} onChange={(event) => update({result: event.target.value || null})}>
-            <option value=''>Any result</option>
+            <option value=''>{t('history.any_result')}</option>
             {Object.entries(RESULT_LABELS).map(([ value, { label } ]) => <option key={value} value={value}>{label}</option>)}
             {(result && !(result in RESULT_LABELS)) ? <option value={result}>{result}</option> : null}
           </select>
@@ -139,7 +141,7 @@ export function CommandHistoryPage() {
         <div className='mb-4'>
           <button type='button' className='btn btn-secondary btn-sm' onClick={() => update({server: null, channel: null, command: null, type: null, result: null})}>
             <X aria-hidden className='size-4'/>
-            Clear filters
+            {t('commands.clear_filters')}
           </button>
         </div>
       ) : null}
@@ -147,10 +149,10 @@ export function CommandHistoryPage() {
       {(isPending || steppingBack) ? (
         <ListSkeleton/>
       ) : (isError && !items.length) ? (
-        <ErrorPanel title='Couldn’t load your command history' message={errorMessage(error)} onRetry={() => refetch()} retrying={isRefetching}/>
+        <ErrorPanel title={t('history.load_error')} message={errorMessage(error)} onRetry={() => refetch()} retrying={isRefetching}/>
       ) : (!items.length) ? (
-        <EmptyState icon={<SquareTerminal className='size-10'/>} title={(filtered) ? 'No commands match these filters' : 'No commands yet'}>
-          {(filtered) ? null : <>Use any NotSoBot command in Discord and it’ll show up here.</>}
+        <EmptyState icon={<SquareTerminal className='size-10'/>} title={t((filtered) ? 'history.empty_filtered' : 'history.empty')}>
+          {(filtered) ? null : t('history.empty_description')}
         </EmptyState>
       ) : (
         <>
@@ -197,10 +199,11 @@ function ResultBreakdown({ results, selected, onSelect }: {
   selected: string | null,
   onSelect: (result: string | null) => void,
 }) {
+  const { t } = useI18n();
   const total = results.reduce((sum, item) => sum + item.count, 0);
   const percent = (count: number) => (total) ? count / total * 100 : 0;
   return (
-    <section aria-label='How they ended' className='card mb-4 p-4 sm:p-5'>
+    <section aria-label={t('history.breakdown')} className='card mb-4 p-4 sm:p-5'>
       <div aria-hidden className='flex h-2 overflow-hidden rounded-full bg-surface-3'>
         {results.map((item) => (
           <span
@@ -219,7 +222,7 @@ function ResultBreakdown({ results, selected, onSelect }: {
               <button
                 type='button'
                 aria-pressed={active}
-                title={(active) ? 'Show every result' : `Only show ${info.label.toLowerCase()}`}
+                title={(active) ? t('history.show_all') : t('history.only_result', {result: info.label.toLowerCase()})}
                 className={cn(
                   'flex cursor-pointer items-center gap-2 rounded-md border px-2.5 py-1.5 text-sm transition-colors',
                   (active) ? 'border-brand/70 bg-surface-3 text-white' : 'border-line text-muted hover:bg-surface-2 hover:text-white',
@@ -228,7 +231,7 @@ function ResultBreakdown({ results, selected, onSelect }: {
               >
                 <span aria-hidden className={cn('size-2 rounded-full', TONE_FILLS[info.tone])}/>
                 {info.label}
-                <span className='font-semibold text-white tabular-nums'>{item.count.toLocaleString()}</span>
+                <span className='font-semibold text-white tabular-nums'>{formatNumber(item.count)}</span>
                 <span className='text-xs text-subtle tabular-nums'>{Math.round(percent(item.count))}%</span>
               </button>
             </li>
@@ -243,6 +246,7 @@ function ResultBreakdown({ results, selected, onSelect }: {
 // free text (`tag` also matches its subcommands like `tag show`), suggesting the bot's command ids (disabled ones too,
 // they're still in the history); lands in the URL once typing stops
 function CommandFilter({ value, commands, onChange }: {value: string, commands: Array<Command> | undefined, onChange: (value: string | null) => void}) {
+  const { t } = useI18n();
   const [ input, setInput ] = useState(value);
   useEffect(() => setInput(value), [value]);
   const debounced = useDebouncedValue(input.trim(), 400);
@@ -257,7 +261,7 @@ function CommandFilter({ value, commands, onChange }: {value: string, commands: 
 
   return (
     <label className='text-sm'>
-      <span className='mb-1 block text-subtle'>Command</span>
+      <span className='mb-1 block text-subtle'>{t('history.command')}</span>
       <span className='relative block'>
         <input
           className='input pr-9 font-mono'
@@ -265,14 +269,14 @@ function CommandFilter({ value, commands, onChange }: {value: string, commands: 
           autoComplete='off'
           {...NO_AUTOFILL}
           maxLength={64}
-          placeholder='Any command'
+          placeholder={t('history.any_command')}
           value={input}
           onChange={(event) => setInput(event.target.value)}
         />
         {(input) ? (
           <button
             type='button'
-            aria-label='Clear command filter'
+            aria-label={t('history.clear_command')}
             className='absolute top-1/2 right-1.5 -translate-y-1/2 cursor-pointer rounded p-1 text-subtle hover:text-fg'
             onClick={() => {
               setInput('');
@@ -299,6 +303,7 @@ function CommandRow({ use, serverName, commandTypes, onFilter }: {
   commandTypes: Array<CommandType> | undefined,
   onFilter: (changes: Record<string, string | null>) => void,
 }) {
+  const { t } = useI18n();
   const result = (use.result) ? resultInfo(use.result) : null;
   const label = commandLabel(use);
   const linkable = !!commandTypes?.includes(use.command_type);
@@ -317,23 +322,23 @@ function CommandRow({ use, serverName, commandTypes, onFilter }: {
           ) : (
             <span className='font-mono font-medium text-white'>{label}</span>
           )}
-          <FilterButton label={`Only ${use.command_id}`} onClick={() => onFilter({command: use.command_id})}/>
-          <Chip>{COMMAND_TYPE_LABELS[use.command_type] ?? 'Command'}</Chip>
+          <FilterButton label={t('history.only_command', {command: use.command_id})} onClick={() => onFilter({command: use.command_id})}/>
+          <Chip>{COMMAND_TYPE_LABELS[use.command_type] ?? t('history.command')}</Chip>
           {(result) ? <Chip tone={result.tone}>{result.label}</Chip> : null}
         </div>
         <div className='mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-subtle'>
           {/* on phones the time goes here, there's no room for it on the right */}
           <time dateTime={use.timestamp} title={formatExactDateTime(use.timestamp)} className='sm:hidden'>{formatDateTime(use.timestamp)}</time>
           <span className='inline-flex max-w-full min-w-0 shrink-0 items-center'>
-            {(serverName) ? <span className='truncate'>{serverName}</span> : <span className='font-mono'>Server {use.guild_id}</span>}
-            <FilterButton label='Only this server' onClick={() => onFilter({server: use.guild_id ?? DMS})}/>
+            {(serverName) ? <span className='truncate'>{serverName}</span> : <span className='font-mono'>{t('history.server_id', {id: use.guild_id})}</span>}
+            <FilterButton label={t('history.only_server')} onClick={() => onFilter({server: use.guild_id ?? DMS})}/>
           </span>
           <span className='inline-flex items-center font-mono'>
             #{use.channel_id}
-            <FilterButton label='Only this channel' onClick={() => onFilter({channel: use.channel_id})}/>
+            <FilterButton label={t('history.only_channel')} onClick={() => onFilter({channel: use.channel_id})}/>
           </span>
           <a href={channelUrl(use)} target='_blank' rel='noopener noreferrer' className='inline-flex items-center gap-1 whitespace-nowrap text-code hover:underline'>
-            Open channel
+            {t('history.open_channel')}
             <ExternalLink aria-hidden className='size-3'/>
           </a>
         </div>

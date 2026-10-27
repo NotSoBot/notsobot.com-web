@@ -1,6 +1,7 @@
 // The voice nodes (notsobot.voice) that play music, from `GET /info/voice`: enabled ones, and disabled ones while they
 // still have players. Their urls and why one couldn't be reached stay on the owner page
 
+import { useI18n } from '@/i18n';
 import type { InfoVoiceNode } from '@/lib/api';
 import { useInfoVoiceQuery } from '@/lib/api/queries';
 import { cn, formatMemory, formatNumber, formatUptime } from '@/lib/utils';
@@ -10,16 +11,11 @@ import { StatTile, StatusSwitcher } from './statusUi';
 
 type NodeStatus = 'online' | 'draining' | 'offline';
 
-const NODE_STATUS_STYLES: Record<NodeStatus, {label: string, dot: string, text: string}> = {
-  online: {label: 'Online', dot: 'bg-success', text: 'text-success'},
-  draining: {label: 'Draining', dot: 'bg-warning', text: 'text-warning'},
-  offline: {label: 'Offline', dot: 'bg-danger', text: 'text-danger'},
-};
-
-const NODE_STATUS_HINTS: Record<NodeStatus, string> = {
-  online: 'Taking new servers',
-  draining: 'Its servers move off between songs',
-  offline: 'Its music moves to another node',
+// labels are `voice_status.<status>`, hints `voice_status.<status>_hint`
+const NODE_STATUS_STYLES: Record<NodeStatus, {dot: string, text: string}> = {
+  online: {dot: 'bg-success', text: 'text-success'},
+  draining: {dot: 'bg-warning', text: 'text-warning'},
+  offline: {dot: 'bg-danger', text: 'text-danger'},
 };
 
 const LEGEND_ORDER: Array<NodeStatus> = ['online', 'draining', 'offline'];
@@ -31,6 +27,7 @@ function nodeStatus(node: InfoVoiceNode): NodeStatus {
 
 
 export function VoiceStatusPage() {
+  const { t } = useI18n();
   const { data, isPending, isError } = useInfoVoiceQuery();
   const nodes = data?.nodes ?? [];
 
@@ -43,36 +40,36 @@ export function VoiceStatusPage() {
 
   return (
     <div className='container-page py-8'>
-      <h1 className='sr-only'>Voice Status</h1>
+      <h1 className='sr-only'>{t('voice_status.title')}</h1>
       <StatusSwitcher/>
 
       {(isError && data) ? (
         <div className='mb-6 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-warning'>
-          Having trouble refreshing — showing the last known status.
+          {t('status.stale')}
         </div>
       ) : null}
 
       <section aria-labelledby='voice-stats-heading' className='card mb-8 p-6'>
-        <h2 id='voice-stats-heading' className='mb-6 text-center text-2xl text-white'>Music Statistics</h2>
+        <h2 id='voice-stats-heading' className='mb-6 text-center text-2xl text-white'>{t('voice_status.music_stats')}</h2>
         <div className='grid grid-cols-2 gap-4 lg:grid-cols-4'>
           <StatTile
-            label='Nodes Online'
+            label={t('voice_status.nodes_online')}
             className={(totals && totals.online < nodes.length) ? 'text-warning' : 'text-success'}
             value={(totals) ? `${formatNumber(totals.online)}/${formatNumber(nodes.length)}` : null}
           />
-          <StatTile label='Playing' value={(totals) ? formatNumber(totals.playing) : null}/>
-          <StatTile label='Players' value={(totals) ? formatNumber(totals.players) : null}/>
-          <StatTile label='With Effects' value={(totals) ? formatNumber(totals.effects) : null}/>
+          <StatTile label={t('voice_status.playing')} value={(totals) ? formatNumber(totals.playing) : null}/>
+          <StatTile label={t('voice_status.players')} value={(totals) ? formatNumber(totals.players) : null}/>
+          <StatTile label={t('voice_status.with_effects')} value={(totals) ? formatNumber(totals.effects) : null}/>
         </div>
       </section>
 
       <section aria-labelledby='voice-nodes-heading' className='card p-6'>
-        <h2 id='voice-nodes-heading' className='mb-2 text-center text-2xl text-white'>Voice Nodes</h2>
-        <ul aria-label='Status colors' className='mb-5 flex flex-wrap justify-center gap-x-4 gap-y-1.5 text-xs text-subtle'>
+        <h2 id='voice-nodes-heading' className='mb-2 text-center text-2xl text-white'>{t('status.voice_nodes')}</h2>
+        <ul aria-label={t('status.colors')} className='mb-5 flex flex-wrap justify-center gap-x-4 gap-y-1.5 text-xs text-subtle'>
           {LEGEND_ORDER.map((key) => (
             <li key={key} className='flex items-center gap-1.5'>
               <span className={cn('size-2 rounded-full opacity-90', NODE_STATUS_STYLES[key].dot)}/>
-              {NODE_STATUS_STYLES[key].label}
+              {t(`voice_status.${key}`)}
             </li>
           ))}
         </ul>
@@ -81,13 +78,13 @@ export function VoiceStatusPage() {
             {nodes.map((node) => <NodeCard key={node.id} node={node}/>)}
           </ul>
         ) : (data) ? (
-          <p className='py-6 text-center text-muted'>No voice nodes are running right now.</p>
+          <p className='py-6 text-center text-muted'>{t('voice_status.none')}</p>
         ) : (isPending) ? (
           <div className='grid gap-3 sm:grid-cols-2 lg:grid-cols-3' aria-hidden>
             {Array.from({length: 3}, (_, i) => <div key={i} className='h-44 animate-pulse rounded-lg bg-deep'/>)}
           </div>
         ) : (
-          <p className='py-6 text-center text-muted'>Voice node info isn't available right now. We'll keep trying.</p>
+          <p className='py-6 text-center text-muted'>{t('voice_status.unavailable')}</p>
         )}
       </section>
     </div>
@@ -96,6 +93,7 @@ export function VoiceStatusPage() {
 
 
 function NodeCard({ node }: {node: InfoVoiceNode}) {
+  const { t } = useI18n();
   const { stats } = node;
   const status = nodeStatus(node);
   const style = NODE_STATUS_STYLES[status];
@@ -109,16 +107,16 @@ function NodeCard({ node }: {node: InfoVoiceNode}) {
           <span className={cn('size-2.5 shrink-0 rounded-full', style.dot)}/>
           <span className='truncate font-semibold text-white'>{node.name}</span>
         </span>
-        <span className={cn('shrink-0 text-xs font-medium', style.text)}>{style.label}</span>
+        <span className={cn('shrink-0 text-xs font-medium', style.text)}>{t(`voice_status.${status}`)}</span>
       </div>
-      <p className='mt-0.5 pl-4.5 text-xs text-subtle'>{NODE_STATUS_HINTS[status]}</p>
+      <p className='mt-0.5 pl-4.5 text-xs text-subtle'>{t(`voice_status.${status}_hint`)}</p>
 
       {(stats) ? (
         <>
           <dl className='mt-4 grid grid-cols-3 gap-2 text-center'>
-            <NodeCount label='Playing' value={stats.playing} highlight/>
-            <NodeCount label='Paused' value={stats.paused}/>
-            <NodeCount label='Effects' value={stats.effects}/>
+            <NodeCount label={t('voice_status.playing')} value={stats.playing} highlight/>
+            <NodeCount label={t('voice_status.paused')} value={stats.paused}/>
+            <NodeCount label={t('voice_status.effects')} value={stats.effects}/>
           </dl>
 
           <div className='mt-4'>
@@ -134,15 +132,15 @@ function NodeCard({ node }: {node: InfoVoiceNode}) {
             </div>
           </div>
 
-          <p className='mt-auto truncate pt-3 text-xs text-subtle tabular-nums' title={`Version ${stats.version}`}>
+          <p className='mt-auto truncate pt-3 text-xs text-subtle tabular-nums' title={t('voice_status.version', {version: stats.version})}>
             {formatMemory(stats.memory)}
             {(node.latency !== null) ? <>{' • '}{formatNumber(node.latency)} ms</> : null}
-            {' • '}up {formatUptime(stats.uptime)}
+            {' • '}{t('voice_status.up', {uptime: formatUptime(stats.uptime)})}
             {' • '}v{stats.version}
           </p>
         </>
       ) : (
-        <p className='mt-4 text-sm text-muted'>Not responding. Its servers' music moves to another node within a few seconds.</p>
+        <p className='mt-4 text-sm text-muted'>{t('voice_status.not_responding')}</p>
       )}
     </li>
   );

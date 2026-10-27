@@ -5,6 +5,7 @@ import { Link } from 'react-router';
 import { useAuth } from '@/auth';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
+import { translate, useI18n } from '@/i18n';
 import {
   TAG_DIRECTORY_DESCRIPTION_MAX,
   TAG_DIRECTORY_TITLE_MAX,
@@ -27,7 +28,7 @@ import {
   useRequestMeTagDirectoryVerificationMutation,
 } from '@/lib/api/dashboardQueries';
 import { formatDate, formatDateTime } from '@/lib/utils';
-import { CategorySelect, DescriptionEditor, TAG_CONTENT_ACKNOWLEDGEMENT, tagDirectoryItemPath, VerificationBadge, verificationInfo, verificationRequirement, VerificationWarning } from '@/pages/tags/tagDirectory';
+import { CategorySelect, DescriptionEditor, tagContentAcknowledgement, tagDirectoryItemPath, VerificationBadge, verificationInfo, verificationRequirement, VerificationWarning } from '@/pages/tags/tagDirectory';
 import { MediaSection, ThumbnailManager } from '@/pages/tags/TagMedia';
 
 import { CharCounter, ErrorPanel, Field, InlineError, Panel, PanelSkeleton, SaveBar, Toggle } from '../ui';
@@ -38,6 +39,7 @@ import { describeTagLocation, TAG_CONTENT_MAX, tagLocation } from './tagMeta';
 // The title, description, category and whether the content is shown publicly are editable here, and the media while
 // verification is pending.
 export function TagDirectoryPanel({ tag, onDirtyChange }: {tag: Tag, onDirtyChange: (dirty: boolean) => void}) {
+  const { t } = useI18n();
   const { data: directory, isPending, isError, error, refetch, isRefetching } = useMeTagDirectoryQuery(tag.id);
   // requesting verification would freeze unsaved listing edits, so the request waits until they're saved or discarded
   const [ listingDirty, setListingDirty ] = useState(false);
@@ -50,7 +52,7 @@ export function TagDirectoryPanel({ tag, onDirtyChange }: {tag: Tag, onDirtyChan
     return <PanelSkeleton rows={3}/>;
   }
   if (isError) {
-    return <ErrorPanel title='Couldn’t load the directory listing' message={errorMessage(error)} onRetry={() => refetch()} retrying={isRefetching}/>;
+    return <ErrorPanel title={t('ddir.load_error')} message={errorMessage(error)} onRetry={() => refetch()} retrying={isRefetching}/>;
   }
   if (!directory) {
     return <PublishForm tag={tag} onDirtyChange={onDirtyChange}/>;
@@ -69,10 +71,8 @@ export function TagDirectoryPanel({ tag, onDirtyChange }: {tag: Tag, onDirtyChan
       <ListingForm key={directory.id} tag={tag} directory={directory} onDirtyChange={onListingDirtyChange}/>
       {(verified) ? <EditRequestPanel tag={tag} directory={directory}/> : null}
       <Panel
-        title={(request) ? 'Thumbnail · proposed' : 'Thumbnail'}
-        description={(request) ?
-          'The thumbnail your change request asks for. The listing keeps its current one until staff approve it.' :
-          'The small picture on the directory card. Images and videos are shrunk to a small PNG (videos use their first frame). Without one, the cover is used.'}
+        title={t((request) ? 'ddir.thumbnail_proposed' : 'tags.detail.thumbnail')}
+        description={t((request) ? 'ddir.thumbnail_proposed_description' : 'tags.detail.thumbnail_description')}
       >
         <ThumbnailManager
           key={(request) ? `request-${request.id}` : 'listing'}
@@ -82,10 +82,8 @@ export function TagDirectoryPanel({ tag, onDirtyChange }: {tag: Tag, onDirtyChan
         />
       </Panel>
       <Panel
-        title={(request) ? 'Media · proposed' : 'Media'}
-        description={(request) ?
-          'The media your change request asks for, in order. The first one is the cover on the directory.' :
-          'Images, videos or audio that show what the tag does. The first one is the cover on the directory.'}
+        title={t((request) ? 'ddir.media_proposed' : 'tag_media.media')}
+        description={t((request) ? 'ddir.media_proposed_description' : 'ddir.media_description')}
       >
         <MediaSection
           key={(request) ? `request-${request.id}` : 'listing'}
@@ -112,11 +110,12 @@ function ListingFields({ title, description, category, contentPublic, onTitle, o
   onContentPublic: (value: boolean) => void,
   disabled?: boolean,
 }) {
+  const { t } = useI18n();
   return (
     <div className='grid grid-cols-1 gap-y-5'>
       <Field
-        label='Title'
-        hint='A short line shown under the tag name, e.g. “Rolls dice with modifiers”. Optional.'
+        label={t('tags.listing.title')}
+        hint={t('ddir.title_hint')}
         counter={<CharCounter length={title.length} max={TAG_DIRECTORY_TITLE_MAX}/>}
       >
         {(props) => (
@@ -131,8 +130,8 @@ function ListingFields({ title, description, category, contentPublic, onTitle, o
         )}
       </Field>
       <Field
-        label='Description'
-        hint='What the tag does and how to use it. Optional.'
+        label={t('tags.detail.description')}
+        hint={t('tags.listing.description_hint')}
         counter={<CharCounter length={description.length} max={TAG_DIRECTORY_DESCRIPTION_MAX}/>}
       >
         {(props) => (
@@ -146,12 +145,12 @@ function ListingFields({ title, description, category, contentPublic, onTitle, o
           />
         )}
       </Field>
-      <Field label='Category' hint='Where the tag shows up when people browse the directory by category.'>
+      <Field label={t('tags.directory.category')} hint={t('tags.listing.category_hint')}>
         {(props) => <CategorySelect {...props} value={category} disabled={disabled} onChange={onCategory}/>}
       </Field>
       <Toggle
-        label='Show content publicly'
-        description='Anyone browsing the directory can read the tag’s content. Hidden by default.'
+        label={t('tags.listing.show_content')}
+        description={t('tags.listing.show_content_description')}
         checked={contentPublic}
         disabled={disabled}
         onChange={onContentPublic}
@@ -163,6 +162,7 @@ function ListingFields({ title, description, category, contentPublic, onTitle, o
 
 function PublishForm({ tag, onDirtyChange }: {tag: Tag, onDirtyChange: (dirty: boolean) => void}) {
   const { user } = useAuth();
+  const { t, rich } = useI18n();
   const { data: guilds } = useMeGuildsQuery();
   const toast = useToast();
   const publish = usePublishMeTagDirectoryMutation(tag.id);
@@ -191,7 +191,7 @@ function PublishForm({ tag, onDirtyChange }: {tag: Tag, onDirtyChange: (dirty: b
       onSuccess: () => {
         setConfirming(false);
         onDirtyChange(false);
-        toast(`“${tag.name}” is now on the tag directory.`);
+        toast(translate('ddir.published', {name: tag.name}));
       },
     });
   };
@@ -210,23 +210,22 @@ function PublishForm({ tag, onDirtyChange }: {tag: Tag, onDirtyChange: (dirty: b
     <>
       <form onSubmit={onSubmit}>
         <Panel
-          title='Publish to the tag directory'
+          title={t('ddir.publish_title')}
           accent='#3ba55c'
-          description='List this tag publicly so anyone can find it and add it to their own servers.'
+          description={t('ddir.publish_description')}
         >
           <ul className='mb-5 space-y-1.5 text-sm text-muted'>
-            <li className='flex gap-2'><BookOpen aria-hidden className='mt-0.5 size-4 shrink-0 text-subtle'/>The listing shows the tag’s name, the title and description below, its uses and you as the creator. The tag’s content itself is only shown if you turn on “Show content publicly”.</li>
-            <li className='flex gap-2'><Info aria-hidden className='mt-0.5 size-4 shrink-0 text-subtle'/>Listings start unverified. Once it’s published you can request verification from NotSoBot’s team, which locks the tag while it’s reviewed and after it’s verified.</li>
+            <li className='flex gap-2'><BookOpen aria-hidden className='mt-0.5 size-4 shrink-0 text-subtle'/>{t('ddir.publish_note_1')}</li>
+            <li className='flex gap-2'><Info aria-hidden className='mt-0.5 size-4 shrink-0 text-subtle'/>{t('ddir.publish_note_2')}</li>
           </ul>
 
           {(isAlias) ? (
             <p className='mb-5 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-fg'>
-              This tag is an alias of “{tag.reference_tag!.name}”, and aliases can’t be published. Publish the original tag instead.
+              {t('ddir.alias', {name: tag.reference_tag!.name})}
             </p>
           ) : (movesOutOfServer) ? (
             <p className='mb-5 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-fg'>
-              Publishing moves this tag into your personal tags and leaves an alias with the same name in{' '}
-              <span className='font-medium text-white'>{serverLabel}</span>, so it keeps working there.
+              {rich('ddir.moves', {b: (chunk) => <span className='font-medium text-white'>{chunk}</span>}, {where: serverLabel})}
             </p>
           ) : null}
 
@@ -242,12 +241,12 @@ function PublishForm({ tag, onDirtyChange }: {tag: Tag, onDirtyChange: (dirty: b
             disabled={isAlias}
           />
 
-          {(publish.isError && !confirming) ? <InlineError>{errorMessage(publish.error, 'Couldn’t publish this tag.')}</InlineError> : null}
+          {(publish.isError && !confirming) ? <InlineError>{errorMessage(publish.error, t('ddir.publish_error'))}</InlineError> : null}
 
           <div className='mt-5 flex justify-end border-t border-line pt-4'>
             <button type='submit' className='btn btn-primary' disabled={isAlias || publish.isPending}>
               <Upload className='size-4'/>
-              {(publish.isPending) ? 'Publishing…' : 'Publish to directory'}
+              {t((publish.isPending) ? 'ddir.publishing' : 'dtags.editor.publish_directory')}
             </button>
           </div>
         </Panel>
@@ -256,16 +255,16 @@ function PublishForm({ tag, onDirtyChange }: {tag: Tag, onDirtyChange: (dirty: b
       {(confirming) ? (
         <ConfirmDialog
           tone='primary'
-          title={`Publish “${tag.name}”?`}
+          title={t('ddir.confirm_title', {name: tag.name})}
           description={(movesOutOfServer) ? (
-            <>This moves the tag into your personal tags, leaves an alias of it in <span className='font-medium text-white'>{serverLabel}</span> and lists it on the tag directory.</>
+            rich('ddir.confirm_moves', {b: (chunk) => <span className='font-medium text-white'>{chunk}</span>}, {where: serverLabel})
           ) : (
-            'This lists it on the tag directory, where anyone can find it and add it to their own servers.'
+            t('ddir.confirm')
           )}
-          acknowledgement={TAG_CONTENT_ACKNOWLEDGEMENT}
-          confirmLabel='Publish'
+          acknowledgement={tagContentAcknowledgement()}
+          confirmLabel={t('ddir.publish')}
           pending={publish.isPending}
-          error={(publish.isError) ? errorMessage(publish.error, 'Couldn’t publish this tag.') : undefined}
+          error={(publish.isError) ? errorMessage(publish.error, t('ddir.publish_error')) : undefined}
           onConfirm={doPublish}
           onClose={() => {
             setConfirming(false);
@@ -283,6 +282,7 @@ function ListingForm({ tag, directory, onDirtyChange }: {
   directory: TagDirectoryItem,
   onDirtyChange: (dirty: boolean) => void,
 }) {
+  const { t, plural } = useI18n();
   const toast = useToast();
   const patch = usePatchMeTagDirectoryMutation(tag.id);
   const [ title, setTitle ] = useState(directory.title);
@@ -319,7 +319,7 @@ function ListingForm({ tag, directory, onDirtyChange }: {
         setCategory(updated.category);
         setContentPublic(updated.content_public);
         onDirtyChange(false);
-        toast('Directory listing saved.');
+        toast(translate('ddir.saved'));
       },
     });
   };
@@ -327,22 +327,22 @@ function ListingForm({ tag, directory, onDirtyChange }: {
   return (
     <form onSubmit={onSubmit}>
       <Panel
-        title='Directory listing'
+        title={t('dtags.editor.directory_listing')}
         accent='#3ba55c'
         description={verificationInfo(directory.verified).description}
         actions={(
           <Link to={tagDirectoryItemPath(directory.id)} className='btn btn-secondary btn-sm'>
-            View in directory
+            {t('dtags.detail.view_directory')}
             <ArrowUpRight className='size-3.5'/>
           </Link>
         )}
-        readOnly={(pending) ? 'This listing is being reviewed for verification, so it can’t be edited until the review finishes.' : undefined}
+        readOnly={(pending) ? t('ddir.pending_locked') : undefined}
       >
         <div className='mb-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-subtle'>
           <VerificationBadge verified={directory.verified}/>
-          <span title={formatDateTime(directory.created)}>Listed {formatDate(directory.created)}</span>
-          {(directory.edited) ? <span title={formatDateTime(directory.edited)}>Listing edited {formatDate(directory.edited)}</span> : null}
-          <span className='tabular-nums'>{directory.server_count.toLocaleString()} servers</span>
+          <span title={formatDateTime(directory.created)}>{t('ddir.listed', {date: formatDate(directory.created)})}</span>
+          {(directory.edited) ? <span title={formatDateTime(directory.edited)}>{t('ddir.edited', {date: formatDate(directory.edited)})}</span> : null}
+          <span className='tabular-nums'>{plural('tags.directory.servers', directory.server_count)}</span>
         </div>
 
         <ListingFields
@@ -357,14 +357,14 @@ function ListingForm({ tag, directory, onDirtyChange }: {
           disabled={pending}
         />
 
-        {(patch.isError) ? <InlineError>{errorMessage(patch.error, 'Couldn’t save the listing.')}</InlineError> : null}
+        {(patch.isError) ? <InlineError>{errorMessage(patch.error, t('tags.listing.save_error'))}</InlineError> : null}
         {(!pending) ? (
           <SaveBar
             dirty={dirty}
             pending={patch.isPending}
             onDiscard={discard}
-            saveLabel='Save listing'
-            status={(patch.isPending) ? <span className='text-muted'>Saving…</span> : undefined}
+            saveLabel={t('tags.listing.save')}
+            status={(patch.isPending) ? <span className='text-muted'>{t('common.saving')}</span> : undefined}
           />
         ) : null}
       </Panel>
@@ -375,6 +375,7 @@ function ListingForm({ tag, directory, onDirtyChange }: {
 
 // request verification for an unverified listing, or cancel a pending request; nothing to do once it's verified
 function VerificationPanel({ tag, directory, listingDirty }: {tag: Tag, directory: TagDirectoryItem, listingDirty: boolean}) {
+  const { t } = useI18n();
   const toast = useToast();
   const request = useRequestMeTagDirectoryVerificationMutation(tag.id);
   const cancel = useCancelMeTagDirectoryVerificationMutation(tag.id);
@@ -385,45 +386,43 @@ function VerificationPanel({ tag, directory, listingDirty }: {tag: Tag, director
   }
   const pending = directory.verified === TagDirectoryVerificationStates.PENDING_VERIFICATION;
   // why the request can't be sent yet, shown next to the button
-  const blocker = (listingDirty) ? 'Save or discard your listing changes before requesting verification.' : verificationRequirement(directory);
+  const blocker = (listingDirty) ? t('ddir.save_first') : verificationRequirement(directory);
 
   const doRequest = () => {
     request.mutate(undefined, {
       onSuccess: () => {
         setConfirming(false);
-        toast(`Requested verification for “${tag.name}”.`);
+        toast(translate('ddir.requested', {name: tag.name}));
       },
     });
   };
 
   const doCancel = () => {
     cancel.mutate(undefined, {
-      onSuccess: () => toast(`Canceled the verification request for “${tag.name}”.`),
+      onSuccess: () => toast(translate('ddir.canceled', {name: tag.name})),
     });
   };
 
   return (
     <>
       <Panel
-        title='Verification'
+        title={t('tags.listing.verification')}
         accent='#3ba55c'
-        description={(pending) ?
-          'Your verification request is waiting for NotSoBot’s team. The tag’s content stays locked until it’s reviewed or you cancel the request.' :
-          'Ask NotSoBot’s team to review this tag. Verified tags are marked as safe to run on the directory.'}
+        description={t((pending) ? 'ddir.pending_description' : 'ddir.request_description')}
       >
         <div className='text-sm text-muted'>
           {(pending) ? (
-            <p>Once it’s verified, NotSoBot staff may change its content to make it more efficient and may move its media onto NotSoBot’s own servers.</p>
+            <p>{t('ddir.pending_note')}</p>
           ) : (
             <VerificationWarning/>
           )}
         </div>
         {(pending) ? (
           <div className='mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4'>
-            <p className='text-sm text-subtle'>Canceling unlocks the tag so you can edit it again. You can request verification again later.</p>
+            <p className='text-sm text-subtle'>{t('ddir.cancel_note')}</p>
             <button type='button' className='btn btn-danger btn-sm shrink-0' disabled={cancel.isPending} onClick={doCancel}>
               <X className='size-3.5'/>
-              {(cancel.isPending) ? 'Canceling…' : 'Cancel request'}
+              {t((cancel.isPending) ? 'tags.listing.canceling' : 'tags.listing.cancel_request')}
             </button>
           </div>
         ) : (
@@ -437,22 +436,22 @@ function VerificationPanel({ tag, directory, listingDirty }: {tag: Tag, director
               onClick={() => setConfirming(true)}
             >
               <ShieldCheck className='size-3.5'/>
-              Request verification
+              {t('tags.listing.request')}
             </button>
           </div>
         )}
-        {(cancel.isError) ? <InlineError>{errorMessage(cancel.error, 'Couldn’t cancel the request.')}</InlineError> : null}
+        {(cancel.isError) ? <InlineError>{errorMessage(cancel.error, t('tags.listing.cancel_error'))}</InlineError> : null}
       </Panel>
 
       {(confirming) ? (
         <ConfirmDialog
           tone='primary'
-          title={`Request verification for “${tag.name}”?`}
+          title={t('tags.listing.request_title', {name: tag.name})}
           description={<VerificationWarning/>}
-          acknowledgement={TAG_CONTENT_ACKNOWLEDGEMENT}
-          confirmLabel='Request verification'
+          acknowledgement={tagContentAcknowledgement()}
+          confirmLabel={t('tags.listing.request')}
           pending={request.isPending}
-          error={(request.isError) ? errorMessage(request.error, 'Couldn’t request verification.') : undefined}
+          error={(request.isError) ? errorMessage(request.error, t('tags.listing.request_error')) : undefined}
           onConfirm={doRequest}
           onClose={() => {
             setConfirming(false);
@@ -472,6 +471,7 @@ function isOpenEditRequest(request: TagDirectoryEditRequest): boolean {
 // A verified listing's content, media and thumbnail are locked, so the owner drafts the changes they want here and
 // NotSoBot staff approve or reject them. The thumbnail/media panels edit the draft's proposal while one is open.
 function EditRequestPanel({ tag, directory }: {tag: Tag, directory: TagDirectoryItem}) {
+  const { t } = useI18n();
   const toast = useToast();
   const mutation = useMeTagDirectoryEditRequestMutation(tag.id);
   const [ discarding, setDiscarding ] = useState(false);
@@ -481,27 +481,27 @@ function EditRequestPanel({ tag, directory }: {tag: Tag, directory: TagDirectory
   if (!request || !open) {
     return (
       <Panel
-        title='Request changes'
+        title={t('ddir.request_changes')}
         accent='#3ba55c'
-        description='This listing is verified, so its content, media and thumbnail are locked. Draft the changes you want and NotSoBot staff will review them. The listing stays as it is until they’re approved.'
+        description={t('ddir.request_changes_description')}
         actions={(
           <button type='button' className='btn btn-primary btn-sm' disabled={mutation.isPending} onClick={() => mutation.mutate({start: true})}>
             <PencilLine className='size-3.5'/>
-            {(mutation.isPending) ? 'Starting…' : 'Request changes'}
+            {t((mutation.isPending) ? 'ddir.starting' : 'ddir.request_changes')}
           </button>
         )}
       >
         {(request?.status === TagDirectoryEditRequestStatuses.REJECTED) ? (
           <div className='rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-fg'>
-            <p className='font-medium'>Your last change request was rejected{(request.reviewed) ? ` on ${formatDate(request.reviewed)}` : ''}.</p>
+            <p className='font-medium'>{(request.reviewed) ? t('ddir.rejected_on', {date: formatDate(request.reviewed)}) : t('ddir.rejected')}</p>
             {(request.reason) ? <p className='mt-1 whitespace-pre-wrap text-muted'>{request.reason}</p> : null}
           </div>
         ) : (request?.status === TagDirectoryEditRequestStatuses.APPROVED) ? (
-          <p className='text-sm text-muted'>Your last change request was approved{(request.reviewed) ? ` on ${formatDate(request.reviewed)}` : ''}.</p>
+          <p className='text-sm text-muted'>{(request.reviewed) ? t('ddir.approved_on', {date: formatDate(request.reviewed)}) : t('ddir.approved')}</p>
         ) : (
-          <p className='text-sm text-muted'>Title, description, category and whether the content is public can still be changed above without a request.</p>
+          <p className='text-sm text-muted'>{t('ddir.still_editable')}</p>
         )}
-        {(mutation.isError) ? <InlineError>{errorMessage(mutation.error, 'Couldn’t start a change request.')}</InlineError> : null}
+        {(mutation.isError) ? <InlineError>{errorMessage(mutation.error, t('ddir.start_error'))}</InlineError> : null}
       </Panel>
     );
   }
@@ -512,22 +512,22 @@ function EditRequestPanel({ tag, directory }: {tag: Tag, directory: TagDirectory
         <EditRequestDraft key={request.id} tag={tag} request={request} onDiscard={() => setDiscarding(true)}/>
       ) : (
         <Panel
-          title='Change request'
+          title={t('ddir.change_request')}
           accent='#faa61a'
-          description={`Waiting for NotSoBot staff to review it${(request.submitted) ? `, submitted ${formatDateTime(request.submitted)}` : ''}. The listing stays as it is until it’s approved.`}
+          description={(request.submitted) ? t('ddir.waiting_submitted', {date: formatDateTime(request.submitted)}) : t('ddir.waiting')}
         >
           <dl className='space-y-3 text-sm'>
             <div>
-              <dt className='text-subtle'>Note for staff</dt>
-              <dd className='mt-0.5 whitespace-pre-wrap text-fg'>{request.note || <span className='text-subtle italic'>(none)</span>}</dd>
+              <dt className='text-subtle'>{t('ddir.note')}</dt>
+              <dd className='mt-0.5 whitespace-pre-wrap text-fg'>{request.note || <span className='text-subtle italic'>{t('ddir.none')}</span>}</dd>
             </div>
             <div>
-              <dt className='text-subtle'>Content</dt>
-              <dd className='mt-0.5 text-fg'>{(request.content !== null) ? 'Changes the tag’s content.' : 'Leaves the content as it is.'}</dd>
+              <dt className='text-subtle'>{t('dtags.detail.content')}</dt>
+              <dd className='mt-0.5 text-fg'>{t((request.content !== null) ? 'ddir.changes_content' : 'ddir.keeps_content')}</dd>
             </div>
           </dl>
           <div className='mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4'>
-            <p className='text-sm text-subtle'>Withdraw it to make more changes, then submit it again.</p>
+            <p className='text-sm text-subtle'>{t('ddir.withdraw_note')}</p>
             <div className='flex flex-wrap gap-2'>
               <button
                 type='button'
@@ -536,29 +536,29 @@ function EditRequestPanel({ tag, directory }: {tag: Tag, directory: TagDirectory
                 onClick={() => mutation.mutate({withdraw: true})}
               >
                 <Undo2 className='size-3.5'/>
-                Withdraw to edit
+                {t('ddir.withdraw')}
               </button>
               <button type='button' className='btn btn-danger btn-sm' disabled={mutation.isPending} onClick={() => setDiscarding(true)}>
                 <X className='size-3.5'/>
-                Cancel request
+                {t('tags.listing.cancel_request')}
               </button>
             </div>
           </div>
-          {(mutation.isError) ? <InlineError>{errorMessage(mutation.error, 'Couldn’t update the change request.')}</InlineError> : null}
+          {(mutation.isError) ? <InlineError>{errorMessage(mutation.error, t('ddir.update_error'))}</InlineError> : null}
         </Panel>
       )}
 
       {(discarding) ? (
         <ConfirmDialog
-          title={`Discard the change request for “${tag.name}”?`}
-          description='Its note, content and anything uploaded for it are deleted. The listing isn’t affected.'
-          confirmLabel='Discard request'
+          title={t('ddir.discard_title', {name: tag.name})}
+          description={t('ddir.discard_description')}
+          confirmLabel={t('ddir.discard')}
           pending={mutation.isPending}
-          error={(mutation.isError) ? errorMessage(mutation.error, 'Couldn’t discard the change request.') : undefined}
+          error={(mutation.isError) ? errorMessage(mutation.error, t('ddir.discard_error')) : undefined}
           onConfirm={() => mutation.mutate({discard: true}, {
             onSuccess: () => {
               setDiscarding(false);
-              toast(`Discarded the change request for “${tag.name}”.`);
+              toast(translate('ddir.discarded', {name: tag.name}));
             },
           })}
           onClose={() => {
@@ -573,6 +573,7 @@ function EditRequestPanel({ tag, directory }: {tag: Tag, directory: TagDirectory
 
 
 function EditRequestDraft({ tag, request, onDiscard }: {tag: Tag, request: TagDirectoryEditRequest, onDiscard: () => void}) {
+  const { t } = useI18n();
   const toast = useToast();
   const mutation = useMeTagDirectoryEditRequestMutation(tag.id);
   const [ note, setNote ] = useState(request.note);
@@ -586,7 +587,7 @@ function EditRequestDraft({ tag, request, onDiscard }: {tag: Tag, request: TagDi
 
   const save = async () => {
     await mutation.mutateAsync({patch: patch()});
-    toast('Saved the change request draft.');
+    toast(translate('ddir.draft_saved'));
   };
 
   const submit = async () => {
@@ -594,7 +595,7 @@ function EditRequestDraft({ tag, request, onDiscard }: {tag: Tag, request: TagDi
       await mutation.mutateAsync({patch: patch()});
     }
     await mutation.mutateAsync({submit: true});
-    toast(`Sent the change request for “${tag.name}” to NotSoBot staff.`);
+    toast(translate('ddir.sent', {name: tag.name}));
   };
 
   const run = (action: () => Promise<void>) => {
@@ -604,14 +605,14 @@ function EditRequestDraft({ tag, request, onDiscard }: {tag: Tag, request: TagDi
 
   return (
     <Panel
-      title='Change request'
+      title={t('ddir.change_request')}
       accent='#5865f2'
-      description='A draft only you can see. Change the content here, and the thumbnail and media below, then submit it for NotSoBot staff to review.'
+      description={t('ddir.draft_description')}
     >
       <div className='grid grid-cols-1 gap-y-5'>
         <Field
-          label='Note for staff'
-          hint='What you’re changing and why. Optional, but it helps the review.'
+          label={t('ddir.note')}
+          hint={t('ddir.note_hint')}
           counter={<CharCounter length={note.length} max={TAG_DIRECTORY_DESCRIPTION_MAX}/>}
         >
           {(props) => (
@@ -626,8 +627,8 @@ function EditRequestDraft({ tag, request, onDiscard }: {tag: Tag, request: TagDi
           )}
         </Field>
         <Field
-          label='Content'
-          hint={(content === tag.content) ? 'Same as the tag’s content now, so it won’t change.' : 'Replaces the tag’s content once the request is approved.'}
+          label={t('dtags.detail.content')}
+          hint={t((content === tag.content) ? 'ddir.content_same' : 'ddir.content_replaces')}
           counter={<CharCounter length={content.length} max={TAG_CONTENT_MAX}/>}
         >
           {(props) => (
@@ -645,26 +646,26 @@ function EditRequestDraft({ tag, request, onDiscard }: {tag: Tag, request: TagDi
       </div>
       {(content !== tag.content) ? (
         <button type='button' className='mt-2 cursor-pointer text-xs text-brand hover:underline' onClick={() => setContent(tag.content)}>
-          Reset to the current content
+          {t('ddir.reset_content')}
         </button>
       ) : null}
 
       <div className='mt-5 flex flex-col-reverse gap-3 border-t border-line pt-4 sm:flex-row sm:items-center sm:justify-between'>
         <button type='button' className='btn btn-ghost btn-sm text-danger sm:self-center' disabled={mutation.isPending} onClick={onDiscard}>
           <X className='size-3.5'/>
-          Discard draft
+          {t('ddir.discard_draft')}
         </button>
         <div className='flex flex-wrap gap-2 sm:justify-end'>
           <button type='button' className='btn btn-secondary btn-sm' disabled={!dirty || invalid || mutation.isPending} onClick={() => run(save)}>
-            Save draft
+            {t('ddir.save_draft')}
           </button>
           <button type='button' className='btn btn-primary btn-sm' disabled={invalid || mutation.isPending} onClick={() => run(submit)}>
             <Send className='size-3.5'/>
-            {(mutation.isPending) ? 'Sending…' : 'Submit for review'}
+            {t((mutation.isPending) ? 'ddir.sending' : 'ddir.submit')}
           </button>
         </div>
       </div>
-      {(mutation.isError) ? <InlineError>{errorMessage(mutation.error, 'Couldn’t update the change request.')}</InlineError> : null}
+      {(mutation.isError) ? <InlineError>{errorMessage(mutation.error, t('ddir.update_error'))}</InlineError> : null}
     </Panel>
   );
 }

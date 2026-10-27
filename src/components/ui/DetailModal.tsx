@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Children, useRef, type ReactNode } from 'react';
 
+import { useI18n } from '@/i18n';
 import { cn } from '@/lib/utils';
 
 import { useToastClearance } from './Toast';
@@ -73,6 +74,7 @@ export function ModalFooter({ previousId = null, nextId = null, onNavigate, star
   start?: ReactNode,
   children?: ReactNode,
 }) {
+  const { t } = useI18n();
   const ref = useRef<HTMLElement>(null);
   // toasts (e.g. a status change's undo) would otherwise land on top of Next
   useToastClearance(ref);
@@ -94,30 +96,30 @@ export function ModalFooter({ previousId = null, nextId = null, onNavigate, star
         <button
           type='button'
           className='btn btn-ghost shrink-0 px-2'
-          aria-label='Previous'
-          title='Previous (←)'
+          aria-label={t('common.previous')}
+          title={t('ui.previous_key')}
           disabled={!previousId}
           onClick={() => previousId && onNavigate(previousId)}
         >
           <ChevronLeft className='size-4'/>
-          <span className={cn(actions && 'hidden lg:inline')}>Previous</span>
+          <span className={cn(actions && 'hidden lg:inline')}>{t('common.previous')}</span>
         </button>
       ) : start}
       {(actions) ? (
         <div className='flex min-w-0 flex-1 justify-center gap-2'>{children}</div>
       ) : (onNavigate) ? (
-        <span className='hidden text-xs text-subtle sm:block'>Use ← → to browse this page</span>
+        <span className='hidden text-xs text-subtle sm:block'>{t('tags.detail.browse_hint')}</span>
       ) : null}
       {(onNavigate) ? (
         <button
           type='button'
           className='btn btn-ghost shrink-0 px-2'
-          aria-label='Next'
-          title='Next (→)'
+          aria-label={t('common.next')}
+          title={t('ui.next_key')}
           disabled={!nextId}
           onClick={() => nextId && onNavigate(nextId)}
         >
-          <span className={cn(actions && 'hidden lg:inline')}>Next</span>
+          <span className={cn(actions && 'hidden lg:inline')}>{t('common.next')}</span>
           <ChevronRight className='size-4'/>
         </button>
       ) : null}

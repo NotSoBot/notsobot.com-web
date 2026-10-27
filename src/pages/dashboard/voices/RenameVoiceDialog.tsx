@@ -4,6 +4,7 @@ import { useEffect, useId, useState } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
+import { translate, useI18n } from '@/i18n';
 import { VoiceCloneTypes, type Voice } from '@/lib/api';
 import { errorMessage, type VoiceRename } from '@/lib/api/dashboardQueries';
 
@@ -19,6 +20,7 @@ export function RenameVoiceDialog({ voice, mutation, onClose }: {
   mutation: UseMutationResult<Voice, Error, VoiceRename>,
   onClose: () => void,
 }) {
+  const { t } = useI18n();
   const titleId = useId();
   const toast = useToast();
   const [ name, setName ] = useState(voice.name);
@@ -37,7 +39,7 @@ export function RenameVoiceDialog({ voice, mutation, onClose }: {
   const submit = () => {
     mutation.mutate({voiceId: voice.id, name: trimmed}, {
       onSuccess: (updated) => {
-        toast(`Renamed to ${updated.name}`);
+        toast(t('voices.renamed', {name: updated.name}));
         onClose();
       },
     });
@@ -54,13 +56,13 @@ export function RenameVoiceDialog({ voice, mutation, onClose }: {
           }
         }}
       >
-        <h2 id={titleId} className='pr-10 text-lg font-semibold break-words text-white'>Rename {voice.name}</h2>
-        <p className='mt-2 text-sm text-muted'>It’s the name you pick the voice by in the bot’s voice commands.</p>
+        <h2 id={titleId} className='pr-10 text-lg font-semibold break-words text-white'>{t('voices.rename_title', {name: voice.name})}</h2>
+        <p className='mt-2 text-sm text-muted'>{t('voices.rename_description')}</p>
 
         <Field
           className='mt-4'
-          label='Name'
-          error={(tooLong) ? `Names can be up to ${VOICE_NAME_MAX_LENGTH} characters.` : undefined}
+          label={t('voices.name')}
+          error={(tooLong) ? t('voices.name_too_long', {max: VOICE_NAME_MAX_LENGTH}) : undefined}
           counter={<CharCounter length={trimmed.length} max={VOICE_NAME_MAX_LENGTH}/>}
         >
           {(props) => (
@@ -78,15 +80,15 @@ export function RenameVoiceDialog({ voice, mutation, onClose }: {
 
         {(mutation.isError) ? (
           <p role='alert' className='mt-4 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-fg'>
-            {errorMessage(mutation.error, 'Couldn’t rename the voice.')}
+            {errorMessage(mutation.error, t('voices.rename_error'))}
           </p>
         ) : null}
 
         <div className='mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
-          <button type='button' className='btn btn-secondary' onClick={onClose} disabled={mutation.isPending}>Cancel</button>
+          <button type='button' className='btn btn-secondary' onClick={onClose} disabled={mutation.isPending}>{t('common.cancel')}</button>
           <button type='submit' className='btn btn-primary' disabled={mutation.isPending || !valid || !changed}>
             {(mutation.isPending) ? <Spinner className='size-4 border-white/40 border-t-white'/> : null}
-            Save
+            {t('common.save')}
           </button>
         </div>
       </form>
@@ -100,5 +102,5 @@ export function voicePlatformLabel(platformType: number): string {
     case VoiceCloneTypes.ELEVENLABS: return 'ElevenLabs';
     case VoiceCloneTypes.FISH_AUDIO: return 'fish.audio';
   }
-  return `Type ${platformType}`;
+  return translate('voices.platform_unknown', {type: platformType});
 }

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
+import { translate, useI18n } from '@/i18n';
 import type { Tag, TagStorageScope, TagStorageType } from '@/lib/api';
 import {
   errorMessage,
@@ -11,7 +12,7 @@ import {
   useMeTagVariablesQuery,
   usePutMeTagVariableMutation,
 } from '@/lib/api/dashboardQueries';
-import { cn } from '@/lib/utils';
+import { cn, formatNumber } from '@/lib/utils';
 
 import { CharCounter, EmptyState, ErrorPanel, Field, InlineError, Panel, PanelSkeleton, ReadOnlyNote } from '../ui';
 import { storageIdFor } from './StorageScopeForm';
@@ -32,6 +33,7 @@ export function TagVariablesEditor({ tag, scope, readOnly, onDirtyChange }: {
   readOnly: boolean,
   onDirtyChange: (dirty: boolean) => void,
 }) {
+  const { t } = useI18n();
   const { data, isPending, isError, error, refetch, isRefetching } = useMeTagVariablesQuery(tag.id, scope);
 
   // open editors with unsaved text, keyed `${type}:${name}`
@@ -59,12 +61,12 @@ export function TagVariablesEditor({ tag, scope, readOnly, onDirtyChange }: {
     return <div className='space-y-4'><PanelSkeleton rows={2}/><PanelSkeleton rows={2}/></div>;
   }
   if (isError) {
-    return <ErrorPanel title='Couldn’t load variables' message={errorMessage(error)} onRetry={() => refetch()} retrying={isRefetching}/>;
+    return <ErrorPanel title={t('dtags.vars.load_error')} message={errorMessage(error)} onRetry={() => refetch()} retrying={isRefetching}/>;
   }
 
   return (
     <div className='space-y-4'>
-      {(readOnly) ? <ReadOnlyNote>This tag is locked, so its variables are read-only.</ReadOnlyNote> : null}
+      {(readOnly) ? <ReadOnlyNote>{t('dtags.vars.locked')}</ReadOnlyNote> : null}
       {STORAGE_ORDER.map((meta) => {
         const storageId = storageIdFor(scope, meta.type);
         return (
@@ -94,6 +96,7 @@ function StorageGroup({ tagId, scope, meta, storageId, variables, readOnly, setD
   readOnly: boolean,
   setDirty: (key: string, dirty: boolean) => void,
 }) {
+  const { t } = useI18n();
   const [ adding, setAdding ] = useState(false);
   const entries = Object.entries(variables).sort(([a], [b]) => a.localeCompare(b));
   const full = TAG_VARIABLES_PER_STORAGE <= entries.length;
@@ -108,15 +111,15 @@ function StorageGroup({ tagId, scope, meta, storageId, variables, readOnly, setD
         <>
           <span className='text-xs text-subtle tabular-nums'>{entries.length} / {TAG_VARIABLES_PER_STORAGE}</span>
           {(!readOnly) ? (
-            <button type='button' className='btn btn-secondary btn-sm' disabled={full || adding} onClick={() => setAdding(true)} title={full ? 'This storage is full' : undefined}>
-              <Plus aria-hidden className='size-3.5'/> Add
+            <button type='button' className='btn btn-secondary btn-sm' disabled={full || adding} onClick={() => setAdding(true)} title={full ? t('dtags.vars.full') : undefined}>
+              <Plus aria-hidden className='size-3.5'/> {t('common.add')}
             </button>
           ) : null}
         </>
       ) : null}
     >
       {(!storageId) ? (
-        <p className='text-sm text-subtle'>Enter a {meta.label.toLowerCase()} ID above to see this storage.</p>
+        <p className='text-sm text-subtle'>{t('dtags.storage.enter_id', {type: meta.label.toLowerCase()})}</p>
       ) : (
         <div className='space-y-2'>
           {(adding) ? (
@@ -147,8 +150,8 @@ function StorageGroup({ tagId, scope, meta, storageId, variables, readOnly, setD
               ))}
             </ul>
           ) : (!adding) ? (
-            <EmptyState icon={<Variable className='size-7'/>} title='No variables here'>
-              {(readOnly) ? null : 'Add one, or let the tag set them when it runs.'}
+            <EmptyState icon={<Variable className='size-7'/>} title={t('dtags.vars.empty')}>
+              {(readOnly) ? null : t('dtags.vars.empty_description')}
             </EmptyState>
           ) : null}
         </div>
@@ -168,6 +171,7 @@ function VariableRow({ tagId, scope, storageType, storageId, name, value, readOn
   readOnly: boolean,
   setDirty: (key: string, dirty: boolean) => void,
 }) {
+  const { t } = useI18n();
   const toast = useToast();
   const [ editing, setEditing ] = useState(false);
   const [ confirming, setConfirming ] = useState(false);
@@ -203,10 +207,10 @@ function VariableRow({ tagId, scope, storageType, storageId, name, value, readOn
         </div>
         {(!readOnly) ? (
           <div className='flex shrink-0 gap-1'>
-            <button type='button' className='btn btn-ghost btn-sm px-2' aria-label={`Edit ${name}`} onClick={() => setEditing(true)}>
+            <button type='button' className='btn btn-ghost btn-sm px-2' aria-label={t('dtags.vars.edit', {name})} onClick={() => setEditing(true)}>
               <Pencil aria-hidden className='size-4'/>
             </button>
-            <button type='button' className='btn btn-ghost btn-sm px-2 hover:text-danger' aria-label={`Delete ${name}`} onClick={() => setConfirming(true)}>
+            <button type='button' className='btn btn-ghost btn-sm px-2 hover:text-danger' aria-label={t('dtags.delete_label', {name})} onClick={() => setConfirming(true)}>
               <Trash2 aria-hidden className='size-4'/>
             </button>
           </div>
@@ -215,9 +219,9 @@ function VariableRow({ tagId, scope, storageType, storageId, name, value, readOn
 
       {(confirming) ? (
         <ConfirmDialog
-          title={`Delete variable “${name}”?`}
-          description='The tag will act as if it was never set.'
-          confirmLabel='Delete variable'
+          title={t('dtags.vars.delete_title', {name})}
+          description={t('dtags.vars.delete_description')}
+          confirmLabel={t('dtags.vars.delete')}
           pending={remove.isPending}
           error={(remove.isError) ? errorMessage(remove.error) : null}
           onClose={() => {
@@ -227,7 +231,7 @@ function VariableRow({ tagId, scope, storageType, storageId, name, value, readOn
           onConfirm={() => remove.mutate({storageType, storageId, name}, {
             onSuccess: () => {
               setConfirming(false);
-              toast(`Deleted “${name}”`);
+              toast(translate('dtags.vars.deleted', {name}));
             },
           })}
         />
@@ -249,6 +253,7 @@ function VariableEditor({ tagId, scope, storageType, storageId, initialName, ini
   onDone: () => void,
   setDirty: (key: string, dirty: boolean) => void,
 }) {
+  const { t } = useI18n();
   const toast = useToast();
   const put = usePutMeTagVariableMutation(tagId, scope);
   const [ name, setName ] = useState(initialName ?? '');
@@ -262,9 +267,9 @@ function VariableEditor({ tagId, scope, storageType, storageId, initialName, ini
   }, [dirtyKey, dirty, setDirty]);
   useEffect(() => () => setDirty(dirtyKey, false), [dirtyKey, setDirty]);
 
-  const nameError = (isNew && name.trim() && existingNames.includes(name.trim())) ? 'A variable with this name already exists here.'
-    : (TAG_VARIABLE_NAME_MAX < name.length) ? `Up to ${TAG_VARIABLE_NAME_MAX} characters.` : null;
-  const valueError = (TAG_VARIABLE_VALUE_MAX < value.length) ? `Up to ${TAG_VARIABLE_VALUE_MAX.toLocaleString()} characters.` : null;
+  const nameError = (isNew && name.trim() && existingNames.includes(name.trim())) ? t('dtags.vars.exists')
+    : (TAG_VARIABLE_NAME_MAX < name.length) ? t('dtags.vars.too_long', {max: TAG_VARIABLE_NAME_MAX}) : null;
+  const valueError = (TAG_VARIABLE_VALUE_MAX < value.length) ? t('dtags.vars.too_long', {max: formatNumber(TAG_VARIABLE_VALUE_MAX)}) : null;
   const formatted = formatJson(value);
   // the API strips whitespace, so a blank value would delete the variable instead of saving it
   const canSave = !!name.trim() && !!value.trim() && !nameError && !valueError && dirty && !put.isPending;
@@ -279,7 +284,7 @@ function VariableEditor({ tagId, scope, storageType, storageId, initialName, ini
         }
         put.mutate({storageType, storageId, name, value}, {
           onSuccess: (variable) => {
-            toast((isNew) ? `Added “${variable.name}”` : `Saved “${variable.name}”`);
+            toast(translate((isNew) ? 'dtags.vars.added' : 'dtags.vars.saved', {name: variable.name}));
             setDirty(dirtyKey, false);
             onDone();
           },
@@ -293,16 +298,16 @@ function VariableEditor({ tagId, scope, storageType, storageId, initialName, ini
     >
       <div className='space-y-3'>
         {(isNew) ? (
-          <Field label='Name' error={nameError} counter={<CharCounter length={name.length} max={TAG_VARIABLE_NAME_MAX}/>}>
+          <Field label={t('dtags.vars.name')} error={nameError} counter={<CharCounter length={name.length} max={TAG_VARIABLE_NAME_MAX}/>}>
             {(props) => <input {...props} autoFocus className='input font-mono' value={name} onChange={(event) => setName(event.target.value)} autoComplete='off' spellCheck={false}/>}
           </Field>
         ) : (
           <p className='font-mono text-sm text-white'>{name}</p>
         )}
         <Field
-          label='Value'
+          label={t('dtags.vars.value')}
           error={valueError}
-          hint='Text or JSON. Saving an empty value isn’t allowed; delete the variable instead.'
+          hint={t('dtags.vars.value_hint')}
           counter={<CharCounter length={value.length} max={TAG_VARIABLE_VALUE_MAX}/>}
         >
           {(props) => (
@@ -319,7 +324,7 @@ function VariableEditor({ tagId, scope, storageType, storageId, initialName, ini
         </Field>
       </div>
 
-      {(put.isError) ? <InlineError>{errorMessage(put.error, 'Couldn’t save the variable.')}</InlineError> : null}
+      {(put.isError) ? <InlineError>{errorMessage(put.error, t('dtags.vars.save_error'))}</InlineError> : null}
 
       <div className='mt-3 flex flex-wrap items-center justify-between gap-2'>
         <button
@@ -328,13 +333,13 @@ function VariableEditor({ tagId, scope, storageType, storageId, initialName, ini
           onClick={() => formatted && setValue(formatted)}
           disabled={!formatted || formatted === value}
         >
-          <Braces aria-hidden className='size-3.5'/> Format JSON
+          <Braces aria-hidden className='size-3.5'/> {t('dtags.format_json')}
         </button>
         <div className='flex gap-2'>
-          <button type='button' className='btn btn-ghost btn-sm' onClick={onDone} disabled={put.isPending}>Cancel</button>
+          <button type='button' className='btn btn-ghost btn-sm' onClick={onDone} disabled={put.isPending}>{t('common.cancel')}</button>
           <button type='submit' className='btn btn-primary btn-sm' disabled={!canSave}>
             {(put.isPending) ? <Spinner className='size-3.5 border-white/40 border-t-white'/> : null}
-            {(isNew) ? 'Add variable' : 'Save'}
+            {t((isNew) ? 'dtags.vars.add' : 'common.save')}
           </button>
         </div>
       </div>

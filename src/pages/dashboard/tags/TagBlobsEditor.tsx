@@ -2,6 +2,7 @@ import { Braces, FileQuestion, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 import { useToast } from '@/components/ui/Toast';
+import { translate, useI18n } from '@/i18n';
 import type { Tag, TagBlobs, TagBlobsPut, TagStorageScope, TagStorageType } from '@/lib/api';
 import { errorMessage, useMeTagBlobsQuery, usePutMeTagBlobsMutation } from '@/lib/api/dashboardQueries';
 import { cn, formatMemory } from '@/lib/utils';
@@ -52,12 +53,13 @@ export function TagBlobsEditor({ tag, scope, readOnly, onDirtyChange }: {
   readOnly: boolean,
   onDirtyChange: (dirty: boolean) => void,
 }) {
+  const { t } = useI18n();
   const { data, isPending, isError, error, refetch, isRefetching } = useMeTagBlobsQuery(tag.id, scope);
   if (isPending) {
     return <div className='space-y-4'><PanelSkeleton rows={2}/><PanelSkeleton rows={2}/></div>;
   }
   if (isError) {
-    return <ErrorPanel title='Couldn’t load blobs' message={errorMessage(error)} onRetry={() => refetch()} retrying={isRefetching}/>;
+    return <ErrorPanel title={t('dtags.blobs.load_error')} message={errorMessage(error)} onRetry={() => refetch()} retrying={isRefetching}/>;
   }
   // a new scope/response starts a fresh form
   return <BlobsForm key={JSON.stringify(scope)} tag={tag} scope={scope} blobs={data} readOnly={readOnly} onDirtyChange={onDirtyChange}/>;
@@ -71,6 +73,7 @@ function BlobsForm({ tag, scope, blobs, readOnly, onDirtyChange }: {
   readOnly: boolean,
   onDirtyChange: (dirty: boolean) => void,
 }) {
+  const { t } = useI18n();
   const toast = useToast();
   const put = usePutMeTagBlobsMutation(tag.id, scope);
   const saved = useMemo(() => toSlots(blobs), [blobs]);
@@ -108,8 +111,8 @@ function BlobsForm({ tag, scope, blobs, readOnly, onDirtyChange }: {
       body.blobs.push({storage_id: storageId, storage_type: type, value: (slot.kind === 'text') ? encodeBlob(slot.text) : slot.base64});
     }
     put.mutate(body, {
-      onSuccess: () => toast('Blobs saved'),
-      onError: (saveError) => toast(errorMessage(saveError, 'Couldn’t save the blobs.'), 'error'),
+      onSuccess: () => toast(translate('dtags.blobs.saved')),
+      onError: (saveError) => toast(errorMessage(saveError, translate('dtags.blobs.save_error')), 'error'),
     });
   };
 
@@ -121,10 +124,9 @@ function BlobsForm({ tag, scope, blobs, readOnly, onDirtyChange }: {
       }}
       className='space-y-4'
     >
-      {(readOnly) ? <ReadOnlyNote>This tag is locked, so its blobs are read-only.</ReadOnlyNote> : null}
+      {(readOnly) ? <ReadOnlyNote>{t('dtags.blobs.locked')}</ReadOnlyNote> : null}
       <p className='text-sm text-muted'>
-        Each storage holds one blob of up to {formatMemory(TAG_BLOB_MAX_BYTES)} that the tag can read and write.
-        Clearing a blob and saving removes it.
+        {t('dtags.blobs.description', {size: formatMemory(TAG_BLOB_MAX_BYTES)})}
       </p>
 
       {STORAGE_ORDER.map((meta) => {
@@ -137,36 +139,36 @@ function BlobsForm({ tag, scope, blobs, readOnly, onDirtyChange }: {
           <Panel
             key={meta.type}
             headingLevel={3}
-            title={<>{meta.label}{(changed) ? <span className='ml-1 text-xs font-normal text-warning'>(edited)</span> : null}</>}
+            title={<>{meta.label}{(changed) ? <span className='ml-1 text-xs font-normal text-warning'>{t('dtags.blobs.edited')}</span> : null}</>}
             accent={meta.color}
             description={(storageId && storageId !== '0') ? <>{meta.description} <span className='font-mono text-subtle'>{storageId}</span></> : meta.description}
           >
             {(!storageId) ? (
-              <p className='text-sm text-subtle'>Enter a {meta.label.toLowerCase()} ID above to see this storage.</p>
+              <p className='text-sm text-subtle'>{t('dtags.storage.enter_id', {type: meta.label.toLowerCase()})}</p>
             ) : (slot.kind === 'binary') ? (
               <div className='flex flex-wrap items-center justify-between gap-3 rounded-md border border-line bg-surface-2 p-3'>
                 <span className='flex items-center gap-2 text-sm text-muted'>
                   <FileQuestion aria-hidden className='size-4 shrink-0'/>
-                  Binary data ({formatMemory(slot.bytes, 1)}); it can’t be edited as text.
+                  {t('dtags.blobs.binary', {size: formatMemory(slot.bytes, 1)})}
                 </span>
                 {(!readOnly) ? (
                   <button type='button' className='btn btn-ghost btn-sm hover:text-danger' onClick={() => setDraft((previous) => ({...previous, [meta.type]: {kind: 'empty'}}))}>
-                    <Trash2 aria-hidden className='size-3.5'/> Remove
+                    <Trash2 aria-hidden className='size-3.5'/> {t('common.remove')}
                   </button>
                 ) : null}
               </div>
             ) : (
               <Field
-                label={`${meta.label} blob`}
+                label={t('dtags.blobs.blob', {type: meta.label})}
                 counter={<span className={cn(TAG_BLOB_MAX_BYTES < size && 'text-danger')}>{formatMemory(size, (size < 1024) ? 0 : 1)} / {formatMemory(TAG_BLOB_MAX_BYTES)}</span>}
-                error={(TAG_BLOB_MAX_BYTES < size) ? `Blobs can be up to ${formatMemory(TAG_BLOB_MAX_BYTES)}.` : null}
+                error={(TAG_BLOB_MAX_BYTES < size) ? t('dtags.blobs.too_big', {size: formatMemory(TAG_BLOB_MAX_BYTES)}) : null}
               >
                 {(props) => (
                   <textarea
                     {...props}
                     readOnly={readOnly}
                     rows={Math.min(14, Math.max(4, slotText(slot).split('\n').length + 1))}
-                    placeholder={(readOnly) ? 'Empty' : 'Empty. Type or paste text/JSON to store it.'}
+                    placeholder={t((readOnly) ? 'dtags.blobs.empty' : 'dtags.blobs.empty_placeholder')}
                     spellCheck={false}
                     className='input resize-y font-mono text-xs leading-5'
                     value={slotText(slot)}
@@ -185,16 +187,16 @@ function BlobsForm({ tag, scope, blobs, readOnly, onDirtyChange }: {
                 className='btn btn-ghost btn-sm mt-2'
                 onClick={() => setDraft((previous) => ({...previous, [meta.type]: {kind: 'text', text: formatted}}))}
               >
-                <Braces aria-hidden className='size-3.5'/> Format JSON
+                <Braces aria-hidden className='size-3.5'/> {t('dtags.format_json')}
               </button>
             ) : null}
           </Panel>
         );
       })}
 
-      {(put.isError) ? <InlineError>{errorMessage(put.error, 'Couldn’t save the blobs.')}</InlineError> : null}
+      {(put.isError) ? <InlineError>{errorMessage(put.error, t('dtags.blobs.save_error'))}</InlineError> : null}
       {(!readOnly) ? (
-        <SaveBar standalone dirty={dirty} pending={put.isPending} disabled={tooBig} saveLabel='Save blobs' onDiscard={() => {
+        <SaveBar standalone dirty={dirty} pending={put.isPending} disabled={tooBig} saveLabel={t('dtags.blobs.save')} onDiscard={() => {
           put.reset();
           setDraft(saved);
         }}/>

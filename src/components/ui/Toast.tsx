@@ -1,6 +1,7 @@
 import { CheckCircle2, CircleAlert, X } from 'lucide-react';
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 
+import { useI18n } from '@/i18n';
 import { cn } from '@/lib/utils';
 
 
@@ -90,6 +91,7 @@ export function ToastProvider({ children }: {children: ReactNode}) {
 
 
 function Toast({ toast, onDismiss }: {toast: ToastItem, onDismiss: (id: number) => void}) {
+  const { t } = useI18n();
   useEffect(() => {
     const timer = window.setTimeout(() => onDismiss(toast.id), (toast.tone === 'error' || toast.action) ? 7000 : 3500);
     return () => window.clearTimeout(timer);
@@ -120,7 +122,7 @@ function Toast({ toast, onDismiss }: {toast: ToastItem, onDismiss: (id: number) 
       ) : null}
       <button
         type='button'
-        aria-label='Dismiss'
+        aria-label={t('ui.dismiss')}
         onClick={() => onDismiss(toast.id)}
         className='-m-1 cursor-pointer rounded p-1 text-subtle hover:text-fg'
       >

@@ -12,6 +12,7 @@ import { SearchInput } from '@/components/ui/SearchInput';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { translate, useI18n, type TranslationKey } from '@/i18n';
 import {
   GuildReportTypes,
   ReportStatuses,
@@ -56,27 +57,24 @@ import { useReadOnlyMessage } from './guildMeta';
 const REPORTS_LOGGER_TYPE = 8;
 // the api's `MAX_GUILD_REPORT_MESSAGE_LENGTH`, a whole reply fits in the bot's DM to the reporter
 const MAX_REPLY_LENGTH = 1000;
-const MODERATORS_NAME = 'The moderators';
 // the api draws the report images at 2x (`DEVICE_SCALE` in `apis/discord_quote.py`)
 const IMAGE_SCALE = 2;
 const TITLE_ID = 'guild-report-modal-title';
 
-const STATUS_OPTIONS = [
-  {value: String(ReportStatuses.OPEN), label: 'Open'},
-  {value: String(ReportStatuses.RESOLVED), label: 'Resolved'},
-  {value: String(ReportStatuses.DISMISSED), label: 'Dismissed'},
-];
+// labels come from `reportStatusInfo`
+const STATUS_OPTIONS = [ReportStatuses.OPEN, ReportStatuses.RESOLVED, ReportStatuses.DISMISSED].map((status) => ({value: String(status), status}));
 
-const STATUS_ACTIONS: Record<number, string> = {
-  [ReportStatuses.OPEN]: 'Reopen',
-  [ReportStatuses.RESOLVED]: 'Resolve',
-  [ReportStatuses.DISMISSED]: 'Dismiss',
+// the buttons, and the toast once it's done, by the status they set
+const STATUS_ACTIONS: Record<number, TranslationKey> = {
+  [ReportStatuses.OPEN]: 'greports.action.open',
+  [ReportStatuses.RESOLVED]: 'greports.action.resolved',
+  [ReportStatuses.DISMISSED]: 'greports.action.dismissed',
 };
 
-const STATUS_DONE: Record<number, string> = {
-  [ReportStatuses.OPEN]: 'reopened',
-  [ReportStatuses.RESOLVED]: 'resolved',
-  [ReportStatuses.DISMISSED]: 'dismissed',
+const STATUS_DONE: Record<number, TranslationKey> = {
+  [ReportStatuses.OPEN]: 'greports.done.open',
+  [ReportStatuses.RESOLVED]: 'greports.done.resolved',
+  [ReportStatuses.DISMISSED]: 'greports.done.dismissed',
 };
 
 // the slot each status button sits in; once the report is in that status, the slot turns into Reopen (like the admin
@@ -97,7 +95,7 @@ const STATUS_ICONS: Record<number, LucideIcon> = {
 
 
 function typeInfo(report: GuildReport): {label: string, tone: 'danger' | 'warning'} {
-  return (report.type === GuildReportTypes.MESSAGE) ? {label: 'Message', tone: 'warning'} : {label: 'Member', tone: 'danger'};
+  return (report.type === GuildReportTypes.MESSAGE) ? {label: translate('sreports.type.message'), tone: 'warning'} : {label: translate('sreports.type.member'), tone: 'danger'};
 }
 
 // the reporter sent the last reply, replying doesn't reopen a handled report so these can be handled ones too
@@ -115,18 +113,19 @@ function ReportUser({ users, id }: {users: ReportUsers, id: string}) {
 
 
 export function GuildReportsSection({ guild }: {guild: UserGuild}) {
+  const { t } = useI18n();
   const editable = guild.editable.moderation;
   const readOnlyMessage = useReadOnlyMessage();
   const hasLogger = guild.loggers.some((logger) => logger.type === REPORTS_LOGGER_TYPE);
 
   return (
     <Panel
-      title='Reports'
+      title={t('greports.title')}
       accent='#ed4245'
-      description='Members’ reports to the moderators, from the report command and the Report to Mods menus. Handling one here also updates its message in the reports logger, and resolving or dismissing it DMs the reporter. Replies are DMed to them from “the moderators”, without your name. The reported member and message are kept as images of how they looked (their pictures left out when they may be NSFW) for 30 days, then deleted, so save anything you need longer.'
+      description={t('greports.description')}
       readOnly={(editable) ? undefined : readOnlyMessage('moderation')}
     >
-      {(editable) ? <ReportsList guildId={guild.id} hasLogger={hasLogger}/> : <p className='text-sm text-muted'>Members’ reports are only shown to moderators.</p>}
+      {(editable) ? <ReportsList guildId={guild.id} hasLogger={hasLogger}/> : <p className='text-sm text-muted'>{t('greports.mods_only')}</p>}
     </Panel>
   );
 }
@@ -153,6 +152,7 @@ function parseBool(value: string | null): boolean | null {
 // like the admin reports page: a search box with the filters behind a button, and page numbers. The filters live in the
 // url, so a filtered list can be linked to
 function ReportsList({ guildId, hasLogger }: {guildId: string, hasLogger: boolean}) {
+  const { t, rich } = useI18n();
   const { searchParams, page, update, setPage } = useSearchParamState();
   const status = parseStatus(searchParams.get('status'));
   const type = parseType(searchParams.get('type'));
@@ -201,42 +201,42 @@ function ReportsList({ guildId, hasLogger }: {guildId: string, hasLogger: boolea
           className='min-w-0 flex-1'
           value={search}
           onValueChange={(value) => update({q: value})}
-          placeholder='Search the reason or message, #id, user: or target:...'
-          aria-label='Search reports'
+          placeholder={t('greports.search_placeholder')}
+          aria-label={t('greports.search_label')}
         />
         <FiltersButton open={filtersOpen} onToggle={() => setFiltersOpen((value) => !value)} active={activeFilters} controls='guild-report-filters'/>
       </div>
       <p className='mb-3 text-xs text-subtle'>
-        A bare id matches the report, the reporter or the reported member; <code className='text-code'>#&lt;id&gt;</code>, <code className='text-code'>user:</code> (the reporter) or <code className='text-code'>target:</code> (the reported member) match only that, with any other text still searched.
+        {rich('greports.search_hint', {code: (chunk) => <code className='text-code'>{chunk}</code>})}
       </p>
 
       <div id='guild-report-filters' hidden={!filtersOpen} className='mb-3 grid gap-3 rounded-md border border-line p-3 sm:grid-cols-3'>
         <label className='text-sm'>
-          <span className='mb-1 block text-subtle'>Status</span>
+          <span className='mb-1 block text-subtle'>{t('greports.status')}</span>
           <select
             className='input'
             value={(status === null) ? 'all' : String(status)}
             onChange={(event) => update({status: (event.target.value === 'queue') ? null : event.target.value})}
           >
-            <option value='queue'>Open or waiting on mods</option>
-            {STATUS_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-            <option value='all'>Any</option>
+            <option value='queue'>{t('greports.queue')}</option>
+            {STATUS_OPTIONS.map((option) => <option key={option.value} value={option.value}>{reportStatusInfo(option.status).label}</option>)}
+            <option value='all'>{t('greports.any')}</option>
           </select>
         </label>
         <label className='text-sm'>
-          <span className='mb-1 block text-subtle'>Type</span>
+          <span className='mb-1 block text-subtle'>{t('greports.type')}</span>
           <select className='input' value={(type === null) ? '' : String(type)} onChange={(event) => update({type: event.target.value})}>
-            <option value=''>Any</option>
-            <option value={GuildReportTypes.USER}>Member</option>
-            <option value={GuildReportTypes.MESSAGE}>Message</option>
+            <option value=''>{t('greports.any')}</option>
+            <option value={GuildReportTypes.USER}>{t('sreports.type.member')}</option>
+            <option value={GuildReportTypes.MESSAGE}>{t('sreports.type.message')}</option>
           </select>
         </label>
         <label className='text-sm'>
-          <span className='mb-1 block text-subtle'>Conversation</span>
+          <span className='mb-1 block text-subtle'>{t('greports.conversation')}</span>
           <select className='input' value={(awaitingReply === null) ? '' : String(awaitingReply)} onChange={(event) => update({awaiting_reply: event.target.value})}>
-            <option value=''>Any</option>
-            <option value='true'>Waiting on mods</option>
-            <option value='false'>Not waiting</option>
+            <option value=''>{t('greports.any')}</option>
+            <option value='true'>{t('greports.waiting')}</option>
+            <option value='false'>{t('greports.not_waiting')}</option>
           </select>
         </label>
       </div>
@@ -245,12 +245,12 @@ function ReportsList({ guildId, hasLogger }: {guildId: string, hasLogger: boolea
         <ListSkeleton/>
       ) : (isError && !reports.length) ? (
         <div role='alert' className='flex items-center gap-3 text-sm text-danger'>
-          {errorMessage(error, 'Couldn’t load the reports.')}
-          <button type='button' className='btn btn-secondary btn-sm' disabled={isRefetching} onClick={() => void refetch()}>Try again</button>
+          {errorMessage(error, t('greports.load_error'))}
+          <button type='button' className='btn btn-secondary btn-sm' disabled={isRefetching} onClick={() => void refetch()}>{t('common.try_again')}</button>
         </div>
       ) : (!reports.length) ? (
-        <EmptyState icon={<Inbox className='size-10'/>} title={(filtered) ? 'No reports' : 'Nothing to handle'}>
-          {(filtered) ? 'Nothing matches these filters.' : (hasLogger) ? 'Members report someone with the report command or a message’s Report to Mods menu.' : 'Members can’t report anything until the server has a reports logger. Add one with the loggers command in Discord.'}
+        <EmptyState icon={<Inbox className='size-10'/>} title={t((filtered) ? 'greports.empty_filtered' : 'greports.empty')}>
+          {t((filtered) ? 'greports.empty_filtered_description' : (hasLogger) ? 'greports.empty_description' : 'greports.empty_no_logger')}
         </EmptyState>
       ) : (
         <>
@@ -277,7 +277,7 @@ function ReportsList({ guildId, hasLogger }: {guildId: string, hasLogger: boolea
           />
         </AdminTagModal>
       ) : (linkedId) ? (
-        <LinkedItemModal noun='report' notFoundMessage='There’s no report with this id in this server.' query={linked} onClose={closeLinked}/>
+        <LinkedItemModal noun={t('reports.noun')} notFoundMessage={t('greports.not_found')} query={linked} onClose={closeLinked}/>
       ) : null}
     </div>
   );
@@ -289,6 +289,7 @@ function ReportsList({ guildId, hasLogger }: {guildId: string, hasLogger: boolea
 // top left with the reporter under them, the status in the top right with the date under it, and the reason across the
 // bottom. Who's reported is in the details.
 function ReportRow({ report, users, onOpen }: {report: GuildReport, users: ReportUsers, onOpen: (id: string) => void}) {
+  const { t, plural } = useI18n();
   const status = reportStatusInfo(report.status);
   const type = typeInfo(report);
   const awaiting = awaitingReply(report);
@@ -311,7 +312,7 @@ function ReportRow({ report, users, onOpen }: {report: GuildReport, users: Repor
           {(report.replies) ? (
             <span
               className={cn('inline-flex shrink-0 items-center gap-1 text-xs', (awaiting) ? 'font-medium text-warning' : 'text-subtle')}
-              title={(awaiting) ? 'The reporter replied last, waiting on the moderators' : `${report.replies} ${(report.replies === 1) ? 'reply' : 'replies'}`}
+              title={(awaiting) ? t('greports.reporter_replied') : plural('reports.replies', report.replies)}
             >
               <MessagesSquare aria-hidden className='size-3.5'/>
               {report.replies}
@@ -334,6 +335,7 @@ function ReportDetails({ guildId, report: listed, users, navigation }: {
   users: ReportUsers,
   navigation: {previousId: string | null, nextId: string | null, onNavigate: (id: string) => void},
 }) {
+  const { t } = useI18n();
   const toast = useToast();
   const mutation = useGuildReportMutation(guildId);
   // the api's copy after a status change, a report handled here can leave the filtered list (the modal keeps the copy it
@@ -350,9 +352,9 @@ function ReportDetails({ guildId, report: listed, users, navigation }: {
     mutation.mutate({reportId: report.id, status: value}, {
       onSuccess: (updated) => {
         setReport(updated);
-        toast(`Report ${report.id}: ${STATUS_DONE[value]}`);
+        toast(translate(STATUS_DONE[value], {id: report.id}));
       },
-      onError: (error) => toast(errorMessage(error, 'Couldn’t update the report.'), 'error'),
+      onError: (error) => toast(errorMessage(error, translate('greports.update_error')), 'error'),
     });
   };
 
@@ -361,29 +363,29 @@ function ReportDetails({ guildId, report: listed, users, navigation }: {
       <DetailModalHeader
         titleId={TITLE_ID}
         leading={<Chip tone={type.tone} className='w-18 shrink-0 justify-center'>{type.label}</Chip>}
-        title={<><span className='sr-only'>Report </span>#{report.id}</>}
+        title={<><span className='sr-only'>{t('reports.report_sr')}</span>#{report.id}</>}
         mono
         meta={<ExactDate value={report.created} format={formatDateTime}/>}
-        states={(awaitingReply(report)) ? <Chip tone='warning' title='The reporter replied last'>waiting on mods</Chip> : null}
+        states={(awaitingReply(report)) ? <Chip tone='warning' title={t('greports.replied_title')}>{t('greports.waiting_chip')}</Chip> : null}
         status={<Chip tone={status.tone} className='w-20 justify-center'>{status.label}</Chip>}
       />
 
       {/* who sent it and who it's about, then who handled it */}
       <DetailModalStrip className='grid grid-cols-[max-content_minmax(0,1fr)] items-center gap-x-3 gap-y-1'>
-        <span className='text-xs text-subtle'>Reporter</span>
+        <span className='text-xs text-subtle'>{t('greports.reporter')}</span>
         <div className='flex min-h-8 min-w-0 items-center gap-2'>
           <ReportUser users={users} id={report.user_id}/>
           <CopyButton value={report.user_id}/>
-          {(report.reporter_muted) ? <Chip title='The reporter turned off DMs for this report, they only see replies on their dashboard'>DMs off</Chip> : null}
+          {(report.reporter_muted) ? <Chip title={t('greports.muted_title')}>{t('sreports.dms_off')}</Chip> : null}
         </div>
-        <span className='text-xs text-subtle'>{(isMessage) ? 'Message by' : 'Reported member'}</span>
+        <span className='text-xs text-subtle'>{t((isMessage) ? 'sreports.message_by' : 'sreports.reported_member')}</span>
         <div className='flex min-h-8 min-w-0 items-center gap-2'>
           <ReportUser users={users} id={report.target_id}/>
           <CopyButton value={report.target_id}/>
         </div>
         {(report.status !== ReportStatuses.OPEN && report.handled_by) ? (
           <>
-            <span className='text-xs text-subtle'>{status.label} by</span>
+            <span className='text-xs text-subtle'>{t('greports.handled_by', {status: status.label})}</span>
             <div className='flex min-h-8 min-w-0 flex-wrap items-center gap-x-2'>
               <ReportUser users={users} id={report.handled_by}/>
               {(report.handled_at) ? <span className='text-xs text-subtle'><ExactDate value={report.handled_at} format={formatDateTime}/></span> : null}
@@ -397,7 +399,7 @@ function ReportDetails({ guildId, report: listed, users, navigation }: {
         {(!isMessage && report.target_quote) ? (
           <section className='mb-4'>
             <div className='mb-1 flex min-h-8 items-center'>
-              <h3 className='section-label'>Reported member</h3>
+              <h3 className='section-label'>{t('sreports.reported_member')}</h3>
             </div>
             <ReportImage guildId={guildId} report={report} kind='member'/>
           </section>
@@ -406,10 +408,10 @@ function ReportDetails({ guildId, report: listed, users, navigation }: {
         {(isMessage) ? (
           <section className='mb-4'>
             <div className='mb-1 flex min-h-8 items-center justify-between gap-2'>
-              <h3 className='section-label'>Reported message</h3>
+              <h3 className='section-label'>{t('sreports.reported_message')}</h3>
               {(jumpUrl) ? (
                 <a href={jumpUrl} target='_blank' rel='noopener noreferrer' className='inline-flex items-center gap-1 text-xs text-code hover:underline'>
-                  Open in Discord
+                  {t('reports.open_discord')}
                   <ExternalLink aria-hidden className='size-3'/>
                 </a>
               ) : null}
@@ -420,15 +422,15 @@ function ReportDetails({ guildId, report: listed, users, navigation }: {
 
         <section>
           <div className='mb-1 flex min-h-8 items-center justify-between gap-2'>
-            <h3 className='section-label'>Reason</h3>
-            <CopyButton value={report.reason} label='Copy'/>
+            <h3 className='section-label'>{t('greports.reason')}</h3>
+            <CopyButton value={report.reason} label={t('common.copy')}/>
           </div>
           <p className='rounded-md border border-line bg-deep px-3 py-2 font-mono text-sm whitespace-pre-wrap break-words text-fg focus:border-line-strong focus:outline-none' {...selectAllScope}>{report.reason}</p>
         </section>
 
         <section className='mt-4'>
           <div className='mb-1 flex min-h-8 items-center'>
-            <h3 className='section-label'>Conversation with the reporter</h3>
+            <h3 className='section-label'>{t('greports.conversation_with')}</h3>
           </div>
           <Conversation guildId={guildId} report={report} reporter={users[report.user_id] ?? null}/>
         </section>
@@ -447,7 +449,7 @@ function ReportDetails({ guildId, report: listed, users, navigation }: {
               onClick={() => setStatus(value)}
             >
               {(pendingStatus === value) ? <Spinner className='size-4'/> : <Icon aria-hidden className='hidden size-4 shrink-0 sm:block'/>}
-              <span className='truncate'>{STATUS_ACTIONS[value]}</span>
+              <span className='truncate'>{t(STATUS_ACTIONS[value])}</span>
             </button>
           );
         })}
@@ -459,9 +461,10 @@ function ReportDetails({ guildId, report: listed, users, navigation }: {
 
 // the quote when there's one, its text otherwise, then when what's kept gets deleted
 function ReportedMessage({ guildId, report }: {guildId: string, report: GuildReport}) {
+  const { t } = useI18n();
   const expires = (report.message_content_expires_at) ? (
     <p className='mt-1 text-xs text-subtle'>
-      {(report.message_quote) ? 'This image is' : 'This text is'} deleted on {formatDate(report.message_content_expires_at)}
+      {t((report.message_quote) ? 'greports.image_expires' : 'greports.text_expires', {date: formatDate(report.message_content_expires_at)})}
     </p>
   ) : null;
   if (report.message_quote) {
@@ -477,7 +480,7 @@ function ReportedMessage({ guildId, report }: {guildId: string, report: GuildRep
   }
   return (
     <p className='rounded-md border border-line bg-deep px-3 py-2 text-sm text-subtle italic'>
-      {(report.message_content_deleted) ? 'The saved copy was deleted 30 days after the report' : 'No text (attachments or embeds only)'}
+      {t((report.message_content_deleted) ? 'sreports.copy_deleted' : 'sreports.no_text')}
     </p>
   );
 }
@@ -485,6 +488,7 @@ function ReportedMessage({ guildId, report }: {guildId: string, report: GuildRep
 
 // the reported message (drawn like `quote`) or member as they looked. A message's text instead if its image can't load
 function ReportImage({ guildId, report, kind }: {guildId: string, report: GuildReport, kind: GuildReportImageKind}) {
+  const { t } = useI18n();
   const query = useGuildReportImageQuery(guildId, report.id, kind);
   const [ url, setUrl ] = useState<string | null>(null);
   // drawn at 2x for sharp text, shown at the size discord shows it
@@ -515,26 +519,27 @@ function ReportImage({ guildId, report, kind }: {guildId: string, report: GuildR
     return <Skeleton className={cn('w-full max-w-md bg-surface-3', (kind === 'message') ? 'h-24' : 'h-14 max-w-60')}/>;
   }
   if (kind === 'member') {
-    return <p className='text-sm text-subtle italic'>Couldn’t load the image of the member</p>;
+    return <p className='text-sm text-subtle italic'>{t('greports.member_image_error')}</p>;
   }
   return (report.message_content) ? (
     <p className='text-sm break-words whitespace-pre-wrap text-muted'>{report.message_content}</p>
   ) : (
-    <p className='text-sm text-subtle italic'>Couldn’t load the image of the message</p>
+    <p className='text-sm text-subtle italic'>{t('greports.message_image_error')}</p>
   );
 }
 
 
 function imageAlt(report: GuildReport, kind: GuildReportImageKind): string {
   if (kind === 'member') {
-    return 'The reported member as they looked when they were reported';
+    return translate('greports.member_alt');
   }
-  return (report.message_content) ? `The reported message: ${report.message_content}` : 'The reported message';
+  return (report.message_content) ? translate('greports.message_alt', {content: report.message_content}) : translate('greports.message_alt_empty');
 }
 
 
 // moderators are the thread's staff side here, the reporter only ever sees "the moderators" in the bot's DMs
 function Conversation({ guildId, report, reporter }: {guildId: string, report: GuildReport, reporter: GuildContentUser | null}) {
+  const { t } = useI18n();
   const toast = useToast();
   const query = useGuildReportMessagesQuery(guildId, report.id);
   const mutation = usePostGuildReportMessageMutation(guildId, report.id);
@@ -551,15 +556,15 @@ function Conversation({ guildId, report, reporter }: {guildId: string, report: G
       error={query.error}
       onRetry={() => void query.refetch()}
       onSend={(content) => mutation.mutateAsync(content).catch((error) => {
-        toast(errorMessage(error, 'Couldn’t send the reply.'), 'error');
+        toast(errorMessage(error, translate('sreports.send_error')), 'error');
         throw error;
       })}
       sending={mutation.isPending}
-      staff={{name: MODERATORS_NAME, icon: <Shield className='size-4 text-brand'/>}}
-      emptyText='No replies yet. Anything you send here is DMed to the reporter from “the moderators”, and they can respond from that DM.'
-      placeholder='Reply to the reporter as the moderators...'
+      staff={{name: t('sreports.moderators'), icon: <Shield className='size-4 text-brand'/>}}
+      emptyText={t('greports.empty_thread')}
+      placeholder={t('greports.placeholder')}
       maxLength={MAX_REPLY_LENGTH}
-      notice={(report.status !== ReportStatuses.OPEN) ? 'Replying doesn’t reopen the report.' : undefined}
+      notice={(report.status !== ReportStatuses.OPEN) ? t('greports.no_reopen') : undefined}
     />
   );
 }

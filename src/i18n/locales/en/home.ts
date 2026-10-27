@@ -1,0 +1,38 @@
+export const Home = {
+  'home.badge': 'Images, gifs, video and audio',
+  'home.hero.title_1': 'Media manipulation,',
+  'home.hero.title_2': 'right inside Discord',
+  'home.hero.description': 'NotSoBot distorts, deep fries, captions, converts and remixes anything you throw at it, with hundreds of commands for effects, search, and server utilities on top.',
+  'home.hero.quote': '"It just works" - kyle',
+  'home.view_commands': 'View Commands',
+
+  'home.features.title': 'What can it do?',
+  'home.features.description': 'If it\'s an image, a gif, a video or a sound, there\'s a command to mess with it.',
+  'home.features.effects.title': 'Image Effects',
+  'home.features.effects.description': 'Magik, deep fry, swirl, explode, pixelate, caption and dozens more filters for any image or avatar.',
+  'home.features.video.title': 'Gifs & Video',
+  'home.features.video.description': 'Every effect works on animated gifs and videos too. Reverse, speed up, loop, trim and remix frame by frame.',
+  'home.features.audio.title': 'Audio',
+  'home.features.audio.description': 'Bass boost, pitch shift, slow down, extract audio from videos or slap a new soundtrack on a clip.',
+  'home.features.conversion.title': 'Conversion',
+  'home.features.conversion.description': 'Turn videos into gifs, gifs into videos, resize, crop and compress media to fit Discord upload limits.',
+  'home.features.search.title': 'Search',
+  'home.features.search.description': 'Pull images and results from Google, YouTube, Urban Dictionary, Wolfram Alpha and more without leaving chat.',
+  'home.features.tags.title': 'Custom Tags',
+  'home.features.tags.description': 'Chain commands into your own tags, or grab community-made ones from the tag directory.',
+
+  'home.steps.title': 'How it works',
+  'home.steps.post.title': 'Post some media',
+  'home.steps.post.description': 'Upload an image, gif or video, paste a link, or mention a user to use their avatar.',
+  'home.steps.run.title': 'Run a command',
+  'home.steps.run.description': 'Use a prefix or slash command, or right-click a message and pick an effect from the apps menu.',
+  'home.steps.result.title': 'Get it back',
+  'home.steps.result.description': 'NotSoBot replies with the result in seconds, ready to post, save, or run through another effect.',
+
+  'home.stats.servers': 'Servers',
+  'home.stats.users': 'Users',
+  'home.stats.commands': 'Commands',
+
+  'home.cta.title': 'Add NotSoBot to your server',
+  'home.cta.description': 'Edit images, gifs and videos without leaving chat. Setup takes about ten seconds.',
+} as const;

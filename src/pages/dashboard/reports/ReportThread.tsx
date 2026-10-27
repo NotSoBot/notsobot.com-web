@@ -9,6 +9,7 @@ import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import logo from '@/assets/logos/NotSoLogo.svg';
 import { Spinner } from '@/components/ui/Spinner';
 import { UserAvatar } from '@/components/ui/UserAvatar';
+import { useI18n } from '@/i18n';
 import { ReportStatuses, type ReportMessage, type ReportTranslation, type User } from '@/lib/api';
 import { errorMessage } from '@/lib/api/dashboardQueries';
 import { userDisplayTag } from '@/lib/discord';
@@ -22,7 +23,8 @@ import { REPORT_STAFF_NAME } from './reportLabels';
 export { REPORT_STAFF_NAME };
 const MAX_LENGTH = 2000;
 
-const STATUS_VERBS: Record<number, string> = {
+// `thread.status.<verb>`, or `thread.status.you_<verb>` for the reporter's own
+const STATUS_VERBS: Record<number, 'reopened' | 'resolved' | 'dismissed'> = {
   [ReportStatuses.OPEN]: 'reopened',
   [ReportStatuses.RESOLVED]: 'resolved',
   [ReportStatuses.DISMISSED]: 'dismissed',
@@ -53,6 +55,7 @@ export function ReportThread({ viewer, reporter, messages, loading, error, onRet
   placeholder?: string,
   maxLength?: number,
 }) {
+  const { t, plural } = useI18n();
   const [ draft, setDraft ] = useState('');
   const content = draft.trim();
   // the conversation scrolls inside itself past `max-h-96` instead of making the modal taller. It opens at the newest
@@ -116,22 +119,22 @@ export function ReportThread({ viewer, reporter, messages, loading, error, onRet
     });
   };
 
-  const reporterName = (viewer === 'reporter') ? 'You' : (reporter) ? userDisplayTag(reporter) : 'Reporter';
-  const placeholder = placeholderText ?? ((viewer === 'staff') ? `Reply to the reporter as ${staffName}...` : `Reply to ${staffName}...`);
+  const reporterName = (viewer === 'reporter') ? t('thread.you') : (reporter) ? userDisplayTag(reporter) : t('thread.reporter');
+  const placeholder = placeholderText ?? t((viewer === 'staff') ? 'thread.reply_staff' : 'thread.reply', {staff: staffName});
 
   return (
-    <section aria-label='Conversation'>
+    <section aria-label={t('thread.label')}>
       {(loading) ? (
         <ThreadSkeleton/>
       ) : (error && !messages) ? (
         <InlineError>
-          Couldn’t load the conversation: {errorMessage(error)}{' '}
-          <button type='button' className='underline hover:text-fg' onClick={onRetry}>Try again</button>
+          {t('thread.load_error', {error: errorMessage(error)})}{' '}
+          <button type='button' className='underline hover:text-fg' onClick={onRetry}>{t('common.try_again')}</button>
         </InlineError>
       ) : (!messages?.length) ? (
         <p className='flex items-center gap-2 rounded-md border border-dashed border-line px-3 py-3 text-sm text-subtle'>
           <MessagesSquare aria-hidden className='size-4 shrink-0'/>
-          {emptyText ?? ((viewer === 'staff') ? 'No replies yet. Anything you send here shows up on the reporter’s dashboard as NotSoAdmin.' : 'No replies yet. You can message the NotSoBot team about this report here.')}
+          {emptyText ?? t((viewer === 'staff') ? 'thread.empty_staff' : 'thread.empty')}
         </p>
       ) : (
         <div className='relative'>
@@ -153,7 +156,7 @@ export function ReportThread({ viewer, reporter, messages, loading, error, onRet
               onClick={scrollToBottom}
             >
               <ArrowDown aria-hidden className='size-3.5'/>
-              {unseen} new {(unseen === 1) ? 'message' : 'messages'}
+              {plural('thread.new', unseen)}
             </button>
           ) : null}
         </div>
@@ -168,7 +171,7 @@ export function ReportThread({ viewer, reporter, messages, loading, error, onRet
       >
         {(notice) ? <p className='mb-2 text-xs text-subtle'>{notice}</p> : null}
         <textarea
-          aria-label='Reply'
+          aria-label={t('thread.reply_label')}
           className='input min-h-20 resize-y'
           rows={3}
           maxLength={maxLength}
@@ -188,7 +191,7 @@ export function ReportThread({ viewer, reporter, messages, loading, error, onRet
           {actions}
           <button type='submit' className='btn btn-primary btn-sm' disabled={!canSend}>
             {(sending) ? <Spinner className='size-3.5 border-white/40 border-t-white'/> : <Send aria-hidden className='size-3.5'/>}
-            Send
+            {t('thread.send')}
           </button>
         </div>
       </form>
@@ -215,6 +218,7 @@ function Message({ message, viewer, reporter, reporterName, onTranslate, staffNa
   staffName: string,
   staffIcon?: ReactNode,
 }) {
+  const { t } = useI18n();
   const fromStaff = message.author === 'staff';
   // only kept while the thread's open, it isn't stored
   const [ translation, setTranslation ] = useState<ReportTranslation | null>(null);
@@ -241,7 +245,7 @@ function Message({ message, viewer, reporter, reporterName, onTranslate, staffNa
           <span className='text-sm font-medium text-white'>{(fromStaff) ? staffName : reporterName}</span>
           {/* which staff member it was, the reporter never gets this */}
           {(fromStaff && viewer === 'staff' && message.author_id) ? (
-            <span className='font-mono text-xs text-subtle' title={`Who sent it, the reporter only sees ${staffName}`}>{message.author_id}</span>
+            <span className='font-mono text-xs text-subtle' title={t('thread.who_title', {staff: staffName})}>{message.author_id}</span>
           ) : null}
           <span className='text-xs text-subtle'><ExactDate value={message.created} format={formatDateTime}/></span>
           {(canTranslate) ? (
@@ -252,18 +256,18 @@ function Message({ message, viewer, reporter, reporterName, onTranslate, staffNa
               onClick={translate}
             >
               {(translating) ? <Spinner className='size-3'/> : <Languages aria-hidden className='size-3.5'/>}
-              Translate
+              {t('thread.translate')}
             </button>
           ) : null}
         </div>
         <p className='mt-1 text-sm whitespace-pre-wrap break-words text-fg'>{message.content}</p>
         {(translation?.translation) ? (
           <div className='mt-2 border-t border-line pt-2'>
-            <p className='text-xs text-subtle'>Translated from {translation.translation_language ?? '?'}</p>
+            <p className='text-xs text-subtle'>{t('thread.translated_from', {language: translation.translation_language ?? '?'})}</p>
             <p className='mt-0.5 text-sm whitespace-pre-wrap break-words text-fg'>{translation.translation}</p>
           </div>
         ) : (translation) ? (
-          <p className='mt-1 text-xs text-subtle'>{(translation.translation_language === 'en') ? 'Already in English.' : 'No translation returned.'}</p>
+          <p className='mt-1 text-xs text-subtle'>{t((translation.translation_language === 'en') ? 'thread.already_english' : 'thread.no_translation')}</p>
         ) : null}
       </div>
     </div>
@@ -272,13 +276,16 @@ function Message({ message, viewer, reporter, reporterName, onTranslate, staffNa
 
 
 function StatusEvent({ message, viewer, reporterName, staffName }: {message: ReportMessage, viewer: 'staff' | 'reporter', reporterName: string, staffName: string}) {
+  const { rich } = useI18n();
   const who = (message.author === 'staff') ? staffName : reporterName;
   const verb = STATUS_VERBS[message.status ?? -1] ?? 'changed';
+  // the reporter's own changes read "You reopened" (one word in Spanish, "Reabriste")
+  const yours = message.author !== 'staff' && viewer === 'reporter';
   return (
     <p className='flex items-center gap-3 text-xs text-subtle'>
       <span aria-hidden className='h-px flex-1 bg-line'/>
       <span className='text-center'>
-        <span className='text-muted'>{who}</span> {verb} this report
+        {rich((yours) ? `thread.status.you_${verb}` : `thread.status.${verb}`, {who: (chunk) => <span className='text-muted'>{chunk}</span>}, {who})}
         {(message.author === 'staff' && viewer === 'staff' && message.author_id) ? <> (<span className='font-mono'>{message.author_id}</span>)</> : null}
         {' · '}
         <ExactDate value={message.created} format={formatDateTime}/>

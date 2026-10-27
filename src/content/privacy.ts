@@ -141,6 +141,7 @@ export const PRIVACY_POLICY: LegalDocument = {
         {type: 'list', items: [
           "Links between your command messages and NotSoBot's replies are deleted after 14 days of inactivity.",
           "Temporary files are deleted automatically when they expire.",
+          "Songs queued from a link are converted and kept while they're in a server's music queue. They're deleted after they leave the queue, or once they're a week old if NotSoBot isn't playing music in that server.",
           "AI requests, including any messages You replied to, are deleted after 30 days.",
           "Cached server lists for the dashboard expire after about a minute.",
           "Tags, reminders and cloned voices are deleted when You delete them. Deleting a cloned voice also deletes it from the voice cloning service, along with the audio clips it was made from.",

@@ -7,9 +7,10 @@ import { ModalFooter } from '@/components/ui/DetailModal';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 import { Routes } from '@/config';
+import { translate, useI18n } from '@/i18n';
 import { ApiErrorCodes, ApiRequestError, type Tag, type TagStorageScope } from '@/lib/api';
 import { errorMessage, useMeGuildsQuery, useMeTagDirectoryQuery, useMeTagQuery, usePatchMeTagMutation } from '@/lib/api/dashboardQueries';
-import { cn, formatDate, formatDateTime } from '@/lib/utils';
+import { cn, formatDate, formatDateTime, formatNumber } from '@/lib/utils';
 
 import { ExactDate } from '../admin/adminUi';
 import { CharCounter, Field, InlineError, Panel, PanelSkeleton, ReadOnlyNote, SaveBar, Skeleton, Toggle, UnsavedChangesGuard } from '../ui';
@@ -23,11 +24,12 @@ import { StorageScopeForm } from './StorageScopeForm';
 import { TagVariablesEditor } from './TagVariablesEditor';
 
 
+// labels are `dtags.tab.<id>`
 const TABS = [
-  {id: 'content', label: 'Content'},
-  {id: 'variables', label: 'Variables'},
-  {id: 'blobs', label: 'Blobs'},
-  {id: 'directory', label: 'Directory'},
+  {id: 'content'},
+  {id: 'variables'},
+  {id: 'blobs'},
+  {id: 'directory'},
 ] as const;
 type TabId = (typeof TABS)[number]['id'];
 
@@ -38,6 +40,7 @@ const TITLE_ID = 'dashboard-tag-editor-title';
 // One of your tags' editor over the tag list (`/dashboard/tags/:tagId/edit`). Closing it, or going back to the tag's
 // details (`onBack`), with unsaved edits asks first (`UnsavedChangesGuard`, the url leaves the editor's path).
 export function TagEditorModal({ tagId, onBack, onClose }: {tagId: string, onBack: (id: string) => void, onClose: () => void}) {
+  const { t } = useI18n();
   const { data: tag, isPending, isError, error, refetch, isRefetching } = useMeTagQuery(tagId);
   const notFound = error instanceof ApiRequestError && (error.status === 404 || error.code === ApiErrorCodes.UNKNOWN_TAG);
 
@@ -51,9 +54,9 @@ export function TagEditorModal({ tagId, onBack, onClose }: {tagId: string, onBac
       ) : (
         <div className='px-6 py-16 text-center'>
           <AlertTriangle className='mx-auto mb-4 size-14 text-danger'/>
-          <h2 id={TITLE_ID} className='mb-3 text-2xl font-bold text-white'>{(notFound) ? 'Tag not found' : 'Couldn’t load this tag'}</h2>
-          <p className='mb-6 text-muted'>{(notFound) ? 'It may have been deleted, or it belongs to someone else.' : errorMessage(error)}</p>
-          {(isError && !notFound) ? <button type='button' className='btn btn-secondary' disabled={isRefetching} onClick={() => refetch()}>Retry</button> : null}
+          <h2 id={TITLE_ID} className='mb-3 text-2xl font-bold text-white'>{t((notFound) ? 'dtags.modal.not_found' : 'dtags.modal.load_error')}</h2>
+          <p className='mb-6 text-muted'>{(notFound) ? t('dtags.editor.not_found') : errorMessage(error)}</p>
+          {(isError && !notFound) ? <button type='button' className='btn btn-secondary' disabled={isRefetching} onClick={() => refetch()}>{t('common.retry')}</button> : null}
         </div>
       )}
     </Modal>
@@ -63,6 +66,7 @@ export function TagEditorModal({ tagId, onBack, onClose }: {tagId: string, onBac
 
 function TagEditor({ tag, onBack }: {tag: Tag, onBack: (id: string) => void}) {
   const { user } = useAuth();
+  const { t, rich, plural } = useI18n();
   const [ searchParams, setSearchParams ] = useSearchParams();
   const tabParam = searchParams.get('tab');
   const tab: TabId = (TABS.some((item) => item.id === tabParam)) ? tabParam as TabId : 'content';
@@ -118,21 +122,21 @@ function TagEditor({ tag, onBack }: {tag: Tag, onBack: (id: string) => void}) {
       <TagModalHeader
         tag={tag}
         titleId={TITLE_ID}
-        title={<><span className='sr-only'>Editing </span>{tag.name}</>}
+        title={<><span className='sr-only'>{t('dtags.editor.editing_sr')}</span>{tag.name}</>}
         meta={(
           <>
-            Editing · created <ExactDate value={tag.created} format={formatDate}/>
-            {(tag.edited) ? <> · edited <ExactDate value={tag.edited} format={formatDate}/></> : null}
+            {rich('dtags.editor.meta', {created: () => <ExactDate value={tag.created} format={formatDate}/>})}
+            {(tag.edited) ? rich('dtags.editor.meta_edited', {edited: () => <ExactDate value={tag.edited!} format={formatDate}/>}) : null}
           </>
         )}
       />
       <TagLocationStrip tag={tag} guildNames={guildNames}>
-        <span className='tabular-nums'>{tag.uses.toLocaleString()} {(tag.uses === 1) ? 'use' : 'uses'}</span>
-        {(tag.last_used) ? <span>Last used <ExactDate value={tag.last_used} format={formatDateTime}/></span> : null}
+        <span className='tabular-nums'>{plural('dtags.uses', tag.uses)}</span>
+        {(tag.last_used) ? <span>{rich('dtags.editor.last_used', {date: () => <ExactDate value={tag.last_used!} format={formatDateTime}/>})}</span> : null}
       </TagLocationStrip>
 
       <div className='border-b border-line px-4 sm:px-6'>
-        <div role='tablist' aria-label='Tag sections' onKeyDown={onTabKeyDown} className='-mb-px mt-1 flex gap-1 overflow-x-auto'>
+        <div role='tablist' aria-label={t('dtags.editor.sections')} onKeyDown={onTabKeyDown} className='-mb-px mt-1 flex gap-1 overflow-x-auto'>
           {TABS.map((item) => {
             const dirty = {content: contentDirty, variables: variablesDirty, blobs: blobsDirty, directory: directoryDirty}[item.id];
             return (
@@ -150,8 +154,8 @@ function TagEditor({ tag, onBack }: {tag: Tag, onBack: (id: string) => void}) {
                   (tab === item.id) ? 'border-brand text-white' : 'border-transparent text-muted hover:text-white',
                 )}
               >
-                {item.label}
-                {(dirty) ? <span aria-label='(unsaved changes)' className='size-1.5 rounded-full bg-warning'/> : null}
+                {t(`dtags.tab.${item.id}`)}
+                {(dirty) ? <span aria-label={t('dtags.editor.unsaved')} className='size-1.5 rounded-full bg-warning'/> : null}
               </button>
             );
           })}
@@ -193,18 +197,18 @@ function TagEditor({ tag, onBack }: {tag: Tag, onBack: (id: string) => void}) {
           listing, and deleting set apart after a divider. Saving stays with each tab's form (their save bars) */}
       <ModalFooter
         start={(
-          <button type='button' className='btn btn-ghost shrink-0 px-2' title='Back to the tag’s details' onClick={() => onBack(tag.id)}>
+          <button type='button' className='btn btn-ghost shrink-0 px-2' title={t('dtags.editor.back_title')} onClick={() => onBack(tag.id)}>
             <ArrowLeft aria-hidden className='size-4'/>
-            <span className='sm:hidden'>Back</span>
-            <span className='hidden sm:inline'>Back to tag</span>
+            <span className='sm:hidden'>{t('dtags.editor.back')}</span>
+            <span className='hidden sm:inline'>{t('dtags.editor.back_tag')}</span>
           </button>
         )}
       >
         {(directory !== undefined && !tag.reference_tag) ? (
           <button type='button' className='btn btn-secondary min-w-0 flex-1 px-2 sm:flex-none sm:px-3' onClick={() => setTab('directory')}>
             {(directory) ? <BookOpen aria-hidden className='hidden size-4 shrink-0 sm:block'/> : <Upload aria-hidden className='hidden size-4 shrink-0 sm:block'/>}
-            <span className='truncate sm:hidden'>{(directory) ? 'Listing' : 'Publish'}</span>
-            <span className='hidden sm:inline'>{(directory) ? 'Directory listing' : 'Publish to directory'}</span>
+            <span className='truncate sm:hidden'>{t((directory) ? 'dtags.editor.listing' : 'dtags.editor.publish')}</span>
+            <span className='hidden sm:inline'>{t((directory) ? 'dtags.editor.directory_listing' : 'dtags.editor.publish_directory')}</span>
           </button>
         ) : null}
         {(!readOnly) ? <DeleteTagButton tag={tag} divider={directory !== undefined && !tag.reference_tag}/> : null}
@@ -218,6 +222,7 @@ function TagEditor({ tag, onBack }: {tag: Tag, onBack: (id: string) => void}) {
 
 // deleting the tag, from the footer (`divider` sets it apart from the buttons before it)
 function DeleteTagButton({ tag, divider }: {tag: Tag, divider: boolean}) {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [ confirming, setConfirming ] = useState(false);
 
@@ -226,8 +231,8 @@ function DeleteTagButton({ tag, divider }: {tag: Tag, divider: boolean}) {
       {(divider) ? <span aria-hidden className='mx-0.5 h-6 w-px shrink-0 self-center bg-line-strong sm:mx-1'/> : null}
       <button type='button' className='btn btn-ghost min-w-0 flex-1 px-2 text-danger hover:text-danger sm:flex-none sm:px-3' onClick={() => setConfirming(true)}>
         <Trash2 aria-hidden className='hidden size-4 shrink-0 sm:block'/>
-        <span className='truncate sm:hidden'>Delete</span>
-        <span className='hidden sm:inline'>Delete tag</span>
+        <span className='truncate sm:hidden'>{t('common.delete')}</span>
+        <span className='hidden sm:inline'>{t('dtags.delete.confirm')}</span>
       </button>
       {(confirming) ? (
         <DeleteMeTagDialog
@@ -245,14 +250,15 @@ function DeleteTagButton({ tag, divider }: {tag: Tag, divider: boolean}) {
 // aliases have no storage of their own: the bot reads and writes the parent tag's variables and blobs
 function AliasStorageNote({ tag, kind }: {tag: Tag, kind: 'variables' | 'blobs'}) {
   const { user } = useAuth();
+  const { t } = useI18n();
   const parent = tag.reference_tag!;
   // the editor only loads tags you own (or any tag, for staff)
   const canOpenParent = parent.user.id === user?.id || isStaff(user);
   return (
     <ReadOnlyNote>
-      This tag is an alias of “{parent.name}”. Alias tags use their parent tag’s {kind}, so there’s nothing to edit here.
+      {t('dtags.editor.alias_note', {name: parent.name, kind: t(`dtags.editor.alias_note_${kind}`)})}
       {(canOpenParent) ? (
-        <> <Link to={`${dashboardTagEditPath(parent.id)}?tab=${kind}`} className='font-medium text-brand hover:underline'>Edit them on “{parent.name}”</Link></>
+        <> <Link to={`${dashboardTagEditPath(parent.id)}?tab=${kind}`} className='font-medium text-brand hover:underline'>{t('dtags.editor.alias_edit', {name: parent.name})}</Link></>
       ) : null}
     </ReadOnlyNote>
   );
@@ -267,6 +273,7 @@ interface Draft {
 
 
 function TagContentForm({ tag, readOnly, onDirtyChange }: {tag: Tag, readOnly: boolean, onDirtyChange: (dirty: boolean) => void}) {
+  const { t } = useI18n();
   const toast = useToast();
   const patch = usePatchMeTagMutation(tag.id);
 
@@ -286,11 +293,11 @@ function TagContentForm({ tag, readOnly, onDirtyChange }: {tag: Tag, readOnly: b
   };
 
   const trimmedName = values.name.trim();
-  const nameError = (!trimmedName) ? 'A tag needs a name.'
-    : (TAG_NAME_MAX < trimmedName.length) ? `Names can be up to ${TAG_NAME_MAX} characters.`
-    : (patch.error instanceof ApiRequestError && patch.error.code === ApiErrorCodes.TAG_NAME_TAKEN) ? 'You already have a tag with this name here.'
+  const nameError = (!trimmedName) ? t('dtags.editor.name_required')
+    : (TAG_NAME_MAX < trimmedName.length) ? t('dtags.editor.name_too_long', {max: TAG_NAME_MAX})
+    : (patch.error instanceof ApiRequestError && patch.error.code === ApiErrorCodes.TAG_NAME_TAKEN) ? t('errors.tag_name_taken')
     : null;
-  const contentError = (TAG_CONTENT_MAX < values.content.length) ? `Content can be up to ${TAG_CONTENT_MAX.toLocaleString()} characters.` : null;
+  const contentError = (TAG_CONTENT_MAX < values.content.length) ? t('dtags.editor.content_too_long', {max: formatNumber(TAG_CONTENT_MAX)}) : null;
   const invalid = !trimmedName || TAG_NAME_MAX < trimmedName.length || !!contentError;
 
   const save = () => {
@@ -310,11 +317,11 @@ function TagContentForm({ tag, readOnly, onDirtyChange }: {tag: Tag, readOnly: b
     patch.mutate(body, {
       onSuccess: () => {
         setDraft(null);
-        toast('Tag saved');
+        toast(translate('dtags.editor.saved'));
       },
       onError: (error) => {
         if (!(error instanceof ApiRequestError && error.code === ApiErrorCodes.TAG_NAME_TAKEN)) {
-          toast(errorMessage(error, 'Couldn’t save the tag.'), 'error');
+          toast(errorMessage(error, translate('dtags.editor.save_error')), 'error');
         }
       },
     });
@@ -331,18 +338,18 @@ function TagContentForm({ tag, readOnly, onDirtyChange }: {tag: Tag, readOnly: b
         save();
       }}
     >
-      <Panel title='Tag' accent='#3ba55c'>
+      <Panel title={t('dtags.editor.panel')} accent='#3ba55c'>
         {(readOnly) ? (
-          <ReadOnlyNote>This tag is locked, so it can’t be edited or deleted right now. Ask in the support server if you think that’s a mistake.</ReadOnlyNote>
+          <ReadOnlyNote>{t('dtags.editor.locked')}</ReadOnlyNote>
         ) : (tag.locked) ? (
-          <ReadOnlyNote>This tag is locked, you can edit it because you’re staff.</ReadOnlyNote>
+          <ReadOnlyNote>{t('dtags.editor.locked_staff')}</ReadOnlyNote>
         ) : null}
 
         <div className='space-y-5'>
           <Field
-            label='Name'
+            label={t('dtags.editor.name')}
             counter={<CharCounter length={trimmedName.length} max={TAG_NAME_MAX}/>}
-            hint='Names are saved in lowercase and must be unique where the tag lives.'
+            hint={t('dtags.editor.name_hint')}
             error={(draft) ? nameError : null}
           >
             {(props) => (
@@ -359,10 +366,10 @@ function TagContentForm({ tag, readOnly, onDirtyChange }: {tag: Tag, readOnly: b
           </Field>
 
           <Field
-            label='Content'
+            label={t('dtags.editor.content')}
             counter={<CharCounter length={values.content.length} max={TAG_CONTENT_MAX}/>}
             error={contentError}
-            hint={(tag.reference_tag) ? `This tag is an alias of “${tag.reference_tag.name}”. Saving content here turns it into a normal tag.` : 'Tag script is supported. Ctrl/⌘ + S saves.'}
+            hint={(tag.reference_tag) ? t('dtags.editor.alias_hint', {name: tag.reference_tag.name}) : t('dtags.editor.content_hint')}
           >
             {(props) => (
               <CodeEditor
@@ -377,15 +384,15 @@ function TagContentForm({ tag, readOnly, onDirtyChange }: {tag: Tag, readOnly: b
           </Field>
 
           <Toggle
-            label='NSFW'
-            description='NSFW tags only run in age-restricted channels.'
+            label={t('dtags.editor.nsfw')}
+            description={t('dtags.editor.nsfw_description')}
             checked={values.nsfw}
             onChange={(nsfw) => update({nsfw})}
             disabled={readOnly}
           />
         </div>
 
-        {(patch.isError && !nameError) ? <InlineError>{errorMessage(patch.error, 'Couldn’t save the tag.')}</InlineError> : null}
+        {(patch.isError && !nameError) ? <InlineError>{errorMessage(patch.error, t('dtags.editor.save_error'))}</InlineError> : null}
 
         {(!readOnly) ? (
           <SaveBar dirty={dirty} pending={patch.isPending} disabled={invalid} onDiscard={() => {
@@ -400,9 +407,10 @@ function TagContentForm({ tag, readOnly, onDirtyChange }: {tag: Tag, readOnly: b
 
 
 function TagEditorSkeleton() {
+  const { t } = useI18n();
   return (
     <div aria-busy='true'>
-      <h2 id={TITLE_ID} className='sr-only'>Loading tag</h2>
+      <h2 id={TITLE_ID} className='sr-only'>{t('dtags.modal.loading')}</h2>
       {/* the header's name and date, the location strip and the tabs */}
       <div className='px-4 pt-4 pb-3 sm:px-6 sm:pt-5'>
         <Skeleton className='h-7 w-48'/>

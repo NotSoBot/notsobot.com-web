@@ -9,6 +9,7 @@ import { Modal } from '@/components/ui/Modal';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Spinner } from '@/components/ui/Spinner';
 import { Routes } from '@/config';
+import { useI18n } from '@/i18n';
 import {
   TAG_DIRECTORY_DESCRIPTION_MAX,
   TAG_DIRECTORY_TITLE_MAX,
@@ -29,13 +30,13 @@ import {
   useTagServerCountsQuery,
 } from '@/lib/api/dashboardQueries';
 import { queryKeys } from '@/lib/api/queries';
-import { cn, formatDate } from '@/lib/utils';
+import { cn, formatDate, formatNumber } from '@/lib/utils';
 import { adminTagDirectoryPath } from '@/pages/dashboard/admin/adminUi';
 import { TagAssetsPanel } from '@/pages/dashboard/admin/TagAssetsPanel';
 import { GuildIcon } from '@/pages/dashboard/servers/GuildIcon';
 import { CharCounter, Field, InlineError, Toggle } from '@/pages/dashboard/ui';
 
-import { CategorySelect, DescriptionEditor, TAG_CONTENT_ACKNOWLEDGEMENT, verificationRequirement, VerificationWarning } from './tagDirectory';
+import { CategorySelect, DescriptionEditor, tagContentAcknowledgement, verificationRequirement, VerificationWarning } from './tagDirectory';
 
 
 // The listing's owner and NotSoBot staff can manage a directory tag right from the public directory. Owners go through
@@ -95,20 +96,21 @@ function useMergeIntoDirectoryItem(id: string) {
 
 // Shown in place of the public content section when the listing hides its content, to the owner and staff only.
 export function HiddenContentSection({ item, access }: {item: TagDirectoryItem, access: ListingAccess}) {
+  const { t } = useI18n();
   const { content, isPending, isError, error, refetch } = useFullContent(item, access);
   if (item.content_public || !(access.owner || access.staff)) {
     return null;
   }
   return (
     <section>
-      <h3 className='section-label mb-2'>Content</h3>
+      <h3 className='section-label mb-2'>{t('tags.detail.content')}</h3>
       <p className='mb-2 flex gap-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-fg'>
         <EyeOff aria-hidden className='mt-0.5 size-4 shrink-0 text-warning'/>
         <span>
           {(access.owner) ? (
-            <>Only you can see this because it’s your tag. Everyone else sees no content, since “Show content publicly” is off for this listing.</>
+            t('tags.listing.hidden_owner')
           ) : (
-            <>Hidden from the public, the owner hasn’t turned on “Show content publicly”. You can see it because you’re NotSoBot staff, so please don’t share it.</>
+            t('tags.listing.hidden_staff')
           )}
         </span>
       </p>
@@ -116,12 +118,12 @@ export function HiddenContentSection({ item, access }: {item: TagDirectoryItem, 
         <div className='flex h-24 items-center justify-center rounded-md border border-line bg-deep'><Spinner className='size-5'/></div>
       ) : (isError || content === undefined) ? (
         <div className='rounded-md border border-line bg-deep p-3 text-sm text-muted'>
-          {errorMessage(error, 'Couldn’t load the content.')}{' '}
-          <button type='button' className='cursor-pointer text-brand hover:underline' onClick={() => refetch()}>Retry</button>
+          {errorMessage(error, t('tags.listing.content_error'))}{' '}
+          <button type='button' className='cursor-pointer text-brand hover:underline' onClick={() => refetch()}>{t('common.retry')}</button>
         </div>
       ) : (
         <pre className='max-h-96 overflow-auto rounded-md border border-line bg-deep p-3 font-mono text-sm whitespace-pre-wrap break-words text-fg'>
-          {content || <span className='text-subtle italic'>(empty)</span>}
+          {content || <span className='text-subtle italic'>{t('tags.listing.empty')}</span>}
         </pre>
       )}
     </section>
@@ -146,9 +148,10 @@ export function TagServersSection({ item, access }: {item: TagDirectoryItem, acc
 
 
 function ServersHeading({ note }: {note: string}) {
+  const { t } = useI18n();
   return (
     <div className='mb-2 flex items-baseline justify-between gap-3'>
-      <h3 className='section-label'>Servers</h3>
+      <h3 className='section-label'>{t('tags.detail.servers')}</h3>
       <span className='flex items-center gap-1.5 text-xs text-subtle'>
         <EyeOff aria-hidden className='size-3.5'/>
         {note}
@@ -160,14 +163,15 @@ function ServersHeading({ note }: {note: string}) {
 
 // the loading / error box for either query, null once there's data
 function ServersQueryState({ query }: {query: {isPending: boolean, isError: boolean, error: unknown, refetch: () => unknown}}) {
+  const { t } = useI18n();
   if (query.isPending) {
     return <div className='flex h-24 items-center justify-center rounded-md border border-line bg-deep'><Spinner className='size-5'/></div>;
   }
   if (query.isError) {
     return (
       <div className='rounded-md border border-line bg-deep p-3 text-sm text-muted'>
-        {errorMessage(query.error, 'Couldn’t load the servers.')}{' '}
-        <button type='button' className='cursor-pointer text-brand hover:underline' onClick={() => query.refetch()}>Retry</button>
+        {errorMessage(query.error, t('tags.listing.servers_error'))}{' '}
+        <button type='button' className='cursor-pointer text-brand hover:underline' onClick={() => query.refetch()}>{t('common.retry')}</button>
       </div>
     );
   }
@@ -176,31 +180,32 @@ function ServersQueryState({ query }: {query: {isPending: boolean, isError: bool
 
 
 function TagServerCounts({ item }: {item: TagDirectoryItem}) {
+  const { t, plural } = useI18n();
   const query = useTagServerCountsQuery(item.id);
   const { data } = query;
   return (
     <section>
-      <ServersHeading note='Only you and NotSoBot staff can see this'/>
+      <ServersHeading note={t('tags.listing.private_note')}/>
       {(data) ? (
         <>
           <div className='grid grid-cols-2 gap-2'>
             <div className='rounded-md border border-line bg-deep p-3'>
-              <p className='text-xs text-subtle'>Servers</p>
-              <p className='text-xl font-semibold text-white tabular-nums'>{data.server_count.toLocaleString()}</p>
+              <p className='text-xs text-subtle'>{t('tags.detail.servers')}</p>
+              <p className='text-xl font-semibold text-white tabular-nums'>{formatNumber(data.server_count)}</p>
             </div>
             <div className='rounded-md border border-line bg-deep p-3'>
-              <p className='text-xs text-subtle'>Names</p>
-              <p className='text-xl font-semibold text-white tabular-nums'>{data.alias_count.toLocaleString()}</p>
+              <p className='text-xs text-subtle'>{t('tags.listing.names')}</p>
+              <p className='text-xl font-semibold text-white tabular-nums'>{formatNumber(data.alias_count)}</p>
             </div>
           </div>
           <p className='mt-2 text-xs text-subtle'>
             {(data.server_count) ? (
               <>
-                Added to {data.server_count.toLocaleString()} server{(data.server_count === 1) ? '' : 's'} or DM{(data.server_count === 1) ? '' : 's'}
-                {(data.alias_count > data.server_count) ? ', some of them under more than one name' : null}.{' '}
+                {plural('tags.listing.added_to', data.server_count)}
+                {(data.alias_count > data.server_count) ? t('tags.listing.more_names') : null}.{' '}
               </>
-            ) : 'No servers have added this tag yet. '}
-            Which servers added it is kept private.
+            ) : `${t('tags.listing.no_servers')} `}
+            {t('tags.listing.kept_private')}
           </p>
         </>
       ) : <ServersQueryState query={query}/>}
@@ -324,6 +329,7 @@ export function ManageListingCard({ item, access, editing, onEdit }: {
   editing: boolean,
   onEdit: () => void,
 }) {
+  const { t } = useI18n();
   const verify = usePatchAdminTagDirectoryMutation();
   const merge = useMergeIntoDirectoryItem(item.id);
   if (!access.owner && !access.staff) {
@@ -339,17 +345,17 @@ export function ManageListingCard({ item, access, editing, onEdit }: {
 
   return (
     <section className='card p-5'>
-      <h3 className='section-label mb-1'>{(access.owner) ? 'Your listing' : 'Staff tools'}</h3>
+      <h3 className='section-label mb-1'>{t((access.owner) ? 'tags.listing.yours' : 'tags.listing.staff_tools')}</h3>
       <p className='mb-4 text-xs text-subtle'>
-        {(access.owner) ? 'You published this tag, so you can change how it’s listed.' : 'You’re NotSoBot staff, so you can edit this listing.'}
+        {t((access.owner) ? 'tags.listing.yours_description' : 'tags.listing.staff_description')}
       </p>
       <button type='button' className='btn btn-secondary w-full' disabled={editing} onClick={onEdit}>
         <Pencil className='size-4'/>
-        Edit listing
+        {t('tags.listing.edit')}
       </button>
       {(access.owner) ? (
         <Link to={Routes.DASHBOARD_TAG_EDIT.replace(':tagId', item.id)} className='btn btn-ghost mt-2 w-full'>
-          Open in dashboard
+          {t('tags.listing.open_dashboard')}
           <ArrowUpRight className='size-3.5'/>
         </Link>
       ) : null}
@@ -359,7 +365,7 @@ export function ManageListingCard({ item, access, editing, onEdit }: {
 
       {(access.staff) ? (
         <div className='mt-4 border-t border-line pt-4'>
-          <h4 className='section-label mb-2'>Verification</h4>
+          <h4 className='section-label mb-2'>{t('tags.listing.verification')}</h4>
           {/* the current status' slot turns into "Mark pending", like the content flags modal, so nothing sits greyed out */}
           <div className='grid gap-2'>
             {VERIFY_SLOTS.map((slot) => {
@@ -392,6 +398,7 @@ export function ManageListingCard({ item, access, editing, onEdit }: {
 // cancel a pending request; nothing to do once it's verified. No toasts, the directory isn't inside the dashboard's
 // `ToastProvider`, the section switching over shows it worked
 function OwnerVerificationSection({ item, editing }: {item: TagDirectoryItem, editing: boolean}) {
+  const { t } = useI18n();
   const merge = useMergeIntoDirectoryItem(item.id);
   const request = useRequestMeTagDirectoryVerificationMutation(item.id);
   const cancel = useCancelMeTagDirectoryVerificationMutation(item.id);
@@ -402,7 +409,7 @@ function OwnerVerificationSection({ item, editing }: {item: TagDirectoryItem, ed
   }
   const pending = item.verified === TagDirectoryVerificationStates.PENDING_VERIFICATION;
   // requesting verification would freeze unsaved listing edits, so it waits until the edit form is closed
-  const blocker = (editing) ? 'Save or cancel your listing changes before requesting verification.' : verificationRequirement(item);
+  const blocker = (editing) ? t('tags.listing.save_first') : verificationRequirement(item);
 
   const doRequest = () => {
     request.mutate(undefined, {
@@ -421,22 +428,22 @@ function OwnerVerificationSection({ item, editing }: {item: TagDirectoryItem, ed
 
   return (
     <div className='mt-4 border-t border-line pt-4'>
-      <h4 className='section-label mb-2'>Verification</h4>
+      <h4 className='section-label mb-2'>{t('tags.listing.verification')}</h4>
       {(pending) ? (
         <>
-          <p className='mb-3 text-xs text-subtle'>Waiting for NotSoBot’s team to review it. Canceling unlocks the tag so you can edit it again.</p>
+          <p className='mb-3 text-xs text-subtle'>{t('tags.listing.pending_description')}</p>
           <button type='button' className='btn btn-danger w-full' disabled={cancel.isPending} onClick={doCancel}>
             <X className='size-4'/>
-            {(cancel.isPending) ? 'Canceling…' : 'Cancel request'}
+            {t((cancel.isPending) ? 'tags.listing.canceling' : 'tags.listing.cancel_request')}
           </button>
-          {(cancel.isError) ? <InlineError>{errorMessage(cancel.error, 'Couldn’t cancel the request.')}</InlineError> : null}
+          {(cancel.isError) ? <InlineError>{errorMessage(cancel.error, t('tags.listing.cancel_error'))}</InlineError> : null}
         </>
       ) : (
         <>
-          <p className='mb-3 text-xs text-subtle'>{blocker ?? 'Ask NotSoBot’s team to review it. Verified tags are marked as safe to run on the directory.'}</p>
+          <p className='mb-3 text-xs text-subtle'>{blocker ?? t('tags.listing.request_description')}</p>
           <button type='button' className='btn btn-primary w-full' disabled={!!blocker} onClick={() => setConfirming(true)}>
             <ShieldCheck className='size-4'/>
-            Request verification
+            {t('tags.listing.request')}
           </button>
         </>
       )}
@@ -444,12 +451,12 @@ function OwnerVerificationSection({ item, editing }: {item: TagDirectoryItem, ed
       {(confirming) ? (
         <ConfirmDialog
           tone='primary'
-          title={`Request verification for “${item.tag.name}”?`}
+          title={t('tags.listing.request_title', {name: item.tag.name})}
           description={<VerificationWarning/>}
-          acknowledgement={TAG_CONTENT_ACKNOWLEDGEMENT}
-          confirmLabel='Request verification'
+          acknowledgement={tagContentAcknowledgement()}
+          confirmLabel={t('tags.listing.request')}
           pending={request.isPending}
-          error={(request.isError) ? errorMessage(request.error, 'Couldn’t request verification.') : undefined}
+          error={(request.isError) ? errorMessage(request.error, t('tags.listing.request_error')) : undefined}
           onConfirm={doRequest}
           onClose={() => {
             setConfirming(false);
@@ -475,6 +482,7 @@ const VERIFY_ACTIONS: Record<number, {label: string, icon: typeof ShieldCheck, c
 // and the "show content publicly" switch; staff get the title, description, category and the content itself, with
 // `media` (the thumbnail/media managers, which save on their own) slotted in above the content.
 export function ListingEditForm({ item, access, media, onDone }: {item: TagDirectoryItem, access: ListingAccess, media?: ReactNode, onDone: () => void}) {
+  const { t, rich } = useI18n();
   const full = useFullContent(item, access);
   // same query `useFullContent` reads, for the tag's archived files
   const admin = useAdminTagDirectoryItemQuery(item.id, {enabled: access.staff});
@@ -553,7 +561,7 @@ export function ListingEditForm({ item, access, media, onDone }: {item: TagDirec
       merge(changes, (access.staff) ? (content ?? undefined) : full.content);
       onDone();
     } catch (caught) {
-      setError(errorMessage(caught, 'Couldn’t save the listing.'));
+      setError(errorMessage(caught, t('tags.listing.save_error')));
       setSaving(false);
     }
   };
@@ -561,19 +569,19 @@ export function ListingEditForm({ item, access, media, onDone }: {item: TagDirec
   return (
     <form onSubmit={onSubmit} className='space-y-5 rounded-lg border border-line bg-surface p-4'>
       <div className='flex items-center justify-between gap-3'>
-        <h3 className='font-semibold text-white'>Edit listing</h3>
+        <h3 className='font-semibold text-white'>{t('tags.listing.edit')}</h3>
         {(access.staff && !access.owner) ? <span className='rounded bg-brand/15 px-2 py-0.5 text-xs font-medium text-brand'>Staff</span> : null}
       </div>
 
       {(listingFrozen) ? (
         <p className='rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-fg'>
-          This listing is being reviewed for verification, so its title, description and category can’t change until the review finishes.
+          {t('tags.listing.frozen')}
         </p>
       ) : null}
 
       <Field
-        label='Title'
-        hint='A short line shown under the tag name. Optional.'
+        label={t('tags.listing.title')}
+        hint={t('tags.listing.title_hint')}
         counter={<CharCounter length={title.length} max={TAG_DIRECTORY_TITLE_MAX}/>}
       >
         {(props) => (
@@ -588,8 +596,8 @@ export function ListingEditForm({ item, access, media, onDone }: {item: TagDirec
         )}
       </Field>
       <Field
-        label='Description'
-        hint='What the tag does and how to use it. Optional.'
+        label={t('tags.detail.description')}
+        hint={t('tags.listing.description_hint')}
         counter={<CharCounter length={description.length} max={TAG_DIRECTORY_DESCRIPTION_MAX}/>}
       >
         {(props) => (
@@ -603,14 +611,14 @@ export function ListingEditForm({ item, access, media, onDone }: {item: TagDirec
           />
         )}
       </Field>
-      <Field label='Category' hint='Where the tag shows up when people browse the directory by category.'>
+      <Field label={t('tags.directory.category')} hint={t('tags.listing.category_hint')}>
         {(props) => <CategorySelect {...props} value={category} disabled={listingFrozen || saving} onChange={setCategory}/>}
       </Field>
 
       {(access.owner) ? (
         <Toggle
-          label='Show content publicly'
-          description='Anyone browsing the directory can read the tag’s content. Hidden by default.'
+          label={t('tags.listing.show_content')}
+          description={t('tags.listing.show_content_description')}
           checked={contentPublic}
           disabled={saving}
           onChange={setContentPublic}
@@ -657,9 +665,9 @@ export function ListingEditForm({ item, access, media, onDone }: {item: TagDirec
         </>
       ) : (
         <p className='text-xs text-subtle'>
-          To change the tag’s content, edit it in your{' '}
-          <Link to={Routes.DASHBOARD_TAG_EDIT.replace(':tagId', item.id)} className='text-brand hover:underline'>dashboard</Link>
-          {(item.tag.locked) ? ' (it’s locked while it’s pending or verified).' : '.'}
+          {rich((item.tag.locked) ? 'tags.listing.edit_content_locked' : 'tags.listing.edit_content', {
+            link: (chunk) => <Link to={Routes.DASHBOARD_TAG_EDIT.replace(':tagId', item.id)} className='text-brand hover:underline'>{chunk}</Link>,
+          })}
         </p>
       )}
 
@@ -667,13 +675,13 @@ export function ListingEditForm({ item, access, media, onDone }: {item: TagDirec
 
       <div className='flex flex-col-reverse gap-3 border-t border-line pt-4 sm:flex-row sm:items-center sm:justify-between'>
         <div aria-live='polite' className='min-h-5 text-sm'>
-          {(dirty && !saving) ? <span className='text-warning'>Unsaved changes</span> : null}
+          {(dirty && !saving) ? <span className='text-warning'>{t('tags.listing.unsaved')}</span> : null}
         </div>
         <div className='flex flex-wrap gap-2 sm:justify-end'>
-          <button type='button' className='btn btn-ghost' disabled={saving} onClick={onDone}>Cancel</button>
+          <button type='button' className='btn btn-ghost' disabled={saving} onClick={onDone}>{t('common.cancel')}</button>
           <button type='submit' className='btn btn-primary' disabled={!dirty || invalid || saving}>
             {(saving) ? <Spinner className='size-4 border-white/40 border-t-white'/> : null}
-            {(saving) ? 'Saving…' : 'Save listing'}
+            {t((saving) ? 'common.saving' : 'tags.listing.save')}
           </button>
         </div>
       </div>

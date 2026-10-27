@@ -6,9 +6,10 @@ import { Link } from 'react-router';
 
 import { useAuth } from '@/auth';
 import { Routes, Urls } from '@/config';
+import { useI18n } from '@/i18n';
 import { EntitlementProviders, UserPremiumTypes, type Entitlement } from '@/lib/api';
 import { errorMessage, useMeEntitlementsQuery } from '@/lib/api/dashboardQueries';
-import { cn, formatDate, formatExactDateTime, toDate } from '@/lib/utils';
+import { cn, formatDate, formatExactDateTime, formatNumber, toDate } from '@/lib/utils';
 
 import { Chip } from './admin/adminUi';
 import { entitlementStatus, entitlementTierLabel, premiumLabel } from './premium';
@@ -18,6 +19,7 @@ import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from './ui';
 
 export function PremiumPage() {
   const { user } = useAuth();
+  const { t, rich } = useI18n();
   const { data, isPending, isError, error, isRefetching, refetch } = useMeEntitlementsQuery();
   const items = data?.items ?? [];
 
@@ -28,11 +30,11 @@ export function PremiumPage() {
   return (
     <>
       <DashboardHeader
-        title='Premium'
-        description='Your NotSoPremium tier and the subscriptions behind it. Buying, renewing and cancelling happen in Discord, on NotSoBot’s profile.'
+        title={t('dash.nav.premium')}
+        description={t('dpremium.description')}
       >
         <Link to={Routes.PREMIUM} className='btn btn-sm btn-ghost'>
-          What’s included
+          {t('dpremium.included')}
         </Link>
       </DashboardHeader>
 
@@ -40,14 +42,14 @@ export function PremiumPage() {
 
       <PremiumServers/>
 
-      <h2 className='section-label mt-8 mb-3'>Subscriptions and grants</h2>
+      <h2 className='section-label mt-8 mb-3'>{t('dpremium.subscriptions')}</h2>
       {(isPending) ? (
         <ListSkeleton/>
       ) : (isError) ? (
-        <ErrorPanel title='Couldn’t load your subscriptions' message={errorMessage(error)} onRetry={() => refetch()} retrying={isRefetching}/>
+        <ErrorPanel title={t('dpremium.load_error')} message={errorMessage(error)} onRetry={() => refetch()} retrying={isRefetching}/>
       ) : (!items.length) ? (
-        <EmptyState icon={<Crown className='size-10'/>} title='No subscriptions yet'>
-          Subscribe in Discord: open NotSoBot’s profile and pick <a href={Urls.DISCORD_STORE} target='_blank' rel='noreferrer' className='text-fg underline hover:text-white'>Store</a>.
+        <EmptyState icon={<Crown className='size-10'/>} title={t('dpremium.empty')}>
+          {rich('dpremium.empty_description', {store: (chunk) => <a href={Urls.DISCORD_STORE} target='_blank' rel='noreferrer' className='text-fg underline hover:text-white'>{chunk}</a>})}
         </EmptyState>
       ) : (
         <>
@@ -55,7 +57,7 @@ export function PremiumPage() {
             {items.map((entitlement) => <EntitlementRow key={entitlement.id} entitlement={entitlement}/>)}
           </ul>
           {(items.length < (data?.count ?? 0)) ? (
-            <p className='mt-2 text-xs text-subtle'>Showing the newest {items.length.toLocaleString()} of {data?.count.toLocaleString()}.</p>
+            <p className='mt-2 text-xs text-subtle'>{t('dpremium.showing', {shown: formatNumber(items.length), count: formatNumber(data?.count ?? 0)})}</p>
           ) : null}
         </>
       )}
@@ -65,16 +67,17 @@ export function PremiumPage() {
 
 
 function CurrentTier({ premiumType, items }: {premiumType: number, items: Array<Entitlement> | null}) {
+  const { t, plural } = useI18n();
   const premium = premiumType !== UserPremiumTypes.NONE;
   const active = items?.filter((entitlement) => entitlement.active).length ?? 0;
 
   let detail: string | null = null;
   if (!premium) {
-    detail = 'You’re on the free tier.';
+    detail = t('dpremium.free');
   } else if (premiumType === UserPremiumTypes.PREMIUM_FREE) {
-    detail = 'Given to you by the NotSoBot team.';
+    detail = t('dpremium.complimentary');
   } else if (active) {
-    detail = `From ${active.toLocaleString()} active ${(active === 1) ? 'entitlement' : 'entitlements'} below.`;
+    detail = plural('dpremium.from', active);
   }
 
   return (
@@ -86,7 +89,7 @@ function CurrentTier({ premiumType, items }: {premiumType: number, items: Array<
         <Crown className='size-6'/>
       </span>
       <div className='min-w-0'>
-        <div className='text-sm text-muted'>Current tier</div>
+        <div className='text-sm text-muted'>{t('dpremium.current')}</div>
         <div className={cn('text-xl font-bold', premium ? 'text-warning' : 'text-white')}>{premiumLabel(premiumType)}</div>
         {(detail) ? <div className='mt-0.5 text-sm text-subtle'>{detail}</div> : null}
       </div>
@@ -101,6 +104,7 @@ function DateLabel({ label, value }: {label: string, value: string | number}) {
 
 
 function EntitlementRow({ entitlement }: {entitlement: Entitlement}) {
+  const { t, rich } = useI18n();
   const status = entitlementStatus(entitlement);
   const discord = entitlement.provider === EntitlementProviders.DISCORD;
   const started = entitlement.starts_at ?? entitlement.created_at;
@@ -118,17 +122,17 @@ function EntitlementRow({ entitlement }: {entitlement: Entitlement}) {
         <div className='flex flex-wrap items-center gap-2'>
           <span className='font-medium text-white'>{entitlementTierLabel(entitlement)}</span>
           <Chip tone={status.tone}>{status.label}</Chip>
-          <Chip>{(discord) ? 'Discord subscription' : 'Given by staff'}</Chip>
+          <Chip>{t((discord) ? 'dpremium.discord' : 'dpremium.staff')}</Chip>
         </div>
         <div className='mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-subtle'>
-          {(started !== null) ? <DateLabel label='Started' value={started}/> : null}
+          {(started !== null) ? <DateLabel label={t('dpremium.started')} value={started}/> : null}
           {(entitlement.ends_at !== null) ? (
-            <DateLabel label={(ended) ? 'Ended' : (discord) ? 'Current period ends' : 'Ends'} value={entitlement.ends_at}/>
+            <DateLabel label={t((ended) ? 'dpremium.ended' : (discord) ? 'dpremium.period_ends' : 'dpremium.ends')} value={entitlement.ends_at}/>
           ) : (entitlement.active) ? (
-            <span>No end date</span>
+            <span>{t('dpremium.no_end')}</span>
           ) : null}
-          {(entitlement.guild_id) ? <span>Server <span className='font-mono'>{entitlement.guild_id}</span></span> : null}
-          <span className='font-mono' title='Entitlement ID'>#{entitlement.id}</span>
+          {(entitlement.guild_id) ? <span>{rich('dpremium.server', {b: (chunk) => <span className='font-mono'>{chunk}</span>}, {id: entitlement.guild_id})}</span> : null}
+          <span className='font-mono' title={t('dpremium.entitlement_id')}>#{entitlement.id}</span>
         </div>
       </div>
     </li>

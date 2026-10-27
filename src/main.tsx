@@ -3,13 +3,13 @@ import './index.css';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { RouterProvider } from 'react-router/dom';
 
 import { AuthProvider } from '@/auth';
+import { I18nProvider, initI18n } from '@/i18n';
 import { ApiRequestError } from '@/lib/api';
 import { initAnalytics } from '@/lib/analytics';
 import { reloadForNewBuild } from '@/lib/chunkReload';
-import { router } from '@/router';
+import { createRouter } from '@/router';
 
 
 initAnalytics();
@@ -48,12 +48,12 @@ async function enableDashboardMocks(): Promise<void> {
 }
 
 
-void enableDashboardMocks().finally(() => {
+void Promise.all([enableDashboardMocks(), initI18n()]).finally(() => {
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <RouterProvider router={router}/>
+          <I18nProvider createRouter={createRouter}/>
         </AuthProvider>
       </QueryClientProvider>
     </StrictMode>,

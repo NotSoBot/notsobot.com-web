@@ -2,10 +2,13 @@ import { Github, MessageSquare } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 
-import { ReportButton } from '@/components/reports/ReportDialog';
+import { ReportButton } from '@/components/reports/ReportButton';
 import { Routes, Urls } from '@/config';
+import { useI18n } from '@/i18n';
 import { ApiEndpoints, apiUrl } from '@/lib/api';
 import { shuffle } from '@/lib/utils';
+
+import { LanguagePicker } from './LanguagePicker';
 
 
 const QUOTES: Array<[quote: string, author: string]> = [
@@ -25,6 +28,7 @@ const QUOTE_INTERVAL = 5000;
 
 
 export function Footer() {
+  const { t } = useI18n();
   return (
     <footer className='mt-16 border-t border-line bg-surface'>
       <div className='container-page flex flex-col items-start justify-between gap-6 py-8 md:flex-row md:items-center'>
@@ -32,26 +36,27 @@ export function Footer() {
           <h2 className='mb-1 text-xl text-white'>NotSoBot</h2>
           <FooterQuote/>
           <div className='mb-3 flex gap-3'>
-            <a href={apiUrl(ApiEndpoints.HELP_DISCORD_SERVER)} aria-label='Support server' className='text-muted transition-colors hover:text-brand'>
+            <a href={apiUrl(ApiEndpoints.HELP_DISCORD_SERVER)} aria-label={t('footer.support_server')} className='text-muted transition-colors hover:text-brand'>
               <MessageSquare className='size-5'/>
             </a>
             <a href={Urls.GITHUB} target='_blank' rel='noreferrer' aria-label='GitHub' className='text-muted transition-colors hover:text-white'>
               <Github className='size-5'/>
             </a>
           </div>
-          <p className='text-xs text-subtle'>© 2016–{new Date().getFullYear()} NotSoCompany. All rights reserved.</p>
+          <p className='mb-4 text-xs text-subtle'>{t('footer.rights', {year: new Date().getFullYear()})}</p>
+          <LanguagePicker/>
         </div>
 
-        <nav aria-label='Footer'>
-          <h3 className='section-label mb-3'>Company</h3>
+        <nav aria-label={t('footer.label')}>
+          <h3 className='section-label mb-3'>{t('footer.company')}</h3>
           <ul className='space-y-2 text-sm'>
-            <li><Link to={Routes.FAQ} className='text-muted transition-colors hover:text-white'>FAQ</Link></li>
-            <li><Link to={Routes.CHANGELOG} className='text-muted transition-colors hover:text-white'>Changelog</Link></li>
-            <li><Link to={Routes.TAG_DOCS} className='text-muted transition-colors hover:text-white'>Tag Docs</Link></li>
+            <li><Link to={Routes.FAQ} className='text-muted transition-colors hover:text-white'>{t('nav.faq')}</Link></li>
+            <li><Link to={Routes.CHANGELOG} className='text-muted transition-colors hover:text-white'>{t('nav.changelog')}</Link></li>
+            <li><Link to={Routes.TAG_DOCS} className='text-muted transition-colors hover:text-white'>{t('footer.tag_docs')}</Link></li>
             {/* anonymous when logged out (behind a captcha), or logging in first when the site has no captcha set up */}
-            <li><ReportButton subject={{type: 'bug'}} className='cursor-pointer text-muted transition-colors hover:text-white'>Report a Bug</ReportButton></li>
-            <li><Link to={Routes.LEGAL_PRIVACY} className='text-muted transition-colors hover:text-white'>Privacy Policy</Link></li>
-            <li><Link to={Routes.LEGAL_TERMS_OF_SERVICE} className='text-muted transition-colors hover:text-white'>Terms of Service</Link></li>
+            <li><ReportButton subject={{type: 'bug'}} className='cursor-pointer text-muted transition-colors hover:text-white'>{t('footer.report_bug')}</ReportButton></li>
+            <li><Link to={Routes.LEGAL_PRIVACY} className='text-muted transition-colors hover:text-white'>{t('footer.privacy')}</Link></li>
+            <li><Link to={Routes.LEGAL_TERMS_OF_SERVICE} className='text-muted transition-colors hover:text-white'>{t('footer.terms')}</Link></li>
           </ul>
         </nav>
       </div>

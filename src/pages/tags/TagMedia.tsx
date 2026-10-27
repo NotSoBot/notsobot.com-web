@@ -2,6 +2,7 @@ import { ArrowLeft, ArrowRight, Eye, EyeOff, ImagePlus, Lock, Music, Play, Star,
 import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 
 import { Spinner } from '@/components/ui/Spinner';
+import { translate, useI18n } from '@/i18n';
 import {
   TAG_DIRECTORY_ASSET_SIZE_MAX,
   TAG_DIRECTORY_ASSETS_MAX,
@@ -48,7 +49,7 @@ function formatSize(bytes: number): string {
 }
 
 function assetLabel(index: number, count: number, tagName: string): string {
-  return `Example ${index + 1} of ${count} for ${tagName}`;
+  return translate('tag_media.example', {number: index + 1, count, name: tagName});
 }
 
 
@@ -62,11 +63,12 @@ export function AssetThumbnail({ assets, thumbnail, nsfw, playing }: {
   nsfw: boolean,
   playing: boolean,
 }) {
+  const { t } = useI18n();
   if (thumbnail) {
     return (
       <div className='relative size-16 shrink-0 overflow-hidden rounded-md border border-line bg-deep'>
         {(nsfw) ? (
-          <div className='flex size-full items-center justify-center text-subtle' title='NSFW media, open the tag to view'>
+          <div className='flex size-full items-center justify-center text-subtle' title={t('tag_media.nsfw_title')}>
             <EyeOff aria-hidden className='size-5'/>
           </div>
         ) : (
@@ -89,7 +91,7 @@ export function AssetThumbnail({ assets, thumbnail, nsfw, playing }: {
   return (
     <div className='relative size-16 shrink-0 overflow-hidden rounded-md border border-line bg-deep'>
       {(nsfw || kind === 'audio') ? (
-        <div className='flex size-full items-center justify-center text-subtle' title={(nsfw) ? 'NSFW media, open the tag to view' : undefined}>
+        <div className='flex size-full items-center justify-center text-subtle' title={(nsfw) ? t('tag_media.nsfw_title') : undefined}>
           {(nsfw) ? <EyeOff aria-hidden className='size-5'/> : <Music aria-hidden className='size-5'/>}
         </div>
       ) : (kind === 'video') ? (
@@ -161,6 +163,7 @@ export function MediaSection({ assets, nsfw, tagName, manage, headingClassName =
   manage?: MediaManage,
   headingClassName?: string,
 }) {
+  const { t } = useI18n();
   const [ selectedId, setSelectedId ] = useState<string | null>(null);
   const [ revealed, setRevealed ] = useState(!nsfw);
   if (!assets.length && !manage) {
@@ -173,7 +176,7 @@ export function MediaSection({ assets, nsfw, tagName, manage, headingClassName =
   const viewer = (
     <>
       <div className='mb-2 flex items-baseline justify-between gap-3'>
-        <h3 className={headingClassName}>Media</h3>
+        <h3 className={headingClassName}>{t('tag_media.media')}</h3>
         {(manage) ? <span className='ml-auto text-xs text-subtle tabular-nums'>{assets.length}/{TAG_DIRECTORY_ASSETS_MAX}</span> : null}
       </div>
 
@@ -181,7 +184,7 @@ export function MediaSection({ assets, nsfw, tagName, manage, headingClassName =
         <>
           <MediaStage asset={selected} label={assetLabel(selectedIndex, assets.length, tagName)} revealed={revealed} onReveal={() => setRevealed(true)}/>
           {(1 < assets.length || manage) ? (
-            <ul className='mt-2 flex gap-2 overflow-x-auto pb-1' aria-label='Media'>
+            <ul className='mt-2 flex gap-2 overflow-x-auto pb-1' aria-label={t('tag_media.media')}>
               {assets.map((asset, index) => (
                 <li key={asset.id} className='shrink-0'>
                   <button
@@ -196,10 +199,10 @@ export function MediaSection({ assets, nsfw, tagName, manage, headingClassName =
                   >
                     <AssetThumb asset={asset} revealed={revealed}/>
                     {(index === 0 && manage) ? (
-                      <span className='absolute top-0.5 left-0.5 rounded bg-black/70 px-1 text-[10px] font-medium text-white'>Cover</span>
+                      <span className='absolute top-0.5 left-0.5 rounded bg-black/70 px-1 text-[10px] font-medium text-white'>{t('tag_media.cover')}</span>
                     ) : null}
                     {('is_new' in asset && asset.is_new) ? (
-                      <span className='absolute top-0.5 right-0.5 rounded bg-brand px-1 text-[10px] font-medium text-white'>New</span>
+                      <span className='absolute top-0.5 right-0.5 rounded bg-brand px-1 text-[10px] font-medium text-white'>{t('tag_media.new')}</span>
                     ) : null}
                   </button>
                 </li>
@@ -303,16 +306,17 @@ function FileDropZone({ enabled, label, onFile, className, children }: {
 
 
 function MediaStage({ asset, label, revealed, onReveal }: {asset: TagDirectoryAsset, label: string, revealed: boolean, onReveal: () => void}) {
+  const { t } = useI18n();
   const kind = assetKind(asset);
   const { width, height } = asset.metadata;
   if (!revealed) {
     return (
       <div className='flex aspect-video flex-col items-center justify-center gap-3 rounded-lg border border-line bg-deep text-center'>
         <EyeOff aria-hidden className='size-6 text-subtle'/>
-        <p className='text-sm text-muted'>This tag is marked NSFW.</p>
+        <p className='text-sm text-muted'>{t('tag_media.nsfw_marked')}</p>
         <button type='button' className='btn btn-secondary btn-sm' onClick={onReveal}>
           <Eye className='size-3.5'/>
-          Show media
+          {t('tag_media.show')}
         </button>
       </div>
     );
@@ -341,7 +345,7 @@ function MediaStage({ asset, label, revealed, onReveal }: {asset: TagDirectoryAs
           className='max-h-[60vh] w-full object-contain'
         />
       ) : (
-        <a href={asset.urls.cdn} target='_blank' rel='noreferrer' title='Open full size' className='block size-full'>
+        <a href={asset.urls.cdn} target='_blank' rel='noreferrer' title={t('tag_media.open_full')} className='block size-full'>
           <img
             key={asset.id}
             src={asset.urls.cdn}
@@ -378,7 +382,6 @@ function AssetThumb({ asset, revealed }: {asset: TagDirectoryAsset, revealed: bo
 
 
 const ACCEPTED_TYPES = 'image/*,video/*,audio/*';
-const PASTE_HINT = 'Click here and paste (Ctrl/⌘+V), or drop a file.';
 
 // `removal` is staff's reason, for the tag audit log
 type MediaAction = {upload: File} | {move: string, position: number} | {remove: string, removal?: AdminRemoval};
@@ -418,6 +421,7 @@ function MediaManager({ assets, selected, selectedIndex, manage, onUploaded, chi
   onUploaded: (assetId: string) => void,
   children: ReactNode,
 }) {
+  const { t } = useI18n();
   const mutation = useMediaMutation(manage);
   const input = useRef<HTMLInputElement>(null);
   const [ localError, setLocalError ] = useState<string | null>(null);
@@ -434,15 +438,15 @@ function MediaManager({ assets, selected, selectedIndex, manage, onUploaded, chi
   const upload = (file: File) => {
     mutation.reset();
     if (full) {
-      setLocalError(`Listings can have up to ${TAG_DIRECTORY_ASSETS_MAX} files, remove one first.`);
+      setLocalError(t('tag_media.too_many', {max: TAG_DIRECTORY_ASSETS_MAX}));
       return;
     }
     if (!/^(image|video|audio)\//.test(file.type)) {
-      setLocalError('That file type isn’t supported. Use an image, video or audio file.');
+      setLocalError(t('tag_media.bad_type'));
       return;
     }
     if (TAG_DIRECTORY_ASSET_SIZE_MAX < file.size) {
-      setLocalError(`That file is ${formatSize(file.size)}, files can be up to ${formatSize(TAG_DIRECTORY_ASSET_SIZE_MAX)}.`);
+      setLocalError(t('tag_media.too_big', {size: formatSize(file.size), max: formatSize(TAG_DIRECTORY_ASSET_SIZE_MAX)}));
       return;
     }
     setLocalError(null);
@@ -474,11 +478,11 @@ function MediaManager({ assets, selected, selectedIndex, manage, onUploaded, chi
   if (!editable) {
     let message: string;
     if (manage.editRequest) {
-      message = 'Your change request is waiting for review. Withdraw it to change its media.';
+      message = t('tag_media.locked_request');
     } else if (manage.verified === TagDirectoryVerificationStates.VERIFIED) {
-      message = 'Media is locked now that the listing is verified. Request changes to update it.';
+      message = t('tag_media.locked_verified');
     } else {
-      message = `Request verification to add up to ${TAG_DIRECTORY_ASSETS_MAX} images, videos or audio files. NotSoBot staff review them with the listing, and they show on the directory once it’s verified.`;
+      message = t('tag_media.locked_unverified', {max: TAG_DIRECTORY_ASSETS_MAX});
     }
     controls = (
       <p className={cn('flex gap-2 rounded-md border border-line bg-deep px-3 py-2 text-sm text-muted', assets.length && 'mt-3')}>
@@ -497,26 +501,26 @@ function MediaManager({ assets, selected, selectedIndex, manage, onUploaded, chi
             className='flex w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-line-strong bg-deep px-4 py-8 text-center text-muted transition-colors hover:border-brand hover:text-white disabled:cursor-default'
           >
             {(uploading) ? <Spinner className='size-5'/> : <ImagePlus aria-hidden className='size-6'/>}
-            <span className='text-sm font-medium'>{(uploading) ? 'Uploading…' : 'Add images, videos or audio'}</span>
-            <span className='text-xs text-subtle'>Up to {TAG_DIRECTORY_ASSETS_MAX} files, {formatSize(TAG_DIRECTORY_ASSET_SIZE_MAX)} each. The first one is the cover on the directory. You can also paste or drop them here.</span>
+            <span className='text-sm font-medium'>{t((uploading) ? 'tag_media.uploading' : 'tag_media.add_first')}</span>
+            <span className='text-xs text-subtle'>{t('tag_media.add_first_hint', {max: TAG_DIRECTORY_ASSETS_MAX, size: formatSize(TAG_DIRECTORY_ASSET_SIZE_MAX)})}</span>
           </button>
         ) : (
           <div className='flex flex-wrap items-center gap-2'>
-            <button type='button' className='btn btn-secondary btn-sm' disabled={busy || full} title={(full) ? `Listings can have up to ${TAG_DIRECTORY_ASSETS_MAX} files.` : undefined} onClick={() => input.current?.click()}>
+            <button type='button' className='btn btn-secondary btn-sm' disabled={busy || full} title={(full) ? t('tag_media.max_files', {max: TAG_DIRECTORY_ASSETS_MAX}) : undefined} onClick={() => input.current?.click()}>
               {(uploading) ? <Spinner className='size-3.5'/> : <ImagePlus className='size-3.5'/>}
-              {(uploading) ? 'Uploading…' : 'Add media'}
+              {t((uploading) ? 'tag_media.uploading' : 'tag_media.add')}
             </button>
             {(selected) ? (
               <>
                 <span aria-hidden className='mx-1 h-5 w-px bg-line-strong'/>
                 <button type='button' className='btn btn-ghost btn-sm' disabled={busy || selectedIndex === 0} onClick={() => move(0)}>
                   <Star className='size-3.5'/>
-                  Make cover
+                  {t('tag_media.make_cover')}
                 </button>
-                <button type='button' className='btn btn-ghost btn-sm px-2' aria-label='Move earlier' title='Move earlier' disabled={busy || selectedIndex === 0} onClick={() => move(selectedIndex - 1)}>
+                <button type='button' className='btn btn-ghost btn-sm px-2' aria-label={t('tag_media.move_earlier')} title={t('tag_media.move_earlier')} disabled={busy || selectedIndex === 0} onClick={() => move(selectedIndex - 1)}>
                   <ArrowLeft className='size-3.5'/>
                 </button>
-                <button type='button' className='btn btn-ghost btn-sm px-2' aria-label='Move later' title='Move later' disabled={busy || selectedIndex === assets.length - 1} onClick={() => move(selectedIndex + 1)}>
+                <button type='button' className='btn btn-ghost btn-sm px-2' aria-label={t('tag_media.move_later')} title={t('tag_media.move_later')} disabled={busy || selectedIndex === assets.length - 1} onClick={() => move(selectedIndex + 1)}>
                   <ArrowRight className='size-3.5'/>
                 </button>
                 <button
@@ -533,7 +537,7 @@ function MediaManager({ assets, selected, selectedIndex, manage, onUploaded, chi
                   }}
                 >
                   <Trash2 className='size-3.5'/>
-                  Remove
+                  {t('common.remove')}
                 </button>
               </>
             ) : null}
@@ -541,7 +545,7 @@ function MediaManager({ assets, selected, selectedIndex, manage, onUploaded, chi
         )}
         {(selected && confirmingRemove === selected.id) ? (
           <RemovalConfirm
-            label='Remove media'
+            label={t('tag_media.remove_media')}
             pending={busy}
             onConfirm={(removal) => mutation.mutate({remove: selected.id, removal}, () => setConfirmingRemove(null))}
             onCancel={() => setConfirmingRemove(null)}
@@ -550,25 +554,23 @@ function MediaManager({ assets, selected, selectedIndex, manage, onUploaded, chi
         <input ref={input} type='file' accept={ACCEPTED_TYPES} className='hidden' onChange={onFile}/>
         <p className='mt-2 flex items-center gap-1.5 text-xs text-subtle'>
           <EyeOff aria-hidden className='size-3.5 shrink-0'/>
-          {(manage.editRequest) ?
-            'Staff review these with your request. The listing keeps its current media until it’s approved.' :
+          {t((manage.editRequest) ?
+            'tag_media.note_request' :
             (manage.staff) ?
-              ((manage.verified === TagDirectoryVerificationStates.VERIFIED) ?
-                'Changes show on the directory right away. The owner isn’t notified.' :
-                'Only the owner and NotSoBot staff can see these until the listing is verified. The owner isn’t notified.') :
-              'Only you and NotSoBot staff can see these until the listing is verified. They can’t be changed after that.'}
+              ((manage.verified === TagDirectoryVerificationStates.VERIFIED) ? 'tag_media.note_staff_verified' : 'tag_media.note_staff') :
+              'tag_media.note_owner')}
         </p>
-        {(assets.length) ? <p className='mt-1 text-xs text-subtle'>{PASTE_HINT}</p> : null}
+        {(assets.length) ? <p className='mt-1 text-xs text-subtle'>{t('tag_media.paste_hint')}</p> : null}
       </div>
     );
   }
 
   return (
-    <FileDropZone enabled={editable && !busy} label='Media, paste or drop a file to add it' onFile={upload}>
+    <FileDropZone enabled={editable && !busy} label={t('tag_media.drop_label')} onFile={upload}>
       {children}
       {controls}
       {(localError) ? <InlineError>{localError}</InlineError> : null}
-      {(mutation.isError) ? <InlineError>{errorMessage(mutation.error, 'Couldn’t update the media.')}</InlineError> : null}
+      {(mutation.isError) ? <InlineError>{errorMessage(mutation.error, t('tag_media.update_error'))}</InlineError> : null}
     </FileDropZone>
   );
 }
@@ -585,6 +587,7 @@ export function ThumbnailManager({ assets, thumbnail, manage }: {
   thumbnail: TagDirectoryThumbnail | null,
   manage: MediaManage,
 }) {
+  const { t } = useI18n();
   const own = useMeTagDirectoryThumbnailMutation(manage.tagId);
   const admin = useAdminTagDirectoryThumbnailMutation(manage.tagId);
   const draft = useMeTagDirectoryEditRequestMutation(manage.tagId);
@@ -615,11 +618,11 @@ export function ThumbnailManager({ assets, thumbnail, manage }: {
   const upload = (file: File) => {
     active.reset();
     if (!/^(image|video)\//.test(file.type)) {
-      setLocalError('That file type isn’t supported. Use an image or video.');
+      setLocalError(t('tag_media.bad_type_thumbnail'));
       return;
     }
     if (TAG_DIRECTORY_ASSET_SIZE_MAX < file.size) {
-      setLocalError(`That file is ${formatSize(file.size)}, files can be up to ${formatSize(TAG_DIRECTORY_ASSET_SIZE_MAX)}.`);
+      setLocalError(t('tag_media.too_big', {size: formatSize(file.size), max: formatSize(TAG_DIRECTORY_ASSET_SIZE_MAX)}));
       return;
     }
     setLocalError(null);
@@ -651,13 +654,13 @@ export function ThumbnailManager({ assets, thumbnail, manage }: {
 
   let status: string;
   if (request && request.thumbnailMode === TagDirectoryEditRequestThumbnailModes.REPLACE) {
-    status = 'Using your new thumbnail.';
+    status = t('tag_media.thumb.new');
   } else if (request && request.thumbnailMode === TagDirectoryEditRequestThumbnailModes.REMOVE) {
-    status = (assets.length) ? 'Removing your thumbnail, the card will use the cover.' : 'Removing your thumbnail.';
+    status = t((assets.length) ? 'tag_media.thumb.removing_cover' : 'tag_media.thumb.removing');
   } else if (effective) {
-    status = (request) ? 'Keeping your current thumbnail.' : (manage.staff) ? 'Using its thumbnail.' : 'Using your thumbnail.';
+    status = t((request) ? 'tag_media.thumb.keeping' : (manage.staff) ? 'tag_media.thumb.staff' : 'tag_media.thumb.yours');
   } else {
-    status = (assets.length) ? 'Using the cover, the first of the media.' : 'No thumbnail or media yet.';
+    status = t((assets.length) ? 'tag_media.thumb.cover' : 'tag_media.thumb.none');
   }
 
   const preview = (effective || assets.length) ? (
@@ -671,16 +674,16 @@ export function ThumbnailManager({ assets, thumbnail, manage }: {
   let lockedMessage: string | null = null;
   if (!editable) {
     if (request) {
-      lockedMessage = 'Your change request is waiting for review. Withdraw it to change the thumbnail.';
+      lockedMessage = t('tag_media.thumb.locked_request');
     } else if (manage.verified === TagDirectoryVerificationStates.VERIFIED) {
-      lockedMessage = 'The thumbnail is locked now that the listing is verified. Request changes to update it.';
+      lockedMessage = t('tag_media.thumb.locked_verified');
     } else {
-      lockedMessage = 'Request verification to set a thumbnail. NotSoBot staff review it with the listing.';
+      lockedMessage = t('tag_media.thumb.locked_unverified');
     }
   }
 
   return (
-    <FileDropZone enabled={editable && !busy} label='Thumbnail, paste or drop a file to use it' onFile={upload}>
+    <FileDropZone enabled={editable && !busy} label={t('tag_media.thumb.drop_label')} onFile={upload}>
       <div className='flex items-center gap-4'>
         {preview}
         <div className='min-w-0 flex-1 space-y-2'>
@@ -689,7 +692,7 @@ export function ThumbnailManager({ assets, thumbnail, manage }: {
             <div className='flex flex-wrap items-center gap-2'>
               <button type='button' className='btn btn-secondary btn-sm' disabled={busy} onClick={() => input.current?.click()}>
                 {(uploading) ? <Spinner className='size-3.5'/> : <Upload className='size-3.5'/>}
-                {(uploading) ? 'Uploading…' : (effective) ? 'Replace' : 'Upload thumbnail'}
+                {t((uploading) ? 'tag_media.uploading' : (effective) ? 'tag_media.thumb.replace' : 'tag_media.thumb.upload')}
               </button>
               {(effective) ? (
                 <button
@@ -700,7 +703,7 @@ export function ThumbnailManager({ assets, thumbnail, manage }: {
                   onClick={() => (manage.staff && !request) ? setConfirmingRemove(!confirmingRemove) : remove()}
                 >
                   <Trash2 className='size-3.5'/>
-                  Remove
+                  {t('common.remove')}
                 </button>
               ) : null}
               {(request && request.thumbnailMode !== TagDirectoryEditRequestThumbnailModes.KEEP) ? (
@@ -711,17 +714,17 @@ export function ThumbnailManager({ assets, thumbnail, manage }: {
                   onClick={() => draft.mutate({patch: {thumbnail_mode: TagDirectoryEditRequestThumbnailModes.KEEP}})}
                 >
                   <Undo2 className='size-3.5'/>
-                  Keep current
+                  {t('tag_media.thumb.keep')}
                 </button>
               ) : null}
             </div>
           ) : null}
-          {(editable) ? <p className='text-xs text-subtle'>{PASTE_HINT}</p> : null}
+          {(editable) ? <p className='text-xs text-subtle'>{t('tag_media.paste_hint')}</p> : null}
         </div>
       </div>
       <input ref={input} type='file' accept={THUMBNAIL_ACCEPTED_TYPES} className='hidden' onChange={onFile}/>
       {(confirmingRemove && effective) ? (
-        <RemovalConfirm label='Remove thumbnail' pending={busy} onConfirm={remove} onCancel={() => setConfirmingRemove(false)}/>
+        <RemovalConfirm label={t('tag_media.thumb.remove')} pending={busy} onConfirm={remove} onCancel={() => setConfirmingRemove(false)}/>
       ) : null}
       {(lockedMessage) ? (
         <p className='mt-3 flex gap-2 rounded-md border border-line bg-deep px-3 py-2 text-sm text-muted'>
@@ -730,7 +733,7 @@ export function ThumbnailManager({ assets, thumbnail, manage }: {
         </p>
       ) : null}
       {(localError) ? <InlineError>{localError}</InlineError> : null}
-      {(active.isError) ? <InlineError>{errorMessage(active.error, 'Couldn’t update the thumbnail.')}</InlineError> : null}
+      {(active.isError) ? <InlineError>{errorMessage(active.error, t('tag_media.thumb.update_error'))}</InlineError> : null}
     </FileDropZone>
   );
 }

@@ -4,12 +4,13 @@ import { createPortal } from 'react-dom';
 import { Link } from 'react-router';
 
 import { Routes } from '@/config';
+import { useI18n } from '@/i18n';
 import { CommandTypes, type CommandArgChoice } from '@/lib/api';
 import { formatNumber } from '@/lib/utils';
 
 import { CategoryBadge, categoryStyle, CommandName, PremiumBadge } from './CommandCards';
 import { CommandPreview } from './CommandPreview';
-import { PREFIXES, PREMIUM_META, TYPE_LABELS, type Entry } from './commandMeta';
+import { PREFIXES, premiumMeta, TYPE_LABELS, type Entry } from './commandMeta';
 
 
 export function CommandDrawer({ entry, siblings, totalRanked, onSelect, onClose }: {
@@ -20,6 +21,7 @@ export function CommandDrawer({ entry, siblings, totalRanked, onSelect, onClose 
   onSelect: (key: string) => void,
   onClose: () => void,
 }) {
+  const { t } = useI18n();
   const closeRef = useRef<HTMLButtonElement>(null);
   const { metadata } = entry;
   const prefix = PREFIXES[metadata.type] ?? '';
@@ -65,38 +67,38 @@ export function CommandDrawer({ entry, siblings, totalRanked, onSelect, onClose 
             <div className='mb-3 flex items-center justify-between gap-3'>
               <div className='flex flex-wrap items-center gap-2'>
                 <CategoryBadge category={entry.category}/>
-                <span className='rounded bg-surface-3 px-2 py-0.5 text-xs text-muted'>{TYPE_LABELS[metadata.type]}</span>
+                <span className='rounded bg-surface-3 px-2 py-0.5 text-xs text-muted'>{t(TYPE_LABELS[metadata.type])}</span>
                 <PremiumBadge premium={metadata.premium} className='px-2'/>
-                {(metadata.dmable) ? <span className='rounded bg-success/15 px-2 py-0.5 text-xs font-medium text-success'>Works in DMs</span> : null}
+                {(metadata.dmable) ? <span className='rounded bg-success/15 px-2 py-0.5 text-xs font-medium text-success'>{t('commands.dms')}</span> : null}
               </div>
-              <button ref={closeRef} type='button' aria-label='Close' onClick={onClose} className='btn btn-ghost -mr-2 p-2'>
+              <button ref={closeRef} type='button' aria-label={t('common.close')} onClick={onClose} className='btn btn-ghost -mr-2 p-2'>
                 <X className='size-5'/>
               </button>
             </div>
             <h2 id='command-drawer-title'>
               <CommandName type={metadata.type} name={metadata.name} className='text-2xl font-semibold text-white'/>
             </h2>
-            <p className='mt-2 text-muted'>{metadata.description || 'No description available'}</p>
+            <p className='mt-2 text-muted'>{metadata.description || t('commands.no_description')}</p>
             {(metadata.premium) ? (
               <div className='mt-3 flex items-start gap-2.5 rounded-md border border-warning/30 bg-warning/10 px-3 py-2.5 text-sm'>
                 <Crown aria-hidden className='mt-0.5 size-4 shrink-0 text-warning'/>
                 <p className='text-muted'>
-                  <span className='font-medium text-white'>{PREMIUM_META[metadata.premium].label}.</span>{' '}
-                  {PREMIUM_META[metadata.premium].description}{' '}
-                  <Link to={Routes.PREMIUM} className='font-medium text-warning hover:underline'>See NotSoPremium</Link>
+                  <span className='font-medium text-white'>{t(premiumMeta(metadata.premium).label)}.</span>{' '}
+                  {t(premiumMeta(metadata.premium).description)}{' '}
+                  <Link to={Routes.PREMIUM} className='font-medium text-warning hover:underline'>{t('commands.drawer.see_premium')}</Link>
                 </p>
               </div>
             ) : null}
 
             <dl className='mt-4 grid grid-cols-2 gap-2'>
               <div className='rounded-md bg-deep px-3 py-2'>
-                <dt className='text-xs text-muted'>Uses this week</dt>
+                <dt className='text-xs text-muted'>{t('commands.drawer.uses')}</dt>
                 <dd className='text-lg font-semibold text-white tabular-nums'>{formatNumber(entry.uses)}</dd>
               </div>
               <div className='rounded-md bg-deep px-3 py-2'>
-                <dt className='text-xs text-muted'>Popularity</dt>
+                <dt className='text-xs text-muted'>{t('commands.drawer.popularity')}</dt>
                 <dd className='text-lg font-semibold text-white tabular-nums'>
-                  {(entry.rank) ? <>#{entry.rank} <span className='text-sm font-normal text-subtle'>of {totalRanked}</span></> : '—'}
+                  {(entry.rank) ? <>#{entry.rank} <span className='text-sm font-normal text-subtle'>{t('commands.drawer.rank_of', {total: totalRanked})}</span></> : '—'}
                 </dd>
               </div>
             </dl>
@@ -104,13 +106,13 @@ export function CommandDrawer({ entry, siblings, totalRanked, onSelect, onClose 
 
           <div className='flex-1 space-y-5 overflow-y-auto p-5'>
             {(metadata.usage) ? (
-              <Section title='Usage'>
+              <Section title={t('commands.drawer.usage')}>
                 <code className='code-block'>{prefix}{metadata.name} {metadata.usage}</code>
               </Section>
             ) : null}
 
             {(entry.command.media.length) ? (
-              <Section title='Preview'>
+              <Section title={t('commands.drawer.preview')}>
                 {/* the example is the prefixed command, whichever type this entry is */}
                 <CommandPreview
                   command={entry.command}
@@ -120,7 +122,7 @@ export function CommandDrawer({ entry, siblings, totalRanked, onSelect, onClose 
             ) : null}
 
             {(metadata.examples.length) ? (
-              <Section title='Examples'>
+              <Section title={t('commands.drawer.examples')}>
                 <div className='space-y-1'>
                   {metadata.examples.map((example, i) => <code key={i} className='code-block'>{prefix}{example}</code>)}
                 </div>
@@ -128,7 +130,7 @@ export function CommandDrawer({ entry, siblings, totalRanked, onSelect, onClose 
             ) : null}
 
             {(metadata.args?.length) ? (
-              <Section title='Arguments'>
+              <Section title={t('commands.drawer.arguments')}>
                 <div className='space-y-2'>
                   {metadata.args.map((arg) => (
                     <div key={arg.name} className='rounded bg-deep px-3 py-2'>
@@ -145,7 +147,7 @@ export function CommandDrawer({ entry, siblings, totalRanked, onSelect, onClose 
             ) : null}
 
             {(metadata.aliases.length) ? (
-              <Section title='Aliases'>
+              <Section title={t('commands.drawer.aliases')}>
                 <div className='flex flex-wrap gap-2'>
                   {metadata.aliases.map((alias) => <span key={alias} className='rounded bg-surface-3 px-2.5 py-1 font-mono text-sm text-fg'>{prefix}{alias}</span>)}
                 </div>
@@ -153,7 +155,7 @@ export function CommandDrawer({ entry, siblings, totalRanked, onSelect, onClose 
             ) : null}
 
             {(siblings.length) ? (
-              <Section title='Also available as'>
+              <Section title={t('commands.drawer.also_as')}>
                 <div className='flex flex-wrap gap-2'>
                   {siblings.map((sibling) => (
                     <button
@@ -163,7 +165,7 @@ export function CommandDrawer({ entry, siblings, totalRanked, onSelect, onClose 
                       className='flex cursor-pointer items-center gap-2 rounded-md border border-line bg-deep px-3 py-1.5 text-sm transition-colors hover:border-[var(--cat)]'
                     >
                       <CommandName type={sibling.metadata.type} name={sibling.metadata.name} className='text-white'/>
-                      <span className='text-xs text-subtle'>{TYPE_LABELS[sibling.metadata.type]}</span>
+                      <span className='text-xs text-subtle'>{t(TYPE_LABELS[sibling.metadata.type])}</span>
                     </button>
                   ))}
                 </div>
@@ -171,11 +173,11 @@ export function CommandDrawer({ entry, siblings, totalRanked, onSelect, onClose 
             ) : null}
 
             {(metadata.ratelimits?.length) ? (
-              <Section title='Ratelimits'>
+              <Section title={t('commands.drawer.ratelimits')}>
                 <ul className='flex flex-wrap gap-2'>
                   {metadata.ratelimits.map((limit, i) => (
                     <li key={i} className='rounded bg-surface-3 px-2.5 py-1 text-sm text-fg'>
-                      {limit.limit} per {limit.duration / 1000}s <span className='text-subtle'>/ {limit.type}</span>
+                      {t('commands.drawer.ratelimit', {limit: limit.limit, seconds: limit.duration / 1000})} <span className='text-subtle'>/ {limit.type}</span>
                     </li>
                   ))}
                 </ul>
@@ -183,7 +185,7 @@ export function CommandDrawer({ entry, siblings, totalRanked, onSelect, onClose 
             ) : null}
 
             {(metadata.credits?.length) ? (
-              <Section title='Credits'>
+              <Section title={t('commands.drawer.credits')}>
                 <div className='flex flex-wrap gap-2'>
                   {metadata.credits.map((credit) => (
                     <span key={credit.id || credit.name} className='flex overflow-hidden rounded bg-surface-3 text-sm'>

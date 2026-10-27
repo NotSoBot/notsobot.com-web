@@ -14,6 +14,7 @@ import { SearchInput } from '@/components/ui/SearchInput';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
 import { UserAvatar } from '@/components/ui/UserAvatar';
+import { translate, useI18n, type TranslationKey } from '@/i18n';
 import { ReportStatuses, ReportTypes, type MeReport, type MeReportsSortBy } from '@/lib/api';
 import { Routes } from '@/config';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
@@ -26,7 +27,7 @@ import {
   usePostMeReportMessageMutation,
   useReopenMeReportMutation,
 } from '@/lib/api/dashboardQueries';
-import { cn, formatDateTime, toDate } from '@/lib/utils';
+import { cn, formatDateTime, formatNumber, toDate } from '@/lib/utils';
 
 import { AdminModalFooter, AdminTagModal, LinkedItemModal, useOpenListItem } from '../admin/AdminTagModal';
 import { Chip, CopyableValue, CopyButton, DETAIL_LIST_STACKED, DetailList, ExactDate, FiltersButton, Pagination, selectAllScope, useSearchParamState, useStepBackFromEmptyPage } from '../admin/adminUi';
@@ -50,37 +51,37 @@ function staffReplied(report: MeReport): boolean {
   return report.last_reply?.author === 'staff';
 }
 
-const STAFF_REPLIED_TITLE = 'The last reply is from the NotSoBot team';
 
 
 // who sent the last reply, told apart at a glance: staff's is brand coloured with the bot's logo (their turn to read it),
 // the user's own is grey with their avatar (waiting on staff). Nothing before anyone's replied
 function LastReplyChip({ report, className }: {report: MeReport, className?: string}) {
   const { user } = useAuth();
+  const { t } = useI18n();
   if (!report.last_reply) {
     return null;
   }
   if (report.last_reply.author === 'staff') {
     return (
-      <Chip tone='brand' className={cn('gap-1', className)} title={STAFF_REPLIED_TITLE}>
+      <Chip tone='brand' className={cn('gap-1', className)} title={t('reports.staff_replied_title')}>
         <img src={logo} alt='' className='size-3.5'/>
-        {REPORT_STAFF_NAME} replied
+        {t('reports.staff_replied', {staff: REPORT_STAFF_NAME})}
       </Chip>
     );
   }
   return (
-    <Chip className={cn('gap-1', className)} title={`You replied last, waiting on ${REPORT_STAFF_NAME}`}>
+    <Chip className={cn('gap-1', className)} title={t('reports.you_replied_title', {staff: REPORT_STAFF_NAME})}>
       {(user) ? <UserAvatar user={user} size={32} className='size-3.5 rounded-full bg-surface-3'/> : null}
-      You replied
+      {t('reports.you_replied')}
     </Chip>
   );
 }
 
 // `updated` (the default) is the newest reply or status change, so reports with something new come first
-const SORTS: Array<{value: MeReportsSortBy, label: string}> = [
-  {value: 'updated', label: 'Last updated'},
-  {value: 'newest', label: 'Newest'},
-  {value: 'oldest', label: 'Oldest'},
+const SORTS: Array<{value: MeReportsSortBy, label: TranslationKey}> = [
+  {value: 'updated', label: 'reports.sort.updated'},
+  {value: 'newest', label: 'reports.sort.newest'},
+  {value: 'oldest', label: 'reports.sort.oldest'},
 ];
 
 // when it last changed, the same as the api's `updated` sort
@@ -92,28 +93,26 @@ function reportUpdated(report: MeReport): MeReport['created'] {
 const TITLE_ID = 'report-modal-title';
 
 
-const TABS = [
-  {value: 'bot', label: 'Bot'},
-  {value: 'servers', label: 'Servers'},
+const TABS: Array<{value: string, label: TranslationKey}> = [
+  {value: 'bot', label: 'reports.tab.bot'},
+  {value: 'servers', label: 'reports.tab.servers'},
 ];
 
 // Bot (the reports to the NotSoBot developers, the default) and Servers (the reports to servers' moderators), each with
 // its own search and filters, so switching clears them
 export function ReportsPage() {
+  const { t, rich } = useI18n();
   const [ searchParams, setSearchParams ] = useSearchParams();
   const tab = (searchParams.get('tab') === 'servers') ? 'servers' : 'bot';
+  const markup = {code: (chunk: string) => <code className='text-fg'>{chunk}</code>, b: (chunk: string) => <span className='text-fg'>{chunk}</span>};
   return (
     <>
       <DashboardHeader
-        title='Your Reports'
-        description={(tab === 'servers') ? (
-          <>Reports you’ve sent to servers’ moderators with the bot’s <code className='text-fg'>report</code> command or <span className='text-fg'>Report to Mods</span>. They’re only ever “the moderators” to you.</>
-        ) : (
-          <>Reports you’ve sent to the NotSoBot developers with the bot’s <code className='text-fg'>report</code> commands or from the website.</>
-        )}
+        title={t('page.DASHBOARD_REPORTS')}
+        description={rich((tab === 'servers') ? 'reports.description_servers' : 'reports.description', markup)}
       />
       <div className='mb-4'>
-        <Segmented label='Reports sent to' value={tab} options={TABS} onChange={(value) => setSearchParams((value === 'bot') ? {} : {tab: value}, {replace: true})}/>
+        <Segmented label={t('reports.sent_to')} value={tab} options={TABS.map((option) => ({value: option.value, label: t(option.label)}))} onChange={(value) => setSearchParams((value === 'bot') ? {} : {tab: value}, {replace: true})}/>
       </div>
       {(tab === 'servers') ? <ServerReportsTab/> : <BotReportsTab/>}
     </>
@@ -123,6 +122,7 @@ export function ReportsPage() {
 
 // the list, with the open report (`/dashboard/reports/<id>`, so it can be linked) in a modal over it
 function BotReportsTab() {
+  const { t, rich } = useI18n();
   const { searchParams, page, update, setPage } = useSearchParamState();
   const status = parseStatus(searchParams.get('status'));
   const sortBy = SORTS.find((sort) => sort.value === searchParams.get('sort'))?.value ?? 'updated';
@@ -155,23 +155,23 @@ function BotReportsTab() {
           className='min-w-0 flex-1'
           value={query}
           onValueChange={(value) => update({q: value})}
-          placeholder='Search what you wrote, or a report #...'
-          aria-label='Search your reports'
+          placeholder={t('reports.search_placeholder')}
+          aria-label={t('reports.search_label')}
         />
         <FiltersButton open={filtersOpen} onToggle={() => setFiltersOpen((value) => !value)} active={activeFilters} controls='report-filters'/>
       </div>
 
       <div id='report-filters' hidden={!filtersOpen} className='card mb-4 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4'>
         <label className='text-sm'>
-          <span className='mb-1 block text-subtle'>Sort</span>
+          <span className='mb-1 block text-subtle'>{t('reports.sort')}</span>
           <select className='input' value={sortBy} onChange={(event) => update({sort: (event.target.value === 'updated') ? null : event.target.value})}>
-            {SORTS.map((sort) => <option key={sort.value} value={sort.value}>{sort.label}</option>)}
+            {SORTS.map((sort) => <option key={sort.value} value={sort.value}>{t(sort.label)}</option>)}
           </select>
         </label>
         <label className='text-sm'>
-          <span className='mb-1 block text-subtle'>Status</span>
+          <span className='mb-1 block text-subtle'>{t('reports.status')}</span>
           <select className='input' value={(status === null) ? '' : String(status)} onChange={(event) => update({status: event.target.value})}>
-            <option value=''>Any</option>
+            <option value=''>{t('reports.any')}</option>
             {REPORT_STATUSES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
           </select>
         </label>
@@ -180,14 +180,14 @@ function BotReportsTab() {
       {(isPending || steppingBack) ? (
         <ListSkeleton/>
       ) : (isError && !items.length) ? (
-        <ErrorPanel title='Couldn’t load your reports' message={errorMessage(error)} onRetry={() => refetch()} retrying={isRefetching}/>
+        <ErrorPanel title={t('reports.load_error')} message={errorMessage(error)} onRetry={() => refetch()} retrying={isRefetching}/>
       ) : (!items.length) ? (
         <EmptyState
           icon={<MessageSquareWarning className='size-10'/>}
-          title={(debouncedQuery) ? 'No reports found' : (status === null) ? 'No reports yet' : `No ${reportStatusInfo(status).label.toLowerCase()} reports`}
+          title={(debouncedQuery) ? t('reports.empty_search') : (status === null) ? t('reports.empty') : t('reports.empty_status', {status: reportStatusInfo(status).label.toLowerCase()})}
         >
-          {(debouncedQuery) ? 'Try a different search or filter.' : (!filtered) ? (
-            <>Send one in Discord with <code className='text-fg'>/report</code>, or right-click a user or one of NotSoBot’s messages and pick <span className='text-fg'>Apps → Report</span>.</>
+          {(debouncedQuery) ? t('reports.empty_search_description') : (!filtered) ? (
+            rich('reports.empty_description', {code: (chunk) => <code className='text-fg'>{chunk}</code>, b: (chunk) => <span className='text-fg'>{chunk}</span>})
           ) : null}
         </EmptyState>
       ) : (
@@ -205,7 +205,7 @@ function BotReportsTab() {
           <ReportDetails key={openItem.id} report={openItem} navigation={{previousId, nextId, onNavigate: open}}/>
         </AdminTagModal>
       ) : (openId) ? (
-        <LinkedItemModal noun='report' notFoundMessage='You haven’t sent a report with this id.' query={linked} onClose={close}/>
+        <LinkedItemModal noun={t('reports.noun')} notFoundMessage={t('reports.not_found')} query={linked} onClose={close}/>
       ) : null}
     </>
   );
@@ -218,6 +218,7 @@ function BotReportsTab() {
 // and what they wrote across the bottom.
 // `showUpdated`: the date is when it last changed (sorted by that), otherwise when it was sent
 function ReportRow({ report, showUpdated, onOpen }: {report: MeReport, showUpdated: boolean, onOpen: (id: string) => void}) {
+  const { t, plural } = useI18n();
   const status = reportStatusInfo(report.status);
   const type = reportTypeInfo(report.type);
   const replied = staffReplied(report);
@@ -226,7 +227,7 @@ function ReportRow({ report, showUpdated, onOpen }: {report: MeReport, showUpdat
   return (
     <li className='group/row relative'>
       {/* an unread bar down the left edge while staff sent something they haven't opened yet */}
-      {(report.unread) ? <span aria-hidden title='Something new from staff' className={cn(ROW_EDGE_BAR, 'bg-brand')}/> : null}
+      {(report.unread) ? <span aria-hidden title={t('reports.unread_title')} className={cn(ROW_EDGE_BAR, 'bg-brand')}/> : null}
       <button
         type='button'
         className='grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-4 py-3 text-left first:rounded-t-[inherit] last:rounded-b-[inherit] hover:bg-surface-2 sm:gap-x-4 sm:px-5'
@@ -246,7 +247,7 @@ function ReportRow({ report, showUpdated, onOpen }: {report: MeReport, showUpdat
           {(report.replies) ? (
             <span
               className={cn('inline-flex shrink-0 items-center gap-1 text-xs', (replied) ? 'font-medium text-brand' : 'text-subtle')}
-              title={(replied) ? STAFF_REPLIED_TITLE : `${report.replies} ${(report.replies === 1) ? 'reply' : 'replies'}`}
+              title={(replied) ? t('reports.staff_replied_title') : plural('reports.replies', report.replies)}
             >
               <MessagesSquare aria-hidden className='size-3.5'/>
               {report.replies}
@@ -257,7 +258,7 @@ function ReportRow({ report, showUpdated, onOpen }: {report: MeReport, showUpdat
         {/* the status in the top right, when it was sent under it */}
         <Chip tone={status.tone} className='col-start-2 row-start-1 w-20 justify-center justify-self-end'>{status.label}</Chip>
         <span className='col-start-2 row-start-2 justify-self-end text-xs whitespace-nowrap text-subtle'>
-          {(edited) ? `Updated ${formatDateTime(updated)}` : formatDateTime(report.created)}
+          {(edited) ? t('reports.updated', {date: formatDateTime(updated)}) : formatDateTime(report.created)}
         </span>
       </button>
     </li>
@@ -272,6 +273,7 @@ function ReportDetails({ report, navigation }: {
   report: MeReport,
   navigation: {previousId: string | null, nextId: string | null, onNavigate: (id: string) => void},
 }) {
+  const { t, rich } = useI18n();
   const toast = useToast();
   const reopen = useReopenMeReportMutation(report.id);
   const status = reportStatusInfo(report.status);
@@ -285,7 +287,7 @@ function ReportDetails({ report, navigation }: {
       <DetailModalHeader
         titleId={TITLE_ID}
         leading={<Chip tone={type.tone} className='w-16 shrink-0 justify-center'>{type.label}</Chip>}
-        title={<><span className='sr-only'>Report </span>#{report.id}</>}
+        title={<><span className='sr-only'>{t('reports.report_sr')}</span>#{report.id}</>}
         mono
         meta={<ExactDate value={report.created} format={formatDateTime}/>}
         states={(report.last_reply) ? <LastReplyChip report={report}/> : null}
@@ -296,9 +298,9 @@ function ReportDetails({ report, navigation }: {
           whoever used the command */}
       {(report.type !== ReportTypes.BUG) ? (
         <DetailModalStrip className='grid grid-cols-[max-content_minmax(0,1fr)] items-center gap-x-3'>
-          <span className='text-xs text-subtle'>{(isMessageReport) ? 'Command used by' : `Reported ${REPORT_TARGET_LABELS[report.type] ?? 'target'}`}</span>
+          <span className='text-xs text-subtle'>{(isMessageReport) ? t('reports.command_by') : t('reports.reported', {target: REPORT_TARGET_LABELS[report.type] ?? t('reports.target')})}</span>
           <div className='flex min-h-8 min-w-0 items-center'>
-            {(report.target_id) ? <CopyableValue value={report.target_id} truncate={0}/> : <span className='text-sm text-subtle'>Not given</span>}
+            {(report.target_id) ? <CopyableValue value={report.target_id} truncate={0}/> : <span className='text-sm text-subtle'>{t('reports.not_given')}</span>}
           </div>
         </DetailModalStrip>
       ) : null}
@@ -310,14 +312,14 @@ function ReportDetails({ report, navigation }: {
           <DetailList
             className={DETAIL_LIST_STACKED}
             items={[
-              ['Server', (report.guild_id) ? <CopyableValue value={report.guild_id} truncate={0}/> : <span className='text-subtle'>None, {(isMessageReport) ? 'it’s in' : 'sent in'} DMs</span>],
-              ['Channel', (report.channel_id) ? <CopyableValue value={report.channel_id} truncate={0}/> : '—'],
-              [(isMessageReport) ? 'Reported message' : 'Message', (report.message_id) ? (
+              [t('reports.server'), (report.guild_id) ? <CopyableValue value={report.guild_id} truncate={0}/> : <span className='text-subtle'>{t((isMessageReport) ? 'reports.none_in_dms' : 'reports.none_sent_dms')}</span>],
+              [t('reports.channel'), (report.channel_id) ? <CopyableValue value={report.channel_id} truncate={0}/> : '—'],
+              [t((isMessageReport) ? 'reports.reported_message' : 'reports.message'), (report.message_id) ? (
                 <span className='inline-flex flex-wrap items-center gap-x-2'>
                   <CopyableValue value={report.message_id} truncate={0}/>
                   {(jumpUrl) ? (
                     <a href={jumpUrl} target='_blank' rel='noopener noreferrer' className='inline-flex items-center gap-1 text-xs text-code hover:underline'>
-                      Open in Discord
+                      {t('reports.open_discord')}
                       <ExternalLink aria-hidden className='size-3'/>
                     </a>
                   ) : null}
@@ -329,34 +331,35 @@ function ReportDetails({ report, navigation }: {
             className={DETAIL_LIST_STACKED}
             items={[
               // phones only, the title's can be cut off there
-              ['Report', <CopyableValue value={report.id} truncate={0}/>, 'sm:hidden'],
-              ['Replies', (report.replies) ? (
+              [t('reports.report'), <CopyableValue value={report.id} truncate={0}/>, 'sm:hidden'],
+              [t('reports.replies'), (report.replies) ? (
                 <span>
-                  {report.replies.toLocaleString()}
+                  {formatNumber(report.replies)}
                   {(report.last_reply) ? (
                     <span className='text-subtle'>
-                      {' '}• last from {(report.last_reply.author === 'staff') ? REPORT_STAFF_NAME : 'you'}{' '}
-                      <ExactDate value={report.last_reply.created} format={formatDateTime}/>
+                      {rich((report.last_reply.author === 'staff') ? 'reports.last_from_staff' : 'reports.last_from_you', {
+                        date: () => <ExactDate value={report.last_reply!.created} format={formatDateTime}/>,
+                      }, {staff: REPORT_STAFF_NAME})}
                     </span>
                   ) : null}
                 </span>
-              ) : 'None'],
-              ['Reviewed', (report.reviewed_at) ? <ExactDate value={report.reviewed_at} format={formatDateTime}/> : <span className='text-subtle'>Not yet</span>],
+              ) : t('reports.none')],
+              [t('reports.reviewed'), (report.reviewed_at) ? <ExactDate value={report.reviewed_at} format={formatDateTime}/> : <span className='text-subtle'>{t('reports.not_yet')}</span>],
             ]}
           />
         </div>
 
         <div className='mt-4'>
           <div className='mb-1 flex min-h-8 items-center justify-between gap-2'>
-            <h3 className='section-label'>Report</h3>
-            <CopyButton value={report.content} label='Copy'/>
+            <h3 className='section-label'>{t('reports.report')}</h3>
+            <CopyButton value={report.content} label={t('common.copy')}/>
           </div>
           <p className='rounded-md border border-line bg-deep px-3 py-2 font-mono text-sm whitespace-pre-wrap break-words text-fg focus:border-line-strong focus:outline-none' {...selectAllScope}>{report.content}</p>
         </div>
 
         <div className='mt-4'>
           <div className='mb-1 flex min-h-8 items-center'>
-            <h3 className='section-label'>Conversation with {REPORT_STAFF_NAME}</h3>
+            <h3 className='section-label'>{t('reports.conversation', {staff: REPORT_STAFF_NAME})}</h3>
           </div>
           <ReportConversation report={report}/>
         </div>
@@ -369,12 +372,12 @@ function ReportDetails({ report, navigation }: {
             className='btn min-w-0 flex-1 border border-warning/40 bg-warning/15 px-2 text-warning hover:bg-warning/25 sm:flex-none sm:px-3'
             disabled={reopen.isPending}
             onClick={() => reopen.mutate(undefined, {
-              onSuccess: () => toast(`Report ${report.id}: reopened`),
+              onSuccess: () => toast(translate('reports.reopened', {id: report.id})),
               onError: (error) => toast(errorMessage(error), 'error'),
             })}
           >
             {(reopen.isPending) ? <Spinner className='size-4'/> : <RotateCcw aria-hidden className='hidden size-4 shrink-0 sm:block'/>}
-            <span className='truncate'>Reopen</span>
+            <span className='truncate'>{t('reports.reopen')}</span>
           </button>
         ) : null}
       </AdminModalFooter>
@@ -385,6 +388,7 @@ function ReportDetails({ report, navigation }: {
 
 // works whatever the status is; replying alone doesn't reopen it, that's the footer's Reopen
 function ReportConversation({ report }: {report: MeReport}) {
+  const { rich } = useI18n();
   const toast = useToast();
   const { user } = useAuth();
   const messages = useMeReportMessagesQuery(report.id);
@@ -403,7 +407,7 @@ function ReportConversation({ report }: {report: MeReport}) {
       })}
       sending={send.isPending}
       notice={(report.status !== ReportStatuses.OPEN) ? (
-        <>This report is {reportStatusInfo(report.status).label.toLowerCase()}. Replying won’t reopen it, use <span className='text-fg'>Reopen</span> if you still need it looked at.</>
+        rich('reports.closed_notice', {b: (chunk) => <span className='text-fg'>{chunk}</span>}, {status: reportStatusInfo(report.status).label.toLowerCase()})
       ) : undefined}
     />
   );

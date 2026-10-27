@@ -5,6 +5,7 @@ import { useLocation, useNavigate, useParams } from 'react-router';
 import { ModalFooter } from '@/components/ui/DetailModal';
 import { Modal, openModalCount } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
+import { useI18n } from '@/i18n';
 import { ApiRequestError } from '@/lib/api';
 import { errorMessage } from '@/lib/api/dashboardQueries';
 
@@ -75,26 +76,27 @@ export function LinkedItemModal({ noun, notFoundMessage, query, onClose }: {
   query: {data: unknown, isPending: boolean, error: Error | null, isRefetching: boolean, refetch: () => unknown},
   onClose: () => void,
 }) {
+  const { t } = useI18n();
   const { data, isPending, error, isRefetching, refetch } = query;
   const notFound = data === null || (error instanceof ApiRequestError && (error.status === 404 || error.status === 400));
   return (
     <Modal labelledBy={LINKED_TITLE_ID} onClose={onClose} className='max-w-lg'>
       {(isPending) ? (
         <div aria-busy='true' className='flex justify-center px-6 py-16'>
-          <h2 id={LINKED_TITLE_ID} className='sr-only'>Loading {noun}</h2>
+          <h2 id={LINKED_TITLE_ID} className='sr-only'>{t('linked.loading', {noun})}</h2>
           <Spinner className='size-8'/>
         </div>
       ) : (
         <div className='px-6 py-16 text-center'>
           <AlertTriangle aria-hidden className='mx-auto mb-4 size-14 text-danger'/>
           <h2 id={LINKED_TITLE_ID} className='mb-3 text-2xl font-bold text-white'>
-            {(notFound) ? `${noun[0].toUpperCase()}${noun.slice(1)} not found` : `Couldn’t load this ${noun}`}
+            {(notFound) ? t('linked.not_found', {noun: `${noun[0].toUpperCase()}${noun.slice(1)}`}) : t('linked.load_error', {noun})}
           </h2>
           <p className='mb-6 text-muted'>{(notFound) ? notFoundMessage : errorMessage(error)}</p>
           {(notFound) ? (
-            <button type='button' className='btn btn-secondary' onClick={onClose}>Back to the list</button>
+            <button type='button' className='btn btn-secondary' onClick={onClose}>{t('linked.back')}</button>
           ) : (
-            <button type='button' className='btn btn-secondary' disabled={isRefetching} onClick={() => refetch()}>Retry</button>
+            <button type='button' className='btn btn-secondary' disabled={isRefetching} onClick={() => refetch()}>{t('common.retry')}</button>
           )}
         </div>
       )}

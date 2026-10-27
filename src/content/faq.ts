@@ -1,6 +1,10 @@
 // FAQ content. Answers use a tiny markup that FaqPage renders:
 //   `code`, [label](url or /path), blank line = new paragraph, lines starting with "- " = list.
 // Facts here are checked against notsobot.ts (prefixes, permissions, settings) as of the category rework.
+// Other languages are faq.<language>.ts, keyed by these ids; keep them in step when an answer changes.
+
+import { Languages, type Language } from '@/i18n/languages';
+
 
 export type FaqSectionId = 'start' | 'commands' | 'server' | 'premium' | 'privacy';
 
@@ -164,6 +168,34 @@ export const FAQ_QUESTIONS: Array<FaqQuestion> = [
     answer: 'April 16, 2016.',
   },
 ];
+
+
+// a language's text for every section and question, by id (whatever's missing stays in English)
+export interface FaqTranslation {
+  sections: Record<FaqSectionId, Omit<FaqSection, 'id'>>,
+  questions: Partial<Record<string, Pick<FaqQuestion, 'question' | 'answer'>>>,
+}
+
+// English ships with the page, every other language is its own chunk (a language without one is a type error)
+const LOADERS: Readonly<Record<Exclude<Language, typeof Languages.ENGLISH>, () => Promise<FaqTranslation>>> = Object.freeze({
+  [Languages.SPANISH]: async () => (await import('./faq.es')).FAQ_SPANISH,
+  [Languages.PORTUGUESE]: async () => (await import('./faq.pt')).FAQ_PORTUGUESE,
+});
+
+export async function loadFaqTranslation(language: Language): Promise<FaqTranslation | null> {
+  return (language === Languages.ENGLISH) ? null : LOADERS[language]();
+}
+
+// null is English
+export function localizedFaq(translation: FaqTranslation | null): {sections: Array<FaqSection>, questions: Array<FaqQuestion>} {
+  if (!translation) {
+    return {sections: FAQ_SECTIONS, questions: FAQ_QUESTIONS};
+  }
+  return {
+    sections: FAQ_SECTIONS.map((section) => ({...section, ...translation.sections[section.id]})),
+    questions: FAQ_QUESTIONS.map((question) => ({...question, ...translation.questions[question.id]})),
+  };
+}
 
 
 // plain text for searching (markup stripped)

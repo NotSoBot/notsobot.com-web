@@ -5,6 +5,7 @@ import { useAuth } from '@/auth';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
+import { useI18n } from '@/i18n';
 import { api, VoiceCloneTypes, type MeVoice, type VoiceClip } from '@/lib/api';
 import {
   errorMessage,
@@ -35,6 +36,7 @@ function formatDuration(ms: number): string {
 
 export function VoicesPage() {
   const { user } = useAuth();
+  const { t, rich, plural } = useI18n();
   const toast = useToast();
   const { data, isPending, isError, error, isRefetching, refetch } = useMeVoicesQuery();
   const rename = usePatchMeVoiceMutation();
@@ -49,22 +51,22 @@ export function VoicesPage() {
   return (
     <>
       <DashboardHeader
-        title='Your Voices'
-        description={<>Voices you cloned with the bot’s <code className='text-fg'>tts voice create</code> command, and the audio clips they’re made from.</>}
+        title={t('page.DASHBOARD_VOICES')}
+        description={rich('voices.description', {code: (chunk) => <code className='text-fg'>{chunk}</code>})}
       />
 
       {(isPending) ? (
         <ListSkeleton/>
       ) : (isError) ? (
-        <ErrorPanel title='Couldn’t load your voices' message={errorMessage(error)} onRetry={() => refetch()} retrying={isRefetching}/>
+        <ErrorPanel title={t('voices.load_error')} message={errorMessage(error)} onRetry={() => refetch()} retrying={isRefetching}/>
       ) : (!items.length) ? (
-        <EmptyState icon={<AudioLines className='size-10'/>} title='No cloned voices yet'>
-          Clone one in Discord with <code className='text-fg'>tts voice create</code> and an audio clip of someone speaking.
+        <EmptyState icon={<AudioLines className='size-10'/>} title={t('voices.empty')}>
+          {rich('voices.empty_description', {code: (chunk) => <code className='text-fg'>{chunk}</code>})}
         </EmptyState>
       ) : (
         <>
           {(!canUpload) ? (
-            <p className='mb-3 text-sm text-muted'>Adding or replacing clips needs NotSoPremium Plus. You can still listen to and delete them.</p>
+            <p className='mb-3 text-sm text-muted'>{t('voices.needs_plus')}</p>
           ) : null}
           <ul className='space-y-3'>
             {items.map((voice) => (
@@ -91,16 +93,16 @@ export function VoicesPage() {
 
       {(transferring) ? (
         <ConfirmDialog
-          title={`Move ${transferring.name} to fish.audio?`}
-          description={`It’s cloned again on fish.audio from its ${transferring.clips.length} audio ${(transferring.clips.length === 1) ? 'clip' : 'clips'}, then deleted from ElevenLabs. Its name stays the same, so tags and commands that use it keep working, but it may sound a little different. Voices can’t be moved back to ElevenLabs.`}
-          confirmLabel='Move voice'
+          title={t('voices.move_title', {name: transferring.name})}
+          description={plural('voices.move_description', transferring.clips.length)}
+          confirmLabel={t('voices.move')}
           tone='primary'
           pending={transfer.isPending}
-          error={(transfer.isError) ? errorMessage(transfer.error, 'Couldn’t move the voice.') : null}
+          error={(transfer.isError) ? errorMessage(transfer.error, t('voices.move_error')) : null}
           onConfirm={() => {
             transfer.mutate({voiceId: transferring.id, platformType: VoiceCloneTypes.FISH_AUDIO}, {
               onSuccess: (voice) => {
-                toast(`${voice.name} moved to fish.audio`);
+                toast(t('voices.moved', {name: voice.name}));
                 setTransferring(null);
               },
             });
@@ -114,15 +116,15 @@ export function VoicesPage() {
 
       {(deleting) ? (
         <ConfirmDialog
-          title={`Delete ${deleting.name}?`}
-          description={`It’s deleted here and on ${voicePlatformLabel(deleting.platform_type)}, along with every audio clip it’s made from. Tags and commands that use it stop working. This can’t be undone.`}
-          confirmLabel='Delete voice'
+          title={t('voices.delete_title', {name: deleting.name})}
+          description={t('voices.delete_description', {platform: voicePlatformLabel(deleting.platform_type)})}
+          confirmLabel={t('voices.delete')}
           pending={remove.isPending}
-          error={(remove.isError) ? errorMessage(remove.error, 'Couldn’t delete the voice.') : null}
+          error={(remove.isError) ? errorMessage(remove.error, t('voices.delete_error')) : null}
           onConfirm={() => {
             remove.mutate(deleting.id, {
               onSuccess: () => {
-                toast('Voice deleted');
+                toast(t('voices.deleted'));
                 setDeleting(null);
               },
             });
@@ -146,6 +148,7 @@ function VoiceCard({ voice, canUpload, onRename, onTransfer, onDelete }: {
   onTransfer?: () => void,
   onDelete: () => void,
 }) {
+  const { t, plural } = useI18n();
   const toast = useToast();
   const upload = useUploadMeVoiceClipMutation();
   const remove = useDeleteMeVoiceClipMutation();
@@ -168,7 +171,7 @@ function VoiceCard({ voice, canUpload, onRename, onTransfer, onDelete }: {
     const clipId = replacing.current ?? undefined;
     upload.mutate({voiceId: voice.id, clipId, file}, {
       onSuccess: () => {
-        toast((clipId) ? 'Clip replaced' : 'Clip added');
+        toast(t((clipId) ? 'voices.clip_replaced' : 'voices.clip_added'));
         // shown so the added clip is visible
         setShowClips(true);
       },
@@ -181,7 +184,7 @@ function VoiceCard({ voice, canUpload, onRename, onTransfer, onDelete }: {
     }
     remove.mutate({voiceId: voice.id, clipId: deleting.id}, {
       onSuccess: () => {
-        toast('Clip deleted');
+        toast(t('voices.clip_deleted'));
         setDeleting(null);
       },
     });
@@ -197,25 +200,25 @@ function VoiceCard({ voice, canUpload, onRename, onTransfer, onDelete }: {
           <div className='truncate font-medium text-white'>{voice.name}</div>
           <div className='mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-subtle'>
             <Chip>{voicePlatformLabel(voice.platform_type)}</Chip>
-            <span>Cloned {formatDate(voice.created)} • {voice.clips.length} {(voice.clips.length === 1) ? 'clip' : 'clips'}</span>
+            <span>{plural('voices.cloned', voice.clips.length, {date: formatDate(voice.created)})}</span>
           </div>
         </div>
         {/* their own row on phones, the name gets the whole width */}
         <div className='flex basis-full gap-2 sm:basis-auto'>
           <button type='button' className='btn btn-sm btn-secondary' onClick={onRename}>
             <Pencil className='size-4'/>
-            Rename
+            {t('voices.rename')}
           </button>
           {(canUpload) ? (
             <button
               type='button'
               className='btn btn-sm btn-secondary'
               disabled={upload.isPending || full}
-              title={(full) ? `A voice can have up to ${VOICE_CLIPS_MAX} clips` : undefined}
+              title={(full) ? t('voices.clips_full', {max: VOICE_CLIPS_MAX}) : undefined}
               onClick={() => pickFile(null)}
             >
               {(pendingClipId === null) ? <Spinner className='size-4 border-white/40 border-t-white'/> : <Plus className='size-4'/>}
-              Add clip
+              {t('voices.add_clip')}
             </button>
           ) : null}
           {(onTransfer) ? (
@@ -223,17 +226,17 @@ function VoiceCard({ voice, canUpload, onRename, onTransfer, onDelete }: {
               type='button'
               className='btn btn-sm btn-secondary'
               disabled={upload.isPending || !voice.clips.length}
-              aria-label={`Move ${voice.name} to fish.audio`}
-              title={(voice.clips.length) ? 'Clone it again on fish.audio from its clips' : 'Its clips have to be copied over before it can be moved'}
+              aria-label={t('voices.move_label', {name: voice.name})}
+              title={t((voice.clips.length) ? 'voices.move_hint' : 'voices.move_needs_clips')}
               onClick={onTransfer}
             >
               <Fish className='size-4'/>
-              <span className='hidden sm:inline'>Move to fish.audio</span>
+              <span className='hidden sm:inline'>{t('voices.move_button')}</span>
             </button>
           ) : null}
-          <button type='button' className='btn btn-sm btn-danger' disabled={upload.isPending} aria-label={`Delete ${voice.name}`} onClick={onDelete}>
+          <button type='button' className='btn btn-sm btn-danger' disabled={upload.isPending} aria-label={t('voices.delete_label', {name: voice.name})} onClick={onDelete}>
             <Trash2 className='size-4'/>
-            <span className='hidden sm:inline'>Delete</span>
+            <span className='hidden sm:inline'>{t('common.delete')}</span>
           </button>
         </div>
         <input
@@ -254,7 +257,7 @@ function VoiceCard({ voice, canUpload, onRename, onTransfer, onDelete }: {
 
       {(upload.isError) ? (
         <div className='px-4 pb-3'>
-          <InlineError>{errorMessage(upload.error, 'Couldn’t upload the clip.')}</InlineError>
+          <InlineError>{errorMessage(upload.error, t('voices.upload_error'))}</InlineError>
         </div>
       ) : null}
 
@@ -265,14 +268,14 @@ function VoiceCard({ voice, canUpload, onRename, onTransfer, onDelete }: {
           onClick={() => setShowClips((value) => !value)}
           className='flex w-full cursor-pointer items-center justify-between gap-2 border-t border-line px-4 py-2 text-xs text-muted transition-colors hover:text-white'
         >
-          {(showClips) ? 'Hide clips' : `Show ${voice.clips.length} ${(voice.clips.length === 1) ? 'clip' : 'clips'}`}
+          {(showClips) ? t('voices.hide_clips') : plural('voices.show_clips', voice.clips.length)}
           <ChevronDown className={cn('size-3.5 transition-transform', showClips && 'rotate-180')}/>
         </button>
       ) : null}
 
       {(!voice.clips.length) ? (
         <p className='border-t border-line px-4 py-3 text-sm text-muted'>
-          This voice was cloned before NotSoBot kept the audio it’s made from. Its clips show up here once they’ve been copied over.
+          {t('voices.no_clips')}
         </p>
       ) : (showClips) ? (
         <ul className='divide-y divide-line border-t border-line'>
@@ -297,11 +300,11 @@ function VoiceCard({ voice, canUpload, onRename, onTransfer, onDelete }: {
 
       {(deleting) ? (
         <ConfirmDialog
-          title={`Delete ${deleting.name}?`}
-          description={`It’s removed from ${voice.name} here and on ${voicePlatformLabel(voice.platform_type)}, and the voice won’t be trained on it anymore. This can’t be undone.`}
-          confirmLabel='Delete clip'
+          title={t('voices.delete_title', {name: deleting.name})}
+          description={t('voices.clip_delete_description', {voice: voice.name, platform: voicePlatformLabel(voice.platform_type)})}
+          confirmLabel={t('voices.clip_delete')}
           pending={remove.isPending}
-          error={(remove.isError) ? errorMessage(remove.error, 'Couldn’t delete the clip.') : null}
+          error={(remove.isError) ? errorMessage(remove.error, t('voices.clip_delete_error')) : null}
           onConfirm={confirmDelete}
           onClose={() => {
             remove.reset();
@@ -324,28 +327,29 @@ function ClipRow({ voiceId, clip, canUpload, canDelete, busy, replacing, onRepla
   onReplace: () => void,
   onDelete: () => void,
 }) {
+  const { t } = useI18n();
   return (
     <li className='flex items-center gap-3 px-4 py-2.5'>
       <ClipPlayer voiceId={voiceId} clip={clip}/>
       <div className='min-w-0 flex-1'>
         <div className='truncate text-sm text-fg'>{clip.name}</div>
         <div className='mt-0.5 text-xs text-subtle'>
-          {formatDuration(clip.duration)} • {formatMemory(clip.size, (clip.size < 1024 * 1024) ? 0 : 1)} • Added {formatDate(clip.created)}
+          {formatDuration(clip.duration)} • {formatMemory(clip.size, (clip.size < 1024 * 1024) ? 0 : 1)} • {t('voices.clip_added_on', {date: formatDate(clip.created)})}
         </div>
       </div>
       <div className='flex shrink-0 gap-2'>
         {(canUpload) ? (
-          <button type='button' className='btn btn-sm btn-secondary' disabled={busy} aria-label={`Replace ${clip.name}`} onClick={onReplace}>
+          <button type='button' className='btn btn-sm btn-secondary' disabled={busy} aria-label={t('voices.replace_label', {name: clip.name})} onClick={onReplace}>
             {(replacing) ? <Spinner className='size-4 border-white/40 border-t-white'/> : <RefreshCw className='size-4'/>}
-            <span className='hidden sm:inline'>Replace</span>
+            <span className='hidden sm:inline'>{t('voices.replace')}</span>
           </button>
         ) : null}
         <button
           type='button'
           className='btn btn-sm btn-secondary'
           disabled={!canDelete || replacing}
-          aria-label={`Delete ${clip.name}`}
-          title={(canDelete) ? 'Delete clip' : 'A voice needs at least one clip, replace it or delete the voice instead'}
+          aria-label={t('voices.delete_label', {name: clip.name})}
+          title={t((canDelete) ? 'voices.clip_delete' : 'voices.last_clip')}
           onClick={onDelete}
         >
           <Trash2 className='size-4'/>
@@ -358,6 +362,7 @@ function ClipRow({ voiceId, clip, canUpload, canDelete, busy, replacing, onRepla
 
 // the audio is only fetched once it's played, with the token (the api doesn't serve it to links)
 function ClipPlayer({ voiceId, clip }: {voiceId: string, clip: VoiceClip}) {
+  const { t } = useI18n();
   const audio = useRef<HTMLAudioElement>(null);
   const [ url, setUrl ] = useState<string | null>(null);
   const [ loading, setLoading ] = useState(false);
@@ -404,8 +409,8 @@ function ClipPlayer({ voiceId, clip }: {voiceId: string, clip: VoiceClip}) {
       <button
         type='button'
         className='btn btn-sm btn-secondary size-9 shrink-0 justify-center p-0'
-        aria-label={(playing) ? `Pause ${clip.name}` : `Play ${clip.name}`}
-        title={(failed) ? 'Couldn’t play the clip, try again' : undefined}
+        aria-label={t((playing) ? 'voices.pause' : 'voices.play', {name: clip.name})}
+        title={(failed) ? t('voices.play_error') : undefined}
         disabled={loading}
         onClick={toggle}
       >

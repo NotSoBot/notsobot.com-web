@@ -6,9 +6,10 @@ import { Link, useSearchParams } from 'react-router';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { Routes } from '@/config';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { useI18n } from '@/i18n';
 import type { AdminUserContentFlags, AdminUserRef } from '@/lib/api';
 import { userDisplayTag } from '@/lib/discord';
-import { cn, formatDate, formatExactDateTime, NO_AUTOFILL, toDate } from '@/lib/utils';
+import { cn, formatDate, formatExactDateTime, formatNumber, NO_AUTOFILL, toDate } from '@/lib/utils';
 
 export { FiltersButton } from '@/components/ui/FiltersButton';
 
@@ -111,22 +112,23 @@ export function Pagination({ page, count, pageSize, onChange, fetching = false, 
   fetching?: boolean,
   className?: string,
 }) {
+  const { t } = useI18n();
   const pages = Math.max(1, Math.ceil(count / pageSize));
   const start = (count) ? page * pageSize + 1 : 0;
   const end = Math.min(count, (page + 1) * pageSize);
   return (
-    <nav aria-label='Pagination' className={cn('mt-4 flex flex-wrap items-center justify-between gap-3', className)}>
+    <nav aria-label={t('pagination.label')} className={cn('mt-4 flex flex-wrap items-center justify-between gap-3', className)}>
       <p className='text-sm text-subtle tabular-nums'>
-        {start.toLocaleString()}–{end.toLocaleString()} of {count.toLocaleString()}
+        {t('pagination.range', {start: formatNumber(start), end: formatNumber(end), count: formatNumber(count)})}
       </p>
       <div className='flex items-center gap-2'>
         <button type='button' className='btn btn-secondary btn-sm' disabled={page <= 0 || fetching} onClick={() => onChange(page - 1)}>
           <ChevronLeft aria-hidden className='size-4'/>
-          Previous
+          {t('common.previous')}
         </button>
-        <span className='text-sm text-muted tabular-nums'>Page {(page + 1).toLocaleString()} / {pages.toLocaleString()}</span>
+        <span className='text-sm text-muted tabular-nums'>{t('pagination.page', {page: formatNumber(page + 1), pages: formatNumber(pages)})}</span>
         <button type='button' className='btn btn-secondary btn-sm' disabled={pages <= page + 1 || fetching} onClick={() => onChange(page + 1)}>
-          Next
+          {t('common.next')}
           <ChevronRight aria-hidden className='size-4'/>
         </button>
       </div>
@@ -370,6 +372,7 @@ export function CopyableValue({ value, truncate = 16, className, to, linkTitle }
 // Copies `value` and shows a check for a moment. Icon only by default; with `label` it's a small ghost button
 // sized for section headers (tag content, flagged urls).
 export function CopyButton({ value, label }: {value: string, label?: string}) {
+  const { t } = useI18n();
   const [ copied, setCopied ] = useState(false);
   const copy = () => {
     void navigator.clipboard?.writeText(value).then(() => {
@@ -381,15 +384,15 @@ export function CopyButton({ value, label }: {value: string, label?: string}) {
     return (
       <button type='button' className='btn btn-ghost btn-sm' onClick={copy}>
         {(copied) ? <Check className='size-4 text-success'/> : <Copy className='size-4'/>}
-        {(copied) ? 'Copied' : label}
+        {(copied) ? t('common.copied') : label}
       </button>
     );
   }
   return (
     <button
       type='button'
-      aria-label='Copy'
-      title='Copy'
+      aria-label={t('common.copy')}
+      title={t('common.copy')}
       className='shrink-0 cursor-pointer rounded p-0.5 text-subtle hover:bg-surface-3 hover:text-fg'
       onClick={copy}
     >
@@ -441,12 +444,13 @@ export function CollapsedCard({ children, onExpand }: {children: ReactNode, onEx
 
 // folds an expanded reviewed card back into its CollapsedCard
 export function CollapseButton({ onClick }: {onClick: () => void}) {
+  const { t } = useI18n();
   return (
     <button
       type='button'
       aria-expanded
-      aria-label='Collapse'
-      title='Collapse'
+      aria-label={t('ui.collapse')}
+      title={t('ui.collapse')}
       className='shrink-0 cursor-pointer rounded p-1 text-subtle hover:bg-surface-3 hover:text-fg'
       onClick={onClick}
     >
@@ -575,6 +579,7 @@ export function IdFilter({ className, label, placeholder, value, onChange }: {
   value: string,
   onChange: (value: string | null) => void,
 }) {
+  const { t } = useI18n();
   const [ input, setInput ] = useState(value);
   useEffect(() => setInput(value), [value]);
   const debounced = useDebouncedValue(input.trim(), 400);
@@ -601,7 +606,7 @@ export function IdFilter({ className, label, placeholder, value, onChange }: {
         {(input) ? (
           <button
             type='button'
-            aria-label={`Clear ${label.toLowerCase()} filter`}
+            aria-label={t('ui.clear_filter', {label: label.toLowerCase()})}
             className='absolute top-1/2 right-1.5 -translate-y-1/2 cursor-pointer rounded p-1 text-subtle hover:text-fg'
             onClick={() => {
               setInput('');

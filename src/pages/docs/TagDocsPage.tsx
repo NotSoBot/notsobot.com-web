@@ -1,18 +1,14 @@
+import { useQuery } from '@tanstack/react-query';
 import { BookOpen, Check, Copy, Link2 } from 'lucide-react';
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useLocation, useMatch, useNavigate } from 'react-router';
 
 import { Segmented } from '@/components/ui/Segmented';
 import { SearchInput } from '@/components/ui/SearchInput';
+import { Spinner } from '@/components/ui/Spinner';
 import { QuarantineNotice } from '@/components/ui/QuarantineNotice';
 import { Routes } from '@/config';
 import {
-  MEDIASCRIPT_CATEGORIES,
-  MEDIASCRIPT_COMMANDS_SORTED,
-  MEDIASCRIPT_GUIDE,
-  TAG_DOC_CATEGORIES,
-  TAG_DOC_FUNCTIONS,
-  TAG_DOC_GUIDE,
   mediaScriptCommandAnchor,
   mediaScriptCommandSearchText,
   tagFunctionAnchor,
@@ -22,6 +18,8 @@ import {
   type TagDocGuideSection,
   type TagDocMediaScriptCommand,
 } from '@/content/tagDocs';
+import { localizeTagDocs, loadTagDocsTranslation, type TagDocs } from '@/content/tagDocs/localize';
+import { Languages, useI18n } from '@/i18n';
 import { cn, decodeHash } from '@/lib/utils';
 
 
@@ -65,9 +63,30 @@ function search<T>(items: ReadonlyArray<T>, needle: string, text: (item: T) => s
 }
 
 
+// The docs in the site's language: the translation overlay is its own chunk, only fetched for that language.
+// Until it arrives (`ready` is false) the page shows a spinner instead of flashing the English text; if it
+// fails to load, the English docs are shown.
+function useTagDocs(): {docs: TagDocs, ready: boolean} {
+  const { language } = useI18n();
+  const translated = (language !== Languages.ENGLISH);
+  const translation = useQuery({
+    queryKey: ['tag-docs-translation', language],
+    queryFn: () => loadTagDocsTranslation(language),
+    enabled: translated,
+    staleTime: Infinity,
+    gcTime: Infinity,
+    retry: 1,
+  });
+  const docs = useMemo(() => localizeTagDocs((translated) ? translation.data : null), [translated, translation.data]);
+  return {docs, ready: !translated || !translation.isPending};
+}
+
+
 export function TagDocsPage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { t, plural, rich } = useI18n();
+  const { docs, ready } = useTagDocs();
   const [ query, setQuery ] = useState('');
 
   const hash = decodeHash(location.hash);
@@ -79,36 +98,36 @@ export function TagDocsPage() {
 
   const needle = query.trim().toLowerCase();
   const guide = useMemo(() => {
-    const sections = (view === 'mediascript') ? MEDIASCRIPT_GUIDE : TAG_DOC_GUIDE;
+    const sections = (view === 'mediascript') ? docs.mediaScriptGuide : docs.guide;
     return (needle) ? sections.filter((section) => guideSearchText(section).includes(needle)) : sections;
-  }, [view, needle]);
+  }, [docs, view, needle]);
 
   const categories = useMemo(() => {
     if (view === 'mediascript') {
-      const commands = search(MEDIASCRIPT_COMMANDS_SORTED, needle, mediaScriptCommandSearchText, (command) => [command.name, ...(command.aliases ?? [])]);
-      return MEDIASCRIPT_CATEGORIES.map((category) => {
+      const commands = search(docs.mediaScriptCommands, needle, mediaScriptCommandSearchText, (command) => [command.name, ...(command.aliases ?? [])]);
+      return docs.mediaScriptCategories.map((category) => {
         const items = commands.filter((command) => command.category === category.id);
         return {...category, count: items.length, items: items.map((command) => <MediaScriptCard key={command.name} command={command} highlight={needle}/>)};
       }).filter((category) => category.count);
     }
-    const functions = search(TAG_DOC_FUNCTIONS, needle, tagFunctionSearchText, (fn) => fn.names);
-    return TAG_DOC_CATEGORIES.map((category) => {
+    const functions = search(docs.functions, needle, tagFunctionSearchText, (fn) => fn.names);
+    return docs.categories.map((category) => {
       const items = functions.filter((fn) => fn.category === category.id);
       return {...category, count: items.length, items: items.map((fn) => <FunctionCard key={fn.id} fn={fn} highlight={needle}/>)};
     }).filter((category) => category.count);
-  }, [view, needle]);
+  }, [docs, view, needle]);
   const total = categories.reduce((sum, category) => sum + category.count, 0);
-  const noun = (view === 'mediascript') ? 'command' : 'function';
+  const code = (chunk: ReactNode) => <code className='font-mono text-code'>{chunk}</code>;
 
   // `/docs/tags#fn-upper` scrolls to that function. It waits for the router's own scroll handling
-  // on load (which runs after this lazy page mounts) so it lands in the right place.
+  // on load (which runs after this lazy page mounts), and for a translation to arrive, so it lands in the right place.
   useEffect(() => {
-    if (!hash) {
+    if (!hash || !ready) {
       return;
     }
     const timer = window.setTimeout(() => document.getElementById(hash)?.scrollIntoView({block: 'start'}), HASH_SCROLL_DELAY_MS);
     return () => window.clearTimeout(timer);
-  }, [hash]);
+  }, [hash, ready]);
 
   const scrollTo = (id: string) => {
     document.getElementById(id)?.scrollIntoView({block: 'start'});
@@ -124,104 +143,113 @@ export function TagDocsPage() {
           <QuarantineNotice className='mb-6 max-w-3xl'/>
           <div className='mb-3 flex items-center gap-2 text-sm font-medium text-brand'>
             <BookOpen className='size-4'/>
-            Documentation
+            {t('tag_docs.badge')}
           </div>
-          <h1 className='mb-2 text-3xl font-bold text-white sm:text-4xl'>Tag Scripting</h1>
+          <h1 className='mb-2 text-3xl font-bold text-white sm:text-4xl'>{t('tag_docs.title')}</h1>
           <p className='mb-6 max-w-2xl text-muted'>
             {(view === 'mediascript') ? (
-              <>MediaScript edits images, audio, and video from inside a tag, one command per line. These {MEDIASCRIPT_COMMANDS_SORTED.length} commands run through <code className='font-mono text-code'>{'{mediascript}'}</code>.</>
+              rich('tag_docs.description_mediascript', {code}, {count: docs.mediaScriptCommands.length})
             ) : (
-              <>Tags are saved messages that can do much more than reply with text. Use these {TAG_DOC_FUNCTIONS.length} functions to read arguments, store data, edit images, call APIs, and build interactive replies.</>
+              t('tag_docs.description_tagscript', {count: docs.functions.length})
             )}
           </p>
           <div className='flex max-w-3xl flex-col gap-3 sm:flex-row sm:items-center'>
-            <Segmented label='Language' value={view} options={VIEW_OPTIONS} onChange={setView}/>
+            <Segmented label={t('tag_docs.view_label')} value={view} options={VIEW_OPTIONS} onChange={setView}/>
             <SearchInput
               className='min-w-0 flex-1'
               value={query}
               onValueChange={setQuery}
-              placeholder={(view === 'mediascript') ? 'Search commands, e.g. “caption” or “gif”...' : 'Search functions, e.g. “upper” or “random”...'}
-              aria-label='Search the documentation'
+              placeholder={(view === 'mediascript') ? t('tag_docs.search_placeholder_mediascript') : t('tag_docs.search_placeholder_tagscript')}
+              aria-label={t('tag_docs.search_label')}
             />
           </div>
-          {(needle) ? (
+          {(needle && ready) ? (
             <p className='mt-2 text-sm text-muted' aria-live='polite'>
-              {total} {(total === 1) ? noun : `${noun}s`} and {guide.length} guide {(guide.length === 1) ? 'section' : 'sections'} for “{query.trim()}”
+              {t('tag_docs.results', {
+                items: plural((view === 'mediascript') ? 'tag_docs.commands' : 'tag_docs.functions', total),
+                sections: plural('tag_docs.sections', guide.length),
+                query: query.trim(),
+              })}
             </p>
           ) : null}
         </div>
       </div>
 
-      <div className='container-page grid grid-cols-[minmax(0,1fr)] gap-8 py-10 lg:grid-cols-[230px_minmax(0,1fr)]'>
-        <nav aria-label='Documentation sections' className='hidden lg:sticky lg:top-24 lg:block lg:max-h-[calc(100vh-7rem)] lg:self-start lg:overflow-y-auto'>
-          {(guide.length) ? (
-            <>
-              <h2 className='section-label mb-2 px-1'>Guide</h2>
-              <ul className='mb-6 space-y-0.5'>
-                {guide.map((section) => (
-                  <li key={section.id}>
-                    <SidebarButton onClick={() => scrollTo(guideAnchor(view, section))}>{section.title.replaceAll('`', '')}</SidebarButton>
-                  </li>
-                ))}
-              </ul>
-            </>
-          ) : null}
-          {(categories.length) ? (
-            <>
-              <h2 className='section-label mb-2 px-1'>Reference</h2>
-              <ul className='space-y-0.5'>
-                {categories.map((category) => (
-                  <li key={category.id}>
-                    <SidebarButton onClick={() => scrollTo(categoryAnchor(view, category.id))} count={category.count}>
-                      {category.title}
-                    </SidebarButton>
-                  </li>
-                ))}
-              </ul>
-            </>
-          ) : null}
-        </nav>
+      {(ready) ? (
+        <div className='container-page grid grid-cols-[minmax(0,1fr)] gap-8 py-10 lg:grid-cols-[230px_minmax(0,1fr)]'>
+          <nav aria-label={t('tag_docs.nav_label')} className='hidden lg:sticky lg:top-24 lg:block lg:max-h-[calc(100vh-7rem)] lg:self-start lg:overflow-y-auto'>
+            {(guide.length) ? (
+              <>
+                <h2 className='section-label mb-2 px-1'>{t('tag_docs.guide')}</h2>
+                <ul className='mb-6 space-y-0.5'>
+                  {guide.map((section) => (
+                    <li key={section.id}>
+                      <SidebarButton onClick={() => scrollTo(guideAnchor(view, section))}>{section.title.replaceAll('`', '')}</SidebarButton>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : null}
+            {(categories.length) ? (
+              <>
+                <h2 className='section-label mb-2 px-1'>{t('tag_docs.reference')}</h2>
+                <ul className='space-y-0.5'>
+                  {categories.map((category) => (
+                    <li key={category.id}>
+                      <SidebarButton onClick={() => scrollTo(categoryAnchor(view, category.id))} count={category.count}>
+                        {category.title}
+                      </SidebarButton>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : null}
+          </nav>
 
-        <div className='min-w-0 space-y-12'>
-          {(guide.length) ? (
-            <div className='space-y-6'>
-              {guide.map((section) => <GuideSection key={section.id} anchor={guideAnchor(view, section)} section={section} highlight={needle}/>)}
-            </div>
-          ) : null}
+          <div className='min-w-0 space-y-12'>
+            {(guide.length) ? (
+              <div className='space-y-6'>
+                {guide.map((section) => <GuideSection key={section.id} anchor={guideAnchor(view, section)} section={section} highlight={needle}/>)}
+              </div>
+            ) : null}
 
-          {categories.map((category) => (
-            <section key={category.id} id={categoryAnchor(view, category.id)} aria-labelledby={`${categoryAnchor(view, category.id)}-title`} className='scroll-mt-24'>
-              <header className='mb-4'>
-                <h2 id={`${categoryAnchor(view, category.id)}-title`} className='text-xl font-semibold text-white'>{category.title}</h2>
-                <p className='text-sm text-muted'>{category.description}</p>
-              </header>
-              <div className='space-y-4'>{category.items}</div>
-            </section>
-          ))}
+            {categories.map((category) => (
+              <section key={category.id} id={categoryAnchor(view, category.id)} aria-labelledby={`${categoryAnchor(view, category.id)}-title`} className='scroll-mt-24'>
+                <header className='mb-4'>
+                  <h2 id={`${categoryAnchor(view, category.id)}-title`} className='text-xl font-semibold text-white'>{category.title}</h2>
+                  <p className='text-sm text-muted'>{category.description}</p>
+                </header>
+                <div className='space-y-4'>{category.items}</div>
+              </section>
+            ))}
 
-          {(!total && !guide.length) ? (
-            <div className='card p-10 text-center'>
-              <p className='mb-1 text-lg text-white'>Nothing matches “{query.trim()}”.</p>
-              <p className='text-muted'>
-                {(view === 'mediascript') ? 'Try a command name like ' : 'Try a function name like '}
-                <code className='font-mono text-code'>{(view === 'mediascript') ? 'caption' : 'args'}</code>
-                {(view === 'mediascript') ? ', or search the TagScript functions instead.' : ', or search the MediaScript commands instead.'}
-              </p>
-            </div>
-          ) : null}
+            {(!total && !guide.length) ? (
+              <div className='card p-10 text-center'>
+                <p className='mb-1 text-lg text-white'>{t('tag_docs.empty_title', {query: query.trim()})}</p>
+                <p className='text-muted'>
+                  {rich((view === 'mediascript') ? 'tag_docs.empty_mediascript' : 'tag_docs.empty_tagscript', {code})}
+                </p>
+              </div>
+            ) : null}
 
-          <aside className='flex flex-col items-start justify-between gap-4 rounded-lg border border-brand/30 bg-gradient-to-r from-brand/20 to-brand/5 p-6 sm:flex-row sm:items-center'>
-            <div>
-              <h2 className='mb-1 text-lg font-semibold text-white'>Looking for inspiration?</h2>
-              <p className='text-sm text-muted'>Browse tags other people have made, or ask in the support server.</p>
-            </div>
-            <div className='flex flex-wrap gap-2'>
-              <Link to={Routes.TAG_DIRECTORY} className='btn btn-secondary'>Tag Directory</Link>
-              <a href={Routes.SUPPORT} className='btn btn-discord'>Join the support server</a>
-            </div>
-          </aside>
+            <aside className='flex flex-col items-start justify-between gap-4 rounded-lg border border-brand/30 bg-gradient-to-r from-brand/20 to-brand/5 p-6 sm:flex-row sm:items-center'>
+              <div>
+                <h2 className='mb-1 text-lg font-semibold text-white'>{t('tag_docs.inspiration_title')}</h2>
+                <p className='text-sm text-muted'>{t('tag_docs.inspiration_description')}</p>
+              </div>
+              <div className='flex flex-wrap gap-2'>
+                <Link to={Routes.TAG_DIRECTORY} className='btn btn-secondary'>{t('tag_docs.tag_directory')}</Link>
+                <a href={Routes.SUPPORT} className='btn btn-discord'>{t('tag_docs.join_support')}</a>
+              </div>
+            </aside>
+          </div>
         </div>
-      </div>
+      ) : (
+        // tall enough that the footer doesn't jump up and back down while the translation loads
+        <div className='container-page flex min-h-[70vh] justify-center py-24'>
+          <Spinner className='size-8' label={t('tag_docs.loading')}/>
+        </div>
+      )}
     </div>
   );
 }
@@ -276,6 +304,7 @@ function GuideSection({ anchor, section, highlight }: {anchor: string, section: 
 
 
 function FunctionCard({ fn, highlight }: {fn: TagDocFunction, highlight: string}) {
+  const { t } = useI18n();
   const anchor = tagFunctionAnchor(fn);
   const [ name, ...aliases ] = fn.names;
   return (
@@ -307,7 +336,7 @@ function FunctionCard({ fn, highlight }: {fn: TagDocFunction, highlight: string}
             <div key={arg.name} className='flex flex-col gap-0.5 sm:flex-row sm:gap-3'>
               <dt className='shrink-0 font-mono text-code sm:w-36'>
                 {arg.name}
-                {(arg.optional) ? <span className='ml-1.5 font-sans text-xs text-subtle'>optional</span> : null}
+                {(arg.optional) ? <span className='ml-1.5 font-sans text-xs text-subtle'>{t('tag_docs.optional')}</span> : null}
               </dt>
               <dd className='text-muted'><Inline text={arg.description} highlight=''/></dd>
             </div>
@@ -394,9 +423,10 @@ function MediaScriptCard({ command, highlight }: {command: TagDocMediaScriptComm
 
 
 function Examples({ examples }: {examples: Array<TagDocExample>}) {
+  const { t } = useI18n();
   return (
     <div className='mt-4 space-y-3'>
-      <h4 className='section-label'>{(examples.length === 1) ? 'Example' : 'Examples'}</h4>
+      <h4 className='section-label'>{(examples.length === 1) ? t('tag_docs.example') : t('tag_docs.examples')}</h4>
       {examples.map((example, i) => (
         <div key={i} className='overflow-hidden rounded-md border border-line'>
           <CodeBlock code={example.code} bare/>
@@ -414,6 +444,7 @@ function Examples({ examples }: {examples: Array<TagDocExample>}) {
 
 
 function CodeBlock({ code, bare }: {code: string, bare?: boolean}) {
+  const { t } = useI18n();
   const [ copied, setCopied ] = useState(false);
   const copy = async () => {
     try {
@@ -430,7 +461,7 @@ function CodeBlock({ code, bare }: {code: string, bare?: boolean}) {
       <button
         type='button'
         onClick={copy}
-        aria-label='Copy code'
+        aria-label={t('tag_docs.copy_code')}
         className='absolute top-1.5 right-1.5 cursor-pointer rounded p-1.5 text-subtle opacity-0 transition-opacity group-hover:opacity-100 hover:bg-surface-3 hover:text-white focus-visible:opacity-100'
       >
         {(copied) ? <Check className='size-3.5 text-success'/> : <Copy className='size-3.5'/>}
@@ -441,10 +472,11 @@ function CodeBlock({ code, bare }: {code: string, bare?: boolean}) {
 
 
 function AnchorLink({ id }: {id: string}) {
+  const { t } = useI18n();
   return (
     <a
       href={`#${id}`}
-      aria-label='Link to this section'
+      aria-label={t('tag_docs.anchor_link')}
       className='text-subtle opacity-0 transition-opacity group-hover:opacity-100 hover:text-white focus-visible:opacity-100'
     >
       <Link2 className='size-4'/>

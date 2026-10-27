@@ -121,6 +121,12 @@ export const PAGE_ALIASES: Readonly<Record<string, keyof typeof Routes>> = Objec
 export const NOT_FOUND_PAGE: PageMeta = {title: 'Not Found', description: 'We couldn\'t find that page.'};
 
 
+export type PageKey = keyof typeof Routes;
+
+// a language's descriptions, by page. pages left out (the staff ones) keep their English description
+export type PageDescriptions = Readonly<Partial<Record<PageKey | 'NOT_FOUND', string>>>;
+
+
 export function pageTitle(page: PageMeta | undefined): string {
   return (page?.title) ? `${page.title} · ${SITE_NAME}` : SITE_NAME;
 }

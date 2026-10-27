@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useI18n } from '@/i18n';
 
 
 // Cloudflare Turnstile, the captcha on forms people can send without logging in (anonymous reports). The widget checks
@@ -57,6 +58,7 @@ export function Turnstile({ siteKey, onToken, resetKey = 0, className }: {
   resetKey?: number,
   className?: string,
 }) {
+  const { t } = useI18n();
   const container = useRef<HTMLDivElement>(null);
   const widget = useRef<{api: TurnstileApi, id: string} | null>(null);
   const callback = useRef(onToken);
@@ -98,7 +100,7 @@ export function Turnstile({ siteKey, onToken, resetKey = 0, className }: {
     <div className={className}>
       <div ref={container}/>
       {(failed) ? (
-        <p className='text-xs text-warning'>The captcha couldn’t load. Check that nothing is blocking challenges.cloudflare.com, or log in instead.</p>
+        <p className='text-xs text-warning'>{t('ui.captcha_error')}</p>
       ) : null}
     </div>
   );

@@ -6,6 +6,7 @@ import { useAuth } from '@/auth';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Spinner } from '@/components/ui/Spinner';
 import { Routes, Urls } from '@/config';
+import { useI18n } from '@/i18n';
 import type { UserDataExport } from '@/lib/api';
 import { errorMessage, isNotAvailableYet, useDeleteMeMutation, useExportMeDataMutation } from '@/lib/api/dashboardQueries';
 import { downloadJson } from '@/lib/utils';
@@ -13,18 +14,17 @@ import { downloadJson } from '@/lib/utils';
 import { Panel } from '../ui';
 
 
-const DELETE_PHRASE = 'delete my data';
-
 const YOUR_DATA_ANCHOR = 'your-data';
 
 
 // Export/delete, at the bottom of the settings page. Not tied to the settings loading, so it works even when they don't.
 export function YourDataSection() {
+  const { t, rich } = useI18n();
   return (
     <section id={YOUR_DATA_ANCHOR} aria-labelledby={`${YOUR_DATA_ANCHOR}-title`} className='mt-10 scroll-mt-24'>
-      <h2 id={`${YOUR_DATA_ANCHOR}-title`} className='text-xl font-bold text-white'>Your data</h2>
+      <h2 id={`${YOUR_DATA_ANCHOR}-title`} className='text-xl font-bold text-white'>{t('data.title')}</h2>
       <p className='mt-1 mb-4 text-muted'>
-        What NotSoBot stores about you, and how to get or remove it. See the <Link to={Routes.LEGAL_PRIVACY} className='text-code hover:underline'>privacy policy</Link> for details.
+        {rich('data.description', {link: (chunk) => <Link to={Routes.LEGAL_PRIVACY} className='text-code hover:underline'>{chunk}</Link>})}
       </p>
       <div className='space-y-4'>
         <ExportPanel/>
@@ -38,9 +38,15 @@ export function YourDataSection() {
 function NotAvailableYet() {
   return (
     <Notice tone='info'>
-      This isn’t available yet. Email <a href={`mailto:${Urls.CONTACT_EMAIL}`} className='text-code hover:underline'>{Urls.CONTACT_EMAIL}</a> in the meantime.
+      <UnavailableText/>
     </Notice>
   );
+}
+
+
+function UnavailableText() {
+  const { rich } = useI18n();
+  return rich('data.unavailable', {email: (chunk) => <a href={`mailto:${chunk}`} className='text-code hover:underline'>{chunk}</a>}, {email: Urls.CONTACT_EMAIL});
 }
 
 
@@ -64,6 +70,7 @@ function exportFilename(data: UserDataExport): string {
 
 
 function ExportPanel() {
+  const { t, rich } = useI18n();
   const exportData = useExportMeDataMutation();
   const [ filename, setFilename ] = useState<string | null>(null);
   const runExport = () => {
@@ -78,23 +85,23 @@ function ExportPanel() {
   };
 
   return (
-    <Panel headingLevel={3} title='Export my data' accent='#5865f2' description='Get a copy of everything NotSoBot stores about you.'>
+    <Panel headingLevel={3} title={t('data.export.title')} accent='#5865f2' description={t('data.export.description')}>
       <ul className='list-disc space-y-1 pl-5 text-sm text-muted'>
-        <li>Your account, settings and login sessions</li>
-        <li>Your tags (with their variables and blobs), reminders, uploaded files, cloned voices, API applications, AI memories and recent AI requests</li>
-        <li>Command usage, premium purchases and reports you’ve sent</li>
+        <li>{t('data.export.item_1')}</li>
+        <li>{t('data.export.item_2')}</li>
+        <li>{t('data.export.item_3')}</li>
       </ul>
-      <p className='mt-3 text-sm text-muted'>It downloads as a JSON file. Tokens and the files themselves aren’t in it (files are listed with their links), the file says what’s left out and why.</p>
+      <p className='mt-3 text-sm text-muted'>{t('data.export.format')}</p>
       <button type='button' className='btn btn-primary mt-4' disabled={exportData.isPending} onClick={runExport}>
         {(exportData.isPending) ? <Spinner className='size-4 border-white/40 border-t-white'/> : <Download aria-hidden className='size-4'/>}
-        {(exportData.isPending) ? 'Preparing…' : 'Download my data'}
+        {t((exportData.isPending) ? 'data.export.preparing' : 'data.export.download')}
       </button>
       {(exportData.isSuccess && filename) ? (
-        <Notice tone='success'>Downloaded as <span className='font-mono'>{filename}</span>.</Notice>
+        <Notice tone='success'>{rich('data.export.done', {b: (chunk) => <span className='font-mono'>{chunk}</span>}, {filename})}</Notice>
       ) : (isNotAvailableYet(exportData.error)) ? (
         <NotAvailableYet/>
       ) : (exportData.isError) ? (
-        <Notice tone='error'>{errorMessage(exportData.error, 'Couldn’t export your data.')}</Notice>
+        <Notice tone='error'>{errorMessage(exportData.error, t('data.export.error'))}</Notice>
       ) : null}
     </Panel>
   );
@@ -103,35 +110,36 @@ function ExportPanel() {
 
 function DeletePanel() {
   const { logout } = useAuth();
+  const { t } = useI18n();
   const remove = useDeleteMeMutation();
   const [ confirming, setConfirming ] = useState(false);
   const unavailable = isNotAvailableYet(remove.error);
 
   return (
-    <Panel headingLevel={3} title='Delete my data' accent='#ed4245' description='Permanently remove what NotSoBot stores about you.'>
+    <Panel headingLevel={3} title={t('data.delete.title')} accent='#ed4245' description={t('data.delete.description')}>
       <ul className='list-disc space-y-1 pl-5 text-sm text-muted'>
-        <li>Your settings, tags (with their variables and blobs), reminders, uploaded files, cloned voices, API applications, AI requests and memories, and command history are deleted.</li>
-        <li>Tags others use in their servers stop working.</li>
-        <li>You’ll be logged out everywhere and the website’s access to your Discord account is revoked. Using NotSoBot again later creates a fresh record.</li>
-        <li>Premium purchases, reports you’ve sent and safety records stay, and so do server records like warnings a server gave you.</li>
-        <li>This can’t be undone. Export first if you want a copy.</li>
+        <li>{t('data.delete.item_1')}</li>
+        <li>{t('data.delete.item_2')}</li>
+        <li>{t('data.delete.item_3')}</li>
+        <li>{t('data.delete.item_4')}</li>
+        <li>{t('data.delete.item_5')}</li>
       </ul>
       <button type='button' className='btn btn-danger mt-4' onClick={() => setConfirming(true)}>
         <Trash2 aria-hidden className='size-4'/>
-        Delete my data…
+        {t('data.delete.button')}
       </button>
       {(unavailable && !confirming) ? <NotAvailableYet/> : null}
 
       {(confirming) ? (
         <ConfirmDialog
-          title='Delete all your NotSoBot data?'
-          description='Everything listed under “Delete my data” is removed permanently and you’ll be logged out.'
-          confirmLabel='Delete everything'
-          confirmPhrase={DELETE_PHRASE}
+          title={t('data.delete.confirm_title')}
+          description={t('data.delete.confirm_description')}
+          confirmLabel={t('data.delete.confirm')}
+          confirmPhrase={t('data.delete.phrase')}
           pending={remove.isPending}
           error={(unavailable) ? (
-            <>This isn’t available yet. Email <a href={`mailto:${Urls.CONTACT_EMAIL}`} className='text-code hover:underline'>{Urls.CONTACT_EMAIL}</a> in the meantime.</>
-          ) : (remove.isError) ? errorMessage(remove.error, 'Couldn’t delete your data.') : null}
+            <UnavailableText/>
+          ) : (remove.isError) ? errorMessage(remove.error, t('data.delete.error')) : null}
           onClose={() => setConfirming(false)}
           onConfirm={() => remove.mutate(undefined, {
             onSuccess: () => {

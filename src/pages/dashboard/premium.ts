@@ -1,14 +1,15 @@
+import { translate, type TranslationKey } from '@/i18n';
 import { EntitlementProviders, UserPremiumTypes, type Entitlement } from '@/lib/api';
 import { toDate } from '@/lib/utils';
 import { isOwner } from '@/auth/permissions';
 
 
-const LABELS: Record<number, string> = {
-  [UserPremiumTypes.NONE]: 'Free',
-  [UserPremiumTypes.PREMIUM_FREE]: 'Premium+ (complimentary)',
-  [UserPremiumTypes.PREMIUM]: 'Premium',
-  [UserPremiumTypes.PREMIUM_PLUS]: 'Premium+',
-  [UserPremiumTypes.PREMIUM_PLUS_AI]: 'Premium+ AI',
+const LABELS: Record<number, TranslationKey> = {
+  [UserPremiumTypes.NONE]: 'premium_type.free',
+  [UserPremiumTypes.PREMIUM_FREE]: 'premium_type.complimentary',
+  [UserPremiumTypes.PREMIUM]: 'premium_type.premium',
+  [UserPremiumTypes.PREMIUM_PLUS]: 'premium_type.plus',
+  [UserPremiumTypes.PREMIUM_PLUS_AI]: 'premium_type.plus_ai',
 };
 
 
@@ -31,7 +32,7 @@ export function hasPremiumPlus(user: {flags: number, premium_type: number} | nul
 
 
 export function premiumLabel(premiumType: number): string {
-  return LABELS[premiumType] ?? 'Free';
+  return translate(LABELS[premiumType] ?? 'premium_type.free');
 }
 
 
@@ -43,7 +44,7 @@ export const ENTITLEMENT_TIERS: ReadonlyArray<{value: number, label: string}> = 
 ];
 
 export function entitlementTierLabel(entitlement: Entitlement): string {
-  return (entitlement.premium_type === null) ? 'Unknown SKU' : premiumLabel(entitlement.premium_type);
+  return (entitlement.premium_type === null) ? translate('premium_type.unknown_sku') : premiumLabel(entitlement.premium_type);
 }
 
 
@@ -53,7 +54,8 @@ export const ENTITLEMENT_PROVIDERS: ReadonlyArray<{value: string, label: string}
 ];
 
 export function entitlementProviderLabel(provider: string): string {
-  return ENTITLEMENT_PROVIDERS.find((item) => item.value === provider)?.label ?? provider;
+  const key = (provider === EntitlementProviders.DISCORD) ? 'entitlement.discord' : (provider === EntitlementProviders.MANUAL) ? 'entitlement.manual' : null;
+  return (key) ? translate(key) : provider;
 }
 
 
@@ -62,20 +64,20 @@ export type EntitlementTone = 'neutral' | 'danger' | 'warning' | 'success' | 'br
 // mirrors `Entitlement.is_valid` on the api, but says why one doesn't count
 export function entitlementStatus(entitlement: Entitlement, now = Date.now()): {label: string, tone: EntitlementTone} {
   if (entitlement.active) {
-    return {label: 'Active', tone: 'success'};
+    return {label: translate('entitlement.active'), tone: 'success'};
   }
   if (entitlement.deleted) {
     // manual grants are marked deleted when staff change or take away the premium
-    return (entitlement.provider === EntitlementProviders.MANUAL) ? {label: 'Removed', tone: 'neutral'} : {label: 'Cancelled', tone: 'danger'};
+    return (entitlement.provider === EntitlementProviders.MANUAL) ? {label: translate('entitlement.removed'), tone: 'neutral'} : {label: translate('entitlement.cancelled'), tone: 'danger'};
   }
   if (entitlement.consumed) {
-    return {label: 'Used', tone: 'neutral'};
+    return {label: translate('entitlement.used'), tone: 'neutral'};
   }
   if (entitlement.starts_at !== null && now < toDate(entitlement.starts_at).getTime()) {
-    return {label: 'Starts later', tone: 'brand'};
+    return {label: translate('entitlement.starts_later'), tone: 'brand'};
   }
   if (entitlement.ends_at !== null && toDate(entitlement.ends_at).getTime() < now) {
-    return {label: 'Expired', tone: 'warning'};
+    return {label: translate('entitlement.expired'), tone: 'warning'};
   }
-  return {label: 'Inactive', tone: 'neutral'};
+  return {label: translate('entitlement.inactive'), tone: 'neutral'};
 }

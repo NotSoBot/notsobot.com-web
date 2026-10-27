@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router';
 
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
+import { useI18n, type TranslationKey } from '@/i18n';
 import type { Reminder } from '@/lib/api';
 import {
   errorMessage,
@@ -22,11 +23,11 @@ import { EditReminderDialog } from './EditReminderDialog';
 
 type ReminderSortBy = 'next' | 'last' | 'newest' | 'oldest';
 
-const SORTS: Array<{value: ReminderSortBy, label: string}> = [
-  {value: 'next', label: 'Next to run'},
-  {value: 'last', label: 'Last to run'},
-  {value: 'newest', label: 'Newest'},
-  {value: 'oldest', label: 'Oldest'},
+const SORTS: Array<{value: ReminderSortBy, label: TranslationKey}> = [
+  {value: 'next', label: 'reminders.sort.next'},
+  {value: 'last', label: 'reminders.sort.last'},
+  {value: 'newest', label: 'reminders.sort.newest'},
+  {value: 'oldest', label: 'reminders.sort.oldest'},
 ];
 
 // ids are snowflakes, so they order by when the reminder was made
@@ -42,6 +43,7 @@ const SORTERS: Record<ReminderSortBy, (a: Reminder, b: Reminder) => number> = {
 
 
 export function RemindersPage() {
+  const { t, rich } = useI18n();
   const { data, isPending, isError, error, isRefetching, refetch } = useMeRemindersQuery();
   // only for server names, reminders still show (as "a server") when the guild list can't load
   const guilds = useMeGuildsQuery();
@@ -71,7 +73,7 @@ export function RemindersPage() {
   const remove = useDeleteMeReminderMutation();
   const [ editing, setEditing ] = useState<Reminder | null>(null);
   const [ deleting, setDeleting ] = useState<Reminder | null>(null);
-  const whereOf = (reminder: Reminder) => (reminder.guild_id) ? (guildNames.get(reminder.guild_id) ?? 'a server') : 'your DMs';
+  const whereOf = (reminder: Reminder) => (reminder.guild_id) ? (guildNames.get(reminder.guild_id) ?? t('reminders.a_server')) : t('reminders.your_dms');
 
   const confirmDelete = () => {
     if (!deleting) {
@@ -79,7 +81,7 @@ export function RemindersPage() {
     }
     remove.mutate(deleting.id, {
       onSuccess: () => {
-        toast('Reminder deleted');
+        toast(t('reminders.deleted'));
         setDeleting(null);
       },
     });
@@ -88,8 +90,8 @@ export function RemindersPage() {
   return (
     <>
       <DashboardHeader
-        title='Your Reminders'
-        description={<>Reminders you set with the bot’s <code className='text-fg'>reminder</code> commands. You can change their text, move them to your DMs or delete them here.</>}
+        title={t('page.DASHBOARD_REMINDERS')}
+        description={rich('reminders.description', {code: (chunk) => <code className='text-fg'>{chunk}</code>})}
       />
 
       {(serverId) ? <ServerFilterChip guildId={serverId} name={guildNames.get(serverId)} onClear={() => setParam('server', null)}/> : null}
@@ -97,18 +99,18 @@ export function RemindersPage() {
       {(isPending) ? (
         <ListSkeleton/>
       ) : (isError) ? (
-        <ErrorPanel title='Couldn’t load your reminders' message={errorMessage(error)} onRetry={() => refetch()} retrying={isRefetching}/>
+        <ErrorPanel title={t('reminders.load_error')} message={errorMessage(error)} onRetry={() => refetch()} retrying={isRefetching}/>
       ) : (!items.length) ? (
-        <EmptyState icon={<AlarmClock className='size-10'/>} title={(serverId) ? 'No reminders in this server' : 'No reminders yet'}>
-          Set one in Discord with <code className='text-fg'>/reminder create</code>.
+        <EmptyState icon={<AlarmClock className='size-10'/>} title={t((serverId) ? 'reminders.empty_server' : 'reminders.empty')}>
+          {rich('reminders.empty_description', {code: (chunk) => <code className='text-fg'>{chunk}</code>})}
         </EmptyState>
       ) : (
         <>
           <div className='mb-4 flex flex-wrap items-center gap-3 sm:justify-end'>
             <label className='flex items-center gap-2 text-sm text-muted'>
-              Sort
+              {t('reminders.sort')}
               <select className='input w-40' value={sortBy} onChange={(event) => setSortBy(event.target.value)}>
-                {SORTS.map((sort) => <option key={sort.value} value={sort.value}>{sort.label}</option>)}
+                {SORTS.map((sort) => <option key={sort.value} value={sort.value}>{t(sort.label)}</option>)}
               </select>
             </label>
           </div>
@@ -132,11 +134,11 @@ export function RemindersPage() {
 
       {(deleting) ? (
         <ConfirmDialog
-          title={`Delete reminder #${deleting.position}?`}
-          description='The bot won’t remind you of it anymore. This can’t be undone.'
-          confirmLabel='Delete reminder'
+          title={t('reminders.delete_title', {position: deleting.position})}
+          description={t('reminders.delete_description')}
+          confirmLabel={t('reminders.delete')}
           pending={remove.isPending}
-          error={(remove.isError) ? errorMessage(remove.error, 'Couldn’t delete the reminder.') : null}
+          error={(remove.isError) ? errorMessage(remove.error, t('reminders.delete_error')) : null}
           onConfirm={confirmDelete}
           onClose={() => {
             remove.reset();
@@ -155,6 +157,7 @@ function ReminderRow({ reminder, where, onEdit, onDelete }: {
   onEdit: () => void,
   onDelete: () => void,
 }) {
+  const { t } = useI18n();
   const jumpLink = (reminder.channel_id && reminder.message_id)
     ? `https://discord.com/channels/${reminder.guild_id ?? '@me'}/${reminder.channel_id}/${reminder.message_id}`
     : null;
@@ -174,28 +177,28 @@ function ReminderRow({ reminder, where, onEdit, onDelete }: {
         {(reminder.content) ? (
           <p className='mt-1 whitespace-pre-wrap break-words text-sm text-fg'>{reminder.content}</p>
         ) : (
-          <p className='mt-1 text-sm italic text-subtle'>No message</p>
+          <p className='mt-1 text-sm italic text-subtle'>{t('reminders.no_message')}</p>
         )}
         <div className='mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-subtle'>
-          <Chip title='The number `reminder delete` uses'>#{reminder.position}</Chip>
-          {(reminder.is_all_day) ? <Chip tone='brand'>All day</Chip> : null}
-          <span>In {where}</span>
+          <Chip title={t('reminders.position_title')}>#{reminder.position}</Chip>
+          {(reminder.is_all_day) ? <Chip tone='brand'>{t('reminders.all_day')}</Chip> : null}
+          <span>{t('reminders.in', {where})}</span>
         </div>
       </div>
       <div className='flex shrink-0 flex-col gap-1.5 sm:flex-row'>
         {(jumpLink) ? (
-          <a href={jumpLink} target='_blank' rel='noreferrer' className='btn btn-sm btn-secondary' aria-label='Jump to the message'>
+          <a href={jumpLink} target='_blank' rel='noreferrer' className='btn btn-sm btn-secondary' aria-label={t('reminders.jump_label')}>
             <ExternalLink className='size-4'/>
-            <span className='hidden sm:inline'>Jump</span>
+            <span className='hidden sm:inline'>{t('reminders.jump')}</span>
           </a>
         ) : null}
-        <button type='button' className='btn btn-sm btn-secondary' onClick={onEdit} aria-label='Edit reminder'>
+        <button type='button' className='btn btn-sm btn-secondary' onClick={onEdit} aria-label={t('reminders.edit_label')}>
           <Pencil className='size-4'/>
-          <span className='hidden sm:inline'>Edit</span>
+          <span className='hidden sm:inline'>{t('common.edit')}</span>
         </button>
-        <button type='button' className='btn btn-sm btn-secondary' onClick={onDelete} aria-label='Delete reminder'>
+        <button type='button' className='btn btn-sm btn-secondary' onClick={onDelete} aria-label={t('reminders.delete')}>
           <Trash2 className='size-4'/>
-          <span className='hidden sm:inline'>Delete</span>
+          <span className='hidden sm:inline'>{t('common.delete')}</span>
         </button>
       </div>
     </li>

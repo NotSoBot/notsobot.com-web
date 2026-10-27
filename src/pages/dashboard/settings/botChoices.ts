@@ -3,12 +3,15 @@
 // LLM models are limited to the ones notsobot.api's `TagGenerationModels` accepts; the `CLONED` voice is
 // per-user (`CLONED_<id>`), so it isn't offered here.
 
+import { activeLanguage, DEFAULT_LANGUAGE } from '@/i18n';
+
+
 export interface Choice<T = string> {
   value: T,
   label: string,
 }
 
-export const LOCALE_CHOICES: ReadonlyArray<Choice> = [
+const LOCALES: ReadonlyArray<Choice> = [
   {value: 'ab', label: 'Abkhaz'},
   {value: 'ace', label: 'Acehnese'},
   {value: 'ach', label: 'Acholi'},
@@ -206,6 +209,32 @@ export const LOCALE_CHOICES: ReadonlyArray<Choice> = [
   {value: 'yua', label: 'Yucatec Maya'},
   {value: 'zu', label: 'Zulu'},
 ];
+
+const displayNames = new Map<string, Intl.DisplayNames>();
+
+// the language's own name in the site's language (japonés on the Spanish site), the generated English name otherwise
+// and for anything the browser doesn't know
+function localeName(locale: string, english: string): string {
+  const language = activeLanguage();
+  if (language === DEFAULT_LANGUAGE) {
+    return english;
+  }
+  try {
+    let names = displayNames.get(language);
+    if (!names) {
+      names = new Intl.DisplayNames([language], {type: 'language', fallback: 'none'});
+      displayNames.set(language, names);
+    }
+    const name = names.of(locale);
+    return (name) ? name.charAt(0).toLocaleUpperCase(language) + name.slice(1) : english;
+  } catch {
+    return english;
+  }
+}
+
+// the labels are getters, read in the language on screen (the order stays the English one)
+export const LOCALE_CHOICES: ReadonlyArray<Choice> = LOCALES.map(({ value, label }) => ({value, get label() { return localeName(value, label); }}));
+
 
 export const TIMEZONE_CHOICES: ReadonlyArray<Choice> = [
   {value: 'Pacific/Midway', label: '(GMT-11:00) Midway Island (SST)'},

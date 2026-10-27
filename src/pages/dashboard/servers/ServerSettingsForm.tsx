@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useToast } from '@/components/ui/Toast';
+import { useI18n } from '@/i18n';
 import type { UserGuild, UserGuildPatch } from '@/lib/api';
 import { errorMessage, useGuildMutation } from '@/lib/api/dashboardQueries';
 
@@ -29,28 +30,11 @@ type Values = Required<{[K in keyof SettingsPatch]: Exclude<SettingsPatch[K], un
 // Saving one never touches another's edits
 export type SettingsGroup = 'general' | 'ai' | 'warnings';
 
-const GROUPS: Record<SettingsGroup, {title: string, accent: string, description: string, saved: string, failed: string}> = {
-  general: {
-    title: 'Server settings',
-    accent: '#00b0f4',
-    description: 'Defaults for everyone in this server. Members’ personal settings take priority.',
-    saved: 'Server settings saved',
-    failed: 'Couldn’t save the server settings.',
-  },
-  ai: {
-    title: 'NotSoAI settings',
-    accent: '#a855f7',
-    description: 'How NotSoAI behaves in this server. Members’ personal settings take priority.',
-    saved: 'NotSoAI settings saved',
-    failed: 'Couldn’t save the NotSoAI settings.',
-  },
-  warnings: {
-    title: 'Warning settings',
-    accent: '#fee75c',
-    description: 'How long warnings count and last, and what happens automatically as they add up.',
-    saved: 'Warning settings saved',
-    failed: 'Couldn’t save the warning settings.',
-  },
+// the title, description and save/fail toasts are `ssettings.<group>.title`, `.description`, `.saved` and `.failed`
+const GROUP_ACCENTS: Record<SettingsGroup, string> = {
+  general: '#00b0f4',
+  ai: '#a855f7',
+  warnings: '#fee75c',
 };
 
 
@@ -85,11 +69,18 @@ export function useDirtyGroups<K extends string>() {
 
 
 export function ServerSettingsForm({ guild, group, onDirtyChange }: {guild: UserGuild, group: SettingsGroup, onDirtyChange: (dirty: boolean) => void}) {
+  const { t } = useI18n();
   const toast = useToast();
   const editable = guild.editable.settings;
   const readOnlyMessage = useReadOnlyMessage();
   const mutation = useGuildMutation(guild.id);
-  const info = GROUPS[group];
+  const info = {
+    title: t(`ssettings.${group}.title`),
+    accent: GROUP_ACCENTS[group],
+    description: t(`ssettings.${group}.description`),
+    saved: t(`ssettings.${group}.saved`),
+    failed: t(`ssettings.${group}.failed`),
+  };
 
   const saved = useMemo(() => savedValues(guild), [guild]);
   const draft = useDraft(saved);
@@ -127,23 +118,23 @@ export function ServerSettingsForm({ guild, group, onDirtyChange }: {guild: User
         <fieldset disabled={!editable} className='grid min-w-0 grid-cols-1 gap-x-4 gap-y-5 md:grid-cols-2'>
           {(group === 'general') ? (
             <>
-              <Field label='Language'>
-                {(props) => <ChoiceSelect {...props} noneLabel='Automatic (from Discord)' choices={LOCALE_CHOICES} value={values.locale} onChange={(value) => draft.set('locale', value)}/>}
+              <Field label={t('settings.region.language')}>
+                {(props) => <ChoiceSelect {...props} noneLabel={t('settings.region.auto_language')} choices={LOCALE_CHOICES} value={values.locale} onChange={(value) => draft.set('locale', value)}/>}
               </Field>
-              <Field label='Timezone'>
-                {(props) => <ChoiceSelect {...props} noneLabel='Not set (UTC)' choices={TIMEZONE_CHOICES} value={values.timezone} onChange={(value) => draft.set('timezone', value)}/>}
+              <Field label={t('settings.region.timezone')}>
+                {(props) => <ChoiceSelect {...props} noneLabel={t('settings.region.no_timezone')} choices={TIMEZONE_CHOICES} value={values.timezone} onChange={(value) => draft.set('timezone', value)}/>}
               </Field>
-              <Field label='Image model'>
-                {(props) => <ChoiceSelect {...props} noneLabel='Default' choices={DIFFUSION_MODEL_CHOICES} value={values.ml_diffusion_model} onChange={(value) => draft.set('ml_diffusion_model', value)}/>}
+              <Field label={t('settings.ai.image_model')}>
+                {(props) => <ChoiceSelect {...props} noneLabel={t('settings.default')} choices={DIFFUSION_MODEL_CHOICES} value={values.ml_diffusion_model} onChange={(value) => draft.set('ml_diffusion_model', value)}/>}
               </Field>
-              <Field label='Response display'>
-                {(props) => <ChoiceSelect {...props} noneLabel='Default' choices={RESPONSE_DISPLAY_CHOICES} value={values.response_display} onChange={(value) => draft.set('response_display', value)}/>}
+              <Field label={t('settings.display.response')}>
+                {(props) => <ChoiceSelect {...props} noneLabel={t('settings.default')} choices={RESPONSE_DISPLAY_CHOICES} value={values.response_display} onChange={(value) => draft.set('response_display', value)}/>}
               </Field>
-              <Field label='Web search' hint='Each member’s own setting wins over this.'>
-                {(props) => <ChoiceSelect {...props} noneLabel='Default (DuckDuckGo)' choices={SEARCH_PROVIDER_CHOICES} value={values.search_provider_web} onChange={(value) => draft.set('search_provider_web', value)}/>}
+              <Field label={t('settings.search.web')} hint={t('ssettings.member_wins')}>
+                {(props) => <ChoiceSelect {...props} noneLabel={t('ssettings.default_ddg')} choices={SEARCH_PROVIDER_CHOICES} value={values.search_provider_web} onChange={(value) => draft.set('search_provider_web', value)}/>}
               </Field>
-              <Field label='Image search' hint='Each member’s own setting wins over this.'>
-                {(props) => <ChoiceSelect {...props} noneLabel='Default (Google)' choices={SEARCH_PROVIDER_CHOICES} value={values.search_provider_images} onChange={(value) => draft.set('search_provider_images', value)}/>}
+              <Field label={t('settings.search.images')} hint={t('ssettings.member_wins')}>
+                {(props) => <ChoiceSelect {...props} noneLabel={t('ssettings.default_google')} choices={SEARCH_PROVIDER_CHOICES} value={values.search_provider_images} onChange={(value) => draft.set('search_provider_images', value)}/>}
               </Field>
             </>
           ) : null}
@@ -151,9 +142,9 @@ export function ServerSettingsForm({ guild, group, onDirtyChange }: {guild: User
             <>
               <Field
                 className='md:col-span-2'
-                label='AI personality prompt'
+                label={t('ssettings.personality')}
                 counter={<CharCounter length={personality.length} max={PERSONALITY_MAX}/>}
-                hint={<PersonalityHint>How the AI behaves for people who haven’t set their own.</PersonalityHint>}
+                hint={<PersonalityHint>{t('ssettings.personality_hint')}</PersonalityHint>}
               >
                 {(props) => (
                   <textarea
@@ -166,18 +157,18 @@ export function ServerSettingsForm({ guild, group, onDirtyChange }: {guild: User
                   />
                 )}
               </Field>
-              <Field label='AI model'>
-                {(props) => <ChoiceSelect {...props} noneLabel='Default' choices={LLM_MODEL_CHOICES} value={values.ml_llm_model} onChange={(value) => draft.set('ml_llm_model', value)}/>}
+              <Field label={t('settings.ai.model')}>
+                {(props) => <ChoiceSelect {...props} noneLabel={t('settings.default')} choices={LLM_MODEL_CHOICES} value={values.ml_llm_model} onChange={(value) => draft.set('ml_llm_model', value)}/>}
               </Field>
             </>
           ) : null}
           {(group === 'warnings') ? (
             <>
-              <Field label='Warnings count as active for' hint='How far back a member’s active warnings go.'>
+              <Field label={t('ssettings.window')} hint={t('ssettings.window_hint')}>
                 {(props) => <ChoiceSelect {...props} choices={warningsWindowChoices(values.warnings_window)} value={values.warnings_window} onChange={(value) => draft.set('warnings_window', value)}/>}
               </Field>
-              <Field label='Delete warnings after' hint='Older warnings are removed for good.'>
-                {(props) => <ChoiceSelect {...props} noneLabel='Never (default)' choices={warningsExpireChoices(values.warnings_expire)} value={values.warnings_expire} onChange={(value) => draft.set('warnings_expire', value)}/>}
+              <Field label={t('ssettings.expire')} hint={t('ssettings.expire_hint')}>
+                {(props) => <ChoiceSelect {...props} noneLabel={t('ssettings.never_default')} choices={warningsExpireChoices(values.warnings_expire)} value={values.warnings_expire} onChange={(value) => draft.set('warnings_expire', value)}/>}
               </Field>
               <WarningActionsEditor
                 value={warningActions}

@@ -4,22 +4,14 @@ import { RequireAuth, RequireStaff } from '@/auth';
 import { ExternalRedirect } from '@/components/ExternalRedirect';
 import { SiteLayout } from '@/components/layout/SiteLayout';
 import { Routes, Urls } from '@/config';
+import { loadDashboardText } from '@/i18n';
 import { ApiEndpoints, apiUrl } from '@/lib/api';
 import { BotAddedRedirectPage } from '@/pages/auth/BotAddedRedirectPage';
-import { ChangelogPage } from '@/pages/ChangelogPage';
 import { LoginCallbackPage } from '@/pages/auth/LoginCallbackPage';
 import { LoginPage } from '@/pages/auth/LoginPage';
-import { CommandsPage } from '@/pages/commands/CommandsPage';
-import { FaqPage } from '@/pages/FaqPage';
 import { HomePage } from '@/pages/HomePage';
-import { PrivacyPage } from '@/pages/legal/PrivacyPage';
-import { TermsPage } from '@/pages/legal/TermsPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
-import { PremiumPage } from '@/pages/PremiumPage';
 import { RouteErrorPage } from '@/pages/RouteErrorPage';
-import { StatusPage } from '@/pages/status/StatusPage';
-import { VoiceStatusPage } from '@/pages/status/VoiceStatusPage';
-import { TagDirectoryPage } from '@/pages/tags/TagDirectoryPage';
 import { NOT_FOUND_PAGE, PAGES, type PageMeta } from '@/seo';
 
 
@@ -32,11 +24,12 @@ const routes: Array<RouteObject> = [
     element: <SiteLayout/>,
     errorElement: <RouteErrorPage/>,
     HydrateFallback: () => null,
+    // only the home page ships with the site, every other page is fetched when someone opens it
     children: [
       {index: true, element: <HomePage/>},
       {
         path: Routes.COMMANDS,
-        element: <CommandsPage/>,
+        lazy: async () => ({Component: (await import('@/pages/commands/CommandsPage')).CommandsPage}),
         handle: PAGES.COMMANDS,
         // the command is a drawer over the list, so the list stays mounted underneath
         children: [
@@ -45,15 +38,15 @@ const routes: Array<RouteObject> = [
           {path: ':commandId/:commandType', handle: PAGES.COMMAND_TYPE},
         ],
       },
-      {path: Routes.CHANGELOG, element: <ChangelogPage/>, handle: PAGES.CHANGELOG},
-      {path: Routes.FAQ, element: <FaqPage/>, handle: PAGES.FAQ},
+      {path: Routes.CHANGELOG, lazy: async () => ({Component: (await import('@/pages/ChangelogPage')).ChangelogPage}), handle: PAGES.CHANGELOG},
+      {path: Routes.FAQ, lazy: async () => ({Component: (await import('@/pages/FaqPage')).FaqPage}), handle: PAGES.FAQ},
       // not in the navbar or footer yet
-      {path: Routes.PREMIUM, element: <PremiumPage/>, handle: PAGES.PREMIUM},
-      {path: Routes.STATUS, element: <StatusPage/>, handle: PAGES.STATUS},
-      {path: Routes.STATUS_VOICE, element: <VoiceStatusPage/>, handle: PAGES.STATUS_VOICE},
+      {path: Routes.PREMIUM, lazy: async () => ({Component: (await import('@/pages/PremiumPage')).PremiumPage}), handle: PAGES.PREMIUM},
+      {path: Routes.STATUS, lazy: async () => ({Component: (await import('@/pages/status/StatusPage')).StatusPage}), handle: PAGES.STATUS},
+      {path: Routes.STATUS_VOICE, lazy: async () => ({Component: (await import('@/pages/status/VoiceStatusPage')).VoiceStatusPage}), handle: PAGES.STATUS_VOICE},
       {
         path: Routes.TAG_DIRECTORY,
-        element: <TagDirectoryPage/>,
+        lazy: async () => ({Component: (await import('@/pages/tags/TagDirectoryPage')).TagDirectoryPage}),
         handle: PAGES.TAG_DIRECTORY,
         // the tag is a modal over the directory, so the directory stays mounted underneath
         children: [{index: true}, {path: ':tagId', handle: PAGES.TAG_DIRECTORY_ITEM}],
@@ -68,8 +61,8 @@ const routes: Array<RouteObject> = [
         ],
       },
       {path: '/docs', element: <Navigate to={Routes.TAG_DOCS} replace/>},
-      {path: Routes.LEGAL_PRIVACY, element: <PrivacyPage/>, handle: PAGES.LEGAL_PRIVACY},
-      {path: Routes.LEGAL_TERMS_OF_SERVICE, element: <TermsPage/>, handle: PAGES.LEGAL_TERMS_OF_SERVICE},
+      {path: Routes.LEGAL_PRIVACY, lazy: async () => ({Component: (await import('@/pages/legal/PrivacyPage')).PrivacyPage}), handle: PAGES.LEGAL_PRIVACY},
+      {path: Routes.LEGAL_TERMS_OF_SERVICE, lazy: async () => ({Component: (await import('@/pages/legal/TermsPage')).TermsPage}), handle: PAGES.LEGAL_TERMS_OF_SERVICE},
 
       // auth (Discord OAuth via notsobot.api)
       {path: Routes.AUTH_LOGIN, element: <LoginPage/>, handle: PAGES.AUTH_LOGIN},
@@ -81,9 +74,9 @@ const routes: Array<RouteObject> = [
       {path: '/terms', element: <Navigate to={Routes.LEGAL_TERMS_OF_SERVICE} replace/>},
 
       // vanity redirects
-      {path: Routes.INVITE, element: <ExternalRedirect to={apiUrl(ApiEndpoints.HELP_DISCORD_BOT)} label='Opening Discord'/>},
-      {path: Routes.SUPPORT, element: <ExternalRedirect to={apiUrl(ApiEndpoints.HELP_DISCORD_SERVER)} label='Opening the support server'/>},
-      {path: Routes.SUPPORT_INVITE, element: <ExternalRedirect to={apiUrl(ApiEndpoints.HELP_DISCORD_SERVER)} label='Opening the support server'/>},
+      {path: Routes.INVITE, element: <ExternalRedirect to={apiUrl(ApiEndpoints.HELP_DISCORD_BOT)} label='redirect.discord'/>},
+      {path: Routes.SUPPORT, element: <ExternalRedirect to={apiUrl(ApiEndpoints.HELP_DISCORD_SERVER)} label='redirect.support'/>},
+      {path: Routes.SUPPORT_INVITE, element: <ExternalRedirect to={apiUrl(ApiEndpoints.HELP_DISCORD_SERVER)} label='redirect.support'/>},
       {path: Routes.FOXBOT, element: <ExternalRedirect to={Urls.FOXBOT}/>},
 
       // authenticated pages (the dashboard is code-split: only fetched when someone opens it)
@@ -92,7 +85,11 @@ const routes: Array<RouteObject> = [
         children: [
           {
             path: Routes.DASHBOARD,
-            lazy: async () => ({Component: (await import('@/pages/dashboard/DashboardLayout')).DashboardLayout}),
+            // the dashboard's own strings come with it, every page under it renders after both are in
+            lazy: async () => {
+              const [ layout ] = await Promise.all([ import('@/pages/dashboard/DashboardLayout'), loadDashboardText() ]);
+              return {Component: layout.DashboardLayout};
+            },
             handle: PAGES.DASHBOARD,
             children: [
               {index: true, lazy: async () => ({Component: (await import('@/pages/dashboard/OverviewPage')).OverviewPage})},
@@ -171,4 +168,7 @@ const routes: Array<RouteObject> = [
 ];
 
 
-export const router = createBrowserRouter(routes);
+// one per language, `basename` is its url prefix ('' for English). src/i18n/I18nProvider.tsx swaps them
+export function createRouter(basename: string) {
+  return createBrowserRouter(routes, {basename: basename || undefined});
+}

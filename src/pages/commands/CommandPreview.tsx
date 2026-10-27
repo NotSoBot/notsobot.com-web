@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
 import { ImageComparison } from '@/components/ui/ImageComparison';
 import { Segmented } from '@/components/ui/Segmented';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { useI18n } from '@/i18n';
 import { CommandMediaTypes, type Command, type CommandMedia } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
@@ -48,6 +49,7 @@ function claimPlayback(element: HTMLMediaElement) {
 // switch for audio, inputs → result for everything else (a different shape, video, several inputs), and only the
 // result for commands that make their media from nothing (`media.i.create.*`)
 export function CommandPreview({ command, example }: {command: Command, example?: string | null}) {
+  const { rich } = useI18n();
   const inputs = command.media
     .filter((media) => media.type === CommandMediaTypes.BEFORE)
     .sort((a, b) => a.position - b.position);
@@ -72,7 +74,7 @@ export function CommandPreview({ command, example }: {command: Command, example?
     <div className='space-y-2'>
       {body}
       {(example) ? (
-        <p className='text-xs text-subtle'>Made with <code className='font-mono text-code'>{example}</code></p>
+        <p className='text-xs text-subtle'>{rich('commands.preview.made_with', {code: (chunk) => <code className='font-mono text-code'>{chunk}</code>}, {example})}</p>
       ) : null}
     </div>
   );
@@ -80,14 +82,15 @@ export function CommandPreview({ command, example }: {command: Command, example?
 
 
 function InputsToResult({ inputs, result }: {inputs: Array<CommandMedia>, result: CommandMedia}) {
+  const { t } = useI18n();
   // one picture in and one out sit side by side, audio rows and several inputs stack
   const sideBySide = inputs.length === 1 && [inputs[0], result].every((media) => mediaKind(media) !== 'audio');
   if (sideBySide) {
     return (
       <div className='grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3'>
-        <Tile label='Before' media={inputs[0]}/>
+        <Tile label={t('commands.preview.before')} media={inputs[0]}/>
         <ArrowRight aria-hidden className='size-5 text-subtle'/>
-        <Tile label='After' media={result}/>
+        <Tile label={t('commands.preview.after')} media={result}/>
       </div>
     );
   }
@@ -96,11 +99,11 @@ function InputsToResult({ inputs, result }: {inputs: Array<CommandMedia>, result
       {inputs.map((media, i) => (
         <div key={media.position} className='space-y-2'>
           {(i) ? <Plus aria-hidden className='mx-auto size-4 text-subtle'/> : null}
-          <Tile label={`Input ${i + 1}`} media={media} compact/>
+          <Tile label={t('commands.preview.input', {number: i + 1})} media={media} compact/>
         </div>
       ))}
       <ArrowDown aria-hidden className='mx-auto size-5 text-subtle'/>
-      <Tile label='Result' media={result} compact/>
+      <Tile label={t('commands.preview.result')} media={result} compact/>
     </div>
   );
 }
@@ -108,9 +111,10 @@ function InputsToResult({ inputs, result }: {inputs: Array<CommandMedia>, result
 
 // `label` is left out when the result is all there is
 function Tile({ label, media, compact = false }: {label?: string, media: CommandMedia, compact?: boolean}) {
+  const { t } = useI18n();
   const kind = mediaKind(media);
   const visual = cn('w-full rounded border border-line bg-deep object-contain', (compact) ? 'max-h-56' : 'max-h-72');
-  const name = label || 'Result';
+  const name = label || t('commands.preview.result');
   return (
     <figure className='min-w-0 space-y-1'>
       {(label) ? <figcaption className='text-xs text-muted'>{label}</figcaption> : null}
@@ -126,6 +130,7 @@ function Tile({ label, media, compact = false }: {label?: string, media: Command
 
 // plays muted on a loop like a gif, only while it's on screen; with reduced motion it waits for the controls
 function LoopingVideo({ media, label, className }: {media: CommandMedia, label: string, className?: string}) {
+  const { t } = useI18n();
   const ref = useRef<HTMLVideoElement>(null);
   const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
   const [ muted, setMuted ] = useState(true);
@@ -176,7 +181,7 @@ function LoopingVideo({ media, label, className }: {media: CommandMedia, label: 
       {(reducedMotion) ? null : (
         <button
           type='button'
-          aria-label={(muted) ? `Unmute ${label}` : `Mute ${label}`}
+          aria-label={t((muted) ? 'commands.preview.unmute' : 'commands.preview.mute', {label})}
           aria-pressed={!muted}
           onClick={toggleSound}
           className='absolute right-2 bottom-2 flex size-8 cursor-pointer items-center justify-center rounded-full bg-black/70 text-white transition-colors hover:bg-black/90'
@@ -190,10 +195,11 @@ function LoopingVideo({ media, label, className }: {media: CommandMedia, label: 
 
 
 function PlayButton({ playing, label, onClick }: {playing: boolean, label: string, onClick: () => void}) {
+  const { t } = useI18n();
   return (
     <button
       type='button'
-      aria-label={(playing) ? `Pause ${label}` : `Play ${label}`}
+      aria-label={t((playing) ? 'commands.preview.pause' : 'commands.preview.play', {label})}
       onClick={onClick}
       className='flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-brand text-white transition-opacity hover:opacity-90'
     >
@@ -203,11 +209,12 @@ function PlayButton({ playing, label, onClick }: {playing: boolean, label: strin
 }
 
 function Scrubber({ time, duration, label, onSeek }: {time: number, duration: number, label: string, onSeek: (time: number) => void}) {
+  const { t } = useI18n();
   return (
     <>
       <input
         type='range'
-        aria-label={`${label} position`}
+        aria-label={t('commands.preview.position', {label})}
         min={0}
         max={duration || 0}
         step={0.01}
@@ -272,6 +279,7 @@ type Side = 'before' | 'after';
 
 // one player for both: switching keeps the same moment, so the difference is heard right away
 function AudioComparison({ before, after }: {before: CommandMedia, after: CommandMedia}) {
+  const { t } = useI18n();
   const refs = {after: useRef<HTMLAudioElement>(null), before: useRef<HTMLAudioElement>(null)};
   // what the media events check, it changes before the old side is paused so that pause isn't taken as a stop
   const sideRef = useRef<Side>('after');
@@ -325,17 +333,17 @@ function AudioComparison({ before, after }: {before: CommandMedia, after: Comman
   return (
     <div className='space-y-3 rounded border border-line bg-deep p-3'>
       <Segmented
-        label='Listen to'
+        label={t('commands.preview.listen_to')}
         value={side}
-        options={[{value: 'before', label: 'Original'}, {value: 'after', label: 'Result'}]}
+        options={[{value: 'before', label: t('commands.preview.original')}, {value: 'after', label: t('commands.preview.result')}]}
         onChange={(value) => switchTo(value as Side)}
       />
       <div className='flex items-center gap-3'>
-        <PlayButton playing={playing} label={(side === 'after') ? 'the result' : 'the original'} onClick={toggle}/>
+        <PlayButton playing={playing} label={t((side === 'after') ? 'commands.preview.the_result' : 'commands.preview.the_original')} onClick={toggle}/>
         <Scrubber
           time={time}
           duration={duration}
-          label={(side === 'after') ? 'Result' : 'Original'}
+          label={t((side === 'after') ? 'commands.preview.result' : 'commands.preview.original')}
           onSeek={(value) => {
             const audio = refs[sideRef.current].current;
             if (audio) {

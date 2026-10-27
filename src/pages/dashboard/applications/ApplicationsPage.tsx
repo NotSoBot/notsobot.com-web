@@ -5,6 +5,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
 import { Routes } from '@/config';
+import { useI18n } from '@/i18n';
 import type { Application, ApplicationWithToken } from '@/lib/api';
 import {
   errorMessage,
@@ -31,6 +32,7 @@ type Dialog =
 
 
 export function ApplicationsPage() {
+  const { t, rich } = useI18n();
   const { data, isPending, isError, error, isRefetching, refetch } = useMeApplicationsQuery();
   const create = useCreateMeApplicationMutation();
   const rename = usePatchMeApplicationMutation();
@@ -54,27 +56,27 @@ export function ApplicationsPage() {
 
   const showToken = (application: Application) => {
     reveal.mutate(application.id, {
-      onSuccess: (withToken) => setDialog({kind: 'token', application: withToken, heading: 'Application token'}),
-      onError: (revealError) => toast(errorMessage(revealError, 'Couldn’t load the token.'), 'error'),
+      onSuccess: (withToken) => setDialog({kind: 'token', application: withToken, heading: t('apps.token_title')}),
+      onError: (revealError) => toast(errorMessage(revealError, t('apps.token_error')), 'error'),
     });
   };
 
   return (
     <>
       <DashboardHeader
-        title='Applications'
-        description='Applications let your own code call the NotSoBot API with a bot token.'
+        title={t('dash.nav.applications')}
+        description={t('apps.description')}
       >
         {(data) ? (
           <button
             type='button'
             className='btn btn-primary'
             disabled={!canCreate || atLimit}
-            title={(!canCreate) ? 'You don’t have API access yet' : (atLimit) ? `You can have up to ${data.limit} applications` : undefined}
+            title={(!canCreate) ? t('apps.no_access') : (atLimit) ? t('apps.limit', {limit: data.limit}) : undefined}
             onClick={() => setDialog({kind: 'create'})}
           >
             <Plus className='size-4'/>
-            New application
+            {t('apps.new')}
           </button>
         ) : null}
       </DashboardHeader>
@@ -83,10 +85,9 @@ export function ApplicationsPage() {
         <div role='alert' className='mb-4 flex items-start gap-3 rounded-md border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-fg'>
           <TriangleAlert aria-hidden className='mt-0.5 size-5 shrink-0 text-warning'/>
           <div>
-            <div className='font-semibold text-white'>You don’t have API access yet</div>
+            <div className='font-semibold text-white'>{t('apps.no_access')}</div>
             <p className='mt-1'>
-              API access is handed out by the NotSoBot team for now. Until you have it you can’t create applications or
-              see their tokens, and the tokens of any you already have don’t work. Ask for it in the <a href={Routes.SUPPORT} className='font-medium text-white underline underline-offset-2 hover:text-code'>support server</a>.
+              {rich('apps.no_access_description', {link: (chunk) => <a href={Routes.SUPPORT} className='font-medium text-white underline underline-offset-2 hover:text-code'>{chunk}</a>})}
             </p>
           </div>
         </div>
@@ -95,10 +96,10 @@ export function ApplicationsPage() {
       {(isPending) ? (
         <ListSkeleton/>
       ) : (isError) ? (
-        <ErrorPanel title='Couldn’t load your applications' message={errorMessage(error)} onRetry={() => refetch()} retrying={isRefetching}/>
+        <ErrorPanel title={t('apps.load_error')} message={errorMessage(error)} onRetry={() => refetch()} retrying={isRefetching}/>
       ) : (!items.length) ? (
-        <EmptyState icon={<Blocks className='size-10'/>} title='No applications yet'>
-          {(canCreate) ? 'Create one to get a token for the NotSoBot API.' : null}
+        <EmptyState icon={<Blocks className='size-10'/>} title={t('apps.empty')}>
+          {(canCreate) ? t('apps.empty_description') : null}
         </EmptyState>
       ) : (
         <>
@@ -116,7 +117,7 @@ export function ApplicationsPage() {
                     </div>
                     <div className='mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-subtle'>
                       <CopyableValue value={application.id} truncate={0}/>
-                      <span>Created {formatDate(application.created)}</span>
+                      <span>{t('apps.created', {date: formatDate(application.created)})}</span>
                     </div>
                   </div>
                 </div>
@@ -125,61 +126,61 @@ export function ApplicationsPage() {
                     type='button'
                     className='btn btn-sm btn-secondary'
                     disabled={!canCreate || reveal.isPending}
-                    title={(!canCreate) ? 'You need API access to see tokens' : undefined}
+                    title={(!canCreate) ? t('apps.token_needs_access') : undefined}
                     onClick={() => showToken(application)}
                   >
                     {(reveal.isPending && reveal.variables === application.id) ? <Spinner className='size-4'/> : <Eye className='size-4'/>}
-                    Token
+                    {t('apps.token')}
                   </button>
                   <button
                     type='button'
                     className='btn btn-sm btn-ghost'
                     disabled={!canCreate}
-                    title={(!canCreate) ? 'You need API access to reset tokens' : 'Reset token'}
+                    title={t((!canCreate) ? 'apps.reset_needs_access' : 'apps.reset_token')}
                     onClick={() => setDialog({kind: 'reset', application})}
                   >
                     <RefreshCw className='size-4'/>
-                    <span className='sr-only sm:not-sr-only'>Reset</span>
+                    <span className='sr-only sm:not-sr-only'>{t('apps.reset')}</span>
                   </button>
-                  <button type='button' className='btn btn-sm btn-ghost' title='Rename' onClick={() => setDialog({kind: 'rename', application})}>
+                  <button type='button' className='btn btn-sm btn-ghost' title={t('apps.rename')} onClick={() => setDialog({kind: 'rename', application})}>
                     <Pencil className='size-4'/>
-                    <span className='sr-only'>Rename</span>
+                    <span className='sr-only'>{t('apps.rename')}</span>
                   </button>
-                  <button type='button' className='btn btn-sm btn-ghost text-danger' title='Delete' onClick={() => setDialog({kind: 'delete', application})}>
+                  <button type='button' className='btn btn-sm btn-ghost text-danger' title={t('common.delete')} onClick={() => setDialog({kind: 'delete', application})}>
                     <Trash2 className='size-4'/>
-                    <span className='sr-only'>Delete</span>
+                    <span className='sr-only'>{t('common.delete')}</span>
                   </button>
                 </div>
               </li>
             ))}
           </ul>
           <p className='mt-3 text-xs text-subtle'>
-            {items.length} of {data?.limit} applications.
+            {t('apps.count', {count: items.length, limit: data?.limit ?? 0})}
           </p>
         </>
       )}
 
       {(dialog?.kind === 'create') ? (
         <ApplicationNameDialog
-          title='New application'
-          submitLabel='Create'
+          title={t('apps.new')}
+          submitLabel={t('common.create')}
           pending={create.isPending}
-          error={(create.isError) ? errorMessage(create.error, 'Couldn’t create the application.') : null}
+          error={(create.isError) ? errorMessage(create.error, t('apps.create_error')) : null}
           onSubmit={(name) => create.mutate(name, {
-            onSuccess: (application) => setDialog({kind: 'token', application, heading: 'Application created'}),
+            onSuccess: (application) => setDialog({kind: 'token', application, heading: t('apps.created_heading')}),
           })}
           onClose={close}
         />
       ) : (dialog?.kind === 'rename') ? (
         <ApplicationNameDialog
-          title={`Rename ${dialog.application.name}`}
+          title={t('apps.rename_title', {name: dialog.application.name})}
           initialName={dialog.application.name}
-          submitLabel='Save'
+          submitLabel={t('common.save')}
           pending={rename.isPending}
-          error={(rename.isError) ? errorMessage(rename.error, 'Couldn’t rename the application.') : null}
+          error={(rename.isError) ? errorMessage(rename.error, t('apps.rename_error')) : null}
           onSubmit={(name) => rename.mutate({applicationId: dialog.application.id, name}, {
             onSuccess: (updated) => {
-              toast(`Renamed to ${updated.name}`);
+              toast(t('apps.renamed', {name: updated.name}));
               close();
             },
           })}
@@ -187,38 +188,38 @@ export function ApplicationsPage() {
         />
       ) : (dialog?.kind === 'reset') ? (
         <ConfirmDialog
-          title={`Reset ${dialog.application.name}’s token?`}
+          title={t('apps.reset_title', {name: dialog.application.name})}
           description={
             <>
-              The current token stops working right away, anything still using it will need the new one.
-              {(isNotSoBotApplication(dialog.application)) ? <strong className='mt-2 block text-white'>This is NotSoBot’s own application: the bot loses API access until it’s given the new token.</strong> : null}
+              {t('apps.reset_description')}
+              {(isNotSoBotApplication(dialog.application)) ? <strong className='mt-2 block text-white'>{t('apps.reset_notsobot')}</strong> : null}
             </>
           }
-          confirmLabel='Reset token'
+          confirmLabel={t('apps.reset_token')}
           confirmPhrase={(isNotSoBotApplication(dialog.application)) ? dialog.application.name : undefined}
           pending={reset.isPending}
-          error={(reset.isError) ? errorMessage(reset.error, 'Couldn’t reset the token.') : null}
+          error={(reset.isError) ? errorMessage(reset.error, t('apps.reset_error')) : null}
           onConfirm={() => reset.mutate(dialog.application.id, {
-            onSuccess: (application) => setDialog({kind: 'token', application, heading: 'New token'}),
+            onSuccess: (application) => setDialog({kind: 'token', application, heading: t('apps.new_token')}),
           })}
           onClose={close}
         />
       ) : (dialog?.kind === 'delete') ? (
         <ConfirmDialog
-          title={`Delete ${dialog.application.name}?`}
+          title={t('apps.delete_title', {name: dialog.application.name})}
           description={
             <>
-              Its token stops working right away. This can’t be undone.
-              {(isNotSoBotApplication(dialog.application)) ? <strong className='mt-2 block text-white'>This is NotSoBot’s own application: the bot loses API access.</strong> : null}
+              {t('apps.delete_description')}
+              {(isNotSoBotApplication(dialog.application)) ? <strong className='mt-2 block text-white'>{t('apps.delete_notsobot')}</strong> : null}
             </>
           }
-          confirmLabel='Delete application'
+          confirmLabel={t('apps.delete')}
           confirmPhrase={(isNotSoBotApplication(dialog.application)) ? dialog.application.name : undefined}
           pending={remove.isPending}
-          error={(remove.isError) ? errorMessage(remove.error, 'Couldn’t delete the application.') : null}
+          error={(remove.isError) ? errorMessage(remove.error, t('apps.delete_error')) : null}
           onConfirm={() => remove.mutate(dialog.application.id, {
             onSuccess: () => {
-              toast(`Deleted ${dialog.application.name}`);
+              toast(t('apps.deleted', {name: dialog.application.name}));
               close();
             },
           })}

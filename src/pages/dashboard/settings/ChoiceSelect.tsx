@@ -1,3 +1,5 @@
+import { useI18n } from '@/i18n';
+
 import type { Choice } from './botChoices';
 
 
@@ -12,6 +14,7 @@ export function ChoiceSelect<T extends string | number>({ value, choices, onChan
   'aria-describedby'?: string,
   'aria-invalid'?: boolean,
 }) {
+  const { t } = useI18n();
   const numeric = typeof choices[0]?.value === 'number';
   const known = value === null || choices.some((choice) => choice.value === value);
   return (
@@ -25,7 +28,7 @@ export function ChoiceSelect<T extends string | number>({ value, choices, onChan
         onChange((raw === '') ? null : ((numeric) ? Number(raw) : raw) as T);
       }}
     >
-      {(noneLabel !== undefined || value === null) ? <option value=''>{noneLabel ?? 'Not set'}</option> : null}
+      {(noneLabel !== undefined || value === null) ? <option value=''>{noneLabel ?? t('common.not_set')}</option> : null}
       {/* keep a stored value the list doesn't know about (e.g. a retired model) visible instead of silently changing it */}
       {(!known) ? <option value={String(value)}>{String(value)}</option> : null}
       {choices.map((choice) => <option key={String(choice.value)} value={String(choice.value)}>{choice.label}</option>)}

@@ -3,6 +3,7 @@ import { useId, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
+import { useI18n } from '@/i18n';
 import { CommandCategories, type GuildRule, type GuildRuleTargetType, type UserGuild } from '@/lib/api';
 import { errorField, errorMessage, useGuildMutation, useGuildScope, type GuildAction } from '@/lib/api/dashboardQueries';
 import { useCommandsQuery } from '@/lib/api/queries';
@@ -23,6 +24,7 @@ import {
 
 // Runs one server edit at a time per section, tracking which row is busy and reporting the result.
 function useGuildEdit(guildId: string) {
+  const { t } = useI18n();
   const toast = useToast();
   const mutation = useGuildMutation(guildId);
   const [ busyKey, setBusyKey ] = useState<string | null>(null);
@@ -41,7 +43,7 @@ function useGuildEdit(guildId: string) {
       setFailedField(field);
       // field errors show next to the field instead
       if (!field) {
-        toast(errorMessage(error, 'Couldn’t save that change.'), 'error');
+        toast(errorMessage(error, t('sections.save_error')), 'error');
       }
       return false;
     } finally {
@@ -85,13 +87,14 @@ export function EditButton({ label, disabled, onClick }: {label: string, disable
 }
 
 
-function AddRow({ onSubmit, children, pending, disabled, label = 'Add' }: {
+function AddRow({ onSubmit, children, pending, disabled, label }: {
   onSubmit: () => void,
   children: ReactNode,
   pending: boolean,
   disabled: boolean,
   label?: string,
 }) {
+  const { t } = useI18n();
   return (
     <form
       className='mt-4 flex flex-col gap-3 border-t border-line pt-4 sm:flex-row sm:flex-wrap sm:items-start'
@@ -106,7 +109,7 @@ function AddRow({ onSubmit, children, pending, disabled, label = 'Add' }: {
       {/* lines up with the inputs (below their labels), not with the hints under them */}
       <button type='submit' className='btn btn-secondary shrink-0 sm:mt-[1.625rem] sm:h-[2.375rem]' disabled={disabled || pending}>
         {(pending) ? <Spinner className='size-4'/> : <Plus aria-hidden className='size-4'/>}
-        {label}
+        {label ?? t('common.add')}
       </button>
     </form>
   );
@@ -117,6 +120,7 @@ function AddRow({ onSubmit, children, pending, disabled, label = 'Add' }: {
 
 // the server owner and admins skip every rule unless it (or a rule) says otherwise
 function AdminBypassToggle({ guild, edit }: {guild: UserGuild, edit: ReturnType<typeof useGuildEdit>}) {
+  const { t } = useI18n();
   const editable = guild.editable.rules_admin;
   const staff = useGuildScope() === 'admin';
   return (
@@ -124,14 +128,12 @@ function AdminBypassToggle({ guild, edit }: {guild: UserGuild, edit: ReturnType<
       <Toggle
         checked={guild.settings.rules_admin_bypass}
         disabled={!editable || edit.pending}
-        label='Server owner and admins skip the rules'
-        description={(editable)
-          ? 'Turn off to make them follow the rules too. A rule can override this.'
-          : (staff) ? 'Only bot owners can change a server’s settings.' : 'Only the server owner and admins can change this.'}
+        label={t('bypass.label')}
+        description={t((editable) ? 'bypass.description' : (staff) ? 'bypass.staff' : 'bypass.owner_only')}
         onChange={(value) => void edit.run(
           '\u0000bypass',
           {kind: 'settings', patch: {rules_admin_bypass: value}},
-          (value) ? 'The server owner and admins skip the rules again' : 'The server owner and admins now follow the rules',
+          t((value) ? 'bypass.on' : 'bypass.off'),
         )}
       />
     </div>
@@ -148,14 +150,15 @@ function RuleAdminBypass({ rule, serverValue, editable, busy, disabled, onChange
   disabled: boolean,
   onChange: (value: boolean | null) => void,
 }) {
+  const { t } = useI18n();
   if (!editable) {
     if (rule.admin_bypass === null) {
       return null;
     }
-    return <span className='shrink-0 text-xs text-subtle'>{(rule.admin_bypass) ? 'Admins skip' : 'Admins follow'}</span>;
+    return <span className='shrink-0 text-xs text-subtle'>{t((rule.admin_bypass) ? 'bypass.skip' : 'bypass.follow')}</span>;
   }
   const value = (rule.admin_bypass === null) ? '' : String(rule.admin_bypass);
-  const label = 'Owner/admin bypass for this rule';
+  const label = t('bypass.rule_label');
   return (
     <div className='flex shrink-0 items-center gap-1.5'>
       {(busy) ? <Spinner className='size-3.5'/> : null}
@@ -167,9 +170,9 @@ function RuleAdminBypass({ rule, serverValue, editable, busy, disabled, onChange
         disabled={disabled}
         onChange={(event) => onChange((event.target.value === '') ? null : event.target.value === 'true')}
       >
-        <option value=''>{`Default (admins ${(serverValue) ? 'skip' : 'follow'})`}</option>
-        <option value='true'>Admins skip</option>
-        <option value='false'>Admins follow</option>
+        <option value=''>{t((serverValue) ? 'bypass.default_skip' : 'bypass.default_follow')}</option>
+        <option value='true'>{t('bypass.skip')}</option>
+        <option value='false'>{t('bypass.follow')}</option>
       </select>
     </div>
   );
@@ -179,6 +182,7 @@ function RuleAdminBypass({ rule, serverValue, editable, busy, disabled, onChange
 /* prefixes */
 
 export function PrefixesSection({ guild }: {guild: UserGuild}) {
+  const { t } = useI18n();
   const editable = guild.editable.prefixes;
   const readOnlyMessage = useReadOnlyMessage();
   const edit = useGuildEdit(guild.id);
@@ -189,9 +193,9 @@ export function PrefixesSection({ guild }: {guild: UserGuild}) {
 
   return (
     <Panel
-      title='Prefixes'
+      title={t('prefixes.title')}
       accent='#5865f2'
-      description='What messages must start with to run NotSoBot commands here. Mentioning the bot always works.'
+      description={t('prefixes.description')}
       readOnly={(editable) ? undefined : readOnlyMessage('prefixes')}
     >
       {(guild.prefixes.length) ? (
@@ -202,30 +206,30 @@ export function PrefixesSection({ guild }: {guild: UserGuild}) {
               <code className='font-mono text-sm whitespace-pre text-code'>{item.prefix.replace(/ /g, '␣')}</code>
               {(editable) ? (
                 <RemoveButton
-                  label={`Remove prefix ${item.prefix}`}
+                  label={t('prefixes.remove', {prefix: item.prefix})}
                   busy={edit.busyKey === item.prefix}
                   disabled={edit.pending}
-                  onClick={() => void edit.run(item.prefix, {kind: 'prefix', prefix: item.prefix, present: false}, `Removed prefix “${item.prefix}”`)}
+                  onClick={() => void edit.run(item.prefix, {kind: 'prefix', prefix: item.prefix, present: false}, t('prefixes.removed', {prefix: item.prefix}))}
                 />
               ) : <span className='w-2'/>}
             </li>
           ))}
         </ul>
       ) : (
-        <p className='text-sm text-muted'>No custom prefixes; the defaults are used.</p>
+        <p className='text-sm text-muted'>{t('prefixes.none')}</p>
       )}
       {(editable) ? (
         <AddRow
           pending={edit.busyKey === '\u0000add'}
           disabled={!trimmed || exists || 128 < trimmed.length || edit.pending}
-          label='Add prefix'
+          label={t('prefixes.add')}
           onSubmit={async () => {
-            if (await edit.run('\u0000add', {kind: 'prefix', prefix: trimmed, present: true}, `Added prefix “${trimmed}”`)) {
+            if (await edit.run('\u0000add', {kind: 'prefix', prefix: trimmed, present: true}, t('prefixes.added', {prefix: trimmed}))) {
               setPrefix('');
             }
           }}
         >
-          <Field className='flex-1' label='New prefix' hint={(exists) ? 'That prefix is already set.' : 'Up to 128 characters. Spaces at the start or end are removed.'}>
+          <Field className='flex-1' label={t('prefixes.new')} hint={t((exists) ? 'prefixes.exists' : 'prefixes.hint')}>
             {(props) => <input {...props} className='input font-mono' value={prefix} maxLength={128} onChange={(event) => setPrefix(event.target.value)} autoComplete='off' spellCheck={false}/>}
           </Field>
         </AddRow>
@@ -237,10 +241,8 @@ export function PrefixesSection({ guild }: {guild: UserGuild}) {
 
 /* rules */
 
-// the categories a rule can cover (bot owner commands can't be blocked), alphabetical like the commands page
-const RULE_CATEGORIES = Object.values(CommandCategories)
-  .filter((category) => category !== CommandCategories.OWNER)
-  .sort((a, b) => categoryMeta(a).label.localeCompare(categoryMeta(b).label));
+// the categories a rule can cover (bot owner commands can't be blocked), sorted by their label where they're shown
+const RULE_CATEGORIES = Object.values(CommandCategories).filter((category) => category !== CommandCategories.OWNER);
 
 // the list reads from the whole server down to single users, like the bot's `rules` command
 const TARGET_ORDER: Record<GuildRuleTargetType, number> = {guild: 0, channel: 1, role: 2, user: 3};
@@ -255,14 +257,15 @@ function coversEverything(rule: {category?: string | null, command?: string | nu
 
 
 function RuleCoverage({ rule, commandNames }: {rule: GuildRule, commandNames: Map<string, string>}) {
+  const { t } = useI18n();
   if (rule.command) {
     return <code className='font-mono text-sm text-code'>{commandNames.get(rule.command) ?? rule.command}</code>;
   }
   if (rule.category) {
     const meta = categoryMeta(rule.category);
-    return <span className='text-sm font-medium text-white'>{meta.label} commands</span>;
+    return <span className='text-sm font-medium text-white'>{t('rules.category', {category: t(meta.label)})}</span>;
   }
-  return <span className='text-sm font-medium text-white'>Every command</span>;
+  return <span className='text-sm font-medium text-white'>{t('rules.every')}</span>;
 }
 
 
@@ -274,9 +277,10 @@ function RuleMessageEditor({ initial, busy, disabled, onSave, onCancel }: {
   onSave: (message: string | null) => void,
   onCancel: () => void,
 }) {
+  const { t } = useI18n();
   const [ message, setMessage ] = useState(initial);
   const trimmed = message.trim();
-  const label = 'Message for this rule';
+  const label = t('rules.message_label');
   return (
     <form
       className='mt-1.5 flex flex-wrap items-center gap-2'
@@ -295,7 +299,7 @@ function RuleMessageEditor({ initial, busy, disabled, onSave, onCancel }: {
       <input
         aria-label={label}
         className='input h-8 min-w-[12rem] flex-1 py-0 text-sm'
-        placeholder='No message'
+        placeholder={t('rules.no_message')}
         value={message}
         maxLength={200}
         onChange={(event) => setMessage(event.target.value)}
@@ -311,15 +315,16 @@ function RuleMessageEditor({ initial, busy, disabled, onSave, onCancel }: {
       <span className='text-xs text-subtle tabular-nums'>{message.length}/200</span>
       <button type='submit' className='btn btn-sm btn-secondary' disabled={disabled}>
         {(busy) ? <Spinner className='size-3.5'/> : null}
-        Save
+        {t('common.save')}
       </button>
-      <button type='button' className='btn btn-sm btn-ghost' disabled={busy} onClick={onCancel}>Cancel</button>
+      <button type='button' className='btn btn-sm btn-ghost' disabled={busy} onClick={onCancel}>{t('common.cancel')}</button>
     </form>
   );
 }
 
 
 export function RulesSection({ guild }: {guild: UserGuild}) {
+  const { t } = useI18n();
   const editable = guild.editable.rules;
   const adminEditable = guild.editable.rules_admin;
   const readOnlyMessage = useReadOnlyMessage();
@@ -376,15 +381,9 @@ export function RulesSection({ guild }: {guild: UserGuild}) {
 
   return (
     <Panel
-      title='Rules'
+      title={t('rules.title')}
       accent='#ed4245'
-      description={(
-        <>
-          Block or allow every command, a category, or one command for the whole server, a channel, a role or a user.
-          The most specific rule wins: a user beats a role, a role beats a channel, a channel beats the whole server, then
-          a command beats its category and a category beats every command. Two equally specific rules that disagree block.
-        </>
-      )}
+      description={t('rules.description')}
       readOnly={(editable) ? undefined : readOnlyMessage('rules')}
     >
       <AdminBypassToggle guild={guild} edit={edit}/>
@@ -404,12 +403,12 @@ export function RulesSection({ guild }: {guild: UserGuild}) {
                     (rule.value.allow) ? 'bg-success/15 text-success' : 'bg-danger/15 text-danger',
                   )}
                 >
-                  {(rule.value.allow) ? 'Allow' : 'Block'}
+                  {t((rule.value.allow) ? 'rules.allow' : 'rules.block')}
                 </span>
                 <div className='min-w-[10rem] flex-1'>
                   <div className='flex flex-wrap items-center gap-x-1.5 gap-y-0.5'>
                     <RuleCoverage rule={rule} commandNames={commandNames}/>
-                    <span className='text-sm text-subtle'>{(rule.target_type === 'channel' || rule.target_type === 'guild') ? 'in' : 'for'}</span>
+                    <span className='text-sm text-subtle'>{t((rule.target_type === 'channel' || rule.target_type === 'guild') ? 'rules.in' : 'rules.for')}</span>
                     <EntryMention type={rule.target_type} id={rule.target_id}/>
                   </div>
                   {(editing) ? (
@@ -420,35 +419,35 @@ export function RulesSection({ guild }: {guild: UserGuild}) {
                       onCancel={() => setEditingId(null)}
                       onSave={async (message) => {
                         const action: GuildAction = {kind: 'rule-edit', ruleId: rule.id, value: {allow: false, message}};
-                        if (await edit.run(messageKey, action, (message) ? 'Updated the rule’s message' : 'Removed the rule’s message')) {
+                        if (await edit.run(messageKey, action, t((message) ? 'rules.message_updated' : 'rules.message_removed'))) {
                           setEditingId(null);
                         }
                       }}
                     />
                   ) : (rule.value.message) ? <p className='mt-0.5 text-xs text-muted'>“{rule.value.message}”</p> : null}
                 </div>
-                <span className='hidden text-xs text-subtle sm:inline'>added {formatDate(rule.added)}</span>
+                <span className='hidden text-xs text-subtle sm:inline'>{t('rules.added_on', {date: formatDate(rule.added)})}</span>
                 <RuleAdminBypass
                   rule={rule}
                   serverValue={guild.settings.rules_admin_bypass}
                   editable={adminEditable}
                   busy={edit.busyKey === bypassKey}
                   disabled={edit.pending}
-                  onChange={(adminBypass) => void edit.run(bypassKey, {kind: 'rule-edit', ruleId: rule.id, adminBypass}, 'Updated the owner/admin bypass')}
+                  onChange={(adminBypass) => void edit.run(bypassKey, {kind: 'rule-edit', ruleId: rule.id, adminBypass}, t('rules.bypass_updated'))}
                 />
                 {(messageEditable && !editing) ? (
                   <EditButton
-                    label={(rule.value.message) ? 'Edit this rule’s message' : 'Add a message to this rule'}
+                    label={t((rule.value.message) ? 'rules.edit_message' : 'rules.add_message')}
                     disabled={edit.pending}
                     onClick={() => setEditingId(rule.id)}
                   />
                 ) : null}
                 {(canChange(rule)) ? (
                   <RemoveButton
-                    label='Remove this rule'
+                    label={t('rules.remove')}
                     busy={edit.busyKey === rule.id}
                     disabled={edit.pending}
-                    onClick={() => void edit.run(rule.id, {kind: 'rules-remove', ids: [rule.id]}, 'Removed the rule')}
+                    onClick={() => void edit.run(rule.id, {kind: 'rules-remove', ids: [rule.id]}, t('rules.removed'))}
                   />
                 ) : null}
               </li>
@@ -456,13 +455,13 @@ export function RulesSection({ guild }: {guild: UserGuild}) {
           })}
         </ul>
       ) : (
-        <EmptyState title='No rules'>Every command can be used everywhere.</EmptyState>
+        <EmptyState title={t('rules.empty')}>{t('rules.empty_description')}</EmptyState>
       )}
       {(editable) ? (
         <AddRow
           pending={edit.busyKey === '\u0000add'}
           disabled={!valid || edit.pending}
-          label='Add rule'
+          label={t('rules.add')}
           onSubmit={async () => {
             const action: GuildAction = {kind: 'rules-add', rules: [{
               action: 'access',
@@ -472,36 +471,39 @@ export function RulesSection({ guild }: {guild: UserGuild}) {
               target_type: type,
               value: {allow, message: (allow) ? null : message.trim() || null},
             }]};
-            if (await edit.run('\u0000add', action, (allow) ? 'Added an allow rule' : 'Added a block rule')) {
+            if (await edit.run('\u0000add', action, t((allow) ? 'rules.added_allow' : 'rules.added_block'))) {
               setId('');
               setMessage('');
             }
           }}
         >
-          <Field label='Action' className='sm:w-28'>
+          <Field label={t('rules.action')} className='sm:w-28'>
             {(props) => (
               <select {...props} className='input' value={(allow) ? 'allow' : 'block'} onChange={(event) => setAllow(event.target.value === 'allow')}>
-                <option value='block'>Block</option>
-                <option value='allow'>Allow</option>
+                <option value='block'>{t('rules.block')}</option>
+                <option value='allow'>{t('rules.allow')}</option>
               </select>
             )}
           </Field>
-          <Field label='What' className='sm:w-52' hint={(needsAdmin && !adminEditable) ? 'Rules for every command need Administrator.' : undefined}>
+          <Field label={t('rules.what')} className='sm:w-52' hint={(needsAdmin && !adminEditable) ? t('rules.needs_admin') : undefined}>
             {(props) => (
               <select {...props} className='input' value={covers} onChange={(event) => setCovers(event.target.value)}>
-                <option value=''>Every command</option>
-                <optgroup label='Category'>
-                  {RULE_CATEGORIES.map((value) => <option key={value} value={`category:${value}`}>{categoryMeta(value).label}</option>)}
+                <option value=''>{t('rules.every')}</option>
+                <optgroup label={t('rules.category_group')}>
+                  {RULE_CATEGORIES
+                    .map((value) => ({value, label: t(categoryMeta(value).label)}))
+                    .sort((a, b) => a.label.localeCompare(b.label))
+                    .map(({ value, label }) => <option key={value} value={`category:${value}`}>{label}</option>)}
                 </optgroup>
-                <option value='command'>One command…</option>
+                <option value='command'>{t('rules.one_command')}</option>
               </select>
             )}
           </Field>
           {(covers === 'command') ? (
-            <Field label='Command' className='sm:w-44' error={(command.trim() && !commandId) ? 'No command by that name.' : null}>
+            <Field label={t('rules.command')} className='sm:w-44' error={(command.trim() && !commandId) ? t('rules.no_command') : null}>
               {(props) => (
                 <>
-                  <input {...props} list={datalistId} className='input font-mono' placeholder='e.g. imagine' value={command} onChange={(event) => setCommand(event.target.value)} autoComplete='off' spellCheck={false}/>
+                  <input {...props} list={datalistId} className='input font-mono' placeholder={t('rules.command_placeholder')} value={command} onChange={(event) => setCommand(event.target.value)} autoComplete='off' spellCheck={false}/>
                   <datalist id={datalistId}>
                     {[...commandNames.values()].sort().map((name) => <option key={name} value={name}/>)}
                   </datalist>
@@ -511,12 +513,12 @@ export function RulesSection({ guild }: {guild: UserGuild}) {
           ) : null}
           <TypeSelect value={type} onChange={(value) => setType(value as GuildRuleTargetType)} options={RULE_TARGET_TYPES}/>
           {(type === 'guild') ? (
-            <p className='flex-1 text-sm text-muted sm:pt-[2.125rem]'>{(exists) ? 'That rule already exists.' : 'Applies to everyone in the server.'}</p>
+            <p className='flex-1 text-sm text-muted sm:pt-[2.125rem]'>{t((exists) ? 'rules.exists' : 'rules.everyone')}</p>
           ) : (
             <IdInput type={type} value={id} onChange={setId} exists={exists}/>
           )}
           {(!allow) ? (
-            <Field label='Message' className='w-full' hint='Optional. Shown to whoever the rule stops, like “Fun commands go in #bots”.' counter={`${message.length}/200`}>
+            <Field label={t('rules.message')} className='w-full' hint={t('rules.message_hint')} counter={`${message.length}/200`}>
               {(props) => <input {...props} className='input' value={message} maxLength={200} onChange={(event) => setMessage(event.target.value)} autoComplete='off'/>}
             </Field>
           ) : null}
@@ -528,8 +530,9 @@ export function RulesSection({ guild }: {guild: UserGuild}) {
 
 
 function TypeSelect({ value, onChange, options }: {value: string, onChange: (value: string) => void, options: ReadonlyArray<string>}) {
+  const { t } = useI18n();
   return (
-    <Field label='Who/where' className='sm:w-40'>
+    <Field label={t('rules.who')} className='sm:w-40'>
       {(props) => (
         <select {...props} className='input' value={value} onChange={(event) => onChange(event.target.value)}>
           {options.map((option) => <option key={option} value={option}>{ENTRY_TYPE_LABELS[option]}</option>)}
@@ -541,19 +544,20 @@ function TypeSelect({ value, onChange, options }: {value: string, onChange: (val
 
 
 function IdInput({ type, value, onChange, exists }: {type: string, value: string, onChange: (value: string) => void, exists: boolean}) {
-  const label = `${ENTRY_TYPE_LABELS[type] ?? 'Item'} ID`;
+  const { t } = useI18n();
+  const label = t('rules.id', {type: ENTRY_TYPE_LABELS[type] ?? t('rules.item')});
   return (
     <Field
       className='flex-1'
       label={label}
-      error={(value && !isSnowflake(value)) ? 'IDs are 15–21 digits. Turn on Developer Mode in Discord and use “Copy ID”.' : (exists) ? 'That rule already exists.' : null}
+      error={(value && !isSnowflake(value)) ? t('rules.bad_id') : (exists) ? t('rules.exists') : null}
     >
       {(props) => (
         <input
           {...props}
           className='input font-mono'
           inputMode='numeric'
-          placeholder='e.g. 123456789012345678'
+          placeholder={t('rules.id_placeholder')}
           value={value}
           onChange={(event) => onChange(event.target.value.replace(/[<>#@&!\s]/g, ''))}
           autoComplete='off'
@@ -567,6 +571,7 @@ function IdInput({ type, value, onChange, exists }: {type: string, value: string
 /* loggers */
 
 export function LoggersSection({ guild }: {guild: UserGuild}) {
+  const { t } = useI18n();
   const editable = guild.editable.loggers;
   const readOnlyMessage = useReadOnlyMessage();
   const edit = useGuildEdit(guild.id);
@@ -574,9 +579,9 @@ export function LoggersSection({ guild }: {guild: UserGuild}) {
 
   return (
     <Panel
-      title='Loggers'
+      title={t('loggers.title')}
       accent='#eb459e'
-      description='Post server events (message edits, joins, bans…) to a channel through a webhook.'
+      description={t('loggers.description')}
       readOnly={(editable) ? undefined : readOnlyMessage('loggers')}
     >
       {(loggers.length) ? (
@@ -589,13 +594,13 @@ export function LoggersSection({ guild }: {guild: UserGuild}) {
                   <div className='text-sm font-medium text-white'>{loggerTypeLabel(logger.type)}</div>
                   <EntryMention type='channel' id={logger.channel_id}/>
                 </div>
-                <span className='hidden text-xs text-subtle sm:inline'>added {formatDate(logger.added)}</span>
+                <span className='hidden text-xs text-subtle sm:inline'>{t('loggers.added_on', {date: formatDate(logger.added)})}</span>
                 {(editable) ? (
                   <RemoveButton
-                    label={`Remove the ${loggerTypeLabel(logger.type)} logger in ${logger.channel_id}`}
+                    label={t('loggers.remove', {type: loggerTypeLabel(logger.type).toLowerCase(), channel: logger.channel_id})}
                     busy={edit.busyKey === key}
                     disabled={edit.pending}
-                    onClick={() => void edit.run(key, {kind: 'logger-remove', channelId: logger.channel_id, type: logger.type}, `Removed the ${loggerTypeLabel(logger.type)} logger`)}
+                    onClick={() => void edit.run(key, {kind: 'logger-remove', channelId: logger.channel_id, type: logger.type}, t('loggers.removed', {type: loggerTypeLabel(logger.type).toLowerCase()}))}
                   />
                 ) : null}
               </li>
@@ -603,7 +608,7 @@ export function LoggersSection({ guild }: {guild: UserGuild}) {
           })}
         </ul>
       ) : (
-        <EmptyState title='No loggers set up'>Set one up with the loggers command in Discord.</EmptyState>
+        <EmptyState title={t('loggers.empty')}>{t('loggers.empty_description')}</EmptyState>
       )}
     </Panel>
   );

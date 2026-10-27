@@ -8,7 +8,7 @@ import { Link, useLocation } from 'react-router';
 
 import { Spinner } from '@/components/ui/Spinner';
 import { errorMessage } from '@/lib/api/dashboardQueries';
-import { cn, decodeHash, formatDate, formatMemory, formatNumber } from '@/lib/utils';
+import { cn, decodeHash, displayLocale, formatDate, formatMemory, formatNumber } from '@/lib/utils';
 
 import { ErrorPanel, Panel, Skeleton } from '../../ui';
 import { Hint, InfoTip } from '../adminUi';
@@ -28,11 +28,9 @@ export function plural(count: number, one: string, many = `${one}s`): string {
   return `${formatNumber(count)} ${(count === 1) ? one : many}`;
 }
 
-const compactFormatter = new Intl.NumberFormat(undefined, {notation: 'compact', maximumFractionDigits: 1});
-
 // 13.1M, 626K; exact below 10,000
 export function compact(value: number): string {
-  return (value < 10000) ? formatNumber(value) : compactFormatter.format(value);
+  return (value < 10000) ? formatNumber(value) : new Intl.NumberFormat(displayLocale(), {notation: 'compact', maximumFractionDigits: 1}).format(value);
 }
 
 export function bytes(value: number): string {
@@ -53,7 +51,7 @@ export function shortDate(value: string): string {
 
 // a calendar date from the api (`2026-10-20`) is UTC midnight, read in the viewer's time zone it'd be the day before
 export function dayLabel(date: string): string {
-  return new Date(`${date}T00:00:00Z`).toLocaleDateString(undefined, {month: 'short', day: 'numeric', timeZone: 'UTC'});
+  return new Date(`${date}T00:00:00Z`).toLocaleDateString(displayLocale(), {month: 'short', day: 'numeric', timeZone: 'UTC'});
 }
 
 

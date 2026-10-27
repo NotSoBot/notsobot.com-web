@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 
+import { useI18n } from '@/i18n';
 import type { TagStorageScope } from '@/lib/api';
 
 import { Field } from '../ui';
@@ -9,6 +10,7 @@ import { isSnowflake } from './tagMeta';
 // Tags store variables/blobs per user, channel and server id (plus one global slot). The API has no
 // list of every id a tag was used with, so the dashboard asks which ones to look at.
 export function StorageScopeForm({ scope, onChange }: {scope: TagStorageScope, onChange: (scope: TagStorageScope) => void}) {
+  const { t } = useI18n();
   const [ userId, setUserId ] = useState(scope.user_id ?? '');
   const [ guildId, setGuildId ] = useState(scope.guild_id ?? '');
   const [ channelId, setChannelId ] = useState(scope.channel_id ?? '');
@@ -21,9 +23,9 @@ export function StorageScopeForm({ scope, onChange }: {scope: TagStorageScope, o
   }, [scope]);
 
   const errors = {
-    user: (userId && !isSnowflake(userId)) ? 'Not a valid user ID' : null,
-    guild: (guildId && !isSnowflake(guildId)) ? 'Not a valid server ID' : null,
-    channel: (channelId && !isSnowflake(channelId)) ? 'Not a valid channel ID' : null,
+    user: (userId && !isSnowflake(userId)) ? t('dtags.scope.bad_user') : null,
+    guild: (guildId && !isSnowflake(guildId)) ? t('dtags.scope.bad_guild') : null,
+    channel: (channelId && !isSnowflake(channelId)) ? t('dtags.scope.bad_channel') : null,
   };
   const changed = userId !== (scope.user_id ?? '') || guildId !== (scope.guild_id ?? '') || channelId !== (scope.channel_id ?? '');
   const valid = !errors.user && !errors.guild && !errors.channel;
@@ -39,21 +41,21 @@ export function StorageScopeForm({ scope, onChange }: {scope: TagStorageScope, o
       }}
     >
       <p className='mb-3 text-sm text-muted'>
-        Global storage is always shown. Enter the IDs of where the tag runs to see user, server and channel storage.
+        {t('dtags.scope.description')}
       </p>
       <div className='grid grid-cols-1 gap-3 sm:grid-cols-3'>
-        <Field label='User ID' error={errors.user} hint='Defaults to you.'>
+        <Field label={t('dtags.scope.user')} error={errors.user} hint={t('dtags.scope.user_hint')}>
           {(props) => <input {...props} className='input font-mono' inputMode='numeric' value={userId} onChange={(event) => setUserId(event.target.value.trim())}/>}
         </Field>
-        <Field label='Server ID' error={errors.guild} hint='Leave empty for DMs, the channel ID is used.'>
-          {(props) => <input {...props} className='input font-mono' inputMode='numeric' placeholder='Optional' value={guildId} onChange={(event) => setGuildId(event.target.value.trim())}/>}
+        <Field label={t('dtags.scope.guild')} error={errors.guild} hint={t('dtags.scope.guild_hint')}>
+          {(props) => <input {...props} className='input font-mono' inputMode='numeric' placeholder={t('common.optional')} value={guildId} onChange={(event) => setGuildId(event.target.value.trim())}/>}
         </Field>
-        <Field label='Channel ID' error={errors.channel}>
-          {(props) => <input {...props} className='input font-mono' inputMode='numeric' placeholder='Optional' value={channelId} onChange={(event) => setChannelId(event.target.value.trim())}/>}
+        <Field label={t('dtags.scope.channel')} error={errors.channel}>
+          {(props) => <input {...props} className='input font-mono' inputMode='numeric' placeholder={t('common.optional')} value={channelId} onChange={(event) => setChannelId(event.target.value.trim())}/>}
         </Field>
       </div>
       <div className='mt-3 flex justify-end'>
-        <button type='submit' className='btn btn-secondary btn-sm' disabled={!changed || !valid}>Load storage</button>
+        <button type='submit' className='btn btn-secondary btn-sm' disabled={!changed || !valid}>{t('dtags.scope.load')}</button>
       </div>
     </form>
   );

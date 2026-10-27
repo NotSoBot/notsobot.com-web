@@ -2,17 +2,23 @@
 // sessionStorage survives the full-page round trip through discord.com but stays scoped to the tab.
 
 import { Routes } from '@/config';
+import { splitLanguagePath } from '@/i18n/languages';
 
 const STORAGE_KEY = 'auth:return-to';
 
 
+function unsafePath(value: string): boolean {
+  return !value.startsWith('/') || value.startsWith('//') || value.startsWith('/\\');
+}
+
 // Only allow same-origin paths, never protocol-relative (`//evil.com`) or back-slash tricks,
-// and never the auth routes themselves (would loop).
+// and never the auth routes themselves (would loop). In any language (`/es/auth/login` too).
 export function sanitizeReturnTo(value: string | null | undefined): string | null {
-  if (!value || !value.startsWith('/') || value.startsWith('//') || value.startsWith('/\\')) {
+  if (!value || unsafePath(value)) {
     return null;
   }
-  if (value.startsWith('/auth/')) {
+  const { path } = splitLanguagePath(value);
+  if (unsafePath(path) || path.startsWith('/auth/')) {
     return null;
   }
   return value;

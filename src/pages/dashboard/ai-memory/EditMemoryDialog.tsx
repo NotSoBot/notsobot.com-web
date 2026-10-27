@@ -4,6 +4,7 @@ import { useEffect, useId, useState } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
+import { useI18n } from '@/i18n';
 import type { LLMMemory } from '@/lib/api';
 import { errorMessage, type LLMMemoryEdit } from '@/lib/api/dashboardQueries';
 
@@ -20,6 +21,7 @@ export function EditMemoryDialog({ memory, mutation, onClose }: {
   mutation: UseMutationResult<LLMMemory, Error, LLMMemoryEdit>,
   onClose: () => void,
 }) {
+  const { t } = useI18n();
   const titleId = useId();
   const toast = useToast();
   const [ content, setContent ] = useState(memory.content);
@@ -37,7 +39,7 @@ export function EditMemoryDialog({ memory, mutation, onClose }: {
   const submit = () => {
     mutation.mutate({memoryId: memory.id, content: trimmed}, {
       onSuccess: () => {
-        toast('Memory saved');
+        toast(t('memory.saved'));
         onClose();
       },
     });
@@ -54,14 +56,14 @@ export function EditMemoryDialog({ memory, mutation, onClose }: {
           }
         }}
       >
-        <h2 id={titleId} className='pr-10 text-lg font-semibold text-white'>Edit memory</h2>
-        <p className='mt-2 text-sm text-muted'>It’s added to your NotSoAI prompts exactly as written here.</p>
+        <h2 id={titleId} className='pr-10 text-lg font-semibold text-white'>{t('memory.edit_label')}</h2>
+        <p className='mt-2 text-sm text-muted'>{t('memory.edit_description')}</p>
 
         <Field
           className='mt-4'
-          label='What NotSoAI remembers'
-          hint='NotSoAI reads this as a fact about you, like “Their name is Sam”.'
-          error={(tooLong) ? `Memories can be up to ${MEMORY_CONTENT_MAX_LENGTH} characters.` : undefined}
+          label={t('memory.field')}
+          hint={t('memory.field_hint')}
+          error={(tooLong) ? t('memory.too_long', {max: MEMORY_CONTENT_MAX_LENGTH}) : undefined}
           counter={<CharCounter length={trimmed.length} max={MEMORY_CONTENT_MAX_LENGTH}/>}
         >
           {(props) => (
@@ -77,15 +79,15 @@ export function EditMemoryDialog({ memory, mutation, onClose }: {
 
         {(mutation.isError) ? (
           <p role='alert' className='mt-4 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-fg'>
-            {errorMessage(mutation.error, 'Couldn’t save the memory.')}
+            {errorMessage(mutation.error, t('memory.save_error'))}
           </p>
         ) : null}
 
         <div className='mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
-          <button type='button' className='btn btn-secondary' onClick={onClose} disabled={mutation.isPending}>Cancel</button>
+          <button type='button' className='btn btn-secondary' onClick={onClose} disabled={mutation.isPending}>{t('common.cancel')}</button>
           <button type='submit' className='btn btn-primary' disabled={mutation.isPending || tooLong || !changed}>
             {(mutation.isPending) ? <Spinner className='size-4 border-white/40 border-t-white'/> : null}
-            Save
+            {t('common.save')}
           </button>
         </div>
       </form>

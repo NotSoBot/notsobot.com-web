@@ -1,10 +1,11 @@
 import { Crown, MessageSquare, TrendingUp, User } from 'lucide-react';
 import type { CSSProperties } from 'react';
 
+import { useI18n } from '@/i18n';
 import { CommandTypes, type CommandPremium, type CommandType } from '@/lib/api';
 import { cn, formatCompact, formatNumber } from '@/lib/utils';
 
-import { categoryMeta, PREFIXES, PREMIUM_META, type Entry } from './commandMeta';
+import { categoryMeta, PREFIXES, premiumMeta, type Entry } from './commandMeta';
 
 
 // cards read their accent from `--cat`
@@ -25,23 +26,25 @@ export function CommandName({ type, name, className }: {type: CommandType, name:
 
 
 export function PremiumBadge({ premium, className }: {premium?: CommandPremium | null, className?: string}) {
+  const { t } = useI18n();
   if (!premium) {
     return null;
   }
-  const meta = PREMIUM_META[premium];
+  const meta = premiumMeta(premium);
   return (
     <span
-      title={meta.label}
+      title={t(meta.label)}
       className={cn('inline-flex shrink-0 items-center gap-1 rounded bg-warning/15 px-1.5 py-0.5 text-xs font-medium whitespace-nowrap text-warning', className)}
     >
       <Crown aria-hidden className='size-3'/>
-      {meta.badge}
+      {t(meta.badge)}
     </span>
   );
 }
 
 
 export function CategoryBadge({ category, className }: {category: string, className?: string}) {
+  const { t } = useI18n();
   if (!category) {
     return null;
   }
@@ -57,30 +60,32 @@ export function CategoryBadge({ category, className }: {category: string, classN
       )}
     >
       <Icon aria-hidden className='size-3'/>
-      {meta.label}
+      {t(meta.label)}
     </span>
   );
 }
 
 
 export function UsesLabel({ entry, className }: {entry: Entry, className?: string}) {
+  const { t } = useI18n();
   if (!entry.uses) {
-    return <span className={cn('text-xs text-subtle', className)}>No uses this week</span>;
+    return <span className={cn('text-xs text-subtle', className)}>{t('commands.no_uses')}</span>;
   }
   const hot = entry.rank !== null && entry.rank <= 10;
   return (
     <span
-      title={`${formatNumber(entry.uses)} uses in the last 7 days · #${entry.rank} overall`}
+      title={t('commands.uses_title', {uses: formatNumber(entry.uses), rank: entry.rank})}
       className={cn('inline-flex items-center gap-1 text-xs tabular-nums', hot ? 'text-white' : 'text-muted', className)}
     >
       {(hot) ? <TrendingUp aria-hidden className='size-3.5 text-success'/> : null}
-      {formatCompact(entry.uses)}<span className='text-subtle'>/wk</span>
+      {formatCompact(entry.uses)}<span className='text-subtle'>{t('commands.per_week')}</span>
     </span>
   );
 }
 
 
 export function CommandCard({ entry, onOpen }: {entry: Entry, onOpen: () => void}) {
+  const { t } = useI18n();
   const { metadata } = entry;
   return (
     <li>
@@ -94,12 +99,12 @@ export function CommandCard({ entry, onOpen }: {entry: Entry, onOpen: () => void
         )}
       >
         <CommandName type={metadata.type} name={metadata.name} className='text-base font-semibold text-white'/>
-        <p className='mt-1.5 mb-3 line-clamp-2 text-sm text-muted'>{metadata.description || 'No description available'}</p>
+        <p className='mt-1.5 mb-3 line-clamp-2 text-sm text-muted'>{metadata.description || t('commands.no_description')}</p>
         <div className='mt-auto flex items-center justify-between gap-2'>
           <div className='flex min-w-0 items-center gap-1.5'>
             <CategoryBadge category={entry.category}/>
             <PremiumBadge premium={metadata.premium}/>
-            {(metadata.dmable) ? <span className='rounded bg-success/15 px-1.5 py-0.5 text-xs font-medium text-success'>DM</span> : null}
+            {(metadata.dmable) ? <span className='rounded bg-success/15 px-1.5 py-0.5 text-xs font-medium text-success'>{t('commands.dm_badge')}</span> : null}
           </div>
           <UsesLabel entry={entry}/>
         </div>
@@ -110,6 +115,7 @@ export function CommandCard({ entry, onOpen }: {entry: Entry, onOpen: () => void
 
 
 export function TrendingCard({ entry, max, onOpen }: {entry: Entry, max: number, onOpen: () => void}) {
+  const { t } = useI18n();
   const meta = categoryMeta(entry.category);
   const Icon = meta.icon;
   return (
@@ -129,11 +135,11 @@ export function TrendingCard({ entry, max, onOpen }: {entry: Entry, max: number,
           </span>
         </div>
         <CommandName type={entry.metadata.type} name={entry.metadata.name} className='text-lg font-semibold text-white'/>
-        <p className='mt-1 mb-4 line-clamp-1 text-sm text-muted'>{entry.metadata.description || meta.label}</p>
+        <p className='mt-1 mb-4 line-clamp-1 text-sm text-muted'>{entry.metadata.description || t(meta.label)}</p>
         <div className='mt-auto'>
           <div className='mb-1.5 flex items-baseline justify-between'>
             <span className='text-xl font-bold text-white tabular-nums'>{formatCompact(entry.uses)}</span>
-            <span className='text-xs text-subtle'>uses this week</span>
+            <span className='text-xs text-subtle'>{t('commands.uses_this_week')}</span>
           </div>
           <div className='h-1 overflow-hidden rounded-full bg-deep'>
             <div className='h-full rounded-full bg-[var(--cat)]' style={{width: `${Math.max(4, (entry.uses / max) * 100)}%`}}/>

@@ -2,6 +2,7 @@ import { Globe, Lock, MessageCircle, Server, Trash2, User, Users, type LucideIco
 import { generatePath, Link } from 'react-router';
 
 import { Routes } from '@/config';
+import { translate, useI18n } from '@/i18n';
 import { TagDirectoryVerificationStates, TagStorageTypes, type Tag, type TagStorageType, type UserMe } from '@/lib/api';
 
 import { dashboardServerPath } from '../servers/guildMeta';
@@ -19,12 +20,13 @@ export const TAG_BLOB_MAX_BYTES = 256 * 1024;
 // a tag card's own delete, above the card's stretched open button (so it doesn't open the tag). With a mouse it shows
 // while the card is hovered or focused, on touch screens it's always there
 export function TagCardDeleteButton({ name, onClick }: {name: string, onClick: () => void}) {
+  const { t } = useI18n();
   return (
     <button
       type='button'
       className='btn btn-ghost btn-sm relative z-10 -my-1.5 shrink-0 px-1.5 text-subtle transition-opacity hover:text-danger pointer-fine:opacity-0 pointer-fine:group-focus-within:opacity-100 pointer-fine:group-hover:opacity-100'
-      aria-label={`Delete ${name}`}
-      title='Delete'
+      aria-label={t('dtags.delete_label', {name})}
+      title={t('common.delete')}
       onClick={(event) => {
         event.stopPropagation();
         onClick();
@@ -72,19 +74,19 @@ export function tagLocation(
 ): TagLocation {
   const serverId = tag.server_id;
   if (!serverId) {
-    return {kind: 'global', icon: Globe, label: 'Global', id: null, named: false};
+    return {kind: 'global', icon: Globe, label: translate('dtags.location.global'), id: null, named: false};
   }
   if (user && serverId === user.id) {
-    return {kind: 'personal', icon: User, label: 'Personal', id: null, named: false};
+    return {kind: 'personal', icon: User, label: translate('dtags.location.personal'), id: null, named: false};
   }
   if (tag.guild_id && serverId === tag.guild_id) {
     const name = guildNames?.get(serverId);
-    return {kind: 'server', icon: Server, label: name ?? 'Server', id: serverId, named: !!name};
+    return {kind: 'server', icon: Server, label: name ?? translate('dtags.location.server'), id: serverId, named: !!name};
   }
   if (user?.channel_id && serverId === user.channel_id) {
-    return {kind: 'dm', icon: MessageCircle, label: 'DM with NotSoBot', id: serverId, named: false};
+    return {kind: 'dm', icon: MessageCircle, label: translate('dtags.location.dm'), id: serverId, named: false};
   }
-  return {kind: 'group_dm', icon: Users, label: 'Group DM', id: serverId, named: false};
+  return {kind: 'group_dm', icon: Users, label: translate('dtags.location.group_dm'), id: serverId, named: false};
 }
 
 // the server's modal on the dashboard, for servers in the caller's list (the named ones)
@@ -95,11 +97,11 @@ export function tagServerPath(location: TagLocation): string | undefined {
 // "Cool Gamers Club (1100…)", "your DM with NotSoBot", "a group DM (1300…)"
 export function describeTagLocation(location: TagLocation): string {
   switch (location.kind) {
-    case 'server': return (location.named) ? `${location.label} (${location.id})` : `server ${location.id}`;
-    case 'dm': return 'your DM with NotSoBot';
-    case 'group_dm': return `a group DM (${location.id})`;
-    case 'personal': return 'your personal tags';
-    case 'global': return 'global tags';
+    case 'server': return (location.named) ? `${location.label} (${location.id})` : translate('dtags.describe.server_unnamed', {id: location.id});
+    case 'dm': return translate('dtags.describe.dm');
+    case 'group_dm': return translate('dtags.describe.group_dm', {id: location.id});
+    case 'personal': return translate('dtags.describe.personal');
+    case 'global': return translate('dtags.describe.global');
   }
 }
 
@@ -119,6 +121,7 @@ export function TagLocationLabel({ location, className }: {location: TagLocation
 // the tag list cards' location: a chip with the name up front and the id trailing behind it, truncated first.
 // With `to` it's a link (sitting above the card's stretched button so it stays clickable)
 export function TagLocationChip({ location, to }: {location: TagLocation, to?: string}) {
+  const { t } = useI18n();
   const Icon = location.icon;
   const content = (
     <>
@@ -139,7 +142,7 @@ export function TagLocationChip({ location, to }: {location: TagLocation, to?: s
       <Link
         to={to}
         className={`group/location relative z-10 ${className} transition-colors hover:border-brand hover:bg-surface-3`}
-        title={`Open ${location.label} on the dashboard · ${location.id}`}
+        title={t('dtags.open_location', {name: location.label, id: location.id})}
       >
         {content}
       </Link>
@@ -153,13 +156,14 @@ export function TagLocationChip({ location, to }: {location: TagLocation, to?: s
 type StatusTag = Pick<Tag, 'directory' | 'is_command' | 'is_on_directory' | 'locked'>;
 
 export function TagStatusBadges({ tag }: {tag: StatusTag}) {
+  const { t } = useI18n();
   return (
     <>
       <DirectoryStatusBadge tag={tag}/>
-      {(tag.is_command) ? <span className='rounded bg-brand/20 px-1.5 py-0.5 text-[11px] font-medium text-[#a5acff]'>Command</span> : null}
+      {(tag.is_command) ? <span className='rounded bg-brand/20 px-1.5 py-0.5 text-[11px] font-medium text-[#a5acff]'>{t('dtags.badge.command')}</span> : null}
       {(tag.locked) ? (
         <span className='inline-flex items-center gap-1 rounded bg-warning/15 px-1.5 py-0.5 text-[11px] font-medium text-warning'>
-          <Lock aria-hidden className='size-3'/> Locked
+          <Lock aria-hidden className='size-3'/> {t('dtags.badge.locked')}
         </span>
       ) : null}
     </>
@@ -169,35 +173,37 @@ export function TagStatusBadges({ tag }: {tag: StatusTag}) {
 
 // the listing's verification state when the list sent it (`tag.directory`), otherwise just whether it's a directory tag
 function DirectoryStatusBadge({ tag }: {tag: StatusTag}) {
+  const { t } = useI18n();
   if (tag.directory === undefined) {
-    return (tag.is_on_directory) ? <span className='rounded bg-success/15 px-1.5 py-0.5 text-[11px] font-medium text-success'>Directory</span> : null;
+    return (tag.is_on_directory) ? <span className='rounded bg-success/15 px-1.5 py-0.5 text-[11px] font-medium text-success'>{t('dtags.badge.directory')}</span> : null;
   }
   if (!tag.directory) {
     return null;
   }
-  const [ label, className ] = (tag.directory.verified === TagDirectoryVerificationStates.VERIFIED) ? ['Verified', 'bg-success/15 text-success']
-    : (tag.directory.verified === TagDirectoryVerificationStates.PENDING_VERIFICATION) ? ['Pending', 'bg-warning/15 text-warning']
-    : ['Unverified', 'bg-surface-3 text-muted'];
+  const [ label, className ] = (tag.directory.verified === TagDirectoryVerificationStates.VERIFIED) ? [t('tags.verified'), 'bg-success/15 text-success']
+    : (tag.directory.verified === TagDirectoryVerificationStates.PENDING_VERIFICATION) ? [t('tags.pending_short'), 'bg-warning/15 text-warning']
+    : [t('tags.unverified'), 'bg-surface-3 text-muted'];
   return (
-    <span className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${className}`} title={`Tag directory: ${label.toLowerCase()}`}>
-      Directory · {label}
+    <span className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${className}`} title={t('dtags.badge.directory_title', {state: label.toLowerCase()})}>
+      {t('dtags.badge.directory_state', {state: label})}
     </span>
   );
 }
 
 
 export function TagBadges({ tag }: {tag: Tag}) {
+  const { t } = useI18n();
   return (
     <>
       {(tag.locked) ? (
         <span className='inline-flex items-center gap-1 rounded bg-warning/15 px-1.5 py-0.5 text-[11px] font-medium text-warning'>
-          <Lock aria-hidden className='size-3'/> Locked
+          <Lock aria-hidden className='size-3'/> {t('dtags.badge.locked')}
         </span>
       ) : null}
-      {(tag.nsfw) ? <span className='rounded bg-danger/15 px-1.5 py-0.5 text-[11px] font-medium text-danger'>NSFW</span> : null}
-      {(tag.is_command) ? <span className='rounded bg-brand/20 px-1.5 py-0.5 text-[11px] font-medium text-[#a5acff]'>Command</span> : null}
-      {(tag.is_on_directory) ? <span className='rounded bg-success/15 px-1.5 py-0.5 text-[11px] font-medium text-success'>Directory</span> : null}
-      {(tag.reference_tag) ? <span className='rounded bg-surface-3 px-1.5 py-0.5 text-[11px] font-medium text-muted'>Alias</span> : null}
+      {(tag.nsfw) ? <span className='rounded bg-danger/15 px-1.5 py-0.5 text-[11px] font-medium text-danger'>{t('tags.nsfw')}</span> : null}
+      {(tag.is_command) ? <span className='rounded bg-brand/20 px-1.5 py-0.5 text-[11px] font-medium text-[#a5acff]'>{t('dtags.badge.command')}</span> : null}
+      {(tag.is_on_directory) ? <span className='rounded bg-success/15 px-1.5 py-0.5 text-[11px] font-medium text-success'>{t('dtags.badge.directory')}</span> : null}
+      {(tag.reference_tag) ? <span className='rounded bg-surface-3 px-1.5 py-0.5 text-[11px] font-medium text-muted'>{t('dtags.badge.alias')}</span> : null}
     </>
   );
 }
@@ -210,12 +216,12 @@ export interface StorageMeta {
   color: string,
 }
 
-// global first: it's the one every tag can use without knowing any ids
+// global first: it's the one every tag can use without knowing any ids. The labels are getters, read in the language on screen
 export const STORAGE_ORDER: ReadonlyArray<StorageMeta> = [
-  {type: TagStorageTypes.GLOBAL, label: 'Global', description: 'Shared everywhere the tag runs.', color: '#5865f2'},
-  {type: TagStorageTypes.USER, label: 'User', description: 'Per user who runs the tag.', color: '#3ba55c'},
-  {type: TagStorageTypes.GUILD, label: 'Server', description: 'Per server the tag runs in.', color: '#faa81a'},
-  {type: TagStorageTypes.CHANNEL, label: 'Channel', description: 'Per channel the tag runs in.', color: '#00b0f4'},
+  {type: TagStorageTypes.GLOBAL, get label() { return translate('dtags.storage.global'); }, get description() { return translate('dtags.storage.global_description'); }, color: '#5865f2'},
+  {type: TagStorageTypes.USER, get label() { return translate('dtags.storage.user'); }, get description() { return translate('dtags.storage.user_description'); }, color: '#3ba55c'},
+  {type: TagStorageTypes.GUILD, get label() { return translate('dtags.storage.guild'); }, get description() { return translate('dtags.storage.guild_description'); }, color: '#faa81a'},
+  {type: TagStorageTypes.CHANNEL, get label() { return translate('dtags.storage.channel'); }, get description() { return translate('dtags.storage.channel_description'); }, color: '#00b0f4'},
 ];
 
 

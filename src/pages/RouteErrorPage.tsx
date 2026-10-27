@@ -3,10 +3,12 @@ import { isRouteErrorResponse, Link, useRouteError } from 'react-router';
 
 import { FullPageMessage } from '@/components/ui/FullPageMessage';
 import { Routes } from '@/config';
+import { useI18n } from '@/i18n';
 import { isChunkLoadError, reloadForNewBuild } from '@/lib/chunkReload';
 
 
 export function RouteErrorPage() {
+  const { t } = useI18n();
   const error = useRouteError();
   // production builds swallow this otherwise, so there'd be nothing to go on
   useEffect(() => console.error('Route error:', error), [error]);
@@ -22,11 +24,11 @@ export function RouteErrorPage() {
     return null;
   }
 
-  let description = 'Something broke while rendering this page.';
+  let description = t('route_error.description');
   if (isRouteErrorResponse(error)) {
     description = `${error.status} ${error.statusText}`;
   } else if (isChunkLoadError(error)) {
-    description = 'This page couldn’t finish loading, probably because the site just updated.';
+    description = t('route_error.chunk');
   } else if (error instanceof Error && import.meta.env.DEV) {
     description = error.message;
   }
@@ -34,11 +36,11 @@ export function RouteErrorPage() {
   const details = (!import.meta.env.DEV && error instanceof Error && !isChunkLoadError(error)) ? error.message : null;
 
   return (
-    <FullPageMessage title='Well, that was unexpected' description={description}>
+    <FullPageMessage title={t('route_error.title')} description={description}>
       {(details) ? <code className='max-w-xl font-mono text-xs break-words text-subtle select-all'>{details}</code> : null}
       <div className='flex gap-2'>
-        <button type='button' className='btn btn-secondary' onClick={() => window.location.reload()}>Reload</button>
-        <Link to={Routes.HOME} className='btn btn-primary'>Go home</Link>
+        <button type='button' className='btn btn-secondary' onClick={() => window.location.reload()}>{t('common.reload')}</button>
+        <Link to={Routes.HOME} className='btn btn-primary'>{t('common.go_home')}</Link>
       </div>
     </FullPageMessage>
   );

@@ -5,6 +5,7 @@ import { Link } from 'react-router';
 import { isOwner, isStaff, useAuth } from '@/auth';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { Routes } from '@/config';
+import { activeLanguage, maybeTranslate, translate, useI18n } from '@/i18n';
 import {
   isDiscordGrantError,
   isScopeMismatch,
@@ -22,7 +23,7 @@ import {
 } from '@/lib/api/dashboardQueries';
 import { UserPremiumTypes } from '@/lib/api';
 import { userDisplayTag } from '@/lib/discord';
-import { cn, formatDate, formatMemory, toDate } from '@/lib/utils';
+import { cn, formatDate, formatMemory, formatNumber, toDate } from '@/lib/utils';
 
 import { ADMIN_SECTIONS, CONTENT_SECTIONS, OWNER_SECTIONS } from './DashboardLayout';
 import { premiumLabel } from './premium';
@@ -50,17 +51,17 @@ type DashboardSection = (typeof CONTENT_SECTIONS)[number];
 
 // the sidebar's groups (children like Tag Directory as their own cards), alphabetical
 function sortedSections(sections: ReadonlyArray<DashboardSection>): Array<DashboardSection> {
-  return sections.flatMap((section) => [section, ...(section.children ?? [])]).sort((a, b) => a.label.localeCompare(b.label));
+  return sections.flatMap((section) => [section, ...(section.children ?? [])]).sort((a, b) => maybeTranslate(a.label).localeCompare(maybeTranslate(b.label)));
 }
 
 // `in 20m`, `in 5h`, then the date once it's more than two days off
 function formatUpcoming(value: string): string {
   const minutes = Math.max(1, Math.round((toDate(value).getTime() - Date.now()) / 60000));
   if (minutes < 60) {
-    return `in ${minutes}m`;
+    return translate('overview.in_minutes', {count: minutes});
   }
   const hours = Math.round(minutes / 60);
-  return (hours < 48) ? `in ${hours}h` : `on ${formatDate(value)}`;
+  return (hours < 48) ? translate('overview.in_hours', {count: hours}) : translate('overview.on_date', {date: formatDate(value)});
 }
 
 // what a content tile shows under its count; `progress` (0-1) is a bar along its bottom
@@ -73,10 +74,11 @@ interface ContentStat {
   highlight?: boolean,
 }
 
-// the language's name for the user card's settings (`ja` is Japanese), the code when the browser doesn't know it
+// the language's name for the user card's settings (`ja` is Japanese, or japonés on the Spanish site), the code when
+// the browser doesn't know it
 function languageName(locale: string): string {
   try {
-    return new Intl.DisplayNames(['en'], {type: 'language'}).of(locale) ?? locale;
+    return new Intl.DisplayNames([activeLanguage()], {type: 'language'}).of(locale) ?? locale;
   } catch {
     return locale;
   }
@@ -95,6 +97,7 @@ function countOf(query: {isPending: boolean, isError: boolean}, count: number | 
 
 export function OverviewPage() {
   const { user } = useAuth();
+  const { t, rich } = useI18n();
   const guilds = useMeGuildsQuery();
   const applications = useMeApplicationsQuery();
   const settings = useMeSettingsQuery();
@@ -128,34 +131,34 @@ export function OverviewPage() {
     [Routes.DASHBOARD_AI_MEMORY]: {
       count: countOf(memories, memories.data?.items.length),
       // the bar is the global ones, servers each have their own limit on top
-      detail: (memories.data) ? `${globalMemories.toLocaleString()} of ${memories.data.limits.global.toLocaleString()} global${(globalMemories < memories.data.items.length) ? ` • ${(memories.data.items.length - globalMemories).toLocaleString()} in servers` : ''}` : undefined,
+      detail: (memories.data) ? `${t('overview.memories', {used: formatNumber(globalMemories), limit: formatNumber(memories.data.limits.global)})}${(globalMemories < memories.data.items.length) ? t('overview.memories_servers', {count: formatNumber(memories.data.items.length - globalMemories)}) : ''}` : undefined,
       progress: (memories.data?.limits.global) ? globalMemories / memories.data.limits.global : undefined,
     },
     [Routes.DASHBOARD_FILES]: {
       count: countOf(files, files.data?.total.count),
-      detail: (files.data) ? ((files.data.total.count) ? `${formatMemory(files.data.total.size, 1)} stored` : 'Nothing uploaded') : undefined,
+      detail: (files.data) ? ((files.data.total.count) ? t('overview.stored', {size: formatMemory(files.data.total.size, 1)}) : t('overview.nothing_uploaded')) : undefined,
     },
     [Routes.DASHBOARD_REMINDERS]: {
       count: countOf(reminders, reminders.data?.count),
-      detail: (reminders.data) ? ((nextReminder) ? `Next ${formatUpcoming(nextReminder)}` : (reminders.data.count) ? 'None coming up' : 'None set') : undefined,
+      detail: (reminders.data) ? ((nextReminder) ? t('overview.next', {when: formatUpcoming(nextReminder)}) : t((reminders.data.count) ? 'overview.none_coming' : 'overview.none_set')) : undefined,
     },
     [Routes.DASHBOARD_REPORTS]: {
       count: countOf(reports, reports.data?.count),
       detail: (unreadReports) ? (
         <span className='inline-flex items-center gap-1.5 font-medium text-brand'>
           <span aria-hidden className='size-1.5 rounded-full bg-brand'/>
-          {unreadReports.toLocaleString()} with updates
+          {t('overview.with_updates', {count: formatNumber(unreadReports)})}
         </span>
-      ) : (reports.data) ? ((reports.data.count) ? 'All caught up' : 'None sent') : undefined,
+      ) : (reports.data) ? t((reports.data.count) ? 'overview.caught_up' : 'overview.none_sent') : undefined,
       highlight: !!unreadReports,
     },
     [Routes.DASHBOARD_TAGS]: {
       count: countOf(tags, tags.data?.count),
-      detail: (tags.data) ? ((tags.data.items[0]) ? <>Newest: <span className='text-muted'>{tags.data.items[0].name}</span></> : 'None made yet') : undefined,
+      detail: (tags.data) ? ((tags.data.items[0]) ? rich('overview.newest', {b: (chunk) => <span className='text-muted'>{chunk}</span>}, {name: tags.data.items[0].name}) : t('overview.no_tags')) : undefined,
     },
     [Routes.DASHBOARD_VOICES]: {
       count: countOf(voices, voices.data?.count),
-      detail: (voices.data) ? ((newestVoice) ? <>Newest: <span className='text-muted'>{newestVoice.name}</span></> : 'None cloned') : undefined,
+      detail: (voices.data) ? ((newestVoice) ? rich('overview.newest', {b: (chunk) => <span className='text-muted'>{chunk}</span>}, {name: newestVoice.name}) : t('overview.no_voices')) : undefined,
     },
   };
 
@@ -173,7 +176,7 @@ export function OverviewPage() {
           <div className='flex flex-wrap items-center gap-2 sm:justify-end'>
             <Link
               to={Routes.DASHBOARD_PREMIUM}
-              title='Your premium and subscriptions'
+              title={t('overview.premium_title')}
               className={cn(
                 'flex w-fit items-center gap-2 rounded-full border px-3 py-1 text-sm font-medium transition-colors',
                 premium ? 'border-warning/50 bg-warning/10 text-warning hover:bg-warning/20' : 'border-line-strong bg-surface-2 text-muted hover:text-white',
@@ -184,7 +187,7 @@ export function OverviewPage() {
             </Link>
             <Link
               to={Routes.DASHBOARD_SETTINGS}
-              title='Your settings: language, timezone, AI, media and more'
+              title={t('overview.settings_title')}
               className='flex w-fit min-w-0 items-center gap-2 rounded-full border border-line-strong bg-surface-2 px-3 py-1 text-sm font-medium text-muted transition-colors hover:text-white'
             >
               <Settings aria-hidden className='size-4 shrink-0 text-[#00b0f4]'/>
@@ -192,11 +195,11 @@ export function OverviewPage() {
                 <Skeleton className='h-4 w-28'/>
               ) : (settings.data) ? (
                 <span className='truncate'>
-                  {(settings.data.locale) ? languageName(settings.data.locale) : 'Automatic language'}
+                  {(settings.data.locale) ? languageName(settings.data.locale) : t('overview.auto_language')}
                   <span className='text-subtle'> • </span>
                   {(settings.data.timezone) ? timezoneCity(settings.data.timezone) : 'UTC'}
                 </span>
-              ) : 'Settings'}
+              ) : t('dash.nav.settings')}
             </Link>
           </div>
         </div>
@@ -206,29 +209,29 @@ export function OverviewPage() {
 
       {/* the sidebar's Dashboard sections, alphabetical. Premium and Settings are in the user card, tags in Content below */}
       <section aria-labelledby='overview-dashboard'>
-        <h2 id='overview-dashboard' className='section-label mb-3'>Dashboard</h2>
+        <h2 id='overview-dashboard' className='section-label mb-3'>{t('dash.group.dashboard')}</h2>
         <div className='grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4'>
           <Stat
-            label='Applications'
+            label={t('overview.applications')}
             to={Routes.DASHBOARD_APPLICATIONS}
-            value={(applications.isPending) ? null : (applications.isError) ? '—' : applications.data.count.toLocaleString()}
-            detail={(applications.data) ? ((applications.data.can_create) ? `of ${applications.data.limit.toLocaleString()} you can make` : 'No API access') : undefined}
+            value={(applications.isPending) ? null : (applications.isError) ? '—' : formatNumber(applications.data.count)}
+            detail={(applications.data) ? ((applications.data.can_create) ? t('overview.can_make', {limit: formatNumber(applications.data.limit)}) : t('overview.no_api')) : undefined}
             color='#3ba55c'
           />
           <Stat
-            label='Commands used'
+            label={t('overview.commands')}
             to={Routes.DASHBOARD_COMMANDS}
-            value={(commands.isPending) ? null : (commands.isError) ? '—' : commands.data.total.toLocaleString()}
-            detail={(commands.data?.first_used) ? `Since ${formatDate(commands.data.first_used)}` : undefined}
+            value={(commands.isPending) ? null : (commands.isError) ? '—' : formatNumber(commands.data.total)}
+            detail={(commands.data?.first_used) ? t('overview.since', {date: formatDate(commands.data.first_used)}) : undefined}
             color='#5865f2'
           />
           <Stat
-            label='Servers with NotSoBot'
+            label={t('overview.servers')}
             to={Routes.DASHBOARD_SERVERS}
-            value={(guilds.isPending) ? null : (guilds.isError) ? '—' : guilds.data.length.toLocaleString()}
+            value={(guilds.isPending) ? null : (guilds.isError) ? '—' : formatNumber(guilds.data.length)}
             detail={
-              (isScopeMismatch(guilds.error) || isDiscordGrantError(guilds.error)) ? 'Log in again to see your servers'
-                : (guilds.data) ? `${manageable.toLocaleString()} you can manage` : undefined
+              (isScopeMismatch(guilds.error) || isDiscordGrantError(guilds.error)) ? t('overview.relogin')
+                : (guilds.data) ? t('overview.can_manage', {count: formatNumber(manageable)}) : undefined
             }
             color='#faa81a'
           />
@@ -236,7 +239,7 @@ export function OverviewPage() {
       </section>
 
       <section aria-labelledby='overview-content'>
-        <h2 id='overview-content' className='section-label mb-3'>Content</h2>
+        <h2 id='overview-content' className='section-label mb-3'>{t('dash.group.content')}</h2>
         <ul className='grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3'>
           {sortedSections(CONTENT_SECTIONS).map((section) => (
             <li key={section.to}>
@@ -267,11 +270,11 @@ function ContentTile({ section, stat }: {section: DashboardSection, stat: Conten
         <span className='flex size-7 shrink-0 items-center justify-center rounded-md bg-[color-mix(in_srgb,var(--cat)_18%,transparent)] sm:size-8'>
           <section.icon aria-hidden className='size-4 text-[var(--cat)]'/>
         </span>
-        <span className='min-w-0 truncate text-sm font-medium text-muted transition-colors group-hover:text-white'>{section.label}</span>
+        <span className='min-w-0 truncate text-sm font-medium text-muted transition-colors group-hover:text-white'>{maybeTranslate(section.label)}</span>
         <ArrowUpRight aria-hidden className='ml-auto hidden size-4 shrink-0 text-subtle opacity-0 transition-opacity group-hover:opacity-100 sm:block'/>
       </span>
       <span className='mt-4 block text-3xl leading-9 font-bold text-white tabular-nums'>
-        {(count === null) ? <Skeleton className='h-9 w-14'/> : (count === undefined) ? '—' : count.toLocaleString()}
+        {(count === null) ? <Skeleton className='h-9 w-14'/> : (count === undefined) ? '—' : formatNumber(count)}
       </span>
       <span className='mt-1 block min-h-4 truncate text-xs leading-4 text-subtle'>
         {(count === null) ? <Skeleton className='h-3 w-24 bg-surface-2'/> : detail}
@@ -318,6 +321,7 @@ function AdminSection({ id, title, sections }: {id: string, title: string, secti
 
 // only while staff sent something on a report they haven't opened yet
 function ReportUpdatesNotice({ count }: {count: number}) {
+  const { plural } = useI18n();
   return (
     <Link to={Routes.DASHBOARD_REPORTS} className='group card card-hover flex items-center gap-3 border-brand/50 p-4 hover:border-brand'>
       <span className='relative flex size-9 shrink-0 items-center justify-center rounded-md bg-brand/15'>
@@ -326,9 +330,9 @@ function ReportUpdatesNotice({ count }: {count: number}) {
       </span>
       <span className='min-w-0 flex-1'>
         <span className='block font-medium text-white'>
-          {(count === 1) ? 'One of your reports has an update' : `${count.toLocaleString()} of your reports have updates`}
+          {plural('ui.report_updates', count)}
         </span>
-        <span className='mt-0.5 block text-sm text-muted'>{REPORT_STAFF_NAME} replied or changed {(count === 1) ? 'its' : 'their'} status since you last looked.</span>
+        <span className='mt-0.5 block text-sm text-muted'>{plural('overview.report_staff', count, {staff: REPORT_STAFF_NAME})}</span>
       </span>
       <ArrowRight aria-hidden className='size-4 shrink-0 text-subtle transition-transform group-hover:translate-x-0.5 group-hover:text-white'/>
     </Link>

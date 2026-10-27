@@ -5,6 +5,7 @@ import { useSearchParams } from 'react-router';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { usePersistentState } from '@/hooks/usePersistentState';
+import { translate, useI18n, type TranslationKey } from '@/i18n';
 import { ShardStatuses, type InfoDiscord, type InfoDiscordCluster, type InfoDiscordShard, type ShardStatus } from '@/lib/api';
 import { useInfoDiscordQuery } from '@/lib/api/queries';
 import { COUNTER_GROUPS, COUNTERS, FEATURED_COUNTERS, formatCompact, sumCounts, type Counter, type ShardCounts } from '@/lib/shardCounts';
@@ -18,14 +19,14 @@ const CLUSTER_DEAD_AFTER = 45 * 1000;
 
 type DisplayStatus = ShardStatus | 'DEAD';
 
-const STATUS_STYLES: Record<DisplayStatus, {label: string, className: string}> = {
-  [ShardStatuses.READY]: {label: 'Ready', className: 'bg-shard-ready'},
-  [ShardStatuses.RESUMING]: {label: 'Resuming', className: 'bg-shard-resuming'},
-  [ShardStatuses.IDENTIFYING]: {label: 'Identifying', className: 'bg-shard-identifying'},
-  [ShardStatuses.CONNECTING]: {label: 'Connecting', className: 'bg-shard-connecting'},
-  [ShardStatuses.OPEN]: {label: 'Open', className: 'bg-shard-open'},
-  [ShardStatuses.CLOSED]: {label: 'Closed', className: 'bg-shard-closed'},
-  DEAD: {label: 'Dead', className: 'bg-shard-dead'},
+const STATUS_STYLES: Record<DisplayStatus, {label: TranslationKey, className: string}> = {
+  [ShardStatuses.READY]: {label: 'status.ready', className: 'bg-shard-ready'},
+  [ShardStatuses.RESUMING]: {label: 'status.resuming', className: 'bg-shard-resuming'},
+  [ShardStatuses.IDENTIFYING]: {label: 'status.identifying', className: 'bg-shard-identifying'},
+  [ShardStatuses.CONNECTING]: {label: 'status.connecting', className: 'bg-shard-connecting'},
+  [ShardStatuses.OPEN]: {label: 'status.open', className: 'bg-shard-open'},
+  [ShardStatuses.CLOSED]: {label: 'status.closed', className: 'bg-shard-closed'},
+  DEAD: {label: 'status.dead', className: 'bg-shard-dead'},
 };
 
 const LEGEND_ORDER: Array<DisplayStatus> = ['READY', 'RESUMING', 'IDENTIFYING', 'CONNECTING', 'OPEN', 'CLOSED', 'DEAD'];
@@ -70,6 +71,7 @@ function computeTotals(data: InfoDiscord) {
 
 
 export function StatusPage() {
+  const { t } = useI18n();
   const [ searchParams, setSearchParams ] = useSearchParams();
   const lookupInput = searchParams.get('lookup') || '';
   const { data, isPending, isError } = useInfoDiscordQuery();
@@ -99,7 +101,7 @@ export function StatusPage() {
 
   return (
     <div className='container-page py-8'>
-      <h1 className='sr-only'>Status</h1>
+      <h1 className='sr-only'>{t('page.STATUS')}</h1>
       <StatusSwitcher/>
 
       <div className='mb-8'>
@@ -108,13 +110,13 @@ export function StatusPage() {
           value={lookupInput}
           onValueChange={setLookupInput}
           // the full one doesn't fit at phone width
-          placeholder={(wide) ? 'Find a shard: server ID, "shard 12" or "cluster 5"' : 'Server ID, "shard 12" or "cluster 5"'}
-          aria-label='Find a shard by server ID, shard or cluster'
+          placeholder={t((wide) ? 'status.find_placeholder' : 'status.find_placeholder_short')}
+          aria-label={t('status.find_label')}
           aria-describedby='lookup-hint'
         />
         {(!lookupInput) ? (
           <p id='lookup-hint' className='mt-2 text-xs text-subtle'>
-            Get your server ID with Developer Mode on: right-click the server icon → Copy Server ID. Channel links work too.
+            {t('status.find_hint')}
           </p>
         ) : (lookup?.kind === 'invalid') ? (
           <p id='lookup-hint' className='mt-2 text-sm text-danger'>{lookup.message}</p>
@@ -125,28 +127,28 @@ export function StatusPage() {
 
       {(isError && data) ? (
         <div className='mb-6 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-warning'>
-          Having trouble refreshing — showing the last known status.
+          {t('status.stale')}
         </div>
       ) : null}
 
       <section aria-labelledby='stats-heading' className='card mb-8 p-6'>
-        <h2 id='stats-heading' className='mb-6 text-center text-2xl text-white'>Bot Statistics</h2>
+        <h2 id='stats-heading' className='mb-6 text-center text-2xl text-white'>{t('status.bot_stats')}</h2>
         <div className='grid grid-cols-2 gap-4 lg:grid-cols-4'>
-          <StatTile label='Healthy Shards' className='text-success' value={(data && totals) ? `${formatNumber(totals.healthyShards)}/${formatNumber(data.shard_count)}` : null}/>
-          <StatTile label='Total RAM' value={totals ? formatMemory(totals.ram, 2) : null}/>
-          <StatTile label='Total Guilds' value={totals ? formatNumber(totals.guilds) : null}/>
-          <StatTile label='Total Users' value={totals ? formatNumber(totals.users) : null}/>
+          <StatTile label={t('status.healthy_shards')} className='text-success' value={(data && totals) ? `${formatNumber(totals.healthyShards)}/${formatNumber(data.shard_count)}` : null}/>
+          <StatTile label={t('status.total_ram')} value={totals ? formatMemory(totals.ram, 2) : null}/>
+          <StatTile label={t('status.total_guilds')} value={totals ? formatNumber(totals.guilds) : null}/>
+          <StatTile label={t('status.total_users')} value={totals ? formatNumber(totals.users) : null}/>
         </div>
         <AllTotals counts={allCounts}/>
       </section>
 
       <section aria-labelledby='shards-heading' className='card p-6'>
-        <h2 id='shards-heading' className='mb-2 text-center text-2xl text-white'>Shard Status</h2>
-        <ul aria-label='Status colors' className='mb-5 flex flex-wrap justify-center gap-x-4 gap-y-1.5 text-xs text-subtle'>
+        <h2 id='shards-heading' className='mb-2 text-center text-2xl text-white'>{t('status.shard_status')}</h2>
+        <ul aria-label={t('status.colors')} className='mb-5 flex flex-wrap justify-center gap-x-4 gap-y-1.5 text-xs text-subtle'>
           {LEGEND_ORDER.map((key) => (
             <li key={key} className='flex items-center gap-1.5'>
               <span className={cn('size-2 rounded-full opacity-90', STATUS_STYLES[key].className)}/>
-              {STATUS_STYLES[key].label}
+              {t(STATUS_STYLES[key].label)}
             </li>
           ))}
         </ul>
@@ -157,7 +159,7 @@ export function StatusPage() {
             {Array.from({length: 40}, (_, i) => <div key={i} className='h-16 w-60 animate-pulse rounded bg-deep'/>)}
           </div>
         ) : (
-          <p className='py-6 text-center text-muted'>Status info isn't available right now. We'll keep trying.</p>
+          <p className='py-6 text-center text-muted'>{t('status.unavailable')}</p>
         )}
       </section>
     </div>
@@ -288,6 +290,7 @@ function ClusterBlock({ cluster, dead, highlightShardId, hoveredShardId = null, 
   // the grid copy is the scroll target for "Show in grid"; the lookup card's copy isn't
   anchor?: boolean,
 }) {
+  const { t } = useI18n();
   const healthy = cluster.shards.filter((shard) => shard.status === ShardStatuses.READY).length;
   const total = cluster.shards.length;
 
@@ -301,10 +304,10 @@ function ClusterBlock({ cluster, dead, highlightShardId, hoveredShardId = null, 
       )}
     >
       <div className='mb-1.5 flex items-baseline justify-between gap-3 px-0.5 text-[11px]'>
-        <span className={cn('font-semibold', dead ? 'text-danger' : 'text-white')}>Cluster {cluster.cluster_id}</span>
+        <span className={cn('font-semibold', dead ? 'text-danger' : 'text-white')}>{t('status.cluster', {id: cluster.cluster_id})}</span>
         <span className='text-muted tabular-nums'>
           {(dead) ? (
-            <span className='font-medium text-danger'>Not responding</span>
+            <span className='font-medium text-danger'>{t('status.not_responding')}</span>
           ) : (
             <>
               <span className={(healthy === total) ? 'text-success' : 'text-warning'}>{healthy}/{total}</span>
@@ -322,7 +325,7 @@ function ClusterBlock({ cluster, dead, highlightShardId, hoveredShardId = null, 
             <li
               key={shard.shard_id}
               data-shard-id={shard.shard_id}
-              aria-label={`Shard ${shard.shard_id}: ${status.label}`}
+              aria-label={t('status.shard_label', {id: shard.shard_id, status: t(status.label)})}
               className={cn(
                 'flex size-7 cursor-default items-center justify-center rounded text-[9px] font-medium text-white tabular-nums transition-transform [text-shadow:0_1px_1px_rgb(0_0_0/0.5)]',
                 status.className,
@@ -348,6 +351,7 @@ function ShardHoverCard({ rect, shard, cluster, dead }: {
   cluster: InfoDiscordCluster,
   dead: boolean,
 }) {
+  const { t } = useI18n();
   const status = STATUS_STYLES[displayStatus(shard, dead)];
 
   // centered over the cell, kept inside the viewport, flipped below when there's no room above
@@ -366,19 +370,19 @@ function ShardHoverCard({ rect, shard, cluster, dead }: {
       )}
     >
       <div className='mb-2 flex items-center justify-between gap-2'>
-        <span className='font-semibold text-white'>Shard {shard.shard_id}</span>
+        <span className='font-semibold text-white'>{t('status.shard', {id: shard.shard_id})}</span>
         <span className='flex items-center gap-1.5 text-xs text-muted'>
           <span className={cn('size-2.5 rounded-sm', status.className)}/>
-          {status.label}
+          {t(status.label)}
         </span>
       </div>
       <div className='mb-2 text-xs text-subtle'>
-        Cluster {cluster.cluster_id} · {formatMemory(cluster.ram_usage, 2)}
+        {t('status.cluster', {id: cluster.cluster_id})} · {formatMemory(cluster.ram_usage, 2)}
       </div>
       <dl className='grid grid-cols-2 gap-x-3 gap-y-1 border-t border-line pt-2'>
         {FEATURED_COUNTERS.map((counter) => (
           <div key={counter.key} className='contents'>
-            <dt className='text-muted'>{counter.label}</dt>
+            <dt className='text-muted'>{t(`counter.${counter.key}`)}</dt>
             <dd className='text-right text-white tabular-nums'>{formatNumber(shard.counts[counter.key])}</dd>
           </div>
         ))}
@@ -399,7 +403,6 @@ type Lookup =
   | {kind: 'shard', shardId: number}
   | {kind: 'cluster', clusterId: number};
 
-const LOOKUP_HELP = 'Enter a server ID, a channel link, "shard 12" or "cluster 5".';
 
 function parseLookup(input: string, data: InfoDiscord): Lookup | null {
   const value = input.trim();
@@ -412,7 +415,7 @@ function parseLookup(input: string, data: InfoDiscord): Lookup | null {
   const guildId = fromLink?.[1] ?? (/^\d{15,21}$/.test(value) ? value : null);
   if (guildId) {
     const shardId = shardIdForGuild(guildId, data.shard_count);
-    return (shardId === null) ? {kind: 'invalid', message: LOOKUP_HELP} : {kind: 'guild', guildId, shardId};
+    return (shardId === null) ? {kind: 'invalid', message: translate('status.lookup_help')} : {kind: 'guild', guildId, shardId};
   }
 
   const cluster = value.match(/^(?:c|cluster)\s*#?\s*(\d+)$/i);
@@ -421,7 +424,7 @@ function parseLookup(input: string, data: InfoDiscord): Lookup | null {
     const last = data.clusters.length - 1;
     return (data.clusters.some((x) => x.cluster_id === clusterId))
       ? {kind: 'cluster', clusterId}
-      : {kind: 'invalid', message: `There's no cluster ${clusterId}. Clusters go from 0 to ${last}.`};
+      : {kind: 'invalid', message: translate('status.no_cluster', {id: clusterId, last})};
   }
 
   // "shard 12", "s12", "#12", or just a small number
@@ -430,10 +433,10 @@ function parseLookup(input: string, data: InfoDiscord): Lookup | null {
     const shardId = Number(shard[1]);
     return (shardId < data.shard_count)
       ? {kind: 'shard', shardId}
-      : {kind: 'invalid', message: `There's no shard ${shardId}. Shards go from 0 to ${data.shard_count - 1}.`};
+      : {kind: 'invalid', message: translate('status.no_shard', {id: shardId, last: data.shard_count - 1})};
   }
 
-  return {kind: 'invalid', message: LOOKUP_HELP};
+  return {kind: 'invalid', message: translate('status.lookup_help')};
 }
 
 
@@ -460,10 +463,10 @@ function resolveLookup(lookup: Lookup, data: InfoDiscord) {
 function formatAge(milliseconds: number): string {
   const seconds = Math.max(0, Math.round(milliseconds / 1000));
   if (seconds < 60) {
-    return `${seconds}s ago`;
+    return translate('status.seconds_ago', {count: seconds});
   }
   const minutes = Math.round(seconds / 60);
-  return (minutes < 60) ? `${minutes}m ago` : `${Math.round(minutes / 60)}h ago`;
+  return (minutes < 60) ? translate('status.minutes_ago', {count: minutes}) : translate('status.hours_ago', {count: Math.round(minutes / 60)});
 }
 
 
@@ -473,6 +476,7 @@ function LookupResult({ lookup, cluster, shard, now }: {
   shard: InfoDiscordShard | null,
   now: number,
 }) {
+  const { t, rich } = useI18n();
   const dead = isClusterDead(cluster, now);
   const healthy = cluster.shards.filter((x) => x.status === ShardStatuses.READY).length;
   const total = cluster.shards.length;
@@ -508,22 +512,22 @@ function LookupResult({ lookup, cluster, shard, now }: {
       <div className='flex flex-col gap-4 md:flex-row md:items-start md:justify-between'>
         <div className='min-w-0'>
           {(lookup.kind === 'guild') ? (
-            <p className='mb-1 truncate font-mono text-xs text-subtle'>Server {lookup.guildId}</p>
+            <p className='mb-1 truncate font-mono text-xs text-subtle'>{t('status.server', {id: lookup.guildId})}</p>
           ) : null}
           <h2 className='flex flex-wrap items-center gap-x-3 gap-y-1 text-2xl text-white'>
             {(shard) ? (
               <>
-                <span>Shard {shard.shard_id}</span>
-                <span className='text-muted'>on</span>
-                <span>Cluster {cluster.cluster_id}</span>
+                <span>{t('status.shard', {id: shard.shard_id})}</span>
+                <span className='text-muted'>{t('status.on')}</span>
+                <span>{t('status.cluster', {id: cluster.cluster_id})}</span>
               </>
             ) : (
-              <span>Cluster {cluster.cluster_id}</span>
+              <span>{t('status.cluster', {id: cluster.cluster_id})}</span>
             )}
             {(shardStatus) ? (
               <span className='flex items-center gap-1.5 rounded-full bg-deep px-2.5 py-0.5 text-sm text-fg'>
                 <span className={cn('size-2 rounded-full', shardStatus.className)}/>
-                {shardStatus.label}
+                {t(shardStatus.label)}
               </span>
             ) : null}
           </h2>
@@ -531,20 +535,20 @@ function LookupResult({ lookup, cluster, shard, now }: {
           <ul className='mt-3 flex flex-wrap gap-x-5 gap-y-1.5 text-sm text-muted'>
             <ResultFact icon={Server}>
               {(dead) ? (
-                <span className='font-medium text-danger'>Cluster not responding</span>
+                <span className='font-medium text-danger'>{t('status.cluster_not_responding')}</span>
               ) : (
-                <><span className={(healthy === total) ? 'text-success' : 'text-warning'}>{healthy}/{total}</span> shards ready</>
+                rich('status.shards_ready', {b: (chunk) => <span className={(healthy === total) ? 'text-success' : 'text-warning'}>{chunk}</span>}, {healthy, total})
               )}
             </ResultFact>
-            <ResultFact icon={Layers}>Shards {firstShard}–{lastShard}</ResultFact>
-            <ResultFact icon={HardDrive}>{formatMemory(cluster.ram_usage, 2)} RAM</ResultFact>
-            <ResultFact icon={RefreshCw}>Reported {formatAge(now - Date.parse(cluster.last_refresh))}</ResultFact>
+            <ResultFact icon={Layers}>{t('status.shard_range', {first: firstShard, last: lastShard})}</ResultFact>
+            <ResultFact icon={HardDrive}>{t('status.ram', {ram: formatMemory(cluster.ram_usage, 2)})}</ResultFact>
+            <ResultFact icon={RefreshCw}>{t('status.reported', {age: formatAge(now - Date.parse(cluster.last_refresh))})}</ResultFact>
           </ul>
         </div>
 
         <button type='button' onClick={jumpToCluster} className='btn btn-secondary shrink-0 self-start'>
           <Crosshair className='size-4'/>
-          Show in grid
+          {t('status.show_in_grid')}
         </button>
       </div>
 
@@ -555,14 +559,14 @@ function LookupResult({ lookup, cluster, shard, now }: {
 
         <div>
           <div className='mb-2 flex items-center justify-between gap-3'>
-            <h3 className='section-label'>{(shard) ? `Shard ${shard.shard_id}` : `Cluster ${cluster.cluster_id} totals`}</h3>
+            <h3 className='section-label'>{(shard) ? t('status.shard', {id: shard.shard_id}) : t('status.cluster_totals', {id: cluster.cluster_id})}</h3>
             <button
               type='button'
               aria-expanded={showAll}
               onClick={() => setShowAll((value) => !value)}
               className='flex cursor-pointer items-center gap-1 text-xs text-muted transition-colors hover:text-white'
             >
-              {showAll ? 'Show less' : `Show all ${COUNTERS.length}`}
+              {showAll ? t('common.show_less') : t('status.show_all', {count: COUNTERS.length})}
               <ChevronDown className={cn('size-3.5 transition-transform', showAll && 'rotate-180')}/>
             </button>
           </div>
@@ -592,11 +596,12 @@ function ResultFact({ icon: Icon, children }: {icon: typeof Server, children: Re
 
 // Every counter, grouped. Used for the global totals and the expanded lookup card.
 function CounterGroups({ counts, variant }: {counts: ShardCounts, variant: 'panel' | 'result'}) {
+  const { t } = useI18n();
   return (
     <div className='space-y-4'>
-      {COUNTER_GROUPS.map(({ group, label }) => (
+      {COUNTER_GROUPS.map((group) => (
         <div key={group}>
-          <h4 className='mb-2 text-xs text-subtle'>{label}</h4>
+          <h4 className='mb-2 text-xs text-subtle'>{t(`counter_group.${group}`)}</h4>
           <dl className={cn('grid grid-cols-2 gap-2', (variant === 'panel') ? 'sm:grid-cols-3 lg:grid-cols-6' : 'sm:grid-cols-3')}>
             {COUNTERS.filter((counter) => counter.group === group).map((counter) => (
               <CounterTile key={counter.key} counter={counter} value={counts[counter.key]} variant={variant}/>
@@ -610,9 +615,10 @@ function CounterGroups({ counts, variant }: {counts: ShardCounts, variant: 'pane
 
 
 function CounterTile({ counter, value, variant }: {counter: Counter, value: number, variant: 'panel' | 'result'}) {
+  const { t } = useI18n();
   return (
-    <div title={`${formatNumber(value)} — ${counter.note}`} className='min-w-0 cursor-help rounded-md bg-deep px-3 py-2'>
-      <dt className='truncate text-xs text-muted'>{counter.label}</dt>
+    <div title={`${formatNumber(value)} — ${t(`counter.${counter.key}.note`)}`} className='min-w-0 cursor-help rounded-md bg-deep px-3 py-2'>
+      <dt className='truncate text-xs text-muted'>{t(`counter.${counter.key}`)}</dt>
       <dd className={cn('font-semibold text-white tabular-nums', (variant === 'panel') ? 'text-base' : 'text-lg')}>
         {(variant === 'panel') ? formatCompact(value) : formatNumber(value)}
       </dd>
@@ -622,6 +628,7 @@ function CounterTile({ counter, value, variant }: {counter: Counter, value: numb
 
 
 function AllTotals({ counts }: {counts: ShardCounts | null}) {
+  const { t } = useI18n();
   const [ open, setOpen ] = usePersistentState('status:totals-open', false);
 
   return (
@@ -633,14 +640,14 @@ function AllTotals({ counts }: {counts: ShardCounts | null}) {
         onClick={() => setOpen((value) => !value)}
         className='mx-auto flex cursor-pointer items-center gap-1.5 text-sm text-muted transition-colors hover:text-white disabled:cursor-default disabled:opacity-50'
       >
-        {open ? 'Hide all totals' : `Show all totals (${COUNTERS.length})`}
+        {open ? t('status.hide_totals') : t('status.show_totals', {count: COUNTERS.length})}
         <ChevronDown className={cn('size-4 transition-transform', open && 'rotate-180')}/>
       </button>
       {(open && counts) ? (
         <div className='mt-4 animate-fade-in'>
           <CounterGroups counts={counts} variant='panel'/>
           <p className='mt-3 text-center text-xs text-subtle'>
-            Most of these are cache sizes summed across shards. Hover a number for exactly what it counts.
+            {t('status.totals_note')}
           </p>
         </div>
       ) : null}

@@ -9,6 +9,7 @@ import { Spinner } from '@/components/ui/Spinner';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { Routes } from '@/config';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { useI18n, type TranslationKey } from '@/i18n';
 import {
   TagDirectoryCategories,
   TagDirectorySortByFilters,
@@ -25,21 +26,21 @@ import { AddTagButton, CategoryBadge, categoryOptionFromParam, NsfwBadge, TAG_DI
 
 
 // URL value -> API value; defaults are left out of the URL
-const SORT_OPTIONS: Array<{param: string, label: string, value: TagDirectorySortBy}> = [
-  {param: 'uses', label: 'Most used', value: TagDirectorySortByFilters.USES},
-  {param: 'servers', label: 'Most servers', value: TagDirectorySortByFilters.SERVERS},
-  {param: 'verified', label: 'Verified first', value: TagDirectorySortByFilters.VERIFIED},
-  {param: 'newest', label: 'Newest', value: TagDirectorySortByFilters.NEWEST},
-  {param: 'oldest', label: 'Oldest', value: TagDirectorySortByFilters.OLDEST},
-  {param: 'name', label: 'Name (A–Z)', value: TagDirectorySortByFilters.NAME},
+const SORT_OPTIONS: Array<{param: string, label: TranslationKey, value: TagDirectorySortBy}> = [
+  {param: 'uses', label: 'tags.directory.sort.uses', value: TagDirectorySortByFilters.USES},
+  {param: 'servers', label: 'tags.directory.sort.servers', value: TagDirectorySortByFilters.SERVERS},
+  {param: 'verified', label: 'tags.directory.sort.verified', value: TagDirectorySortByFilters.VERIFIED},
+  {param: 'newest', label: 'tags.directory.sort.newest', value: TagDirectorySortByFilters.NEWEST},
+  {param: 'oldest', label: 'tags.directory.sort.oldest', value: TagDirectorySortByFilters.OLDEST},
+  {param: 'name', label: 'tags.directory.sort.name', value: TagDirectorySortByFilters.NAME},
 ];
 
 // verified comes first; the rest are deliberately tucked away so people have to go looking for them
-const STATUS_OPTIONS: Array<{param: string, label: string, value: number | null}> = [
-  {param: 'verified', label: 'Verified tags', value: TagDirectoryVerificationStates.VERIFIED},
-  {param: 'all', label: 'All tags', value: null},
-  {param: 'pending', label: 'Pending tags', value: TagDirectoryVerificationStates.PENDING_VERIFICATION},
-  {param: 'unverified', label: 'Unverified tags', value: TagDirectoryVerificationStates.NOT_VERIFIED},
+const STATUS_OPTIONS: Array<{param: string, label: TranslationKey, value: number | null}> = [
+  {param: 'verified', label: 'tags.directory.status.verified', value: TagDirectoryVerificationStates.VERIFIED},
+  {param: 'all', label: 'tags.directory.status.all', value: null},
+  {param: 'pending', label: 'tags.directory.status.pending', value: TagDirectoryVerificationStates.PENDING_VERIFICATION},
+  {param: 'unverified', label: 'tags.directory.status.unverified', value: TagDirectoryVerificationStates.NOT_VERIFIED},
 ];
 
 const DEFAULT_SORT = 'uses';
@@ -53,6 +54,7 @@ function findOption<T extends {param: string}>(options: Array<T>, param: string 
 
 
 export function TagDirectoryPage() {
+  const { t, plural } = useI18n();
   const [ searchParams, setSearchParams ] = useSearchParams();
   const query = searchParams.get('q') || '';
   // the API does the searching, so don't hit it on every keystroke
@@ -130,10 +132,10 @@ export function TagDirectoryPage() {
   return (
     <div className='container-page py-8'>
       <header className='mb-8'>
-        <h1 className='mb-2 text-4xl font-bold text-white'>Tag Directory</h1>
+        <h1 className='mb-2 text-4xl font-bold text-white'>{t('page.TAG_DIRECTORY')}</h1>
         <p className='text-muted'>
-          Browse and add custom tags to your server.
-          {(data && !isFiltered) ? ` ${count.toLocaleString()} tags available.` : null}
+          {t('tags.directory.description')}
+          {(data && !isFiltered) ? ` ${plural('tags.directory.available', count)}` : null}
         </p>
       </header>
 
@@ -142,32 +144,32 @@ export function TagDirectoryPage() {
           size='lg'
           value={query}
           onValueChange={(value) => updateParams({q: value})}
-          placeholder='Search by title, name, description or user id...'
-          aria-label='Search tags'
+          placeholder={t('tags.directory.search_placeholder')}
+          aria-label={t('tags.directory.search_label')}
         />
 
         <CategoryFilter value={category?.param ?? null} onChange={(param) => updateParams({category: param})}/>
 
         <div className='mt-4 flex flex-wrap items-center gap-x-4 gap-y-2'>
           <label className='flex items-center gap-2 text-sm text-muted'>
-            Sort by
+            {t('tags.directory.sort_by')}
             <select
               className='input w-auto'
               value={sort.param}
               onChange={(event) => setOption('sort', DEFAULT_SORT, event.target.value)}
             >
-              {SORT_OPTIONS.map((option) => <option key={option.param} value={option.param}>{option.label}</option>)}
+              {SORT_OPTIONS.map((option) => <option key={option.param} value={option.param}>{t(option.label)}</option>)}
             </select>
           </label>
           {/* kept low-key on purpose, unreviewed tags shouldn't be one click away */}
           <label className='flex items-center gap-1 text-xs text-subtle sm:ml-auto'>
-            Showing
+            {t('tags.directory.showing')}
             <select
               className='input w-auto py-1 pl-2 pr-8 text-xs text-muted'
               value={status.param}
               onChange={(event) => setOption('status', DEFAULT_STATUS, event.target.value)}
             >
-              {STATUS_OPTIONS.map((option) => <option key={option.param} value={option.param}>{option.label}</option>)}
+              {STATUS_OPTIONS.map((option) => <option key={option.param} value={option.param}>{t(option.label)}</option>)}
             </select>
           </label>
           <label className='flex cursor-pointer items-center gap-1.5 text-xs text-subtle hover:text-muted'>
@@ -182,25 +184,22 @@ export function TagDirectoryPage() {
                 }
               }}
             />
-            Show NSFW
+            {t('tags.directory.show_nsfw')}
           </label>
         </div>
 
         {(status.value !== TagDirectoryVerificationStates.VERIFIED) ? (
           <p role='alert' className='mt-4 flex gap-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-fg'>
             <TriangleAlert aria-hidden className='mt-0.5 size-4 shrink-0 text-warning'/>
-            <span>
-              These tags haven’t been verified by NotSoBot staff. They might be harmful or spam, so adding or running
-              them is at your own discretion.
-            </span>
+            <span>{t('tags.directory.unverified_warning')}</span>
           </p>
         ) : null}
 
         {(isFiltered && data) ? (
           <div className='mt-3 flex items-center gap-3 text-sm text-muted'>
-            <span>Found {count.toLocaleString()} tag{(count === 1) ? '' : 's'}</span>
+            <span>{plural('tags.directory.found', count)}</span>
             <button type='button' className='cursor-pointer text-brand hover:underline' onClick={clearFilters}>
-              Clear filters
+              {t('commands.clear_filters')}
             </button>
           </div>
         ) : null}
@@ -210,14 +209,14 @@ export function TagDirectoryPage() {
         <TagGridSkeleton/>
       ) : (isError && !items.length) ? (
         <div className='card flex flex-col items-center gap-3 p-12 text-center'>
-          <p className='text-muted'>Couldn't load the tag directory right now.</p>
-          <button type='button' className='btn btn-secondary' onClick={() => refetch()}>Retry</button>
+          <p className='text-muted'>{t('tags.directory.load_error')}</p>
+          <button type='button' className='btn btn-secondary' onClick={() => refetch()}>{t('common.retry')}</button>
         </div>
       ) : (!items.length) ? (
         <div className='card p-12 text-center'>
           <Search className='mx-auto mb-4 size-16 text-subtle'/>
-          <h2 className='mb-2 text-xl text-white'>No tags found</h2>
-          <p className='text-muted'>Try adjusting your search or filters</p>
+          <h2 className='mb-2 text-xl text-white'>{t('tags.directory.empty_title')}</h2>
+          <p className='text-muted'>{t('tags.directory.empty_description')}</p>
         </div>
       ) : (
         <>
@@ -229,7 +228,7 @@ export function TagDirectoryPage() {
             <div className='mt-8 flex justify-center'>
               <button type='button' className='btn btn-secondary' disabled={isFetchingNextPage} onClick={() => fetchNextPage()}>
                 {isFetchingNextPage ? <Spinner className='size-4'/> : null}
-                {isFetchingNextPage ? 'Loading…' : 'Load more'}
+                {t(isFetchingNextPage ? 'common.loading' : 'common.load_more')}
               </button>
             </div>
           ) : null}
@@ -254,6 +253,7 @@ export function TagDirectoryPage() {
 
 
 function TagCard({ item, search }: {item: TagDirectoryItem, search: string}) {
+  const { plural } = useI18n();
   const { tag } = item;
   // a video cover plays while a mouse is over the card (touch screens just show its first frame)
   const [ hovered, setHovered ] = useState(false);
@@ -293,8 +293,8 @@ function TagCard({ item, search }: {item: TagDirectoryItem, search: string}) {
 
         <div className='mt-auto mb-3 flex items-center justify-between text-xs text-subtle'>
           <div className='flex items-center gap-3'>
-            <span>{tag.uses.toLocaleString()} uses</span>
-            <span>{item.server_count.toLocaleString()} servers</span>
+            <span>{plural('tags.directory.uses', tag.uses)}</span>
+            <span>{plural('tags.directory.servers', item.server_count)}</span>
           </div>
           <span>{formatDate(item.created)}</span>
         </div>
@@ -314,9 +314,10 @@ function TagCard({ item, search }: {item: TagDirectoryItem, search: string}) {
 
 // "All" plus one pill per category; scrolls sideways on small screens instead of wrapping into a tall block
 function CategoryFilter({ value, onChange }: {value: string | null, onChange: (param: string | null) => void}) {
-  const options = [{param: null, label: 'All'}, ...TAG_DIRECTORY_CATEGORY_OPTIONS];
+  const { t } = useI18n();
+  const options = [{param: null, label: 'common.all' as const}, ...TAG_DIRECTORY_CATEGORY_OPTIONS];
   return (
-    <div role='group' aria-label='Category' className='-mx-4 mt-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0'>
+    <div role='group' aria-label={t('tags.directory.category')} className='-mx-4 mt-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0'>
       {options.map((option) => {
         const selected = option.param === value;
         return (
@@ -330,7 +331,7 @@ function CategoryFilter({ value, onChange }: {value: string | null, onChange: (p
               (selected) ? 'border-brand bg-brand text-white' : 'border-line bg-surface text-muted hover:border-brand hover:text-white',
             )}
           >
-            {option.label}
+            {t(option.label)}
           </button>
         );
       })}
@@ -341,17 +342,15 @@ function CategoryFilter({ value, onChange }: {value: string | null, onChange: (p
 
 // Discord doesn't allow NSFW tags anymore, so showing them is only for browsing until that changes
 function NsfwNoticeDialog({ onClose }: {onClose: () => void}) {
+  const { t } = useI18n();
   const titleId = useId();
   return (
     <Modal labelledBy={titleId} onClose={onClose} className='max-w-md'>
       <div className='p-5 sm:p-6'>
-        <h2 id={titleId} className='pr-10 text-lg font-semibold text-white'>NSFW tags aren’t allowed on Discord</h2>
-        <p className='mt-2 text-sm text-muted'>
-          Discord no longer allows NSFW tags, so you can’t add or run them right now. You can still browse them here,
-          but this is more of a feature for the future.
-        </p>
+        <h2 id={titleId} className='pr-10 text-lg font-semibold text-white'>{t('tags.directory.nsfw_title')}</h2>
+        <p className='mt-2 text-sm text-muted'>{t('tags.directory.nsfw_description')}</p>
         <div className='mt-6 flex justify-end'>
-          <button type='button' className='btn btn-primary' onClick={onClose}>Got it</button>
+          <button type='button' className='btn btn-primary' onClick={onClose}>{t('tags.directory.got_it')}</button>
         </div>
       </div>
     </Modal>

@@ -12,6 +12,7 @@ import { SearchInput } from '@/components/ui/SearchInput';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { translate, useI18n } from '@/i18n';
 import { GuildReportTypes, ReportStatuses, type ReportMessage, type ReportStatus, type SentGuildReport } from '@/lib/api';
 import {
   ME_REPORTS_PAGE_SIZE,
@@ -31,7 +32,6 @@ import { REPORT_STATUSES, reportJumpUrl, reportStatusInfo, ROW_EDGE_BAR } from '
 import { ReportThread } from './ReportThread';
 
 
-const MODERATORS_NAME = 'The moderators';
 // the api's `MAX_GUILD_REPORT_MESSAGE_LENGTH`, a whole reply fits in the bot's DMs
 const MAX_REPLY_LENGTH = 1000;
 const TITLE_ID = 'server-report-modal-title';
@@ -42,7 +42,7 @@ function parseStatus(value: string | null): ReportStatus | null {
 }
 
 function typeInfo(report: SentGuildReport): {label: string, tone: 'danger' | 'warning'} {
-  return (report.type === GuildReportTypes.MESSAGE) ? {label: 'Message', tone: 'warning'} : {label: 'Member', tone: 'danger'};
+  return (report.type === GuildReportTypes.MESSAGE) ? {label: translate('sreports.type.message'), tone: 'warning'} : {label: translate('sreports.type.member'), tone: 'danger'};
 }
 
 // the last reply is from the moderators, so it's the user's turn
@@ -52,6 +52,7 @@ function moderatorsReplied(report: SentGuildReport): boolean {
 
 
 export function ServerReportsTab() {
+  const { t, rich } = useI18n();
   const { searchParams, page, update, setPage } = useSearchParamState();
   const status = parseStatus(searchParams.get('status'));
   const query = searchParams.get('q') || '';
@@ -79,17 +80,17 @@ export function ServerReportsTab() {
           className='min-w-0 flex-1'
           value={query}
           onValueChange={(value) => update({q: value})}
-          placeholder='Search what you wrote, or a report #...'
-          aria-label='Search your server reports'
+          placeholder={t('reports.search_placeholder')}
+          aria-label={t('sreports.search_label')}
         />
         <FiltersButton open={filtersOpen} onToggle={() => setFiltersOpen((value) => !value)} active={(status !== null) ? 1 : 0} controls='server-report-filters'/>
       </div>
 
       <div id='server-report-filters' hidden={!filtersOpen} className='card mb-4 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4'>
         <label className='text-sm'>
-          <span className='mb-1 block text-subtle'>Status</span>
+          <span className='mb-1 block text-subtle'>{t('reports.status')}</span>
           <select className='input' value={(status === null) ? '' : String(status)} onChange={(event) => update({status: event.target.value})}>
-            <option value=''>Any</option>
+            <option value=''>{t('reports.any')}</option>
             {REPORT_STATUSES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
           </select>
         </label>
@@ -98,11 +99,11 @@ export function ServerReportsTab() {
       {(isPending || steppingBack) ? (
         <ListSkeleton/>
       ) : (isError && !items.length) ? (
-        <ErrorPanel title='Couldn’t load your server reports' message={errorMessage(error)} onRetry={() => refetch()} retrying={isRefetching}/>
+        <ErrorPanel title={t('sreports.load_error')} message={errorMessage(error)} onRetry={() => refetch()} retrying={isRefetching}/>
       ) : (!items.length) ? (
-        <EmptyState icon={<MessageSquareWarning className='size-10'/>} title={(filtered) ? 'No reports found' : 'No server reports yet'}>
-          {(filtered) ? 'Try a different search or filter.' : (
-            <>In a server with reports set up, use <code className='text-fg'>/report</code>, or right-click a member or message and pick <span className='text-fg'>Apps → Report to Mods</span>.</>
+        <EmptyState icon={<MessageSquareWarning className='size-10'/>} title={t((filtered) ? 'reports.empty_search' : 'sreports.empty')}>
+          {(filtered) ? t('reports.empty_search_description') : (
+            rich('sreports.empty_description', {code: (chunk) => <code className='text-fg'>{chunk}</code>, b: (chunk) => <span className='text-fg'>{chunk}</span>})
           )}
         </EmptyState>
       ) : (
@@ -128,13 +129,14 @@ export function ServerReportsTab() {
 // one line per report like the Bot tab's: the type and id in the top left with the server under them, the status in the
 // top right with the date under it, and the reason across the bottom. Plain content only inside, the whole row is a button
 function ReportRow({ report, onOpen }: {report: SentGuildReport, onOpen: (id: string) => void}) {
+  const { t, plural } = useI18n();
   const status = reportStatusInfo(report.status);
   const type = typeInfo(report);
   const replied = moderatorsReplied(report);
   return (
     <li className='group/row relative'>
       {/* the moderators sent the last reply, so it's their turn to read it */}
-      {(replied) ? <span aria-hidden title='The moderators replied' className={cn(ROW_EDGE_BAR, 'bg-brand')}/> : null}
+      {(replied) ? <span aria-hidden title={t('sreports.replied')} className={cn(ROW_EDGE_BAR, 'bg-brand')}/> : null}
       <button
         type='button'
         className='grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-4 py-3 text-left first:rounded-t-[inherit] last:rounded-b-[inherit] hover:bg-surface-2 sm:gap-x-4 sm:px-5'
@@ -146,13 +148,13 @@ function ReportRow({ report, onOpen }: {report: SentGuildReport, onOpen: (id: st
         </span>
         <span className='col-start-1 row-start-2 flex min-w-0 items-center gap-2'>
           <ServerName report={report}/>
-          {(report.reporter_muted) ? <Chip className='shrink-0 gap-1' title='You turned off DMs for this report'><BellOff aria-hidden className='size-3'/>DMs off</Chip> : null}
+          {(report.reporter_muted) ? <Chip className='shrink-0 gap-1' title={t('sreports.dms_off_title')}><BellOff aria-hidden className='size-3'/>{t('sreports.dms_off')}</Chip> : null}
         </span>
         <span className='col-span-2 row-start-3 flex min-w-0 items-center gap-2 text-sm text-muted'>
           {(report.replies) ? (
             <span
               className={cn('inline-flex shrink-0 items-center gap-1 text-xs', (replied) ? 'font-medium text-brand' : 'text-subtle')}
-              title={(replied) ? 'The moderators replied last' : `${report.replies} ${(report.replies === 1) ? 'reply' : 'replies'}`}
+              title={(replied) ? t('sreports.replied_last') : plural('reports.replies', report.replies)}
             >
               <MessagesSquare aria-hidden className='size-3.5'/>
               {report.replies}
@@ -170,8 +172,9 @@ function ReportRow({ report, onOpen }: {report: SentGuildReport, onOpen: (id: st
 
 // the server's icon and name, its id when NotSoBot doesn't know it anymore
 function ServerName({ report }: {report: SentGuildReport}) {
+  const { t } = useI18n();
   if (!report.guild) {
-    return <span className='font-mono text-xs text-subtle'>Server {report.guild_id}</span>;
+    return <span className='font-mono text-xs text-subtle'>{t('sreports.server', {id: report.guild_id})}</span>;
   }
   return (
     <span className='flex min-w-0 items-center gap-2'>
@@ -186,6 +189,7 @@ function ReportDetails({ report, navigation }: {
   report: SentGuildReport,
   navigation: {previousId: string | null, nextId: string | null, onNavigate: (id: string) => void},
 }) {
+  const { t } = useI18n();
   const status = reportStatusInfo(report.status);
   const type = typeInfo(report);
   const isMessage = report.type === GuildReportTypes.MESSAGE;
@@ -196,17 +200,17 @@ function ReportDetails({ report, navigation }: {
       <DetailModalHeader
         titleId={TITLE_ID}
         leading={<Chip tone={type.tone} className='w-18 shrink-0 justify-center'>{type.label}</Chip>}
-        title={<><span className='sr-only'>Report </span>#{report.id}</>}
+        title={<><span className='sr-only'>{t('reports.report_sr')}</span>#{report.id}</>}
         mono
         meta={<ExactDate value={report.created} format={formatDateTime}/>}
-        states={(moderatorsReplied(report)) ? <Chip tone='brand'>The moderators replied</Chip> : null}
+        states={(moderatorsReplied(report)) ? <Chip tone='brand'>{t('sreports.replied')}</Chip> : null}
         status={<Chip tone={status.tone} className='w-20 justify-center'>{status.label}</Chip>}
       />
 
       <DetailModalStrip className='grid grid-cols-[max-content_minmax(0,1fr)] items-center gap-x-3 gap-y-1'>
-        <span className='text-xs text-subtle'>Server</span>
+        <span className='text-xs text-subtle'>{t('reports.server')}</span>
         <div className='flex min-h-8 min-w-0 items-center'><ServerName report={report}/></div>
-        <span className='text-xs text-subtle'>{(isMessage) ? 'Message by' : 'Reported member'}</span>
+        <span className='text-xs text-subtle'>{t((isMessage) ? 'sreports.message_by' : 'sreports.reported_member')}</span>
         <div className='flex min-h-8 min-w-0 items-center'><CopyableValue value={report.target_id} truncate={0}/></div>
         {(report.status !== ReportStatuses.OPEN && report.handled_at) ? (
           <>
@@ -222,10 +226,10 @@ function ReportDetails({ report, navigation }: {
         {(isMessage) ? (
           <section className='mb-4'>
             <div className='mb-1 flex min-h-8 items-center justify-between gap-2'>
-              <h3 className='section-label'>Reported message</h3>
+              <h3 className='section-label'>{t('sreports.reported_message')}</h3>
               {(jumpUrl) ? (
                 <a href={jumpUrl} target='_blank' rel='noopener noreferrer' className='inline-flex items-center gap-1 text-xs text-code hover:underline'>
-                  Open in Discord
+                  {t('reports.open_discord')}
                   <ExternalLink aria-hidden className='size-3'/>
                 </a>
               ) : null}
@@ -233,11 +237,11 @@ function ReportDetails({ report, navigation }: {
             {(report.message_content) ? (
               <>
                 <p className='rounded-md border border-line bg-deep px-3 py-2 font-mono text-sm whitespace-pre-wrap break-words text-muted' {...selectAllScope}>{report.message_content}</p>
-                {(report.message_content_expires_at) ? <p className='mt-1 text-xs text-subtle'>This text is deleted on {formatDate(report.message_content_expires_at)}</p> : null}
+                {(report.message_content_expires_at) ? <p className='mt-1 text-xs text-subtle'>{t('sreports.deleted_on', {date: formatDate(report.message_content_expires_at)})}</p> : null}
               </>
             ) : (
               <p className='rounded-md border border-line bg-deep px-3 py-2 text-sm text-subtle italic'>
-                {(report.message_content_deleted) ? 'The saved copy was deleted 30 days after the report' : 'No text (attachments or embeds only)'}
+                {t((report.message_content_deleted) ? 'sreports.copy_deleted' : 'sreports.no_text')}
               </p>
             )}
           </section>
@@ -245,15 +249,15 @@ function ReportDetails({ report, navigation }: {
 
         <section>
           <div className='mb-1 flex min-h-8 items-center justify-between gap-2'>
-            <h3 className='section-label'>Your report</h3>
-            <CopyButton value={report.reason} label='Copy'/>
+            <h3 className='section-label'>{t('sreports.your_report')}</h3>
+            <CopyButton value={report.reason} label={t('common.copy')}/>
           </div>
           <p className='rounded-md border border-line bg-deep px-3 py-2 font-mono text-sm whitespace-pre-wrap break-words text-fg focus:border-line-strong focus:outline-none' {...selectAllScope}>{report.reason}</p>
         </section>
 
         <section className='mt-4'>
           <div className='mb-1 flex min-h-8 items-center'>
-            <h3 className='section-label'>Conversation with the moderators</h3>
+            <h3 className='section-label'>{t('sreports.conversation')}</h3>
           </div>
           <Conversation report={report}/>
         </section>
@@ -269,6 +273,7 @@ function ReportDetails({ report, navigation }: {
 
 // the same as the Stop DMs button on the bot's DMs about it, and the only way back on. The report stays for the moderators
 function MuteButton({ report }: {report: SentGuildReport}) {
+  const { t } = useI18n();
   const toast = useToast();
   const mutation = useMuteSentGuildReportMutation(report.id);
   const muted = report.reporter_muted;
@@ -278,14 +283,14 @@ function MuteButton({ report }: {report: SentGuildReport}) {
       type='button'
       className='btn btn-secondary min-w-0 flex-1 px-2 sm:flex-none sm:px-3'
       disabled={mutation.isPending}
-      title={(muted) ? 'Get the bot’s DMs about this report again' : 'Stop the bot’s DMs about this report, you can still read and reply to it here'}
+      title={t((muted) ? 'sreports.dms_on_title' : 'sreports.dms_off_hint')}
       onClick={() => mutation.mutate(!muted, {
-        onSuccess: () => toast((muted) ? 'You’ll get DMs about this report again' : 'You won’t get DMs about this report anymore'),
+        onSuccess: () => toast(translate((muted) ? 'sreports.dms_on_toast' : 'sreports.dms_off_toast')),
         onError: (error) => toast(errorMessage(error), 'error'),
       })}
     >
       {(mutation.isPending) ? <Spinner className='size-4'/> : <Icon aria-hidden className='hidden size-4 shrink-0 sm:block'/>}
-      <span className='truncate'>{(muted) ? 'Turn DMs back on' : 'Stop DMs'}</span>
+      <span className='truncate'>{t((muted) ? 'sreports.dms_on' : 'sreports.stop_dms')}</span>
     </button>
   );
 }
@@ -293,6 +298,7 @@ function MuteButton({ report }: {report: SentGuildReport}) {
 
 // replying works whatever the status is and doesn't reopen it, the moderators decide that
 function Conversation({ report }: {report: SentGuildReport}) {
+  const { t } = useI18n();
   const toast = useToast();
   const { user } = useAuth();
   const query = useSentGuildReportMessagesQuery(report.id);
@@ -310,16 +316,16 @@ function Conversation({ report }: {report: SentGuildReport}) {
       error={query.error}
       onRetry={() => void query.refetch()}
       onSend={(content) => send.mutateAsync(content).catch((error) => {
-        toast(errorMessage(error, 'Couldn’t send the reply.'), 'error');
+        toast(errorMessage(error, translate('sreports.send_error')), 'error');
         throw error;
       })}
       sending={send.isPending}
-      staff={{name: MODERATORS_NAME, icon: <Shield className='size-4 text-brand'/>}}
-      emptyText='No replies yet. You can message the server’s moderators about this report here, the same as the Respond button on the bot’s DM.'
-      placeholder='Reply to the moderators...'
+      staff={{name: t('sreports.moderators'), icon: <Shield className='size-4 text-brand'/>}}
+      emptyText={t('sreports.empty_thread')}
+      placeholder={t('sreports.placeholder')}
       maxLength={MAX_REPLY_LENGTH}
       notice={(report.status !== ReportStatuses.OPEN) ? (
-        <>This report is {status(report)}. Replying won’t reopen it, but the moderators will see it.</>
+        t('sreports.closed_notice', {status: status(report)})
       ) : undefined}
     />
   );

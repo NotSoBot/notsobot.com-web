@@ -4,6 +4,7 @@ import { Link, matchPath, NavLink, useLocation } from 'react-router';
 
 import logo from '@/assets/logos/NotSoLogo.svg';
 import { config, Routes } from '@/config';
+import { useI18n } from '@/i18n';
 import { ApiEndpoints, apiUrl } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
@@ -44,6 +45,7 @@ function takeLogoEffect(previous?: string): string {
 
 
 export function Navbar() {
+  const { t } = useI18n();
   const [ mobileOpen, setMobileOpen ] = useState(false);
   const location = useLocation();
 
@@ -56,11 +58,11 @@ export function Navbar() {
 
   return (
     <header className='sticky top-0 z-40 border-b border-line bg-surface'>
-      <nav className='container-page flex h-16 items-center gap-4' aria-label='Main'>
+      <nav className='container-page flex h-16 items-center gap-4' aria-label={t('nav.main')}>
         <button
           type='button'
           className='btn btn-ghost -ml-2 px-2 md:hidden'
-          aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+          aria-label={t(mobileOpen ? 'nav.close_menu' : 'nav.open_menu')}
           aria-expanded={mobileOpen}
           onClick={() => setMobileOpen((value) => !value)}
         >
@@ -77,7 +79,7 @@ export function Navbar() {
                   to={link.to}
                   className={({ isActive }) => cn('text-sm transition-colors', (isActive || isAlsoActive(link.also)) ? 'text-white' : 'text-muted hover:text-white')}
                 >
-                  {link.label}
+                  {t(link.label)}
                 </NavLink>
               </li>
             ))}
@@ -98,12 +100,12 @@ export function Navbar() {
                     (isActive || isAlsoActive(link.also)) ? 'bg-surface-3 text-white' : 'text-muted hover:bg-surface-2 hover:text-white',
                   )}
                 >
-                  {link.label}
+                  {t(link.label)}
                 </NavLink>
               </li>
             ))}
             <li className='pt-2'>
-              <a href={apiUrl(ApiEndpoints.HELP_DISCORD_BOT)} className='btn btn-discord w-full'>Add to Discord</a>
+              <a href={apiUrl(ApiEndpoints.HELP_DISCORD_BOT)} className='btn btn-discord w-full'>{t('common.add_to_discord')}</a>
             </li>
           </ul>
         </div>

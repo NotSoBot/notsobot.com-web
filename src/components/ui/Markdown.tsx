@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
 
+import { useI18n } from '@/i18n';
 import { cn } from '@/lib/utils';
 
 
@@ -170,6 +171,7 @@ function Quote({ text }: {text: string}) {
 
 
 function Spoiler({ children }: {children: ReactNode}) {
+  const { t } = useI18n();
   const [ revealed, setRevealed ] = useState(false);
   if (revealed) {
     return <span className='rounded bg-white/10 box-decoration-clone px-0.5'>{children}</span>;
@@ -178,7 +180,7 @@ function Spoiler({ children }: {children: ReactNode}) {
     <span
       role='button'
       tabIndex={0}
-      aria-label='Spoiler, click to reveal'
+      aria-label={t('ui.spoiler')}
       className='cursor-pointer rounded bg-deep box-decoration-clone px-0.5 text-transparent select-none hover:bg-surface-3 [&_*]:invisible'
       onClick={() => setRevealed(true)}
       onKeyDown={(event) => {

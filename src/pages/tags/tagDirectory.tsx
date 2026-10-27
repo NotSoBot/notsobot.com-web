@@ -6,6 +6,7 @@ import { useSearchParams } from 'react-router';
 import { useAuth } from '@/auth';
 import { Markdown } from '@/components/ui/Markdown';
 import { config, Routes, TAG_ADD_PARAM, TAG_ADD_VALUE } from '@/config';
+import { translate, useI18n, type TranslationKey } from '@/i18n';
 import { TagDirectoryCategories, TagDirectoryVerificationStates, type Tag, type TagDirectoryCategory } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
@@ -17,16 +18,17 @@ export function tagDirectoryItemPath(id: string): string {
 }
 
 
-// `param` is what the directory puts in its URL; alphabetical, except `Other` goes last
-export const TAG_DIRECTORY_CATEGORY_OPTIONS: Array<{param: string, label: string, value: TagDirectoryCategory}> = [
-  {param: 'ai', label: 'AI', value: TagDirectoryCategories.AI},
-  {param: 'clips', label: 'Clips', value: TagDirectoryCategories.CLIPS},
-  {param: 'filters', label: 'Filters', value: TagDirectoryCategories.FILTERS},
-  {param: 'games', label: 'Games', value: TagDirectoryCategories.GAMES},
-  {param: 'logo-editing', label: 'Logo Editing', value: TagDirectoryCategories.LOGO_EDITING},
-  {param: 'memes', label: 'Memes', value: TagDirectoryCategories.MEMES},
-  {param: 'utility', label: 'Utility', value: TagDirectoryCategories.UTILITY},
-  {param: 'other', label: 'Other', value: TagDirectoryCategories.OTHER},
+// `param` is what the directory puts in its URL (the label is `tag_category.<param>`); alphabetical in English, except
+// `Other` goes last
+export const TAG_DIRECTORY_CATEGORY_OPTIONS: Array<{param: string, label: TranslationKey, value: TagDirectoryCategory}> = [
+  {param: 'ai', label: 'tag_category.ai', value: TagDirectoryCategories.AI},
+  {param: 'clips', label: 'tag_category.clips', value: TagDirectoryCategories.CLIPS},
+  {param: 'filters', label: 'tag_category.filters', value: TagDirectoryCategories.FILTERS},
+  {param: 'games', label: 'tag_category.games', value: TagDirectoryCategories.GAMES},
+  {param: 'logo-editing', label: 'tag_category.logo-editing', value: TagDirectoryCategories.LOGO_EDITING},
+  {param: 'memes', label: 'tag_category.memes', value: TagDirectoryCategories.MEMES},
+  {param: 'utility', label: 'tag_category.utility', value: TagDirectoryCategories.UTILITY},
+  {param: 'other', label: 'tag_category.other', value: TagDirectoryCategories.OTHER},
 ];
 
 // links made before images/audio were merged into filters keep working
@@ -38,11 +40,13 @@ export function categoryOptionFromParam(param: string | null) {
 }
 
 export function categoryLabel(category: number): string {
-  return TAG_DIRECTORY_CATEGORY_OPTIONS.find((option) => option.value === category)?.label ?? 'Other';
+  return translate(TAG_DIRECTORY_CATEGORY_OPTIONS.find((option) => option.value === category)?.label ?? 'tag_category.other');
 }
 
 
 export function CategoryBadge({ category }: {category: number}) {
+  // re-renders on a language change
+  useI18n();
   // same height as the `VerificationBadge` next to it on cards
   return <span className='inline-flex shrink-0 items-center rounded bg-surface-3 px-2 py-0.5 text-xs text-fg'>{categoryLabel(category)}</span>;
 }
@@ -53,6 +57,7 @@ export function DescriptionEditor({ value, onChange, className, ...props }: Omit
   value: string,
   onChange: (value: string) => void,
 }) {
+  const { t } = useI18n();
   const [ preview, setPreview ] = useState(false);
   // the preview keeps the textarea's height so the form doesn't jump around when switching
   const textarea = useRef<HTMLTextAreaElement>(null);
@@ -65,10 +70,10 @@ export function DescriptionEditor({ value, onChange, className, ...props }: Omit
   return (
     <div>
       <div className='mb-1.5 flex items-center justify-between gap-3'>
-        <div role='tablist' aria-label='Description view' className='flex gap-1 rounded-md border border-line bg-deep p-0.5'>
+        <div role='tablist' aria-label={t('tags.description_view')} className='flex gap-1 rounded-md border border-line bg-deep p-0.5'>
           <button type='button' role='tab' aria-selected={!preview} className={tabClass(!preview)} onClick={() => setPreview(false)}>
             <PencilLine aria-hidden className='size-3.5'/>
-            Write
+            {t('tags.write')}
           </button>
           <button
             type='button'
@@ -81,10 +86,10 @@ export function DescriptionEditor({ value, onChange, className, ...props }: Omit
             }}
           >
             <Eye aria-hidden className='size-3.5'/>
-            Preview
+            {t('tags.preview')}
           </button>
         </div>
-        <span className='text-xs text-subtle'>Markdown supported</span>
+        <span className='text-xs text-subtle'>{t('tags.markdown')}</span>
       </div>
       <textarea
         {...props}
@@ -96,7 +101,7 @@ export function DescriptionEditor({ value, onChange, className, ...props }: Omit
       />
       {(preview) ? (
         <div className='rounded-md border border-line bg-deep px-3 py-2 text-sm leading-relaxed text-fg' style={{minHeight: height}}>
-          {(value.trim()) ? <Markdown text={value}/> : <p className='text-subtle italic'>Nothing to preview</p>}
+          {(value.trim()) ? <Markdown text={value}/> : <p className='text-subtle italic'>{t('tags.nothing_to_preview')}</p>}
         </div>
       ) : null}
     </div>
@@ -109,9 +114,10 @@ export function CategorySelect({ value, onChange, ...props }: Omit<ComponentProp
   value: TagDirectoryCategory,
   onChange: (value: TagDirectoryCategory) => void,
 }) {
+  const { t } = useI18n();
   return (
     <select {...props} className='input' value={value} onChange={(event) => onChange(Number(event.target.value) as TagDirectoryCategory)}>
-      {TAG_DIRECTORY_CATEGORY_OPTIONS.map((option) => <option key={option.param} value={option.value}>{option.label}</option>)}
+      {TAG_DIRECTORY_CATEGORY_OPTIONS.map((option) => <option key={option.param} value={option.value}>{t(option.label)}</option>)}
     </select>
   );
 }
@@ -119,29 +125,32 @@ export function CategorySelect({ value, onChange, ...props }: Omit<ComponentProp
 
 // what requesting verification means, shown before confirming (the bot's `/tag directory verify` says the same)
 export function VerificationWarning() {
+  const { t } = useI18n();
   return (
     <ul className='list-disc space-y-1.5 pl-5'>
-      <li>Only request verification if you made the tag’s content (its code, text and media) or have permission from its owner to share it. Tags using content you don’t have the rights to won’t be verified.</li>
-      <li>Requesting verification locks the tag’s content, so it can’t be edited while the review is pending or after it’s verified.</li>
-      <li>If it’s verified, NotSoBot staff may change its content to make it more efficient, and may move its media onto NotSoBot’s own servers.</li>
-      <li>If it’s verified, it runs with NotSoPremium limits for everyone who uses it, like more time to run.</li>
-      <li>You can cancel the request while it’s still pending.</li>
+      <li>{t('tags.verification_warning_1')}</li>
+      <li>{t('tags.verification_warning_2')}</li>
+      <li>{t('tags.verification_warning_3')}</li>
+      <li>{t('tags.verification_warning_4')}</li>
+      <li>{t('tags.verification_warning_5')}</li>
     </ul>
   );
 }
 
 
 // the checkbox the publish and verification `ConfirmDialog`s need ticked (the bot's `/tag directory add` and `verify` say the same)
-export const TAG_CONTENT_ACKNOWLEDGEMENT = 'I made this tag’s content, including its media, or have permission from its owner to share it.';
+export function tagContentAcknowledgement(): string {
+  return translate('tags.content_acknowledgement');
+}
 
 
 // mirrors the api's `check_can_verify_tag_directory`, null when the listing can be verified
 export function verificationRequirement(listing: {description: string | null, category: number | null}): string | null {
   if (!listing.description?.trim()) {
-    return 'Add a description before it can be verified.';
+    return translate('tags.needs_description');
   }
   if (!listing.category || listing.category === TagDirectoryCategories.OTHER) {
-    return 'Pick a category other than Other before it can be verified.';
+    return translate('tags.needs_category');
   }
   return null;
 }
@@ -161,27 +170,27 @@ export function verificationInfo(verified: number): Verification {
   switch (verified) {
     case TagDirectoryVerificationStates.VERIFIED:
       return {
-        label: 'Verified',
-        shortLabel: 'Verified',
-        description: 'This tag has been manually verified and is completely safe to execute. It is currently immutable.',
+        label: translate('tags.verified'),
+        shortLabel: translate('tags.verified'),
+        description: translate('tags.verified_description'),
         icon: Shield,
         className: 'bg-success',
         textClassName: 'text-success',
       };
     case TagDirectoryVerificationStates.PENDING_VERIFICATION:
       return {
-        label: 'Pending Verification',
-        shortLabel: 'Pending',
-        description: 'This tag is pending verification and is currently immutable.',
+        label: translate('tags.pending'),
+        shortLabel: translate('tags.pending_short'),
+        description: translate('tags.pending_description'),
         icon: Check,
         className: 'bg-warning',
         textClassName: 'text-warning',
       };
     default:
       return {
-        label: 'Unverified',
-        shortLabel: 'Unverified',
-        description: 'This tag has not been verified. Use at your own discretion.',
+        label: translate('tags.unverified'),
+        shortLabel: translate('tags.unverified'),
+        description: translate('tags.unverified_description'),
         icon: AlertTriangle,
         className: 'bg-subtle',
         textClassName: 'text-subtle',
@@ -195,6 +204,8 @@ export function VerificationBadge({ verified, size = 'sm', hideUnverified = fals
   size?: 'sm' | 'lg',
   hideUnverified?: boolean,
 }) {
+  // re-renders on a language change
+  useI18n();
   if (hideUnverified && verified === TagDirectoryVerificationStates.NOT_VERIFIED) {
     return null;
   }
@@ -217,12 +228,13 @@ export function VerificationBadge({ verified, size = 'sm', hideUnverified = fals
 
 
 export function NsfwBadge({ size = 'sm' }: {size?: 'sm' | 'lg'}) {
+  const { t } = useI18n();
   return (
     <span className={cn(
       'rounded bg-danger font-medium text-white',
       (size === 'lg') ? 'px-2 py-1 text-sm' : 'px-1.5 py-0.5 text-[10px]',
     )}>
-      NSFW
+      {t('tags.nsfw')}
     </span>
   );
 }
@@ -240,6 +252,7 @@ export function AddTagButton({ tag, verified, size = 'sm', className, openFromUr
   openFromUrl?: boolean,
 }) {
   const { status, isAuthenticated, login } = useAuth();
+  const { t } = useI18n();
   const [ open, setOpen ] = useState(false);
   const [ searchParams, setSearchParams ] = useSearchParams();
   const requested = openFromUrl && [TAG_ADD_VALUE, '1'].includes(searchParams.get(TAG_ADD_PARAM) ?? '');
@@ -273,7 +286,7 @@ export function AddTagButton({ tag, verified, size = 'sm', className, openFromUr
       <button
         type='button'
         onClick={() => (isAuthenticated) ? setOpen(true) : login()}
-        title={(isAuthenticated) ? 'Add to a server or your DMs' : 'Log in to add this tag'}
+        title={t((isAuthenticated) ? 'tags.add_title' : 'tags.add_login')}
         className={cn(
           'relative z-10 flex shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded bg-brand font-medium text-white transition-colors hover:bg-brand-hover',
           (size === 'lg') ? 'gap-2 rounded-lg px-6 py-3' : 'px-3 py-1.5 text-sm',
@@ -281,7 +294,7 @@ export function AddTagButton({ tag, verified, size = 'sm', className, openFromUr
         )}
       >
         <Plus className={(size === 'lg') ? 'size-5' : 'size-4'}/>
-        {(size === 'lg') ? 'Add Tag' : 'Add'}
+        {t((size === 'lg') ? 'tags.add_tag' : 'common.add')}
       </button>
       {(open) ? createPortal(<AddTagDialog tag={tag} verified={verified} onClose={() => setOpen(false)}/>, document.body) : null}
     </>

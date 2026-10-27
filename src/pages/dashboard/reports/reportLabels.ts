@@ -1,5 +1,7 @@
-// labels for report types and statuses, shared by the user's reports page and the admin one
+// labels for report types and statuses, shared by the user's reports page and the admin one. The labels are getters, so
+// they're read in whatever language is on screen
 
+import { translate } from '@/i18n';
 import { ReportStatuses, ReportTypes } from '@/lib/api';
 
 
@@ -22,33 +24,33 @@ export const REPORT_TONE_FILLS: Record<ReportTone, string> = {
 export const ROW_EDGE_BAR = 'pointer-events-none absolute inset-y-0 left-0 w-1 group-first/row:rounded-tl-[7px] group-last/row:rounded-bl-[7px]';
 
 export const REPORT_STATUSES: Array<{value: number, label: string, tone: ReportTone}> = [
-  {value: ReportStatuses.OPEN, label: 'Open', tone: 'warning'},
-  {value: ReportStatuses.RESOLVED, label: 'Resolved', tone: 'success'},
-  {value: ReportStatuses.DISMISSED, label: 'Dismissed', tone: 'neutral'},
+  {value: ReportStatuses.OPEN, get label() { return translate('report_status.open'); }, tone: 'warning' as ReportTone},
+  {value: ReportStatuses.RESOLVED, get label() { return translate('report_status.resolved'); }, tone: 'success' as ReportTone},
+  {value: ReportStatuses.DISMISSED, get label() { return translate('report_status.dismissed'); }, tone: 'neutral' as ReportTone},
 ];
 
 export const REPORT_TYPES: Array<{value: number, label: string, tone: ReportTone}> = [
-  {value: ReportTypes.BUG, label: 'Bug', tone: 'brand'},
-  {value: ReportTypes.USER, label: 'User', tone: 'danger'},
-  {value: ReportTypes.SERVER, label: 'Server', tone: 'warning'},
-  {value: ReportTypes.MESSAGE, label: 'Message', tone: 'danger'},
-  {value: ReportTypes.TAG, label: 'Tag', tone: 'warning'},
+  {value: ReportTypes.BUG, get label() { return translate('report_type.bug'); }, tone: 'brand' as ReportTone},
+  {value: ReportTypes.USER, get label() { return translate('report_type.user'); }, tone: 'danger' as ReportTone},
+  {value: ReportTypes.SERVER, get label() { return translate('report_type.server'); }, tone: 'warning' as ReportTone},
+  {value: ReportTypes.MESSAGE, get label() { return translate('report_type.message'); }, tone: 'danger' as ReportTone},
+  {value: ReportTypes.TAG, get label() { return translate('report_type.tag'); }, tone: 'warning' as ReportTone},
 ];
 
 // what `target_id` is, by type. Message reports are only for the bot's own responses, they target whoever used the command
 export const REPORT_TARGET_LABELS: Record<number, string> = {
-  [ReportTypes.USER]: 'user',
-  [ReportTypes.SERVER]: 'server',
-  [ReportTypes.MESSAGE]: 'command user',
-  [ReportTypes.TAG]: 'tag',
+  get [ReportTypes.USER]() { return translate('report_target.user'); },
+  get [ReportTypes.SERVER]() { return translate('report_target.server'); },
+  get [ReportTypes.MESSAGE]() { return translate('report_target.message'); },
+  get [ReportTypes.TAG]() { return translate('report_target.tag'); },
 };
 
 export function reportStatusInfo(status: number) {
-  return REPORT_STATUSES.find((item) => item.value === status) ?? {value: status, label: `Status ${status}`, tone: 'neutral' as ReportTone};
+  return REPORT_STATUSES.find((item) => item.value === status) ?? {value: status, label: translate('report_status.unknown', {status}), tone: 'neutral' as ReportTone};
 }
 
 export function reportTypeInfo(type: number) {
-  return REPORT_TYPES.find((item) => item.value === type) ?? {value: type, label: `Type ${type}`, tone: 'neutral' as ReportTone};
+  return REPORT_TYPES.find((item) => item.value === type) ?? {value: type, label: translate('report_type.unknown', {type}), tone: 'neutral' as ReportTone};
 }
 
 // message reports have the reported message here, other reports have where the report command was used

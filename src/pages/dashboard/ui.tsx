@@ -4,7 +4,8 @@ import { useBlocker } from 'react-router';
 
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Spinner } from '@/components/ui/Spinner';
-import { cn } from '@/lib/utils';
+import { useI18n } from '@/i18n';
+import { cn, formatNumber } from '@/lib/utils';
 
 
 // Section heading inside a dashboard page.
@@ -34,6 +35,7 @@ export function Panel({ title, description, accent, actions, className, children
   headingLevel?: 2 | 3,
   readOnly?: ReactNode,
 }) {
+  const { t } = useI18n();
   const Heading = (headingLevel === 2) ? 'h2' : 'h3';
   return (
     <section
@@ -48,7 +50,7 @@ export function Panel({ title, description, accent, actions, className, children
             {(readOnly) ? (
               <span className='inline-flex items-center gap-1 rounded-full bg-warning/15 px-2 py-0.5 text-xs font-medium text-warning'>
                 <Lock aria-hidden className='size-3'/>
-                View only
+                {t('dash.view_only')}
               </span>
             ) : null}
           </Heading>
@@ -73,23 +75,24 @@ export function ReadOnlyNote({ children }: {children: ReactNode}) {
 }
 
 
-export function ErrorPanel({ title = 'Couldn’t load this', message, onRetry, retrying = false }: {
+export function ErrorPanel({ title, message, onRetry, retrying = false }: {
   title?: ReactNode,
   message?: ReactNode,
   onRetry?: () => void,
   retrying?: boolean,
 }) {
+  const { t } = useI18n();
   return (
     <div role='alert' className='card flex flex-col items-center gap-3 p-8 text-center sm:p-10'>
       <CircleAlert aria-hidden className='size-8 text-danger'/>
       <div>
-        <p className='font-medium text-white'>{title}</p>
+        <p className='font-medium text-white'>{title ?? t('dash.load_error')}</p>
         {(message) ? <p className='mt-1 text-sm text-muted'>{message}</p> : null}
       </div>
       {(onRetry) ? (
         <button type='button' className='btn btn-secondary' onClick={onRetry} disabled={retrying}>
           {(retrying) ? <Spinner className='size-4'/> : <RefreshCw className='size-4'/>}
-          Retry
+          {t('common.retry')}
         </button>
       ) : null}
     </div>
@@ -157,7 +160,7 @@ export function Field({ label, hint, error, counter, children, className }: {
 export function CharCounter({ length, max }: {length: number, max: number}) {
   return (
     <span className={cn(max < length ? 'text-danger' : (max * 0.9 < length) ? 'text-warning' : undefined)}>
-      {length.toLocaleString()} / {max.toLocaleString()}
+      {formatNumber(length)} / {formatNumber(max)}
     </span>
   );
 }
@@ -197,7 +200,7 @@ export function Toggle({ checked, onChange, label, description, disabled = false
 
 
 // Save/discard row shown under a form; `dirty` drives the "Unsaved changes" hint.
-export function SaveBar({ dirty, pending, onDiscard, saveLabel = 'Save changes', disabled = false, status, standalone = false }: {
+export function SaveBar({ dirty, pending, onDiscard, saveLabel, disabled = false, status, standalone = false }: {
   dirty: boolean,
   pending: boolean,
   onDiscard?: () => void,
@@ -207,6 +210,7 @@ export function SaveBar({ dirty, pending, onDiscard, saveLabel = 'Save changes',
   // its own card instead of a divider at the bottom of one
   standalone?: boolean,
 }) {
+  const { t } = useI18n();
   return (
     <div
       className={cn(
@@ -215,15 +219,15 @@ export function SaveBar({ dirty, pending, onDiscard, saveLabel = 'Save changes',
       )}
     >
       <div aria-live='polite' className='min-h-5 text-sm'>
-        {(status) ? status : (dirty) ? <span className='text-warning'>Unsaved changes</span> : null}
+        {(status) ? status : (dirty) ? <span className='text-warning'>{t('dash.unsaved')}</span> : null}
       </div>
       <div className='flex flex-wrap gap-2 sm:justify-end'>
         {(onDiscard) ? (
-          <button type='button' className='btn btn-ghost' onClick={onDiscard} disabled={!dirty || pending}>Discard</button>
+          <button type='button' className='btn btn-ghost' onClick={onDiscard} disabled={!dirty || pending}>{t('common.discard')}</button>
         ) : null}
         <button type='submit' className='btn btn-primary' disabled={!dirty || pending || disabled}>
           {(pending) ? <Spinner className='size-4 border-white/40 border-t-white'/> : null}
-          {(pending) ? 'Saving…' : saveLabel}
+          {(pending) ? t('common.saving') : (saveLabel ?? t('common.save_changes'))}
         </button>
       </div>
     </div>
@@ -234,6 +238,7 @@ export function SaveBar({ dirty, pending, onDiscard, saveLabel = 'Save changes',
 // Warns before leaving with unsaved edits: in-app navigation gets a dialog, closing the tab the
 // browser's own prompt. Navigations that pass `state: {skipUnsavedGuard: true}` (e.g. after a delete) go through.
 export function UnsavedChangesGuard({ when }: {when: boolean}) {
+  const { t } = useI18n();
   const blocker = useBlocker(({ currentLocation, nextLocation }) => {
     const skip = (nextLocation.state as {skipUnsavedGuard?: boolean} | null)?.skipUnsavedGuard;
     return when && !skip && currentLocation.pathname !== nextLocation.pathname;
@@ -255,9 +260,9 @@ export function UnsavedChangesGuard({ when }: {when: boolean}) {
   }
   return (
     <ConfirmDialog
-      title='Discard unsaved changes?'
-      description='You have edits that haven’t been saved. If you leave now, they’ll be lost.'
-      confirmLabel='Discard and leave'
+      title={t('dash.discard_title')}
+      description={t('dash.discard_description')}
+      confirmLabel={t('dash.discard_leave')}
       onConfirm={() => blocker.proceed()}
       onClose={() => blocker.reset()}
     />

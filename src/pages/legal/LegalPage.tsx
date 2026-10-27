@@ -2,6 +2,7 @@ import { Calendar, Mail, type LucideIcon } from 'lucide-react';
 
 import { Urls } from '@/config';
 import type { LegalDocument } from '@/content/legal';
+import { DEFAULT_LANGUAGE, useI18n } from '@/i18n';
 
 
 function slugify(value: string): string {
@@ -10,6 +11,7 @@ function slugify(value: string): string {
 
 
 export function LegalPage({ document, icon: Icon }: {document: LegalDocument, icon: LucideIcon}) {
+  const { t, rich, language } = useI18n();
   return (
     <div className='mx-auto max-w-4xl px-4 py-8 sm:px-6'>
       <header className='card mb-6 p-8'>
@@ -18,13 +20,14 @@ export function LegalPage({ document, icon: Icon }: {document: LegalDocument, ic
           <h1 className='text-3xl font-bold text-white sm:text-4xl'>{document.title}</h1>
         </div>
         <div className='flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted'>
-          <span className='flex items-center gap-2'><Calendar className='size-4'/>Effective: {document.effective}</span>
-          <span className='flex items-center gap-2'><Calendar className='size-4'/>Last Updated: {document.lastUpdated}</span>
+          <span className='flex items-center gap-2'><Calendar className='size-4'/>{t('legal.effective', {date: document.effective})}</span>
+          <span className='flex items-center gap-2'><Calendar className='size-4'/>{t('legal.updated', {date: document.lastUpdated})}</span>
         </div>
-        {(document.intro) ? <p className='mt-4 text-fg'>{document.intro}</p> : null}
+        {(language === DEFAULT_LANGUAGE) ? null : <p className='mt-4 text-sm text-subtle'>{t('legal.english_only')}</p>}
+        {(document.intro) ? <p className='mt-4 text-fg' lang={DEFAULT_LANGUAGE}>{document.intro}</p> : null}
       </header>
 
-      <div className='space-y-6'>
+      <div className='space-y-6' lang={DEFAULT_LANGUAGE}>
         {document.sections.map((section) => (
           <section key={section.title} id={slugify(section.title)} className='card scroll-mt-24 p-6'>
             <h2 className='mb-4 text-2xl font-bold text-white'>{section.title}</h2>
@@ -46,8 +49,7 @@ export function LegalPage({ document, icon: Icon }: {document: LegalDocument, ic
       <div className='mt-6 flex items-center gap-3 rounded-lg border border-brand/30 bg-brand/10 p-6'>
         <Mail className='size-5 shrink-0 text-brand'/>
         <p className='text-sm'>
-          Questions? Email us at{' '}
-          <a href={`mailto:${Urls.CONTACT_EMAIL}`} className='text-brand hover:underline'>{Urls.CONTACT_EMAIL}</a>
+          {rich('legal.questions', {email: (chunk) => <a href={`mailto:${chunk}`} className='text-brand hover:underline'>{chunk}</a>}, {email: Urls.CONTACT_EMAIL})}
         </p>
       </div>
     </div>

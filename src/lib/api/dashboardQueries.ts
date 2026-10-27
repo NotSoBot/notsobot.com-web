@@ -6,7 +6,8 @@ import { createContext, useContext } from 'react';
 
 import { useAuth } from '@/auth';
 import { readStored, writeStored } from '@/hooks/usePersistentState';
-import { formatDate } from '@/lib/utils';
+import { translate } from '@/i18n';
+import { formatDate, formatNumber } from '@/lib/utils';
 
 import { ApiRequestError } from './client';
 import type { AdminStatsArea, GuildScope } from './endpoints';
@@ -137,115 +138,115 @@ export function errorField(error: unknown): string | null {
   return null;
 }
 
-export function errorMessage(error: unknown, fallback = 'Something went wrong. Try again.'): string {
+export function errorMessage(error: unknown, fallback = translate('errors.generic')): string {
   if (error instanceof ApiRequestError) {
     switch (error.code) {
       case ApiErrorCodes.DISCORD_RATELIMITED:
-        return 'Discord is rate limiting us right now. Try again in a minute.';
+        return translate('errors.discord_ratelimited');
       case ApiErrorCodes.RATELIMITED:
-        return 'You’re doing that too fast. Wait a couple of seconds and try again.';
+        return translate('errors.ratelimited');
       case ApiErrorCodes.DISCORD_FETCH_FAILED:
       case ApiErrorCodes.DISCORD_API_ERROR:
-        return 'Discord didn’t answer properly. Try again in a moment.';
+        return translate('errors.discord_api_error');
       case ApiErrorCodes.EXTERNAL_SERVICE_TIMEOUT:
-        return 'Your Discord session is being refreshed. Try again in a few seconds.';
+        return translate('errors.external_service_timeout');
       case ApiErrorCodes.DISCORD_OAUTH_ERROR:
-        return 'Discord no longer accepts this login. Log in again to continue.';
+        return translate('errors.discord_oauth_error');
       case ApiErrorCodes.MISSING_ACCESS:
-        return 'You don’t have permission to change this.';
+        return translate('errors.missing_access');
       case ApiErrorCodes.TAG_LOCKED:
-        return 'This tag is locked, so it can’t be edited right now.';
+        return translate('errors.tag_locked');
       case ApiErrorCodes.TAG_NAME_TAKEN:
-        return 'You already have a tag with this name here.';
+        return translate('errors.tag_name_taken');
       case ApiErrorCodes.TAG_DIRECTORY_NAME_TAKEN:
-        return 'You already have a personal tag with this name. Rename one of them first.';
+        return translate('errors.tag_directory_name_taken');
       case ApiErrorCodes.TAG_DIRECTORY_CANNOT_PUBLISH_ALIAS:
-        return 'Aliases can’t be published. Publish the tag it points to instead.';
+        return translate('errors.tag_directory_cannot_publish_alias');
       case ApiErrorCodes.TAG_DIRECTORY_PENDING_VERIFICATION:
-        return 'This listing is being reviewed for verification, so it can’t be edited right now.';
+        return translate('errors.tag_directory_pending_verification');
       case ApiErrorCodes.TAG_DIRECTORY_ALREADY_PENDING:
-        return 'Verification has already been requested for this listing.';
+        return translate('errors.tag_directory_already_pending');
       case ApiErrorCodes.TAG_DIRECTORY_ALREADY_VERIFIED:
-        return 'This listing is already verified.';
+        return translate('errors.tag_directory_already_verified');
       case ApiErrorCodes.TAG_DIRECTORY_ALREADY_UNVERIFIED:
-        return 'This listing doesn’t have a pending verification request.';
+        return translate('errors.tag_directory_already_unverified');
       case ApiErrorCodes.TAG_DIRECTORY_CANNOT_UNVERIFY_VERIFIED:
-        return 'This listing has already been verified, so the request can’t be canceled.';
+        return translate('errors.tag_directory_cannot_unverify_verified');
       case ApiErrorCodes.TAG_DIRECTORY_VERIFICATION_REQUIRES_DESCRIPTION:
-        return 'Verified listings need a description.';
+        return translate('errors.tag_directory_verification_requires_description');
       case ApiErrorCodes.TAG_DIRECTORY_VERIFICATION_REQUIRES_CATEGORY:
-        return 'Verified listings need a category other than Other.';
+        return translate('errors.tag_directory_verification_requires_category');
       case ApiErrorCodes.MAX_TAG_DIRECTORY:
-        return 'You’ve reached the limit of tags you can publish.';
+        return translate('errors.max_tag_directory');
       case ApiErrorCodes.TAG_DIRECTORY_ASSETS_REQUIRE_PENDING:
-        return 'Media can only be changed while the listing is pending verification.';
+        return translate('errors.tag_directory_assets_require_pending');
       case ApiErrorCodes.MAX_TAG_DIRECTORY_ASSETS:
-        return `Listings can have up to ${TAG_DIRECTORY_ASSETS_MAX} images, videos or audio files.`;
+        return translate('errors.max_tag_directory_assets', {max: TAG_DIRECTORY_ASSETS_MAX});
       case ApiErrorCodes.UNKNOWN_TAG_DIRECTORY_ASSET:
-        return 'That file was already removed.';
+        return translate('errors.unknown_tag_directory_asset');
       case ApiErrorCodes.UNKNOWN_FILE:
-        return 'That file was already deleted.';
+        return translate('errors.unknown_file');
       case ApiErrorCodes.UNKNOWN_TAG_DIRECTORY_EDIT_REQUEST:
-        return 'That change request doesn’t exist anymore.';
+        return translate('errors.unknown_tag_directory_edit_request');
       case ApiErrorCodes.TAG_DIRECTORY_EDIT_REQUEST_REQUIRES_VERIFIED:
-        return 'Only verified listings need a change request, edit this one directly.';
+        return translate('errors.tag_directory_edit_request_requires_verified');
       case ApiErrorCodes.TAG_DIRECTORY_EDIT_REQUEST_NOT_DRAFT:
-        return 'Withdraw the change request before changing it.';
+        return translate('errors.tag_directory_edit_request_not_draft');
       case ApiErrorCodes.TAG_DIRECTORY_EDIT_REQUEST_NOT_PENDING:
-        return 'That change request isn’t waiting for review anymore.';
+        return translate('errors.tag_directory_edit_request_not_pending');
       case ApiErrorCodes.TAG_DIRECTORY_EDIT_REQUEST_NO_CHANGES:
-        return 'The change request doesn’t change anything yet.';
+        return translate('errors.tag_directory_edit_request_no_changes');
       case ApiErrorCodes.FILE_TOO_LARGE:
-        return 'That file is too big.';
+        return translate('errors.file_too_large');
       case ApiErrorCodes.INVALID_FILE_TYPE:
       case ApiErrorCodes.UNSUPPORTED_UPLOAD_TYPE:
-        return 'That file type isn’t supported. Use an image, video or audio file.';
+        return translate('errors.unsupported_upload_type');
       case ApiErrorCodes.UNKNOWN_APPLICATION:
-        return 'That application doesn’t exist anymore.';
+        return translate('errors.unknown_application');
       case ApiErrorCodes.MAX_APPLICATIONS:
-        return 'You’ve reached the limit of applications you can have. Delete one first.';
+        return translate('errors.max_applications');
       case ApiErrorCodes.UNKNOWN_VOICE:
-        return 'That voice doesn’t exist anymore. It may have been deleted with the bot.';
+        return translate('errors.unknown_voice');
       case ApiErrorCodes.UNKNOWN_VOICE_CLIP:
-        return 'That clip doesn’t exist anymore.';
+        return translate('errors.unknown_voice_clip');
       case ApiErrorCodes.MAX_VOICE_CLIPS:
-        return `A voice can have up to ${(error.body as {limit?: number} | null)?.limit ?? 10} audio clips. Delete one first.`;
+        return translate('errors.max_voice_clips', {limit: (error.body as {limit?: number} | null)?.limit ?? 10});
       case ApiErrorCodes.VOICE_CLIP_LAST:
-        return 'A voice needs at least one clip. Replace it instead, or delete the whole voice.';
+        return translate('errors.voice_clip_last');
       case ApiErrorCodes.VOICE_HAS_NO_CLIPS:
-        return 'This voice was cloned before NotSoBot kept the audio it’s made from, so it can’t be moved until its clips show up here.';
+        return translate('errors.voice_has_no_clips');
       case ApiErrorCodes.UNKNOWN_REMINDER:
-        return 'That reminder doesn’t exist anymore. It may have already been sent or deleted with the bot.';
+        return translate('errors.unknown_reminder');
       case ApiErrorCodes.UNKNOWN_LLM_MEMORY:
-        return 'NotSoAI already forgot that one.';
+        return translate('errors.unknown_llm_memory');
       case ApiErrorCodes.UNKNOWN_GUILD_LLM_KNOWLEDGE:
-        return 'That was already removed. Someone else may have deleted it.';
+        return translate('errors.unknown_guild_llm_knowledge');
       case ApiErrorCodes.MAX_GUILD_LLM_KNOWLEDGE: {
         const remaining = (error.body as {remaining?: number} | null)?.remaining;
-        return (remaining === undefined) ? 'This server already gave NotSoAI as much as it can know. Remove one first.' : `That’s too long, only ${remaining.toLocaleString()} characters are left. Shorten it or remove another one first.`;
+        return (remaining === undefined) ? translate('errors.max_guild_llm_knowledge') : translate('errors.max_guild_llm_knowledge_remaining', {remaining: formatNumber(remaining)});
       }
       case ApiErrorCodes.PREMIUM_REQUIRED:
-        return 'You need NotSoPremium Plus (or Plus AI) for this.';
+        return translate('errors.premium_required');
       case ApiErrorCodes.MAX_PREMIUM_SERVERS:
-        return 'You’ve already given all of your servers premium. Remove one first.';
+        return translate('errors.max_premium_servers');
       case ApiErrorCodes.PREMIUM_SERVER_COOLDOWN: {
         const removableAt = error.body?.removable_at;
-        return (typeof removableAt === 'string') ? `That server got your premium too recently, it can be removed ${formatDate(removableAt)}.` : 'That server got your premium too recently to remove it yet.';
+        return (typeof removableAt === 'string') ? translate('errors.premium_server_cooldown_date', {date: formatDate(removableAt)}) : translate('errors.premium_server_cooldown');
       }
       case ApiErrorCodes.UNKNOWN_PREMIUM_SERVER:
-        return 'That server doesn’t have your premium anymore.';
+        return translate('errors.unknown_premium_server');
       case ApiErrorCodes.TEXT_BLOCKED_GUIDELINES:
-        return 'That text was blocked because it may violate Discord’s Community Guidelines.';
+        return translate('errors.text_blocked_guidelines');
       case ApiErrorCodes.SAFETY_SCAN_FAILED:
-        return 'We couldn’t check that text right now, so it wasn’t saved. Try again in a moment.';
+        return translate('errors.safety_scan_failed');
     }
     if (error.status === 0 || 500 <= error.status) {
-      return 'NotSoBot had trouble with that. Try again in a moment.';
+      return translate('errors.server');
     }
     return error.body?.message || fallback;
   }
   if (error instanceof DOMException && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
-    return 'The request timed out. Try again.';
+    return translate('errors.timeout');
   }
   return fallback;
 }

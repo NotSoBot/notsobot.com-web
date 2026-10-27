@@ -7,8 +7,9 @@ import { BlockedNotice } from '@/components/ui/BlockedNotice';
 import { ToastProvider } from '@/components/ui/Toast';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { Routes } from '@/config';
+import { maybeTranslate, useI18n } from '@/i18n';
 import { useMeGuildQuery, useMeReportsUnreadQuery } from '@/lib/api/dashboardQueries';
-import { cn } from '@/lib/utils';
+import { cn, formatNumber } from '@/lib/utils';
 
 import { premiumLabel } from './premium';
 import { GuildIcon } from './servers/GuildIcon';
@@ -17,6 +18,7 @@ import { dashboardServerPath, SERVER_TAB_GROUPS } from './servers/guildMeta';
 
 interface Section {
   to: string,
+  // a translation key, or plain English on the staff pages
   label: string,
   icon: LucideIcon,
   color: string,
@@ -27,22 +29,22 @@ interface Section {
 
 // the account: Overview first, the rest alphabetical (export/delete your data is at the bottom of Settings)
 export const DASHBOARD_SECTIONS: ReadonlyArray<Section> = [
-  {to: Routes.DASHBOARD, label: 'Overview', icon: LayoutDashboard, color: '#5865f2', end: true},
-  {to: Routes.DASHBOARD_APPLICATIONS, label: 'Applications', icon: Blocks, color: '#3ba55c'},
-  {to: Routes.DASHBOARD_COMMANDS, label: 'Command History', icon: SquareTerminal, color: '#5865f2'},
-  {to: Routes.DASHBOARD_PREMIUM, label: 'Premium', icon: Crown, color: '#f0b232'},
-  {to: Routes.DASHBOARD_SERVERS, label: 'Servers', icon: Server, color: '#faa81a'},
-  {to: Routes.DASHBOARD_SETTINGS, label: 'Settings', icon: Settings, color: '#00b0f4'},
+  {to: Routes.DASHBOARD, label: 'dash.nav.overview', icon: LayoutDashboard, color: '#5865f2', end: true},
+  {to: Routes.DASHBOARD_APPLICATIONS, label: 'dash.nav.applications', icon: Blocks, color: '#3ba55c'},
+  {to: Routes.DASHBOARD_COMMANDS, label: 'dash.nav.commands', icon: SquareTerminal, color: '#5865f2'},
+  {to: Routes.DASHBOARD_PREMIUM, label: 'dash.nav.premium', icon: Crown, color: '#f0b232'},
+  {to: Routes.DASHBOARD_SERVERS, label: 'dash.nav.servers', icon: Server, color: '#faa81a'},
+  {to: Routes.DASHBOARD_SETTINGS, label: 'dash.nav.settings', icon: Settings, color: '#00b0f4'},
 ];
 
 // things the user made with the bot, alphabetical
 export const CONTENT_SECTIONS: ReadonlyArray<Section> = [
-  {to: Routes.DASHBOARD_AI_MEMORY, label: 'AI Memory', icon: Brain, color: '#eb459e'},
-  {to: Routes.DASHBOARD_FILES, label: 'Files', icon: Files, color: '#00b0f4'},
-  {to: Routes.DASHBOARD_REMINDERS, label: 'Reminders', icon: AlarmClock, color: '#faa81a'},
-  {to: Routes.DASHBOARD_REPORTS, label: 'Reports', icon: MessageSquareWarning, color: '#ed4245'},
-  {to: Routes.DASHBOARD_TAGS, label: 'Tags', icon: Tags, color: '#3ba55c'},
-  {to: Routes.DASHBOARD_VOICES, label: 'Voices', icon: AudioLines, color: '#eb459e'},
+  {to: Routes.DASHBOARD_AI_MEMORY, label: 'dash.nav.ai_memory', icon: Brain, color: '#eb459e'},
+  {to: Routes.DASHBOARD_FILES, label: 'dash.nav.files', icon: Files, color: '#00b0f4'},
+  {to: Routes.DASHBOARD_REMINDERS, label: 'dash.nav.reminders', icon: AlarmClock, color: '#faa81a'},
+  {to: Routes.DASHBOARD_REPORTS, label: 'dash.nav.reports', icon: MessageSquareWarning, color: '#ed4245'},
+  {to: Routes.DASHBOARD_TAGS, label: 'dash.nav.tags', icon: Tags, color: '#3ba55c'},
+  {to: Routes.DASHBOARD_VOICES, label: 'dash.nav.voices', icon: AudioLines, color: '#eb459e'},
 ];
 
 // only shown to NotSoBot staff, owners and moderators (the routes are guarded by <RequireStaff/> too); alphabetical
@@ -75,6 +77,7 @@ export const OWNER_SECTIONS: ReadonlyArray<Section> = [
 
 export function DashboardLayout() {
   const { user } = useAuth();
+  const { t } = useI18n();
   // reports with something from staff they haven't seen, as a badge on Reports
   const unreadReports = useMeReportsUnreadQuery();
   const contentBadges = {[Routes.DASHBOARD_REPORTS]: unreadReports.data?.count ?? 0};
@@ -89,7 +92,7 @@ export function DashboardLayout() {
           {/* sticky, so on desktop it scrolls on its own once it's taller than the window; otherwise its bottom (the admin
               links) could only be reached by scrolling the page all the way down */}
           <aside
-            aria-label='Dashboard'
+            aria-label={t('dash.label')}
             className='lg:sticky lg:top-24 lg:-mr-2 lg:max-h-[calc(100dvh-7rem)] lg:self-start lg:overflow-y-auto lg:pr-2 lg:pb-2 lg:[scrollbar-width:thin]'
           >
             {(serverMatch?.params.guildId) ? (
@@ -107,8 +110,8 @@ export function DashboardLayout() {
                 ) : null}
                 <SectionMenu
                   groups={[
-                    {label: 'Dashboard', sections: DASHBOARD_SECTIONS},
-                    {label: 'Content', sections: CONTENT_SECTIONS, badges: contentBadges},
+                    {label: 'dash.group.dashboard', sections: DASHBOARD_SECTIONS},
+                    {label: 'dash.group.content', sections: CONTENT_SECTIONS, badges: contentBadges},
                     ...((isStaff(user)) ? [{label: 'Admin', sections: ADMIN_SECTIONS}] : []),
                     ...((isOwner(user)) ? [{label: 'Owner', sections: OWNER_SECTIONS}] : []),
                   ]}
@@ -130,28 +133,29 @@ export function DashboardLayout() {
 // One of your servers' pages in its groups, with the way back to the server list on top. The server's name and icon
 // come from the page's own query (it's the same one, so it's only fetched once)
 function ServerSidebar({ guildId }: {guildId: string}) {
+  const { t } = useI18n();
   const { data: guild } = useMeGuildQuery(guildId);
   return (
     <>
       <Link to={Routes.DASHBOARD_SERVERS} className='mb-3 inline-flex items-center gap-1.5 px-1 text-sm text-muted hover:text-white lg:mb-4'>
         <ArrowLeft aria-hidden className='size-4'/>
-        All servers
+        {t('dash.all_servers')}
       </Link>
       {(guild) ? (
         <div className='mb-4 hidden items-center gap-3 px-1 lg:flex'>
           <GuildIcon guild={guild} size={64} className='size-10 shrink-0 text-xs'/>
           <div className='min-w-0'>
             <div className='truncate font-semibold text-white' title={guild.name}>{guild.name}</div>
-            <div className='truncate text-xs text-subtle'>{(guild.owner) ? 'Owner' : (Object.values(guild.editable).some(Boolean)) ? 'Can manage' : 'Member'}</div>
+            <div className='truncate text-xs text-subtle'>{t((guild.owner) ? 'dash.role.owner' : (Object.values(guild.editable).some(Boolean)) ? 'dash.role.manager' : 'dash.role.member')}</div>
           </div>
         </div>
       ) : null}
       <SectionMenu
         groups={SERVER_TAB_GROUPS.map((group) => ({
-          label: group.label,
+          label: `server_tab.group.${group.id}`,
           sections: group.tabs.map((tab) => ({
             to: dashboardServerPath(guildId, tab.id),
-            label: tab.label,
+            label: `server_tab.${tab.id}`,
             icon: tab.icon,
             color: tab.color,
             // Home is the server's own url, every other page is under it
@@ -165,6 +169,7 @@ function ServerSidebar({ guildId }: {guildId: string}) {
 
 
 interface SectionGroup {
+  // a translation key, or plain English on the staff pages
   label: string,
   sections: ReadonlyArray<Section>,
   // counts by section path, see `SectionList`
@@ -174,12 +179,13 @@ interface SectionGroup {
 // A sidebar's sections in their groups: a list per group on desktop, one menu on phones (`SectionSelect`) instead of a
 // row of buttons per group
 function SectionMenu({ groups }: {groups: ReadonlyArray<SectionGroup>}) {
+  const { t } = useI18n();
   return (
     <>
       <SectionSelect groups={groups}/>
       {groups.map((group, i) => (
-        <nav key={group.label} aria-label={`${group.label} sections`} className={cn('hidden lg:block', (i) ? 'lg:mt-6' : null)}>
-          <h2 className='section-label mb-2 px-1'>{group.label}</h2>
+        <nav key={group.label} aria-label={t('dash.sections', {group: maybeTranslate(group.label)})} className={cn('hidden lg:block', (i) ? 'lg:mt-6' : null)}>
+          <h2 className='section-label mb-2 px-1'>{maybeTranslate(group.label)}</h2>
           <SectionList sections={group.sections} badges={group.badges}/>
         </nav>
       ))}
@@ -193,6 +199,7 @@ function SectionMenu({ groups }: {groups: ReadonlyArray<SectionGroup>}) {
 // so a tag's url (`/dashboard/tags/<id>`) is Tags and the tag directory beats admin Tags. A count from `badges` shows
 // in the option's name, on the button when it's the open page, and as a dot when it's another one
 function SectionSelect({ groups }: {groups: ReadonlyArray<SectionGroup>}) {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const path = pathname.replace(/\/$/, '');
@@ -213,7 +220,7 @@ function SectionSelect({ groups }: {groups: ReadonlyArray<SectionGroup>}) {
     <div style={{'--cat': current?.color ?? 'currentColor'} as CSSProperties} className='relative lg:hidden'>
       <div aria-hidden className='flex items-center gap-2.5 rounded-md border border-brand/70 bg-surface-3 px-3 py-2.5 text-sm text-white'>
         {(current) ? <current.icon className='size-4 shrink-0 text-[var(--cat)]'/> : null}
-        <span className='min-w-0 flex-1 truncate'>{current?.label ?? 'Choose a page'}</span>
+        <span className='min-w-0 flex-1 truncate'>{(current) ? maybeTranslate(current.label) : t('dash.choose_page')}</span>
         {(current?.badge) ? (
           <span className='min-w-5 rounded-full bg-brand px-1.5 text-center text-xs leading-5 font-semibold text-white tabular-nums'>{current.badge.toLocaleString()}</span>
         ) : null}
@@ -221,17 +228,17 @@ function SectionSelect({ groups }: {groups: ReadonlyArray<SectionGroup>}) {
         <ChevronsUpDown className='size-4 shrink-0 text-muted'/>
       </div>
       <select
-        aria-label={(elsewhere) ? 'Page (other pages have updates)' : 'Page'}
+        aria-label={t((elsewhere) ? 'dash.page_updates' : 'dash.page')}
         className='absolute inset-0 size-full cursor-pointer opacity-0'
         value={current?.to ?? ''}
         onChange={(event) => navigate(event.target.value)}
       >
-        {(current) ? null : <option value='' disabled>Choose a page</option>}
+        {(current) ? null : <option value='' disabled>{t('dash.choose_page')}</option>}
         {options.map((group) => (
-          <optgroup key={group.label} label={group.label}>
+          <optgroup key={group.label} label={maybeTranslate(group.label)}>
             {group.sections.map((section) => (
               <option key={section.to} value={section.to}>
-                {section.label}{(section.badge) ? ` (${section.badge.toLocaleString()} new)` : ''}
+                {maybeTranslate(section.label)}{(section.badge) ? t('dash.new_count', {count: formatNumber(section.badge)}) : ''}
               </option>
             ))}
           </optgroup>
@@ -245,6 +252,7 @@ function SectionSelect({ groups }: {groups: ReadonlyArray<SectionGroup>}) {
 // A group's links, desktop only (phones get `SectionSelect`). `badges`: counts by section path, shown on the right of the
 // link when there's any
 function SectionList({ sections, badges }: {sections: ReadonlyArray<Section>, badges?: Record<string, number>}) {
+  const { t } = useI18n();
   return (
     <ul className='flex flex-col gap-0.5'>
       {sections.flatMap((section): Array<Section & {nested?: boolean, last?: boolean}> => [
@@ -271,11 +279,11 @@ function SectionList({ sections, badges }: {sections: ReadonlyArray<Section>, ba
             )}
           >
             <section.icon aria-hidden className='size-4 shrink-0 text-[var(--cat)]'/>
-            {section.label}
+            {maybeTranslate(section.label)}
             {(badges?.[section.to]) ? (
               <span className='ml-auto min-w-5 rounded-full bg-brand px-1.5 text-center text-xs leading-5 font-semibold text-white tabular-nums'>
                 {badges[section.to].toLocaleString()}
-                <span className='sr-only'> with updates</span>
+                <span className='sr-only'>{t('dash.with_updates')}</span>
               </span>
             ) : null}
           </NavLink>

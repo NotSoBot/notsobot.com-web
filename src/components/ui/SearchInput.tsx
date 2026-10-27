@@ -1,6 +1,7 @@
 import { Search, X } from 'lucide-react';
 import type { InputHTMLAttributes } from 'react';
 
+import { useI18n } from '@/i18n';
 import { cn, NO_AUTOFILL } from '@/lib/utils';
 
 
@@ -12,6 +13,7 @@ interface SearchInputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, '
 
 
 export function SearchInput({ className, value, onValueChange, size = 'md', ...props }: SearchInputProps) {
+  const { t } = useI18n();
   return (
     <div className={cn('relative', className)}>
       <Search aria-hidden className={cn('pointer-events-none absolute top-1/2 -translate-y-1/2 text-muted', (size === 'sm') ? 'left-3 size-4' : 'left-4 size-5')}/>
@@ -36,7 +38,7 @@ export function SearchInput({ className, value, onValueChange, size = 'md', ...p
       {(value) ? (
         <button
           type='button'
-          aria-label='Clear search'
+          aria-label={t('ui.clear_search')}
           onClick={() => onValueChange('')}
           className={cn('absolute top-1/2 -translate-y-1/2 cursor-pointer rounded-md text-subtle hover:bg-surface-3 hover:text-fg', (size === 'sm') ? 'right-1.5 p-1' : 'right-2 p-1.5')}
         >

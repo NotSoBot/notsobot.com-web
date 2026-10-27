@@ -1,10 +1,13 @@
 import { Check, ChevronDown, Crown, LifeBuoy, Link2, MessageCircleQuestion, Rocket, Shield, Terminal, type LucideIcon } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router';
 
 import { SearchInput } from '@/components/ui/SearchInput';
+import { Spinner } from '@/components/ui/Spinner';
 import { Routes } from '@/config';
-import { FAQ_QUESTIONS, FAQ_SECTIONS, faqSearchText, type FaqQuestion, type FaqSectionId } from '@/content/faq';
+import { faqSearchText, loadFaqTranslation, localizedFaq, type FaqQuestion, type FaqSectionId } from '@/content/faq';
+import { languagePath, Languages, useI18n } from '@/i18n';
 import { cn, decodeHash } from '@/lib/utils';
 
 
@@ -23,7 +26,27 @@ function sectionAnchor(id: FaqSectionId): string {
 }
 
 
+// The questions in the site's language. Other languages are fetched when needed, until then (`ready` is false) the
+// page shows a spinner rather than flashing the English answers. If the fetch fails it falls back to English
+function useFaq() {
+  const { language } = useI18n();
+  const translated = (language !== Languages.ENGLISH);
+  const translation = useQuery({
+    queryKey: ['faq-translation', language],
+    queryFn: () => loadFaqTranslation(language),
+    enabled: translated,
+    staleTime: Infinity,
+    gcTime: Infinity,
+    retry: 1,
+  });
+  const faq = useMemo(() => localizedFaq((translated) ? translation.data ?? null : null), [translated, translation.data]);
+  return {...faq, ready: !translated || !translation.isPending};
+}
+
+
 export function FaqPage() {
+  const { t, plural } = useI18n();
+  const { sections, questions: allQuestions, ready } = useFaq();
   const location = useLocation();
   const [ query, setQuery ] = useState('');
   // answers opened by the reader; search results open on their own
@@ -31,14 +54,14 @@ export function FaqPage() {
 
   const needle = query.trim().toLowerCase();
   const matches = useMemo(() => {
-    return (needle) ? FAQ_QUESTIONS.filter((question) => faqSearchText(question).includes(needle)) : FAQ_QUESTIONS;
-  }, [needle]);
+    return (needle) ? allQuestions.filter((question) => faqSearchText(question).includes(needle)) : allQuestions;
+  }, [allQuestions, needle]);
 
   // `/faq#change-prefix` opens and scrolls to that answer. The scroll waits for the answer's
   // open animation (and the router's own scroll handling on load) so it lands in the right place.
   useEffect(() => {
     const id = decodeHash(location.hash);
-    const isQuestion = FAQ_QUESTIONS.some((question) => question.id === id);
+    const isQuestion = allQuestions.some((question) => question.id === id);
     if (!isQuestion && !id.startsWith('section-')) {
       return;
     }
@@ -49,7 +72,7 @@ export function FaqPage() {
       document.getElementById(id)?.scrollIntoView({block: 'start'});
     }, ANSWER_TRANSITION_MS + 50);
     return () => window.clearTimeout(timer);
-  }, [location.hash]);
+  }, [allQuestions, location.hash]);
 
   const toggle = (id: string) => {
     setOpen((previous) => {
@@ -71,109 +94,115 @@ export function FaqPage() {
         <div className='container-page py-10 sm:py-12'>
           <div className='mb-3 flex items-center gap-2 text-sm font-medium text-brand'>
             <MessageCircleQuestion className='size-4'/>
-            Help Center
+            {t('faq.badge')}
           </div>
-          <h1 className='mb-2 text-3xl font-bold text-white sm:text-4xl'>Frequently Asked Questions</h1>
+          <h1 className='mb-2 text-3xl font-bold text-white sm:text-4xl'>{t('faq.title')}</h1>
           <p className='mb-6 max-w-2xl text-muted'>
-            Everything about adding NotSoBot, running commands, setting it up for your server, premium and your data.
+            {t('faq.description')}
           </p>
           <SearchInput
             size='lg'
             className='max-w-2xl'
             value={query}
             onValueChange={setQuery}
-            placeholder='Search questions and answers...'
-            aria-label='Search the FAQ'
+            placeholder={t('faq.search_placeholder')}
+            aria-label={t('faq.search_label')}
           />
           {(needle) ? (
             <p className='mt-2 text-sm text-muted' aria-live='polite'>
-              {matches.length} {(matches.length === 1) ? 'answer' : 'answers'} for “{query.trim()}”
+              {plural('faq.results', matches.length, {query: query.trim()})}
             </p>
           ) : null}
         </div>
       </div>
 
-      <div className='container-page grid grid-cols-[minmax(0,1fr)] gap-8 py-10 lg:grid-cols-[230px_minmax(0,1fr)]'>
-        <nav aria-label='FAQ sections' className='lg:sticky lg:top-24 lg:self-start'>
-          <h2 className='section-label mb-2 hidden px-1 lg:block'>Sections</h2>
-          <ul className='-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:flex-col lg:gap-0.5 lg:overflow-visible lg:px-0 lg:pb-0'>
-            {FAQ_SECTIONS.map((section) => {
+      {(!ready) ? (
+        <div className='container-page flex min-h-[50vh] items-center justify-center py-10'>
+          <Spinner className='size-8' label={t('common.loading')}/>
+        </div>
+      ) : (
+        <div className='container-page grid grid-cols-[minmax(0,1fr)] gap-8 py-10 lg:grid-cols-[230px_minmax(0,1fr)]'>
+          <nav aria-label={t('faq.sections_label')} className='lg:sticky lg:top-24 lg:self-start'>
+            <h2 className='section-label mb-2 hidden px-1 lg:block'>{t('faq.sections')}</h2>
+            <ul className='-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:flex-col lg:gap-0.5 lg:overflow-visible lg:px-0 lg:pb-0'>
+              {sections.map((section) => {
+                const Icon = SECTION_ICONS[section.id];
+                const count = matches.filter((question) => question.section === section.id).length;
+                return (
+                  <li key={section.id}>
+                    <button
+                      type='button'
+                      disabled={!count}
+                      onClick={() => scrollToSection(section.id)}
+                      className={cn(
+                        'flex w-full shrink-0 cursor-pointer items-center gap-2.5 rounded-md border border-line px-3 py-2 text-left text-sm whitespace-nowrap text-muted transition-colors',
+                        'hover:bg-surface-2 hover:text-white disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent lg:border-transparent',
+                      )}
+                    >
+                      <Icon className='size-4 shrink-0 text-brand'/>
+                      <span className='min-w-0 truncate'>{section.title}</span>
+                      <span className='ml-auto shrink-0 pl-2 text-xs text-subtle tabular-nums'>{count}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
+
+          <div className='min-w-0 space-y-10'>
+            {sections.map((section) => {
+              const questions = matches.filter((question) => question.section === section.id);
+              if (!questions.length) {
+                return null;
+              }
               const Icon = SECTION_ICONS[section.id];
-              const count = matches.filter((question) => question.section === section.id).length;
               return (
-                <li key={section.id}>
-                  <button
-                    type='button'
-                    disabled={!count}
-                    onClick={() => scrollToSection(section.id)}
-                    className={cn(
-                      'flex w-full shrink-0 cursor-pointer items-center gap-2.5 rounded-md border border-line px-3 py-2 text-left text-sm whitespace-nowrap text-muted transition-colors',
-                      'hover:bg-surface-2 hover:text-white disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent lg:border-transparent',
-                    )}
-                  >
-                    <Icon className='size-4 shrink-0 text-brand'/>
-                    <span className='min-w-0 truncate'>{section.title}</span>
-                    <span className='ml-auto shrink-0 pl-2 text-xs text-subtle tabular-nums'>{count}</span>
-                  </button>
-                </li>
+                <section key={section.id} id={sectionAnchor(section.id)} aria-labelledby={`${sectionAnchor(section.id)}-title`} className='scroll-mt-24'>
+                  <header className='mb-4 flex items-center gap-3'>
+                    <span className='flex size-10 shrink-0 items-center justify-center rounded-lg bg-brand/15'>
+                      <Icon className='size-5 text-brand'/>
+                    </span>
+                    <div>
+                      <h2 id={`${sectionAnchor(section.id)}-title`} className='text-xl font-semibold text-white'>{section.title}</h2>
+                      <p className='text-sm text-muted'>{section.description}</p>
+                    </div>
+                  </header>
+                  <div className='overflow-hidden rounded-lg border border-line bg-surface'>
+                    {questions.map((question, i) => (
+                      <QuestionItem
+                        key={question.id}
+                        question={question}
+                        open={!!needle || open.has(question.id)}
+                        highlight={needle}
+                        divider={0 < i}
+                        onToggle={() => toggle(question.id)}
+                      />
+                    ))}
+                  </div>
+                </section>
               );
             })}
-          </ul>
-        </nav>
 
-        <div className='min-w-0 space-y-10'>
-          {FAQ_SECTIONS.map((section) => {
-            const questions = matches.filter((question) => question.section === section.id);
-            if (!questions.length) {
-              return null;
-            }
-            const Icon = SECTION_ICONS[section.id];
-            return (
-              <section key={section.id} id={sectionAnchor(section.id)} aria-labelledby={`${sectionAnchor(section.id)}-title`} className='scroll-mt-24'>
-                <header className='mb-4 flex items-center gap-3'>
-                  <span className='flex size-10 shrink-0 items-center justify-center rounded-lg bg-brand/15'>
-                    <Icon className='size-5 text-brand'/>
-                  </span>
-                  <div>
-                    <h2 id={`${sectionAnchor(section.id)}-title`} className='text-xl font-semibold text-white'>{section.title}</h2>
-                    <p className='text-sm text-muted'>{section.description}</p>
-                  </div>
-                </header>
-                <div className='overflow-hidden rounded-lg border border-line bg-surface'>
-                  {questions.map((question, i) => (
-                    <QuestionItem
-                      key={question.id}
-                      question={question}
-                      open={!!needle || open.has(question.id)}
-                      highlight={needle}
-                      divider={0 < i}
-                      onToggle={() => toggle(question.id)}
-                    />
-                  ))}
-                </div>
-              </section>
-            );
-          })}
+            {(!matches.length) ? (
+              <div className='card p-10 text-center'>
+                <p className='mb-1 text-lg text-white'>{t('faq.empty_title', {query: query.trim()})}</p>
+                <p className='text-muted'>{t('faq.empty_description')}</p>
+              </div>
+            ) : null}
 
-          {(!matches.length) ? (
-            <div className='card p-10 text-center'>
-              <p className='mb-1 text-lg text-white'>No answers match “{query.trim()}”.</p>
-              <p className='text-muted'>Try different words, or ask in the support server below.</p>
-            </div>
-          ) : null}
-
-          <aside className='flex flex-col items-start justify-between gap-4 rounded-lg border border-brand/30 bg-gradient-to-r from-brand/20 to-brand/5 p-6 sm:flex-row sm:items-center'>
-            <div>
-              <h2 className='mb-1 text-lg font-semibold text-white'>Still stuck?</h2>
-              <p className='text-sm text-muted'>Ask in the support server and someone will help you out.</p>
-            </div>
-            <div className='flex flex-wrap gap-2'>
-              <a href={Routes.SUPPORT} className='btn btn-discord'>Join the support server</a>
-              <Link to={Routes.COMMANDS} className='btn btn-secondary'>Browse commands</Link>
-            </div>
-          </aside>
+            <aside className='flex flex-col items-start justify-between gap-4 rounded-lg border border-brand/30 bg-gradient-to-r from-brand/20 to-brand/5 p-6 sm:flex-row sm:items-center'>
+              <div>
+                <h2 className='mb-1 text-lg font-semibold text-white'>{t('faq.stuck_title')}</h2>
+                <p className='text-sm text-muted'>{t('faq.stuck_description')}</p>
+              </div>
+              <div className='flex flex-wrap gap-2'>
+                <a href={Routes.SUPPORT} className='btn btn-discord'>{t('faq.join_support')}</a>
+                <Link to={Routes.COMMANDS} className='btn btn-secondary'>{t('faq.browse_commands')}</Link>
+              </div>
+            </aside>
+          </div>
         </div>
-      </div>
+      )}
     </>
   );
 }
@@ -224,9 +253,10 @@ function QuestionItem({ question, open, highlight, divider, onToggle }: {
 
 
 function CopyLinkButton({ id }: {id: string}) {
+  const { language, t } = useI18n();
   const [ copied, setCopied ] = useState(false);
   const copy = async () => {
-    const url = `${window.location.origin}${Routes.FAQ}#${id}`;
+    const url = `${window.location.origin}${languagePath(language, Routes.FAQ)}#${id}`;
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
@@ -238,7 +268,7 @@ function CopyLinkButton({ id }: {id: string}) {
   return (
     <button type='button' onClick={copy} className='mt-3 flex cursor-pointer items-center gap-1.5 text-xs text-subtle transition-colors hover:text-white'>
       {(copied) ? <Check className='size-3.5 text-success'/> : <Link2 className='size-3.5'/>}
-      {(copied) ? 'Link copied' : 'Copy link'}
+      {t((copied) ? 'faq.link_copied' : 'faq.copy_link')}
     </button>
   );
 }

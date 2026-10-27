@@ -5,60 +5,28 @@ import { Link } from 'react-router';
 import { QuarantineNotice } from '@/components/ui/QuarantineNotice';
 import { ReportUpdatesNotice } from '@/components/ui/ReportUpdatesNotice';
 import { Routes } from '@/config';
+import { useI18n } from '@/i18n';
 import { ApiEndpoints, apiUrl } from '@/lib/api';
 import { useCommandsQuery, useInfoDiscordQuery } from '@/lib/api/queries';
 import { enabledCommandVariants } from '@/lib/commandAvailability';
+import { displayLocale } from '@/lib/utils';
 
 
-const FEATURES: Array<{icon: LucideIcon, title: string, description: string}> = [
-  {
-    icon: Wand2,
-    title: 'Image Effects',
-    description: 'Magik, deep fry, swirl, explode, pixelate, caption and dozens more filters for any image or avatar.',
-  },
-  {
-    icon: Clapperboard,
-    title: 'Gifs & Video',
-    description: 'Every effect works on animated gifs and videos too. Reverse, speed up, loop, trim and remix frame by frame.',
-  },
-  {
-    icon: AudioLines,
-    title: 'Audio',
-    description: 'Bass boost, pitch shift, slow down, extract audio from videos or slap a new soundtrack on a clip.',
-  },
-  {
-    icon: Image,
-    title: 'Conversion',
-    description: 'Turn videos into gifs, gifs into videos, resize, crop and compress media to fit Discord upload limits.',
-  },
-  {
-    icon: Search,
-    title: 'Search',
-    description: 'Pull images and results from Google, YouTube, Urban Dictionary, Wolfram Alpha and more without leaving chat.',
-  },
-  {
-    icon: Tags,
-    title: 'Custom Tags',
-    description: 'Chain commands into your own tags, or grab community-made ones from the tag directory.',
-  },
+// title and description are `home.features.<key>.title` / `.description`
+const FEATURES: Array<{icon: LucideIcon, key: 'effects' | 'video' | 'audio' | 'conversion' | 'search' | 'tags'}> = [
+  {icon: Wand2, key: 'effects'},
+  {icon: Clapperboard, key: 'video'},
+  {icon: AudioLines, key: 'audio'},
+  {icon: Image, key: 'conversion'},
+  {icon: Search, key: 'search'},
+  {icon: Tags, key: 'tags'},
 ];
 
-const STEPS: Array<{icon: LucideIcon, title: string, description: string}> = [
-  {
-    icon: Upload,
-    title: 'Post some media',
-    description: 'Upload an image, gif or video, paste a link, or mention a user to use their avatar.',
-  },
-  {
-    icon: Wand2,
-    title: 'Run a command',
-    description: 'Use a prefix or slash command, or right-click a message and pick an effect from the apps menu.',
-  },
-  {
-    icon: Sparkles,
-    title: 'Get it back',
-    description: 'NotSoBot replies with the result in seconds, ready to post, save, or run through another effect.',
-  },
+// `home.steps.<key>.title` / `.description`
+const STEPS: Array<{icon: LucideIcon, key: 'post' | 'run' | 'result'}> = [
+  {icon: Upload, key: 'post'},
+  {icon: Wand2, key: 'run'},
+  {icon: Sparkles, key: 'result'},
 ];
 
 // Popular effects shown as a teaser; each links to a search on the commands page.
@@ -66,11 +34,12 @@ const SHOWCASE_COMMANDS = ['magik', 'deepfry', 'caption', 'explode', 'jpeg', 're
 
 
 function compactNumber(value: number): string {
-  return new Intl.NumberFormat(undefined, {notation: 'compact', maximumFractionDigits: 1}).format(value);
+  return new Intl.NumberFormat(displayLocale(), {notation: 'compact', maximumFractionDigits: 1}).format(value);
 }
 
 
 export function HomePage() {
+  const { t } = useI18n();
   const inviteUrl = apiUrl(ApiEndpoints.HELP_DISCORD_BOT);
 
   return (
@@ -80,23 +49,22 @@ export function HomePage() {
         <ReportUpdatesNotice className='mx-auto mb-4 max-w-3xl'/>
         <QuarantineNotice className='mx-auto mb-10 max-w-3xl'/>
         <div className='mb-4 inline-block rounded-full border border-brand/30 bg-brand/10 px-4 py-1.5'>
-          <span className='text-sm font-medium text-brand'>Images, gifs, video and audio</span>
+          <span className='text-sm font-medium text-brand'>{t('home.badge')}</span>
         </div>
         <h1 className='mb-6 text-5xl leading-tight font-medium text-balance text-white md:text-6xl'>
-          Media manipulation,<br className='hidden sm:block'/> right inside Discord
+          {t('home.hero.title_1')}<br className='hidden sm:block'/> {t('home.hero.title_2')}
         </h1>
         <p className='mx-auto mb-4 max-w-2xl text-xl text-balance text-muted'>
-          NotSoBot distorts, deep fries, captions, converts and remixes anything you throw at it, with hundreds
-          of commands for effects, search, and server utilities on top.
+          {t('home.hero.description')}
         </p>
-        <p className='mb-8 text-sm text-muted italic'>"It just works" - kyle</p>
+        <p className='mb-8 text-sm text-muted italic'>{t('home.hero.quote')}</p>
         <div className='flex flex-col items-center justify-center gap-4 sm:flex-row'>
           <a href={inviteUrl} className='btn btn-discord btn-lg'>
-            Add to Discord
+            {t('common.add_to_discord')}
             <ArrowRight className='size-5'/>
           </a>
           <Link to={Routes.COMMANDS} className='btn btn-secondary btn-lg'>
-            View Commands
+            {t('home.view_commands')}
           </Link>
         </div>
         <div className='mx-auto mt-10 flex max-w-2xl flex-wrap justify-center gap-2'>
@@ -114,18 +82,18 @@ export function HomePage() {
 
       {/* Features */}
       <section className='container-page py-16'>
-        <h2 className='mb-4 text-center text-3xl text-white'>What can it do?</h2>
+        <h2 className='mb-4 text-center text-3xl text-white'>{t('home.features.title')}</h2>
         <p className='mx-auto mb-12 max-w-2xl text-center text-muted'>
-          If it's an image, a gif, a video or a sound, there's a command to mess with it.
+          {t('home.features.description')}
         </p>
         <div className='grid gap-6 md:grid-cols-2 lg:grid-cols-3'>
-          {FEATURES.map(({ icon: Icon, title, description }) => (
-            <div key={title} className='card card-hover p-6'>
+          {FEATURES.map(({ icon: Icon, key }) => (
+            <div key={key} className='card card-hover p-6'>
               <div className='mb-4 flex size-12 items-center justify-center rounded-lg bg-brand/10'>
                 <Icon className='size-6 text-brand'/>
               </div>
-              <h3 className='mb-2 text-xl text-white'>{title}</h3>
-              <p className='text-muted'>{description}</p>
+              <h3 className='mb-2 text-xl text-white'>{t(`home.features.${key}.title`)}</h3>
+              <p className='text-muted'>{t(`home.features.${key}.description`)}</p>
             </div>
           ))}
         </div>
@@ -133,19 +101,19 @@ export function HomePage() {
 
       {/* How it works */}
       <section className='container-page py-16'>
-        <h2 className='mb-12 text-center text-3xl text-white'>How it works</h2>
+        <h2 className='mb-12 text-center text-3xl text-white'>{t('home.steps.title')}</h2>
         <ol className='grid gap-6 md:grid-cols-3'>
-          {STEPS.map(({ icon: Icon, title, description }, index) => (
-            <li key={title} className='flex gap-4'>
+          {STEPS.map(({ icon: Icon, key }, index) => (
+            <li key={key} className='flex gap-4'>
               <div className='flex size-10 shrink-0 items-center justify-center rounded-full border border-brand/30 bg-brand/10 font-semibold text-brand tabular-nums'>
                 {index + 1}
               </div>
               <div>
                 <h3 className='mb-1 flex items-center gap-2 text-lg text-white'>
-                  {title}
+                  {t(`home.steps.${key}.title`)}
                   <Icon className='size-4 text-muted' aria-hidden/>
                 </h3>
-                <p className='text-muted'>{description}</p>
+                <p className='text-muted'>{t(`home.steps.${key}.description`)}</p>
               </div>
             </li>
           ))}
@@ -160,12 +128,12 @@ export function HomePage() {
       {/* CTA */}
       <section className='container-page py-16'>
         <div className='rounded-lg border border-brand/30 bg-gradient-to-r from-brand/20 to-brand/5 p-8 text-center md:p-12'>
-          <h2 className='mb-4 text-3xl text-white md:text-4xl'>Add NotSoBot to your server</h2>
+          <h2 className='mb-4 text-3xl text-white md:text-4xl'>{t('home.cta.title')}</h2>
           <p className='mx-auto mb-8 max-w-2xl text-xl text-muted'>
-            Edit images, gifs and videos without leaving chat. Setup takes about ten seconds.
+            {t('home.cta.description')}
           </p>
           <a href={inviteUrl} className='btn btn-discord btn-lg'>
-            Add to Discord
+            {t('common.add_to_discord')}
             <ArrowRight className='size-5'/>
           </a>
         </div>
@@ -176,6 +144,7 @@ export function HomePage() {
 
 
 function LiveStats() {
+  const { t } = useI18n();
   const { data: info } = useInfoDiscordQuery({poll: false});
   const { data: commands } = useCommandsQuery();
 
@@ -197,9 +166,9 @@ function LiveStats() {
   const commandCount = commands?.filter((command) => enabledCommandVariants(command).length).length;
 
   const stats = [
-    {label: 'Servers', value: (totals) ? compactNumber(totals.guilds) : null},
-    {label: 'Users', value: (totals) ? compactNumber(totals.users) : null},
-    {label: 'Commands', value: (commandCount) ? commandCount.toLocaleString() : null},
+    {label: t('home.stats.servers'), value: (totals) ? compactNumber(totals.guilds) : null},
+    {label: t('home.stats.users'), value: (totals) ? compactNumber(totals.users) : null},
+    {label: t('home.stats.commands'), value: (commandCount) ? commandCount.toLocaleString(displayLocale()) : null},
   ];
 
   return (

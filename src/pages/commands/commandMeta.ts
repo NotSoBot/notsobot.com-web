@@ -19,6 +19,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 
+import type { TranslationKey } from '@/i18n';
 import { enabledCommandVariants } from '@/lib/commandAvailability';
 import { commandPath as commandPathFor, commandTypeFromPath } from '@/lib/commandPaths';
 import { CommandCategories, CommandTypes, LegacyCommandCategories, type Command, type CommandMetadata, type CommandPremium, type CommandStat, type CommandType } from '@/lib/api';
@@ -26,15 +27,15 @@ import { CommandCategories, CommandTypes, LegacyCommandCategories, type Command,
 
 export interface TypeOption {
   param: string,
-  label: string,
+  label: TranslationKey,
   types: Array<CommandType> | null,
 }
 
 export const TYPE_OPTIONS: Array<TypeOption> = [
-  {param: 'all', label: 'All', types: null},
-  {param: 'prefixed', label: 'Prefix', types: [CommandTypes.PREFIXED]},
-  {param: 'slash', label: 'Slash', types: [CommandTypes.APPLICATION_SLASH]},
-  {param: 'context', label: 'Context Menus', types: [CommandTypes.APPLICATION_MENU_USER, CommandTypes.APPLICATION_MENU_MESSAGE]},
+  {param: 'all', label: 'common.all', types: null},
+  {param: 'prefixed', label: 'command_type.prefixed', types: [CommandTypes.PREFIXED]},
+  {param: 'slash', label: 'command_type.slash', types: [CommandTypes.APPLICATION_SLASH]},
+  {param: 'context', label: 'command_type.context', types: [CommandTypes.APPLICATION_MENU_USER, CommandTypes.APPLICATION_MENU_MESSAGE]},
 ];
 
 export function typeOptionFromParam(param: string | null): TypeOption {
@@ -53,37 +54,27 @@ export const PREFIXES: Record<CommandType, string> = {
   [CommandTypes.APPLICATION_MENU_MESSAGE]: '',
 };
 
-export const TYPE_LABELS: Record<CommandType, string> = {
-  [CommandTypes.PREFIXED]: 'Prefix',
-  [CommandTypes.APPLICATION_SLASH]: 'Slash',
-  [CommandTypes.APPLICATION_MENU_USER]: 'User Menu',
-  [CommandTypes.APPLICATION_MENU_MESSAGE]: 'Message Menu',
+export const TYPE_LABELS: Record<CommandType, TranslationKey> = {
+  [CommandTypes.PREFIXED]: 'command_type.prefixed',
+  [CommandTypes.APPLICATION_SLASH]: 'command_type.slash',
+  [CommandTypes.APPLICATION_MENU_USER]: 'command_type.user_menu',
+  [CommandTypes.APPLICATION_MENU_MESSAGE]: 'command_type.message_menu',
 };
 
 
 // a premium command's badge, and who it's for (the drawer's explanation)
-export const PREMIUM_META: Record<CommandPremium, {badge: string, label: string, description: string}> = {
-  premium: {
-    badge: 'Premium',
-    label: 'NotSoPremium only',
-    description: 'Needs NotSoPremium.',
-  },
-  premium_plus: {
-    badge: 'Premium+',
-    label: 'NotSoPremium Plus only',
-    description: 'Needs NotSoPremium Plus.',
-  },
-  premium_server: {
-    badge: 'Premium',
-    label: 'Premium only',
-    description: 'Works for anyone with NotSoPremium, and for everyone in a Premium Server (a server someone gave their NotSoPremium Plus perks to).',
-  },
-};
+export function premiumMeta(premium: CommandPremium): {badge: TranslationKey, label: TranslationKey, description: TranslationKey} {
+  return {
+    badge: `command_premium.${premium}.badge`,
+    label: `command_premium.${premium}.label`,
+    description: `command_premium.${premium}.description`,
+  };
+}
 
 export const ACCESS_OPTIONS = [
-  {value: 'all', label: 'All'},
-  {value: 'free', label: 'Free'},
-  {value: 'premium', label: 'Premium'},
+  {value: 'all', label: 'common.all'},
+  {value: 'free', label: 'command_access.free'},
+  {value: 'premium', label: 'command_access.premium'},
 ] as const;
 export type Access = (typeof ACCESS_OPTIONS)[number]['value'];
 
@@ -97,7 +88,7 @@ export function matchesAccess(metadata: CommandMetadata, access: Access): boolea
 
 
 export interface CategoryMeta {
-  label: string,
+  label: TranslationKey,
   icon: LucideIcon,
   // used through inline CSS vars, so arbitrary hex values are fine
   color: string,
@@ -105,41 +96,44 @@ export interface CategoryMeta {
 
 // Order here is the sidebar order (roughly by how much they're used).
 export const CATEGORY_META: Record<string, CategoryMeta> = {
-  [CommandCategories.CONVERSION]: {label: 'Downloads & Media Tools', icon: Download, color: '#22c55e'},
-  [CommandCategories.AI]: {label: 'AI', icon: Sparkles, color: '#a78bfa'},
-  [CommandCategories.EFFECTS]: {label: 'Image & Video Effects', icon: Wand2, color: '#ec4899'},
-  [CommandCategories.TAGS]: {label: 'Tags', icon: Tags, color: '#f59e0b'},
-  [CommandCategories.SEARCH]: {label: 'Search', icon: Search, color: '#3b82f6'},
-  [CommandCategories.AUDIO]: {label: 'Audio', icon: AudioLines, color: '#14b8a6'},
-  [CommandCategories.FUN]: {label: 'Fun', icon: PartyPopper, color: '#fb923c'},
-  [CommandCategories.INFO]: {label: 'Info', icon: Info, color: '#38bdf8'},
-  [CommandCategories.MODERATION]: {label: 'Moderation', icon: Shield, color: '#ef4444'},
-  [CommandCategories.MUSIC]: {label: 'Music', icon: Music, color: '#e11d48'},
-  [CommandCategories.SERVER]: {label: 'Server Setup', icon: Server, color: '#94a3b8'},
-  [CommandCategories.PERSONAL]: {label: 'Personal Settings', icon: User, color: '#c084fc'},
-  [CommandCategories.UTILITY]: {label: 'Utility', icon: Puzzle, color: '#eab308'},
-  [CommandCategories.OWNER]: {label: 'Bot Owner', icon: Crown, color: '#a855f7'},
+  [CommandCategories.CONVERSION]: {label: 'category.CONVERSION', icon: Download, color: '#22c55e'},
+  [CommandCategories.AI]: {label: 'category.AI', icon: Sparkles, color: '#a78bfa'},
+  [CommandCategories.EFFECTS]: {label: 'category.EFFECTS', icon: Wand2, color: '#ec4899'},
+  [CommandCategories.TAGS]: {label: 'category.TAGS', icon: Tags, color: '#f59e0b'},
+  [CommandCategories.SEARCH]: {label: 'category.SEARCH', icon: Search, color: '#3b82f6'},
+  [CommandCategories.AUDIO]: {label: 'category.AUDIO', icon: AudioLines, color: '#14b8a6'},
+  [CommandCategories.FUN]: {label: 'category.FUN', icon: PartyPopper, color: '#fb923c'},
+  [CommandCategories.INFO]: {label: 'category.INFO', icon: Info, color: '#38bdf8'},
+  [CommandCategories.MODERATION]: {label: 'category.MODERATION', icon: Shield, color: '#ef4444'},
+  [CommandCategories.MUSIC]: {label: 'category.MUSIC', icon: Music, color: '#e11d48'},
+  [CommandCategories.SERVER]: {label: 'category.SERVER', icon: Server, color: '#94a3b8'},
+  [CommandCategories.PERSONAL]: {label: 'category.PERSONAL', icon: User, color: '#c084fc'},
+  [CommandCategories.UTILITY]: {label: 'category.UTILITY', icon: Puzzle, color: '#eab308'},
+  [CommandCategories.OWNER]: {label: 'category.OWNER', icon: Crown, color: '#a855f7'},
 
   // legacy values, only seen until the bot re-uploads its commands; hidden once unused
-  [LegacyCommandCategories.IMAGE]: {label: 'Image Manipulation', icon: Image, color: '#ec4899'},
-  [LegacyCommandCategories.TOOLS]: {label: 'Tools', icon: Wrench, color: '#22c55e'},
-  [LegacyCommandCategories.SETTINGS]: {label: 'Server Settings', icon: Server, color: '#94a3b8'},
-  [LegacyCommandCategories.UTILS]: {label: 'Utilities', icon: Puzzle, color: '#eab308'},
-  [LegacyCommandCategories.SAY]: {label: 'Say', icon: Hash, color: '#14b8a6'},
+  [LegacyCommandCategories.IMAGE]: {label: 'category.IMAGE', icon: Image, color: '#ec4899'},
+  [LegacyCommandCategories.TOOLS]: {label: 'category.TOOLS', icon: Wrench, color: '#22c55e'},
+  [LegacyCommandCategories.SETTINGS]: {label: 'category.SETTINGS', icon: Server, color: '#94a3b8'},
+  [LegacyCommandCategories.UTILS]: {label: 'category.UTILS', icon: Puzzle, color: '#eab308'},
+  [LegacyCommandCategories.SAY]: {label: 'category.SAY', icon: Hash, color: '#14b8a6'},
 };
 
 // never listed on the public page
 export const HIDDEN_CATEGORIES: ReadonlySet<string> = new Set([CommandCategories.OWNER]);
 
-const UNKNOWN_CATEGORY: CategoryMeta = {label: 'Other', icon: Hash, color: '#72767d'};
+const UNKNOWN_CATEGORY: CategoryMeta = {label: 'category.OTHER', icon: Hash, color: '#72767d'};
 
 export function categoryMeta(category: string): CategoryMeta {
   return CATEGORY_META[category] || UNKNOWN_CATEGORY;
 }
 
-export const CATEGORY_ORDER = Object.keys(CATEGORY_META)
-  .filter((category) => !HIDDEN_CATEGORIES.has(category))
-  .sort((a, b) => CATEGORY_META[a].label.localeCompare(CATEGORY_META[b].label));
+// alphabetical by label in the language on screen
+export function categoryOrder(label: (key: TranslationKey) => string): Array<string> {
+  return Object.keys(CATEGORY_META)
+    .filter((category) => !HIDDEN_CATEGORIES.has(category))
+    .sort((a, b) => label(CATEGORY_META[a].label).localeCompare(label(CATEGORY_META[b].label)));
+}
 
 
 export interface Entry {

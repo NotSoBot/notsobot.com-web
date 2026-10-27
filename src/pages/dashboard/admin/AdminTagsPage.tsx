@@ -141,7 +141,7 @@ export function AdminTagsPage() {
               Category
               <select className='input w-36' value={category?.param ?? ''} onChange={(event) => update({category: event.target.value || null})}>
                 <option value=''>All</option>
-                {TAG_DIRECTORY_CATEGORY_OPTIONS.map((option) => <option key={option.param} value={option.param}>{option.label}</option>)}
+                {TAG_DIRECTORY_CATEGORY_OPTIONS.map((option) => <option key={option.param} value={option.param}>{categoryLabel(option.value)}</option>)}
               </select>
             </label>
             <label className='flex items-center gap-2 text-sm text-muted'>

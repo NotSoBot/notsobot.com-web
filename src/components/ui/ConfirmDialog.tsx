@@ -1,5 +1,6 @@
 import { useId, useState, type ReactNode } from 'react';
 
+import { useI18n } from '@/i18n';
 import { cn } from '@/lib/utils';
 
 import { Modal } from './Modal';
@@ -31,6 +32,7 @@ export function ConfirmDialog({
   onConfirm: () => void,
   onClose: () => void,
 }) {
+  const { t, rich } = useI18n();
   const titleId = useId();
   const inputId = useId();
   const acknowledgementId = useId();
@@ -55,7 +57,7 @@ export function ConfirmDialog({
         {(confirmPhrase) ? (
           <div className='mt-4'>
             <label htmlFor={inputId} className='mb-1.5 block text-sm text-muted'>
-              Type <span className='font-mono text-white select-all'>{confirmPhrase}</span> to confirm
+              {rich('ui.confirm_phrase', {phrase: (chunk) => <span className='font-mono text-white select-all'>{chunk}</span>}, {phrase: confirmPhrase})}
             </label>
             <input
               id={inputId}
@@ -85,7 +87,7 @@ export function ConfirmDialog({
         {(error) ? <p role='alert' className='mt-4 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-fg'>{error}</p> : null}
 
         <div className='mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
-          <button type='button' className='btn btn-secondary' onClick={onClose} disabled={pending}>Cancel</button>
+          <button type='button' className='btn btn-secondary' onClick={onClose} disabled={pending}>{t('common.cancel')}</button>
           <button
             type='submit'
             disabled={!ready || pending}

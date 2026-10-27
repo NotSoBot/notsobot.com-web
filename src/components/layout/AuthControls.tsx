@@ -5,6 +5,7 @@ import { Link, useLocation } from 'react-router';
 import { useAuth } from '@/auth';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { Routes } from '@/config';
+import { useI18n } from '@/i18n';
 import { useReportsUnreadQuery } from '@/lib/api/queries';
 import { userDisplayTag } from '@/lib/discord';
 import { cn } from '@/lib/utils';
@@ -12,9 +13,10 @@ import { cn } from '@/lib/utils';
 
 export function AuthControls({ compact = false }: {compact?: boolean}) {
   const { status, user, login, retry } = useAuth();
+  const { t } = useI18n();
 
   if (status === 'loading') {
-    return <div aria-label='Loading account' className='h-11 w-11 animate-pulse rounded-full bg-surface-3 sm:w-40'/>;
+    return <div aria-label={t('account.loading')} className='h-11 w-11 animate-pulse rounded-full bg-surface-3 sm:w-40'/>;
   }
 
   if (status === 'authenticated' && user) {
@@ -23,9 +25,9 @@ export function AuthControls({ compact = false }: {compact?: boolean}) {
 
   if (status === 'error') {
     return (
-      <button type='button' className='btn btn-ghost' onClick={retry} title="Couldn't reach NotSoBot — retry">
+      <button type='button' className='btn btn-ghost' onClick={retry} title={t('account.unreachable')}>
         <RefreshCw className='size-4'/>
-        {compact ? null : <span>Retry</span>}
+        {compact ? null : <span>{t('common.retry')}</span>}
       </button>
     );
   }
@@ -33,7 +35,7 @@ export function AuthControls({ compact = false }: {compact?: boolean}) {
   return (
     <button type='button' className='btn btn-outline-brand font-medium' onClick={() => login()}>
       <LogIn className='size-4'/>
-      <span>{compact ? 'Login' : 'Login with Discord'}</span>
+      <span>{t(compact ? 'account.login' : 'account.login_discord')}</span>
     </button>
   );
 }
@@ -41,6 +43,7 @@ export function AuthControls({ compact = false }: {compact?: boolean}) {
 
 function UserMenu({ compact }: {compact: boolean}) {
   const { user, token, logout } = useAuth();
+  const { t, plural } = useI18n();
   // reports with something from staff they haven't opened: a dot on the avatar and a Reports item in the menu
   const unreadReports = useReportsUnreadQuery(token).data?.count ?? 0;
   const [ open, setOpen ] = useState(false);
@@ -104,7 +107,7 @@ function UserMenu({ compact }: {compact: boolean}) {
           <UserAvatar user={user} size={80} className='size-9 rounded-full bg-surface-3'/>
           {(unreadReports) ? (
             <span className='absolute -top-0.5 -right-0.5 size-3 rounded-full border-2 border-surface-2 bg-brand'>
-              <span className='sr-only'>{unreadReports.toLocaleString()} report {(unreadReports === 1) ? 'update' : 'updates'}</span>
+              <span className='sr-only'>{plural('account.report_updates', unreadReports)}</span>
             </span>
           ) : null}
         </span>
@@ -134,7 +137,7 @@ function UserMenu({ compact }: {compact: boolean}) {
               className='flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-fg hover:bg-surface-2'
             >
               <LayoutDashboard className='size-4 text-muted'/>
-              Dashboard
+              {t('account.dashboard')}
             </Link>
             {(unreadReports) ? (
               <Link
@@ -143,7 +146,7 @@ function UserMenu({ compact }: {compact: boolean}) {
                 className='flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-fg hover:bg-surface-2'
               >
                 <MessageSquareWarning className='size-4 text-muted'/>
-                Report updates
+                {t('account.report_updates')}
                 <span className='ml-auto min-w-5 rounded-full bg-brand px-1.5 text-center text-xs leading-5 font-semibold text-white tabular-nums'>
                   {unreadReports.toLocaleString()}
                 </span>
@@ -155,7 +158,7 @@ function UserMenu({ compact }: {compact: boolean}) {
               className='flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-fg hover:bg-surface-2'
             >
               <Settings className='size-4 text-muted'/>
-              Settings
+              {t('account.settings')}
             </Link>
           </div>
           <div className='border-t border-line p-1.5'>
@@ -167,7 +170,7 @@ function UserMenu({ compact }: {compact: boolean}) {
               className='flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-danger hover:bg-surface-2 disabled:opacity-60'
             >
               <LogOut className='size-4'/>
-              {loggingOut ? 'Logging out…' : 'Log out'}
+              {t(loggingOut ? 'account.logging_out' : 'account.log_out')}
             </button>
           </div>
         </div>

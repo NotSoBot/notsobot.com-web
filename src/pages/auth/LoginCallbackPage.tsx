@@ -5,6 +5,7 @@ import { clearReturnTo, consumeLoginPending, peekReturnTo, useAuth } from '@/aut
 import { FullPageMessage } from '@/components/ui/FullPageMessage';
 import { Spinner } from '@/components/ui/Spinner';
 import { config, Routes } from '@/config';
+import { splitLanguagePath, useI18n } from '@/i18n';
 
 import { LoginDisabledMessage } from './LoginPage';
 
@@ -14,6 +15,7 @@ import { LoginDisabledMessage } from './LoginPage';
 // The fragment never reaches any server, and we strip it from history as soon as we've read it.
 export function LoginCallbackPage() {
   const { completeLogin } = useAuth();
+  const { language, switchLanguage, t } = useI18n();
   const navigate = useNavigate();
 
   // read once during the first render, so StrictMode's double effects can't lose them
@@ -39,8 +41,15 @@ export function LoginCallbackPage() {
     }
     completeLogin(token);
     clearReturnTo();
-    navigate(returnTo, {replace: true});
-  }, [completeLogin, navigate, returnTo, started, token]);
+    // the page to go back to keeps its language prefix. one without a prefix stays in whatever language this page
+    // opened in (picked automatically, like any url without one)
+    const target = splitLanguagePath(returnTo);
+    if (target.language && target.language !== language) {
+      switchLanguage(target.language, target.path);
+    } else {
+      navigate(target.path, {replace: true});
+    }
+  }, [completeLogin, language, navigate, returnTo, started, switchLanguage, token]);
 
   if (!config.authEnabled) {
     return <LoginDisabledMessage/>;
@@ -48,10 +57,10 @@ export function LoginCallbackPage() {
 
   if (token && !started) {
     return (
-      <FullPageMessage title='Login link not started here' description="This login wasn't started from this tab, so we didn't use it. Log in again if you meant to.">
+      <FullPageMessage title={t('login.not_started_title')} description={t('login.not_started_description')}>
         <div className='flex gap-2'>
-          <Link to={Routes.AUTH_LOGIN} className='btn btn-discord'>Log in</Link>
-          <Link to={Routes.HOME} className='btn btn-secondary'>Go home</Link>
+          <Link to={Routes.AUTH_LOGIN} className='btn btn-discord'>{t('common.log_in')}</Link>
+          <Link to={Routes.HOME} className='btn btn-secondary'>{t('common.go_home')}</Link>
         </div>
       </FullPageMessage>
     );
@@ -59,17 +68,17 @@ export function LoginCallbackPage() {
 
   if (!token) {
     return (
-      <FullPageMessage title='Login failed' description="Discord didn't hand us a session. Give it another try.">
+      <FullPageMessage title={t('login.failed_title')} description={t('login.failed_description')}>
         <div className='flex gap-2'>
-          <Link to={Routes.AUTH_LOGIN} className='btn btn-discord'>Try again</Link>
-          <Link to={Routes.HOME} className='btn btn-secondary'>Go home</Link>
+          <Link to={Routes.AUTH_LOGIN} className='btn btn-discord'>{t('common.try_again')}</Link>
+          <Link to={Routes.HOME} className='btn btn-secondary'>{t('common.go_home')}</Link>
         </div>
       </FullPageMessage>
     );
   }
 
   return (
-    <FullPageMessage title='Logging you in…'>
+    <FullPageMessage title={t('login.logging_in')}>
       <Spinner/>
     </FullPageMessage>
   );

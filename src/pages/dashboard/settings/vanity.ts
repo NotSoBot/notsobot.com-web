@@ -4,6 +4,9 @@
 // a fixed length (`5`) or a range (`3-8`, parentheses optional) of random lowercase letters and digits.
 // `5/5` (the default) gives links like nsb.gg/k3x9q/7mzp2. Temporary uploads get `tmp/` in front.
 
+import { translate } from '@/i18n';
+
+
 export const DEFAULT_VANITY = '5/5';
 export const VANITY_HOST = 'nsb.gg';
 
@@ -45,14 +48,14 @@ export function vanityError(pattern: string): string | null {
   const parts = parseVanity(pattern);
   const invalid = parts.findIndex((part) => !part.valid);
   if (invalid !== -1) {
-    return `Part ${invalid + 1} isn’t a number or range. Use something like 5 or 3-8.`;
+    return translate('vanity.bad_part', {part: invalid + 1});
   }
   // the API counts one slash fewer than there are (`max(count('/') - 1, 0)`), so `1/1` counts as 2 characters (too short) rather than 3
   const slashes = Math.max(parts.length - 2, 0);
   const min = slashes + parts.reduce((sum, part) => sum + part.min, 0);
   const max = slashes + parts.reduce((sum, part) => sum + part.max, 0);
   if (min < MIN_TOTAL_LENGTH || MAX_TOTAL_LENGTH < max) {
-    return `Links must be between ${MIN_TOTAL_LENGTH} and ${MAX_TOTAL_LENGTH} characters long (this one is ${(min === max) ? min : `${min}–${max}`}).`;
+    return translate('vanity.bad_length', {min: MIN_TOTAL_LENGTH, max: MAX_TOTAL_LENGTH, length: (min === max) ? min : `${min}–${max}`});
   }
   return null;
 }
@@ -62,8 +65,8 @@ export function vanityError(pattern: string): string | null {
 export function describeVanity(pattern: string): string {
   const parts = parseVanity(pattern || DEFAULT_VANITY);
   const lengths = parts.map((part) => (part.min === part.max) ? `${part.min}` : `${part.min}–${part.max}`);
-  const label = (parts.length === 1) ? 'one part' : `${parts.length} parts`;
-  return `${label}: ${lengths.map((length) => `${length} characters`).join(', then ')}`;
+  const label = (parts.length === 1) ? translate('vanity.one_part') : translate('vanity.parts', {count: parts.length});
+  return `${label}: ${lengths.map((length) => translate('vanity.characters', {length})).join(translate('vanity.then'))}`;
 }
 
 

@@ -6,6 +6,7 @@ import { SearchInput } from '@/components/ui/SearchInput';
 import { Routes } from '@/config';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { isStaff, useAuth } from '@/auth';
+import { translate, useI18n, type TranslationKey } from '@/i18n';
 import { errorMessage, ME_TAGS_PAGE_SIZE, useMeGuildsQuery, useMeTagsQuery } from '@/lib/api/dashboardQueries';
 import { TagDirectoryVerificationStates, type MeTagsDirectoryFilter, type MeTagsSortBy, type Tag, type UserMe } from '@/lib/api';
 import { cn, formatDate } from '@/lib/utils';
@@ -21,30 +22,33 @@ import { readTagListState, writeTagListState } from './tagListState';
 import { dashboardTagEditPath, dashboardTagPath, TagCardDeleteButton, tagLocation, TagLocationChip, tagServerPath, TagStatusBadges } from './tagMeta';
 
 
-const SORTS: Array<{value: MeTagsSortBy, label: string}> = [
-  {value: 'newest', label: 'Newest'},
-  {value: 'oldest', label: 'Oldest'},
-  {value: 'uses', label: 'Most used'},
-  {value: 'last_used', label: 'Recently used'},
-  {value: 'name', label: 'Name'},
+// labels are `dtags.sort.<value>`
+const SORTS: Array<{value: MeTagsSortBy}> = [
+  {value: 'newest'},
+  {value: 'oldest'},
+  {value: 'uses'},
+  {value: 'last_used'},
+  {value: 'name'},
 ];
 
 const findSort = (value: string | null | undefined) => SORTS.find((sort) => sort.value === value)?.value;
 
-// the `directory` param, `all` is left out of the url. `description` finishes "N tags ..." in the header
-const DIRECTORY_FILTERS: Array<{value: string, label: string, filter: MeTagsDirectoryFilter, description: string}> = [
-  {value: 'all', label: 'All tags', filter: null, description: ''},
-  {value: 'listed', label: 'Listed', filter: {listed: true, verified: null}, description: 'listed on the tag directory'},
-  {value: 'verified', label: 'Verified', filter: {listed: true, verified: TagDirectoryVerificationStates.VERIFIED}, description: 'verified on the tag directory'},
-  {value: 'pending', label: 'Pending verification', filter: {listed: true, verified: TagDirectoryVerificationStates.PENDING_VERIFICATION}, description: 'pending verification'},
-  {value: 'unverified', label: 'Unverified', filter: {listed: true, verified: TagDirectoryVerificationStates.NOT_VERIFIED}, description: 'listed but not verified'},
-  {value: 'unlisted', label: 'Not listed', filter: {listed: false}, description: 'not listed on the tag directory'},
+// the `directory` param, `all` is left out of the url. The label is `dtags.filter.<value>`, and the description
+// (`dtags.filter.<value>_description`, a getter) finishes "N tags ..." in the header
+const DIRECTORY_FILTERS: Array<{value: string, filter: MeTagsDirectoryFilter, description: string}> = [
+  {value: 'all', filter: null, description: ''},
+  {value: 'listed', filter: {listed: true, verified: null}, get description() { return translate('dtags.filter.listed_description'); }},
+  {value: 'verified', filter: {listed: true, verified: TagDirectoryVerificationStates.VERIFIED}, get description() { return translate('dtags.filter.verified_description'); }},
+  {value: 'pending', filter: {listed: true, verified: TagDirectoryVerificationStates.PENDING_VERIFICATION}, get description() { return translate('dtags.filter.pending_description'); }},
+  {value: 'unverified', filter: {listed: true, verified: TagDirectoryVerificationStates.NOT_VERIFIED}, get description() { return translate('dtags.filter.unverified_description'); }},
+  {value: 'unlisted', filter: {listed: false}, get description() { return translate('dtags.filter.unlisted_description'); }},
 ];
 
 const findDirectoryFilter = (value: string | null | undefined) => DIRECTORY_FILTERS.find((filter) => filter.value === value);
 
 
 export function TagsPage() {
+  const { t, plural } = useI18n();
   const [ searchParams, setSearchParams ] = useSearchParams();
   const query = searchParams.get('q') || '';
   const debouncedQuery = useDebouncedValue(query.trim(), 300);
@@ -195,17 +199,17 @@ export function TagsPage() {
   return (
     <>
       <DashboardHeader
-        title='Your tags'
+        title={t('dtags.title')}
         description={
           (data) ? (
             (debouncedQuery)
-              ? `${count.toLocaleString()} ${count === 1 ? 'tag matches' : 'tags match'} “${debouncedQuery}”.`
+              ? plural('dtags.matches', count, {query: debouncedQuery})
               : (serverId && !directoryFilter.filter)
-              ? `You own ${count.toLocaleString()} ${count === 1 ? 'tag' : 'tags'} in ${guildNames.get(serverId) ?? 'this server'}.`
+              ? plural('dtags.own_in', count, {server: guildNames.get(serverId) ?? t('dtags.this_server')})
               : (directoryFilter.filter)
-              ? `${count.toLocaleString()} ${count === 1 ? 'tag' : 'tags'} ${directoryFilter.description}.`
-              : `You own ${count.toLocaleString()} ${count === 1 ? 'tag' : 'tags'}. Create new ones from Discord with the tag create command.`
-          ) : 'Tags you own across every server.'
+              ? plural('dtags.filtered', count, {description: directoryFilter.description})
+              : plural('dtags.own', count)
+          ) : t('dtags.loading_description')
         }
       />
 
@@ -214,23 +218,23 @@ export function TagsPage() {
           className='min-w-0 flex-1'
           value={query}
           onValueChange={setQuery}
-          placeholder='Search by name or content...'
-          aria-label='Search your tags'
+          placeholder={t('dtags.search_placeholder')}
+          aria-label={t('dtags.search_label')}
         />
         <FiltersButton open={filtersOpen} onToggle={() => setFiltersOpen((value) => !value)} active={activeFilters} controls='tag-filters'/>
       </div>
 
       <div id='tag-filters' hidden={!filtersOpen} className='card mb-4 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4'>
         <label className='text-sm'>
-          <span className='mb-1 block text-subtle'>Directory</span>
+          <span className='mb-1 block text-subtle'>{t('dtags.directory')}</span>
           <select className='input' value={directoryFilter.value} onChange={(event) => setDirectoryFilter(event.target.value)}>
-            {DIRECTORY_FILTERS.map((filter) => <option key={filter.value} value={filter.value}>{filter.label}</option>)}
+            {DIRECTORY_FILTERS.map((filter) => <option key={filter.value} value={filter.value}>{t(`dtags.filter.${filter.value}` as TranslationKey)}</option>)}
           </select>
         </label>
         <label className='text-sm'>
-          <span className='mb-1 block text-subtle'>Sort</span>
+          <span className='mb-1 block text-subtle'>{t('dtags.sort')}</span>
           <select className='input' value={sortBy} onChange={(event) => setSortBy(event.target.value)}>
-            {SORTS.map((sort) => <option key={sort.value} value={sort.value}>{sort.label}</option>)}
+            {SORTS.map((sort) => <option key={sort.value} value={sort.value}>{t(`dtags.sort.${sort.value}`)}</option>)}
           </select>
         </label>
       </div>
@@ -240,16 +244,16 @@ export function TagsPage() {
       {(isPending) ? (
         <TagListSkeleton/>
       ) : (isError && !items.length) ? (
-        <ErrorPanel title='Couldn’t load your tags' message={errorMessage(error)} onRetry={() => refetch()} retrying={isRefetching}/>
+        <ErrorPanel title={t('dtags.load_error')} message={errorMessage(error)} onRetry={() => refetch()} retrying={isRefetching}/>
       ) : (!items.length) ? (
-        <EmptyState icon={<TagsIcon className='size-10'/>} title={(filtered) ? 'No tags match that' : 'You don’t have any tags yet'}>
-          {(debouncedQuery) ? 'Try a different search.' : (directoryFilter.value === 'listed') ? (
-            'None of your tags are listed on the tag directory. Publish one from its editor’s Directory tab.'
+        <EmptyState icon={<TagsIcon className='size-10'/>} title={t((filtered) ? 'dtags.empty_filtered' : 'dtags.empty')}>
+          {(debouncedQuery) ? t('dtags.empty_search') : (directoryFilter.value === 'listed') ? (
+            t('dtags.empty_listed')
           ) : (directoryFilter.value === 'unlisted') ? (
-            'Every one of your tags is listed on the tag directory.'
+            t('dtags.empty_unlisted')
           ) : (directoryFilter.filter) ? (
-            `None of your tags are ${directoryFilter.description}.`
-          ) : 'Make one in Discord with the tag create command and it shows up here.'}
+            t('dtags.empty_filter', {description: directoryFilter.description})
+          ) : t('dtags.empty_none')}
         </EmptyState>
       ) : (
         <>
@@ -290,6 +294,7 @@ function TagCard({ tag, user, guildNames, onOpen, onDelete }: {
   onOpen: (id: string) => void,
   onDelete: (tag: Tag) => void,
 }) {
+  const { t, plural } = useI18n();
   const location = tagLocation(tag, user, guildNames);
   return (
     <li className='group relative flex min-w-0 flex-col rounded-lg border border-line bg-surface p-4 transition-colors hover:border-brand'>
@@ -320,9 +325,9 @@ function TagCard({ tag, user, guildNames, onOpen, onDelete }: {
         <TagLocationChip location={location} to={tagServerPath(location)}/>
       </div>
       <div className='flex items-center justify-between gap-3 border-t border-line pt-3 text-xs text-subtle'>
-        <span className='tabular-nums'>{tag.uses.toLocaleString()} uses</span>
+        <span className='tabular-nums'>{plural('dtags.uses', tag.uses)}</span>
         <span className='flex items-center gap-1'>
-          {(tag.edited) ? `Edited ${formatDate(tag.edited)}` : `Created ${formatDate(tag.created)}`}
+          {(tag.edited) ? t('dtags.edited', {date: formatDate(tag.edited)}) : t('dtags.created', {date: formatDate(tag.created)})}
           {/* like the editor's: locked tags (pending/verified in the directory) are staff only */}
           {(!tag.locked || isStaff(user)) ? <TagCardDeleteButton name={tag.name} onClick={() => onDelete(tag)}/> : null}
         </span>
@@ -335,25 +340,26 @@ function TagCard({ tag, user, guildNames, onOpen, onDelete }: {
 // the alias' source tag: one of the caller's own opens over the list, someone else's directory tag links to its listing.
 // The links sit above the card's stretched button so they stay clickable
 function AliasOf({ reference, user, onOpen }: {reference: Tag, user: UserMe | null, onOpen: (id: string) => void}) {
+  const { t } = useI18n();
   const own = !!user && reference.user?.id === user.id;
   const linkClassName = 'relative z-10 inline-flex min-w-0 cursor-pointer items-center gap-1 text-brand hover:underline';
   const name = <span className='truncate'>{reference.name}</span>;
   return (
     <p className='mt-0.5 flex min-w-0 items-center gap-1 text-sm text-muted'>
-      <span className='shrink-0'>Alias of</span>
+      <span className='shrink-0'>{t('dtags.alias_of')}</span>
       {(own) ? (
-        <button type='button' className={linkClassName} title='Open your tag' onClick={() => onOpen(reference.id)}>
+        <button type='button' className={linkClassName} title={t('dtags.open_yours')} onClick={() => onOpen(reference.id)}>
           {name}
         </button>
       ) : (reference.is_on_directory) ? (
-        <Link to={tagDirectoryItemPath(reference.id)} className={linkClassName} title='Open on the tag directory'>
+        <Link to={tagDirectoryItemPath(reference.id)} className={linkClassName} title={t('dtags.open_directory')}>
           {name}
         </Link>
       ) : <span className='min-w-0 truncate'>{reference.name}</span>}
       {(reference.is_on_directory) ? (
         <span className='inline-flex shrink-0 items-center gap-1 text-subtle'>
           <BookOpen aria-hidden className='size-3.5'/>
-          from the directory
+          {t('dtags.from_directory')}
         </span>
       ) : null}
     </p>

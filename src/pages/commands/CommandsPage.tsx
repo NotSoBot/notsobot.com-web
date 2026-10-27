@@ -6,8 +6,9 @@ import { SearchInput } from '@/components/ui/SearchInput';
 import { Routes } from '@/config';
 import { Segmented } from '@/components/ui/Segmented';
 import { readStored, writeStored } from '@/hooks/usePersistentState';
+import { useI18n } from '@/i18n';
 import { useCommandsQuery, useCommandStatsQuery } from '@/lib/api/queries';
-import { cn, formatCompact } from '@/lib/utils';
+import { cn, formatCompact, formatNumber } from '@/lib/utils';
 
 import { CommandCard, TrendingCard } from './CommandCards';
 import { CommandDrawer } from './CommandDrawer';
@@ -15,8 +16,8 @@ import {
   ACCESS_OPTIONS,
   accessFromParam,
   buildEntries,
-  CATEGORY_ORDER,
   categoryMeta,
+  categoryOrder,
   commandPath,
   compareByName,
   compareByUses,
@@ -40,6 +41,7 @@ type Sort = 'popular' | 'az';
 
 
 export function CommandsPage() {
+  const { t, plural, rich } = useI18n();
   const [ searchParams, setSearchParams ] = useSearchParams();
 
   const typeOption = typeOptionFromParam(searchParams.get('type'));
@@ -169,6 +171,8 @@ export function CommandsPage() {
   }, [entries, goTo, location.search]);
   const closeCommand = useCallback(() => goTo(Routes.COMMANDS, location.search), [goTo, location.search]);
 
+  const categories = useMemo(() => categoryOrder(t), [t]);
+
   const activeFilterCount = Number(typeOption.types !== null) + Number(!!category) + Number(dmOnly) + Number(access !== 'all');
 
   return (
@@ -176,13 +180,13 @@ export function CommandsPage() {
       <div className='border-b border-line bg-surface'>
         <div className='container-page flex flex-col gap-1 py-6 sm:flex-row sm:items-end sm:justify-between'>
           <div>
-            <h1 className='mb-2 text-3xl text-white'>Commands</h1>
-            <p className='text-muted'>Everything NotSoBot can do, ranked by what people actually use.</p>
+            <h1 className='mb-2 text-3xl text-white'>{t('nav.commands')}</h1>
+            <p className='text-muted'>{t('commands.description')}</p>
           </div>
           {(entries.length) ? (
             <p className='text-sm text-subtle tabular-nums'>
-              {entries.length.toLocaleString()} commands
-              {(weekTotal) ? <> · <span className='text-muted'>{formatCompact(weekTotal)}</span> uses in the last 7 days</> : null}
+              {plural('commands.total', entries.length)}
+              {(weekTotal) ? <> · {rich('commands.week_uses', {b: (chunk) => <span className='text-muted'>{chunk}</span>}, {count: formatCompact(weekTotal)})}</> : null}
             </p>
           ) : null}
         </div>
@@ -193,10 +197,10 @@ export function CommandsPage() {
           <section aria-labelledby='trending-heading' className='mb-10'>
             <h2 id='trending-heading' className='mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-xl text-white'>
               <Flame className='size-5 text-warning'/>
-              Trending this week
+              {t('commands.trending')}
               {(category || typeOption.types) ? (
                 <span className='text-sm text-subtle'>
-                  · {[category && categoryMeta(category).label, typeOption.types && typeOption.label].filter(Boolean).join(' · ')}
+                  · {[category && t(categoryMeta(category).label), typeOption.types && t(typeOption.label)].filter(Boolean).join(' · ')}
                 </span>
               ) : null}
             </h2>
@@ -218,23 +222,23 @@ export function CommandsPage() {
             ) : (
               // same height as the row above, so an empty category doesn't shift the page either
               <div className='flex h-[12rem] animate-fade-in items-center justify-center rounded-lg border border-dashed border-line-strong pb-2 text-sm text-muted'>
-                Nothing here has been used this week.
+                {t('commands.trending_empty')}
               </div>
             )}
           </section>
         ) : null}
 
         <div className='grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[260px_minmax(0,1fr)]'>
-          <aside aria-label='Categories' className='lg:sticky lg:top-24 lg:self-start'>
-            <h2 className='section-label mb-2 hidden px-1 lg:block'>Categories</h2>
+          <aside aria-label={t('commands.categories')} className='lg:sticky lg:top-24 lg:self-start'>
+            <h2 className='section-label mb-2 hidden px-1 lg:block'>{t('commands.categories')}</h2>
             <ul className='-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:flex-col lg:gap-0.5 lg:overflow-visible lg:px-0 lg:pb-0'>
               <li>
                 <CategoryButton active={!category} count={scoped.length} onClick={() => updateParams({category: null})}>
                   <LayoutGrid className='size-4 text-muted'/>
-                  <span className='min-w-0 truncate'>All commands</span>
+                  <span className='min-w-0 truncate'>{t('commands.all')}</span>
                 </CategoryButton>
               </li>
-              {CATEGORY_ORDER.filter((value) => categoryCounts.get(value)).map((value) => {
+              {categories.filter((value) => categoryCounts.get(value)).map((value) => {
                 const meta = categoryMeta(value);
                 const Icon = meta.icon;
                 return (
@@ -246,7 +250,7 @@ export function CommandsPage() {
                       onClick={() => updateParams({category: (category === value) ? null : value.toLowerCase()})}
                     >
                       <Icon className='size-4 text-[var(--cat)]'/>
-                      <span className='min-w-0 truncate' title={meta.label}>{meta.label}</span>
+                      <span className='min-w-0 truncate' title={t(meta.label)}>{t(meta.label)}</span>
                     </CategoryButton>
                   </li>
                 );
@@ -260,27 +264,27 @@ export function CommandsPage() {
                 className='flex-1'
                 value={query}
                 onValueChange={(value) => updateParams({q: value || null})}
-                placeholder='Search commands, aliases, descriptions...'
-                aria-label='Search commands'
+                placeholder={t('commands.search_placeholder')}
+                aria-label={t('commands.search_label')}
               />
               <div className='flex flex-wrap items-center gap-2'>
                 <Segmented
-                  label='Command type'
+                  label={t('commands.type_label')}
                   value={typeOption.param}
-                  options={TYPE_OPTIONS.map((option) => ({value: option.param, label: option.label}))}
+                  options={TYPE_OPTIONS.map((option) => ({value: option.param, label: t(option.label)}))}
                   onChange={(value) => updateParams({type: (value === 'all') ? null : value})}
                 />
                 <Segmented
-                  label='Free or premium'
+                  label={t('commands.access_label')}
                   value={access}
-                  options={ACCESS_OPTIONS.map((option) => ({value: option.value, label: option.label}))}
+                  options={ACCESS_OPTIONS.map((option) => ({value: option.value, label: t(option.label)}))}
                   onChange={(value) => updateParams({access: (value === 'all') ? null : value})}
                 />
                 <DmToggle checked={dmOnly} onChange={(value) => updateParams({in: value ? 'dms' : null})}/>
                 <Segmented
-                  label='Sort'
+                  label={t('commands.sort_label')}
                   value={sort}
-                  options={[{value: 'popular', label: 'Popular'}, {value: 'az', label: 'A–Z'}]}
+                  options={[{value: 'popular', label: t('commands.sort_popular')}, {value: 'az', label: t('commands.sort_az')}]}
                   onChange={(value) => updateParams({sort: (value === 'popular') ? null : value})}
                 />
               </div>
@@ -288,8 +292,8 @@ export function CommandsPage() {
 
             <div className='mb-4 flex items-center justify-between gap-3 text-sm'>
               <span className='text-muted tabular-nums'>
-                {(isPending) ? 'Loading commands…' : `${filtered.length.toLocaleString()} ${filtered.length === 1 ? 'command' : 'commands'}`}
-                {(category) ? <> in <span className='text-white'>{categoryMeta(category).label}</span></> : null}
+                {(isPending) ? t('commands.loading') : plural('commands.total', filtered.length)}
+                {(category) ? <> {rich('commands.in_category', {b: (chunk) => <span className='text-white'>{chunk}</span>}, {category: t(categoryMeta(category).label)})}</> : null}
               </span>
               {(activeFilterCount) ? (
                 <button
@@ -297,7 +301,7 @@ export function CommandsPage() {
                   onClick={() => updateParams({type: null, category: null, in: null, access: null})}
                   className='cursor-pointer text-muted transition-colors hover:text-white'
                 >
-                  Clear filters
+                  {t('commands.clear_filters')}
                 </button>
               ) : null}
             </div>
@@ -306,8 +310,8 @@ export function CommandsPage() {
               <CardGridSkeleton/>
             ) : (isError) ? (
               <div className='card flex flex-col items-center gap-3 p-10 text-center'>
-                <p className='text-muted'>Couldn't load commands right now.</p>
-                <button type='button' className='btn btn-secondary' onClick={() => refetch()}>Retry</button>
+                <p className='text-muted'>{t('commands.load_error')}</p>
+                <button type='button' className='btn btn-secondary' onClick={() => refetch()}>{t('common.retry')}</button>
               </div>
             ) : (filtered.length) ? (
               <>
@@ -319,13 +323,13 @@ export function CommandsPage() {
                 {(visible < filtered.length) ? (
                   <div className='mt-6 flex justify-center'>
                     <button type='button' className='btn btn-secondary' onClick={() => setVisible((value) => value + PAGE_SIZE)}>
-                      Show more ({(filtered.length - visible).toLocaleString()} left)
+                      {t('commands.show_more', {count: formatNumber(filtered.length - visible)})}
                     </button>
                   </div>
                 ) : null}
               </>
             ) : (
-              <div className='card p-12 text-center text-muted'>No commands match that. Try a different search or category.</div>
+              <div className='card p-12 text-center text-muted'>{t('commands.empty')}</div>
             )}
           </div>
         </div>
@@ -369,6 +373,7 @@ function CategoryButton({ active, count, color, onClick, children }: {
 
 // sits in the toolbar next to the type/sort controls, sized to match their height
 function DmToggle({ checked, onChange }: {checked: boolean, onChange: (value: boolean) => void}) {
+  const { t } = useI18n();
   return (
     <label
       className={cn(
@@ -386,7 +391,7 @@ function DmToggle({ checked, onChange }: {checked: boolean, onChange: (value: bo
       >
         {checked ? <Check className='size-3.5 text-white'/> : null}
       </span>
-      Works in DMs
+      {t('commands.dms')}
     </label>
   );
 }

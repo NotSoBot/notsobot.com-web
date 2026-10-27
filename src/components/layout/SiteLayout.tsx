@@ -2,8 +2,9 @@ import { useEffect } from 'react';
 import { Outlet, ScrollRestoration, useMatches } from 'react-router';
 
 import { Routes } from '@/config';
+import { hasTranslation, useI18n } from '@/i18n';
 import type { RouteHandle } from '@/router';
-import { pageTitle } from '@/seo';
+import { NOT_FOUND_PAGE, PAGES, pageTitle, type PageMeta } from '@/seo';
 
 import { Footer } from './Footer';
 import { Navbar } from './Navbar';
@@ -12,12 +13,22 @@ import { Navbar } from './Navbar';
 const SCROLL_BY_PATH: ReadonlySet<string> = new Set([Routes.DASHBOARD_TAGS]);
 
 
+// handles are the PAGES entries themselves, so the entry's key finds its translated title
+const PAGE_KEYS: ReadonlyMap<PageMeta, string> = new Map([
+  ...Object.entries(PAGES).map(([ key, page ]) => [page, key] as const),
+  [NOT_FOUND_PAGE, 'NOT_FOUND'],
+]);
+
+
 function usePageTitle(): string {
+  const { t } = useI18n();
   const matches = useMatches();
   for (let i = matches.length - 1; 0 <= i; i--) {
     const handle = matches[i].handle as RouteHandle | undefined;
     if (handle?.title) {
-      return pageTitle(handle);
+      // pages without a translation (the staff ones) keep their English title
+      const key = `page.${PAGE_KEYS.get(handle)}`;
+      return pageTitle((hasTranslation(key)) ? {...handle, title: t(key)} : handle);
     }
   }
   return pageTitle(undefined);

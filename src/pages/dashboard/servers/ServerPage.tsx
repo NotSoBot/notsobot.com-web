@@ -2,8 +2,10 @@ import { AlarmClock, AlertTriangle, ArrowUpRight, Ban, Crown, Eye, SquareTermina
 import { Link, Outlet, useOutletContext, useParams } from 'react-router';
 
 import { Routes } from '@/config';
+import { useI18n } from '@/i18n';
 import { ApiErrorCodes, ApiRequestError, type GuildEditableArea, type UserGuild } from '@/lib/api';
 import { errorMessage, isDiscordGrantError, isScopeMismatch, useMeGuildQuery, useMeRemindersQuery, useMeTagsCountQuery } from '@/lib/api/dashboardQueries';
+import { formatNumber } from '@/lib/utils';
 
 import { Chip, CopyableValue } from '../admin/adminUi';
 import { PanelSkeleton, Skeleton, UnsavedChangesGuard } from '../ui';
@@ -39,6 +41,7 @@ function useServer(): ServerOutletContext {
 // dashboard's sidebar while a server is open, and they share the server loaded here. Leaving a page (or the server) with
 // unsaved settings asks first.
 export function ServerPage() {
+  const { t } = useI18n();
   const { guildId = '' } = useParams();
   const { data: guild, isPending, error, refetch, isRefetching } = useMeGuildQuery(guildId);
   const { setter, any } = useDirtyGroups<SettingsGroup>();
@@ -49,7 +52,7 @@ export function ServerPage() {
         <ServerLayout guild={guild} setDirty={setter}/>
       ) : (isPending) ? (
         <div aria-busy='true'>
-          <h1 className='sr-only'>Loading server</h1>
+          <h1 className='sr-only'>{t('server.loading')}</h1>
           <div className='mb-6 flex items-center gap-3'>
             <Skeleton className='size-12 rounded-2xl'/>
             <div>
@@ -69,11 +72,12 @@ export function ServerPage() {
 
 
 function ServerLoadError({ error, onRetry, retrying }: {error: Error | null, onRetry: () => void, retrying: boolean}) {
+  const { t } = useI18n();
   const notFound = error instanceof ApiRequestError && (error.status === 404 || error.code === ApiErrorCodes.UNKNOWN_SERVER);
   if (isScopeMismatch(error) || isDiscordGrantError(error)) {
     return (
       <>
-        <h1 className='sr-only'>Couldn’t load this server</h1>
+        <h1 className='sr-only'>{t('server.load_error')}</h1>
         <ScopeMismatchCard reason={(isDiscordGrantError(error)) ? 'grant' : 'scope'}/>
       </>
     );
@@ -81,9 +85,9 @@ function ServerLoadError({ error, onRetry, retrying }: {error: Error | null, onR
   return (
     <div className='card px-6 py-16 text-center'>
       <AlertTriangle className='mx-auto mb-4 size-14 text-danger'/>
-      <h1 className='mb-3 text-2xl font-bold text-white'>{(notFound) ? 'Server not found' : 'Couldn’t load this server'}</h1>
-      <p className='mb-6 text-muted'>{(notFound) ? 'NotSoBot isn’t in this server, or you aren’t a member of it.' : errorMessage(error)}</p>
-      {(notFound) ? null : <button type='button' className='btn btn-secondary' disabled={retrying} onClick={onRetry}>Retry</button>}
+      <h1 className='mb-3 text-2xl font-bold text-white'>{t((notFound) ? 'server.not_found' : 'server.load_error')}</h1>
+      <p className='mb-6 text-muted'>{(notFound) ? t('server.not_found_description') : errorMessage(error)}</p>
+      {(notFound) ? null : <button type='button' className='btn btn-secondary' disabled={retrying} onClick={onRetry}>{t('common.retry')}</button>}
     </div>
   );
 }
@@ -91,6 +95,7 @@ function ServerLoadError({ error, onRetry, retrying }: {error: Error | null, onR
 
 // the server's name and who you are in it, your things in it, then the open page
 function ServerLayout({ guild, setDirty }: {guild: UserGuild, setDirty: ServerOutletContext['setDirty']}) {
+  const { t } = useI18n();
   const canEditAnything = Object.values(guild.editable).some(Boolean);
   const lockedAreas = (Object.keys(AREA_LABEL) as Array<GuildEditableArea>).filter((area) => !guild.editable[area]);
 
@@ -102,18 +107,18 @@ function ServerLayout({ guild, setDirty }: {guild: UserGuild, setDirty: ServerOu
           <div className='min-w-0'>
             <div className='flex min-w-0 flex-wrap items-center gap-2'>
               <h1 className='truncate text-2xl font-bold text-white sm:text-3xl' title={guild.name}>{guild.name}</h1>
-              {(guild.owner) ? <Chip tone='warning' title='You own this server' className='gap-1'><Crown aria-hidden className='size-3'/>owner</Chip> : null}
-              {(guild.blocked) ? <Chip tone='danger' title={guild.blocked_reason || 'Blocked from using NotSoBot'}>blocked</Chip> : null}
+              {(guild.owner) ? <Chip tone='warning' title={t('server.owner_title')} className='gap-1'><Crown aria-hidden className='size-3'/>{t('server.owner')}</Chip> : null}
+              {(guild.blocked) ? <Chip tone='danger' title={guild.blocked_reason || t('server.blocked_title')}>{t('server.blocked')}</Chip> : null}
             </div>
             <div className='mt-0.5 text-sm text-muted'><CopyableValue value={guild.id} truncate={0}/></div>
           </div>
         </div>
         <Chip
           tone={(canEditAnything) ? 'success' : 'neutral'}
-          title={(canEditAnything) ? ((lockedAreas.length) ? 'You can manage some of this server, the rest is view only' : 'You can manage this server') : 'You can see this server’s setup but can’t change anything'}
+          title={t((canEditAnything) ? ((lockedAreas.length) ? 'server.can_manage_some' : 'server.can_manage_all') : 'server.view_only_title')}
           className='w-24 justify-center'
         >
-          {(canEditAnything) ? 'Can manage' : 'View only'}
+          {t((canEditAnything) ? 'dash.role.manager' : 'dash.view_only')}
         </Chip>
       </header>
       <YourStuffLinks guildId={guild.id}/>
@@ -123,7 +128,7 @@ function ServerLayout({ guild, setDirty }: {guild: UserGuild, setDirty: ServerOu
         {(guild.blocked) ? (
           <p role='status' className='flex items-start gap-2 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-fg'>
             <Ban aria-hidden className='mt-0.5 size-4 shrink-0 text-danger'/>
-            <span>This server is blocked from using NotSoBot.{(guild.blocked_reason) ? ` Reason: ${guild.blocked_reason}` : null}</span>
+            <span>{t('server.blocked_notice')}{(guild.blocked_reason) ? t('server.blocked_reason', {reason: guild.blocked_reason}) : null}</span>
           </p>
         ) : null}
         <Outlet context={{guild, setDirty} satisfies ServerOutletContext}/>
@@ -205,16 +210,17 @@ export function ServerSettingsPage() {
 
 // "Your commands" / "Your reminders" / "Your tags" in this server, opening those pages filtered to it
 function YourStuffLinks({ guildId }: {guildId: string}) {
+  const { t } = useI18n();
   const reminders = useMeRemindersQuery();
   const tags = useMeTagsCountQuery(guildId);
   const reminderCount = reminders.data?.items.filter((reminder) => reminder.guild_id === guildId).length;
   const search = `?${new URLSearchParams({server: guildId})}`;
   return (
-    <nav aria-label='Your things in this server' className='flex flex-wrap gap-2'>
+    <nav aria-label={t('server.your_things')} className='flex flex-wrap gap-2'>
       {/* no count, it'd scan their whole command history every time a server is opened */}
-      <YourStuffLink to={`${Routes.DASHBOARD_COMMANDS}${search}`} icon={SquareTerminal} label='Your commands' count={undefined}/>
-      <YourStuffLink to={`${Routes.DASHBOARD_REMINDERS}${search}`} icon={AlarmClock} label='Your reminders' count={reminderCount}/>
-      <YourStuffLink to={`${Routes.DASHBOARD_TAGS}${search}`} icon={TagsIcon} label='Your tags' count={tags.data}/>
+      <YourStuffLink to={`${Routes.DASHBOARD_COMMANDS}${search}`} icon={SquareTerminal} label={t('server.your_commands')} count={undefined}/>
+      <YourStuffLink to={`${Routes.DASHBOARD_REMINDERS}${search}`} icon={AlarmClock} label={t('server.your_reminders')} count={reminderCount}/>
+      <YourStuffLink to={`${Routes.DASHBOARD_TAGS}${search}`} icon={TagsIcon} label={t('server.your_tags')} count={tags.data}/>
     </nav>
   );
 }
@@ -227,7 +233,7 @@ function YourStuffLink({ to, icon: Icon, label, count }: {to: string, icon: Luci
       <Icon aria-hidden className='size-4 text-muted transition-colors group-hover/stuff:text-brand'/>
       {label}
       {(count === undefined) ? null : (
-        <span className='rounded bg-surface-3 px-1.5 text-xs text-muted tabular-nums'>{count.toLocaleString()}</span>
+        <span className='rounded bg-surface-3 px-1.5 text-xs text-muted tabular-nums'>{formatNumber(count)}</span>
       )}
       <ArrowUpRight aria-hidden className='size-3.5 text-subtle transition-colors group-hover/stuff:text-brand'/>
     </Link>
@@ -237,6 +243,7 @@ function YourStuffLink({ to, icon: Icon, label, count }: {to: string, icon: Luci
 
 // Says up front what can't be changed here, and which permission it would take.
 function ViewOnlyBanner({ lockedAreas, all }: {lockedAreas: Array<GuildEditableArea>, all: boolean}) {
+  const { t, rich } = useI18n();
   const byPermission = new Map<string, Array<string>>();
   for (const area of lockedAreas) {
     const permission = AREA_PERMISSION[area];
@@ -247,16 +254,16 @@ function ViewOnlyBanner({ lockedAreas, all }: {lockedAreas: Array<GuildEditableA
       <Eye aria-hidden className='mt-0.5 size-5 shrink-0 text-warning'/>
       <div className='min-w-0 text-sm'>
         <p className='font-semibold text-white'>
-          {(all) ? 'View only: you can see this server’s setup but can’t change anything.' : 'Some sections are view only.'}
+          {t((all) ? 'server.view_only_all' : 'server.view_only_some')}
         </p>
         <ul className='mt-1 space-y-0.5 text-fg'>
           {Array.from(byPermission, ([permission, areas]) => (
             <li key={permission}>
-              {(all) ? 'Changing ' : ''}{areas.join(', ')} {(all) ? 'needs' : 'need'} the <span className='font-medium text-white'>{permission}</span> permission.
+              {rich((all) ? 'server.needs_all' : 'server.needs_some', {b: (chunk) => <span className='font-medium text-white'>{chunk}</span>}, {areas: areas.join(', '), permission})}
             </li>
           ))}
         </ul>
-        <p className='mt-1.5 text-muted'>Server owners can change everything. Ask one of the server’s admins if something needs updating.</p>
+        <p className='mt-1.5 text-muted'>{t('server.owners_note')}</p>
       </div>
     </div>
   );

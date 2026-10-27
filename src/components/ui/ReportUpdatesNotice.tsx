@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 
 import { useAuth } from '@/auth';
 import { Routes } from '@/config';
+import { useI18n } from '@/i18n';
 import { useReportsUnreadQuery } from '@/lib/api/queries';
 import { cn } from '@/lib/utils';
 
@@ -11,6 +12,7 @@ import { cn } from '@/lib/utils';
 // change), linking to their reports. Nothing otherwise.
 export function ReportUpdatesNotice({ className }: {className?: string}) {
   const { token } = useAuth();
+  const { t, plural } = useI18n();
   const count = useReportsUnreadQuery(token).data?.count ?? 0;
   if (!count) {
     return null;
@@ -27,12 +29,12 @@ export function ReportUpdatesNotice({ className }: {className?: string}) {
       </span>
       <span className='min-w-0 flex-1 text-sm'>
         <span className='font-medium text-white'>
-          {(count === 1) ? 'One of your reports has an update' : `${count.toLocaleString()} of your reports have updates`}
+          {plural('ui.report_updates', count)}
         </span>
-        <span className='text-muted'> from the NotSoBot team.</span>
+        <span className='text-muted'>{t('ui.report_updates_from')}</span>
       </span>
       <span className='flex shrink-0 items-center gap-1 text-sm font-medium text-brand'>
-        View
+        {t('common.view')}
         <ArrowRight aria-hidden className='size-4 transition-transform group-hover:translate-x-0.5'/>
       </span>
     </Link>

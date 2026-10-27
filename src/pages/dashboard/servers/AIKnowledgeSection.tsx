@@ -3,6 +3,7 @@ import { useState, type FormEvent } from 'react';
 
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
+import { translate, useI18n } from '@/i18n';
 import type { GuildLLMKnowledge, UserGuild } from '@/lib/api';
 import {
   errorMessage,
@@ -10,6 +11,7 @@ import {
   useGuildLLMKnowledgeQuery,
   type GuildLLMKnowledgeAction,
 } from '@/lib/api/dashboardQueries';
+import { formatNumber } from '@/lib/utils';
 
 import { Field, Panel, Skeleton } from '../ui';
 import { useReadOnlyMessage } from './guildMeta';
@@ -23,6 +25,7 @@ const DEFAULT_LIMITS = {amount: 10, total_length: 1000};
 // What the server's admins told NotSoAI about it (rules, roles, an faq). Every one is in each NotSoAI prompt here, so
 // any member can read them; changing them needs Manage Server, the same as the server's ai personality.
 export function AIKnowledgeSection({ guild }: {guild: UserGuild}) {
+  const { t } = useI18n();
   const editable = guild.editable.settings;
   const readOnlyMessage = useReadOnlyMessage();
   const toast = useToast();
@@ -48,7 +51,7 @@ export function AIKnowledgeSection({ guild }: {guild: UserGuild}) {
       toast(success);
       return true;
     } catch (error) {
-      toast(errorMessage(error, 'Couldn’t save that change.'), 'error');
+      toast(errorMessage(error, translate('knowledge.save_error')), 'error');
       return false;
     } finally {
       setBusyKey(null);
@@ -57,9 +60,9 @@ export function AIKnowledgeSection({ guild }: {guild: UserGuild}) {
 
   return (
     <Panel
-      title='What NotSoAI knows'
+      title={t('knowledge.title')}
       accent='#a855f7'
-      description='Facts about this server that NotSoAI uses to answer questions here, like your rules, roles or common questions. Anyone in the server can ask about them.'
+      description={t('knowledge.description')}
       readOnly={(editable) ? undefined : readOnlyMessage('settings')}
     >
       {(isPending) ? (
@@ -68,7 +71,7 @@ export function AIKnowledgeSection({ guild }: {guild: UserGuild}) {
           <Skeleton className='h-9 w-full bg-surface-2'/>
         </div>
       ) : (error) ? (
-        <p role='alert' className='text-sm text-danger'>{errorMessage(error, 'Couldn’t load what NotSoAI knows about this server.')}</p>
+        <p role='alert' className='text-sm text-danger'>{errorMessage(error, t('knowledge.load_error'))}</p>
       ) : (items.length) ? (
         <ol className='space-y-2'>
           {items.map((item, index) => (
@@ -82,7 +85,7 @@ export function AIKnowledgeSection({ guild }: {guild: UserGuild}) {
                   disabled={mutation.isPending}
                   onCancel={() => setEditingId(null)}
                   onSave={async (value) => {
-                    if (await run(item.id, {kind: 'edit', knowledgeId: item.id, content: value}, 'Saved')) {
+                    if (await run(item.id, {kind: 'edit', knowledgeId: item.id, content: value}, t('knowledge.saved'))) {
                       setEditingId(null);
                     }
                   }}
@@ -92,12 +95,12 @@ export function AIKnowledgeSection({ guild }: {guild: UserGuild}) {
                   <p className='min-w-0 flex-1 text-sm break-words whitespace-pre-wrap text-fg'>{item.content}</p>
                   {(editable) ? (
                     <div className='flex shrink-0'>
-                      <EditButton label={`Edit #${index + 1}`} disabled={mutation.isPending} onClick={() => setEditingId(item.id)}/>
+                      <EditButton label={t('knowledge.edit', {number: index + 1})} disabled={mutation.isPending} onClick={() => setEditingId(item.id)}/>
                       <RemoveButton
-                        label={`Remove #${index + 1}`}
+                        label={t('knowledge.remove', {number: index + 1})}
                         busy={busyKey === item.id}
                         disabled={mutation.isPending}
-                        onClick={() => void run(item.id, {kind: 'remove', knowledgeId: item.id}, 'Removed')}
+                        onClick={() => void run(item.id, {kind: 'remove', knowledgeId: item.id}, t('knowledge.removed'))}
                       />
                     </div>
                   ) : null}
@@ -107,7 +110,7 @@ export function AIKnowledgeSection({ guild }: {guild: UserGuild}) {
           ))}
         </ol>
       ) : (
-        <p className='text-sm text-muted'>Nothing yet. NotSoAI only knows what it can see in the channel.</p>
+        <p className='text-sm text-muted'>{t('knowledge.empty')}</p>
       )}
 
       {(editable && !isPending && !error) ? (
@@ -118,15 +121,15 @@ export function AIKnowledgeSection({ guild }: {guild: UserGuild}) {
             if (!trimmed || full || mutation.isPending) {
               return;
             }
-            if (await run('\u0000add', {kind: 'add', content: trimmed}, 'Added')) {
+            if (await run('\u0000add', {kind: 'add', content: trimmed}, t('knowledge.added'))) {
               setContent('');
             }
           }}
         >
           <Field
-            label='Something NotSoAI should know'
-            counter={`${(used + content.length).toLocaleString()}/${limits.total_length.toLocaleString()}`}
-            hint={(fullAmount) ? `This server has all ${limits.amount} entries. Remove one first.` : (full) ? 'This server has used every character. Shorten or remove one first.' : `${items.length} of ${limits.amount} entries, and every entry together can be this long. These are facts, not instructions; how it talks is the AI personality setting.`}
+            label={t('knowledge.field')}
+            counter={`${formatNumber(used + content.length)}/${formatNumber(limits.total_length)}`}
+            hint={(fullAmount) ? t('knowledge.full_amount', {max: limits.amount}) : (full) ? t('knowledge.full') : t('knowledge.hint', {count: items.length, max: limits.amount})}
           >
             {(props) => (
               <textarea
@@ -134,7 +137,7 @@ export function AIKnowledgeSection({ guild }: {guild: UserGuild}) {
                 rows={2}
                 maxLength={remaining}
                 className='input resize-y leading-relaxed'
-                placeholder='The #support channel is for bot help, staff answer within a day.'
+                placeholder={t('knowledge.placeholder')}
                 value={content}
                 disabled={full}
                 onChange={(event) => setContent(event.target.value)}
@@ -143,7 +146,7 @@ export function AIKnowledgeSection({ guild }: {guild: UserGuild}) {
           </Field>
           <button type='submit' className='btn btn-secondary self-start' disabled={!trimmed || full || mutation.isPending}>
             {(busyKey === '\u0000add') ? <Spinner className='size-4'/> : <Plus aria-hidden className='size-4'/>}
-            Add
+            {t('common.add')}
           </button>
         </form>
       ) : null}
@@ -161,6 +164,7 @@ function KnowledgeEditor({ item, maxLength, busy, disabled, onSave, onCancel }: 
   onSave: (content: string) => void,
   onCancel: () => void,
 }) {
+  const { t } = useI18n();
   const [ value, setValue ] = useState(item.content);
   const trimmed = value.trim();
   return (
@@ -179,7 +183,7 @@ function KnowledgeEditor({ item, maxLength, busy, disabled, onSave, onCancel }: 
       }}
     >
       <textarea
-        aria-label='Edit what NotSoAI knows'
+        aria-label={t('knowledge.edit_label')}
         rows={2}
         maxLength={maxLength}
         className='input resize-y text-sm leading-relaxed'
@@ -196,9 +200,9 @@ function KnowledgeEditor({ item, maxLength, busy, disabled, onSave, onCancel }: 
       <div className='flex items-center gap-2'>
         <button type='submit' className='btn btn-sm btn-secondary' disabled={disabled || !trimmed}>
           {(busy) ? <Spinner className='size-3.5'/> : null}
-          Save
+          {t('common.save')}
         </button>
-        <button type='button' className='btn btn-sm btn-ghost' disabled={busy} onClick={onCancel}>Cancel</button>
+        <button type='button' className='btn btn-sm btn-ghost' disabled={busy} onClick={onCancel}>{t('common.cancel')}</button>
         <span className='ml-auto text-xs text-subtle tabular-nums'>{value.length}/{maxLength}</span>
       </div>
     </form>

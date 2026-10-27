@@ -2,6 +2,7 @@ import { X } from 'lucide-react';
 import { useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
+import { useI18n } from '@/i18n';
 import { cn } from '@/lib/utils';
 
 
@@ -31,6 +32,7 @@ export function Modal({ labelledBy, onClose, className, stickyClose = false, chi
   stickyClose?: boolean,
   children: ReactNode,
 }) {
+  const { t } = useI18n();
   const closeRef = useRef<HTMLButtonElement>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
@@ -89,7 +91,7 @@ export function Modal({ labelledBy, onClose, className, stickyClose = false, chi
             <button
               ref={closeRef}
               type='button'
-              aria-label='Close'
+              aria-label={t('ui.close')}
               onClick={onClose}
               className='absolute top-3 right-3 z-10 cursor-pointer rounded-md p-2 text-muted transition-colors hover:bg-surface-2 hover:text-white'
             >

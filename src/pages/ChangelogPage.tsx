@@ -7,17 +7,18 @@ import { Markdown } from '@/components/ui/Markdown';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Segmented } from '@/components/ui/Segmented';
 import { Routes } from '@/config';
-import { CHANGE_KIND_LABELS, CHANGELOG, type ChangeKind } from '@/content/changelog';
-import { cn, decodeHash } from '@/lib/utils';
+import { CHANGELOG, type ChangeKind } from '@/content/changelog';
+import { DEFAULT_LANGUAGE, useI18n, type TranslationKey } from '@/i18n';
+import { cn, decodeHash, displayLocale } from '@/lib/utils';
 
 
 type KindFilter = ChangeKind | 'all';
 
 const KIND_ORDER: Array<ChangeKind> = ['new', 'improved', 'fixed', 'removed'];
 
-const FILTER_OPTIONS: Array<{value: KindFilter, label: string}> = [
-  {value: 'all', label: 'All'},
-  ...KIND_ORDER.map((kind) => ({value: kind, label: CHANGE_KIND_LABELS[kind]})),
+const FILTER_OPTIONS: Array<{value: KindFilter, label: TranslationKey}> = [
+  {value: 'all', label: 'common.all'},
+  ...KIND_ORDER.map((kind) => ({value: kind, label: `changelog.kind.${kind}` as const})),
 ];
 
 const KIND_CLASSES: Record<ChangeKind, string> = {
@@ -28,10 +29,14 @@ const KIND_CLASSES: Record<ChangeKind, string> = {
 };
 
 // the dates are calendar days, so format them in UTC to keep them from shifting a day in western timezones
-const DAY_FORMAT = new Intl.DateTimeFormat('en-US', {month: 'short', day: 'numeric', timeZone: 'UTC'});
-const WEEKDAY_FORMAT = new Intl.DateTimeFormat('en-US', {weekday: 'long', timeZone: 'UTC'});
-const YEAR_FORMAT = new Intl.DateTimeFormat('en-US', {year: 'numeric', timeZone: 'UTC'});
-const FULL_DAY_FORMAT = new Intl.DateTimeFormat('en-US', {month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC'});
+function dayFormats(locale: string) {
+  return {
+    day: new Intl.DateTimeFormat(locale, {month: 'short', day: 'numeric', timeZone: 'UTC'}),
+    weekday: new Intl.DateTimeFormat(locale, {weekday: 'long', timeZone: 'UTC'}),
+    year: new Intl.DateTimeFormat(locale, {year: 'numeric', timeZone: 'UTC'}),
+    fullDay: new Intl.DateTimeFormat(locale, {month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC'}),
+  };
+}
 
 function parseDay(date: string): Date {
   return new Date(`${date}T00:00:00Z`);
@@ -39,6 +44,9 @@ function parseDay(date: string): Date {
 
 
 export function ChangelogPage() {
+  const { t, plural, rich, language } = useI18n();
+  // English keeps its US dates (Oct 17), other languages use their own
+  const formats = useMemo(() => dayFormats((language === DEFAULT_LANGUAGE) ? 'en-US' : displayLocale()), [language]);
   const location = useLocation();
   const [ filter, setFilter ] = useState<KindFilter>('all');
   // only show that day and older ones, '' shows every day
@@ -80,19 +88,20 @@ export function ChangelogPage() {
         <div className='container-page py-10 sm:py-12'>
           <div className='mb-3 flex items-center gap-2 text-sm font-medium text-brand'>
             <History className='size-4'/>
-            What's new
+            {t('changelog.badge')}
           </div>
-          <h1 className='mb-2 text-3xl font-bold text-white sm:text-4xl'>Changelog</h1>
+          <h1 className='mb-2 text-3xl font-bold text-white sm:text-4xl'>{t('page.CHANGELOG')}</h1>
           <p className='mb-6 max-w-2xl text-muted'>
-            New commands, improvements and fixes to NotSoBot and notsobot.com, day by day.
+            {t('changelog.description')}
+            {(language === DEFAULT_LANGUAGE) ? null : <> {t('changelog.english_only')}</>}
           </p>
           <div className='flex max-w-2xl gap-2'>
             <SearchInput
               className='min-w-0 flex-1'
               value={query}
               onValueChange={setQuery}
-              placeholder='Search changes, like .zoom or {foreach}...'
-              aria-label='Search the changelog'
+              placeholder={t('changelog.search_placeholder')}
+              aria-label={t('changelog.search_label')}
             />
             <FiltersButton open={filtersOpen} onToggle={() => setFiltersOpen((value) => !value)} active={activeFilters} controls='changelog-filters'/>
           </div>
@@ -100,15 +109,15 @@ export function ChangelogPage() {
             <div className='flex flex-wrap items-center gap-3'>
               <div className='-mx-4 max-w-[calc(100%+2rem)] overflow-x-auto px-4 sm:mx-0 sm:max-w-full sm:px-0'>
                 <div className='w-max'>
-                  <Segmented label='Show changes' value={filter} options={FILTER_OPTIONS} onChange={(value) => setFilter(value as KindFilter)}/>
+                  <Segmented label={t('changelog.show_changes')} value={filter} options={FILTER_OPTIONS.map((option) => ({value: option.value, label: t(option.label)}))} onChange={(value) => setFilter(value as KindFilter)}/>
                 </div>
               </div>
               <label className='flex items-center gap-2 text-sm text-muted'>
-                Up to
+                {t('changelog.up_to')}
                 <select value={until} onChange={(event) => setUntil(event.target.value)} className='input w-auto py-2.5'>
-                  <option value=''>All dates</option>
+                  <option value=''>{t('changelog.all_dates')}</option>
                   {CHANGELOG.map((day) => (
-                    <option key={day.date} value={day.date}>{FULL_DAY_FORMAT.format(parseDay(day.date))}</option>
+                    <option key={day.date} value={day.date}>{formats.fullDay.format(parseDay(day.date))}</option>
                   ))}
                 </select>
               </label>
@@ -116,7 +125,7 @@ export function ChangelogPage() {
           </div>
           {(needle) ? (
             <p className='mt-3 text-sm text-muted' aria-live='polite'>
-              {matchCount} {(matchCount === 1) ? 'change' : 'changes'} for “{query.trim()}”
+              {plural('changelog.results', matchCount, {query: query.trim()})}
             </p>
           ) : null}
         </div>
@@ -130,8 +139,8 @@ export function ChangelogPage() {
               <li key={day.date} id={day.date} className='grid scroll-mt-24 grid-cols-[minmax(0,1fr)] gap-3 md:grid-cols-[160px_minmax(0,1fr)] md:gap-8'>
                 <div className='md:sticky md:top-24 md:self-start md:pt-5'>
                   <a href={`#${day.date}`} className='group inline-flex items-baseline gap-2 md:flex-col md:gap-0.5'>
-                    <time dateTime={day.date} className='text-lg font-semibold text-white group-hover:text-brand'>{DAY_FORMAT.format(date)}</time>
-                    <span className='text-sm text-muted'>{WEEKDAY_FORMAT.format(date)}, {YEAR_FORMAT.format(date)}</span>
+                    <time dateTime={day.date} className='text-lg font-semibold text-white group-hover:text-brand'>{formats.day.format(date)}</time>
+                    <span className='text-sm text-muted'>{formats.weekday.format(date)}, {formats.year.format(date)}</span>
                   </a>
                 </div>
                 <article className='card p-5 sm:p-6'>
@@ -140,7 +149,7 @@ export function ChangelogPage() {
                     {day.items.map((item, i) => (
                       <li key={i} className='flex flex-col gap-1.5 sm:flex-row sm:gap-3'>
                         <span className={cn('h-fit w-fit shrink-0 rounded px-2 py-0.5 text-xs font-semibold sm:mt-0.5 sm:w-20 sm:text-center', KIND_CLASSES[item.kind])}>
-                          {CHANGE_KIND_LABELS[item.kind]}
+                          {t(`changelog.kind.${item.kind}`)}
                         </span>
                         <Markdown text={item.text} className='leading-relaxed text-fg'/>
                       </li>
@@ -154,19 +163,19 @@ export function ChangelogPage() {
 
         {(!days.length) ? (
           <div className='card p-10 text-center'>
-            <p className='mb-1 text-lg text-white'>No changes match these filters.</p>
-            <p className='text-muted'>Try other words, another type or a later date.</p>
+            <p className='mb-1 text-lg text-white'>{t('changelog.empty_title')}</p>
+            <p className='text-muted'>{t('changelog.empty_description')}</p>
           </div>
         ) : null}
 
         <aside className='mt-12 flex flex-col items-start justify-between gap-4 rounded-lg border border-brand/30 bg-gradient-to-r from-brand/20 to-brand/5 p-6 sm:flex-row sm:items-center'>
           <div>
-            <h2 className='mb-1 text-lg font-semibold text-white'>Found a bug or have an idea?</h2>
-            <p className='text-sm text-muted'>Use <code className='rounded bg-deep px-1.5 py-0.5 font-mono text-[0.85em] text-code'>.bot report bug</code> or tell us in the support server.</p>
+            <h2 className='mb-1 text-lg font-semibold text-white'>{t('changelog.idea_title')}</h2>
+            <p className='text-sm text-muted'>{rich('changelog.idea_description', {code: (chunk) => <code className='rounded bg-deep px-1.5 py-0.5 font-mono text-[0.85em] text-code'>{chunk}</code>})}</p>
           </div>
           <div className='flex flex-wrap gap-2'>
-            <a href={Routes.SUPPORT} className='btn btn-discord'>Join the support server</a>
-            <Link to={Routes.COMMANDS} className='btn btn-secondary'>Browse commands</Link>
+            <a href={Routes.SUPPORT} className='btn btn-discord'>{t('faq.join_support')}</a>
+            <Link to={Routes.COMMANDS} className='btn btn-secondary'>{t('faq.browse_commands')}</Link>
           </div>
         </aside>
       </div>
