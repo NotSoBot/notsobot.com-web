@@ -64,7 +64,7 @@ const MATCHABLE_STATUSES: ReadonlyArray<number> = [ContentFlagStatuses.CONFIRMED
 
 const TYPE_LABELS: Record<ContentFlagType, string> = {media: 'Media', text: 'Text'};
 // the "Auto review" filter: `hash` is a flag auto-confirmed from an already confirmed one with the same media (the
-// api's `auto_confirmed`), the rest are the daily model review's `auto_review`
+// api's `auto_confirmed`), the rest are the model review's `auto_review`
 const AUTO_REVIEW_OPTIONS = [
   {value: 'hash', label: 'Hash match (auto-confirmed)'},
   {value: 'applied', label: 'Haiku: applied'},
@@ -75,7 +75,7 @@ const AUTO_REVIEW_OPTIONS = [
 
 const AUTO_REVIEW_DECISION_TONES: Record<string, 'danger' | 'success' | 'warning'> = {confirm: 'danger', dismiss: 'success', escalate: 'warning'};
 
-// the row and header chip for a flag the daily model review looked at
+// the row and header chip for a flag the model review looked at
 function autoReviewChip(review: ContentFlagAutoReview | null | undefined, key?: string): ReactNode {
   if (!review) {
     return null;
@@ -495,7 +495,7 @@ function IdFilter({ className = 'lg:col-span-4', label, placeholder, value, patt
 
 
 // one line per flag, just enough to triage from; the rest is in `ContentFlagDetails` a click away.
-// the daily model review's verdict in the flag modal: what it decided and why, or why it couldn't review it
+// the model review's verdict in the flag modal: what it decided and why, or why it couldn't review it
 function AutoReviewSection({ review }: {review: ContentFlagAutoReview}) {
   return (
     <div className='mt-4'>

@@ -438,7 +438,7 @@ export const MEDIASCRIPT_GUIDE: Array<TagDocGuideSection> = [
       '`ffmpeg KEY ...OPTIONS` takes FFmpeg\'s own output options: `-vf`, `-af`, `-filter_complex`, `-map`, `-c:v`, `-c:a`, `-crf`, `-qp`, `-preset` and more. KEY is input `0`, and `-i OTHERKEY` adds another media key as input `1`, `2`... (up to 4). The result keeps KEY\'s format and goes back into KEY. Most FFmpeg filters work, including `geq`, `displace`, `haldclut`, `curves`, `rubberband` and `frei0r` (with its built-in plugins like `mirr0r` and `gateweave`). Filters that read or write files on their own, like `movie`, `amovie` and `sendcmd`, are blocked, so load files with `load` or `loadcube` and pass them in.',
       '`reexport KEY AMOUNT LENGTH CODE` takes the first LENGTH seconds, runs CODE on it as `KEYx`, then runs CODE again on that result, AMOUNT times, and joins every export in order (backwards if AMOUNT is negative). Exports that come out longer than LENGTH are cut back unless you add `NO_TRIM=true`. Every export\'s audio is matched to its video before joining, so the result stays in sync. `idx` is the export number, for commands that take equations.',
       'Pitch shifting is `multipitch KEY SEMITONES`: `multipitch clip 7` is up a fifth, and `multipitch clip 0,7,12` mixes a chord the same way the multipitch program does (with `--no-normalize`). When the pitch has to be part of one `ffmpeg` filter graph, for example chained with other audio filters, use `rubberband=pitch=2^(SEMITONES/12)` there instead, and for a chord split the audio with `asplit`, shift each copy and mix them back with `amix=N:normalize=0` (see the examples). A hue shift is `hue=h=DEGREES`. ImageMagick\'s `-modulate 100,100,X` turns the hue by about `(X-100)*1.8` degrees; if the colors come out mirrored, flip the sign.',
-      'Downloaded programs (4orm) and shell commands can\'t run in MediaScript; `.veg` projects play back with `loadveg` and `vegrender`. The table shows what to use instead. Limits: up to 100 `ffmpeg` runs per script, each output at most 10 minutes and 2048x2048, and every `ffmpeg` inside `reexport` counts once per export.',
+      'Downloaded programs (4orm) and shell commands can\'t run in MediaScript; `.veg` projects play back with `loadveg` and `vegrender`, Movie Maker `.wlmp` projects with `loadwlmp` and `wlmprender`. The table shows what to use instead. Limits: up to 100 `ffmpeg` runs per script, each output at most 10 minutes and 2048x2048, and every `ffmpeg` inside `reexport` counts once per export.',
     ].join('\n\n'),
     table: {
       columns: ['In a {sh:} tag', 'In MediaScript'],
@@ -508,7 +508,7 @@ export const MEDIASCRIPT_GUIDE: Array<TagDocGuideSection> = [
         ['Speed', 'Yes', 'From 0.01x to 100x'],
         ['Pitch', 'Yes', 'Pitch changes on audio events, keeping their length: the event\'s own pitch and its Pitch Shift plugin (any language or brand of it) add up. Shifted like Vegas does it (matched to a Vegas render of -24 to +24 semitones, including a pitched event starting a little early going up and late going down)'],
         ['Pan/Crop', 'Yes', 'Zoom, move, rotation and flips, through every keyframe with its curve (linear, fast, slow, smooth, sharp or hold)'],
-        ['Track motion', 'Partly', 'Position, size and flips, and its 2D Shadow and 2D Glow (offset, size, color and blur; not matched to a Vegas render). 3D track motion and rotation are not'],
+        ['Track motion', 'Yes', 'Position, size, flips and turns, 2D and 3D, through every keyframe (3D tilts and depth seen in perspective, matched to a Vegas render), and its 2D Shadow and 2D Glow (offset, size, color and blur; not matched to a Vegas render)'],
         ['Mute and solo', 'Yes', 'Muted tracks are left out, and a soloed track leaves out the others of its kind (audio or video)'],
         ['Solid Color', 'Yes', 'Its color and transparency'],
         ['Text', 'Partly', '(Legacy) Text with its size, font (bold and italic too; fonts the bot doesn\'t have get the closest one, slanted when it has no italic), alignment, color, background, outline, shadow (offset, color and blur), position, scaling, line spacing and the arch, wave, slant and shear deformations (animated ones play too). Keyframed text moves and changes between its keyframes, and keyframes that change its words change them, matched to a Vegas render; its tracking, animated deformations and other deformations are not done. Any language works; emoji show only if the font has them'],
@@ -581,7 +581,7 @@ export const MEDIASCRIPT_GUIDE: Array<TagDocGuideSection> = [
         ['Effect keyframes', 'Partly', 'The older plugins follow their keyframes (Swirl, Wave, Pinch/Punch, Mirror, Deform, TV Simulator\'s line sync, Earthquake\'s magnitude, Gaussian Blur, HSL Adjust, Linear Blur and Invert), straight from one to the next. OFX effects follow only HSL Adjust\'s hue and Linear Blur\'s amount'],
         ['Other video FX', 'No', 'Other NewBlue effects, OFX plugins from other companies...'],
         ['Envelopes', 'Partly', 'Audio track volume and pan envelopes, and a video event\'s velocity as its average speed over the event (0 holds a frame). Opacity envelopes are not'],
-        ['Audio FX', 'Partly', 'Pitch Shift, Distortion (its levels, graph and low-pass; slew rate only like it), Volume, Resonant Filter and Reverb (a made up room of its decay, pre-delay and levels), on events and on audio tracks (a track\'s on its mix). Also Graphic EQ (its 10 and 20 band modes), Smooth/Enhance, Vibrato, Chorus, Flange/Wah-Wah, Amplitude Modulation and the ExpressFX Delay, Distortion, Chorus, Flange, Amplitude Modulation, Equalization and Reverb, rebuilt from their settings so only close to Vegas. Others (Simple Delay, Multi-Tap Delay, Noise Gate, compressors...) are skipped'],
+        ['Audio FX', 'Partly', 'Pitch Shift, Distortion (its levels, graph and low-pass; slew rate only like it), Volume, Resonant Filter and Reverb (a made up room of its decay, pre-delay and levels), on events and on audio tracks (a track\'s on its mix). Also Graphic EQ (its 10 band, 20 band and envelope modes), Smooth/Enhance, Vibrato, Chorus, Flange/Wah-Wah, Amplitude Modulation and the ExpressFX Delay, Distortion, Chorus, Flange, Amplitude Modulation, Equalization and Reverb, rebuilt from their settings so only close to Vegas. Others (Simple Delay, Multi-Tap Delay, Noise Gate, compressors...) are skipped'],
         ['Reverse', 'Yes', 'Reversed events play backwards, their sound too'],
         ['Subclips', 'Yes', 'A part of a file cut in Vegas plays from its own spot'],
         ['Takes', 'Partly', 'An event with several takes uses the one it was set to play (the last one, unless it was switched back), also when the take was renamed in the project'],
@@ -596,6 +596,38 @@ export const MEDIASCRIPT_GUIDE: Array<TagDocGuideSection> = [
       {
         code: '{mediascript:load {video} clip\nloadveg FILE_1 p\nvegrender clip p false\nrender clip}',
         result: 'Uses a `.veg` attached earlier in the tag, with clips on a track allowed to overlap.',
+      },
+    ],
+  },
+
+  {
+    id: 'ms-moviemaker',
+    title: 'Movie Maker projects (.wlmp)',
+    body: [
+      '`loadwlmp URL WLMP_KEY` reads a Windows Live Movie Maker project, and `wlmprender MEDIA_KEY WLMP_KEY` plays it back with every video, picture and sound in it replaced by your media. A `.wlmp` is the project file Movie Maker saves (not a finished video): its clips are played one after another the way Movie Maker lays them out, each from the same spot of your media it played from in its own file. Movie Maker itself never runs: the effects in the table are redrawn with ffmpeg, matched to a Movie Maker render of each one, and effects not in the table are skipped.',
+      'Every media item in the project becomes your media: video clips play from it, pictures show it held on its first frame, and the music and narration play its sound. With an image as your media, every clip shows it and there is no sound; with an audio file, only the sound plays. A 4:3 project comes out 640x480 and a 16:9 one 1280x720, like Movie Maker\'s own export sizes.',
+      'Limits: projects up to 8mb (and within the script\'s download limit), 4 per script, 20000 clips. The render is at most 10 minutes long and counts as one `ffmpeg` run, sharing its time limit.',
+    ].join('\n\n'),
+    table: {
+      columns: ['Movie Maker feature', 'Played back', 'How'],
+      rows: [
+        ['Clips', 'Yes', 'In order, with their start and end points and the gaps before them'],
+        ['Speed', 'Yes', 'From 0.01x to 100x, the sound too'],
+        ['Rotate left/right', 'Yes', 'Quarter turns, with bars on the sides when the picture turns on its side'],
+        ['Volume and mute', 'Yes', 'Each clip\'s own'],
+        ['Music and narration', 'Partly', 'Played under the clips, without Movie Maker\'s audio ducking and mix'],
+        ['Black and White (and its Orange, Red and Yellow filters), Cyan, Sepia', 'Yes', 'Matched to a Movie Maker render'],
+        ['Threshold, Posterize, Blur', 'Yes', 'Matched to a Movie Maker render'],
+        ['Brightness, Hue', 'Partly', 'Hue cycles every color through one hue like Movie Maker; both were matched to a single render and may be off at other settings'],
+        ['Spin 360', 'Yes', 'Turns once and back to full size over the clip, from Movie Maker\'s own effect template'],
+        ['Edge Detection, Warp, Ripple, Cinematic', 'No', 'Skipped'],
+        ['Transitions, captions and titles', 'No', 'Skipped'],
+      ],
+    },
+    examples: [
+      {
+        code: '{mediascript:load {iv} logo\nloadwlmp FILE_1 m\nwlmprender logo m\nrender logo}',
+        result: 'The attached Movie Maker project rebuilt with the last image or video in every clip.',
       },
     ],
   },
@@ -705,6 +737,78 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
       'Like Vegas, an effect chain stops at a plugin Vegas can\'t load: it and the effects after it are skipped.',
       'At most 10 minutes, scaled down to fit 1280x720, with at most 32 clips on screen (and 32 heard) at once. Counts toward the `ffmpeg` limit and has to finish within the script\'s time limit, which long or effect-heavy projects can run out of.',
       'Outside of tags, the bot has the same thing as the `.veg` command (the .veg attached or its url first, then the media, `-nocutoff` for `CUTOFF=false`) and `/media-aiv veg`.',
+    ],
+  },
+  {
+    name: 'loadwlmp',
+    category: 'io',
+    summary: 'Loads a Windows Live Movie Maker project (.wlmp) for `wlmprender`.',
+    syntax: 'loadwlmp URL WLMP_KEY',
+    args: [
+      {name: 'URL', description: 'link to the `.wlmp` file, or `FILE_1`, `FILE_2`... for files attached to the tag'},
+      {name: 'WLMP_KEY', description: 'name to use it by, any name like a media key'},
+    ],
+    examples: [
+      {code: '{mediascript:loadwlmp FILE_1 m\nload {iv} logo\nwlmprender logo m\nrender logo}', result: 'Plays back the attached project with the last image or video.'},
+    ],
+    notes: [
+      'Files up to 8mb (or the script\'s download limit, if that\'s smaller), at most 4 per script, and they count toward the script\'s download limit. Projects with more than 20000 clips are refused.',
+      'Wlmp keys are separate from media keys. Loading the same link into the same key again (like inside `reexport`) is skipped.',
+      'Only the project is read, not the media it used. See the Movie Maker projects section for what is rebuilt. A `.veg` goes through `loadveg` instead.',
+    ],
+  },
+  {
+    name: 'wlmprender',
+    category: 'compose',
+    summary: 'Plays back a Movie Maker project with every one of its videos, pictures and sounds replaced by your media.',
+    syntax: 'wlmprender MEDIA_KEY WLMP_KEY',
+    args: [
+      media(),
+      {name: 'WLMP_KEY', description: 'a project from `loadwlmp`'},
+    ],
+    examples: [
+      {code: '{mediascript:load {iv} logo\nloadwlmp FILE_1 m\nwlmprender logo m\nrender logo}', result: 'The project rebuilt with the last image or video in every clip.'},
+    ],
+    notes: [
+      'Rebuilt: the clips in order (start and end points, gaps, speed), the rotate buttons, volume and mute, the music and narration, and the Black and White (with its Orange, Red and Yellow filters), Cyan, Sepia, Threshold, Posterize, Blur, Brightness, Hue and Spin 360 effects. Edge Detection, Warp, Ripple, Cinematic, transitions and captions are skipped. The full list is in the Movie Maker projects section.',
+      'A 4:3 project comes out 640x480 and a 16:9 one 1280x720, at most 10 minutes. Counts toward the `ffmpeg` limit and has to finish within the script\'s time limit.',
+      'Outside of tags, the bot has the same thing as the `.wlmp` command (the .wlmp attached or its url first, then the media) and `/media-aiv wlmp`.',
+    ],
+  },
+  {
+    name: 'loadxyt',
+    category: 'io',
+    summary: 'Loads a VivaVideo filter or fx template (.xyt) for `xytrender`.',
+    syntax: 'loadxyt URL XYT_KEY',
+    args: [
+      {name: 'URL', description: 'link to the `.xyt` file, or `FILE_1`, `FILE_2`... for files attached to the tag'},
+      {name: 'XYT_KEY', description: 'name to use it by, any name like a media key'},
+    ],
+    examples: [
+      {code: '{mediascript:loadxyt FILE_1 t\nload {iv} img\nxytrender img t\nrender img}', result: 'Applies the attached template to the last image or video.'},
+    ],
+    notes: [
+      'Files up to 16mb (or the script\'s download limit, if that\'s smaller), at most 10 per script, and they count toward the script\'s download limit.',
+      'Xyt keys are separate from media keys. Loading the same link into the same key again (like inside `reexport`) is skipped.',
+      'Filter and fx templates work. Theme templates, templates with their own images and alpha frame effects aren\'t supported yet and fail to load.',
+    ],
+  },
+  {
+    name: 'xytrender',
+    category: 'filters',
+    summary: 'Applies a VivaVideo template loaded by `loadxyt` with its own shaders.',
+    syntax: 'xytrender MEDIA_KEY XYT_KEY',
+    args: [
+      media(),
+      {name: 'XYT_KEY', description: 'a template from `loadxyt`'},
+    ],
+    examples: [
+      {code: '{mediascript:load {iv} img\nloadxyt https://example.com/0400000000080004.xyt t\nxytrender img t\nrender img}', result: 'The last image or video through the template.'},
+    ],
+    notes: [
+      'Images, gifs and videos stay what they are (a video keeps its audio). The template\'s keyframes play over the media\'s time, and a template that moves turns a still image into a gif of one play of it (at most 10 seconds).',
+      'A template whose shader doesn\'t compile errors with the compiler\'s message.',
+      'Outside of tags, the bot has the same thing as the `.xyt` command (the .xyt attached or its url first, then the media) and `/media-iv-filter xyt`.',
     ],
   },
   {
@@ -2087,7 +2191,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     syntax: 'overlaypreset MEDIA_KEY NAME',
     args: [
       media(),
-      {name: 'NAME', range: '9gag, adidas, bandicam, binoculars, black-panther, brazzers, cool-guy, dork, flag-afghanistan, flag-albania, flag-andorra, flag-antigua, flag-argentina, flag-armenia, flag-asexual, flag-austria, flag-azerbaijan, flag-bahamas, flag-bahrain, flag-bangladesh, flag-barbados, flag-belarus, flag-belgium, flag-belize, flag-bhutan, flag-bisexual, flag-bolivia, flag-bosnia, flag-brazil, flag-brunei, flag-bulgaria, flag-cambodia, flag-canada, flag-chile, flag-china, flag-colombia, flag-costa-rica, flag-croatia, flag-cuba, flag-cyprus, flag-czechia, flag-denmark, flag-dominica, flag-dominican-republic, flag-east-timor, flag-ecuador, flag-egypt, flag-el-salvador, flag-estonia, flag-eu, flag-finland, flag-france, flag-georgia, flag-germany, flag-greece, flag-grenada, flag-guatemala, flag-guyana, flag-haiti, flag-honduras, flag-hong-kong, flag-hungary, flag-iceland, flag-india, flag-indonesia, flag-iran, flag-iraq, flag-ireland, flag-isis, flag-israel, flag-italy, flag-jamaica, flag-japan, flag-jordan, flag-kazakhstan, flag-kosovo, flag-kuwait, flag-kyrgyzstan, flag-laos, flag-latvia, flag-lebanon, flag-lesbian, flag-lgbt, flag-liechtenstein, flag-lithuania, flag-luxembourg, flag-macau, flag-malaysia, flag-maldives, flag-malta, flag-mexico, flag-moldova, flag-monaco, flag-mongolia, flag-montenegro, flag-myanmar, flag-nepal, flag-netherlands, flag-nicaragua, flag-nonbinary, flag-north-korea, flag-north-macedonia, flag-norway, flag-oman, flag-pakistan, flag-palestine, flag-panama, flag-pansexual, flag-paraguay, flag-peru, flag-philippines, flag-poland, flag-portugal, flag-qatar, flag-romania, flag-russia, flag-saint-kitts, flag-saint-lucia, flag-saint-vincent, flag-san-marino, flag-saudi-arabia, flag-serbia, flag-singapore, flag-slovakia, flag-slovenia, flag-south-korea, flag-spain, flag-sri-lanka, flag-suriname, flag-sweden, flag-switzerland, flag-syria, flag-taiwan, flag-tajikistan, flag-taliban, flag-thailand, flag-trans, flag-trinidad, flag-turkey, flag-turkmenistan, flag-uae, flag-uk, flag-ukraine, flag-uruguay, flag-usa, flag-ussr, flag-uzbekistan, flag-vatican, flag-venezuela, flag-vietnam, flag-yemen, god, gold-star, half-life-pistol, half-life-shotgun, half-life-smg, hypercam, keep-item, mistake, not-responding, old-guy, owo, ajit-pai-1, austin-evans-1, bernie-1, bob-ross, gaben-1, idubbbz-1, jacksfilms-1, jesus-1, keemstar-1, keemstar-2, ltt-linus-1, miranda-cosgrove-1, stephen-hawking-1, trump-1, zuckerberg-1, respects, shutterstock, starman, supreme, thinking, vhs, wasted, wheeze, who-did-this, yusuke', description: 'the template; dashes, underscores and case don\'t matter (`flagusa` works)'},
+      {name: 'NAME', range: '9gag, adidas, bandicam, binoculars, black-panther, brazzers, cool-guy, dork, flag-afghanistan, flag-albania, flag-andorra, flag-antigua, flag-argentina, flag-armenia, flag-asexual, flag-australia, flag-austria, flag-azerbaijan, flag-bahamas, flag-bahrain, flag-bangladesh, flag-barbados, flag-belarus, flag-belgium, flag-belize, flag-bhutan, flag-bisexual, flag-bolivia, flag-bosnia, flag-brazil, flag-brunei, flag-bulgaria, flag-cambodia, flag-canada, flag-chile, flag-china, flag-colombia, flag-costa-rica, flag-croatia, flag-cuba, flag-cyprus, flag-czechia, flag-denmark, flag-dominica, flag-dominican-republic, flag-east-timor, flag-ecuador, flag-egypt, flag-el-salvador, flag-estonia, flag-eu, flag-fiji, flag-finland, flag-france, flag-georgia, flag-germany, flag-greece, flag-grenada, flag-guatemala, flag-guyana, flag-haiti, flag-honduras, flag-hong-kong, flag-hungary, flag-iceland, flag-india, flag-indonesia, flag-iran, flag-iraq, flag-ireland, flag-isis, flag-israel, flag-italy, flag-jamaica, flag-japan, flag-jordan, flag-kazakhstan, flag-kiribati, flag-kosovo, flag-kuwait, flag-kyrgyzstan, flag-laos, flag-latvia, flag-lebanon, flag-lesbian, flag-lgbt, flag-liechtenstein, flag-lithuania, flag-luxembourg, flag-macau, flag-malaysia, flag-maldives, flag-malta, flag-marshall-islands, flag-mexico, flag-micronesia, flag-mlm, flag-moldova, flag-monaco, flag-mongolia, flag-montenegro, flag-myanmar, flag-nauru, flag-nepal, flag-netherlands, flag-new-zealand, flag-nicaragua, flag-nonbinary, flag-north-korea, flag-north-macedonia, flag-norway, flag-oman, flag-pakistan, flag-palau, flag-palestine, flag-panama, flag-pansexual, flag-papua-new-guinea, flag-paraguay, flag-peru, flag-philippines, flag-poland, flag-portugal, flag-qatar, flag-romania, flag-russia, flag-saint-kitts, flag-saint-lucia, flag-saint-vincent, flag-samoa, flag-san-marino, flag-saudi-arabia, flag-serbia, flag-singapore, flag-slovakia, flag-slovenia, flag-solomon-islands, flag-south-korea, flag-spain, flag-sri-lanka, flag-suriname, flag-sweden, flag-switzerland, flag-syria, flag-taiwan, flag-tajikistan, flag-taliban, flag-thailand, flag-tonga, flag-trans, flag-trinidad, flag-turkey, flag-turkmenistan, flag-tuvalu, flag-uae, flag-uk, flag-ukraine, flag-uruguay, flag-usa, flag-ussr, flag-uzbekistan, flag-vanuatu, flag-vatican, flag-venezuela, flag-vietnam, flag-yemen, god, gold-star, half-life-pistol, half-life-shotgun, half-life-smg, hypercam, keep-item, mistake, not-responding, old-guy, owo, ajit-pai-1, austin-evans-1, bernie-1, bob-ross, gaben-1, idubbbz-1, jacksfilms-1, jesus-1, keemstar-1, keemstar-2, ltt-linus-1, miranda-cosgrove-1, stephen-hawking-1, trump-1, zuckerberg-1, respects, shutterstock, starman, supreme, thinking, vhs, wasted, wheeze, who-did-this, yusuke', description: 'the template; dashes, underscores and case don\'t matter (`flagusa` works)'},
     ],
     examples: [
       {code: '{mediascript:load {iv} img\noverlaypreset img wasted\nrender img}', result: 'The GTA "wasted" screen over the image.'},

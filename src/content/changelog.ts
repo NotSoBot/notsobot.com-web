@@ -28,6 +28,21 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 
 export const CHANGELOG: Array<ChangelogDay> = [
   {
+    date: '2026-10-27',
+    title: 'VivaVideo templates, Movie Maker projects and Oceanian flags',
+    items: [
+      {kind: 'new', text: '`.xyt` (`.vivavideo`) and `/media-iv-filter xyt`: attach a VivaVideo filter or fx template (`.xyt`, or give its link) with your image, gif or video to apply it. A template that moves turns a still image into a gif. Theme templates aren\'t supported yet.'},
+      {kind: 'new', text: '**MediaScript:** `loadxyt` and `xytrender` load a VivaVideo `.xyt` template (from a link or `FILE_n`) and apply it to an image, gif or video, the same as the `xyt` command.'},
+      {kind: 'new', text: '`.wlmp` (`.moviemaker`) and `/media-aiv wlmp`: attach a Windows Live Movie Maker project (`.wlmp`, or give its link) with your media and NotSoBot plays it back with your media in every clip: clip order, speed, rotation, volume, Black and White, Sepia, Cyan, Threshold, Posterize, Blur, Brightness, Hue and Spin 360. Transitions, captions, Edge Detection, Warp and Ripple aren\'t supported yet.'},
+      {kind: 'new', text: '**MediaScript:** `loadwlmp` and `wlmprender` load a Movie Maker `.wlmp` project (from a link or `FILE_n`) and play it back with a media key in every clip, the same as the `wlmp` command.'},
+      {kind: 'new', text: 'Oceanian flag overlays: `.overlay australia` (`.aus`), `fiji`, `kiribati`, `marshallislands` (`.marshall`), `micronesia`, `nauru`, `newzealand` (`.nz`), `palau`, `papuanewguinea` (`.papua`), `samoa`, `solomonislands` (`.solomon`), `tonga`, `tuvalu` and `vanuatu`. Their slash versions are under the new `/media-iv-flag-oceania`. **MediaScript:** `overlay` presets `flag-australia` to `flag-vanuatu`.'},
+      {kind: 'new', text: '`.overlay mlm` (`.mlm`, `/media-iv-overlay pride mlm`) puts the MLM pride flag over an image or video. **MediaScript:** `overlay` preset `flag-mlm`.'},
+      {kind: 'improved', text: '`.overlay easttimor` also works as `.timorleste`.'},
+      {kind: 'improved', text: '`.veg` plays 3D track motion (tilts, turns and moves in depth, in perspective) and track motion that moves through keyframes, Graphic EQ\'s envelope mode and its output gain, and Chorus\' feedback, phase and high frequency cut.'},
+      {kind: 'fixed', text: 'Numbers, `#` and `*` sometimes coming out blank in text drawn by media commands since emojis switched to Twemoji.'},
+    ],
+  },
+  {
     date: '2026-10-26',
     title: 'Responding to reports and TagScript fixes',
     items: [
