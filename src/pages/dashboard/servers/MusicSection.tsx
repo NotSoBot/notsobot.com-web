@@ -628,7 +628,10 @@ function NowPlaying({ music, item, fetchedAt, editable, busyKey, disabled, onCon
 }
 
 
-function TrackCover({ item, className }: {item: GuildMusicQueueItem, className?: string}) {
+// what a song shows as, a queue item or a music stats entry
+export type MusicItemLike = Pick<GuildMusicQueueItem, 'source' | 'track' | 'url'>;
+
+export function TrackCover({ item, className }: {item: MusicItemLike, className?: string}) {
   if (item.track?.thumbnail) {
     return <img src={item.track.thumbnail} alt='' loading='lazy' className={cn('shrink-0 rounded object-cover', className)}/>;
   }
@@ -666,7 +669,7 @@ function IconButton({ label, danger = false, disabled, onClick, children }: {
 
 
 // `artist - title` like the bot, a link that isn't converted yet by its file name
-function musicItemTitle(item: GuildMusicQueueItem): string {
+export function musicItemTitle(item: MusicItemLike): string {
   if (item.source === 'opus' && item.track) {
     return (item.track.artist) ? `${item.track.artist} - ${item.track.title}` : item.track.title;
   }

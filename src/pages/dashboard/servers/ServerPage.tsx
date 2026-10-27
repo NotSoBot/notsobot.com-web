@@ -17,6 +17,7 @@ import { GuildReportsSection } from './GuildReportsSection';
 import { GuildTagsSection } from './GuildTagsSection';
 import { AREA_LABEL, AREA_PERMISSION } from './guildMeta';
 import { MusicSection } from './MusicSection';
+import { MusicStatsSection } from './MusicStatsSection';
 import { ServerDataSection } from './ServerDataSection';
 import { LoggersSection, PrefixesSection, RulesSection } from './ServerSections';
 import { ServerHome } from './ServerHome';
@@ -152,7 +153,12 @@ export function ServerCommandsPage() {
 
 export function ServerMusicPage() {
   const { guild } = useServer();
-  return <MusicSection guild={guild}/>;
+  return (
+    <>
+      <MusicSection guild={guild}/>
+      <MusicStatsSection guild={guild}/>
+    </>
+  );
 }
 
 export function ServerNotSoAIPage() {

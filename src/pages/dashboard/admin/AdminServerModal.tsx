@@ -15,6 +15,7 @@ import { cn, snowflakeTimestamp } from '@/lib/utils';
 import { AIKnowledgeSection } from '../servers/AIKnowledgeSection';
 import { GuildIcon } from '../servers/GuildIcon';
 import { MusicSection } from '../servers/MusicSection';
+import { MusicStatsSection } from '../servers/MusicStatsSection';
 import { ServerDataSection } from '../servers/ServerDataSection';
 import { LoggersSection, PrefixesSection, RulesSection } from '../servers/ServerSections';
 import { ServerSettingsForm, useDirtyGroups, type SettingsGroup } from '../servers/ServerSettingsForm';
@@ -311,6 +312,7 @@ function ServerDetails({ guild, navigation, onDirtyChange }: {guild: AdminGuild,
           <AIKnowledgeSection guild={guild}/>
           <ServerSettingsForm guild={guild} group='warnings' onDirtyChange={setter('warnings')}/>
           <MusicSection guild={guild}/>
+          <MusicStatsSection guild={guild}/>
           <RulesSection guild={guild}/>
           <LoggersSection guild={guild}/>
           <ServerDataSection guild={guild}/>

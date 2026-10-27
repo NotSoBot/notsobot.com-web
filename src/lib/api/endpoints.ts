@@ -157,6 +157,7 @@ export function guildEndpoints(scope: GuildScope, guildId: string) {
     LLM_KNOWLEDGE_ITEM: (knowledgeId: string) => `${base}/llm/knowledge/${knowledgeId}`,
     MUSIC: `${base}/music`,
     MUSIC_CONTROL: `${base}/music/control`,
+    MUSIC_STATS: `${base}/music/stats`,
     MUSIC_QUEUE_DELETE: `${base}/music/queue/delete`,
     MUSIC_QUEUE_ITEM: (itemId: string) => `${base}/music/queue/${itemId}`,
     WARNINGS: `${base}/warnings`,

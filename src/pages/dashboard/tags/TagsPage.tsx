@@ -27,11 +27,18 @@ const SORTS: Array<{value: MeTagsSortBy}> = [
   {value: 'newest'},
   {value: 'oldest'},
   {value: 'uses'},
+  {value: 'uses_week'},
+  {value: 'uses_month'},
+  {value: 'uses_year'},
   {value: 'last_used'},
   {value: 'name'},
 ];
 
 const findSort = (value: string | null | undefined) => SORTS.find((sort) => sort.value === value)?.value;
+
+// the window a `uses_<period>` sort counts over, cards then show `dtags.recent_<period>`
+type RecentPeriod = 'week' | 'month' | 'year';
+const recentPeriod = (sortBy: MeTagsSortBy): RecentPeriod | null => (sortBy.startsWith('uses_')) ? sortBy.slice('uses_'.length) as RecentPeriod : null;
 
 // the `directory` param, `all` is left out of the url. The label is `dtags.filter.<value>`, and the description
 // (`dtags.filter.<value>_description`, a getter) finishes "N tags ..." in the header
@@ -258,7 +265,7 @@ export function TagsPage() {
       ) : (
         <>
           <ul className={cn('grid grid-cols-1 gap-3 transition-opacity sm:grid-cols-2 xl:grid-cols-3', isPlaceholderData && 'opacity-60')}>
-            {items.map((tag) => <TagCard key={tag.id} tag={tag} user={user} guildNames={guildNames} onOpen={openTag} onDelete={setDeleting}/>)}
+            {items.map((tag) => <TagCard key={tag.id} tag={tag} user={user} guildNames={guildNames} period={recentPeriod(sortBy)} onOpen={openTag} onDelete={setDeleting}/>)}
           </ul>
           <Pagination page={page} count={count} pageSize={ME_TAGS_PAGE_SIZE} onChange={setPage} fetching={isFetching && isPlaceholderData}/>
         </>
@@ -287,10 +294,11 @@ export function TagsPage() {
 
 // laid out like the directory's cards: NSFW by the name, the states stacked top-right, aliases as a subtitle, the location pinned above the footer.
 // Just enough to spot the tag, the content and the rest of its details are a click away (`TagDetailsModal`)
-function TagCard({ tag, user, guildNames, onOpen, onDelete }: {
+function TagCard({ tag, user, guildNames, period, onOpen, onDelete }: {
   tag: Tag,
   user: UserMe | null,
   guildNames: Map<string, string>,
+  period: RecentPeriod | null,
   onOpen: (id: string) => void,
   onDelete: (tag: Tag) => void,
 }) {
@@ -325,7 +333,11 @@ function TagCard({ tag, user, guildNames, onOpen, onDelete }: {
         <TagLocationChip location={location} to={tagServerPath(location)}/>
       </div>
       <div className='flex items-center justify-between gap-3 border-t border-line pt-3 text-xs text-subtle'>
-        <span className='tabular-nums'>{plural('dtags.uses', tag.uses)}</span>
+        <span className='flex items-center gap-3 tabular-nums'>
+          {/* sorted by recent uses: the window's count first */}
+          {(period && tag.recent_uses !== undefined) ? <span className='whitespace-nowrap text-fg'>{plural(`dtags.recent_${period}`, tag.recent_uses)}</span> : null}
+          <span className='whitespace-nowrap'>{plural('dtags.uses', tag.uses)}</span>
+        </span>
         <span className='flex items-center gap-1'>
           {(tag.edited) ? t('dtags.edited', {date: formatDate(tag.edited)}) : t('dtags.created', {date: formatDate(tag.created)})}
           {/* like the editor's: locked tags (pending/verified in the directory) are staff only */}

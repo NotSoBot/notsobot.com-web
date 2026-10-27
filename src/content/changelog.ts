@@ -49,6 +49,12 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'fixed', text: '**MediaScript:** `concat` and `interpolate` failing to make a webm with sound when the other media\'s audio was 44.1 kHz.'},
       {kind: 'fixed', text: '`.code` giving an unknown error when the code service took too long to answer, it says the service took too long now.'},
       {kind: 'fixed', text: 'Songs queued from a link failing to play again once they\'d been in the queue for a day, like in a long queue loop. They\'re kept for as long as they\'re queued now.'},
+      {kind: 'new', text: '`/music stats` and `.music stats` (`.music top`): what the music played in the server the most, all time or the last week, month or year. Plays and time played, then the top songs, members (by the songs they queued) and artists, ranked by plays or by time played (`sort`, `-sort time`). A song counts once it finishes or plays for 30 seconds, loops only add time. Counting starts with this update.'},
+      {kind: 'new', text: 'Server dashboard: the Music page has a Music stats panel with the same totals and top lists, for any member.'},
+      {kind: 'new', text: 'The tag directory and your tags on the dashboard can be sorted by the most uses this week, month or year, not just of all time. Each tag then shows its uses in that time too.'},
+      {kind: 'improved', text: 'Reddit app share links (`reddit.com/r/.../s/...`) work in media commands and `.download`.'},
+      {kind: 'fixed', text: 'Reddit posts failing to download.'},
+      {kind: 'fixed', text: '24/7 music that was paused when NotSoBot restarted being stopped after a couple of minutes.'},
     ],
   },
   {

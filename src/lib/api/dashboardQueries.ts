@@ -53,6 +53,8 @@ import type {
   GuildMusic,
   GuildMusicControl,
   GuildMusicLoop,
+  GuildMusicStatsPeriod,
+  GuildMusicStatsSort,
   GuildMusicSettings,
   GuildLLMKnowledgePage,
   GuildRule,
@@ -1526,6 +1528,19 @@ export function useGuildMusicQuery(guildId: string) {
     queryKey: queryKeys.guildMusic(token, scope, guildId),
     queryFn: ({ signal }) => api.fetchGuildMusic(scope, guildId, signal),
     refetchInterval: GUILD_MUSIC_REFETCH_INTERVAL,
+    retry: retryDiscordRefresh,
+  });
+}
+
+
+// what the server's music played, any member. Counted as songs end, so it's only fetched again when asked for
+export function useGuildMusicStatsQuery(guildId: string, period: GuildMusicStatsPeriod, sort: GuildMusicStatsSort) {
+  const { token } = useAuth();
+  const scope = useGuildScope();
+  return useQuery({
+    queryKey: queryKeys.guildMusicStats(token, scope, guildId, period, sort),
+    queryFn: ({ signal }) => api.fetchGuildMusicStats(scope, guildId, period, sort, signal),
+    placeholderData: keepPreviousData,
     retry: retryDiscordRefresh,
   });
 }

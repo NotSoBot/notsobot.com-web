@@ -230,6 +230,10 @@ export const TagDirectorySortByFilters = {
   USES: 3,
   NAME: 4,
   SERVERS: 5,
+  // uses in the last 7/30/365 days, items then carry `recent_uses`
+  USES_WEEK: 6,
+  USES_MONTH: 7,
+  USES_YEAR: 8,
 } as const;
 
 export type TagDirectorySortBy = typeof TagDirectorySortByFilters[keyof typeof TagDirectorySortByFilters];
@@ -391,6 +395,8 @@ export interface TagDirectoryItem {
   thumbnail: TagDirectoryThumbnail | null,
   // the owner's (`/users/@me/tags/:id/directory`): the open change request, otherwise the last one
   edit_request?: TagDirectoryEditRequest | null,
+  // the tag's uses in the window when sorted by recent uses (`USES_WEEK` and so on)
+  recent_uses?: number,
   title: string,
   verified: number,
 }
@@ -586,6 +592,8 @@ export interface Tag {
   uses: number,
   // only on `GET /users/@me/tags` items: the tag's directory listing, if it has one
   directory?: {title: string, verified: number} | null,
+  // only on `GET /users/@me/tags` items sorted by recent uses (`uses_week` and so on): its uses in that window
+  recent_uses?: number,
 }
 
 export interface TagsPage {
@@ -593,7 +601,8 @@ export interface TagsPage {
   items: Array<Tag>,
 }
 
-export type MeTagsSortBy = 'newest' | 'oldest' | 'uses' | 'name' | 'last_used';
+// `uses_<period>`: uses in the last 7/30/365 days
+export type MeTagsSortBy = 'newest' | 'oldest' | 'uses' | 'uses_week' | 'uses_month' | 'uses_year' | 'name' | 'last_used';
 
 // `listed`: only tags listed on the tag directory (`verified` narrows it to one `TagDirectoryVerificationStates`), false: only the rest
 export type MeTagsDirectoryFilter = {listed: true, verified: number | null} | {listed: false} | null;
@@ -845,6 +854,35 @@ export interface GuildMusicQueueItem {
   url: string,
   // who queued it
   user_id: string,
+}
+
+// how far back a server's music stats count (the last 7, 30 or 365 days, or since they started) and what the top lists
+// rank by
+export type GuildMusicStatsPeriod = 'week' | 'month' | 'year' | 'all';
+export type GuildMusicStatsSort = 'plays' | 'time';
+
+// `plays` counts a queued song once (it finished, or played 30 seconds before a skip), loops and early skips only add
+// `played_ms`
+export interface GuildMusicStatsCounts {
+  played_ms: number,
+  plays: number,
+}
+
+// what a server's music played over a period: totals, then the top songs, members (by what they queued) and artists
+export interface GuildMusicStats {
+  artists: Array<GuildMusicStatsCounts & {name: string}>,
+  period: GuildMusicStatsPeriod,
+  sort: GuildMusicStatsSort,
+  totals: GuildMusicStatsCounts & {
+    // the oldest play in the period (unix milliseconds), null with none
+    first_played: null | number,
+    tracks: number,
+    users: number,
+  },
+  // each song as it last played, like a queue item's (`track.url` is always null)
+  tracks: Array<GuildMusicStatsCounts & Pick<GuildMusicQueueItem, 'source' | 'track' | 'url'>>,
+  // null for someone NotSoBot hasn't seen
+  users: Array<GuildMusicStatsCounts & {user: GuildContentUser | null, user_id: string}>,
 }
 
 // what's playing in a server and what's queued. `session` is the bot being in a voice channel for it, null otherwise
@@ -1253,8 +1291,6 @@ export interface UserDataExport {
   applications: Array<Application>,
   // per command, hourly rollup. null when the stats database couldn't be reached
   command_usage: Array<{command_id: string, command_type: number, first_used: string | null, last_used: string | null, uses: number}> | null,
-  // the old bot's command history, newest first
-  commands: Array<Record<string, unknown>>,
   entitlements: Array<Entitlement>,
   files: Array<UserFile>,
   llm: {

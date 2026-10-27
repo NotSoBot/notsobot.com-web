@@ -43,6 +43,7 @@ export const queryKeys = {
   // a server's AI knowledge and music, yours (`me`) or through the admin panel (`admin`), apart so one never shows the other's
   guildLLMKnowledge: (token: string | null, scope: GuildScope, guildId: string) => ['users', '@me', token, 'guild-llm-knowledge', scope, guildId] as const,
   guildMusic: (token: string | null, scope: GuildScope, guildId: string) => ['users', '@me', token, 'guild-music', scope, guildId] as const,
+  guildMusicStats: (token: string | null, scope: GuildScope, guildId: string, period: string, sort: string) => ['users', '@me', token, 'guild-music-stats', scope, guildId, period, sort] as const,
   guildCommandStats: (token: string | null, guildId: string, days: number) => ['users', '@me', token, 'guild-command-stats', guildId, days] as const,
   guildTags: (token: string | null, guildId: string, query?: string) => ['users', '@me', token, 'guild-tags', guildId, ...((query === undefined) ? [] : [query])] as const,
   guildReminders: (token: string | null, guildId: string, filters?: object) => ['users', '@me', token, 'guild-reminders', guildId, ...((filters === undefined) ? [] : [filters])] as const,

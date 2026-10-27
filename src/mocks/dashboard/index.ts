@@ -34,6 +34,7 @@ import {
   type GuildReportMessage,
   type GuildWarning,
   type GuildMusic,
+  type GuildMusicStats,
   type GuildMusicQueueItem,
   type GuildRule,
   type GuildRuleInput,
@@ -422,7 +423,6 @@ route('GET', '/users/@me/data/export', (): UserDataExport => {
   return {
     applications: state.applications.filter((application) => application.owner_id === mockUser.id).map(meApplication),
     command_usage: [...usage.values()].sort((a, b) => b.uses - a.uses),
-    commands: [],
     entitlements: state.entitlements
       .filter((entitlement) => entitlement.user?.id === mockUser.id)
       .map(({ external_id: _externalId, user: _user, ...entitlement }) => entitlement),
@@ -497,10 +497,16 @@ route('GET', '/users/@me/tags', (_match, { query }) => {
   const offset = Math.max(0, Number(query.get('offset')) || 0);
   const limit = Math.min(100, Math.max(1, Number(query.get('limit')) || 100));
   const newest = (a: Tag, b: Tag) => (BigInt(b.id) > BigInt(a.id)) ? 1 : -1;
+  // `uses_<period>`: made-up uses in that window (`mockRecentUses`), the api counts them in clickhouse
+  const recentDays = MOCK_RECENT_USES_DAYS[query.get('sort_by') || ''];
+  const recent = (tag: Tag) => mockRecentUses(tag.id, tag.uses, recentDays ?? 0);
   const sorters: Record<string, (a: Tag, b: Tag) => number> = {
     newest,
     oldest: (a, b) => newest(b, a),
     uses: (a, b) => b.uses - a.uses || newest(a, b),
+    uses_week: (a, b) => recent(b) - recent(a) || newest(a, b),
+    uses_month: (a, b) => recent(b) - recent(a) || newest(a, b),
+    uses_year: (a, b) => recent(b) - recent(a) || newest(a, b),
     name: (a, b) => a.name.localeCompare(b.name) || newest(b, a),
     last_used: (a, b) => (b.last_used ? Date.parse(b.last_used) : -Infinity) - (a.last_used ? Date.parse(a.last_used) : -Infinity) || newest(a, b),
   };
@@ -523,10 +529,25 @@ route('GET', '/users/@me/tags', (_match, { query }) => {
     .slice(offset, offset + limit)
     .map((tag) => {
       const listing = state.directory.get(tag.id);
-      return {...tag, directory: (listing) ? {title: listing.title, verified: listing.verified} : null};
+      return {
+        ...tag,
+        directory: (listing) ? {title: listing.title, verified: listing.verified} : null,
+        ...((recentDays) ? {recent_uses: recent(tag)} : {}),
+      };
     });
   return {count: matching.length, items};
 });
+
+// a steady made-up share of a tag's uses for the recent-uses sorts (`uses_week`, `TagDirectorySortByFilters.USES_WEEK`...)
+const MOCK_RECENT_USES_DAYS: Record<string, number> = {uses_week: 7, uses_month: 30, uses_year: 365, 6: 7, 7: 30, 8: 365};
+
+function mockRecentUses(tagId: string, uses: number, days: number): number {
+  if (!days) {
+    return 0;
+  }
+  const weight = Number(BigInt(tagId) % 7n + 1n) / 7;
+  return Math.round(uses * Math.min(days / 365, 1) * weight);
+}
 
 route('GET', '/users/@me/tags/(\\d+)', ([ , tagId ]) => findTag(tagId));
 
@@ -3701,6 +3722,71 @@ route('GET', '/(users/@me|admin)/guilds/(\\d+)/music', ([ , scope, guildId ]) =>
   return guildMusic(guildId);
 });
 
+// a server's music stats: mirrors `/music/stats` (`utilities.tools.music_stats`), made up but steady for each server and
+// period. Sorted like the api, the shorter periods are a share of all time
+const MOCK_MUSIC_STATS_TRACKS: Array<[string, string, number]> = [
+  ['Daft Punk', 'Harder, Better, Faster, Stronger', 224000],
+  ['Gorillaz', 'Feel Good Inc.', 222000],
+  ['Tame Impala', 'The Less I Know The Better', 216000],
+  ['Kendrick Lamar', 'HUMBLE.', 177000],
+  ['Daft Punk', 'Get Lucky', 369000],
+  ['Radiohead', 'Weird Fishes/Arpeggi', 318000],
+];
+const MOCK_MUSIC_STATS_SHARE: Record<string, number> = {all: 1, year: 0.6, month: 0.12, week: 0.03};
+
+route('GET', '/(users/@me|admin)/guilds/(\\d+)/music/stats', ([ , scope, guildId ], { query }): GuildMusicStats => {
+  scopedGuildRead(scope, guildId);
+  const period = (query.get('period') || 'all') as GuildMusicStats['period'];
+  const sort = (query.get('sort') || 'plays') as GuildMusicStats['sort'];
+  const share = MOCK_MUSIC_STATS_SHARE[period] ?? 1;
+  const seed = Number(BigInt(guildId) % 13n);
+  const order = (a: {plays: number, played_ms: number}, b: {plays: number, played_ms: number}) => (sort === 'time') ? b.played_ms - a.played_ms : b.plays - a.plays;
+  const tracks = MOCK_MUSIC_STATS_TRACKS.map(([ artist, title, duration ], i) => {
+    const plays = Math.round((60 + seed - i * 9) * share);
+    return {
+      played_ms: Math.round(plays * duration * 0.9),
+      plays,
+      source: 'opus' as const,
+      track: {album: null, artist, duration, isrc: null, thumbnail: null, title, url: null},
+      url: `https://open.spotify.com/track/mock${i}`,
+    };
+  }).filter((item) => item.plays).sort(order);
+  const listeners = [mockUser.id, ...Object.keys(MOCK_REPORT_USERS).slice(0, 4)];
+  const users = listeners.map((id, i) => {
+    const plays = Math.round((140 - i * 25 + seed) * share);
+    return {
+      played_ms: plays * 231000,
+      plays,
+      user: (id === mockUser.id) ?
+        {avatar: mockUser.avatar ?? null, bot: false, discriminator: mockUser.discriminator, id, username: mockUser.username} :
+        (i < 3) ? {avatar: null, bot: false, discriminator: '0', id, username: MOCK_REPORT_USERS[id]} : null,
+      user_id: id,
+    };
+  }).filter((item) => item.plays).sort(order);
+  const artists = new Map<string, {name: string, played_ms: number, plays: number}>();
+  for (const track of tracks) {
+    const artist = artists.get(track.track.artist) ?? {name: track.track.artist, played_ms: 0, plays: 0};
+    artist.plays += track.plays;
+    artist.played_ms += track.played_ms;
+    artists.set(track.track.artist, artist);
+  }
+  const plays = users.reduce((sum, item) => sum + item.plays, 0);
+  return {
+    artists: [...artists.values()].sort(order),
+    period,
+    sort,
+    totals: {
+      first_played: (plays) ? Date.now() - ((period === 'all') ? 75 : (period === 'year') ? 75 : (period === 'month') ? 29 : 6) * 86400000 : null,
+      played_ms: users.reduce((sum, item) => sum + item.played_ms, 0),
+      plays,
+      tracks: tracks.length + Math.round(180 * share),
+      users: users.length,
+    },
+    tracks,
+    users,
+  };
+});
+
 route('PATCH', '/(users/@me|admin)/guilds/(\\d+)/music', ([ , scope, guildId ], { body }) => {
   scopedGuild(scope, guildId, 'music');
   const music = guildMusic(guildId);
@@ -4973,8 +5059,11 @@ route('GET', '/tags/directory', (_match, { query }) => {
   const before = query.get('before');
   const limit = Number(query.get('limit')) || 50;
   const category = parseCategory(query.get('category'));
+  // the recent-uses sorts (6-8) order by `recent_uses`, the rest keep the newest first
+  const recentDays = MOCK_RECENT_USES_DAYS[query.get('sort_by') || ''];
   const items = [...state.directory.values(), ...state.adminDirectory.map(adminListingAsPublic)]
-    .sort((a, b) => (BigInt(b.id) > BigInt(a.id)) ? 1 : -1)
+    .map((item) => (recentDays) ? {...item, recent_uses: mockRecentUses(item.tag.id, item.tag.uses, recentDays)} : item)
+    .sort((a, b) => (recentDays && (b.recent_uses ?? 0) - (a.recent_uses ?? 0)) || ((BigInt(b.id) > BigInt(a.id)) ? 1 : -1))
     .filter((item) => category === undefined || item.category === category)
     .filter((item) => matchesDirectorySearch(search, item.tag, [item.title, item.tag.name, item.description]))
     .filter((item) => !before || BigInt(item.id) < BigInt(before))

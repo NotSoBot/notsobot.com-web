@@ -25,9 +25,15 @@ import { AssetThumbnail } from './TagMedia';
 import { AddTagButton, CategoryBadge, categoryOptionFromParam, NsfwBadge, TAG_DIRECTORY_CATEGORY_OPTIONS, tagDirectoryItemPath, VerificationBadge } from './tagDirectory';
 
 
+// the windows the recent-uses sorts count over, a card then shows `tags.directory.recent_<period>`
+type RecentPeriod = 'week' | 'month' | 'year';
+
 // URL value -> API value; defaults are left out of the URL
-const SORT_OPTIONS: Array<{param: string, label: TranslationKey, value: TagDirectorySortBy}> = [
+const SORT_OPTIONS: Array<{param: string, label: TranslationKey, value: TagDirectorySortBy, period?: RecentPeriod}> = [
   {param: 'uses', label: 'tags.directory.sort.uses', value: TagDirectorySortByFilters.USES},
+  {param: 'uses-week', label: 'tags.directory.sort.uses_week', value: TagDirectorySortByFilters.USES_WEEK, period: 'week'},
+  {param: 'uses-month', label: 'tags.directory.sort.uses_month', value: TagDirectorySortByFilters.USES_MONTH, period: 'month'},
+  {param: 'uses-year', label: 'tags.directory.sort.uses_year', value: TagDirectorySortByFilters.USES_YEAR, period: 'year'},
   {param: 'servers', label: 'tags.directory.sort.servers', value: TagDirectorySortByFilters.SERVERS},
   {param: 'verified', label: 'tags.directory.sort.verified', value: TagDirectorySortByFilters.VERIFIED},
   {param: 'newest', label: 'tags.directory.sort.newest', value: TagDirectorySortByFilters.NEWEST},
@@ -221,7 +227,7 @@ export function TagDirectoryPage() {
       ) : (
         <>
           <ul className={cn('grid gap-4 transition-opacity md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4', isPlaceholderData && 'opacity-60')}>
-            {items.map((item) => <TagCard key={item.id} item={item} search={location.search}/>)}
+            {items.map((item) => <TagCard key={item.id} item={item} search={location.search} period={sort.period}/>)}
           </ul>
 
           {(hasNextPage) ? (
@@ -252,7 +258,7 @@ export function TagDirectoryPage() {
 }
 
 
-function TagCard({ item, search }: {item: TagDirectoryItem, search: string}) {
+function TagCard({ item, search, period }: {item: TagDirectoryItem, search: string, period?: RecentPeriod}) {
   const { plural } = useI18n();
   const { tag } = item;
   // a video cover plays while a mouse is over the card (touch screens just show its first frame)
@@ -293,6 +299,7 @@ function TagCard({ item, search }: {item: TagDirectoryItem, search: string}) {
 
         <div className='mt-auto mb-3 flex items-center justify-between text-xs text-subtle'>
           <div className='flex items-center gap-3'>
+            {(period && item.recent_uses !== undefined) ? <span className='text-fg'>{plural(`tags.directory.recent_${period}`, item.recent_uses)}</span> : null}
             <span>{plural('tags.directory.uses', tag.uses)}</span>
             <span>{plural('tags.directory.servers', item.server_count)}</span>
           </div>

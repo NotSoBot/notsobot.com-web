@@ -64,6 +64,9 @@ import type {
   EntitlementsPage,
   GuildLLMKnowledge,
   GuildMusic,
+  GuildMusicStats,
+  GuildMusicStatsPeriod,
+  GuildMusicStatsSort,
   GuildMusicControl,
   GuildMusicSettings,
   GuildCommandStats,
@@ -780,6 +783,11 @@ export const api = {
   // queue as it is now
   fetchGuildMusic: (scope: GuildScope, guildId: string, signal?: AbortSignal) => {
     return apiRequest<GuildMusic>(guildEndpoints(scope, guildId).MUSIC, {signal});
+  },
+
+  // what the server's music played over a period, any member (staff any server)
+  fetchGuildMusicStats: (scope: GuildScope, guildId: string, period: GuildMusicStatsPeriod, sort: GuildMusicStatsSort, signal?: AbortSignal) => {
+    return apiRequest<GuildMusicStats>(guildEndpoints(scope, guildId).MUSIC_STATS, {query: {period, sort}, signal});
   },
 
   patchGuildMusic: (scope: GuildScope, guildId: string, patch: GuildMusicSettings) => {
