@@ -41,6 +41,7 @@ import {
   type IdentityLogin,
   type IdentityLoginReveal,
   type IdentityProxyItem,
+  type Reminder,
   type Report,
   type ReportMessage,
   type Tag,
@@ -2099,6 +2100,7 @@ route('GET', '/admin/content-flags', (_match, { query }) => {
   const category = query.get('category');
   const needsReview = parseBool(query.get('needs_human_review'));
   const autoConfirmed = parseBool(query.get('auto_confirmed'));
+  const autoReview = query.get('auto_review');
   const promptHash = (query.get('prompt_hash') || '').toLowerCase();
   const type = query.get('type');
   const guildId = query.get('guild_id');
@@ -2143,6 +2145,17 @@ route('GET', '/admin/content-flags', (_match, { query }) => {
     .filter((flag) => !category || flag.category === category)
     .filter((flag) => needsReview === null || flag.needs_human_review === needsReview)
     .filter((flag) => autoConfirmed === null || !!flag.auto_confirmed_from === autoConfirmed)
+    .filter((flag) => {
+      // mirrors `_content_flag_auto_review_condition`
+      const review = flag.auto_review;
+      switch (autoReview) {
+        case 'none': return !review;
+        case 'failed': return !!review?.error;
+        case 'applied': return !!review && !review.error && review.applied;
+        case 'suggested': return !!review && !review.error && !review.applied;
+        default: return true;
+      }
+    })
     .filter((flag) => {
       // mirrors the `prompt_hash` filter in `admin_get_content_flags`
       if (promptHash === 'none') {
@@ -2298,6 +2311,7 @@ route('POST', '/admin/content-flags/(\\d+)/prompt', ([ , flagId ]) => {
   flag.frames = 0;
   flag.frames_flagged = [];
   flag.source_url = null;
+  flag.query_type = null;
   return withUser(flag);
 });
 
@@ -3233,9 +3247,30 @@ route('GET', '/users/@me/guilds/(\\d+)/reminders', ([ , guildId ], { query }) =>
   requireEditable(guildId, 'reminders');
   const offset = Number(query.get('offset')) || 0;
   const limit = Number(query.get('limit')) || 25;
+  const search = (query.get('query') ?? '').trim().toLowerCase();
+  const allDay = query.get('all_day');
+  const within = ({day: 1, week: 7, month: 30} as Record<string, number>)[query.get('within') ?? ''];
+  const sort = query.get('sort') ?? 'next';
+  const owner = guildContentUser(mockUser);
+  const byStart = (a: Reminder, b: Reminder) => Date.parse(a.timestamp_start) - Date.parse(b.timestamp_start);
+  const byId = (a: Reminder, b: Reminder) => (BigInt(a.id) < BigInt(b.id)) ? -1 : 1;
+  const sorter = ({next: byStart, last: (a, b) => byStart(b, a), newest: (a, b) => byId(b, a), oldest: byId} as Record<string, (a: Reminder, b: Reminder) => number>)[sort] ?? byStart;
+  // a looser stand-in for the api's search: any id it mentions, else the text or the owner's name
+  const ids = [...search.matchAll(/\d{5,20}/g)].map((match) => match[0]);
   const matching = state.reminders
     .filter((reminder) => reminder.guild_id === guildId)
-    .sort((a, b) => Date.parse(a.timestamp_end ?? a.timestamp_start) - Date.parse(b.timestamp_end ?? b.timestamp_start));
+    .filter((reminder) => allDay === null || String(reminder.is_all_day) === allDay)
+    .filter((reminder) => !within || Date.parse(reminder.timestamp_start) <= Date.now() + within * 86_400_000)
+    .filter((reminder) => {
+      if (!search) {
+        return true;
+      }
+      if (ids.length) {
+        return ids.some((id) => [reminder.id, owner.id, reminder.channel_id].includes(id));
+      }
+      return reminder.content.toLowerCase().includes(search) || owner.username.toLowerCase().includes(search);
+    })
+    .sort(sorter);
   return {
     count: matching.length,
     items: matching.slice(offset, offset + limit).map((reminder) => ({...reminder, user: guildContentUser(mockUser)})),

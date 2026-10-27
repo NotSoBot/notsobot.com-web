@@ -3,7 +3,7 @@ import type { LegalDocument } from './legal';
 export const TERMS_OF_SERVICE: LegalDocument = {
   title: "Terms of Service",
   effective: "November 12, 2026",
-  lastUpdated: "October 23, 2026",
+  lastUpdated: "October 27, 2026",
   intro: "Please read these Terms of Service carefully before using NotSoBot. They explain what you can and can't do with the Service, what we store when you use it, and how to reach us.",
   sections: [
     {
@@ -101,7 +101,7 @@ export const TERMS_OF_SERVICE: LegalDocument = {
           "the safety scores and the action taken",
         ]},
         {type: 'paragraph', text: "We do not keep a copy of flagged media. Hashes can't be turned back into the original media, and We use them to recognize and block the same media if it's uploaded again."},
-        {type: 'paragraph', text: "Flags may be reviewed by Our team, who may view the flagged media by fetching it again from the URL it came from while reviewing. That copy is only shown to the reviewer and is not kept. Flags found to be mistaken are dismissed. If a review confirms content that breaks these Terms or the law, We may block the users or servers involved, report the content to Discord, and report it to law enforcement or other authorities when the law requires it or when We believe it's needed to protect someone's safety. Flag records are kept to prevent repeat abuse, and for as long as the law requires for content We report."},
+        {type: 'paragraph', text: "Flags may be reviewed by Our team, who may view the flagged media by fetching it again from the URL it came from while reviewing. That copy is only shown to the reviewer and is not kept. Flags may also be reviewed first by an AI model (Anthropic's Claude), which is sent the flagged media or text, the command, the prompt and the safety scores but not who or where it came from; only its highly confident decisions are applied without a person looking, and flags about child safety are only reviewed by Our team. Flags found to be mistaken are dismissed. If a review confirms content that breaks these Terms or the law, We may block the users or servers involved, report the content to Discord, and report it to law enforcement or other authorities when the law requires it or when We believe it's needed to protect someone's safety. Flag records are kept to prevent repeat abuse, and for as long as the law requires for content We report."},
       ],
     },
     {

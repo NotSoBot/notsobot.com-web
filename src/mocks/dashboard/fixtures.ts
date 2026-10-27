@@ -409,9 +409,33 @@ export function createContentFlags(users: Array<AdminUser>): Array<ContentFlag> 
     const created = new Date(Date.now() - i * 5 * 3600000).toISOString();
     // some confirmed ones came in already matching an earlier confirmed flag (the hashes repeat every 16)
     const autoConfirmed = status === 1 && i >= 16 && i % 2 === 0;
+    // tag outputs made by a mediascript: the script is the query, and there's no source url (it loads its own media)
+    const mediascript = !text && i % 5 === 4;
+    const prompt = !text && !mediascript && i % 3 === 0;
+    // the daily haiku review: the newest flags haven't been reviewed yet, mediascript ones have no media to look at
+    const needsReview = category.startsWith('review') || i % 9 === 0;
+    // auto-confirmed ones are never pending, so never auto reviewed
+    const autoReviewed = i >= 6 && i < 40 && !needsReview && !category.includes('child_safety') && !autoConfirmed;
+    const haikuApplied = autoReviewed && (status === 1 || status === 2) && i % 3 !== 1 && (text || i % 7 !== 3);
     flags.push({
       action: ACTIONS[i % ACTIONS.length],
       auto_confirmed_from: (autoConfirmed) ? String(9000 + 64 - (i - 16)) : null,
+      // mediascript flags would fail the same way (no source url), but the mock's are all flagged for human review
+      auto_review: (!autoReviewed) ? null : (!text && i % 7 === 3) ? {
+        applied: false,
+        error: 'URL returned 404',
+        reviewed_at: new Date(Date.parse(created) + 2 * 3600000).toISOString(),
+        sha256_match: null,
+      } : {
+        applied: haikuApplied,
+        categories: (status === 2) ? [] : [flagged[0]],
+        confidence: (haikuApplied) ? 'high' : (['medium', 'low'] as const)[i % 2],
+        decision: (status === 2) ? 'dismiss' : (status === 1) ? 'confirm' : (['escalate', 'dismiss', 'confirm'] as const)[i % 3],
+        model: 'claude-haiku-5-5',
+        reason: (status === 2) ? `Cartoon character in a swimsuit, nothing explicit (mock #${i}).` : `Clearly shows ${flagged[0]} (mock #${i}).`,
+        reviewed_at: new Date(Date.parse(created) + 2 * 3600000).toISOString(),
+        sha256_match: (text) ? null : i % 4 !== 3,
+      },
       category,
       channel_id: (i % 5) ? (1200000000000000000n + BigInt(i)).toString() : null,
       command_id: ['imagine', 'mirror', 'deepfry', 'caption', 'tag'][i % 5],
@@ -426,21 +450,25 @@ export function createContentFlags(users: Array<AdminUser>): Array<ContentFlag> 
       message_id: (i % 5) ? (1310000000000000000n + BigInt(i) * 13n).toString() : null,
       mimetype: (text) ? 'text/plain' : (video) ? 'video/mp4' : ['image/png', 'image/gif', 'image/jpeg', 'image/webp'][i % 4],
       model: (i % 2) ? 'safety-scan-v3' : 'safety-scan-v2',
-      needs_human_review: category.startsWith('review') || i % 9 === 0,
+      needs_human_review: needsReview,
       notes: (i % 6 === 0) ? 'Checked hash against known list, no match.' : null,
       pdq: (text) ? null : Array.from({length: 64}, (_, j) => ((i * 31 + j * 7) % 16).toString(16)).join(''),
       // one per kind of scan, the oldest flags are from before it was recorded
       prompt_hash: (i >= 48) ? null : Array.from({length: 64}, (_, j) => (((text) ? 3 : 11) + j * 7 + (i % 2) * j).toString(16).slice(-1)).join(''),
-      query: (text) ? ((i % 16 === 5) ? `フィルターに引っかかったタグの出力 #${i}` : `{tag output that tripped the filter #${i}}`) : (i % 3 === 0) ? `a picture of something weird #${i}` : null,
-      reviewed_at: (status) ? new Date(Date.parse(created) + 3600000).toISOString() : null,
-      reviewed_by: (status) ? mockUser.id : null,
+      query: (text) ? ((i % 16 === 5) ? `フィルターに引っかかったタグの出力 #${i}` : `{tag output that tripped the filter #${i}}`)
+        : (mediascript) ? `load https://media.invalid/attachments/${1300000000000000000n + BigInt(i)}/input_${i}.png\nresize 512 512\ncaption "mock #${i}"\nrender`
+        : (prompt) ? `a picture of something weird #${i}` : null,
+      query_type: (mediascript) ? 'mediascript' : (prompt) ? 'prompt' : null,
+      // an applied haiku verdict is the review, so it's at the same time
+      reviewed_at: (status) ? new Date(Date.parse(created) + ((haikuApplied) ? 2 : 1) * 3600000).toISOString() : null,
+      reviewed_by: (status && !haikuApplied) ? mockUser.id : null,
       scores_worst: {nudity: (i % 10) / 10 + 0.05, violence: ((i * 3) % 10) / 10, minor: (i % 4) / 7},
       // the hashes repeat every 16 flags (the same media flagged again), and the sha256 shifts halfway through so those
       // halves only match by pdq (visually similar), for the "confirm the matches too?" dialog
       sha256: Array.from({length: 64}, (_, j) => ((i * 13 + j * 5 + Math.floor(i / 32)) % 16).toString(16)).join(''),
       size: 40000 + i * 12345,
       // never rendered as media; it's only here so the page has something to (not) show
-      source_url: (text) ? null : `https://media.invalid/attachments/${1300000000000000000n + BigInt(i)}/upload_${i}.${(video) ? 'mp4' : 'png'}`,
+      source_url: (text || mediascript) ? null : `https://media.invalid/attachments/${1300000000000000000n + BigInt(i)}/upload_${i}.${(video) ? 'mp4' : 'png'}`,
       status,
       tag_id: (i % 5 === 4) ? '1290000000000000140' : null,
       user: {

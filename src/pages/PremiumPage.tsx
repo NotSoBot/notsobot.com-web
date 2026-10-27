@@ -88,7 +88,7 @@ const COMPARISON: Array<{group: string, icon: LucideIcon, rows: Array<{label: st
       // free follows the caller's discord upload limit (nitro, server boosts), which the bot sends as `max_file_size`
       {label: 'Largest file', values: ['Your Discord limit, up to 100 MB', '200 MB', '200 MB', '200 MB']},
       {label: 'nsb.gg file lifetime', values: ['14 days', '28 days', '28 days', '28 days']},
-      {label: 'Download quality', values: ['Up to 720p', 'Best available', 'Best available', 'Best available']},
+      {label: 'Download quality', values: ['Up to 720p', 'Up to 1440p', 'Up to 1440p', 'Up to 1440p']},
       {label: 'Image search fallback', values: [false, true, true, true]},
     ],
   },

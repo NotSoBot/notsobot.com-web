@@ -43,6 +43,7 @@ import type {
   ApplicationsPage,
   ApplicationWithToken,
   ContentFlag,
+  ContentFlagAutoReviewFilter,
   ContentFlagMatches,
   ContentFlagPatch,
   ContentFlagType,
@@ -78,6 +79,8 @@ import type {
   ReportMessagesPage,
   ReportPatch,
   ReportStatus,
+  GuildReminderSort,
+  GuildReminderWithin,
   ReportsPage,
   Tag,
   TagBlobsPut,
@@ -1445,7 +1448,7 @@ export function usePostGuildReportMessageMutation(guildId: string, reportId: str
 /* the server's tags and reminders, for its moderators */
 
 const GUILD_TAGS_PAGE_SIZE = 25;
-const GUILD_REMINDERS_PAGE_SIZE = 25;
+export const GUILD_REMINDERS_PAGE_SIZE = 25;
 
 // newest first, a page at a time, `query` matches a tag's name or content
 export function useGuildTagsQuery(guildId: string, query: string) {
@@ -1470,14 +1473,31 @@ export function useGuildTagDeleteMutation(guildId: string) {
   });
 }
 
-// the soonest first, a page at a time
-export function useGuildRemindersQuery(guildId: string, enabled = true) {
+export interface GuildRemindersFilters {
+  // `null` for either
+  allDay: boolean | null,
+  page: number,
+  query: string,
+  sort: GuildReminderSort,
+  within: GuildReminderWithin | null,
+}
+
+export const DEFAULT_GUILD_REMINDERS_FILTERS: GuildRemindersFilters = {allDay: null, page: 0, query: '', sort: 'next', within: null};
+
+// the soonest first by default, a page at a time like the reports
+export function useGuildRemindersQuery(guildId: string, filters: GuildRemindersFilters, enabled = true) {
   const { token } = useAuth();
-  return useInfiniteQuery({
-    queryKey: queryKeys.guildReminders(token, guildId),
-    queryFn: ({ pageParam, signal }) => api.fetchGuildReminders(guildId, {offset: pageParam, limit: GUILD_REMINDERS_PAGE_SIZE}, signal),
-    initialPageParam: 0,
-    getNextPageParam: (page, pages) => (page.items.length < GUILD_REMINDERS_PAGE_SIZE) ? undefined : pages.length * GUILD_REMINDERS_PAGE_SIZE,
+  return useQuery({
+    queryKey: queryKeys.guildReminders(token, guildId, filters),
+    queryFn: ({ signal }) => api.fetchGuildReminders(guildId, {
+      allDay: filters.allDay ?? undefined,
+      limit: GUILD_REMINDERS_PAGE_SIZE,
+      offset: filters.page * GUILD_REMINDERS_PAGE_SIZE,
+      query: filters.query,
+      sort: (filters.sort === 'next') ? undefined : filters.sort,
+      within: filters.within ?? undefined,
+    }, signal),
+    placeholderData: keepPreviousData,
     enabled: !!token && enabled,
     retry: retryDiscordRefresh,
   });
@@ -2135,6 +2155,7 @@ export interface AdminContentFlagsFilters {
   category: string,
   needsHumanReview: boolean | null,
   autoConfirmed: boolean | null,
+  autoReview: ContentFlagAutoReviewFilter | null,
   promptHash: string,
   type: ContentFlagType | null,
   includeBlocked: boolean,
@@ -2166,6 +2187,7 @@ export function useAdminContentFlagsQuery(filters: AdminContentFlagsFilters) {
       category: filters.category,
       needsHumanReview: filters.needsHumanReview,
       autoConfirmed: filters.autoConfirmed,
+      autoReview: filters.autoReview,
       promptHash: filters.promptHash,
       type: filters.type,
       includeBlocked: filters.includeBlocked,

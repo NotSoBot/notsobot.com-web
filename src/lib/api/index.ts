@@ -55,6 +55,7 @@ import type {
   IdentityProxyItem,
   ProxyReveal,
   ContentFlag,
+  ContentFlagAutoReviewFilter,
   ContentFlagMatches,
   ContentFlagPatch,
   ContentFlagType,
@@ -67,7 +68,9 @@ import type {
   GuildMusicSettings,
   GuildCommandStats,
   GuildReminder,
+  GuildReminderSort,
   GuildRemindersPage,
+  GuildReminderWithin,
   GuildTagsPage,
   GuildLLMKnowledgePage,
   GuildWarning,
@@ -666,8 +669,25 @@ export const api = {
     return apiRequest<void>(`${ApiEndpoints.USER_ME_GUILD(guildId)}/tags/${tagId}`, {method: 'DELETE'});
   },
 
-  fetchGuildReminders: (guildId: string, options: {offset?: number, limit?: number}, signal?: AbortSignal) => {
-    return apiRequest<GuildRemindersPage>(`${ApiEndpoints.USER_ME_GUILD(guildId)}/reminders`, {query: {offset: options.offset, limit: options.limit}, signal});
+  fetchGuildReminders: (guildId: string, options: {
+    allDay?: boolean,
+    limit?: number,
+    offset?: number,
+    query?: string,
+    sort?: GuildReminderSort,
+    within?: GuildReminderWithin,
+  }, signal?: AbortSignal) => {
+    return apiRequest<GuildRemindersPage>(`${ApiEndpoints.USER_ME_GUILD(guildId)}/reminders`, {
+      query: {
+        all_day: options.allDay,
+        limit: options.limit,
+        offset: options.offset,
+        query: options.query || undefined,
+        sort: options.sort,
+        within: options.within,
+      },
+      signal,
+    });
   },
 
   moveGuildReminderToDms: (guildId: string, reminderId: string) => {
@@ -1071,6 +1091,7 @@ export const api = {
     category?: string,
     needsHumanReview?: boolean | null,
     autoConfirmed?: boolean | null,
+    autoReview?: ContentFlagAutoReviewFilter | null,
     // a full hash or a prefix of one, `none` for flags from before it was recorded
     promptHash?: string,
     type?: ContentFlagType | null,
@@ -1091,6 +1112,7 @@ export const api = {
         category: params.category || undefined,
         needs_human_review: params.needsHumanReview,
         auto_confirmed: params.autoConfirmed,
+        auto_review: params.autoReview || undefined,
         prompt_hash: params.promptHash || undefined,
         type: params.type || undefined,
         include_blocked: params.includeBlocked || undefined,

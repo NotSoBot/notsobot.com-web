@@ -656,6 +656,11 @@ export interface GuildRemindersPage {
   items: Array<GuildReminder>,
 }
 
+// `next`/`last` by when it goes off, `newest`/`oldest` by when it was made
+export type GuildReminderSort = 'next' | 'last' | 'newest' | 'oldest';
+// goes off within that long from now
+export type GuildReminderWithin = 'day' | 'week' | 'month';
+
 // `content` max 512; `move_to_dms` moves a server reminder to the owner's dms (it can't be moved back from here)
 export interface ReminderPatch {
   content?: string,
@@ -1696,11 +1701,33 @@ export type ContentFlagType = (typeof ContentFlagTypes)[number];
 // text flags (filtered tag outputs, prompts) are stored with this mimetype, the text itself is in `query`
 export const CONTENT_FLAG_TEXT_MIMETYPE = 'text/plain';
 export const ContentFlagActions = ['blocked', 'replaced', 'logged', 'not_hosted'] as const;
+// what a media flag's `query` is: an imagine/edit prompt, or the mediascript code that made the media
+export const ContentFlagQueryTypes = ['prompt', 'mediascript'] as const;
+export type ContentFlagQueryType = (typeof ContentFlagQueryTypes)[number];
+// `GET /admin/content-flags?auto_review=`: the daily model review `applied` the status, only `suggested` one, `failed`
+// (no media, fetch failed, refused), or `none` hasn't reviewed it
+export const ContentFlagAutoReviewFilters = ['applied', 'suggested', 'failed', 'none'] as const;
+export type ContentFlagAutoReviewFilter = (typeof ContentFlagAutoReviewFilters)[number];
+
+// the daily model review's verdict, or `error` when it couldn't review the flag. `applied` means it set `status`
+export interface ContentFlagAutoReview {
+  applied: boolean,
+  categories?: Array<string>,
+  confidence?: 'low' | 'medium' | 'high',
+  decision?: 'confirm' | 'dismiss' | 'escalate',
+  error?: string,
+  model?: string,
+  reason?: string,
+  reviewed_at: ApiTimestamp,
+  // whether the media it fetched was the exact file that got flagged, null for text flags or when nothing was fetched
+  sha256_match: boolean | null,
+}
 
 export interface ContentFlag {
   action: string | null,
   // the confirmed flag this one was auto-confirmed from (same sha256 or a close pdq), cleared once a reviewer sets a status
   auto_confirmed_from?: string | null,
+  auto_review?: ContentFlagAutoReview | null,
   category: string | null,
   channel_id: string | null,
   command_id: string | null,
@@ -1721,6 +1748,8 @@ export interface ContentFlag {
   // the same content (sha256) through again while scans still hash the same. null for flags from before it was recorded
   prompt_hash?: string | null,
   query: string | null,
+  // null on text flags (`query` is the flagged text) and media flags from before it was recorded
+  query_type?: ContentFlagQueryType | null,
   reviewed_at: ApiTimestamp | null,
   // TODO: make this a user object (`{id, username, discriminator, avatar}` like `user`) instead of just the id
   reviewed_by: string | null,
@@ -1881,6 +1910,8 @@ export const MeCommandResults = {
   BLOCKED: 'blocked',
   BOT_MISSING_PERMISSIONS: 'bot_missing_permissions',
   CANCELLED: 'cancelled',
+  // the api's nsfw/guidelines filter blocked the media or text
+  CONTENT_BLOCKED: 'content_blocked',
   FAIL: 'fail',
   MISSING_PERMISSIONS: 'missing_permissions',
   RAN: 'ran',

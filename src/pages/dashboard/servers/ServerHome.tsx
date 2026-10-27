@@ -1,5 +1,5 @@
 import { ReportStatuses, type UserGuild } from '@/lib/api';
-import { useGuildCommandStatsQuery, useGuildLLMKnowledgeQuery, useGuildRemindersQuery, useGuildReportsQuery, useGuildTagsQuery, useGuildWarningsQuery } from '@/lib/api/dashboardQueries';
+import { DEFAULT_GUILD_REMINDERS_FILTERS, useGuildCommandStatsQuery, useGuildLLMKnowledgeQuery, useGuildRemindersQuery, useGuildReportsQuery, useGuildTagsQuery, useGuildWarningsQuery } from '@/lib/api/dashboardQueries';
 import { formatDate, snowflakeTimestamp } from '@/lib/utils';
 
 import { StatTile } from '../admin/adminUi';
@@ -17,7 +17,7 @@ export function ServerHome({ guild }: {guild: UserGuild}) {
   const commands = useGuildCommandStatsQuery(guild.id, 30, manager);
   const knowledge = useGuildLLMKnowledgeQuery(guild.id);
   const tags = useGuildTagsQuery(guild.id, '');
-  const reminders = useGuildRemindersQuery(guild.id, guild.editable.reminders);
+  const reminders = useGuildRemindersQuery(guild.id, DEFAULT_GUILD_REMINDERS_FILTERS, guild.editable.reminders);
   const warnings = useGuildWarningsQuery(guild.id, null, moderator);
   const reports = useGuildReportsQuery(guild.id, {awaitingReply: null, page: 0, query: '', queue: false, status: ReportStatuses.OPEN, type: null}, moderator);
 
@@ -55,7 +55,7 @@ export function ServerHome({ guild }: {guild: UserGuild}) {
         <StatTile label='NotSoAI knowledge' value={count(knowledge.data?.items.length)} to={dashboardServerPath(guild.id, 'notsoai')}/>
         <StatTile label='Tags' value={count(tags.data?.pages[0]?.count)} to={dashboardServerPath(guild.id, 'tags')}/>
         {(guild.editable.reminders) ? (
-          <StatTile label='Reminders' value={count(reminders.data?.pages[0]?.count)} to={dashboardServerPath(guild.id, 'reminders')}/>
+          <StatTile label='Reminders' value={count(reminders.data?.count)} to={dashboardServerPath(guild.id, 'reminders')}/>
         ) : null}
         <StatTile label='Block rules' value={count(blockRules)} to={dashboardServerPath(guild.id, 'rules')}/>
         <StatTile label='Allow rules' value={count(allowRules)} to={dashboardServerPath(guild.id, 'rules')}/>

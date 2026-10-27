@@ -24,8 +24,11 @@ import {
   ContentFlagStatuses,
   ContentFlagTypes,
   type ContentFlag,
+  type ContentFlagAutoReview,
+  ContentFlagAutoReviewFilters,
   type ContentFlagMatchCounts,
   type ContentFlagMatches,
+  type ContentFlagQueryType,
   type ContentFlagStatus,
   type ContentFlagType,
 } from '@/lib/api';
@@ -60,6 +63,32 @@ const STATUSES: Array<{value: ContentFlagStatus, label: string, action: string, 
 const MATCHABLE_STATUSES: ReadonlyArray<number> = [ContentFlagStatuses.CONFIRMED, ContentFlagStatuses.DISMISSED];
 
 const TYPE_LABELS: Record<ContentFlagType, string> = {media: 'Media', text: 'Text'};
+// the "Auto review" filter: `hash` is a flag auto-confirmed from an already confirmed one with the same media (the
+// api's `auto_confirmed`), the rest are the daily model review's `auto_review`
+const AUTO_REVIEW_OPTIONS = [
+  {value: 'hash', label: 'Hash match (auto-confirmed)'},
+  {value: 'applied', label: 'Haiku: applied'},
+  {value: 'suggested', label: 'Haiku: suggestion only'},
+  {value: 'failed', label: 'Haiku: couldn’t review'},
+  {value: 'none', label: 'Haiku: not reviewed'},
+] as const;
+
+const AUTO_REVIEW_DECISION_TONES: Record<string, 'danger' | 'success' | 'warning'> = {confirm: 'danger', dismiss: 'success', escalate: 'warning'};
+
+// the row and header chip for a flag the daily model review looked at
+function autoReviewChip(review: ContentFlagAutoReview | null | undefined, key?: string): ReactNode {
+  if (!review) {
+    return null;
+  }
+  if (review.error) {
+    return <Chip key={key} title={`Haiku couldn’t review this: ${review.error}`}>haiku: failed</Chip>;
+  }
+  const label = `haiku: ${review.decision}${(review.applied) ? '' : ' (suggested)'}`;
+  return <Chip key={key} tone={AUTO_REVIEW_DECISION_TONES[review.decision ?? ''] ?? 'neutral'} title={review.reason}>{label}</Chip>;
+}
+
+// a media flag's query section heading, older flags without a `query_type` keep 'Query'
+const QUERY_TYPE_LABELS: Record<ContentFlagQueryType, string> = {prompt: 'Prompt', mediascript: 'MediaScript'};
 
 // shown on hover wherever the pdq is
 function pdqHint(distance?: number): string {
@@ -217,7 +246,10 @@ export function AdminContentFlagsPage() {
   const status = parseStatus(searchParams.get('status'));
   const category = searchParams.get('category') || '';
   const needsHumanReview = parseBool(searchParams.get('needs_human_review'));
-  const autoConfirmed = parseBool(searchParams.get('auto_confirmed'));
+  // one select for both kinds of automatic review, `hash` is the api's `auto_confirmed`, the rest its `auto_review`
+  const auto = AUTO_REVIEW_OPTIONS.find((option) => option.value === searchParams.get('auto'))?.value ?? null;
+  const autoConfirmed = (auto === 'hash') ? true : null;
+  const autoReview = ContentFlagAutoReviewFilters.find((value) => value === auto) ?? null;
   const promptHash = (searchParams.get('prompt_hash') || '').trim();
   const type = ContentFlagTypes.find((item) => item === searchParams.get('type')) ?? null;
   // flags of blocked users are hidden unless `blocked=1`
@@ -237,6 +269,7 @@ export function AdminContentFlagsPage() {
     category,
     needsHumanReview,
     autoConfirmed,
+    autoReview,
     promptHash,
     type,
     includeBlocked,
@@ -253,10 +286,10 @@ export function AdminContentFlagsPage() {
   const steppingBack = useStepBackFromEmptyPage({page, setPage, data, isPlaceholderData, pageSize: ADMIN_CONTENT_FLAGS_PAGE_SIZE});
   // the ones in the collapsible panel set to something other than their default, the search box stays out
   const activeFilters = [
-    userId, guildId, channelId, tagId, commandId, status !== DEFAULT_STATUS, category, needsHumanReview !== null, autoConfirmed !== null,
+    userId, guildId, channelId, tagId, commandId, status !== DEFAULT_STATUS, category, needsHumanReview !== null, auto,
     promptHash, type, includeBlocked,
   ].filter(Boolean).length;
-  const filtered = !!(userId || guildId || channelId || tagId || commandId || status !== null || category || needsHumanReview !== null || autoConfirmed !== null || promptHash || type || debouncedSearch);
+  const filtered = !!(userId || guildId || channelId || tagId || commandId || status !== null || category || needsHumanReview !== null || auto || promptHash || type || debouncedSearch);
   const pagination = {
     page,
     count: data?.count ?? 0,
@@ -339,15 +372,10 @@ export function AdminContentFlagsPage() {
           onChange={(value) => update({command_id: value})}
         />
         <label className='text-sm lg:col-span-4'>
-          <span className='mb-1 block text-subtle'>Auto-confirmed</span>
-          <select
-            className='input'
-            value={(autoConfirmed === null) ? '' : (autoConfirmed) ? '1' : '0'}
-            onChange={(event) => update({auto_confirmed: event.target.value})}
-          >
+          <span className='mb-1 block text-subtle'>Auto review</span>
+          <select className='input' value={auto ?? ''} onChange={(event) => update({auto: event.target.value})}>
             <option value=''>Any</option>
-            <option value='1'>Yes</option>
-            <option value='0'>No</option>
+            {AUTO_REVIEW_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
         </label>
         <IdFilter
@@ -467,6 +495,41 @@ function IdFilter({ className = 'lg:col-span-4', label, placeholder, value, patt
 
 
 // one line per flag, just enough to triage from; the rest is in `ContentFlagDetails` a click away.
+// the daily model review's verdict in the flag modal: what it decided and why, or why it couldn't review it
+function AutoReviewSection({ review }: {review: ContentFlagAutoReview}) {
+  return (
+    <div className='mt-4'>
+      <div className='mb-1 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5'>
+        <h3 className='section-label'>Haiku review</h3>
+        <p className='text-xs text-subtle'>
+          <ExactDate value={review.reviewed_at} format={formatDateTime}/>
+          {(review.model) ? <> · <span className='font-mono'>{review.model}</span></> : null}
+        </p>
+      </div>
+      <div className='rounded-md border border-line bg-deep px-3 py-2 text-sm'>
+        {(review.error) ? (
+          <p className='text-subtle'>Couldn’t review this: <span className='text-fg'>{review.error}</span></p>
+        ) : (
+          <>
+            <div className='flex flex-wrap items-center gap-1.5'>
+              {autoReviewChip(review)}
+              {(review.confidence) ? <span className='text-xs text-subtle'>{review.confidence} confidence</span> : null}
+              {review.categories?.map((category) => <Chip key={category}>{category}</Chip>)}
+            </div>
+            {(review.reason) ? <p className='mt-1.5 text-fg'>{review.reason}</p> : null}
+            {(!review.applied) ? (
+              <p className='mt-1.5 text-xs text-subtle'>
+                Only a suggestion, the status was left for a person
+                {(review.sha256_match === false) ? ': it saw the command’s input, not the exact file that was flagged' : ''}.
+              </p>
+            ) : null}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // Plain content only inside (no buttons, links or focusable dates), since the whole row is a button.
 // From sm up it's three columns: what it is and who posted it, why it was flagged stacked in the middle, the status and
 // date on the right. On phones the middle doesn't fit, so the reasons go centred under the rest: the type and id in the
@@ -479,6 +542,7 @@ function ContentFlagRow({ flag, onOpen }: {flag: ContentFlag, onOpen: (id: strin
     (flag.category) ? <Chip key='category' tone={(flag.category.startsWith('unsafe')) ? 'danger' : 'warning'}>{flag.category}</Chip> : null,
     (flag.needs_human_review) ? <Chip key='review' tone='warning'>needs review</Chip> : null,
     (flag.auto_confirmed_from) ? <Chip key='auto'>auto-confirmed</Chip> : null,
+    autoReviewChip(flag.auto_review, 'auto-review'),
     (user?.blocked) ? <Chip key='blocked' tone='danger'>user blocked</Chip> : null,
   ].filter(Boolean);
   return (
@@ -637,6 +701,7 @@ function ContentFlagDetails({ flag, onReport, navigation }: {
           {(flag.category) ? <Chip tone={(flag.category.startsWith('unsafe')) ? 'danger' : 'warning'}>{flag.category}</Chip> : null}
           {(flag.needs_human_review) ? <Chip tone='warning'>needs human review</Chip> : null}
           {(flag.auto_confirmed_from) ? <Chip title={`Same media as #${flag.auto_confirmed_from}, which was already confirmed`}>auto-confirmed</Chip> : null}
+          {autoReviewChip(flag.auto_review)}
         </>}
         status={<Chip tone={status.tone} title={status.description} className='w-20 justify-center'>{status.label}</Chip>}
       />
@@ -732,9 +797,10 @@ function ContentFlagDetails({ flag, onReport, navigation }: {
         {(flag.query) ? (
           <div className='mt-4'>
             <div className='mb-1 flex min-h-8 items-center justify-between gap-2'>
-              <h3 className='section-label'>{(isText) ? 'Flagged text' : 'Query'}</h3>
+              <h3 className='section-label'>{(isText) ? 'Flagged text' : (flag.query_type) ? QUERY_TYPE_LABELS[flag.query_type] : 'Query'}</h3>
               <div className='flex items-center gap-1'>
-                {(!isText) ? (
+                {/* a script isn't a prompt, flagging it as text would scan the code */}
+                {(!isText && flag.query_type !== 'mediascript') ? (
                   <button
                     type='button'
                     className='btn btn-ghost btn-sm'
@@ -826,6 +892,8 @@ function ContentFlagDetails({ flag, onReport, navigation }: {
           </div>
         ) : null}
 
+        {(flag.auto_review) ? <AutoReviewSection review={flag.auto_review}/> : null}
+
         <form
           className='mt-4'
           onSubmit={(event) => {
@@ -843,6 +911,8 @@ function ContentFlagDetails({ flag, onReport, navigation }: {
                 {/* TODO: have the api send `reviewed_by` as a user object (like `user`) and show a UserCell here instead of the id */}
                 {(flag.reviewed_by) ? (
                   <> by <Link to={adminUserPath(flag.reviewed_by)} title='Open in users' className='font-mono text-code underline-offset-2 hover:underline'>{flag.reviewed_by}</Link></>
+                ) : (flag.auto_review?.applied) ? (
+                  <> by <span className='font-mono text-code'>{flag.auto_review.model ?? 'Haiku'}</span></>
                 ) : null}
               </p>
             ) : null}

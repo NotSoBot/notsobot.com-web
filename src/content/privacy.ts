@@ -3,7 +3,7 @@ import type { LegalDocument } from './legal';
 export const PRIVACY_POLICY: LegalDocument = {
   title: "Privacy Policy",
   effective: "October 13, 2026",
-  lastUpdated: "October 26, 2026",
+  lastUpdated: "October 27, 2026",
   intro: "This Privacy Policy explains what information NotSoBot collects, why, who it's shared with, how long it's kept, and how You can get a copy of it or have it deleted.",
   sections: [
     {
@@ -86,7 +86,7 @@ export const PRIVACY_POLICY: LegalDocument = {
       title: "Section 6 - Content Safety",
       blocks: [
         {type: 'paragraph', text: "Media and prompts processed by NotSoBot may be scanned by automated safety systems. If something is flagged, We keep a record containing the user, server, channel, message and command involved, the prompt, the URL the media came from, a cryptographic hash (SHA-256) and perceptual hash (PDQ) of the media, and the safety scores. We do not keep a copy of the media. Hashes can't be turned back into the original media, and We use them to block the same media if it's uploaded again."},
-        {type: 'paragraph', text: "Flags may be reviewed by Our team, who may view the flagged media by fetching it again from the URL it came from while reviewing. That copy is only shown to the reviewer and is not kept. Mistaken flags are dismissed. Confirmed content may be reported to Discord, and to law enforcement or other authorities when the law requires it or when We believe it's needed to protect someone's safety. Section 7 of Our Terms of Service has more detail."},
+        {type: 'paragraph', text: "Flags may be reviewed by Our team, who may view the flagged media by fetching it again from the URL it came from while reviewing. That copy is only shown to the reviewer and is not kept. Flags may also be reviewed first by an AI model, Anthropic's Claude: it's sent the flagged media (fetched again from its URL the same way) or the flagged text, along with the command, the prompt and the safety scores, but not who, which server or which message it came from. Its decision and a short reason are kept with the flag. Only decisions it's highly confident in are applied without a person looking, the rest wait for Our team. Flags about child safety are never sent to it, only Our team reviews those. Mistaken flags are dismissed. Confirmed content may be reported to Discord, and to law enforcement or other authorities when the law requires it or when We believe it's needed to protect someone's safety. Section 7 of Our Terms of Service has more detail."},
       ],
     },
     {
@@ -108,13 +108,14 @@ export const PRIVACY_POLICY: LegalDocument = {
     {
       title: "Section 8 - AI Providers",
       blocks: [
-        {type: 'paragraph', text: "Nothing is sent to these companies unless someone uses an AI feature. Data is only sent when:"},
+        {type: 'paragraph', text: "Nothing is sent to these companies unless someone uses an AI feature, or a safety flag is reviewed by AI (see Section 6). Data is only sent when:"},
         {type: 'list', items: [
           "You use the ai command. Your prompt and any media You attach are sent. If You use it as a reply, the messages You're replying to are sent too, up to 5 in a reply chain, including each author's name. If You reply to one of NotSoAI's answers to You, your earlier prompts in that conversation and what it answered are sent too, up to 4 of them. Anything the server's admins told NotSoAI about the server is sent too. Unless You've turned memory off, the facts NotSoAI remembers about You are sent too (only the ones for that server and the ones that apply everywhere). They're never sent when a tag uses AI.",
           "You run a tag that uses AI. The tag's prompt is sent, which can include text and media You give the tag. The tag's creator chooses the model.",
           "You clone a voice, or use a cloned voice for text-to-speech.",
+          "Something You sent is flagged by Our safety scanning. The flagged media or text, the command, the prompt and the safety scores are sent to Anthropic for review, as described in Section 6.",
         ]},
-        {type: 'paragraph', text: "Only the company that runs the chosen model receives it. The model is chosen in the command, in your settings, by your server's default, or by the tag's creator. These are the companies We currently use:"},
+        {type: 'paragraph', text: "Apart from safety reviews, only the company that runs the chosen model receives it. The model is chosen in the command, in your settings, by your server's default, or by the tag's creator. These are the companies We currently use:"},
         {type: 'list', items: [
           "OpenAI, for GPT models",
           "Anthropic, for Claude models",
@@ -130,7 +131,7 @@ export const PRIVACY_POLICY: LegalDocument = {
           "DeepInfra, which hosts openly available models from other developers, such as Gemma, Nemotron and gpt-oss",
           "fish.audio and ElevenLabs, for voice cloning and text-to-speech with cloned voices",
         ]},
-        {type: 'paragraph', text: "Image generation, audio transcription, image descriptions, object detection, scoring how toxic text is, safety scanning and Our other text-to-speech voices run on Our own servers and are not sent to any of these companies."},
+        {type: 'paragraph', text: "Image generation, audio transcription, image descriptions, object detection, scoring how toxic text is, safety scanning and Our other text-to-speech voices run on Our own servers and are not sent to any of these companies. Only the review of something that was already flagged goes to Anthropic."},
         {type: 'paragraph', text: "Each company handles data under its own terms and privacy policy. Some of them are based outside the United States, including in China, and may process your data there. We'll update this list when We add or remove a provider."},
       ],
     },

@@ -31,6 +31,7 @@ export const CHANGELOG: Array<ChangelogDay> = [
     date: '2026-10-26',
     title: 'Responding to reports and TagScript fixes',
     items: [
+      {kind: 'improved', text: 'Premium downloads can be 1440p: pick it with the `quality` option on `/download` or in your download quality setting. Without a pick, Premium downloads are 1080p.'},
       {kind: 'new', text: 'Server reports have a conversation with the reporter. Moderators press **Respond** on the report in the reports logger (or reply from the dashboard\'s **Reports** section) and NotSoBot DMs it to the reporter from "the moderators", without saying who. The reporter answers with **Respond** on that DM, and both sides show up in a thread on the report\'s message in the reports logger.'},
       {kind: 'new', text: 'You get a DM when the moderators resolve or dismiss your server report.'},
       {kind: 'improved', text: 'The dashboard\'s **Servers** page groups your servers into the ones you own, the ones you can manage and the rest, and you can pin servers to the top. Pins are saved on your account, so they show up on every device.'},
@@ -58,6 +59,10 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'improved', text: '`.dance` also works as `.yaris`.'},
       {kind: 'improved', text: '**TagScript:** `{if}`\'s `>`, `>=`, `<`, `<=` and `~` compare numbers like `{max}` and `{min}`: `1e3` is 1000 and long decimals are compared exactly.'},
       {kind: 'improved', text: '**TagScript:** `{variableschannel}`, `{variablesglobal}`, `{variablesserver}` and `{variablesuser}` share one request per run (one toward the network request limit), until the tag changes its storage.'},
+      {kind: 'new', text: '`.keepitem` (`.overlay keepitem`, `/media-iv-meme format keepitem`) puts your image or video in the "Customers usually keep this item" meme. Also the `keep-item` **MediaScript** `overlay` preset.'},
+      {kind: 'new', text: '44 more DECtalk text-to-speech voices: Beautiful Betty, Rough Rita, Uppity Ursula, Whispering Wendy, Doctor Dennis, Frail Frank, Huge Harry, Kit the Kid and Perfect Paul, in English (US and UK), German and Spanish (Spain and Latin America). Pick one with `.tts -use`, as your default voice, or in **MediaScript** `tts`.'},
+      {kind: 'fixed', text: 'X links like `x.com/i/web/status/...` going to the slower fallback downloader instead of downloading directly.'},
+      {kind: 'improved', text: 'Streamable links download faster in `.download` and media commands.'},
     ],
   },
   {

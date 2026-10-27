@@ -17,6 +17,12 @@ const RANGE_OPTIONS = [
   {value: '90', label: '90 days'},
 ];
 
+// the prefix to write prefixed commands with: the oldest custom one (the api's order is arbitrary), else the default `.`
+function displayPrefix(guild: UserGuild): string {
+  const oldest = [...guild.prefixes].sort((a, b) => Date.parse(a.added) - Date.parse(b.added))[0];
+  return oldest?.prefix ?? '.';
+}
+
 
 // Commands run in the server over the last 7, 30 or 90 days: how many, by how many members, a bar per day and the most
 // used. Counts only, never who ran what. Needs Manage Server, like the owner stats page's commands section for one server
@@ -26,8 +32,9 @@ export function GuildCommandsSection({ guild }: {guild: UserGuild}) {
   const [ days, setDays ] = useState('30');
   const query = useGuildCommandStatsQuery(guild.id, Number(days), editable);
   const data = query.data;
-  // how a command is written here: with the server's first prefix, `/` for slash commands, a right-click menu's name as is
-  const prefixFor = (type: number) => (type === CommandTypes.PREFIXED) ? (guild.prefixes[0]?.prefix ?? '.') : (type === CommandTypes.APPLICATION_SLASH) ? '/' : '';
+  // how a command is written here: with the server's prefix, `/` for slash commands, a right-click menu's name as is
+  const prefix = displayPrefix(guild);
+  const prefixFor = (type: number) => (type === CommandTypes.PREFIXED) ? prefix : (type === CommandTypes.APPLICATION_SLASH) ? '/' : '';
 
   return (
     <Panel
