@@ -1,5 +1,5 @@
-import { ChevronDown, ChevronUp, Crown, ListMusic, Music, Pause, Play, SkipForward, Square } from 'lucide-react';
-import { useEffect, useId, useState, type FormEvent, type ReactNode } from 'react';
+import { ChevronDown, ChevronUp, Crown, GripVertical, ListMusic, Music, Pause, Play, SkipForward, Square, X } from 'lucide-react';
+import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { Link } from 'react-router';
 
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -15,6 +15,15 @@ import { cn, formatNumber } from '@/lib/utils';
 import { isSnowflake } from '../tags/tagMeta';
 import { Field, Panel, Skeleton, Toggle } from '../ui';
 import { EntryMention, useReadOnlyMessage } from './guildMeta';
+import {
+  MAX_MUSIC_EFFECTS,
+  MUSIC_EFFECTS,
+  findMusicEffectClash,
+  isMusicEffect,
+  musicEffectClashReason,
+  musicEffectDescription,
+  musicEffectName,
+} from './musicEffects';
 import { RemoveButton } from './ServerSections';
 
 
@@ -24,7 +33,7 @@ const LOOP_OPTIONS: Array<GuildMusicLoop> = ['off', 'track', 'queue'];
 
 // What NotSoBot is playing in the server and what's queued, like `music queue`. Songs are only added from Discord (the
 // bot has to join someone's channel); here the loop, the queue's order, the music settings and the bot's
-// pause/skip/stop can be changed, with Manage Server.
+// pause/skip/stop and live effects can be changed, with Manage Server.
 export function MusicSection({ guild }: {guild: UserGuild}) {
   const { t, rich } = useI18n();
   const editable = guild.editable.music;
@@ -53,7 +62,19 @@ export function MusicSection({ guild }: {guild: UserGuild}) {
   };
 
   const queued = music?.queue ?? [];
-  const queueDuration = queued.reduce((total, item) => total + (item.track?.duration ?? 0), 0);
+  // the effects and the speed stay on for the next songs, every time shown is how long it takes to hear at it
+  const speed = music?.session?.speed || 1;
+  // dragging a song to a new spot, the same move the arrows make. It's shown where it was dropped until the api answers
+  const [ droppedOrder, setDroppedOrder ] = useState<Array<string> | null>(null);
+  const shown = (droppedOrder) ? orderedBy(queued, droppedOrder) : queued;
+  const drag = useDragReorder(shown.length, editable && !mutation.isPending, (from, to) => {
+    const item = shown[from];
+    const order = shown.map((x) => x.id);
+    order.splice(to, 0, ...order.splice(from, 1));
+    setDroppedOrder(order);
+    void run(item.id, {kind: 'move', itemId: item.id, position: queued[to].position}).finally(() => setDroppedOrder(null));
+  });
+  const queueDuration = queued.reduce((total, item) => total + (item.track?.duration ?? 0), 0) / speed;
   const unknownLengths = queued.some((item) => !item.track);
   const playing = !!music?.current || !!queued.length;
 
@@ -105,6 +126,10 @@ export function MusicSection({ guild }: {guild: UserGuild}) {
             />
           ) : null}
 
+          {(music.session) ? (
+            <LiveEffects music={music} effects={music.session.effects} editable={editable} busyKey={busyKey} disabled={mutation.isPending} run={run}/>
+          ) : null}
+
           <div>
             <div className='mb-2 flex flex-wrap items-center justify-between gap-2'>
               <h3 className='text-sm font-semibold text-white'>{t('music.up_next')}</h3>
@@ -118,15 +143,30 @@ export function MusicSection({ guild }: {guild: UserGuild}) {
               </div>
             </div>
             {(queued.length) ? (
-              <ol className='space-y-1.5'>
-                {queued.map((item, index) => (
-                  <li key={item.id} className='flex items-center gap-3 rounded-md border border-line bg-deep py-1.5 pr-1 pl-3'>
-                    <span className='w-5 shrink-0 text-sm text-subtle tabular-nums'>{item.position}.</span>
+              // about 8 songs tall, longer queues scroll inside so the settings below stay close
+              <ol ref={drag.listRef} className='max-h-[26rem] space-y-1.5 overflow-y-auto overscroll-contain [scrollbar-width:thin]'>
+                {shown.map((item, index) => (
+                  <li
+                    key={item.id}
+                    {...drag.rowProps(index)}
+                    className={cn(
+                      'flex items-center gap-3 rounded-md border border-line bg-deep py-1.5 pr-1 pl-3',
+                      (editable) && 'cursor-grab select-none',
+                      (drag.dragging === index) && 'relative z-10 cursor-grabbing border-line-strong shadow-lg',
+                    )}
+                  >
+                    {(editable) ? (
+                      // touch drags from here (the rest of the row scrolls the list), a mouse from anywhere on the row
+                      <span data-drag-handle aria-hidden className='-mr-2 -ml-2 flex shrink-0 touch-none text-subtle'>
+                        <GripVertical className='size-4'/>
+                      </span>
+                    ) : null}
+                    <span className='w-5 shrink-0 text-sm text-subtle tabular-nums'>{queued[index].position}.</span>
                     <TrackCover item={item} className='size-8'/>
                     <div className='min-w-0 flex-1'>
                       <p className='truncate text-sm text-fg'>{musicItemTitle(item)}</p>
                       <p className='flex min-w-0 items-center gap-1.5 text-xs text-subtle'>
-                        <span className='tabular-nums'>{(item.track) ? formatTime(item.track.duration) : t((item.status === 'converting') ? 'music.converting' : 'music.link')}</span>
+                        <span className='tabular-nums'>{(item.track) ? formatTime(item.track.duration / speed) : t((item.status === 'converting') ? 'music.converting' : 'music.link')}</span>
                         <span aria-hidden>•</span>
                         <EntryMention type='user' id={item.user_id}/>
                         {(item.batch_id) ? (
@@ -148,7 +188,7 @@ export function MusicSection({ guild }: {guild: UserGuild}) {
                         </IconButton>
                         <IconButton
                           label={t('music.move_down', {position: item.position})}
-                          disabled={mutation.isPending || index === queued.length - 1}
+                          disabled={mutation.isPending || index === shown.length - 1}
                           onClick={() => void run(item.id, {kind: 'move', itemId: item.id, position: item.position + 1})}
                         >
                           <ChevronDown aria-hidden className='size-4'/>
@@ -465,6 +505,125 @@ function CrossfadeSetting({ music, editable, busy, run }: {
 }
 
 
+// the live effects on what's playing (`music effect` in Discord), stacked in order. The bot puts them on, so a change
+// shows a moment later. Ones that don't stack with what's on can't be picked (the bot leaves them out anyway). Putting
+// one on is a premium perk, taking them off never is
+function LiveEffects({ music, effects, editable, busyKey, disabled, run }: {
+  music: GuildMusic,
+  effects: Array<string>,
+  editable: boolean,
+  busyKey: string | null,
+  disabled: boolean,
+  run: (key: string, action: GuildMusicAction, success?: string) => Promise<boolean>,
+}) {
+  const { t } = useI18n();
+  const id = useId();
+  const [ picked, setPicked ] = useState('');
+  const full = MAX_MUSIC_EFFECTS <= effects.length;
+  const canAdd = music.premium && !full;
+  // someone else may have put on one it clashes with meanwhile
+  const addable = canAdd && isMusicEffect(picked) && !findMusicEffectClash(picked, effects);
+
+  return (
+    <div>
+      <div className='mb-2 flex flex-wrap items-center justify-between gap-2'>
+        <h3 className='text-sm font-semibold text-white'>{t('music.effects')}</h3>
+        <div className='flex items-center gap-3 text-xs text-muted tabular-nums'>
+          <span>{t('music.effects_count', {count: effects.length, max: MAX_MUSIC_EFFECTS})}</span>
+          {(editable && effects.length) ? (
+            <button
+              type='button'
+              className='btn btn-sm btn-ghost'
+              disabled={disabled}
+              onClick={() => void run('effect_clear', {kind: 'effect', control: {action: 'effect_clear'}}, t('music.effects_cleared'))}
+            >
+              {(busyKey === 'effect_clear') ? <Spinner className='size-3.5'/> : null}
+              {t('common.clear')}
+            </button>
+          ) : null}
+        </div>
+      </div>
+      {(effects.length) ? (
+        // unnumbered, the node runs them in its own order whatever order they were picked in
+        <ul className='flex flex-wrap gap-1.5'>
+          {effects.map((effect, index) => (
+            <li
+              key={`${index}:${effect}`}
+              title={musicEffectDescription(effect) ?? undefined}
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-full border border-[#1db954]/40 bg-[#1db954]/10 py-0.5 pl-2.5 text-sm text-fg',
+                (editable) ? 'pr-1' : 'pr-2.5',
+              )}
+            >
+              <span>{musicEffectName(effect)}</span>
+              {(editable) ? (
+                <button
+                  type='button'
+                  aria-label={t('music.effect_remove', {effect: musicEffectName(effect)})}
+                  title={t('music.effect_remove', {effect: musicEffectName(effect)})}
+                  disabled={disabled}
+                  onClick={() => void run(
+                    `effect_remove:${index}`,
+                    {kind: 'effect', control: {action: 'effect_remove', effect, index}},
+                    t('music.effect_removed', {effect: musicEffectName(effect)}),
+                  )}
+                  className='flex size-5 cursor-pointer items-center justify-center rounded-full text-subtle transition-colors hover:bg-surface-3 hover:text-white disabled:cursor-not-allowed disabled:opacity-50'
+                >
+                  {(busyKey === `effect_remove:${index}`) ? <Spinner className='size-3'/> : <X aria-hidden className='size-3.5'/>}
+                </button>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className='text-sm text-muted'>{t('music.effects_none')}</p>
+      )}
+      {(editable) ? (
+        <form
+          className='mt-2 flex gap-2'
+          onSubmit={(event: FormEvent) => {
+            event.preventDefault();
+            if (disabled || !addable) {
+              return;
+            }
+            void run(
+              'effect_add',
+              {kind: 'effect', control: {action: 'effect_add', effect: picked}},
+              t('music.effect_added', {effect: musicEffectName(picked)}),
+            ).then((ok) => {
+              if (ok) {
+                setPicked('');
+              }
+            });
+          }}
+        >
+          <label htmlFor={id} className='sr-only'>{t('music.effect_add_label')}</label>
+          <select id={id} className='input min-w-0 flex-1' value={picked} disabled={!canAdd} onChange={(event) => setPicked(event.target.value)}>
+            <option value=''>{(full) ? t('music.effects_full', {max: MAX_MUSIC_EFFECTS}) : t('music.effect_pick')}</option>
+            {MUSIC_EFFECTS.map((effect) => {
+              const clash = findMusicEffectClash(effect, effects);
+              return (
+                <option key={effect} value={effect} disabled={!!clash} title={(clash) ? musicEffectClashReason(effect, clash) : undefined}>
+                  {musicEffectName(effect)} — {(clash) ? t('music.effect_clashes', {other: musicEffectName(clash)}) : musicEffectDescription(effect)}
+                </option>
+              );
+            })}
+          </select>
+          <button type='submit' className='btn btn-secondary shrink-0' disabled={disabled || !addable}>
+            {(busyKey === 'effect_add') ? <Spinner className='size-4'/> : null}
+            {t('music.effect_add')}
+          </button>
+        </form>
+      ) : null}
+      {(!music.premium) ? (
+        <PremiumNote>{t('music.effects_premium')}</PremiumNote>
+      ) : null}
+      <p className='mt-2 text-xs text-subtle'>{t('music.effects_hint')}</p>
+    </div>
+  );
+}
+
+
 // a music setting that's kept without premium but only does anything with it. Staff (the admin server modal) can't use
 // their own premium slots on someone's server, the Music access feature counts instead
 function PremiumNote({ children }: {children: ReactNode}) {
@@ -572,9 +731,12 @@ function NowPlaying({ music, item, fetchedAt, editable, busyKey, disabled, onCon
     const interval = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(interval);
   }, [session, paused]);
-  const elapsed = (session && !paused) ? Math.max(now - fetchedAt, 0) : 0;
+  // the song's own time moves on at the effects' and the speed's pace, the times shown are how long it takes to hear
+  const speed = session?.speed || 1;
+  const elapsed = (session && !paused) ? Math.max(now - fetchedAt, 0) * speed : 0;
   const position = Math.min((session?.position ?? 0) + elapsed, duration || Infinity);
   const ratio = (duration) ? Math.min(position / duration, 1) : 0;
+  const tempo = session?.tempo ?? 100;
 
   return (
     <div className='rounded-lg border border-line bg-deep p-3'>
@@ -589,6 +751,7 @@ function NowPlaying({ music, item, fetchedAt, editable, busyKey, disabled, onCon
           <p className='flex min-w-0 flex-wrap items-center gap-x-1.5 text-xs text-subtle'>
             {(item.track?.album) ? <><span className='truncate'>{item.track.album}</span><span aria-hidden>•</span></> : null}
             <span>{t((!session) ? 'music.not_in_voice' : (paused) ? 'music.paused' : 'music.playing')}</span>
+            {(tempo !== 100) ? <><span aria-hidden>•</span><span className='tabular-nums'>{t('music.speed', {speed: `${tempo / 100}×`})}</span></> : null}
             <span aria-hidden>•</span>
             <span className='inline-flex items-center gap-1'>{rich('music.requested_by', {user: () => <EntryMention type='user' id={item.user_id}/>})}</span>
           </p>
@@ -609,22 +772,143 @@ function NowPlaying({ music, item, fetchedAt, editable, busyKey, disabled, onCon
       </div>
       {(duration) ? (
         <div className='mt-3 flex items-center gap-2 text-xs text-subtle tabular-nums'>
-          <span className='w-10 text-right'>{formatTime(position)}</span>
+          <span className='w-10 text-right'>{formatTime(position / speed)}</span>
           <div
             role='progressbar'
             aria-label={t('music.progress')}
             aria-valuemin={0}
-            aria-valuemax={Math.round(duration / 1000)}
-            aria-valuenow={Math.round(position / 1000)}
+            aria-valuemax={Math.round(duration / speed / 1000)}
+            aria-valuenow={Math.round(position / speed / 1000)}
             className='h-1.5 flex-1 overflow-hidden rounded-full bg-surface-3'
           >
             <div className={cn('h-full rounded-full', (paused) ? 'bg-subtle' : 'bg-[#1db954]')} style={{width: `${ratio * 100}%`}}/>
           </div>
-          <span className='w-10'>{formatTime(duration)}</span>
+          <span className='w-10'>{formatTime(duration / speed)}</span>
         </div>
       ) : null}
     </div>
   );
+}
+
+
+// `items` in the order of `ids` (a drop's, before the api answers), any it doesn't name after them
+function orderedBy<T extends {id: string}>(items: Array<T>, ids: Array<string>): Array<T> {
+  const byId = new Map(items.map((item) => [item.id, item]));
+  const ordered = ids.map((id) => byId.get(id)).filter((item): item is T => !!item);
+  return [...ordered, ...items.filter((item) => !ids.includes(item.id))];
+}
+
+// how far the pointer goes before a press is a drag (so clicks still click), and the list's edge where it scrolls
+const DRAG_THRESHOLD = 5;
+const DRAG_SCROLL_EDGE = 40;
+
+interface DragState {
+  from: number,
+  over: number,
+  // the row's own move, the pointer's plus how far the list scrolled
+  offset: number,
+}
+
+// a list's rows dragged to a new spot with the pointer: the row follows it and the others make room, `onDrop(from, to)`
+// on letting go somewhere new. A mouse drags from anywhere on a row but its buttons and links, touch and pens only from
+// its `data-drag-handle` (anywhere else scrolls the list). The list scrolls itself near its top and bottom
+function useDragReorder(count: number, enabled: boolean, onDrop: (from: number, to: number) => void) {
+  const listRef = useRef<HTMLOListElement>(null);
+  const [ state, setState ] = useState<DragState | null>(null);
+  // the room the dragged row takes (its height and the gap after it), measured when it's picked up
+  const roomRef = useRef(0);
+  const dropRef = useRef(onDrop);
+  dropRef.current = onDrop;
+
+  const start = (index: number, event: ReactPointerEvent<HTMLLIElement>) => {
+    const list = listRef.current;
+    const target = event.target as HTMLElement;
+    if (!enabled || !list || event.button !== 0 || target.closest('button, a, input, [role=button]')) {
+      return;
+    }
+    if (event.pointerType !== 'mouse' && !target.closest('[data-drag-handle]')) {
+      return;
+    }
+    // no text selection while dragging
+    event.preventDefault();
+    const rows = Array.from(list.children) as Array<HTMLElement>;
+    const listTop = list.getBoundingClientRect().top - list.scrollTop;
+    // each row's middle and the room the dragged one takes (its height and the gap), in the list's own coordinates
+    const middles = rows.map((row) => {
+      const rect = row.getBoundingClientRect();
+      return rect.top - listTop + rect.height / 2;
+    });
+    const step = (rows.length > 1) ? middles[1] - middles[0] : 0;
+    const room = rows[index].getBoundingClientRect().height + ((rows.length > 1) ? step - (rows[0].getBoundingClientRect().height + rows[1].getBoundingClientRect().height) / 2 : 0);
+    const startY = event.clientY, startScroll = list.scrollTop;
+    let active = false, current: DragState = {from: index, offset: 0, over: index};
+
+    const update = (clientY: number) => {
+      const offset = clientY - startY + list.scrollTop - startScroll;
+      const middle = middles[index] + offset;
+      let over = 0;
+      for (let i = 1; i < middles.length; i++) {
+        if (Math.abs(middle - middles[i]) < Math.abs(middle - middles[over])) {
+          over = i;
+        }
+      }
+      current = {from: index, offset, over};
+      setState(current);
+    };
+    const move = (moved: PointerEvent) => {
+      if (moved.pointerId !== event.pointerId) {
+        return;
+      }
+      if (!active && Math.abs(moved.clientY - startY) < DRAG_THRESHOLD) {
+        return;
+      }
+      active = true;
+      const rect = list.getBoundingClientRect();
+      if (moved.clientY < rect.top + DRAG_SCROLL_EDGE) {
+        list.scrollTop -= 10;
+      } else if (rect.bottom - DRAG_SCROLL_EDGE < moved.clientY) {
+        list.scrollTop += 10;
+      }
+      update(moved.clientY);
+    };
+    const end = (ended: PointerEvent) => {
+      if (ended.pointerId !== event.pointerId) {
+        return;
+      }
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', end);
+      window.removeEventListener('pointercancel', end);
+      setState(null);
+      if (active && ended.type === 'pointerup' && current.over !== current.from) {
+        dropRef.current(current.from, current.over);
+      }
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', end);
+    window.addEventListener('pointercancel', end);
+    roomRef.current = room;
+  };
+
+  const rowProps = (index: number): {onPointerDown: (event: ReactPointerEvent<HTMLLIElement>) => void, style?: CSSProperties} => {
+    const onPointerDown = (event: ReactPointerEvent<HTMLLIElement>) => start(index, event);
+    if (!state) {
+      return {onPointerDown};
+    }
+    const room = roomRef.current;
+    if (index === state.from) {
+      return {onPointerDown, style: {transform: `translateY(${state.offset}px)`}};
+    }
+    // the rows between where it was and where it'd go make room for it
+    let shift = 0;
+    if (state.from < index && index <= state.over) {
+      shift = -room;
+    } else if (state.over <= index && index < state.from) {
+      shift = room;
+    }
+    return {onPointerDown, style: {transform: `translateY(${shift}px)`, transition: 'transform 150ms ease'}};
+  };
+
+  return {dragging: (state && state.from < count) ? state.from : null, listRef, rowProps};
 }
 
 

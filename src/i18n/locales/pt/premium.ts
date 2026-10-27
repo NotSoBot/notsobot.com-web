@@ -32,9 +32,9 @@ export const Premium: Record<keyof typeof English, string> = {
   'premium.plus.perk_3': '90 segundos para processar mídia, 100 para rodar tags e 45 para executar código',
   'premium.plus.perk_4': 'Clone uma voz para texto para fala',
   'premium.plusAi.tagline': 'Tudo, e mais o NotSoAI.',
-  'premium.plusAi.perk_1': 'Converse com o NotSoAI mencionando o bot ou respondendo a ele, com o nosso modelo mais inteligente',
+  'premium.plusAi.perk_1': 'Converse com o NotSoAI em qualquer lugar mencionando o bot ou respondendo a ele',
   'premium.plusAi.perk_2': 'IA nas suas tags com {ai}',
-  'premium.plusAi.perk_3': 'Suas vagas de servidor premium incluem o NotSoAI, com um modelo mais rápido e leve, com 50 mensagens a cada 12 horas por vaga (coloque as duas num servidor para ter 100)',
+  'premium.plusAi.perk_3': 'Suas vagas de servidor premium também dão o NotSoAI a todos lá, com 50 mensagens a cada 12 horas por vaga (coloque as duas num servidor para ter 100)',
   'premium.plusAi.perk_4': '120 segundos para processar mídia e 130 para rodar tags',
   'premium.plusAi.perk_5': 'Clone até 3 vozes',
 
@@ -74,7 +74,6 @@ export const Premium: Record<keyof typeof English, string> = {
   'premium.value.up_to_1440': 'Até 1440p',
   'premium.value.shared': 'Compartilhada',
   'premium.value.priority': 'Prioritária',
-  'premium.value.smartest': 'Modelo mais inteligente',
   'premium.value.songs_100': '100 músicas',
   'premium.value.songs_1000': '1.000 músicas',
 
@@ -93,5 +92,5 @@ export const Premium: Record<keyof typeof English, string> = {
   'premium.server_perk.music_volume': 'Volume da música e crossfade entre músicas',
   'premium.server_perk.tts': 'Texto para fala em canais de voz para todos no servidor',
   'premium.server_perk.image_fallback': 'Os comandos de imagem buscam uma imagem para você quando não há nada para editar',
-  'premium.server_perk.notsoai': 'NotSoAI com um modelo mais rápido e leve, 50 mensagens a cada 12 horas por vaga Plus AI no servidor',
+  'premium.server_perk.notsoai': 'NotSoAI para todos, 50 mensagens a cada 12 horas por vaga Plus AI no servidor',
 };

@@ -52,6 +52,7 @@ import type {
   GuildLLMKnowledge,
   GuildMusic,
   GuildMusicControl,
+  GuildMusicEffectControl,
   GuildMusicLoop,
   GuildMusicStatsPeriod,
   GuildMusicStatsSort,
@@ -1550,6 +1551,7 @@ export type GuildMusicAction =
   | {kind: 'loop', loop: GuildMusicLoop}
   | {kind: 'settings', settings: GuildMusicSettings}
   | {kind: 'control', action: GuildMusicControl}
+  | {kind: 'effect', control: GuildMusicEffectControl}
   | {kind: 'move', itemId: string, position: number}
   | {kind: 'remove', itemId: string}
   | {kind: 'clear'};
@@ -1569,7 +1571,11 @@ export function useGuildMusicMutation(guildId: string) {
         case 'remove': return api.deleteGuildMusicQueueItem(scope, guildId, action.itemId);
         case 'clear': return api.clearGuildMusicQueue(scope, guildId);
         case 'control': {
-          await api.controlGuildMusic(scope, guildId, action.action);
+          await api.controlGuildMusic(scope, guildId, {action: action.action});
+          return null;
+        }
+        case 'effect': {
+          await api.controlGuildMusic(scope, guildId, action.control);
           return null;
         }
       }

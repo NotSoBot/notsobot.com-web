@@ -68,6 +68,7 @@ import type {
   GuildMusicStatsPeriod,
   GuildMusicStatsSort,
   GuildMusicControl,
+  GuildMusicEffectControl,
   GuildMusicSettings,
   GuildCommandStats,
   GuildReminder,
@@ -794,8 +795,8 @@ export const api = {
     return apiRequest<GuildMusic>(guildEndpoints(scope, guildId).MUSIC, {method: 'PATCH', body: patch});
   },
 
-  controlGuildMusic: (scope: GuildScope, guildId: string, action: GuildMusicControl) => {
-    return apiRequest<void>(guildEndpoints(scope, guildId).MUSIC_CONTROL, {method: 'POST', body: {action}});
+  controlGuildMusic: (scope: GuildScope, guildId: string, control: {action: GuildMusicControl} | GuildMusicEffectControl) => {
+    return apiRequest<void>(guildEndpoints(scope, guildId).MUSIC_CONTROL, {method: 'POST', body: control});
   },
 
   moveGuildMusicQueueItem: (scope: GuildScope, guildId: string, itemId: string, position: number) => {

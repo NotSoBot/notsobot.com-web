@@ -861,11 +861,13 @@ export interface GuildMusicQueueItem {
 export type GuildMusicStatsPeriod = 'week' | 'month' | 'year' | 'all';
 export type GuildMusicStatsSort = 'plays' | 'time';
 
-// `plays` counts a queued song once (it finished, or played 30 seconds before a skip), loops and early skips only add
-// `played_ms`
+// `plays` counts a queued song once (it finished, or played 30 seconds before a skip). A loop playing it again is a
+// repeat (counted the same way), early skips only add `played_ms`
 export interface GuildMusicStatsCounts {
   played_ms: number,
   plays: number,
+  // 0 for loops from before repeats were recorded
+  repeats: number,
 }
 
 // what a server's music played over a period: totals, then the top songs, members (by what they queued) and artists
@@ -914,15 +916,25 @@ export interface GuildMusic {
   queue_limit: number,
   session: null | {
     channel_id: string,
+    // the stacked live effects in order (the bot's `MusicEffects` values), up to 5, the same one more than once too. They
+    // stay on for the next songs until they're taken off or the bot leaves
+    effects: Array<string>,
     // the track would have ended by now
     finished: boolean,
     guild_id: string,
     node_id: string | null,
     paused: boolean,
-    // milliseconds into the track, when it was fetched
+    // milliseconds into the track (its own time), when it was fetched
     position: number,
+    // how fast it plays with the effects and `tempo` together (1 for neither), `position` moves on at it and a song
+    // takes `duration / speed` to hear
+    speed: number,
     // 24/7, it stays when the queue runs out
     stay: boolean,
+    // `music speed`, percent of the song's own tempo with its pitch kept (100 is normal, 50 to 200)
+    tempo: number,
+    // the node's volume, percent (100 is the file as it is, up to 200)
+    volume: number,
   },
   // 24/7 (on by default): the bot stays in voice when the queue runs out or it's paused. Only does anything with
   // `premium`, kept for when it comes back
@@ -951,6 +963,13 @@ export interface GuildMusicSettings {
 }
 
 export type GuildMusicControl = 'leave' | 'pause' | 'resume' | 'skip';
+
+// the live effects, done by the bot like the other controls. Adding needs `premium`, what doesn't stack is left out
+export type GuildMusicEffectControl =
+  | {action: 'effect_add', effect: string}
+  // the one at `index` when it's still `effect` there, otherwise the last of it
+  | {action: 'effect_remove', effect: string, index: number}
+  | {action: 'effect_clear'};
 
 // a music node (notsobot.voice), owners only. Its password (the node's `VOICE_PASSWORD`) only comes back when it's made,
 // reset or revealed

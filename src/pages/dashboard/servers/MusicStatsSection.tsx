@@ -35,8 +35,8 @@ function playedTime(milliseconds: number): string {
 
 
 // What the server's music played over the last week, month or year (or since stats started): totals, then the most played
-// songs, the members whose songs played the most and the top artists, ranked by plays or time played. Like `music stats`,
-// any member can see it
+// songs, the members whose songs played the most and the top artists, ranked by plays or time played, with how often a
+// loop played them again. Like `music stats`, any member can see it
 export function MusicStatsSection({ guild }: {guild: UserGuild}) {
   const { t, plural } = useI18n();
   const [ period, setPeriod ] = useState<GuildMusicStatsPeriod>('all');
@@ -44,12 +44,15 @@ export function MusicStatsSection({ guild }: {guild: UserGuild}) {
   const query = useGuildMusicStatsQuery(guild.id, period, sort);
   const data = query.data;
 
-  // the bar and number on the right follow the sort, the other count goes underneath. The data's own sort, the previous
-  // answer stays up while another one loads
+  // the bar and number on the right follow the sort, the other count goes underneath with the repeats (when there are
+  // some). The data's own sort, the previous answer stays up while another one loads
   const ranked = (item: GuildMusicStatsCounts) => ({
     value: (data?.sort === 'time') ? item.played_ms : item.plays,
     display: (data?.sort === 'time') ? playedTime(item.played_ms) : compact(item.plays),
-    detail: (data?.sort === 'time') ? plural('mstats.plays', item.plays) : t('mstats.played', {duration: playedTime(item.played_ms)}),
+    detail: [
+      (data?.sort === 'time') ? plural('mstats.plays', item.plays) : t('mstats.played', {duration: playedTime(item.played_ms)}),
+      (item.repeats) ? plural('mstats.repeats', item.repeats) : null,
+    ].filter(Boolean).join(' • '),
   });
 
   return (
@@ -91,7 +94,11 @@ export function MusicStatsSection({ guild }: {guild: UserGuild}) {
                   date: formatDate(new Date(data.totals.first_played).toISOString(), {month: 'short', day: 'numeric', year: 'numeric'}),
                 }) : undefined}
               />
-              <Metric label={t('mstats.time')} value={playedTime(data.totals.played_ms)}/>
+              <Metric
+                label={t('mstats.time')}
+                value={playedTime(data.totals.played_ms)}
+                detail={(data.totals.repeats) ? plural('mstats.time_repeats', data.totals.repeats) : undefined}
+              />
               <Metric label={t('mstats.songs')} value={compact(data.totals.tracks)}/>
               <Metric label={t('mstats.listeners')} value={compact(data.totals.users)} detail={t('mstats.listeners_detail')}/>
             </MetricGrid>

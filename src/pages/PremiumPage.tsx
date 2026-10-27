@@ -80,7 +80,7 @@ const COMPARISON: Array<{group: TranslationKey, icon: LucideIcon, rows: Array<{l
     group: 'premium.group.ai',
     icon: Bot,
     rows: [
-      {label: 'premium.row.notsoai', values: [false, false, false, 'premium.value.smartest']},
+      {label: 'premium.row.notsoai', values: [false, false, false, true]},
       {label: 'premium.row.ai_tags', values: [false, false, false, true]},
     ],
   },

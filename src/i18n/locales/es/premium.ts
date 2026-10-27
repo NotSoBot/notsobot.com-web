@@ -32,9 +32,9 @@ export const Premium: Record<keyof typeof English, string> = {
   'premium.plus.perk_3': '90 segundos para procesar multimedia, 100 para ejecutar tags y 45 para ejecutar código',
   'premium.plus.perk_4': 'Clona una voz para texto a voz',
   'premium.plusAi.tagline': 'Todo, y además NotSoAI.',
-  'premium.plusAi.perk_1': 'Habla con NotSoAI mencionando al bot o respondiéndole, con nuestro modelo más inteligente',
+  'premium.plusAi.perk_1': 'Habla con NotSoAI en cualquier parte mencionando al bot o respondiéndole',
   'premium.plusAi.perk_2': 'IA en tus tags con {ai}',
-  'premium.plusAi.perk_3': 'Tus espacios de servidor premium incluyen NotSoAI, con un modelo más rápido y ligero, con 50 mensajes cada 12 horas por espacio (pon los dos en un servidor para tener 100)',
+  'premium.plusAi.perk_3': 'Tus espacios de servidor premium también le dan NotSoAI a todos ahí, con 50 mensajes cada 12 horas por espacio (pon los dos en un servidor para tener 100)',
   'premium.plusAi.perk_4': '120 segundos para procesar multimedia y 130 para ejecutar tags',
   'premium.plusAi.perk_5': 'Clona hasta 3 voces',
 
@@ -74,7 +74,6 @@ export const Premium: Record<keyof typeof English, string> = {
   'premium.value.up_to_1440': 'Hasta 1440p',
   'premium.value.shared': 'Compartida',
   'premium.value.priority': 'Prioritaria',
-  'premium.value.smartest': 'Modelo más inteligente',
   'premium.value.songs_100': '100 canciones',
   'premium.value.songs_1000': '1000 canciones',
 
@@ -93,5 +92,5 @@ export const Premium: Record<keyof typeof English, string> = {
   'premium.server_perk.music_volume': 'Volumen de la música y fundido entre canciones',
   'premium.server_perk.tts': 'Texto a voz en canales de voz para todos en el servidor',
   'premium.server_perk.image_fallback': 'Los comandos de imagen te buscan una imagen cuando no hay nada que editar',
-  'premium.server_perk.notsoai': 'NotSoAI con un modelo más rápido y ligero, 50 mensajes cada 12 horas por cada espacio Plus AI en el servidor',
+  'premium.server_perk.notsoai': 'NotSoAI para todos, 50 mensajes cada 12 horas por cada espacio Plus AI en el servidor',
 };

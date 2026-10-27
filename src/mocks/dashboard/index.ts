@@ -3691,7 +3691,7 @@ function guildMusic(guildId: string): GuildMusic {
         mockMusicItem(guildId, '1400000000000000003', 2, {artist: 'Lorde', duration: 211000, title: 'Ribs'}, 'https://open.spotify.com/track/2MvvoeRt8NcOXWESkxWn3g'),
         mockMusicItem(guildId, '1400000000000000004', 3, null, 'https://notsobot.com/some/audio/file.mp3'),
       ];
-      music.session = {channel_id: '1100000000000000001', finished: false, guild_id: guildId, node_id: null, paused: false, position: 64000, stay: false};
+      music.session = {channel_id: '1100000000000000001', effects: ['bassboost', 'nightcore'], finished: false, guild_id: guildId, node_id: null, paused: false, position: 64000, speed: 1.25 * 1.2, stay: false, tempo: 120, volume: 100};
     }
     state.guildMusic.set(guildId, music);
   }
@@ -3743,9 +3743,12 @@ route('GET', '/(users/@me|admin)/guilds/(\\d+)/music/stats', ([ , scope, guildId
   const order = (a: {plays: number, played_ms: number}, b: {plays: number, played_ms: number}) => (sort === 'time') ? b.played_ms - a.played_ms : b.plays - a.plays;
   const tracks = MOCK_MUSIC_STATS_TRACKS.map(([ artist, title, duration ], i) => {
     const plays = Math.round((60 + seed - i * 9) * share);
+    // the first two got looped
+    const repeats = (i < 2) ? Math.round((12 - i * 5) * share) : 0;
     return {
-      played_ms: Math.round(plays * duration * 0.9),
+      played_ms: Math.round((plays + repeats) * duration * 0.9),
       plays,
+      repeats,
       source: 'opus' as const,
       track: {album: null, artist, duration, isrc: null, thumbnail: null, title, url: null},
       url: `https://open.spotify.com/track/mock${i}`,
@@ -3754,19 +3757,22 @@ route('GET', '/(users/@me|admin)/guilds/(\\d+)/music/stats', ([ , scope, guildId
   const listeners = [mockUser.id, ...Object.keys(MOCK_REPORT_USERS).slice(0, 4)];
   const users = listeners.map((id, i) => {
     const plays = Math.round((140 - i * 25 + seed) * share);
+    const repeats = (i === 0) ? Math.round(17 * share) : 0;
     return {
-      played_ms: plays * 231000,
+      played_ms: (plays + repeats) * 231000,
       plays,
+      repeats,
       user: (id === mockUser.id) ?
         {avatar: mockUser.avatar ?? null, bot: false, discriminator: mockUser.discriminator, id, username: mockUser.username} :
         (i < 3) ? {avatar: null, bot: false, discriminator: '0', id, username: MOCK_REPORT_USERS[id]} : null,
       user_id: id,
     };
   }).filter((item) => item.plays).sort(order);
-  const artists = new Map<string, {name: string, played_ms: number, plays: number}>();
+  const artists = new Map<string, {name: string, played_ms: number, plays: number, repeats: number}>();
   for (const track of tracks) {
-    const artist = artists.get(track.track.artist) ?? {name: track.track.artist, played_ms: 0, plays: 0};
+    const artist = artists.get(track.track.artist) ?? {name: track.track.artist, played_ms: 0, plays: 0, repeats: 0};
     artist.plays += track.plays;
+    artist.repeats += track.repeats;
     artist.played_ms += track.played_ms;
     artists.set(track.track.artist, artist);
   }
@@ -3779,6 +3785,7 @@ route('GET', '/(users/@me|admin)/guilds/(\\d+)/music/stats', ([ , scope, guildId
       first_played: (plays) ? Date.now() - ((period === 'all') ? 75 : (period === 'year') ? 75 : (period === 'month') ? 29 : 6) * 86400000 : null,
       played_ms: users.reduce((sum, item) => sum + item.played_ms, 0),
       plays,
+      repeats: users.reduce((sum, item) => sum + item.repeats, 0),
       tracks: tracks.length + Math.round(180 * share),
       users: users.length,
     },
@@ -3858,7 +3865,29 @@ route('POST', '/(users/@me|admin)/guilds/(\\d+)/music/control', ([ , scope, guil
     case 'leave': {
       state.guildMusic.set(guildId, emptyGuildMusic(music));
     }; break;
+    // the api checks premium for adding, the bot what stacks (the page doesn't offer ones that don't)
+    case 'effect_add': {
+      if (!music.premium) {
+        throw new MockError(403, ApiErrorCodes.MUSIC_PREMIUM_REQUIRED, 'Effects need a premium server');
+      }
+      if (music.session.effects.length < 5) {
+        music.session.effects = [...music.session.effects, String(body.effect)];
+      }
+    }; break;
+    case 'effect_remove': {
+      const effects = music.session.effects, effect = String(body.effect), at = Number(body.index);
+      const index = (effects[at] === effect) ? at : effects.lastIndexOf(effect);
+      music.session.effects = effects.filter((_, position) => position !== index);
+    }; break;
+    case 'effect_clear': {
+      music.session.effects = [];
+    }; break;
     default: throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'Unknown action');
+  }
+  // the node's speed: the speed effects' times the tempo
+  if (music.session && body.action.startsWith('effect_')) {
+    const effectSpeeds: Record<string, number> = {daycore: 0.8, nightcore: 1.25, slowed: 0.85, vaporwave: 0.8};
+    music.session.speed = music.session.effects.reduce((total, effect) => total * (effectSpeeds[effect] ?? 1), music.session.tempo / 100);
   }
 });
 

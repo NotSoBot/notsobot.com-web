@@ -30,9 +30,9 @@ export const Premium = {
   'premium.plus.perk_3': '90 seconds to process media, 100 to run tags and 45 to run code',
   'premium.plus.perk_4': 'Clone a voice for text to speech',
   'premium.plusAi.tagline': 'Everything, plus NotSoAI.',
-  'premium.plusAi.perk_1': 'Talk to NotSoAI by mentioning the bot or replying to it, using our smartest model',
+  'premium.plusAi.perk_1': 'Talk to NotSoAI anywhere by mentioning the bot or replying to it',
   'premium.plusAi.perk_2': 'AI in your tags with {ai}',
-  'premium.plusAi.perk_3': 'Your premium server slots include NotSoAI, using a faster, lighter model, with 50 messages every 12 hours for each slot (stack both on one server for 100)',
+  'premium.plusAi.perk_3': 'Your premium server slots give everyone there NotSoAI too, with 50 messages every 12 hours for each slot (stack both on one server for 100)',
   'premium.plusAi.perk_4': '120 seconds to process media and 130 to run tags',
   'premium.plusAi.perk_5': 'Clone up to 3 voices',
 
@@ -72,7 +72,6 @@ export const Premium = {
   'premium.value.up_to_1440': 'Up to 1440p',
   'premium.value.shared': 'Shared',
   'premium.value.priority': 'Priority',
-  'premium.value.smartest': 'Smartest model',
   'premium.value.songs_100': '100 songs',
   'premium.value.songs_1000': '1,000 songs',
 
@@ -91,5 +90,5 @@ export const Premium = {
   'premium.server_perk.music_volume': 'Music volume and crossfade between songs',
   'premium.server_perk.tts': 'Text to speech in voice channels for everyone in the server',
   'premium.server_perk.image_fallback': 'Image commands find an image for you when there’s nothing to edit',
-  'premium.server_perk.notsoai': 'NotSoAI with a faster, lighter model, 50 messages every 12 hours for each Plus AI slot on the server',
+  'premium.server_perk.notsoai': 'NotSoAI for everyone, 50 messages every 12 hours for each Plus AI slot on the server',
 } as const;
