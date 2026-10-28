@@ -1,5 +1,7 @@
 import { keepPreviousData, useInfiniteQuery, useQuery } from '@tanstack/react-query';
 
+import type { Language } from '@/i18n/languages';
+
 import type { GuildScope } from './endpoints';
 import { api } from './index';
 import { TagDirectorySortByFilters, type MeTagsDirectoryFilter, type MeTagsSortBy, type TagDirectoryFilters, type TagDirectoryItem } from './types';
@@ -9,7 +11,7 @@ import { TagDirectorySortByFilters, type MeTagsDirectoryFilter, type MeTagsSortB
 export const SAVED_GUILDS_KEY = 'servers:last';
 
 export const queryKeys = {
-  commands: ['commands'] as const,
+  commands: (language: Language) => ['commands', {language}] as const,
   commandStats: (since: string) => ['commands', 'stats', {since}] as const,
   infoDiscord: ['info', 'discord'] as const,
   infoVoice: ['info', 'voice'] as const,
@@ -91,10 +93,11 @@ export function useReportsUnreadQuery(token: string | null) {
 }
 
 
-export function useCommandsQuery() {
+// takes the language since this module can't use `useI18n` (the provider imports it)
+export function useCommandsQuery(language: Language) {
   return useQuery({
-    queryKey: queryKeys.commands,
-    queryFn: ({ signal }) => api.fetchCommands(signal),
+    queryKey: queryKeys.commands(language),
+    queryFn: ({ signal }) => api.fetchCommands(language, signal),
     staleTime: 10 * 60 * 60 * 1000,
     gcTime: Infinity,
     refetchOnWindowFocus: false,

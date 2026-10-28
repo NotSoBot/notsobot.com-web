@@ -44,7 +44,7 @@ type Sort = 'popular' | 'az';
 
 
 export function CommandsPage() {
-  const { t, plural, rich } = useI18n();
+  const { t, plural, rich, language } = useI18n();
   const [ searchParams, setSearchParams ] = useSearchParams();
   // the type/access/dm/sort panel starts closed, the button shows how many are set meanwhile
   const [ filtersOpen, setFiltersOpen ] = useState(false);
@@ -100,7 +100,7 @@ export function CommandsPage() {
     writeStored(STORAGE_FILTERS, filters);
   }, [searchParams]);
 
-  const { data: commands, isPending, isError, refetch } = useCommandsQuery();
+  const { data: commands, isPending, isError, refetch } = useCommandsQuery(language);
   const { data: stats } = useCommandStatsQuery(7);
 
   // every command, for the header and the drawer (which shows all of a command's variants whatever the filters)
@@ -128,10 +128,12 @@ export function CommandsPage() {
       if (category && entryCategory !== category) {
         return false;
       }
-      // any of the card's variants, so the slash name finds the merged card too
+      // any of the card's variants, so the slash name finds the merged card too. the english name as well, a translated
+      // slash command can still be searched for by what it's called in english
       if (needle) {
         return variants.some(({ metadata }) => {
           return metadata.name.toLowerCase().includes(needle)
+            || !!metadata.default_name?.toLowerCase().includes(needle)
             || !!metadata.description?.toLowerCase().includes(needle)
             || metadata.aliases.some((alias) => alias.toLowerCase().includes(needle));
         });

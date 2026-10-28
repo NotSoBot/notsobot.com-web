@@ -80,6 +80,7 @@ export const Commands: Record<keyof typeof English, string> = {
   'commands.drawer.preview': 'Vista previa',
   'commands.drawer.examples': 'Ejemplos',
   'commands.drawer.arguments': 'Argumentos',
+  'commands.drawer.required': 'Obligatorio',
   'commands.drawer.aliases': 'Alias',
   'commands.drawer.also_as': 'También disponible como',
   'commands.drawer.ratelimits': 'Límites de uso',

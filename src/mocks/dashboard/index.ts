@@ -5178,6 +5178,19 @@ declare global {
 
 /* public commands page: a few free ones and the premium kinds (music is premium or a premium server) */
 
+type MockLocalizations = Record<string, string>;
+
+interface MockCommandArg {
+  aliases: Array<string>,
+  choices: Array<{description: string, description_localizations?: MockLocalizations, value: string}>,
+  description: string,
+  description_localizations?: MockLocalizations,
+  name: string,
+  name_localizations?: MockLocalizations,
+  prefix: string,
+  required?: boolean | null,
+}
+
 function mockCommand(id: string, name: string, category: string, description: string, premium: null | string, types: Array<number> = [0]) {
   return {
     enabled: true,
@@ -5185,15 +5198,17 @@ function mockCommand(id: string, name: string, category: string, description: st
     media: MOCK_COMMAND_PREVIEWS[id]?.media ?? [],
     metadata: types.map((type) => ({
       aliases: [],
-      args: [],
+      args: [] as Array<MockCommandArg>,
       category,
       credits: [],
       description,
+      description_localizations: {} as MockLocalizations,
       dmable: !id.startsWith('music.'),
       enabled: true,
       examples: [`${name}`],
       external_id: (type === 0) ? null : '1430000000000000999',
       name,
+      name_localizations: {} as MockLocalizations,
       premium,
       ratelimits: [],
       type,
@@ -5229,7 +5244,80 @@ const mockCommands = [
   mockCommand('media.a.tools.put.replace', 'audio put replace', 'AUDIO', 'Replace the audio of some media with another audio file', null),
 ];
 
-route('GET', '/commands', () => mockCommands);
+// the slash /caption as the bot uploads it (the bot's own translations), so a slash command shows its arguments
+{
+  const caption = mockCommands.find((command) => command.id === 'media.iv.manipulation.caption')!.metadata.find((metadata) => metadata.type === 1)!;
+  caption.description_localizations = {'es': 'Añade texto de leyenda a una imagen o video', 'pt-BR': 'Adicionar uma legenda a uma imagem ou vídeo'};
+  caption.name_localizations = {'es': 'leyenda', 'pt-BR': 'legenda'};
+  caption.args = [
+    {
+      aliases: [],
+      choices: [],
+      description: 'Caption text, separate top and bottom with |',
+      description_localizations: {'es': 'Texto de la leyenda, separa arriba y abajo con |', 'pt-BR': 'Texto da legenda, separe o topo e a base com |'},
+      name: 'text',
+      name_localizations: {'es': 'texto', 'pt-BR': 'texto'},
+      prefix: '',
+      required: true,
+    },
+    {
+      aliases: [],
+      choices: [],
+      description: 'Emoji/Media URL/User',
+      description_localizations: {'es': 'Emoji/URL de archivo/Usuario', 'pt-BR': 'Emoji/URL de mídia/Usuário'},
+      name: 'url',
+      prefix: '',
+      required: false,
+    },
+    {
+      aliases: [],
+      choices: [
+        {description: 'Futura (Default)', description_localizations: {'es': 'Futura (Predeterminado)', 'pt-BR': 'Futura (Padrão)'}, value: 'futura'},
+        {description: 'Impact', value: 'impact'},
+        {description: 'Arial', value: 'arial'},
+      ],
+      description: 'Font Choice',
+      description_localizations: {'es': 'Fuente', 'pt-BR': 'Escolha da fonte'},
+      name: 'font',
+      name_localizations: {'es': 'fuente', 'pt-BR': 'fonte'},
+      prefix: '',
+      required: false,
+    },
+  ];
+}
+
+// the api's `localized_text`: the exact language, else one with the same base ('pt' -> 'pt-BR'), else the english
+function mockLocalized(text: string, localizations: MockLocalizations | undefined, language: string | null): string {
+  if (!language || !localizations) {
+    return text;
+  }
+  const keys = Object.keys(localizations).sort();
+  const key = keys.find((x) => x.toLowerCase() === language.toLowerCase()) ?? keys.find((x) => x.toLowerCase().split('-')[0] === language.toLowerCase().split('-')[0]);
+  return (key) ? localizations[key] : text;
+}
+
+// `GET /commands?language=` sends one language and none of the translation maps
+route('GET', '/commands', (_match, { query }) => {
+  const language = query.get('language');
+  return mockCommands.map((command) => ({
+    ...command,
+    metadata: command.metadata.map(({ description_localizations, name_localizations, ...metadata }) => ({
+      ...metadata,
+      default_name: metadata.name,
+      description: mockLocalized(metadata.description, description_localizations, language),
+      name: mockLocalized(metadata.name, name_localizations, language),
+      args: metadata.args.map(({ description_localizations, name_localizations, ...arg }) => ({
+        ...arg,
+        choices: arg.choices.map(({ description_localizations, ...choice }) => ({
+          ...choice,
+          description: mockLocalized(choice.description, description_localizations, language),
+        })),
+        description: mockLocalized(arg.description, description_localizations, language),
+        name: mockLocalized(arg.name, name_localizations, language),
+      })),
+    })),
+  }));
+});
 route('GET', '/commands/stats', () => mockCommands.flatMap((command, index) => command.metadata.map((metadata) => ({
   count: 5000 - index * 600,
   id: command.id,

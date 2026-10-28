@@ -35,7 +35,7 @@ function channelUrl(use: MeCommandUse): string {
 
 
 export function CommandHistoryPage() {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const { searchParams, page, update, setPage } = useSearchParamState();
   const serverId = searchParams.get('server') || null;
   const channelId = searchParams.get('channel') || '';
@@ -58,7 +58,7 @@ export function CommandHistoryPage() {
   });
   // only for names and the server filter, the history still shows (with ids) when these can't load
   const guilds = useMeGuildsQuery();
-  const commands = useCommandsQuery();
+  const commands = useCommandsQuery(language);
   const guildNames = useMemo(() => new Map((guilds.data ?? []).map((guild) => [guild.id, guild.name])), [guilds.data]);
   // only the variants still offered get a link; a disabled (removed) command shows its name without one, since its
   // page on the commands site no longer exists

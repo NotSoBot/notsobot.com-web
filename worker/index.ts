@@ -17,6 +17,9 @@ import {
 import { enabledCommandVariants } from '../src/lib/commandAvailability';
 import { commandTypeFromPath } from '../src/lib/commandPaths';
 import { DEFAULT_LANGUAGE, LANGUAGE_PREFIXES, languagePath, Languages, splitLanguagePath, type Language } from '../src/i18n/languages';
+import { Layout as EnglishLayout } from '../src/i18n/locales/en/layout';
+import { Layout as SpanishLayout } from '../src/i18n/locales/es/layout';
+import { Layout as PortugueseLayout } from '../src/i18n/locales/pt/layout';
 import { Tags as SpanishTags } from '../src/i18n/locales/es/tags';
 import { Tags as PortugueseTags } from '../src/i18n/locales/pt/tags';
 import { Routes, TAG_ADD_PARAM, TAG_ADD_VALUE } from '../src/routes';
@@ -396,27 +399,30 @@ const COMMANDS_CACHE_TTL = 5 * 60;
 
 // the edge cache (cacheTtl) saves the trip to the api, this saves downloading and parsing the whole list again on
 // every request this isolate handles. the parsed value rather than the promise: workers don't like one request
-// waiting on another's
-let cachedCommands: {commands: Array<Command>, expires: number} | null = null;
+// waiting on another's. one list per language, since the descriptions are translated
+const cachedCommands = new Map<Language, {commands: Array<Command>, expires: number}>();
 
 // the whole list, there's no single-command endpoint
-async function fetchCommands(env: Env): Promise<Array<Command> | null> {
-  if (cachedCommands && Date.now() < cachedCommands.expires) {
-    return cachedCommands.commands;
+async function fetchCommands(env: Env, language: Language): Promise<Array<Command> | null> {
+  const cached = cachedCommands.get(language);
+  if (cached && Date.now() < cached.expires) {
+    return cached.commands;
   }
-  const commands = await fetchApi<Array<Command>>(env, '/commands', {}, COMMANDS_CACHE_TTL);
+  const query: Record<string, string> = (language === DEFAULT_LANGUAGE) ? {} : {language};
+  const commands = await fetchApi<Array<Command>>(env, '/commands', query, COMMANDS_CACHE_TTL);
   // a failure isn't kept, the next request tries again
   if (!Array.isArray(commands)) {
     return null;
   }
-  cachedCommands = {commands, expires: Date.now() + COMMANDS_CACHE_TTL * 1000};
+  cachedCommands.set(language, {commands, expires: Date.now() + COMMANDS_CACHE_TTL * 1000});
   return commands;
 }
 
 
-// a slash variant as a clickable `</name:id>`, null until the bot has uploaded its `external_id`
+// a slash variant as a clickable `</name:id>`, null until the bot has uploaded its `external_id`. discord needs the english
+// name in it (it shows the reader's own translation by itself), `name` is translated on other languages' pages
 function mentionFor(slash: CommandMetadata | undefined): string | null {
-  return (slash?.external_id) ? `</${slash.name}:${slash.external_id}>` : null;
+  return (slash?.external_id) ? `</${slash.default_name ?? slash.name}:${slash.external_id}>` : null;
 }
 
 function slashCommandMention(command: Command | undefined): string | null {
@@ -439,8 +445,8 @@ function commandUsage(language: Language, metadata: CommandMetadata): string {
 
 
 // the variant /commands/:commandId(/:commandType) shows, null for an unknown, hidden (owner) or disabled command
-async function fetchCommandMetadata(env: Env, commandId: string, slug: string | undefined): Promise<[Command, CommandMetadata] | null> {
-  const commands = await fetchCommands(env);
+async function fetchCommandMetadata(env: Env, language: Language, commandId: string, slug: string | undefined): Promise<[Command, CommandMetadata] | null> {
+  const commands = await fetchCommands(env, language);
   const command = commands?.find((item) => item.id === commandId);
   if (!command) {
     return null;
@@ -452,7 +458,7 @@ async function fetchCommandMetadata(env: Env, commandId: string, slug: string | 
 }
 
 
-// the description comes from the api, in English
+// the description comes from the api, translated when the bot has the page's language (English otherwise)
 function commandEmbed(language: Language, command: Command, metadata: CommandMetadata): Embed {
   const words = EMBED_TEXT[language];
   const name = `${COMMAND_NAME_PREFIXES[metadata.type]}${metadata.name}`;
@@ -527,12 +533,53 @@ const CONTENT_POLICY = [
 ].join('; ');
 
 
+// a year of https only, also set on static files in public/_headers. no includeSubDomains or preload, those would
+// also lock every other notsobot.com subdomain to https
+const STRICT_TRANSPORT_SECURITY = 'max-age=31536000';
+// nothing on the site uses these, so pages (and anything embedded in them, like the captcha) can't ask for them
+const PERMISSIONS_POLICY = 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), hid=(), bluetooth=(), browsing-topics=()';
+
+
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
     .replace(/"/g, '&quot;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
+}
+
+
+// the navbar's and footer's links (src/components/layout/navLinks.ts, Footer.tsx), as plain links
+const STATIC_NAV = [
+  [Routes.COMMANDS, 'nav.commands'],
+  [Routes.TAG_DIRECTORY, 'nav.tags'],
+  [Routes.TAG_DOCS, 'nav.docs'],
+  [Routes.STATUS, 'nav.status'],
+  [Routes.CHANGELOG, 'nav.changelog'],
+  [Routes.FAQ, 'nav.faq'],
+] as const;
+const STATIC_FOOTER = [
+  [Routes.LEGAL_PRIVACY, 'footer.privacy'],
+  [Routes.LEGAL_TERMS_OF_SERVICE, 'footer.terms'],
+] as const;
+const LAYOUT_WORDS: Record<Language, Record<keyof typeof EnglishLayout, string>> = {
+  [Languages.ENGLISH]: EnglishLayout,
+  [Languages.SPANISH]: SpanishLayout,
+  [Languages.PORTUGUESE]: PortugueseLayout,
+};
+
+// What goes in #root before the app runs: the page's landmarks, its title and description, and the site's links, so
+// crawlers that don't run javascript (AI crawlers, link previews, page checkers) see a real page instead of an empty
+// div. react's createRoot replaces it all on its first render, so visitors only see it until the app loads
+function renderStaticBody(language: Language, meta: PageMeta): string {
+  const words = LAYOUT_WORDS[language];
+  const link = (path: string, label: string) => `<a href="${escapeHtml(languagePath(language, path))}">${escapeHtml(label)}</a>`;
+  return [
+    `<header><a href="${escapeHtml(languagePath(language, Routes.HOME))}">${SITE_NAME}</a>`,
+    `<nav aria-label="${escapeHtml(words['nav.main'])}">${STATIC_NAV.map(([ path, key ]) => link(path, words[key])).join(' ')}</nav></header>`,
+    `<main><h1>${escapeHtml(meta.title ?? SITE_NAME)}</h1><p>${escapeHtml(meta.description)}</p></main>`,
+    `<footer><nav aria-label="${escapeHtml(words['footer.label'])}">${STATIC_FOOTER.map(([ path, key ]) => link(path, words[key])).join(' ')}</nav></footer>`,
+  ].join('');
 }
 
 
@@ -578,7 +625,7 @@ export default {
     // generic embed
     try {
       if (page?.meta === PAGES.TAG_DIRECTORY_ITEM) {
-        const [ item, commands ] = await Promise.all([ fetchTagDirectoryItem(env, segments[3] ?? ''), fetchCommands(env) ]);
+        const [ item, commands ] = await Promise.all([ fetchTagDirectoryItem(env, segments[3] ?? ''), fetchCommands(env, language) ]);
         if (item) {
           embed = tagEmbed(env, language, item, {
             tagGet: slashCommandMention(commands?.find((command) => command.id === TAG_GET_COMMAND_ID)),
@@ -592,7 +639,7 @@ export default {
         } catch {
           // left as-is, it won't match a command
         }
-        const found = await fetchCommandMetadata(env, commandId, segments[3]);
+        const found = await fetchCommandMetadata(env, language, commandId, segments[3]);
         if (found) {
           embed = commandEmbed(language, ...found);
         }
@@ -653,6 +700,7 @@ export default {
       // setInnerContent escapes text by default
       .on('title', {element: (element) => { element.setInnerContent(pageTitle(meta)); }})
       .on('head', {element: (element) => { element.append(head, {html: true}); }})
+      .on('div#root', {element: (element) => { element.setInnerContent(renderStaticBody(language, meta), {html: true}); }})
       .transform(shell);
 
     const headers = new Headers(response.headers);
@@ -664,6 +712,8 @@ export default {
     headers.set('x-frame-options', 'DENY');
     headers.set('x-content-type-options', 'nosniff');
     headers.set('referrer-policy', 'strict-origin-when-cross-origin');
+    headers.set('strict-transport-security', STRICT_TRANSPORT_SECURITY);
+    headers.set('permissions-policy', PERMISSIONS_POLICY);
     // unknown paths still get the app, so its not-found page renders, but as a real 404
     return new Response(response.body, {headers, status: (page === null) ? 404 : 200});
   },

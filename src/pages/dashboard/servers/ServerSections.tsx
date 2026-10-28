@@ -324,13 +324,13 @@ function RuleMessageEditor({ initial, busy, disabled, onSave, onCancel }: {
 
 
 export function RulesSection({ guild }: {guild: UserGuild}) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const editable = guild.editable.rules;
   const adminEditable = guild.editable.rules_admin;
   const readOnlyMessage = useReadOnlyMessage();
   const edit = useGuildEdit(guild.id);
   const datalistId = useId();
-  const { data: commands } = useCommandsQuery();
+  const { data: commands } = useCommandsQuery(language);
 
   // command id -> the name people know it by, only enabled ones can be picked; rules for a removed command show its id
   const commandNames = useMemo(() => {

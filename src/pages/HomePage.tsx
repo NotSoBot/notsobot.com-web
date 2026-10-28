@@ -12,7 +12,7 @@ import { useI18n } from '@/i18n';
 import { ApiEndpoints, apiUrl, CommandMediaTypes, type Command, type CommandMedia } from '@/lib/api';
 import { useCommandsQuery, useInfoDiscordQuery } from '@/lib/api/queries';
 import { enabledCommandVariants } from '@/lib/commandAvailability';
-import { displayLocale } from '@/lib/utils';
+import { cn, displayLocale, shuffle } from '@/lib/utils';
 
 import { commandPath, PREFIXES } from './commands/commandMeta';
 
@@ -33,6 +33,8 @@ const STEPS: Array<{icon: LucideIcon, key: 'post' | 'run' | 'result'}> = [
 // the hero's before/after slider picks from these (by prefix name), in this order, when their preview fits a slider
 const HERO_COMMANDS = ['magik', 'deepfry', 'swirl', 'jpeg', 'pixelate', 'explode'];
 const GALLERY_SIZE = 8;
+// phones show the first two rows, so the feature list isn't three screens down
+const GALLERY_PHONE_SIZE = 4;
 
 // a command's real preview from the api (the same media the commands page shows)
 interface Showcase {
@@ -81,39 +83,43 @@ function compactNumber(value: number): string {
 
 
 export function HomePage() {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const inviteUrl = apiUrl(ApiEndpoints.HELP_DISCORD_BOT);
-  const commands = useCommandsQuery();
+  const commands = useCommandsQuery(language);
 
   const { sliders, gallery } = useMemo(() => {
     const showcases = buildShowcases(commands.data ?? []);
     const sliders = HERO_COMMANDS
       .map((name) => showcases.find((showcase) => showcase.name === `.${name}`))
       .filter((showcase): showcase is Showcase & {before: CommandMedia} => !!showcase && fitsSlider(showcase));
-    // the ones the slider doesn't already show first, so the gallery adds something
-    const rest = showcases.filter((showcase) => !sliders.includes(showcase as Showcase & {before: CommandMedia}));
+    // the ones the slider doesn't already show first, so the gallery adds something. shuffled once per load so a
+    // refresh shows other commands
+    const rest = shuffle(showcases.filter((showcase) => !sliders.includes(showcase as Showcase & {before: CommandMedia})));
     return {sliders, gallery: [ ...rest, ...sliders ].slice(0, GALLERY_SIZE)};
   }, [commands.data]);
+  // the slider (or its placeholder while the commands load) sits beside the headline on large screens
+  const hasSlider = commands.isPending || sliders.length > 0;
   const collator = new Intl.Collator(displayLocale());
   const features = [ ...FEATURES ].sort((a, b) => collator.compare(t(`home.features.${a}.title`), t(`home.features.${b}.title`)));
 
   return (
     <>
       {/* Hero */}
-      <section className='container-page py-20'>
-        <ReportUpdatesNotice className='mx-auto mb-4 max-w-3xl'/>
-        <QuarantineNotice className='mx-auto mb-10 max-w-3xl'/>
-        {/* centered like the rest of the page, with a real before/after under the buttons */}
-        <div className='text-center'>
+      <section className='container-page py-12 sm:py-20'>
+        <ReportUpdatesNotice className='mx-auto mb-4 max-w-3xl lg:max-w-5xl'/>
+        <QuarantineNotice className='mx-auto mb-6 max-w-3xl sm:mb-10 lg:max-w-5xl'/>
+        {/* a real before/after under the buttons, or beside the text on large screens. kept to max-w-5xl so the two
+            don't drift to opposite edges of a wide screen */}
+        <div className={cn('mx-auto max-w-5xl text-center', (hasSlider) && 'lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-center lg:gap-12 lg:text-left')}>
           <div>
-            <h1 className='mb-6 text-5xl leading-tight font-medium text-balance text-white md:text-6xl'>
+            <h1 className={cn('mb-6 text-4xl leading-tight font-medium text-balance text-white sm:text-5xl md:text-6xl', (hasSlider) && 'lg:text-5xl xl:text-6xl')}>
               {t('home.hero.title_1')}<br className='hidden sm:block'/> {t('home.hero.title_2')}
             </h1>
-            <p className='mx-auto mb-4 max-w-2xl text-xl text-balance text-muted'>
+            <p className={cn('mx-auto mb-4 max-w-2xl text-lg text-balance text-muted sm:text-xl', (hasSlider) && 'lg:mx-0')}>
               {t('home.hero.description')}
             </p>
             <p className='mb-8 text-sm text-muted italic'>{t('home.hero.quote')}</p>
-            <div className='flex flex-col items-center justify-center gap-4 sm:flex-row'>
+            <div className={cn('flex flex-col items-center justify-center gap-4 sm:flex-row', (hasSlider) && 'lg:justify-start')}>
               <a href={inviteUrl} className='btn btn-discord btn-lg'>
                 {t('common.add_to_discord')}
                 <ArrowRight className='size-5'/>
@@ -124,29 +130,29 @@ export function HomePage() {
             </div>
           </div>
           {(commands.isPending) ? (
-            <div aria-hidden className='mx-auto mt-14 aspect-square w-full max-w-xs animate-pulse rounded-lg bg-surface-2'/>
+            <div aria-hidden className='mx-auto mt-10 aspect-square w-full max-w-xs animate-pulse rounded-lg bg-surface-2 sm:mt-14 lg:mt-0'/>
           ) : (sliders.length) ? (
             <HeroComparison showcases={sliders}/>
           ) : null}
         </div>
       </section>
 
-      {/* real results from the commands' previews, then what the pictures can't show */}
-      <section className='container-page py-16'>
+      {/* real results from the commands' previews, then what the pictures can't show. phones get the list first */}
+      <section className='container-page flex flex-col py-16 md:block'>
         <h2 className='mb-4 text-center text-3xl text-white'>{t('home.features.title')}</h2>
         <p className='mx-auto mb-10 max-w-2xl text-center text-muted'>
           {t('home.features.description')}
         </p>
         {(gallery.length) ? (
-          <ul className='mb-12 grid grid-cols-2 gap-3 md:grid-cols-4'>
-            {gallery.map((showcase) => (
-              <li key={showcase.command.id}>
+          <ul className='order-last mt-10 grid grid-cols-2 gap-3 md:mt-0 md:mb-12 md:grid-cols-4'>
+            {gallery.map((showcase, index) => (
+              <li key={showcase.command.id} className={cn(GALLERY_PHONE_SIZE <= index && 'max-md:hidden')}>
                 <GalleryTile showcase={showcase}/>
               </li>
             ))}
           </ul>
         ) : null}
-        <dl className='grid gap-x-8 gap-y-6 border-t border-line pt-8 sm:grid-cols-2 lg:grid-cols-3'>
+        <dl className='grid gap-x-8 gap-y-6 sm:grid-cols-2 md:border-t md:border-line md:pt-8 lg:grid-cols-3'>
           {features.map((key) => (
             <div key={key}>
               <dt className='mb-1 flex flex-wrap items-center gap-2 font-semibold text-white'>
@@ -214,7 +220,7 @@ function HeroComparison({ showcases }: {showcases: Array<Showcase & {before: Com
   const [ selected, setSelected ] = useState(showcases[0].command.id);
   const showcase = showcases.find((item) => item.command.id === selected) ?? showcases[0];
   return (
-    <div className='mt-14 space-y-3'>
+    <div className='mt-10 space-y-3 sm:mt-14 lg:mt-0'>
       <ImageComparison
         key={showcase.command.id}
         before={showcase.before.url}
@@ -223,7 +229,7 @@ function HeroComparison({ showcases }: {showcases: Array<Showcase & {before: Com
         className='mx-auto rounded-lg'
       />
       {(showcases.length > 1) ? (
-        <div className='-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0'>
+        <div className='-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0 lg:overflow-visible'>
           <div className='mx-auto w-max'>
             <Segmented
               label={t('home.compare.label')}
@@ -267,9 +273,9 @@ function GalleryTile({ showcase }: {showcase: Showcase}) {
 
 
 function LiveStats() {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const { data: info } = useInfoDiscordQuery({poll: false});
-  const { data: commands } = useCommandsQuery();
+  const { data: commands } = useCommandsQuery(language);
 
   const totals = useMemo(() => {
     if (!info) {

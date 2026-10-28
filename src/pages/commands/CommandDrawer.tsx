@@ -144,6 +144,7 @@ export function CommandDrawer({ entry, type, siblings, totalRanked, onSelect, on
                       {(arg.aliases.length) ? (
                         <span className='ml-2 font-mono text-xs text-subtle'>({arg.aliases.map((alias) => `${arg.prefix}${alias}`).join(', ')})</span>
                       ) : null}
+                      {(arg.required) ? <span className='ml-2 rounded bg-warning/15 px-1.5 py-0.5 text-xs font-medium text-warning'>{t('commands.drawer.required')}</span> : null}
                       {(arg.description) ? <p className='mt-1 text-sm text-muted'>{arg.description}</p> : null}
                       {(arg.choices?.length) ? <ArgChoices choices={arg.choices}/> : null}
                     </div>

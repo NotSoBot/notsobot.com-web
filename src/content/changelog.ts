@@ -70,6 +70,8 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'improved', text: 'Clearer descriptions for about 260 commands, saying what they actually do (like `.android`, `.seesaw`, `.pipe` and `.textwall`).'},
       {kind: 'improved', text: 'Commands page: a command\'s prefix and slash versions share one card, with a tab for each in its drawer.'},
       {kind: 'improved', text: 'Website: new fonts, easier to read text colors, and a home page that covers music, moderation, AI, text to speech and voice cloning too.'},
+      {kind: 'improved', text: 'Commands page in Spanish and Portuguese: command descriptions, slash command names and their options are translated like in Discord (searching the English name still finds them), and slash options say when they\'re required.'},
+      {kind: 'improved', text: 'Home page: the gallery shows different commands each visit, and phones get the feature list before the pictures.'},
       {kind: 'improved', text: 'Dashboard: your profile card on the overview uses your Discord banner color.'},
     ],
   },

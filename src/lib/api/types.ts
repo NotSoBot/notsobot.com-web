@@ -93,7 +93,10 @@ export interface CommandArg {
   choices?: Array<CommandArgChoice>,
   description: string,
   name: string,
+  // empty for slash command options
   prefix: string,
+  // slash command options only (prefixed args are all optional), missing on commands uploaded before it was sent
+  required?: boolean | null,
 }
 
 export interface CommandMetadata {
@@ -102,6 +105,8 @@ export interface CommandMetadata {
   category: CommandCategory | string,
   // who made the command (or the program behind it). missing from commands uploaded before it existed
   credits?: Array<{id?: string, name: string, url?: string}>,
+  // the english `name`, which `</name:id>` mentions need when `name` is translated. missing from older api versions
+  default_name?: string,
   description: string | null,
   dmable: boolean,
   enabled: boolean,
@@ -109,6 +114,7 @@ export interface CommandMetadata {
   // the discord application command's id, slash/context menu commands only (a subcommand has its top-level
   // command's), for mentioning it as `</name:id>`. missing from commands uploaded before it existed
   external_id?: string | null,
+  // translated into the requested language for slash/context menu commands (what discord shows in that language)
   name: string,
   // who can use it, null/missing for everyone (commands uploaded before it existed have none)
   premium?: CommandPremium | null,

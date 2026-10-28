@@ -78,6 +78,7 @@ export const Commands = {
   'commands.drawer.preview': 'Preview',
   'commands.drawer.examples': 'Examples',
   'commands.drawer.arguments': 'Arguments',
+  'commands.drawer.required': 'Required',
   'commands.drawer.aliases': 'Aliases',
   'commands.drawer.also_as': 'Also Available As',
   'commands.drawer.ratelimits': 'Ratelimits',

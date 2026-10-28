@@ -1,3 +1,5 @@
+import { DEFAULT_LANGUAGE, type Language } from '@/i18n/languages';
+
 import { ApiEndpoints, guildEndpoints, type AdminStatsArea, type GuildScope } from './endpoints';
 import { ApiRequestError, apiRequest } from './client';
 import { ApiErrorCodes, toTagDirectoryCategory } from './types';
@@ -181,8 +183,13 @@ function removalQuery(removal?: AdminRemoval): {reason?: string, notice?: string
 
 
 export const api = {
-  fetchCommands: (signal?: AbortSignal) => {
-    return apiRequest<Array<Command>>(ApiEndpoints.COMMANDS, {auth: false, signal});
+  // descriptions in `language` where the bot has a translation, English otherwise
+  fetchCommands: (language: Language, signal?: AbortSignal) => {
+    return apiRequest<Array<Command>>(ApiEndpoints.COMMANDS, {
+      auth: false,
+      signal,
+      query: {language: (language === DEFAULT_LANGUAGE) ? undefined : language},
+    });
   },
 
   fetchCommandStats: (since: Date | null, signal?: AbortSignal) => {
