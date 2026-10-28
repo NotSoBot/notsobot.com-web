@@ -28,6 +28,17 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 
 export const CHANGELOG: Array<ChangelogDay> = [
   {
+    date: '2026-10-28',
+    title: 'Face cropping and VEGAS timecodes',
+    items: [
+      {kind: 'new', text: '`.crop face` and `/media-iv-tools crop-face`: crops an image, gif or video to one face and follows it on every frame, at the same size throughout. Pick the face by the number `.drawfaces` shows on it (0 by default). **MediaScript:** `cropface`.'},
+      {kind: 'new', text: '`.vegastimecode` (`.timecode`) and `/media-iv-text vegas-timecode`: burns the running time onto an image or video like VEGAS\' Timecode effect, the same as the `vegastimecode` MediaScript action (`.timecode left top film`).'},
+      {kind: 'new', text: '**MediaScript:** a `time` variable inside `foreachframe`: when the current frame starts, in seconds (a GIF\'s own frame delays count), next to `idx`. Use it to animate by time, e.g. `rotate pfpx time*90` turns a quarter a second whatever the frame rate.'},
+      {kind: 'improved', text: 'Prefix command examples use NotSoBot\'s own sample files (music, a voice clip, a video, a face, `.veg`/`.wlmp`/`.cube`/`.xyt` projects) that fit each command, instead of outside links.'},
+      {kind: 'new', text: 'Home page: a Show other commands button under the gallery goes through every command\'s preview before repeating one.'},
+    ],
+  },
+  {
     date: '2026-10-27',
     title: 'VivaVideo templates, Movie Maker projects and Oceanian flags',
     items: [

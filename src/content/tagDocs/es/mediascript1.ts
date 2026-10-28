@@ -188,7 +188,7 @@ export const MEDIASCRIPT_SPANISH_1: TagDocsTranslation['mediaScriptCommands'] = 
       'Da a cada fotograma del avatar un tono al azar.',
     ],
     notes: [
-      'El fotograma actual es la clave de multimedia `MEDIA_KEYx` (p. ej. `pfpx`), e `idx` es el número de fotograma. Usar el propio `MEDIA_KEY` dentro es un error.',
+      'El fotograma actual es la clave de multimedia `MEDIA_KEYx` (p. ej. `pfpx`), `idx` es el número de fotograma y `time` es cuándo empieza, en segundos. Usar el propio `MEDIA_KEY` dentro es un error.',
       'No uses dentro del bucle comandos que conviertan una imagen fija en un GIF; cada fotograma tiene que seguir siendo una sola imagen.',
       'Las variables y las claves de multimedia nuevas creadas dentro del bucle se descartan cuando termina. No se permite `render` dentro.',
     ],

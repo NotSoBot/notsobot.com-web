@@ -128,7 +128,7 @@ export const MEDIASCRIPT_GUIDE_PORTUGUESE: TagDocsTranslation['mediaScriptGuide'
       'Cada chave de mídia ganha quatro variáveis automáticas, com o nome da chave seguido de uma letra (sem sublinhado): `KEYw`, `KEYh`, `KEYd` e `KEYfc`. Elas são atualizadas sempre que a mídia muda.',
       '`set NAME VALUE` guarda um número (VALUE pode ser uma equação) e `get KEY PROPERTY NAME` copia uma propriedade de uma chave de mídia para uma variável. Depois, as duas podem ser usadas em qualquer equação seguinte. Os nomes de variável só podem usar letras, dígitos e sublinhados.',
       'Para devolver números ao TagScript, use `export NAME` (ou `export NAME ALIAS` para renomear) e `exportmultiple NAME1 NAME2 ...`. Quando o script termina, cada variável exportada é salva com o `{set:}` do TagScript, então você a lê depois com `{get:NAME}`. Valores exportados são sempre números. As exportações só voltam quando o script termina com sucesso.',
-      'Dentro de um bloco `foreachframe` ou `dobetween`, a variável `idx` guarda o número do quadro atual (só no foreachframe), e as variáveis que você definir dentro do bloco são descartadas quando ele termina.',
+      'Dentro de um bloco `foreachframe` ou `dobetween`, a variável `idx` guarda o número do quadro atual e `time` quando esse quadro começa, em segundos (só no foreachframe), e as variáveis que você definir dentro do bloco são descartadas quando ele termina.',
     ].join('\n\n'),
     table: {
       columns: ['Variável', 'Significado', 'Exemplo para a chave `img`'],
@@ -138,6 +138,7 @@ export const MEDIASCRIPT_GUIDE_PORTUGUESE: TagDocsTranslation['mediaScriptGuide'
         ['', 'Duração em segundos', ''],
         ['', 'Número de quadros', ''],
         ['', 'Número do quadro atual dentro do `foreachframe`', ''],
+        ['', 'Quando o quadro atual começa, em segundos, dentro do `foreachframe`', ''],
       ],
     },
     results: [
@@ -183,7 +184,7 @@ export const MEDIASCRIPT_GUIDE_PORTUGUESE: TagDocsTranslation['mediaScriptGuide'
     body: [
       'Quatro comandos executam outro código de MediaScript: `foreachframe` executa código uma vez por quadro, `dobetween` executa código num trecho de tempo, `if` executa código só quando uma comparação é verdadeira, e `reexport` executa código várias vezes sobre o próprio resultado (veja Efeitos de logo). O código vai no fim da linha.',
       'Como cada linha é um comando, código com mais de uma linha precisa ser codificado em JSON para caber numa linha só. O jeito fácil é `{jsonify:...}`: coloque os comandos de dentro, cada um na sua linha, dentro dele. Um único comando curto pode ser escrito direto, como `if rand(0,1) <= 0.5 flip img`.',
-      'Dentro de `foreachframe KEY START END CODE`, o quadro atual fica disponível como uma chave de mídia própria chamada `KEYx` (então para `pfp` é `pfpx`), e `idx` é o número do quadro. START é incluído e END não, então `0 pfpfc` cobre todos os quadros. Os comandos de dentro precisam manter o quadro como uma única imagem estática, então evite dentro do loop comandos que transformam imagens em GIFs (como `spin` ou `shake`).',
+      'Dentro de `foreachframe KEY START END CODE`, o quadro atual fica disponível como uma chave de mídia própria chamada `KEYx` (então para `pfp` é `pfpx`), `idx` é o número do quadro e `time` é quando ele começa, em segundos (os atrasos próprios de cada quadro de um GIF contam, então GIFs irregulares também funcionam). START é incluído e END não, então `0 pfpfc` cobre todos os quadros. Os comandos de dentro precisam manter o quadro como uma única imagem estática, então evite dentro do loop comandos que transformam imagens em GIFs (como `spin` ou `shake`).',
       '`dobetween KEY START END CODE` funciona do mesmo jeito, mas num intervalo de tempo em segundos: o trecho fica disponível como `KEYx`, e depois que o código roda ele é encaixado de volta entre as partes que não foram mexidas.',
       '`if LEFT OPERATOR RIGHT CODE` compara duas equações. Ao contrário da função `if()`, os dois lados e o operador precisam estar separados por espaços: `if imgw > 500 ...`.',
       'Chaves de mídia e variáveis criadas dentro de um loop desaparecem quando ele termina; mudanças em chaves que já existiam são mantidas. Não dá para usar `render` de dentro de um loop.',

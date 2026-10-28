@@ -208,6 +208,20 @@ export const MEDIASCRIPT_SPANISH_3: TagDocsTranslation['mediaScriptCommands'] = 
     summary: 'Recorta la multimedia en un círculo con el exterior transparente.',
     args: ONLY_MEDIA,
   },
+  cropface: {
+    summary: 'Recorta la multimedia a una cara y la sigue de fotograma en fotograma.',
+    args: {
+      MEDIA_KEY: MEDIA,
+      FACE: 'el número que `drawfaces` pone en la cara, en el primer fotograma en el que aparece',
+    },
+    results: [
+      'Sigue la primera cara encontrada en el video.',
+      'Recorta a la segunda cara (la que `drawfaces` numera 1).',
+    ],
+    notes: [
+      'Cada fotograma se recorta al mismo tamaño, el más grande que llega a tener la cara (con algo de margen), y centrado en ella, así que se mueve con la cara pero nunca hace zoom. En los fotogramas donde no se encuentra, su posición se toma de los fotogramas de alrededor.',
+    ],
+  },
   cropnft: {
     summary: 'Recorta la multimedia en un hexágono, como los avatares NFT de Twitter.',
     args: ONLY_MEDIA,

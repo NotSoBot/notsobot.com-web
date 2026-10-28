@@ -1,4 +1,4 @@
-import { ArrowRight, Crown, Sparkles, Upload, Wand2, type LucideIcon } from 'lucide-react';
+import { ArrowRight, Crown, RefreshCw, Sparkles, Upload, Wand2, type LucideIcon } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
 
@@ -87,7 +87,7 @@ export function HomePage() {
   const inviteUrl = apiUrl(ApiEndpoints.HELP_DISCORD_BOT);
   const commands = useCommandsQuery(language);
 
-  const { sliders, gallery } = useMemo(() => {
+  const { sliders, showcases } = useMemo(() => {
     const showcases = buildShowcases(commands.data ?? []);
     const sliders = HERO_COMMANDS
       .map((name) => showcases.find((showcase) => showcase.name === `.${name}`))
@@ -95,8 +95,14 @@ export function HomePage() {
     // the ones the slider doesn't already show first, so the gallery adds something. shuffled once per load so a
     // refresh shows other commands
     const rest = shuffle(showcases.filter((showcase) => !sliders.includes(showcase as Showcase & {before: CommandMedia})));
-    return {sliders, gallery: [ ...rest, ...sliders ].slice(0, GALLERY_SIZE)};
+    return {sliders, showcases: [ ...rest, ...sliders ]};
   }, [commands.data]);
+  // "show other commands" walks this one order a visible page at a time, wrapping at the end, so nothing repeats
+  // until every showcase has had its turn. phones step by what they show, not by the tiles hidden under md
+  const wide = useMediaQuery('(min-width: 48rem)');
+  const step = (wide) ? GALLERY_SIZE : GALLERY_PHONE_SIZE;
+  const [ galleryOffset, setGalleryOffset ] = useState(0);
+  const gallery = Array.from({length: Math.min(GALLERY_SIZE, showcases.length)}, (_, index) => showcases[(galleryOffset + index) % showcases.length]);
   // the slider (or its placeholder while the commands load) sits beside the headline on large screens
   const hasSlider = commands.isPending || sliders.length > 0;
   const collator = new Intl.Collator(displayLocale());
@@ -144,13 +150,27 @@ export function HomePage() {
           {t('home.features.description')}
         </p>
         {(gallery.length) ? (
-          <ul className='order-last mt-10 grid grid-cols-2 gap-3 md:mt-0 md:mb-12 md:grid-cols-4'>
-            {gallery.map((showcase, index) => (
-              <li key={showcase.command.id} className={cn(GALLERY_PHONE_SIZE <= index && 'max-md:hidden')}>
-                <GalleryTile showcase={showcase}/>
-              </li>
-            ))}
-          </ul>
+          <div className='order-last mt-10 md:mt-0 md:mb-12'>
+            <ul className='grid grid-cols-2 gap-3 md:grid-cols-4'>
+              {gallery.map((showcase, index) => (
+                <li key={showcase.command.id} className={cn(GALLERY_PHONE_SIZE <= index && 'max-md:hidden')}>
+                  <GalleryTile showcase={showcase}/>
+                </li>
+              ))}
+            </ul>
+            {(step < showcases.length) ? (
+              <div className='mt-4 text-center'>
+                <button
+                  type='button'
+                  className='btn btn-ghost btn-sm'
+                  onClick={() => setGalleryOffset((offset) => (offset + step) % showcases.length)}
+                >
+                  <RefreshCw aria-hidden className='size-3.5'/>
+                  {t('home.gallery.more')}
+                </button>
+              </div>
+            ) : null}
+          </div>
         ) : null}
         <dl className='grid gap-x-8 gap-y-6 sm:grid-cols-2 md:border-t md:border-line md:pt-8 lg:grid-cols-3'>
           {features.map((key) => (

@@ -128,7 +128,7 @@ export const MEDIASCRIPT_GUIDE_SPANISH: TagDocsTranslation['mediaScriptGuide'] =
       'Cada clave de multimedia recibe cuatro variables automáticas, con el nombre de la clave seguido de una letra (sin guion bajo): `KEYw`, `KEYh`, `KEYd` y `KEYfc`. Se actualizan cada vez que cambia la multimedia.',
       '`set NAME VALUE` guarda un número (VALUE puede ser una ecuación) y `get KEY PROPERTY NAME` copia una propiedad de una clave de multimedia en una variable. Después, las dos se pueden usar en cualquier ecuación posterior. Los nombres de variable solo pueden usar letras, dígitos y guiones bajos.',
       'Para devolver números a TagScript, usa `export NAME` (o `export NAME ALIAS` para renombrarlo) y `exportmultiple NAME1 NAME2 ...`. Cuando el script termina, cada variable exportada se guarda con el `{set:}` de TagScript, así que después la lees con `{get:NAME}`. Los valores exportados siempre son números. Las exportaciones solo vuelven cuando el script termina correctamente.',
-      'Dentro de un bloque `foreachframe` o `dobetween`, la variable `idx` contiene el número del fotograma actual (solo en foreachframe), y las variables que definas dentro del bloque se descartan cuando termina.',
+      'Dentro de un bloque `foreachframe` o `dobetween`, la variable `idx` contiene el número del fotograma actual y `time` cuándo empieza ese fotograma, en segundos (solo en foreachframe), y las variables que definas dentro del bloque se descartan cuando termina.',
     ].join('\n\n'),
     table: {
       columns: ['Variable', 'Significado', 'Ejemplo para la clave `img`'],
@@ -138,6 +138,7 @@ export const MEDIASCRIPT_GUIDE_SPANISH: TagDocsTranslation['mediaScriptGuide'] =
         ['', 'Duración en segundos', ''],
         ['', 'Número de fotogramas', ''],
         ['', 'Número del fotograma actual dentro de `foreachframe`', ''],
+        ['', 'Cuándo empieza el fotograma actual, en segundos, dentro de `foreachframe`', ''],
       ],
     },
     results: [
@@ -183,7 +184,7 @@ export const MEDIASCRIPT_GUIDE_SPANISH: TagDocsTranslation['mediaScriptGuide'] =
     body: [
       'Cuatro comandos ejecutan otro código de MediaScript: `foreachframe` ejecuta código una vez por fotograma, `dobetween` ejecuta código en un tramo de tiempo, `if` ejecuta código solo cuando una comparación es cierta, y `reexport` ejecuta código una y otra vez sobre su propio resultado (mira Efectos de logos). El código va al final de la línea.',
       'Como cada línea es un comando, el código de más de una línea tiene que ir codificado en JSON para que quepa en una sola línea. La forma fácil es `{jsonify:...}`: pon dentro los comandos interiores, cada uno en su propia línea. Un solo comando corto se puede escribir directamente, como `if rand(0,1) <= 0.5 flip img`.',
-      'Dentro de `foreachframe KEY START END CODE`, el fotograma actual está disponible como su propia clave de multimedia llamada `KEYx` (así que para `pfp` es `pfpx`), e `idx` es el número del fotograma. START está incluido y END no, así que `0 pfpfc` cubre todos los fotogramas. Los comandos de dentro tienen que dejar el fotograma como una sola imagen fija, así que evita dentro del bucle los comandos que convierten imágenes en GIFs (como `spin` o `shake`).',
+      'Dentro de `foreachframe KEY START END CODE`, el fotograma actual está disponible como su propia clave de multimedia llamada `KEYx` (así que para `pfp` es `pfpx`), `idx` es el número del fotograma y `time` es cuándo empieza, en segundos (cuentan los retardos propios de cada fotograma de un GIF, así que también funcionan los GIFs irregulares). START está incluido y END no, así que `0 pfpfc` cubre todos los fotogramas. Los comandos de dentro tienen que dejar el fotograma como una sola imagen fija, así que evita dentro del bucle los comandos que convierten imágenes en GIFs (como `spin` o `shake`).',
       '`dobetween KEY START END CODE` funciona igual pero sobre un rango de tiempo en segundos: el tramo está disponible como `KEYx`, y después de ejecutar el código se vuelve a coser entre las partes que no se tocaron.',
       '`if LEFT OPERATOR RIGHT CODE` compara dos ecuaciones. A diferencia de la función `if()`, los dos lados y el operador tienen que ir separados por espacios: `if imgw > 500 ...`.',
       'Las claves de multimedia y las variables creadas dentro de un bucle desaparecen cuando termina; los cambios en claves que ya existían se conservan. No puedes usar `render` desde dentro de un bucle.',

@@ -9,6 +9,7 @@ export const Home = {
   'home.features.title': 'What Can It Do?',
   'home.features.description': 'If it\'s an image, a gif, a video or a sound, there\'s a command to mess with it.',
   'home.gallery.alt': 'Result of {command}',
+  'home.gallery.more': 'Show other commands',
   'home.features.audio.title': 'Audio',
   'home.features.audio.description': 'Bass boost, pitch shift, slow down, extract audio from videos or slap a new soundtrack on a clip.',
   'home.features.conversion.title': 'Conversion',

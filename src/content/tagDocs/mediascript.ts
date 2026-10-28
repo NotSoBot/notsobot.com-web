@@ -276,7 +276,7 @@ export const MEDIASCRIPT_GUIDE: Array<TagDocGuideSection> = [
       'Every media key gets four automatic variables, named by putting a letter after the key (no underscore): `KEYw`, `KEYh`, `KEYd` and `KEYfc`. They update whenever the media changes.',
       '`set NAME VALUE` stores a number (VALUE can be an equation) and `get KEY PROPERTY NAME` copies a property of a media key into a variable. Both can then be used in any later equation. Variable names may only use letters, digits and underscores.',
       'To send numbers back to TagScript, use `export NAME` (or `export NAME ALIAS` to rename it) and `exportmultiple NAME1 NAME2 ...`. When the script finishes, each exported variable is saved with TagScript\'s `{set:}`, so you read it afterwards with `{get:NAME}`. Exported values are always numbers. Exports only come back when the script finishes successfully.',
-      'Inside a `foreachframe` or `dobetween` block, the variable `idx` holds the current frame number (foreachframe only), and any variables you set inside the block are thrown away when it ends.',
+      'Inside a `foreachframe` or `dobetween` block, the variable `idx` holds the current frame number and `time` when that frame starts, in seconds (foreachframe only), and any variables you set inside the block are thrown away when it ends.',
     ].join('\n\n'),
     table: {
       columns: ['Variable', 'Meaning', 'Example for key `img`'],
@@ -286,6 +286,7 @@ export const MEDIASCRIPT_GUIDE: Array<TagDocGuideSection> = [
         ['KEYd', 'Duration in seconds', '`imgd`'],
         ['KEYfc', 'Number of frames', '`imgfc`'],
         ['idx', 'Current frame number inside `foreachframe`', '`idx`'],
+        ['time', 'When the current frame starts, in seconds, inside `foreachframe`', '`time`'],
       ],
     },
     examples: [
@@ -340,7 +341,7 @@ export const MEDIASCRIPT_GUIDE: Array<TagDocGuideSection> = [
     body: [
       'Four commands run other MediaScript code: `foreachframe` runs code once per frame, `dobetween` runs code on a slice of time, `if` runs code only when a comparison is true, and `reexport` runs code over and over on its own result (see Logo effects). The code goes at the end of the line.',
       'Because each line is one command, code with more than one line has to be JSON-encoded so it fits on a single line. The easy way is `{jsonify:...}`: put the inner commands on their own lines inside it. A single short command can be written directly, like `if rand(0,1) <= 0.5 flip img`.',
-      'Inside `foreachframe KEY START END CODE`, the current frame is available as its own media key called `KEYx` (so for `pfp` it is `pfpx`), and `idx` is the frame number. START is inclusive and END is exclusive, so `0 pfpfc` covers every frame. Commands inside must keep the frame a single still image, so avoid commands that turn images into GIFs (like `spin` or `shake`) inside the loop.',
+      'Inside `foreachframe KEY START END CODE`, the current frame is available as its own media key called `KEYx` (so for `pfp` it is `pfpx`), `idx` is the frame number and `time` is when the frame starts in seconds (a GIF\'s own frame delays count, so uneven GIFs work too). START is inclusive and END is exclusive, so `0 pfpfc` covers every frame. Commands inside must keep the frame a single still image, so avoid commands that turn images into GIFs (like `spin` or `shake`) inside the loop.',
       '`dobetween KEY START END CODE` works the same way but on a time range in seconds: the slice is available as `KEYx`, and after the code runs it is stitched back between the untouched parts.',
       '`if LEFT OPERATOR RIGHT CODE` compares two equations. Unlike the `if()` function, the two sides and the operator must be separated by spaces: `if imgw > 500 ...`.',
       'Media keys and variables created inside a loop disappear when it ends; changes to keys that already existed are kept. You cannot `render` from inside a loop.',
@@ -911,7 +912,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
       },
     ],
     notes: [
-      'The current frame is the media key `MEDIA_KEYx` (e.g. `pfpx`), and `idx` is the frame number. Using `MEDIA_KEY` itself inside is an error.',
+      'The current frame is the media key `MEDIA_KEYx` (e.g. `pfpx`), `idx` is the frame number and `time` is when it starts in seconds. Using `MEDIA_KEY` itself inside is an error.',
       'Don\'t use commands that turn a still image into a GIF inside the loop; each frame must stay a single image.',
       'Variables and new media keys made inside the loop are discarded when it ends. `render` is not allowed inside.',
     ],
@@ -1717,6 +1718,23 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     summary: 'Crops the media into a circle with a transparent outside.',
     syntax: 'cropcircle MEDIA_KEY',
     args: [media()],
+  },
+  {
+    name: 'cropface',
+    category: 'size',
+    summary: 'Crops the media to one face and follows it from frame to frame.',
+    syntax: 'cropface MEDIA_KEY FACE=0',
+    args: [
+      media(),
+      {name: 'FACE', default: '0', range: '0..99', description: 'the number `drawfaces` puts on the face, on the first frame it shows up in'},
+    ],
+    examples: [
+      {code: '{mediascript:load {video} clip\ncropface clip\nrender clip}', result: 'Follows the first face found in the video.'},
+      {code: '{mediascript:load {image} img\ncropface img 1\nrender img}', result: 'Crops to the second face (the one `drawfaces` numbers 1).'},
+    ],
+    notes: [
+      'Every frame is cropped to the same size, the biggest the face gets (with some room around it), and centered on the face, so it moves with the face but never zooms. Frames it isn\'t found on take its place from the frames around them.',
+    ],
   },
   {
     name: 'cropnft',

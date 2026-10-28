@@ -12,6 +12,7 @@ export const Home: Record<keyof typeof English, string> = {
   'home.features.title': 'O que ele faz?',
   'home.features.description': 'Se é uma imagem, um gif, um vídeo ou um som, tem um comando para bagunçar com ele.',
   'home.gallery.alt': 'Resultado de {command}',
+  'home.gallery.more': 'Mostrar outros comandos',
   'home.features.audio.title': 'Áudio',
   'home.features.audio.description': 'Aumente o grave, mude o tom, desacelere, extraia o áudio de vídeos ou coloque uma trilha nova num clipe.',
   'home.features.conversion.title': 'Conversão',

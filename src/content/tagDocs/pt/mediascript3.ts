@@ -208,6 +208,20 @@ export const MEDIASCRIPT_PORTUGUESE_3: TagDocsTranslation['mediaScriptCommands']
     summary: 'Recorta a mídia num círculo com o lado de fora transparente.',
     args: ONLY_MEDIA,
   },
+  cropface: {
+    summary: 'Recorta a mídia em um rosto e o segue de quadro em quadro.',
+    args: {
+      MEDIA_KEY: MEDIA,
+      FACE: 'o número que o `drawfaces` coloca no rosto, no primeiro quadro em que ele aparece',
+    },
+    results: [
+      'Segue o primeiro rosto encontrado no vídeo.',
+      'Recorta no segundo rosto (o que o `drawfaces` numera 1).',
+    ],
+    notes: [
+      'Todo quadro é recortado no mesmo tamanho, o maior que o rosto chega a ter (com uma folga em volta), e centralizado nele, então acompanha o rosto mas nunca dá zoom. Nos quadros em que ele não é encontrado, a posição vem dos quadros ao redor.',
+    ],
+  },
   cropnft: {
     summary: 'Recorta a mídia num hexágono, como os avatares NFT do Twitter.',
     args: ONLY_MEDIA,

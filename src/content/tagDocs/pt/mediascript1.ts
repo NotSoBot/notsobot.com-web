@@ -190,7 +190,7 @@ export const MEDIASCRIPT_PORTUGUESE_1: TagDocsTranslation['mediaScriptCommands']
       'Dá um matiz aleatório para cada quadro do avatar.',
     ],
     notes: [
-      'O quadro atual é a chave de mídia `MEDIA_KEYx` (ex.: `pfpx`), e `idx` é o número do quadro. Usar o próprio `MEDIA_KEY` dentro é um erro.',
+      'O quadro atual é a chave de mídia `MEDIA_KEYx` (ex.: `pfpx`), `idx` é o número do quadro e `time` é quando ele começa, em segundos. Usar o próprio `MEDIA_KEY` dentro é um erro.',
       'Não use dentro do loop comandos que transformam uma imagem estática num GIF; cada quadro precisa continuar sendo uma única imagem.',
       'Variáveis e chaves de mídia novas criadas dentro do loop são descartadas quando ele termina. `render` não é permitido dentro.',
     ],
