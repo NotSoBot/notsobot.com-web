@@ -54,7 +54,7 @@ export const MEDIASCRIPT_PORTUGUESE_5: TagDocsTranslation['mediaScriptCommands']
       OPACITY: OPACITY_TOP,
     },
     results: [
-      'Escurece a imagem com um gradiente esticado por cima.',
+      'Escurece e tinge a imagem com um gradiente de pôr do sol esticado por cima.',
       'Aplica o avatar em modo screen no canto superior esquerdo de um vídeo, com 60% de opacidade.',
     ],
     notes: ['A mídia de cima não é redimensionada; use `resize` antes para cobrir toda a mídia de baixo. As partes transparentes da mídia de cima ficam fora da mesclagem.'],

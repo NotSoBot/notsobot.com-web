@@ -527,7 +527,7 @@ export const FUNCTIONS_PORTUGUESE_1: TagDocsTranslation['functions'] = {
       description: 'Texto alternativo do arquivo. Tudo depois do segundo `|` é usado.',
     },
     results: [
-      'Envia cat.png junto com a mensagem.',
+      'Envia b1.png junto com a mensagem.',
       'Anexa seu avatar como me.png com texto alternativo.',
     ],
     notes: [
@@ -587,7 +587,7 @@ export const FUNCTIONS_PORTUGUESE_1: TagDocsTranslation['functions'] = {
       filename: 'Nome a dar ao arquivo. Tudo depois do primeiro `|` é usado.',
     },
     results: [
-      'Envia song.mp3 como mensagem de voz.',
+      'Envia voice.mp3 como mensagem de voz.',
     ],
     notes: [
       'Sempre conta para o limite de requisições de rede (não fica em cache).',

@@ -504,12 +504,12 @@ export const TAG_DOC_GUIDE: Array<TagDocGuideSection> = [
       },
       {
         code: [
-          '{attach:https://example.com/cat.png|cat.png}',
+          '{attach:https://cdn.nsb.gg/assets/samples/b1.png|b1.png}',
           '{python:load FILE_1_COPY',
           '{ignore:import os',
-          'print("cat.png is", os.path.getsize(os.environ["FILE_1"]), "bytes")}}',
+          'print("b1.png is", os.path.getsize(os.environ["FILE_1"]), "bytes")}}',
         ].join('\n'),
-        result: 'cat.png is 20480 bytes, with cat.png still attached because of `_COPY`.',
+        result: 'b1.png is 39702 bytes, with b1.png still attached because of `_COPY`.',
       },
     ],
   },
@@ -603,8 +603,8 @@ export const TAG_DOC_GUIDE: Array<TagDocGuideSection> = [
         result: 'A red embed titled "Hello cake".',
       },
       {
-        code: '{attach:https://example.com/cat.png|kitty.png}Look at this cat!',
-        result: 'The text "Look at this cat!" with the image attached as kitty.png.',
+        code: '{attach:https://cdn.nsb.gg/assets/samples/b1.png|bot.png}Look at this!',
+        result: 'The text "Look at this!" with the image attached as bot.png.',
       },
       {
         code: '{componentjson:{"type": 2, "style": 1, "label": "Roll", "run": "You rolled {ignore:{range:1|6}}"}}',

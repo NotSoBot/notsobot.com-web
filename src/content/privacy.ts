@@ -3,7 +3,7 @@ import type { LegalDocument } from './legal';
 export const PRIVACY_POLICY: LegalDocument = {
   title: "Privacy Policy",
   effective: "October 13, 2026",
-  lastUpdated: "October 27, 2026",
+  lastUpdated: "October 28, 2026",
   intro: "This Privacy Policy explains what information NotSoBot collects, why, who it's shared with, how long it's kept, and how You can get a copy of it or have it deleted.",
   sections: [
     {
@@ -97,7 +97,7 @@ export const PRIVACY_POLICY: LegalDocument = {
         {type: 'list', items: [
           "Discord, to run the bot, process purchases, and log You in to the website.",
           "AI providers, listed in Section 8, which receive the prompt and any media You give an AI command in order to generate your result.",
-          "Search, information and media sources, such as Google, DuckDuckGo, Bing, Yandex, Wolfram Alpha, YouTube and Reddit, which receive the search terms or links You give a command that looks something up.",
+          "Search, information and media sources, such as Google, DuckDuckGo, Bing, Yandex, Wolfram Alpha, YouTube and Reddit, which receive the search terms, links or images You give a command that looks something up (a reverse image search sends Google the image).",
           "Backblaze, which stores files You ask NotSoBot to host.",
           "Cloudflare, which hosts and protects the website. When You send a report from the website without logging in, Cloudflare Turnstile checks that You're not a bot. It receives your IP address and information about your browser to do this.",
           "Sentry, which receives error reports when something breaks. These can include the IDs and command details involved in the error.",

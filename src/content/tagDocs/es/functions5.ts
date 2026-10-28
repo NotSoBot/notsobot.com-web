@@ -193,7 +193,7 @@ export const FUNCTIONS_SPANISH_5: TagDocsTranslation['functions'] = {
     },
     results: [
       'El texto hablado del último audio/vídeo del chat',
-      'El texto hablado de clip.mp3',
+      'El texto hablado de voice.mp3',
     ],
     notes: [
       ONE_REQUEST,

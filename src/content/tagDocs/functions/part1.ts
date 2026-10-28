@@ -629,7 +629,7 @@ export const TAG_DOC_FUNCTIONS_PART1: Array<TagDocFunction> = [
       {name: 'description', description: 'Alt text for the file. Everything after the second `|` is used.', optional: true},
     ],
     examples: [
-      {code: '{attach:https://example.com/cat.png}', result: 'Sends cat.png along with the message.'},
+      {code: '{attach:https://cdn.nsb.gg/assets/samples/b1.png}', result: 'Sends b1.png along with the message.'},
       {code: '{attach:{avatar}|me.png|My avatar}', result: 'Attaches your avatar as me.png with alt text.'},
     ],
     notes: [
@@ -668,7 +668,7 @@ export const TAG_DOC_FUNCTIONS_PART1: Array<TagDocFunction> = [
       {name: 'description', description: 'Alt text for the file.', optional: true},
     ],
     examples: [
-      {code: '{attachspoiler:https://example.com/plot-twist.png}', result: 'Sends the image hidden behind a spoiler.'},
+      {code: '{attachspoiler:https://cdn.nsb.gg/assets/samples/face.png}', result: 'Sends the image hidden behind a spoiler.'},
     ],
     notes: [
       'Shares all limits and behaviour with {attach}.',
@@ -705,7 +705,7 @@ export const TAG_DOC_FUNCTIONS_PART1: Array<TagDocFunction> = [
       {name: 'filename', description: 'Name to give the file. Everything after the first `|` is used.', optional: true},
     ],
     examples: [
-      {code: '{attachvoice:https://example.com/song.mp3}', result: 'Sends song.mp3 as a voice message.'},
+      {code: '{attachvoice:https://cdn.nsb.gg/assets/samples/voice.mp3}', result: 'Sends voice.mp3 as a voice message.'},
     ],
     notes: [
       'Always counts against the network request limit (not cached).',

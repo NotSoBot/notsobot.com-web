@@ -190,7 +190,7 @@ export const FUNCTIONS_PORTUGUESE_2: TagDocsTranslation['functions'] = {
     },
     results: [
       'O texto encontrado na última imagem do chat',
-      'O texto da placa',
+      'O texto da legenda, quando o bot funciona',
     ],
     notes: [
       'Conta como uma requisição de rede.',

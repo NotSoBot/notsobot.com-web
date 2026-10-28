@@ -53,7 +53,7 @@ export const MEDIASCRIPT_SPANISH_5: TagDocsTranslation['mediaScriptCommands'] = 
       OPACITY: OPACITY_TOP,
     },
     results: [
-      'Oscurece la imagen con un degradado estirado por encima.',
+      'Oscurece y tiñe la imagen con un degradado de atardecer estirado por encima.',
       'Aplica el avatar en modo screen sobre la esquina superior izquierda de un vídeo, al 60% de opacidad.',
     ],
     notes: ['La multimedia de encima no se redimensiona; usa antes `resize` para que cubra toda la de abajo. Las partes transparentes de la multimedia de encima quedan fuera de la fusión.'],

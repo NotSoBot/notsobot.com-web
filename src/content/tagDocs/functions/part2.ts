@@ -247,7 +247,7 @@ export const TAG_DOC_FUNCTIONS_PART2: Array<TagDocFunction> = [
     args: [IMAGE_ARG],
     examples: [
       {code: '{ocr}', result: 'The text found in the last image in chat'},
-      {code: '{ocr:https://example.com/sign.png}', result: 'The text on the sign'},
+      {code: '{ocr:https://cdn.nsb.gg/assets/samples/captioned.png}', result: 'The caption\'s text, when the bot works'},
     ],
     notes: [
       'Counts as a network request.',

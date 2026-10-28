@@ -247,7 +247,7 @@ export const TAG_DOC_FUNCTIONS_PART5: Array<TagDocFunction> = [
     ],
     examples: [
       {code: '{transcribe}', result: 'The spoken text of the last audio/video in the chat'},
-      {code: '{transcribe:https://example.com/clip.mp3}', result: 'The spoken text of clip.mp3'},
+      {code: '{transcribe:https://cdn.nsb.gg/assets/samples/voice.mp3}', result: 'The spoken text of voice.mp3'},
     ],
     notes: [
       'Counts as a network request.',

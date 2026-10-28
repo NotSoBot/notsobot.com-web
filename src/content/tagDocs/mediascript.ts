@@ -479,12 +479,12 @@ export const MEDIASCRIPT_GUIDE: Array<TagDocGuideSection> = [
         result: 'The scrolling mirror look from Preview 1280 effects, with the audio down 2 semitones.',
       },
       {
-        code: '{mediascript:load {video} clip\nloadcube https://example.com/Cold_Major.cube cm\nffmpeg clip -vf "lut3d=cm.cube" -af "rubberband=pitch=2^(-2/12)"\nrender clip}',
-        result: 'Color grades the clip with a .cube LUT (swap in the real link to your LUT).',
+        code: '{mediascript:load {video} clip\nloadcube https://cdn.nsb.gg/assets/samples/grade.cube grade\nffmpeg clip -vf "lut3d=grade.cube" -af "rubberband=pitch=2^(-2/12)"\nrender clip}',
+        result: 'Color grades the clip with a teal and orange .cube LUT, with the audio down 2 semitones.',
       },
       {
-        code: '{mediascript:load {video} clip\nload https://example.com/tv_displacement.mp4 tv\nffmpeg clip -i tv -filter_complex "[0:v]scale=640:360,split[v][g0];[g0]drawbox=c=gray:t=fill[g];[1:v]scale=640:360,format=gray[d];[v][d][g]displace=edge=wrap"\nrender clip}',
-        result: 'A TV wobble with your own displacement video, loaded as its own media key instead of `movie=$(curl ...)`. For the usual TV simulator look, `tvsimulator clip` does this with a built-in map. The result is as long as the clip; a shorter displacement video holds its last frame.',
+        code: '{mediascript:load {video} clip\nload https://cdn.nsb.gg/assets/samples/displacement.mp4 tv\nffmpeg clip -i tv -filter_complex "[0:v]scale=640:360,split[v][g0];[g0]drawbox=c=gray:t=fill[g];[1:v]scale=640:360,format=gray[d];[v][d][g]displace=edge=wrap"\nrender clip}',
+        result: 'A TV wobble from a displacement video, loaded as its own media key instead of `movie=$(curl ...)`. For the usual TV simulator look, `tvsimulator clip` does this with a built-in map. The result is as long as the clip; a shorter displacement video holds its last frame.',
       },
       {
         code: '{mediascript:load {video} clip\nreexport clip -10 1 {jsonify:\nhueshifthsvffmpeg clipx 36\njpeg clipx\n}\nrender clip}',
@@ -591,7 +591,7 @@ export const MEDIASCRIPT_GUIDE: Array<TagDocGuideSection> = [
     },
     examples: [
       {
-        code: '{mediascript:load {iv} logo\nloadveg https://example.com/preview1280.veg p\nvegrender logo p\nrender logo}',
+        code: '{mediascript:load {iv} logo\nloadveg https://cdn.nsb.gg/assets/samples/preview1280.veg p\nvegrender logo p\nrender logo}',
         result: 'The project rebuilt with the last image or video in every clip.',
       },
       {
@@ -731,7 +731,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
       {name: 'CUTOFF', default: 'true', description: 'a clip that starts on a track cuts off the one before it (false lets them overlap)'},
     ],
     examples: [
-      {code: '{mediascript:load {iv} logo\nloadveg https://example.com/preview1280.veg p\nvegrender logo p\nrender logo}', result: 'The project rebuilt with the last image or video in every clip.'},
+      {code: '{mediascript:load {iv} logo\nloadveg https://cdn.nsb.gg/assets/samples/preview1280.veg p\nvegrender logo p\nrender logo}', result: 'The project rebuilt with the last image or video in every clip.'},
     ],
     notes: [
       'Rebuilt: the timeline (cuts, tracks, mute and solo, speed, reversed events and subclips), pitch changes (including the Pitch Shift plugin), the Distortion audio plugin, event fades, Pan/Crop zooms, moves, turns and flips with their keyframe curves, track motion with its 2D Shadow and Glow, solid colors, checkerboards, test patterns, color gradients, noise, text (with its font, colors, outline, shadow, position, Pan/Crop and keyframes, and VEGAS Titles & Text without its animations), and these effects on events, tracks and the project\'s video output: Black and White, Invert, HSL Adjust, Color Corrector (Secondary), Color Curves, Convolution Kernel, Linear Blur, Mirror, Swirl, Pinch/Punch, Spherize, Deform, the classic Wave, Channel Blend, Gaussian Blur, Pixelate, Threshold, Gradient Map, Glow, Radial Blur, Light Rays, NewBlue Wiggle, Duochrome, Metallic, Ghost and Earthquake, TV Simulator, Cookie Cutter, Chroma Keyer, LAB Adjust, Levels, Brightness and Contrast, Sepia, Unsharp Mask, Sharpen, Bump Map, Add Noise, Median, Min and Max, Vignette, Radial Pixelate, Soft Contrast, Rays, Border, Film Effects, Newsprint, Lens Flare and the NewBlue Dream Glow, Line Drawing, Charcoal, Old TV, Motion/Spin/Zoom Blur, Ripple, Colorize, Video Tune-up, Pastel Sketch, Film Damage, Charcoal, Shear Energy and Tile, Timecode, Defocus, with the older plugins\' keyframes. Compositing modes, fade curves, velocity, audio track volume and pan envelopes and most of the Vegas and ExpressFX audio plugins play too. Other effects (other NewBlue effects, OFX plugins from other companies...), transition effects and opacity envelopes are not, so a project that uses them will look different. The full list is in the Vegas projects section.',
@@ -805,7 +805,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
       {name: 'XYT_KEY', description: 'a template from `loadxyt`'},
     ],
     examples: [
-      {code: '{mediascript:load {iv} img\nloadxyt https://example.com/0400000000080004.xyt t\nxytrender img t\nrender img}', result: 'The last image or video through the template.'},
+      {code: '{mediascript:load {iv} img\nloadxyt https://cdn.nsb.gg/assets/samples/funface.xyt t\nxytrender img t\nrender img}', result: 'The last image or video through the template.'},
     ],
     notes: [
       'Images, gifs and videos stay what they are (a video keeps its audio). The template\'s keyframes play over the media\'s time, and a template that moves turns a still image into a gif of one play of it (at most 10 seconds).',
@@ -825,7 +825,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     ],
     examples: [
       {
-        code: '{mediascript:load {video} clip\nloadcube https://example.com/Cold_Major.cube cm\napplylut clip cm\nrender clip}',
+        code: '{mediascript:load {video} clip\nloadcube https://cdn.nsb.gg/assets/samples/grade.cube grade\napplylut clip grade\nrender clip}',
         result: 'Color grades the video with the LUT.',
       },
     ],
@@ -2047,7 +2047,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     ],
     examples: [
       {code: '{mediascript:load {iv} img\nload {avatar} pfp\noverlay img pfp (imgw/2)-(pfpw/2) (imgh/2)-(pfph/2)\nrender img}', result: 'Puts the avatar in the middle of the image.'},
-      {code: '{mediascript:load {video} clip\nload https://example.com/greenscreen.mp4 gs\noverlay clip gs color=green similarity=0.3 blend=0.2\nrender clip}', result: 'Overlays a green-screen video with the green removed.'},
+      {code: '{mediascript:load {video} clip\nload https://cdn.nsb.gg/assets/samples/greenscreen.mp4 gs\noverlay clip gs color=lime similarity=0.3 blend=0.2\nrender clip}', result: 'Overlays a green-screen video with the green removed.'},
     ],
   },
   {
@@ -2065,7 +2065,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
       {name: 'OPACITY', default: '100', range: '0..100', description: 'opacity of the top media'},
     ],
     examples: [
-      {code: '{mediascript:load {iv} img\nload https://example.com/gradient.png grad\nresize grad imgw imgh\nblend img grad multiply\nrender img}', result: 'Darkens the image with a gradient stretched over it.'},
+      {code: '{mediascript:load {iv} img\nload https://cdn.nsb.gg/assets/samples/gradient.png grad\nresize grad imgw imgh\nblend img grad multiply\nrender img}', result: 'Darkens and tints the image with a sunset gradient stretched over it.'},
       {code: '{mediascript:load {video} clip\nload {avatar} pfp\nblend clip pfp screen 10 10 opacity=60\nrender clip}', result: 'Screens the avatar onto the top left of a video at 60% opacity.'},
     ],
     notes: ['The top media isn\'t resized, use `resize` first to cover the whole bottom media. Transparent parts of the top media are left out of the blend.'],
@@ -2744,7 +2744,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
         result: 'Grades the image or video with the attached `.cube` file.',
       },
       {
-        code: '{mediascript:load {video} clip\nloadcube https://example.com/Cold_Major.cube cm\napplylut clip cm 0.6\nrender clip}',
+        code: '{mediascript:load {video} clip\nloadcube https://cdn.nsb.gg/assets/samples/grade.cube grade\napplylut clip grade 0.6\nrender clip}',
         result: 'Grades the clip at 60% strength.',
       },
     ],
@@ -4126,8 +4126,8 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
       {name: 'BANDS', default: '75', range: '1..512', description: 'how many frequency bands the voice is split into: fewer sounds more robotic, more sounds clearer'},
     ],
     examples: [
-      {code: '{mediascript:load {video} clip\nload https://example.com/song.mp3 song\nvocoder clip song\nrender clip}', result: 'The clip\'s voice singing the song, the video stays the same.'},
-      {code: '{mediascript:load {audio} voice\nload https://example.com/synth.mp3 synth\nvocoder voice synth 16\nrender voice}', result: 'A robotic 16 band vocoder.'},
+      {code: '{mediascript:load {video} clip\nload https://cdn.nsb.gg/assets/samples/music.mp3 song\nvocoder clip song\nrender clip}', result: 'The clip\'s voice singing the song, the video stays the same.'},
+      {code: '{mediascript:load {audio} voice\nload https://cdn.nsb.gg/assets/samples/music.mp3 synth\nvocoder voice synth 16\nrender voice}', result: 'A robotic 16 band vocoder.'},
     ],
     notes: [
       'A channel vocoder like the Zerius Vocoder that autotune.exe is: about 1/15 second windows, split into BANDS bands, with the music\'s bands made as loud as the voice\'s and the result as loud as the music. It is not pitch correction.',

@@ -291,7 +291,7 @@ export const GUIDE_SPANISH: TagDocsTranslation['guide'] = {
       'La descripción que hace la IA de la última imagen del chat (gasta tu única llamada a `{ai}`).',
       'The inverted image is 512x512. El resultado de MediaScript se movió a Python, así que no se adjunta.',
       'Python crea un cuadrado rojo, MediaScript lo hace girar, y solo se envía el GIF que gira.',
-      'cat.png is 20480 bytes, con cat.png todavía adjunto gracias a `_COPY`.',
+      'b1.png is 39702 bytes, con b1.png todavía adjunto gracias a `_COPY`.',
     ],
   },
 
@@ -371,7 +371,7 @@ export const GUIDE_SPANISH: TagDocsTranslation['guide'] = {
     ].join('\n\n'),
     results: [
       'Un embed rojo titulado "Hello cake".',
-      'El texto "Look at this cat!" con la imagen adjunta como kitty.png.',
+      'El texto "Look at this!" con la imagen adjunta como bot.png.',
       'Un botón "Roll" que saca un número nuevo cada vez que se hace clic en él.',
     ],
   },

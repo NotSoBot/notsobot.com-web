@@ -32,7 +32,7 @@ export const TAG_DOC_FUNCTIONS_PART4: Array<TagDocFunction> = [
       {name: 'code', description: 'The MediaScript code to run.'},
     ],
     examples: [
-      {code: '{image:https://example.com/cat.png}{mscriptmaybeurl:...code using FILE_1...}', result: 'The edited image, attached or as a link'},
+      {code: '{image:https://cdn.nsb.gg/assets/samples/b1.png}{mscriptmaybeurl:...code using FILE_1...}', result: 'The edited image, attached or as a link'},
     ],
     notes: [
       MEDIASCRIPT_FILES_NOTE,
@@ -54,7 +54,7 @@ export const TAG_DOC_FUNCTIONS_PART4: Array<TagDocFunction> = [
       {name: 'code', description: 'The MediaScript code to run.'},
     ],
     examples: [
-      {code: '{image:https://example.com/cat.png}{mscripturl:...code using FILE_1...}', result: 'A URL to the edited image'},
+      {code: '{image:https://cdn.nsb.gg/assets/samples/b1.png}{mscripturl:...code using FILE_1...}', result: 'A URL to the edited image'},
     ],
     notes: [
       'Uploaded results expire after 7 days.',
