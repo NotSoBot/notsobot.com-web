@@ -118,7 +118,7 @@ export function AdminAllTagsPage() {
           {(debouncedQuery && !searchContent && !ID_SEARCH.test(debouncedQuery)) ? (
             <>
               No tag names match that search.{' '}
-              <button type='button' className='cursor-pointer text-brand hover:underline' onClick={() => update({content: '1'})}>Search content too</button>
+              <button type='button' className='cursor-pointer text-brand-text hover:underline' onClick={() => update({content: '1'})}>Search content too</button>
             </>
           ) : (debouncedQuery || hideNsfw || serverId) ? 'Try a different search or filter.' : null}
         </EmptyState>
@@ -180,7 +180,7 @@ function TagCard({ item, onOpen, onDelete }: {item: AdminTagItem, onOpen: (id: s
       <div className='mb-3 flex items-start justify-between gap-3'>
         <div className='min-w-0 flex-1'>
           <div className='flex items-center gap-2'>
-            <h2 className='truncate font-medium text-white transition-colors group-hover:text-brand'>
+            <h2 className='truncate font-medium text-white transition-colors group-hover:text-brand-text'>
               {/* stretched: the whole card opens the tag */}
               <button
                 type='button'

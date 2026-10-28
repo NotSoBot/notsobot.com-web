@@ -153,7 +153,7 @@ function ReportRow({ report, onOpen }: {report: SentGuildReport, onOpen: (id: st
         <span className='col-span-2 row-start-3 flex min-w-0 items-center gap-2 text-sm text-muted'>
           {(report.replies) ? (
             <span
-              className={cn('inline-flex shrink-0 items-center gap-1 text-xs', (replied) ? 'font-medium text-brand' : 'text-subtle')}
+              className={cn('inline-flex shrink-0 items-center gap-1 text-xs', (replied) ? 'font-medium text-brand-text' : 'text-subtle')}
               title={(replied) ? t('sreports.replied_last') : plural('reports.replies', report.replies)}
             >
               <MessagesSquare aria-hidden className='size-3.5'/>
@@ -320,7 +320,7 @@ function Conversation({ report }: {report: SentGuildReport}) {
         throw error;
       })}
       sending={send.isPending}
-      staff={{name: t('sreports.moderators'), icon: <Shield className='size-4 text-brand'/>}}
+      staff={{name: t('sreports.moderators'), icon: <Shield className='size-4 text-brand-text'/>}}
       emptyText={t('sreports.empty_thread')}
       placeholder={t('sreports.placeholder')}
       maxLength={MAX_REPLY_LENGTH}

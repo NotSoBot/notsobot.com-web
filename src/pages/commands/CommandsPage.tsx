@@ -2,11 +2,13 @@ import { Check, Flame, LayoutGrid } from 'lucide-react';
 import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 
+import { FiltersButton } from '@/components/ui/FiltersButton';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Routes } from '@/config';
 import { Segmented } from '@/components/ui/Segmented';
 import { readStored, writeStored } from '@/hooks/usePersistentState';
 import { useI18n } from '@/i18n';
+import type { CommandType } from '@/lib/api';
 import { useCommandsQuery, useCommandStatsQuery } from '@/lib/api/queries';
 import { cn, formatCompact, formatNumber } from '@/lib/utils';
 
@@ -25,6 +27,7 @@ import {
   matchesAccess,
   TYPE_OPTIONS,
   typeOptionFromParam,
+  type Entry,
 } from './commandMeta';
 
 
@@ -43,6 +46,8 @@ type Sort = 'popular' | 'az';
 export function CommandsPage() {
   const { t, plural, rich } = useI18n();
   const [ searchParams, setSearchParams ] = useSearchParams();
+  // the type/access/dm/sort panel starts closed, the button shows how many are set meanwhile
+  const [ filtersOpen, setFiltersOpen ] = useState(false);
 
   const typeOption = typeOptionFromParam(searchParams.get('type'));
   const category = (searchParams.get('category') || '').toUpperCase() || null;
@@ -98,14 +103,16 @@ export function CommandsPage() {
   const { data: commands, isPending, isError, refetch } = useCommandsQuery();
   const { data: stats } = useCommandStatsQuery(7);
 
+  // every command, for the header and the drawer (which shows all of a command's variants whatever the filters)
   const entries = useMemo(() => buildEntries(commands || [], stats), [commands, stats]);
   const weekTotal = useMemo(() => entries.reduce((sum, entry) => sum + entry.uses, 0), [entries]);
   const totalRanked = useMemo(() => entries.filter((entry) => entry.rank).length, [entries]);
 
-  // type, DM and free/premium narrow everything (counts, trending, list); category and search only the list
-  const scoped = useMemo(() => entries.filter(({ metadata }) => {
+  // Type, DM and free/premium narrow everything (counts, trending, list) and pick the variants first, so the Slash
+  // filter shows slash names and slash uses; category and search only narrow the list.
+  const scoped = useMemo(() => buildEntries(commands || [], stats, (metadata) => {
     return (!typeOption.types || typeOption.types.includes(metadata.type)) && (!dmOnly || metadata.dmable) && matchesAccess(metadata, access);
-  }), [entries, typeOption, dmOnly, access]);
+  }), [commands, stats, typeOption, dmOnly, access]);
 
   const categoryCounts = useMemo(() => {
     const counts = new Map<string, number>();
@@ -117,14 +124,17 @@ export function CommandsPage() {
 
   const filtered = useMemo(() => {
     const needle = deferredQuery.trim().toLowerCase();
-    const result = scoped.filter(({ metadata, category: entryCategory }) => {
+    const result = scoped.filter(({ variants, category: entryCategory }) => {
       if (category && entryCategory !== category) {
         return false;
       }
+      // any of the card's variants, so the slash name finds the merged card too
       if (needle) {
-        return metadata.name.toLowerCase().includes(needle)
-          || !!metadata.description?.toLowerCase().includes(needle)
-          || metadata.aliases.some((alias) => alias.toLowerCase().includes(needle));
+        return variants.some(({ metadata }) => {
+          return metadata.name.toLowerCase().includes(needle)
+            || !!metadata.description?.toLowerCase().includes(needle)
+            || metadata.aliases.some((alias) => alias.toLowerCase().includes(needle));
+        });
       }
       return true;
     });
@@ -158,22 +168,22 @@ export function CommandsPage() {
   }, [typeOption.param, category, dmOnly, access, deferredQuery, sort]);
 
   const selected = (commandId) ? entryFromPath(entries, commandId, commandType) : undefined;
-  const siblings = (selected) ? entries.filter((entry) => entry.command.id === selected.command.id && entry.key !== selected.key) : [];
+  const siblings = (selected) ? entries.filter((entry) => entry.command.id === selected.entry.command.id && entry.key !== selected.entry.key) : [];
   // the filters stay in the query string either way
   const goTo = useCallback((pathname: string, search: string) => {
     navigate({pathname, search}, {replace: true, preventScrollReset: true});
   }, [navigate]);
-  const openCommand = useCallback((key: string) => {
-    const entry = entries.find((item) => item.key === key);
-    if (entry) {
-      goTo(commandPath(entry, entries), location.search);
-    }
-  }, [entries, goTo, location.search]);
+  // a card opens on the variant it shows
+  const openCommand = useCallback((entry: Entry, type: CommandType = entry.metadata.type) => {
+    goTo(commandPath(entry.command, type), location.search);
+  }, [goTo, location.search]);
   const closeCommand = useCallback(() => goTo(Routes.COMMANDS, location.search), [goTo, location.search]);
 
   const categories = useMemo(() => categoryOrder(t), [t]);
 
   const activeFilterCount = Number(typeOption.types !== null) + Number(!!category) + Number(dmOnly) + Number(access !== 'all');
+  // the ones in the toolbar's panel, the category is picked in the sidebar and stays visible
+  const panelFilterCount = Number(typeOption.types !== null) + Number(dmOnly) + Number(access !== 'all') + Number(sort !== 'popular');
 
   return (
     <>
@@ -215,7 +225,7 @@ export function CommandsPage() {
                   )}
                 >
                   {trending.map((entry) => (
-                    <TrendingCard key={entry.key} entry={entry} max={trending[0].uses} onOpen={() => openCommand(entry.key)}/>
+                    <TrendingCard key={entry.key} entry={entry} max={trending[0].uses} onOpen={() => openCommand(entry)}/>
                   ))}
                 </ul>
               </div>
@@ -259,15 +269,18 @@ export function CommandsPage() {
           </aside>
 
           <div ref={resultsRef} className='min-w-0 scroll-mt-20'>
-            <div className='mb-4 flex flex-col gap-3 xl:flex-row xl:items-center'>
-              <SearchInput
-                className='flex-1'
-                value={query}
-                onValueChange={(value) => updateParams({q: value || null})}
-                placeholder={t('commands.search_placeholder')}
-                aria-label={t('commands.search_label')}
-              />
-              <div className='flex flex-wrap items-center gap-2'>
+            <div className='mb-4'>
+              <div className='flex gap-2'>
+                <SearchInput
+                  className='min-w-0 flex-1'
+                  value={query}
+                  onValueChange={(value) => updateParams({q: value || null})}
+                  placeholder={t('commands.search_placeholder')}
+                  aria-label={t('commands.search_label')}
+                />
+                <FiltersButton open={filtersOpen} onToggle={() => setFiltersOpen((value) => !value)} active={panelFilterCount} controls='commands-filters'/>
+              </div>
+              <div id='commands-filters' hidden={!filtersOpen} className='mt-3 flex flex-wrap items-center gap-2'>
                 <Segmented
                   label={t('commands.type_label')}
                   value={typeOption.param}
@@ -317,7 +330,7 @@ export function CommandsPage() {
               <>
                 <ul className='grid grid-cols-1 gap-3 md:grid-cols-2 2xl:grid-cols-3'>
                   {filtered.slice(0, visible).map((entry) => (
-                    <CommandCard key={entry.key} entry={entry} onOpen={() => openCommand(entry.key)}/>
+                    <CommandCard key={entry.key} entry={entry} onOpen={() => openCommand(entry)}/>
                   ))}
                 </ul>
                 {(visible < filtered.length) ? (
@@ -336,7 +349,14 @@ export function CommandsPage() {
       </div>
 
       {(selected) ? (
-        <CommandDrawer entry={selected} siblings={siblings} totalRanked={totalRanked} onSelect={openCommand} onClose={closeCommand}/>
+        <CommandDrawer
+          entry={selected.entry}
+          type={selected.type}
+          siblings={siblings}
+          totalRanked={totalRanked}
+          onSelect={openCommand}
+          onClose={closeCommand}
+        />
       ) : null}
     </>
   );

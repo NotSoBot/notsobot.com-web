@@ -141,7 +141,7 @@ function RemindersList({ guildId }: {guildId: string}) {
       {(isPending || steppingBack) ? (
         <ListSkeleton/>
       ) : (isError && !items.length) ? (
-        <div role='alert' className='flex items-center gap-3 text-sm text-danger'>
+        <div role='alert' className='flex items-center gap-3 text-sm text-danger-text'>
           {errorMessage(error, t('sreminders.load_error'))}
           <button type='button' className='btn btn-secondary btn-sm' disabled={isRefetching} onClick={() => void refetch()}>{t('common.try_again')}</button>
         </div>

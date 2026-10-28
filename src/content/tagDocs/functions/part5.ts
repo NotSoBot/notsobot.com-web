@@ -100,7 +100,7 @@ export const TAG_DOC_FUNCTIONS_PART5: Array<TagDocFunction> = [
       {code: '{tag.create:greet|{ignore:hi {user}!}}', result: '`greet`, and running `tag greet` says hi to whoever runs it'},
     ],
     notes: [
-      'Only NotSoAI can use this, and only in its own reply: in a user\'s tag, or a button NotSoAI made, the function is left as plain text.',
+      'Only NotSoAI can use this, and only in its own reply: in a user\'s tag, or a button NotSoAI made, the function is left as plain text. It is also left as plain text when NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), and in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run.',
       'Only makes new tags. Errors if a tag with that name already exists in the server, even one of your own.',
       'NotSoAI can only create one tag per message.',
       'Counts against the API manipulation limit (1 per run by default) and the network request limit.',

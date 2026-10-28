@@ -1,6 +1,6 @@
 // the FAQ page's chrome, the questions themselves are in content/faq.ts
 export const Faq = {
-  'faq.badge': 'Help Center',
+  'faq.badge': 'Help center',
   'faq.title': 'Frequently Asked Questions',
   'faq.description': 'Everything about adding NotSoBot, running commands, setting it up for your server, premium and your data.',
   'faq.search_placeholder': 'Search questions and answers...',
@@ -11,7 +11,7 @@ export const Faq = {
   'faq.sections': 'Sections',
   'faq.empty_title': 'No answers match “{query}”.',
   'faq.empty_description': 'Try different words, or ask in the support server below.',
-  'faq.stuck_title': 'Still stuck?',
+  'faq.stuck_title': 'Still Stuck?',
   'faq.stuck_description': 'Ask in the support server and someone will help you out.',
   'faq.join_support': 'Join the support server',
   'faq.browse_commands': 'Browse commands',

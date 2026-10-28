@@ -125,9 +125,9 @@ function StorageBrowser({ id, tagId }: {id: string, tagId: string}) {
         {(current.isPending) ? (
           <p className='flex items-center gap-2 text-sm text-muted'><Spinner className='size-4'/> Loading…</p>
         ) : (current.isError && !data) ? (
-          <p className='text-sm text-danger'>
+          <p className='text-sm text-danger-text'>
             {errorMessage(current.error)}{' '}
-            <button type='button' className='cursor-pointer text-brand hover:underline' onClick={() => current.refetch()}>Retry</button>
+            <button type='button' className='cursor-pointer text-brand-text hover:underline' onClick={() => current.refetch()}>Retry</button>
           </p>
         ) : (!data?.items.length) ? (
           <p className='text-sm text-subtle italic'>

@@ -152,7 +152,7 @@ function BlobsForm({ tag, scope, blobs, readOnly, onDirtyChange }: {
                   {t('dtags.blobs.binary', {size: formatMemory(slot.bytes, 1)})}
                 </span>
                 {(!readOnly) ? (
-                  <button type='button' className='btn btn-ghost btn-sm hover:text-danger' onClick={() => setDraft((previous) => ({...previous, [meta.type]: {kind: 'empty'}}))}>
+                  <button type='button' className='btn btn-ghost btn-sm hover:text-danger-text' onClick={() => setDraft((previous) => ({...previous, [meta.type]: {kind: 'empty'}}))}>
                     <Trash2 aria-hidden className='size-3.5'/> {t('common.remove')}
                   </button>
                 ) : null}
@@ -160,7 +160,7 @@ function BlobsForm({ tag, scope, blobs, readOnly, onDirtyChange }: {
             ) : (
               <Field
                 label={t('dtags.blobs.blob', {type: meta.label})}
-                counter={<span className={cn(TAG_BLOB_MAX_BYTES < size && 'text-danger')}>{formatMemory(size, (size < 1024) ? 0 : 1)} / {formatMemory(TAG_BLOB_MAX_BYTES)}</span>}
+                counter={<span className={cn(TAG_BLOB_MAX_BYTES < size && 'text-danger-text')}>{formatMemory(size, (size < 1024) ? 0 : 1)} / {formatMemory(TAG_BLOB_MAX_BYTES)}</span>}
                 error={(TAG_BLOB_MAX_BYTES < size) ? t('dtags.blobs.too_big', {size: formatMemory(TAG_BLOB_MAX_BYTES)}) : null}
               >
                 {(props) => (

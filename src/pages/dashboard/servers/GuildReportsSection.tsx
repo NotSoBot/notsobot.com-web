@@ -244,7 +244,7 @@ function ReportsList({ guildId, hasLogger }: {guildId: string, hasLogger: boolea
       {(isPending || steppingBack) ? (
         <ListSkeleton/>
       ) : (isError && !reports.length) ? (
-        <div role='alert' className='flex items-center gap-3 text-sm text-danger'>
+        <div role='alert' className='flex items-center gap-3 text-sm text-danger-text'>
           {errorMessage(error, t('greports.load_error'))}
           <button type='button' className='btn btn-secondary btn-sm' disabled={isRefetching} onClick={() => void refetch()}>{t('common.try_again')}</button>
         </div>
@@ -560,7 +560,7 @@ function Conversation({ guildId, report, reporter }: {guildId: string, report: G
         throw error;
       })}
       sending={mutation.isPending}
-      staff={{name: t('sreports.moderators'), icon: <Shield className='size-4 text-brand'/>}}
+      staff={{name: t('sreports.moderators'), icon: <Shield className='size-4 text-brand-text'/>}}
       emptyText={t('greports.empty_thread')}
       placeholder={t('greports.placeholder')}
       maxLength={MAX_REPLY_LENGTH}

@@ -88,12 +88,12 @@ export function ReportDialog({ subject, onClose }: {subject: ReportSubject, onCl
       {(sent !== undefined) ? (
         <div className='p-5 sm:p-6'>
           <h2 id={titleId} className='flex items-center gap-2 pr-10 text-lg font-semibold text-white'>
-            <CheckCircle2 aria-hidden className='size-5 text-success'/>
+            <CheckCircle2 aria-hidden className='size-5 text-success-text'/>
             {t('report.sent')}
           </h2>
           {(sent) ? (
             <p className='mt-2 text-sm text-muted'>
-              {rich('report.sent_account', {link: (chunk) => <Link to={Routes.DASHBOARD_REPORT.replace(':itemId', sent.id)} className='text-brand hover:underline'>{chunk}</Link>})}
+              {rich('report.sent_account', {link: (chunk) => <Link to={Routes.DASHBOARD_REPORT.replace(':itemId', sent.id)} className='text-brand-text hover:underline'>{chunk}</Link>})}
             </p>
           ) : (
             <p className='mt-2 text-sm text-muted'>
@@ -127,7 +127,7 @@ export function ReportDialog({ subject, onClose }: {subject: ReportSubject, onCl
               <span>
                 {t('report.anonymous')}{' '}
                 {(config.authEnabled) ? (
-                  <button type='button' className='cursor-pointer text-brand hover:underline' onClick={() => login()}>{t('common.log_in')}</button>
+                  <button type='button' className='cursor-pointer text-brand-text hover:underline' onClick={() => login()}>{t('common.log_in')}</button>
                 ) : null}
                 {(config.authEnabled) ? t('report.hear_back') : null}
               </span>

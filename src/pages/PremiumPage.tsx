@@ -160,7 +160,7 @@ export function PremiumPage() {
         <div className='card grid gap-6 p-6 md:grid-cols-[1fr_1.4fr] md:p-8'>
           <div>
             <div className='mb-4 flex size-12 items-center justify-center rounded-lg bg-brand/10'>
-              <Server className='size-6 text-brand'/>
+              <Server className='size-6 text-brand-text'/>
             </div>
             <h2 id='premium-servers-title' className='mb-2 text-2xl text-white'>{t('premium.servers.title')}</h2>
             <p className='text-muted'>
@@ -222,7 +222,7 @@ function TierCard({ tier, current }: {tier: Tier, current: boolean}) {
     <article
       className={cn(
         'card flex flex-col p-6',
-        (current) ? 'border-warning/60' : (ai) ? 'border-brand/40 bg-gradient-to-b from-brand/10 to-surface' : null,
+        (current) ? 'border-warning/60' : (ai) ? 'border-brand/40' : null,
       )}
     >
       <div className='mb-1 flex items-center justify-between gap-2'>
@@ -260,7 +260,7 @@ function ServerPerk({ label, free, server }: {label: TranslationKey, free?: Cell
   return (
     <li className='flex items-center justify-between gap-4 px-1 py-2 text-sm'>
       <span className='flex items-center gap-2.5 text-fg'>
-        <Check className='size-4 shrink-0 text-success' aria-hidden/>
+        <Check className='size-4 shrink-0 text-success-text' aria-hidden/>
         {t(label)}
       </span>
       {(typeof free === 'string' && typeof server === 'string') ? (
@@ -278,7 +278,7 @@ function ServerPerk({ label, free, server }: {label: TranslationKey, free?: Cell
 function Perk({ children }: {children: ReactNode}) {
   return (
     <li className='flex gap-2.5 text-sm text-fg'>
-      <Check className='mt-0.5 size-4 shrink-0 text-success' aria-hidden/>
+      <Check className='mt-0.5 size-4 shrink-0 text-success-text' aria-hidden/>
       <span>{children}</span>
     </li>
   );
@@ -337,7 +337,7 @@ function CellValue({ value }: {value: Cell}) {
   const { t } = useI18n();
   const text = useCellText();
   if (value === true) {
-    return <Check className='mx-auto size-4 text-success' aria-label={t('premium.included')}/>;
+    return <Check className='mx-auto size-4 text-success-text' aria-label={t('premium.included')}/>;
   }
   if (value === false) {
     return <Minus className='mx-auto size-4 text-subtle' aria-label={t('premium.not_included')}/>;

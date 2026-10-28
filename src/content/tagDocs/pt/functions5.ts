@@ -82,7 +82,7 @@ export const FUNCTIONS_PORTUGUESE_5: TagDocsTranslation['functions'] = {
       '`greet`, e executar `tag greet` cumprimenta quem a executar',
     ],
     notes: [
-      'Só o NotSoAI pode usar isto, e só na própria resposta: na tag de um usuário, ou num botão que o NotSoAI criou, a função fica como texto normal.',
+      'Só o NotSoAI pode usar isto, e só na própria resposta: na tag de um usuário, ou num botão que o NotSoAI criou, a função fica como texto normal. Também fica como texto normal quando o prompt do NotSoAI tinha texto de outra pessoa (uma mensagem de outra pessoa que ele respondeu, um link, um arquivo que não foi enviado pelo próprio usuário ou a opção `url`, também antes na conversa), e em código que só existe durante a execução, como uma resposta do `{ai}` ou o que `{eval}` e `{evalsilent}` executam.',
       'Só cria tags novas. Gera um erro se já existir uma tag com esse nome no servidor, mesmo que seja sua.',
       'O NotSoAI só pode criar uma tag por mensagem.',
       API_LIMIT,

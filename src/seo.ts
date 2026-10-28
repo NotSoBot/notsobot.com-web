@@ -25,8 +25,8 @@ export const PAGES: Readonly<Record<keyof typeof Routes, PageMeta>> = Object.fre
     description: 'NotSoBot is a Discord bot for media manipulation. Distort, deep fry, caption and convert images, gifs, videos and audio, plus search and server tools.',
     index: true,
   },
-  AUTH_LOGIN: {title: 'Log in', description: 'Log in with Discord to manage your NotSoBot tags, servers and settings.'},
-  AUTH_LOGIN_CALLBACK: {title: 'Log in', description: 'Finishing your Discord login.'},
+  AUTH_LOGIN: {title: 'Log In', description: 'Log in with Discord to manage your NotSoBot tags, servers and settings.'},
+  AUTH_LOGIN_CALLBACK: {title: 'Log In', description: 'Finishing your Discord login.'},
   AUTH_REDIRECT: {description: 'Thanks for adding NotSoBot to your server.'},
   CHANGELOG: {
     title: 'Changelog',

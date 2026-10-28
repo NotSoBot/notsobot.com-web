@@ -204,7 +204,7 @@ export function TagDirectoryPage() {
         {(isFiltered && data) ? (
           <div className='mt-3 flex items-center gap-3 text-sm text-muted'>
             <span>{plural('tags.directory.found', count)}</span>
-            <button type='button' className='cursor-pointer text-brand hover:underline' onClick={clearFilters}>
+            <button type='button' className='cursor-pointer text-brand-text hover:underline' onClick={clearFilters}>
               {t('commands.clear_filters')}
             </button>
           </div>
@@ -274,7 +274,7 @@ function TagCard({ item, search, period }: {item: TagDirectoryItem, search: stri
           <AssetThumbnail assets={item.assets} thumbnail={item.thumbnail} nsfw={tag.nsfw} playing={hovered}/>
           <div className='min-w-0 flex-1'>
             <div className='mb-1 flex items-center gap-2'>
-              <h2 className='truncate text-lg font-medium text-white transition-colors group-hover:text-brand'>
+              <h2 className='truncate text-lg font-medium text-white transition-colors group-hover:text-brand-text'>
                 {/* stretched link: the whole card is clickable without nesting the Add button inside a link */}
                 <Link
                   to={{pathname: tagDirectoryItemPath(item.id), search}}

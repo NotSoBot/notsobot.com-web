@@ -5,7 +5,7 @@ import { useI18n } from '@/i18n';
 import { CommandTypes, type CommandPremium, type CommandType } from '@/lib/api';
 import { cn, formatCompact, formatNumber } from '@/lib/utils';
 
-import { categoryMeta, PREFIXES, premiumMeta, type Entry } from './commandMeta';
+import { categoryMeta, PREFIXES, premiumMeta, TYPE_LABELS, type Entry } from './commandMeta';
 
 
 // cards read their accent from `--cat`
@@ -20,6 +20,27 @@ export function CommandName({ type, name, className }: {type: CommandType, name:
     <span className={cn('inline-flex min-w-0 items-center gap-1.5 font-mono', className)}>
       {(Icon) ? <Icon aria-hidden className='size-4 shrink-0 text-muted'/> : null}
       <span className='truncate'>{(Icon) ? null : <span className='text-subtle'>{PREFIXES[type]}</span>}{name}</span>
+    </span>
+  );
+}
+
+
+// The card's name, plus a `/` when the command can also be run as a slash command (prefix and slash share a card).
+// The slash name is often a different one (`.alien` is `/media-iv-face alien`), so it's in the tooltip.
+function EntryName({ entry, className }: {entry: Entry, className?: string}) {
+  const { t } = useI18n();
+  const other = entry.variants.find((variant) => variant.metadata !== entry.metadata)?.metadata;
+  return (
+    <span className='flex min-w-0 items-center gap-2'>
+      <CommandName type={entry.metadata.type} name={entry.metadata.name} className={className}/>
+      {(other) ? (
+        <span
+          title={`${t(TYPE_LABELS[other.type])}: ${PREFIXES[other.type]}${other.name}`}
+          className='shrink-0 rounded bg-surface-3 px-1.5 py-0.5 font-mono text-xs text-muted'
+        >
+          {PREFIXES[other.type]}
+        </span>
+      ) : null}
     </span>
   );
 }
@@ -77,7 +98,7 @@ export function UsesLabel({ entry, className }: {entry: Entry, className?: strin
       title={t('commands.uses_title', {uses: formatNumber(entry.uses), rank: entry.rank})}
       className={cn('inline-flex items-center gap-1 text-xs tabular-nums', hot ? 'text-white' : 'text-muted', className)}
     >
-      {(hot) ? <TrendingUp aria-hidden className='size-3.5 text-success'/> : null}
+      {(hot) ? <TrendingUp aria-hidden className='size-3.5 text-success-text'/> : null}
       {formatCompact(entry.uses)}<span className='text-subtle'>{t('commands.per_week')}</span>
     </span>
   );
@@ -95,16 +116,18 @@ export function CommandCard({ entry, onOpen }: {entry: Entry, onOpen: () => void
         style={categoryStyle(entry.category)}
         className={cn(
           'group flex h-full w-full cursor-pointer flex-col rounded-lg border border-line bg-surface p-4 text-left transition-colors',
-          'border-l-[3px] border-l-[var(--cat)] hover:border-line-strong hover:border-l-[var(--cat)] hover:bg-surface-2',
+          'hover:border-line-strong hover:bg-surface-2',
         )}
       >
-        <CommandName type={metadata.type} name={metadata.name} className='text-base font-semibold text-white'/>
+        <div className='flex items-start justify-between gap-2'>
+          <EntryName entry={entry} className='text-base font-semibold text-white'/>
+          <CategoryBadge category={entry.category} className='mt-0.5'/>
+        </div>
         <p className='mt-1.5 mb-3 line-clamp-2 text-sm text-muted'>{metadata.description || t('commands.no_description')}</p>
         <div className='mt-auto flex items-center justify-between gap-2'>
           <div className='flex min-w-0 items-center gap-1.5'>
-            <CategoryBadge category={entry.category}/>
             <PremiumBadge premium={metadata.premium}/>
-            {(metadata.dmable) ? <span className='rounded bg-success/15 px-1.5 py-0.5 text-xs font-medium text-success'>{t('commands.dm_badge')}</span> : null}
+            {(metadata.dmable) ? <span className='rounded bg-success/15 px-1.5 py-0.5 text-xs font-medium text-success-text'>{t('commands.dm_badge')}</span> : null}
           </div>
           <UsesLabel entry={entry}/>
         </div>
@@ -126,15 +149,13 @@ export function TrendingCard({ entry, max, onOpen }: {entry: Entry, max: number,
         style={categoryStyle(entry.category)}
         className='group relative flex h-full w-full cursor-pointer flex-col overflow-hidden rounded-lg border border-line bg-surface p-4 text-left transition-colors hover:border-[var(--cat)]'
       >
-        {/* soft category glow in the corner */}
-        <span aria-hidden className='pointer-events-none absolute -top-10 -right-10 size-28 rounded-full bg-[var(--cat)] opacity-15 blur-2xl transition-opacity group-hover:opacity-25'/>
         <div className='mb-3 flex items-center justify-between'>
           <span className='text-sm font-bold text-subtle tabular-nums'>#{entry.rank}</span>
           <span className='flex size-8 items-center justify-center rounded-md bg-[color-mix(in_srgb,var(--cat)_18%,transparent)]'>
             <Icon aria-hidden className='size-4 text-[var(--cat)]'/>
           </span>
         </div>
-        <CommandName type={entry.metadata.type} name={entry.metadata.name} className='text-lg font-semibold text-white'/>
+        <EntryName entry={entry} className='text-lg font-semibold text-white'/>
         <p className='mt-1 mb-4 line-clamp-1 text-sm text-muted'>{entry.metadata.description || t(meta.label)}</p>
         <div className='mt-auto'>
           <div className='mb-1.5 flex items-baseline justify-between'>

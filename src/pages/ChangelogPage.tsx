@@ -22,10 +22,10 @@ const FILTER_OPTIONS: Array<{value: KindFilter, label: TranslationKey}> = [
 ];
 
 const KIND_CLASSES: Record<ChangeKind, string> = {
-  new: 'bg-brand/15 text-brand',
-  improved: 'bg-success/15 text-success',
+  new: 'bg-brand/15 text-brand-text',
+  improved: 'bg-success/15 text-success-text',
   fixed: 'bg-warning/15 text-warning',
-  removed: 'bg-danger/15 text-danger',
+  removed: 'bg-danger/15 text-danger-text',
 };
 
 // the dates are calendar days, so format them in UTC to keep them from shifting a day in western timezones
@@ -86,7 +86,7 @@ export function ChangelogPage() {
     <>
       <div className='border-b border-line bg-surface'>
         <div className='container-page py-10 sm:py-12'>
-          <div className='mb-3 flex items-center gap-2 text-sm font-medium text-brand'>
+          <div className='mb-3 flex items-center gap-2 text-sm font-medium text-brand-text'>
             <History className='size-4'/>
             {t('changelog.badge')}
           </div>
@@ -139,7 +139,7 @@ export function ChangelogPage() {
               <li key={day.date} id={day.date} className='grid scroll-mt-24 grid-cols-[minmax(0,1fr)] gap-3 md:grid-cols-[160px_minmax(0,1fr)] md:gap-8'>
                 <div className='md:sticky md:top-24 md:self-start md:pt-5'>
                   <a href={`#${day.date}`} className='group inline-flex items-baseline gap-2 md:flex-col md:gap-0.5'>
-                    <time dateTime={day.date} className='text-lg font-semibold text-white group-hover:text-brand'>{formats.day.format(date)}</time>
+                    <time dateTime={day.date} className='text-lg font-semibold text-white group-hover:text-brand-text'>{formats.day.format(date)}</time>
                     <span className='text-sm text-muted'>{formats.weekday.format(date)}, {formats.year.format(date)}</span>
                   </a>
                 </div>
@@ -168,7 +168,7 @@ export function ChangelogPage() {
           </div>
         ) : null}
 
-        <aside className='mt-12 flex flex-col items-start justify-between gap-4 rounded-lg border border-brand/30 bg-gradient-to-r from-brand/20 to-brand/5 p-6 sm:flex-row sm:items-center'>
+        <aside className='mt-12 flex flex-col items-start justify-between gap-4 rounded-lg border border-line border-l-[3px] border-l-brand bg-surface p-6 sm:flex-row sm:items-center'>
           <div>
             <h2 className='mb-1 text-lg font-semibold text-white'>{t('changelog.idea_title')}</h2>
             <p className='text-sm text-muted'>{rich('changelog.idea_description', {code: (chunk) => <code className='rounded bg-deep px-1.5 py-0.5 font-mono text-[0.85em] text-code'>{chunk}</code>})}</p>

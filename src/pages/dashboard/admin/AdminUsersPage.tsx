@@ -51,7 +51,7 @@ function adminListPath(route: string, params: Record<string, string>): string {
 // the modal's footer actions: they share the row on phones (short labels, no icons there, sized to their labels since four
 // even slots are too narrow for them); destructive ones tinted red
 const ACTION = 'btn min-w-0 flex-auto px-1.5 sm:flex-none sm:px-3';
-const DANGER_TINT = 'border border-danger/40 bg-danger/10 text-danger hover:bg-danger/20';
+const DANGER_TINT = 'border border-danger/40 bg-danger/10 text-danger-text hover:bg-danger/20';
 
 const TITLE_ID = 'admin-user-modal-title';
 
@@ -402,7 +402,7 @@ function CopyrightStrikes({ userId }: {userId: string}) {
         <StatTile
           label='Strikes'
           value={value}
-          tone='text-danger'
+          tone='text-danger-text'
           title={(query.isError) ? errorMessage(query.error, 'Couldn’t load their strikes.') : (strikes.length) ? `${(open) ? 'Hide' : 'Show'} their strikes` : 'Copyright removals of their tags, one per staff action'}
           onClick={(strikes.length) ? () => setOpen(!open) : undefined}
         />

@@ -32,8 +32,8 @@ export const Layout = {
   'account.logging_out': 'Logging out…',
   'account.log_out': 'Log out',
 
-  'page.AUTH_LOGIN': 'Log in',
-  'page.AUTH_LOGIN_CALLBACK': 'Log in',
+  'page.AUTH_LOGIN': 'Log In',
+  'page.AUTH_LOGIN_CALLBACK': 'Log In',
   'page.CHANGELOG': 'Changelog',
   'page.COMMANDS': 'Commands',
   'page.COMMAND': 'Commands',
@@ -70,9 +70,9 @@ export const Layout = {
 
   'not_found.title': 'Page Not Found',
   'not_found.description': 'The page you\'re looking for doesn\'t exist or has been moved. (404 lol)',
-  'not_found.home': 'Go Back Home',
+  'not_found.home': 'Go back home',
 
-  'route_error.title': 'Well, that was unexpected',
+  'route_error.title': 'Well, That Was Unexpected',
   'route_error.description': 'Something broke while rendering this page.',
   'route_error.chunk': 'This page couldn’t finish loading, probably because the site just updated.',
 
@@ -83,11 +83,11 @@ export const Layout = {
 
   'login.checking': 'Checking your session…',
   'login.redirecting': 'Redirecting to Discord…',
-  'login.disabled_title': 'Logging in isn’t available',
+  'login.disabled_title': 'Logging In Isn’t Available',
   'login.disabled_description': 'Logging in to notsobot.com is turned off right now.',
-  'login.not_started_title': 'Login link not started here',
+  'login.not_started_title': 'Login Link Not Started Here',
   'login.not_started_description': 'This login wasn\'t started from this tab, so we didn\'t use it. Log in again if you meant to.',
-  'login.failed_title': 'Login failed',
+  'login.failed_title': 'Login Failed',
   'login.failed_description': 'Discord didn\'t hand us a session. Give it another try.',
-  'login.logging_in': 'Logging you in…',
+  'login.logging_in': 'Logging You In…',
 } as const;

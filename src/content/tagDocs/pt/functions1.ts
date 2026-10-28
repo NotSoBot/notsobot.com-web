@@ -47,7 +47,7 @@ export const FUNCTIONS_PORTUGUESE_1: TagDocsTranslation['functions'] = {
       'Conta para o limite de execuções de IA (1 por execução por padrão) e para o limite de requisições de rede.',
       'O prompt é limitado a 12.000 caracteres (incluindo um pequeno cabeçalho interno com o número de execuções de IA).',
       'Um prompt vazio não retorna nada.',
-      'Dentro de uma tag, a resposta é adicionada como texto normal. Quando o script vem da própria IA, a resposta é interpretada como TagScript primeiro (e conta como vinda do NotSoAI para {isfromai} e para as funções exclusivas do NotSoAI).',
+      'Dentro de uma tag, a resposta é adicionada como texto normal. Quando o script vem da própria IA, a resposta é interpretada como TagScript primeiro (e conta como vinda do NotSoAI para {isfromai}, mas as funções exclusivas do NotSoAI ficam como texto normal nela, já que o prompt pode ter texto de qualquer pessoa).',
       'Usar um `FILE_N` que não existe gera um erro.',
     ],
   },

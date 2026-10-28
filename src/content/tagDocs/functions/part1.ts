@@ -25,7 +25,7 @@ export const TAG_DOC_FUNCTIONS_PART1: Array<TagDocFunction> = [
       'Counts against the AI execution limit (1 per run by default) and the network request limit.',
       'The prompt is capped at 12,000 characters (including a short internal header with the AI execution count).',
       'An empty prompt outputs nothing.',
-      'When used inside a tag, the reply is added as plain text. When the script comes from the AI itself, the reply is parsed as tagscript first (and counts as coming from NotSoAI for {isfromai} and the NotSoAI-only functions).',
+      'When used inside a tag, the reply is added as plain text. When the script comes from the AI itself, the reply is parsed as tagscript first (and counts as coming from NotSoAI for {isfromai}, but the NotSoAI-only functions are left as plain text in it, since its prompt can have anyone\'s text in it).',
       'Using a `FILE_N` that does not exist throws an error.',
     ],
   },
@@ -45,7 +45,7 @@ export const TAG_DOC_FUNCTIONS_PART1: Array<TagDocFunction> = [
       {code: '{ai.memory.add:Is a moderator here|server}', result: 'true (only remembered in this server)'},
     ],
     notes: [
-      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it.',
+      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. It is also left as plain text when NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), and in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run.',
       'This permanently changes NotSoAI\'s memory of the person who asked it, not just this run.',
       'The `ai.memory.*` functions can change the memory at most 3 times per message; another change throws an error. An add only counts when it saves something new.',
       'Counts against the network request limit.',
@@ -64,7 +64,7 @@ export const TAG_DOC_FUNCTIONS_PART1: Array<TagDocFunction> = [
       {code: '{ai.memory.clear}', result: '4'},
     ],
     notes: [
-      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it.',
+      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. It is also left as plain text when NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), and in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run.',
       'This permanently changes NotSoAI\'s memory of the person who asked it, not just this run.',
       'The `ai.memory.*` functions can change the memory at most 3 times per message; another change throws an error. A clear only counts when something was forgotten.',
       'Counts against the network request limit.',
@@ -84,7 +84,7 @@ export const TAG_DOC_FUNCTIONS_PART1: Array<TagDocFunction> = [
       {code: '{ai.memory.delete:2}', result: 'true'},
     ],
     notes: [
-      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it.',
+      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. It is also left as plain text when NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), and in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run.',
       'This permanently changes NotSoAI\'s memory of the person who asked it, not just this run.',
       'The `ai.memory.*` functions can change the memory at most 3 times per message; another change throws an error.',
       'Counts against the network request limit.',
@@ -107,7 +107,7 @@ export const TAG_DOC_FUNCTIONS_PART1: Array<TagDocFunction> = [
       {code: '{ai.memory.edit:1|Prefers to be called Alex now}', result: 'true'},
     ],
     notes: [
-      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it.',
+      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. It is also left as plain text when NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), and in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run.',
       'This permanently changes NotSoAI\'s memory of the person who asked it, not just this run.',
       'The `ai.memory.*` functions can change the memory at most 3 times per message; another change throws an error.',
       'Counts against the network request limit.',
@@ -150,7 +150,7 @@ export const TAG_DOC_FUNCTIONS_PART1: Array<TagDocFunction> = [
       {code: '{api.create.reminder:in 2 hours|drink water}', result: 'Creates the reminder and outputs its JSON.'},
     ],
     notes: [
-      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it.',
+      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. It is also left as plain text when NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), and in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run.',
       'Counts against the API manipulation limit (1 per run by default) and the network request limit.',
       'Throws an error if no time can be found in `time`.',
       'An empty argument outputs nothing.',
@@ -170,7 +170,7 @@ export const TAG_DOC_FUNCTIONS_PART1: Array<TagDocFunction> = [
       {code: '{api.delete.reminder:1}', result: '`true`'},
     ],
     notes: [
-      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it.',
+      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. It is also left as plain text when NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), and in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run.',
       'Counts against the API manipulation limit (1 per run by default) and the network request limit.',
       'Throws an error if the position is not a positive number or no reminder exists there.',
       'An empty argument outputs nothing.',
@@ -193,7 +193,7 @@ export const TAG_DOC_FUNCTIONS_PART1: Array<TagDocFunction> = [
       {code: '{api.edit.reminder:2||buy milk}', result: 'Changes reminder 2\'s text and outputs its JSON.'},
     ],
     notes: [
-      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it.',
+      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. It is also left as plain text when NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), and in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run.',
       'Counts against the API manipulation limit (1 per run by default) and the network request limit.',
       'Throws an error if the position is not a positive number, no reminder exists there, or the new time is in the past.',
     ],
@@ -212,7 +212,7 @@ export const TAG_DOC_FUNCTIONS_PART1: Array<TagDocFunction> = [
       {code: '{traversejson:count|{api.fetch.reminders}}', result: 'How many reminders the user has in this server.'},
     ],
     notes: [
-      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it.',
+      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. It is also left as plain text when NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), and in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run.',
       'Counts against the network request limit.',
     ],
   },

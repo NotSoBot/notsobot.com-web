@@ -71,7 +71,7 @@ export function AIKnowledgeSection({ guild }: {guild: UserGuild}) {
           <Skeleton className='h-9 w-full bg-surface-2'/>
         </div>
       ) : (error) ? (
-        <p role='alert' className='text-sm text-danger'>{errorMessage(error, t('knowledge.load_error'))}</p>
+        <p role='alert' className='text-sm text-danger-text'>{errorMessage(error, t('knowledge.load_error'))}</p>
       ) : (items.length) ? (
         <ol className='space-y-2'>
           {items.map((item, index) => (

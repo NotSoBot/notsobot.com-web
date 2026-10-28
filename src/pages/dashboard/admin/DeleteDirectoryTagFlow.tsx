@@ -187,7 +187,7 @@ export function DeleteDirectoryTagFlow({ item, onClose }: {item: AdminTagDirecto
               />
               <span>
                 <span className='flex items-center gap-1.5 font-medium text-white'>
-                  <Trash2 aria-hidden className='size-4 text-danger'/>
+                  <Trash2 aria-hidden className='size-4 text-danger-text'/>
                   Delete all of {user?.username ?? 'the owner'}’s tags{(tagCount !== null) ? ` (${tagCount.toLocaleString()})` : ''}
                 </span>
                 <span className='mt-0.5 block text-muted'>Every tag they own, in every server, their DMs and the directory, and everyone’s aliases of them. This can’t be undone.</span>
@@ -210,7 +210,7 @@ export function DeleteDirectoryTagFlow({ item, onClose }: {item: AdminTagDirecto
                 />
                 <span>
                   <span className='flex items-center gap-1.5 font-medium text-white'>
-                    <Ban aria-hidden className='size-4 text-danger'/>
+                    <Ban aria-hidden className='size-4 text-danger-text'/>
                     Block {user.username} from NotSoBot
                   </span>
                   <span className='mt-0.5 block text-muted'>Stops them from using NotSoBot anywhere.</span>

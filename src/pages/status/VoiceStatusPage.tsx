@@ -13,9 +13,9 @@ type NodeStatus = 'online' | 'draining' | 'offline';
 
 // labels are `voice_status.<status>`, hints `voice_status.<status>_hint`
 const NODE_STATUS_STYLES: Record<NodeStatus, {dot: string, text: string}> = {
-  online: {dot: 'bg-success', text: 'text-success'},
+  online: {dot: 'bg-success', text: 'text-success-text'},
   draining: {dot: 'bg-warning', text: 'text-warning'},
-  offline: {dot: 'bg-danger', text: 'text-danger'},
+  offline: {dot: 'bg-danger', text: 'text-danger-text'},
 };
 
 const LEGEND_ORDER: Array<NodeStatus> = ['online', 'draining', 'offline'];
@@ -54,7 +54,7 @@ export function VoiceStatusPage() {
         <div className='grid grid-cols-2 gap-4 lg:grid-cols-4'>
           <StatTile
             label={t('voice_status.nodes_online')}
-            className={(totals && totals.online < nodes.length) ? 'text-warning' : 'text-success'}
+            className={(totals && totals.online < nodes.length) ? 'text-warning' : 'text-success-text'}
             value={(totals) ? `${formatNumber(totals.online)}/${formatNumber(nodes.length)}` : null}
           />
           <StatTile label={t('voice_status.playing')} value={(totals) ? formatNumber(totals.playing) : null}/>
@@ -122,7 +122,7 @@ function NodeCard({ node }: {node: InfoVoiceNode}) {
           <div className='mt-4'>
             <div className='mb-1 flex justify-between text-xs text-muted tabular-nums'>
               <span>CPU</span>
-              <span className={cn(100 <= load ? 'text-danger' : 75 <= load ? 'text-warning' : null)}>{load}%</span>
+              <span className={cn(100 <= load ? 'text-danger-text' : 75 <= load ? 'text-warning' : null)}>{load}%</span>
             </div>
             <div className='h-1.5 overflow-hidden rounded-full bg-surface-3'>
               <div
@@ -152,7 +152,7 @@ function NodeCount({ label, value, highlight = false }: {label: string, value: n
     // the number shows above its label
     <div className='flex flex-col-reverse rounded-md bg-surface px-2 py-2'>
       <dt className='text-xs text-muted'>{label}</dt>
-      <dd className={cn('text-lg font-semibold tabular-nums', (highlight) ? 'text-brand' : 'text-white')}>{formatNumber(value)}</dd>
+      <dd className={cn('text-lg font-semibold tabular-nums', (highlight) ? 'text-brand-text' : 'text-white')}>{formatNumber(value)}</dd>
     </div>
   );
 }

@@ -1,26 +1,27 @@
-import { ArrowRight, AudioLines, Clapperboard, Image, Search, Sparkles, Tags, Upload, Wand2, type LucideIcon } from 'lucide-react';
-import { useMemo } from 'react';
+import { ArrowRight, Crown, Sparkles, Upload, Wand2, type LucideIcon } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
 
+import { ImageComparison } from '@/components/ui/ImageComparison';
 import { QuarantineNotice } from '@/components/ui/QuarantineNotice';
 import { ReportUpdatesNotice } from '@/components/ui/ReportUpdatesNotice';
+import { Segmented } from '@/components/ui/Segmented';
 import { Routes } from '@/config';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useI18n } from '@/i18n';
-import { ApiEndpoints, apiUrl } from '@/lib/api';
+import { ApiEndpoints, apiUrl, CommandMediaTypes, type Command, type CommandMedia } from '@/lib/api';
 import { useCommandsQuery, useInfoDiscordQuery } from '@/lib/api/queries';
 import { enabledCommandVariants } from '@/lib/commandAvailability';
 import { displayLocale } from '@/lib/utils';
 
+import { commandPath, PREFIXES } from './commands/commandMeta';
 
-// title and description are `home.features.<key>.title` / `.description`
-const FEATURES: Array<{icon: LucideIcon, key: 'effects' | 'video' | 'audio' | 'conversion' | 'search' | 'tags'}> = [
-  {icon: Wand2, key: 'effects'},
-  {icon: Clapperboard, key: 'video'},
-  {icon: AudioLines, key: 'audio'},
-  {icon: Image, key: 'conversion'},
-  {icon: Search, key: 'search'},
-  {icon: Tags, key: 'tags'},
-];
+
+// what the gallery doesn't show, `home.features.<key>.title` / `.description`, two rows of four on wide screens
+// shown in alphabetical order of their translated titles
+const FEATURES = ['ai', 'audio', 'conversion', 'moderation', 'music', 'search', 'tags', 'tts', 'voices'] as const;
+// NotSoAI needs Plus AI and cloning a voice needs Plus (`.ai` / `tts voice create` in the bot)
+const FEATURE_PREMIUM = {ai: 'home.features.premium_plus_ai', voices: 'home.features.premium_plus'} as const;
 
 // `home.steps.<key>.title` / `.description`
 const STEPS: Array<{icon: LucideIcon, key: 'post' | 'run' | 'result'}> = [
@@ -29,8 +30,49 @@ const STEPS: Array<{icon: LucideIcon, key: 'post' | 'run' | 'result'}> = [
   {icon: Sparkles, key: 'result'},
 ];
 
-// Popular effects shown as a teaser; each links to a search on the commands page.
-const SHOWCASE_COMMANDS = ['magik', 'deepfry', 'caption', 'explode', 'jpeg', 'reverse', 'speed', 'pixelate'];
+// the hero's before/after slider picks from these (by prefix name), in this order, when their preview fits a slider
+const HERO_COMMANDS = ['magik', 'deepfry', 'swirl', 'jpeg', 'pixelate', 'explode'];
+const GALLERY_SIZE = 8;
+
+// a command's real preview from the api (the same media the commands page shows)
+interface Showcase {
+  after: CommandMedia,
+  // the single input when there's exactly one, which is what the slider needs
+  before: CommandMedia | null,
+  command: Command,
+  example: string | null,
+  name: string,
+  path: string,
+}
+
+function buildShowcases(commands: Array<Command>): Array<Showcase> {
+  return commands.flatMap((command) => {
+    const after = command.media.find((media) => media.type === CommandMediaTypes.AFTER);
+    const [ variant ] = enabledCommandVariants(command).sort((a, b) => a.type - b.type);
+    if (!after || !variant || after.mimetype.startsWith('audio/')) {
+      return [];
+    }
+    const inputs = command.media.filter((media) => media.type === CommandMediaTypes.BEFORE);
+    return [{
+      after,
+      before: (inputs.length === 1) ? inputs[0] : null,
+      command,
+      example: command.preview_example,
+      name: `${PREFIXES[variant.type]}${variant.name}`,
+      path: commandPath(command, variant.type),
+    }];
+  });
+}
+
+// an image result over an image input of about the same shape, like the commands page's slider
+function fitsSlider(showcase: Showcase): showcase is Showcase & {before: CommandMedia} {
+  const { after, before } = showcase;
+  if (!before || !before.mimetype.startsWith('image/') || !after.mimetype.startsWith('image/') || !before.height || !after.height) {
+    return false;
+  }
+  const ratio = after.width / after.height;
+  return Math.abs(before.width / before.height - ratio) / ratio <= 0.05;
+}
 
 
 function compactNumber(value: number): string {
@@ -41,62 +83,85 @@ function compactNumber(value: number): string {
 export function HomePage() {
   const { t } = useI18n();
   const inviteUrl = apiUrl(ApiEndpoints.HELP_DISCORD_BOT);
+  const commands = useCommandsQuery();
+
+  const { sliders, gallery } = useMemo(() => {
+    const showcases = buildShowcases(commands.data ?? []);
+    const sliders = HERO_COMMANDS
+      .map((name) => showcases.find((showcase) => showcase.name === `.${name}`))
+      .filter((showcase): showcase is Showcase & {before: CommandMedia} => !!showcase && fitsSlider(showcase));
+    // the ones the slider doesn't already show first, so the gallery adds something
+    const rest = showcases.filter((showcase) => !sliders.includes(showcase as Showcase & {before: CommandMedia}));
+    return {sliders, gallery: [ ...rest, ...sliders ].slice(0, GALLERY_SIZE)};
+  }, [commands.data]);
+  const collator = new Intl.Collator(displayLocale());
+  const features = [ ...FEATURES ].sort((a, b) => collator.compare(t(`home.features.${a}.title`), t(`home.features.${b}.title`)));
 
   return (
     <>
       {/* Hero */}
-      <section className='container-page py-20 text-center'>
+      <section className='container-page py-20'>
         <ReportUpdatesNotice className='mx-auto mb-4 max-w-3xl'/>
         <QuarantineNotice className='mx-auto mb-10 max-w-3xl'/>
-        <div className='mb-4 inline-block rounded-full border border-brand/30 bg-brand/10 px-4 py-1.5'>
-          <span className='text-sm font-medium text-brand'>{t('home.badge')}</span>
-        </div>
-        <h1 className='mb-6 text-5xl leading-tight font-medium text-balance text-white md:text-6xl'>
-          {t('home.hero.title_1')}<br className='hidden sm:block'/> {t('home.hero.title_2')}
-        </h1>
-        <p className='mx-auto mb-4 max-w-2xl text-xl text-balance text-muted'>
-          {t('home.hero.description')}
-        </p>
-        <p className='mb-8 text-sm text-muted italic'>{t('home.hero.quote')}</p>
-        <div className='flex flex-col items-center justify-center gap-4 sm:flex-row'>
-          <a href={inviteUrl} className='btn btn-discord btn-lg'>
-            {t('common.add_to_discord')}
-            <ArrowRight className='size-5'/>
-          </a>
-          <Link to={Routes.COMMANDS} className='btn btn-secondary btn-lg'>
-            {t('home.view_commands')}
-          </Link>
-        </div>
-        <div className='mx-auto mt-10 flex max-w-2xl flex-wrap justify-center gap-2'>
-          {SHOWCASE_COMMANDS.map((name) => (
-            <Link
-              key={name}
-              to={`${Routes.COMMANDS}?q=${encodeURIComponent(name)}`}
-              className='chip font-mono transition-colors hover:bg-brand/20 hover:text-brand'
-            >
-              .{name}
-            </Link>
-          ))}
+        {/* centered like the rest of the page, with a real before/after under the buttons */}
+        <div className='text-center'>
+          <div>
+            <h1 className='mb-6 text-5xl leading-tight font-medium text-balance text-white md:text-6xl'>
+              {t('home.hero.title_1')}<br className='hidden sm:block'/> {t('home.hero.title_2')}
+            </h1>
+            <p className='mx-auto mb-4 max-w-2xl text-xl text-balance text-muted'>
+              {t('home.hero.description')}
+            </p>
+            <p className='mb-8 text-sm text-muted italic'>{t('home.hero.quote')}</p>
+            <div className='flex flex-col items-center justify-center gap-4 sm:flex-row'>
+              <a href={inviteUrl} className='btn btn-discord btn-lg'>
+                {t('common.add_to_discord')}
+                <ArrowRight className='size-5'/>
+              </a>
+              <Link to={Routes.COMMANDS} className='btn btn-secondary btn-lg'>
+                {t('home.view_commands')}
+              </Link>
+            </div>
+          </div>
+          {(commands.isPending) ? (
+            <div aria-hidden className='mx-auto mt-14 aspect-square w-full max-w-xs animate-pulse rounded-lg bg-surface-2'/>
+          ) : (sliders.length) ? (
+            <HeroComparison showcases={sliders}/>
+          ) : null}
         </div>
       </section>
 
-      {/* Features */}
+      {/* real results from the commands' previews, then what the pictures can't show */}
       <section className='container-page py-16'>
         <h2 className='mb-4 text-center text-3xl text-white'>{t('home.features.title')}</h2>
-        <p className='mx-auto mb-12 max-w-2xl text-center text-muted'>
+        <p className='mx-auto mb-10 max-w-2xl text-center text-muted'>
           {t('home.features.description')}
         </p>
-        <div className='grid gap-6 md:grid-cols-2 lg:grid-cols-3'>
-          {FEATURES.map(({ icon: Icon, key }) => (
-            <div key={key} className='card card-hover p-6'>
-              <div className='mb-4 flex size-12 items-center justify-center rounded-lg bg-brand/10'>
-                <Icon className='size-6 text-brand'/>
-              </div>
-              <h3 className='mb-2 text-xl text-white'>{t(`home.features.${key}.title`)}</h3>
-              <p className='text-muted'>{t(`home.features.${key}.description`)}</p>
+        {(gallery.length) ? (
+          <ul className='mb-12 grid grid-cols-2 gap-3 md:grid-cols-4'>
+            {gallery.map((showcase) => (
+              <li key={showcase.command.id}>
+                <GalleryTile showcase={showcase}/>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        <dl className='grid gap-x-8 gap-y-6 border-t border-line pt-8 sm:grid-cols-2 lg:grid-cols-3'>
+          {features.map((key) => (
+            <div key={key}>
+              <dt className='mb-1 flex flex-wrap items-center gap-2 font-semibold text-white'>
+                {t(`home.features.${key}.title`)}
+                {(key in FEATURE_PREMIUM) ? (
+                  <span className='inline-flex items-center gap-1 rounded bg-warning/15 px-1.5 py-0.5 text-xs font-medium text-warning'>
+                    <Crown aria-hidden className='size-3'/>
+                    {t(FEATURE_PREMIUM[key as keyof typeof FEATURE_PREMIUM])}
+                  </span>
+                ) : null}
+              </dt>
+              <dd className='text-sm text-muted'>{t(`home.features.${key}.description`)}</dd>
             </div>
           ))}
-        </div>
+        </dl>
       </section>
 
       {/* How it works */}
@@ -105,7 +170,7 @@ export function HomePage() {
         <ol className='grid gap-6 md:grid-cols-3'>
           {STEPS.map(({ icon: Icon, key }, index) => (
             <li key={key} className='flex gap-4'>
-              <div className='flex size-10 shrink-0 items-center justify-center rounded-full border border-brand/30 bg-brand/10 font-semibold text-brand tabular-nums'>
+              <div className='flex size-10 shrink-0 items-center justify-center rounded-full border border-brand/30 bg-brand/10 font-semibold text-brand-text tabular-nums'>
                 {index + 1}
               </div>
               <div>
@@ -127,7 +192,7 @@ export function HomePage() {
 
       {/* CTA */}
       <section className='container-page py-16'>
-        <div className='rounded-lg border border-brand/30 bg-gradient-to-r from-brand/20 to-brand/5 p-8 text-center md:p-12'>
+        <div className='rounded-lg border border-line bg-surface p-8 text-center md:p-12'>
           <h2 className='mb-4 text-3xl text-white md:text-4xl'>{t('home.cta.title')}</h2>
           <p className='mx-auto mb-8 max-w-2xl text-xl text-muted'>
             {t('home.cta.description')}
@@ -139,6 +204,64 @@ export function HomePage() {
         </div>
       </section>
     </>
+  );
+}
+
+
+// drag between an effect's input and its result, with a switch for the other effects
+function HeroComparison({ showcases }: {showcases: Array<Showcase & {before: CommandMedia}>}) {
+  const { t, rich } = useI18n();
+  const [ selected, setSelected ] = useState(showcases[0].command.id);
+  const showcase = showcases.find((item) => item.command.id === selected) ?? showcases[0];
+  return (
+    <div className='mt-14 space-y-3'>
+      <ImageComparison
+        key={showcase.command.id}
+        before={showcase.before.url}
+        after={showcase.after.url}
+        aspectRatio={showcase.after.width / showcase.after.height}
+        className='mx-auto rounded-lg'
+      />
+      {(showcases.length > 1) ? (
+        <div className='-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0'>
+          <div className='mx-auto w-max'>
+            <Segmented
+              label={t('home.compare.label')}
+              value={showcase.command.id}
+              options={showcases.map((item) => ({value: item.command.id, label: item.name}))}
+              onChange={setSelected}
+            />
+          </div>
+        </div>
+      ) : null}
+      <p className='text-center text-xs text-subtle'>
+        <Link to={showcase.path} className='transition-colors hover:text-white'>
+          {rich('commands.preview.made_with', {code: (chunk) => <code className='font-mono text-code'>{chunk}</code>}, {example: showcase.example || showcase.name.slice(1)})}
+        </Link>
+      </p>
+    </div>
+  );
+}
+
+
+function GalleryTile({ showcase }: {showcase: Showcase}) {
+  const { t } = useI18n();
+  const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
+  const { after } = showcase;
+  const alt = t('home.gallery.alt', {command: showcase.name});
+  const media = 'size-full object-contain transition-transform duration-300 group-hover:scale-[1.03]';
+  return (
+    <Link to={showcase.path} className='group block overflow-hidden rounded-lg border border-line bg-surface transition-colors hover:border-line-strong'>
+      <div className='aspect-square overflow-hidden bg-deep'>
+        {(after.mimetype.startsWith('video/')) ? (
+          // a looping clip like a gif, a still frame with reduced motion
+          <video src={after.url} aria-label={alt} muted loop playsInline autoPlay={!reducedMotion} preload='metadata' className={media}/>
+        ) : (
+          <img src={after.url} alt={alt} loading='lazy' width={after.width || undefined} height={after.height || undefined} className={media}/>
+        )}
+      </div>
+      <div className='truncate px-3 py-2 font-mono text-sm text-white'>{showcase.name}</div>
+    </Link>
   );
 }
 
@@ -177,7 +300,7 @@ function LiveStats() {
         {stats.map((stat) => (
           <div key={stat.label}>
             {(stat.value) ? (
-              <div className='mb-2 text-4xl font-bold text-brand tabular-nums md:text-5xl'>{stat.value}</div>
+              <div className='mb-2 text-4xl font-bold text-brand-text tabular-nums md:text-5xl'>{stat.value}</div>
             ) : (
               <div className='mx-auto mb-2 h-12 w-32 animate-pulse rounded bg-surface-3 md:h-14'/>
             )}

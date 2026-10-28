@@ -3676,7 +3676,7 @@ const MUSIC_BOOLEAN_SETTINGS = ['dj_only', 'fair_queue', 'no_duplicates', 'pause
 
 function emptyGuildMusic(settings: Pick<GuildMusic, GuildMusicSettingKey>): GuildMusic {
   const { crossfade, dj_only, dj_role_id, fair_queue, max_duration, no_duplicates, pause_alone, stay, vote_pause, vote_resume, vote_skip } = settings;
-  return {crossfade, current: null, dj_only, dj_role_id, fair_queue, held_position: null, loop: 'off', max_duration, no_duplicates, pause_alone, premium: false, queue: [], queue_limit: 100, session: null, stay, vote_pause, vote_resume, vote_skip};
+  return {crossfade, current: null, dj_only, dj_role_id, fair_queue, held_position: null, loop: 'off', max_duration, no_duplicates, pause_alone, premium: false, queue: [], queue_limit: 100, session: null, sound: {effects: [], tempo: 100, volume: 100}, stay, vote_pause, vote_resume, vote_skip};
 }
 
 function guildMusic(guildId: string): GuildMusic {
@@ -3840,6 +3840,21 @@ route('PATCH', '/(users/@me|admin)/guilds/(\\d+)/music', ([ , scope, guildId ], 
 route('POST', '/(users/@me|admin)/guilds/(\\d+)/music/control', ([ , scope, guildId ], { body }) => {
   scopedGuild(scope, guildId, 'music');
   const music = guildMusic(guildId);
+  // the server's speed and volume, saved with nothing playing too
+  if (body.action === 'speed' || body.action === 'volume') {
+    const value = Number(body.value);
+    if (value !== 100 && !music.premium) {
+      throw new MockError(403, ApiErrorCodes.MUSIC_PREMIUM_REQUIRED, 'The speed and volume need a premium server');
+    }
+    const field = (body.action === 'speed') ? 'tempo' : 'volume';
+    music.sound = {...music.sound, [field]: value};
+    if (music.session) {
+      music.session[field] = value;
+      const effectSpeeds: Record<string, number> = {daycore: 0.8, nightcore: 1.25, slowed: 0.85, vaporwave: 0.8};
+      music.session.speed = music.session.effects.reduce((total, effect) => total * (effectSpeeds[effect] ?? 1), music.session.tempo / 100);
+    }
+    return;
+  }
   if (!music.session) {
     throw new MockError(404, ApiErrorCodes.UNKNOWN_MUSIC_SESSION, 'Nothing is playing in this server');
   }

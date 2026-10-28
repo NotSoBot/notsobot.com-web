@@ -101,7 +101,7 @@ export function DeleteUserTagsDialog({ user, onClose }: {user: AdminUserRef, onC
 
           <div className='mt-3 flex flex-wrap items-center justify-between gap-3 rounded-md border border-line bg-deep p-3'>
             <UserCell user={user}/>
-            <Link to={adminTagsPath(`user:${user.id}`)} className='text-sm text-brand hover:underline' onClick={onClose}>
+            <Link to={adminTagsPath(`user:${user.id}`)} className='text-sm text-brand-text hover:underline' onClick={onClose}>
               {(count === null) ? 'Counting tags…' : `Review ${tagCountLabel(count)}`}
             </Link>
           </div>
@@ -167,7 +167,7 @@ export function TagOwnerStrip({ user, fallbackId, blockReason, children }: {
             className='group/user -ml-1.5 flex min-w-0 items-center gap-1.5 rounded-md py-1 pr-2 pl-1.5 transition-colors hover:bg-surface-3'
           >
             <UserCell user={user ?? owner} fallbackId={ownerId} size='sm'/>
-            <ArrowUpRight aria-hidden className='size-3.5 shrink-0 text-subtle transition-colors group-hover/user:text-brand'/>
+            <ArrowUpRight aria-hidden className='size-3.5 shrink-0 text-subtle transition-colors group-hover/user:text-brand-text'/>
           </Link>
         ) : (
           <UserCell user={null}/>

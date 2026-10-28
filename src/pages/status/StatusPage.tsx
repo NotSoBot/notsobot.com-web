@@ -119,7 +119,7 @@ export function StatusPage() {
             {t('status.find_hint')}
           </p>
         ) : (lookup?.kind === 'invalid') ? (
-          <p id='lookup-hint' className='mt-2 text-sm text-danger'>{lookup.message}</p>
+          <p id='lookup-hint' className='mt-2 text-sm text-danger-text'>{lookup.message}</p>
         ) : null}
 
         {(target && data) ? <LookupResult lookup={target.lookup} cluster={target.cluster} shard={target.shard} now={now}/> : null}
@@ -134,7 +134,7 @@ export function StatusPage() {
       <section aria-labelledby='stats-heading' className='card mb-8 p-6'>
         <h2 id='stats-heading' className='mb-6 text-center text-2xl text-white'>{t('status.bot_stats')}</h2>
         <div className='grid grid-cols-2 gap-4 lg:grid-cols-4'>
-          <StatTile label={t('status.healthy_shards')} className='text-success' value={(data && totals) ? `${formatNumber(totals.healthyShards)}/${formatNumber(data.shard_count)}` : null}/>
+          <StatTile label={t('status.healthy_shards')} className='text-success-text' value={(data && totals) ? `${formatNumber(totals.healthyShards)}/${formatNumber(data.shard_count)}` : null}/>
           <StatTile label={t('status.total_ram')} value={totals ? formatMemory(totals.ram, 2) : null}/>
           <StatTile label={t('status.total_guilds')} value={totals ? formatNumber(totals.guilds) : null}/>
           <StatTile label={t('status.total_users')} value={totals ? formatNumber(totals.users) : null}/>
@@ -304,13 +304,13 @@ function ClusterBlock({ cluster, dead, highlightShardId, hoveredShardId = null, 
       )}
     >
       <div className='mb-1.5 flex items-baseline justify-between gap-3 px-0.5 text-[11px]'>
-        <span className={cn('font-semibold', dead ? 'text-danger' : 'text-white')}>{t('status.cluster', {id: cluster.cluster_id})}</span>
+        <span className={cn('font-semibold', dead ? 'text-danger-text' : 'text-white')}>{t('status.cluster', {id: cluster.cluster_id})}</span>
         <span className='text-muted tabular-nums'>
           {(dead) ? (
-            <span className='font-medium text-danger'>{t('status.not_responding')}</span>
+            <span className='font-medium text-danger-text'>{t('status.not_responding')}</span>
           ) : (
             <>
-              <span className={(healthy === total) ? 'text-success' : 'text-warning'}>{healthy}/{total}</span>
+              <span className={(healthy === total) ? 'text-success-text' : 'text-warning'}>{healthy}/{total}</span>
               {' · '}{formatMemory(cluster.ram_usage, 2)}
             </>
           )}
@@ -535,9 +535,9 @@ function LookupResult({ lookup, cluster, shard, now }: {
           <ul className='mt-3 flex flex-wrap gap-x-5 gap-y-1.5 text-sm text-muted'>
             <ResultFact icon={Server}>
               {(dead) ? (
-                <span className='font-medium text-danger'>{t('status.cluster_not_responding')}</span>
+                <span className='font-medium text-danger-text'>{t('status.cluster_not_responding')}</span>
               ) : (
-                rich('status.shards_ready', {b: (chunk) => <span className={(healthy === total) ? 'text-success' : 'text-warning'}>{chunk}</span>}, {healthy, total})
+                rich('status.shards_ready', {b: (chunk) => <span className={(healthy === total) ? 'text-success-text' : 'text-warning'}>{chunk}</span>}, {healthy, total})
               )}
             </ResultFact>
             <ResultFact icon={Layers}>{t('status.shard_range', {first: firstShard, last: lastShard})}</ResultFact>

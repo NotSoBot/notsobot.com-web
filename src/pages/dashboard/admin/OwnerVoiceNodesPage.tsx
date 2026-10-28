@@ -191,8 +191,8 @@ function NodeRow({ node, stats: item, test, onTest, onPassword, onEdit, onDelete
               <>
                 <Activity aria-hidden className='size-4 max-sm:hidden'/>
                 {(tested.failed) ?
-                  <X aria-hidden className='size-4 text-danger sm:hidden'/> :
-                  <Check aria-hidden className='size-4 text-success sm:hidden'/>}
+                  <X aria-hidden className='size-4 text-danger-text sm:hidden'/> :
+                  <Check aria-hidden className='size-4 text-success-text sm:hidden'/>}
               </>
             ) : (
               <Activity aria-hidden className='size-4'/>
@@ -200,7 +200,7 @@ function NodeRow({ node, stats: item, test, onTest, onPassword, onEdit, onDelete
           </IconButton>
           <IconButton label='Password' onClick={onPassword}><KeyRound aria-hidden className='size-4'/></IconButton>
           <IconButton label='Edit' onClick={onEdit}><Pencil aria-hidden className='size-4'/></IconButton>
-          <IconButton label='Delete' onClick={onDelete} className='text-danger hover:bg-danger/10'><Trash2 aria-hidden className='size-4'/></IconButton>
+          <IconButton label='Delete' onClick={onDelete} className='text-danger-text hover:bg-danger/10'><Trash2 aria-hidden className='size-4'/></IconButton>
         </div>
       </div>
       {/* the counts under the name, centered in the row */}
@@ -210,7 +210,7 @@ function NodeRow({ node, stats: item, test, onTest, onPassword, onEdit, onDelete
       <div className='mt-0.5 flex items-baseline gap-3 pl-5 text-xs tabular-nums text-subtle'>
         <p className='min-w-0 flex-1 truncate' title={(offline) ? item?.error ?? undefined : workersTitle}>
           {(offline) ? (
-            <span className='text-danger'>{item?.error}</span>
+            <span className='text-danger-text'>{item?.error}</span>
           ) : (stats) ? (
             <>
               <span>{Math.round(stats.cpu.load * 100)}% cpu</span>
@@ -473,7 +473,7 @@ function PasswordDialog({ node, created, onClose }: {node: VoiceNode, created?: 
           {(confirmingReset) ? (
             <button
               type='button'
-              className='btn btn-sm border border-danger/40 bg-danger/10 text-danger hover:bg-danger/20'
+              className='btn btn-sm border border-danger/40 bg-danger/10 text-danger-text hover:bg-danger/20'
               disabled={reset.isPending}
               onClick={() => reset.mutate(node.id, {
                 onSuccess: () => {

@@ -141,7 +141,7 @@ export function TagDocsPage() {
       <div className='border-b border-line bg-surface'>
         <div className='container-page py-10 sm:py-12'>
           <QuarantineNotice className='mb-6 max-w-3xl'/>
-          <div className='mb-3 flex items-center gap-2 text-sm font-medium text-brand'>
+          <div className='mb-3 flex items-center gap-2 text-sm font-medium text-brand-text'>
             <BookOpen className='size-4'/>
             {t('tag_docs.badge')}
           </div>
@@ -232,7 +232,7 @@ export function TagDocsPage() {
               </div>
             ) : null}
 
-            <aside className='flex flex-col items-start justify-between gap-4 rounded-lg border border-brand/30 bg-gradient-to-r from-brand/20 to-brand/5 p-6 sm:flex-row sm:items-center'>
+            <aside className='flex flex-col items-start justify-between gap-4 rounded-lg border border-line border-l-[3px] border-l-brand bg-surface p-6 sm:flex-row sm:items-center'>
               <div>
                 <h2 className='mb-1 text-lg font-semibold text-white'>{t('tag_docs.inspiration_title')}</h2>
                 <p className='text-sm text-muted'>{t('tag_docs.inspiration_description')}</p>
@@ -464,7 +464,7 @@ function CodeBlock({ code, bare }: {code: string, bare?: boolean}) {
         aria-label={t('tag_docs.copy_code')}
         className='absolute top-1.5 right-1.5 cursor-pointer rounded p-1.5 text-subtle opacity-0 transition-opacity group-hover:opacity-100 hover:bg-surface-3 hover:text-white focus-visible:opacity-100'
       >
-        {(copied) ? <Check className='size-3.5 text-success'/> : <Copy className='size-3.5'/>}
+        {(copied) ? <Check className='size-3.5 text-success-text'/> : <Copy className='size-3.5'/>}
       </button>
     </div>
   );

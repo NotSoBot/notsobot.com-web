@@ -146,7 +146,7 @@ function SectionForm({ title, description, accent, section, children }: {
           dirty={section.dirty}
           pending={section.mutation.isPending}
           onDiscard={section.discard}
-          status={(section.mutation.isPending) ? <span className='text-muted'>{t('common.saving')}</span> : (section.mutation.isSuccess && !section.dirty) ? <span className='text-success'>{t('common.saved')}</span> : undefined}
+          status={(section.mutation.isPending) ? <span className='text-muted'>{t('common.saving')}</span> : (section.mutation.isSuccess && !section.dirty) ? <span className='text-success-text'>{t('common.saved')}</span> : undefined}
         />
       </Panel>
     </form>

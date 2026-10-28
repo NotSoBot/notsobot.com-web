@@ -93,7 +93,7 @@ export function PremiumServers() {
             ) : t('pservers.slots_unknown')}
             {' '}{t('pservers.explain', {messages: SERVER_AI_MESSAGES_PER_SLOT})}
             {' '}
-            <Link to={`${Routes.PREMIUM}#premium-servers`} className='text-brand hover:underline'>{t('pservers.see_what')}</Link>
+            <Link to={`${Routes.PREMIUM}#premium-servers`} className='text-brand-text hover:underline'>{t('pservers.see_what')}</Link>
           </p>
         </div>
         {(data?.active) ? (

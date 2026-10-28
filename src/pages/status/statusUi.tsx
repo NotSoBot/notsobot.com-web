@@ -40,7 +40,7 @@ export function StatusSwitcher() {
 }
 
 
-export function StatTile({ label, value, className = 'text-brand' }: {label: string, value: string | null, className?: string}) {
+export function StatTile({ label, value, className = 'text-brand-text' }: {label: string, value: string | null, className?: string}) {
   return (
     <div className='rounded-lg bg-deep p-4 text-center'>
       {(value !== null) ? (

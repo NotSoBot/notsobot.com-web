@@ -316,7 +316,7 @@ function CommandRow({ use, serverName, commandTypes, onFilter }: {
       <div className='min-w-0 flex-1'>
         <div className='flex flex-wrap items-center gap-2'>
           {(linkable) ? (
-            <Link to={commandPath(use.command_id, use.command_type, commandTypes!)} className='font-mono font-medium text-white hover:text-brand hover:underline'>
+            <Link to={commandPath(use.command_id, use.command_type, commandTypes!)} className='font-mono font-medium text-white hover:text-brand-text hover:underline'>
               {label}
             </Link>
           ) : (

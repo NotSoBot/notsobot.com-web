@@ -5,25 +5,27 @@ import { Link } from 'react-router';
 
 import { Routes } from '@/config';
 import { useI18n } from '@/i18n';
-import { CommandTypes, type CommandArgChoice } from '@/lib/api';
-import { formatNumber } from '@/lib/utils';
+import { CommandTypes, type CommandArgChoice, type CommandType } from '@/lib/api';
+import { cn, formatCompact, formatNumber } from '@/lib/utils';
 
 import { CategoryBadge, categoryStyle, CommandName, PremiumBadge } from './CommandCards';
 import { CommandPreview } from './CommandPreview';
 import { PREFIXES, premiumMeta, TYPE_LABELS, type Entry } from './commandMeta';
 
 
-export function CommandDrawer({ entry, siblings, totalRanked, onSelect, onClose }: {
+export function CommandDrawer({ entry, type, siblings, totalRanked, onSelect, onClose }: {
   entry: Entry,
-  // the same command under its other types (e.g. the slash version of a prefix command)
+  // which of the entry's variants is shown (prefix or slash, from the path)
+  type: CommandType,
+  // the same command's other entries (its context menus)
   siblings: Array<Entry>,
   totalRanked: number,
-  onSelect: (key: string) => void,
+  onSelect: (entry: Entry, type?: CommandType) => void,
   onClose: () => void,
 }) {
   const { t } = useI18n();
   const closeRef = useRef<HTMLButtonElement>(null);
-  const { metadata } = entry;
+  const { metadata } = entry.variants.find((variant) => variant.metadata.type === type) || entry.variants[0];
   const prefix = PREFIXES[metadata.type] ?? '';
 
   // focus in, Escape out, page scroll locked, focus handed back on close
@@ -63,18 +65,22 @@ export function CommandDrawer({ entry, siblings, totalRanked, onSelect, onClose 
           className='absolute inset-y-0 right-0 flex w-full max-w-xl animate-drawer-in flex-col border-l border-line bg-surface shadow-2xl shadow-black/50'
         >
           <header className='relative border-b border-line p-5'>
-            <span aria-hidden className='absolute inset-x-0 top-0 h-1 bg-[var(--cat)]'/>
             <div className='mb-3 flex items-center justify-between gap-3'>
               <div className='flex flex-wrap items-center gap-2'>
                 <CategoryBadge category={entry.category}/>
-                <span className='rounded bg-surface-3 px-2 py-0.5 text-xs text-muted'>{t(TYPE_LABELS[metadata.type])}</span>
+                {(entry.variants.length === 1) ? (
+                  <span className='rounded bg-surface-3 px-2 py-0.5 text-xs text-muted'>{t(TYPE_LABELS[metadata.type])}</span>
+                ) : null}
                 <PremiumBadge premium={metadata.premium} className='px-2'/>
-                {(metadata.dmable) ? <span className='rounded bg-success/15 px-2 py-0.5 text-xs font-medium text-success'>{t('commands.dms')}</span> : null}
+                {(metadata.dmable) ? <span className='rounded bg-success/15 px-2 py-0.5 text-xs font-medium text-success-text'>{t('commands.dms')}</span> : null}
               </div>
               <button ref={closeRef} type='button' aria-label={t('common.close')} onClick={onClose} className='btn btn-ghost -mr-2 p-2'>
                 <X className='size-5'/>
               </button>
             </div>
+            {(entry.variants.length > 1) ? (
+              <VariantTabs entry={entry} type={metadata.type} onSelect={(value) => onSelect(entry, value)}/>
+            ) : null}
             <h2 id='command-drawer-title'>
               <CommandName type={metadata.type} name={metadata.name} className='text-2xl font-semibold text-white'/>
             </h2>
@@ -161,7 +167,7 @@ export function CommandDrawer({ entry, siblings, totalRanked, onSelect, onClose 
                     <button
                       key={sibling.key}
                       type='button'
-                      onClick={() => onSelect(sibling.key)}
+                      onClick={() => onSelect(sibling)}
                       className='flex cursor-pointer items-center gap-2 rounded-md border border-line bg-deep px-3 py-1.5 text-sm transition-colors hover:border-[var(--cat)]'
                     >
                       <CommandName type={sibling.metadata.type} name={sibling.metadata.name} className='text-white'/>
@@ -221,6 +227,35 @@ export function CommandDrawer({ entry, siblings, totalRanked, onSelect, onClose 
       </div>
     </>,
     document.body,
+  );
+}
+
+
+// prefix and slash share the drawer: one tab each with its own uses (the stats above add them up)
+function VariantTabs({ entry, type, onSelect }: {entry: Entry, type: CommandType, onSelect: (type: CommandType) => void}) {
+  const { t } = useI18n();
+  return (
+    <div role='tablist' aria-label={t('commands.type_label')} className='mb-3 flex w-fit rounded-lg border border-line bg-deep p-1'>
+      {entry.variants.map((variant) => {
+        const selected = variant.metadata.type === type;
+        return (
+          <button
+            key={variant.metadata.type}
+            type='button'
+            role='tab'
+            aria-selected={selected}
+            onClick={() => onSelect(variant.metadata.type)}
+            className={cn(
+              'flex cursor-pointer items-baseline gap-2 rounded-md px-3 py-1.5 text-sm whitespace-nowrap transition-colors',
+              selected ? 'bg-surface-3 text-white shadow-sm' : 'text-muted hover:text-white',
+            )}
+          >
+            {t(TYPE_LABELS[variant.metadata.type])}
+            <span className='text-xs text-subtle tabular-nums' title={t('commands.uses_this_week')}>{formatCompact(variant.uses)}</span>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 

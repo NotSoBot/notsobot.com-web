@@ -380,7 +380,7 @@ export const TAG_DOC_FUNCTIONS_PART4: Array<TagDocFunction> = [
       {code: '{settings.set.server:TIMEZONE}', result: 'Europe/London'},
     ],
     notes: [
-      'Only NotSoAI can use this, and only in its own reply: in a user\'s tag, or a button NotSoAI made, the function is left as plain text.',
+      'Only NotSoAI can use this, and only in its own reply: in a user\'s tag, or a button NotSoAI made, the function is left as plain text. It is also left as plain text when NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), and in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run.',
       'The person who asked NotSoAI needs the Manage Server permission, even just to read the settings. Otherwise it throws an error.',
       'Only works in a server.',
       'This permanently changes the server\'s NotSoBot settings for everyone, not just this run.',
@@ -400,7 +400,7 @@ export const TAG_DOC_FUNCTIONS_PART4: Array<TagDocFunction> = [
       {code: '{settings.set.server.ai.personality:talk like a pirate}', result: 'true'},
     ],
     notes: [
-      'Only NotSoAI can use this, and only in its own reply: in a user\'s tag, or a button NotSoAI made, the function is left as plain text. The person who asked needs the Manage Server permission.',
+      'Only NotSoAI can use this, and only in its own reply: in a user\'s tag, or a button NotSoAI made, the function is left as plain text. The person who asked needs the Manage Server permission. It is also left as plain text when NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), and in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run.',
       'NotSoBot filters the personality before saving it.',
     ],
   },
@@ -421,7 +421,7 @@ export const TAG_DOC_FUNCTIONS_PART4: Array<TagDocFunction> = [
       {code: '{settings.set.user:AI_MEMORY|off}', result: 'true'},
     ],
     notes: [
-      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it.',
+      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. It is also left as plain text when NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), and in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run.',
       'This permanently changes the NotSoBot settings of the person who asked NotSoAI, not just this run.',
       'Language, timezone and AI personality have their own functions: {settings.set.user.locale}, {settings.set.user.timezone} and {settings.set.user.ai.personality}.',
       'Throws an error if the setting or value is not recognised, or if the setting needs premium.',
@@ -443,7 +443,7 @@ export const TAG_DOC_FUNCTIONS_PART4: Array<TagDocFunction> = [
       {code: '{settings.set.user.ai.personality:clear}', result: 'true (or false if none was set)'},
     ],
     notes: [
-      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left in the output as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it.',
+      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left in the output as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. It is also left as plain text when NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), and in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run.',
       'This permanently changes the NotSoBot settings of the person who asked NotSoAI, not just this run.',
     ],
   },
@@ -461,7 +461,7 @@ export const TAG_DOC_FUNCTIONS_PART4: Array<TagDocFunction> = [
       {code: '{settings.set.user.locale:spanish}', result: 'true'},
     ],
     notes: [
-      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it.',
+      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. It is also left as plain text when NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), and in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run.',
       'This permanently changes the NotSoBot settings of the person who asked NotSoAI, not just this run.',
       'Throws an error if the language is not recognised.',
     ],
@@ -481,7 +481,7 @@ export const TAG_DOC_FUNCTIONS_PART4: Array<TagDocFunction> = [
       {code: '{settings.set.user.timezone}', result: 'America/New_York'},
     ],
     notes: [
-      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it.',
+      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. It is also left as plain text when NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), and in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run.',
       'This permanently changes the NotSoBot settings of the person who asked NotSoAI, not just this run.',
       'Throws an error if the timezone is not recognised.',
     ],

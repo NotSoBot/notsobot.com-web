@@ -60,7 +60,7 @@ export function AddTagDialog({ tag, verified, onClose }: {tag: Pick<Tag, 'id' | 
       {(added) ? (
         <div className='p-5 sm:p-6'>
           <h2 id={titleId} className='flex items-center gap-2 pr-10 text-lg font-semibold text-white'>
-            <CheckCircle2 aria-hidden className='size-5 text-success'/>
+            <CheckCircle2 aria-hidden className='size-5 text-success-text'/>
             {t('tags.add.added')}
           </h2>
           <p className='mt-2 text-sm text-muted'>

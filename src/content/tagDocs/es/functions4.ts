@@ -313,7 +313,7 @@ export const FUNCTIONS_SPANISH_4: TagDocsTranslation['functions'] = {
       '',
     ],
     notes: [
-      'Solo NotSoAI puede usar esto, y solo en su propia respuesta: en el tag de un usuario, o en un botón que hizo NotSoAI, la función se deja como texto normal.',
+      'Solo NotSoAI puede usar esto, y solo en su propia respuesta: en el tag de un usuario, o en un botón que hizo NotSoAI, la función se deja como texto normal. También se deja como texto normal cuando el prompt de NotSoAI tenía texto de otra persona (un mensaje de otro al que respondió, un enlace, un archivo que no subió el propio usuario o la opción `url`, también antes en la conversación), y en código que solo existe al ejecutarse, como una respuesta de `{ai}` o lo que ejecutan `{eval}` y `{evalsilent}`.',
       'La persona que se lo pidió a NotSoAI necesita el permiso Gestionar servidor, aunque solo sea para leer los ajustes. Si no, da un error.',
       'Solo funciona en un servidor.',
       'Esto cambia de forma permanente los ajustes de NotSoBot del servidor para todos, no solo en esta ejecución.',
@@ -329,7 +329,7 @@ export const FUNCTIONS_SPANISH_4: TagDocsTranslation['functions'] = {
       '',
     ],
     notes: [
-      'Solo NotSoAI puede usar esto, y solo en su propia respuesta: en el tag de un usuario, o en un botón que hizo NotSoAI, la función se deja como texto normal. La persona que se lo pidió necesita el permiso Gestionar servidor.',
+      'Solo NotSoAI puede usar esto, y solo en su propia respuesta: en el tag de un usuario, o en un botón que hizo NotSoAI, la función se deja como texto normal. La persona que se lo pidió necesita el permiso Gestionar servidor. También se deja como texto normal cuando el prompt de NotSoAI tenía texto de otra persona (un mensaje de otro al que respondió, un enlace, un archivo que no subió el propio usuario o la opción `url`, también antes en la conversación), y en código que solo existe al ejecutarse, como una respuesta de `{ai}` o lo que ejecutan `{eval}` y `{evalsilent}`.',
       'NotSoBot filtra la personalidad antes de guardarla.',
     ],
   },
@@ -364,7 +364,7 @@ export const FUNCTIONS_SPANISH_4: TagDocsTranslation['functions'] = {
       'true (o false si no había ninguna)',
     ],
     notes: [
-      'Solo NotSoAI puede usar esto. En el tag de un usuario (o en un tag que NotSoAI llama con {tag}) la función se deja en el resultado como texto normal. También se deja como texto normal al ejecutarse desde un botón o menú que hizo NotSoAI, ya que otra persona podría pulsarlo.',
+      'Solo NotSoAI puede usar esto. En el tag de un usuario (o en un tag que NotSoAI llama con {tag}) la función se deja en el resultado como texto normal. También se deja como texto normal al ejecutarse desde un botón o menú que hizo NotSoAI, ya que otra persona podría pulsarlo. También se deja como texto normal cuando el prompt de NotSoAI tenía texto de otra persona (un mensaje de otro al que respondió, un enlace, un archivo que no subió el propio usuario o la opción `url`, también antes en la conversación), y en código que solo existe al ejecutarse, como una respuesta de `{ai}` o lo que ejecutan `{eval}` y `{evalsilent}`.',
       PERMANENT_USER,
     ],
   },

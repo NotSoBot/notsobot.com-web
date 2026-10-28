@@ -100,7 +100,7 @@ export function MusicSection({ guild }: {guild: UserGuild}) {
           <Skeleton className='h-9 w-full bg-surface-2'/>
         </div>
       ) : (error) ? (
-        <p role='alert' className='text-sm text-danger'>{errorMessage(error, t('music.load_error'))}</p>
+        <p role='alert' className='text-sm text-danger-text'>{errorMessage(error, t('music.load_error'))}</p>
       ) : (!music || !playing) ? (
         <p className='flex items-center gap-2 text-sm text-muted'>
           <Music aria-hidden className='size-4 text-subtle'/>
@@ -210,6 +210,10 @@ export function MusicSection({ guild }: {guild: UserGuild}) {
           </div>
         </div>
       )}
+
+      {(music) ? (
+        <MusicSound music={music} editable={editable} busyKey={busyKey} disabled={mutation.isPending} run={run}/>
+      ) : null}
 
       {(music) ? (
         <MusicSettings guildId={guild.id} music={music} editable={editable} busyKey={busyKey} disabled={mutation.isPending} run={run}/>
@@ -624,6 +628,133 @@ function LiveEffects({ music, effects, editable, busyKey, disabled, run }: {
 }
 
 
+const MIN_MUSIC_SPEED = 50;
+const MAX_MUSIC_SPEED = 200;
+const MAX_MUSIC_VOLUME = 200;
+
+// the speed (the pitch kept, `music speed`) and volume (`music volume`) for everyone listening. They're the server's:
+// with nothing playing they're what the next session starts with. Anything but 100% needs premium, back to it never does
+function MusicSound({ music, editable, busyKey, disabled, run }: {
+  music: GuildMusic,
+  editable: boolean,
+  busyKey: string | null,
+  disabled: boolean,
+  run: (key: string, action: GuildMusicAction, success?: string) => Promise<boolean>,
+}) {
+  const { t } = useI18n();
+  // a playing session's are what's heard, the saved ones otherwise
+  const tempo = music.session?.tempo ?? music.sound?.tempo ?? 100;
+  const volume = music.session?.volume ?? music.sound?.volume ?? 100;
+  const set = (action: 'speed' | 'volume', value: number) => run(
+    action,
+    {kind: 'sound', control: {action, value}},
+    (action === 'speed') ? t('music.speed_set', {speed: speedText(value)}) : t('music.volume_set', {volume: `${value}%`}),
+  );
+
+  return (
+    <div className='mt-5'>
+      <h3 className='mb-2 text-sm font-semibold text-white'>{t('music.sound')}</h3>
+      <div className='space-y-3'>
+        <SoundSlider
+          label={t('music.speed_label')}
+          value={tempo}
+          min={MIN_MUSIC_SPEED}
+          max={MAX_MUSIC_SPEED}
+          format={speedText}
+          editable={editable && music.premium}
+          resettable={editable}
+          busy={busyKey === 'speed'}
+          disabled={disabled}
+          onCommit={(value) => set('speed', value)}
+        />
+        <SoundSlider
+          label={t('music.volume_label')}
+          value={volume}
+          min={0}
+          max={MAX_MUSIC_VOLUME}
+          format={(value) => `${value}%`}
+          editable={editable && music.premium}
+          resettable={editable}
+          busy={busyKey === 'volume'}
+          disabled={disabled}
+          onCommit={(value) => set('volume', value)}
+        />
+      </div>
+      {(!music.premium) ? (
+        <PremiumNote>{t('music.sound_premium')}</PremiumNote>
+      ) : null}
+      <p className='mt-2 text-xs text-subtle'>{t('music.sound_hint')}</p>
+    </div>
+  );
+}
+
+function speedText(percent: number): string {
+  return `${percent / 100}×`;
+}
+
+// a percent slider, 100 is normal. It's sent once it's let go of (or a key's let go), not every step on the way, and
+// shows where it was left until the server's caught up. `resettable` puts it back to 100 without `editable` (premium)
+function SoundSlider({ label, value, min, max, format, editable, resettable, busy, disabled, onCommit }: {
+  label: string,
+  value: number,
+  min: number,
+  max: number,
+  format: (value: number) => string,
+  editable: boolean,
+  resettable: boolean,
+  busy: boolean,
+  disabled: boolean,
+  onCommit: (value: number) => Promise<boolean>,
+}) {
+  const { t } = useI18n();
+  const id = useId();
+  const [ draft, setDraft ] = useState(value);
+  useEffect(() => setDraft(value), [value]);
+  const commit = (next: number) => {
+    if (next === value) {
+      return;
+    }
+    void onCommit(next).then((done) => {
+      if (!done) {
+        setDraft(value);
+      }
+    });
+  };
+
+  return (
+    <div className='flex items-center gap-3'>
+      <label htmlFor={id} className='w-16 shrink-0 text-sm text-muted'>{label}</label>
+      <input
+        id={id}
+        type='range'
+        min={min}
+        max={max}
+        step={5}
+        value={draft}
+        disabled={!editable || disabled}
+        onChange={(event) => setDraft(Number(event.target.value))}
+        onPointerUp={(event) => commit(Number(event.currentTarget.value))}
+        onKeyUp={(event) => commit(Number(event.currentTarget.value))}
+        className='h-1.5 min-w-0 flex-1 cursor-pointer accent-[#1db954] disabled:cursor-not-allowed disabled:opacity-50'
+      />
+      <span className='w-12 shrink-0 text-right text-sm text-fg tabular-nums'>
+        {(busy) ? <Spinner className='ml-auto size-3.5'/> : format(draft)}
+      </span>
+      <button
+        type='button'
+        className='btn btn-sm btn-ghost shrink-0'
+        disabled={!resettable || disabled || (draft === 100 && value === 100)}
+        onClick={() => {
+          setDraft(100);
+          commit(100);
+        }}
+      >
+        {t('music.sound_reset')}
+      </button>
+    </div>
+  );
+}
+
 // a music setting that's kept without premium but only does anything with it. Staff (the admin server modal) can't use
 // their own premium slots on someone's server, the Music access feature counts instead
 function PremiumNote({ children }: {children: ReactNode}) {
@@ -637,7 +768,7 @@ function PremiumNote({ children }: {children: ReactNode}) {
         {(staff) ? (
           t('music.premium_feature')
         ) : (
-          <Link to={Routes.DASHBOARD_PREMIUM} className='text-brand hover:underline'>{t('music.give_slot')}</Link>
+          <Link to={Routes.DASHBOARD_PREMIUM} className='text-brand-text hover:underline'>{t('music.give_slot')}</Link>
         )}
       </span>
     </p>
@@ -943,7 +1074,7 @@ function IconButton({ label, danger = false, disabled, onClick, children }: {
       onClick={onClick}
       className={cn(
         'flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-subtle transition-colors hover:bg-surface-3 disabled:cursor-not-allowed disabled:opacity-50',
-        (danger) ? 'hover:text-danger' : 'hover:text-white',
+        (danger) ? 'hover:text-danger-text' : 'hover:text-white',
       )}
     >
       {children}

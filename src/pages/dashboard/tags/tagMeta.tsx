@@ -24,7 +24,7 @@ export function TagCardDeleteButton({ name, onClick }: {name: string, onClick: (
   return (
     <button
       type='button'
-      className='btn btn-ghost btn-sm relative z-10 -my-1.5 shrink-0 px-1.5 text-subtle transition-opacity hover:text-danger pointer-fine:opacity-0 pointer-fine:group-focus-within:opacity-100 pointer-fine:group-hover:opacity-100'
+      className='btn btn-ghost btn-sm relative z-10 -my-1.5 shrink-0 px-1.5 text-subtle transition-opacity hover:text-danger-text pointer-fine:opacity-0 pointer-fine:group-focus-within:opacity-100 pointer-fine:group-hover:opacity-100'
       aria-label={t('dtags.delete_label', {name})}
       title={t('common.delete')}
       onClick={(event) => {
@@ -125,7 +125,7 @@ export function TagLocationChip({ location, to }: {location: TagLocation, to?: s
   const Icon = location.icon;
   const content = (
     <>
-      <Icon aria-hidden className='size-3.5 shrink-0 text-muted transition-colors group-hover/location:text-brand'/>
+      <Icon aria-hidden className='size-3.5 shrink-0 text-muted transition-colors group-hover/location:text-brand-text'/>
       <span className='min-w-0 shrink truncate font-medium text-fg'>{location.label}</span>
       {(location.id) ? (
         <>
@@ -175,12 +175,12 @@ export function TagStatusBadges({ tag }: {tag: StatusTag}) {
 function DirectoryStatusBadge({ tag }: {tag: StatusTag}) {
   const { t } = useI18n();
   if (tag.directory === undefined) {
-    return (tag.is_on_directory) ? <span className='rounded bg-success/15 px-1.5 py-0.5 text-[11px] font-medium text-success'>{t('dtags.badge.directory')}</span> : null;
+    return (tag.is_on_directory) ? <span className='rounded bg-success/15 px-1.5 py-0.5 text-[11px] font-medium text-success-text'>{t('dtags.badge.directory')}</span> : null;
   }
   if (!tag.directory) {
     return null;
   }
-  const [ label, className ] = (tag.directory.verified === TagDirectoryVerificationStates.VERIFIED) ? [t('tags.verified'), 'bg-success/15 text-success']
+  const [ label, className ] = (tag.directory.verified === TagDirectoryVerificationStates.VERIFIED) ? [t('tags.verified'), 'bg-success/15 text-success-text']
     : (tag.directory.verified === TagDirectoryVerificationStates.PENDING_VERIFICATION) ? [t('tags.pending_short'), 'bg-warning/15 text-warning']
     : [t('tags.unverified'), 'bg-surface-3 text-muted'];
   return (
@@ -200,9 +200,9 @@ export function TagBadges({ tag }: {tag: Tag}) {
           <Lock aria-hidden className='size-3'/> {t('dtags.badge.locked')}
         </span>
       ) : null}
-      {(tag.nsfw) ? <span className='rounded bg-danger/15 px-1.5 py-0.5 text-[11px] font-medium text-danger'>{t('tags.nsfw')}</span> : null}
+      {(tag.nsfw) ? <span className='rounded bg-danger/15 px-1.5 py-0.5 text-[11px] font-medium text-danger-text'>{t('tags.nsfw')}</span> : null}
       {(tag.is_command) ? <span className='rounded bg-brand/20 px-1.5 py-0.5 text-[11px] font-medium text-[#a5acff]'>{t('dtags.badge.command')}</span> : null}
-      {(tag.is_on_directory) ? <span className='rounded bg-success/15 px-1.5 py-0.5 text-[11px] font-medium text-success'>{t('dtags.badge.directory')}</span> : null}
+      {(tag.is_on_directory) ? <span className='rounded bg-success/15 px-1.5 py-0.5 text-[11px] font-medium text-success-text'>{t('dtags.badge.directory')}</span> : null}
       {(tag.reference_tag) ? <span className='rounded bg-surface-3 px-1.5 py-0.5 text-[11px] font-medium text-muted'>{t('dtags.badge.alias')}</span> : null}
     </>
   );

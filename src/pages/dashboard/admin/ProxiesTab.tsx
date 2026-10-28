@@ -174,7 +174,7 @@ export function ProxiesTab({ data }: {data: AdminIdentities}) {
                   <Pencil className='size-4'/>
                   Edit
                 </button>
-                <button type='button' className='btn btn-sm border border-danger/40 bg-danger/10 text-danger hover:bg-danger/20' onClick={() => setDialog('delete')}>
+                <button type='button' className='btn btn-sm border border-danger/40 bg-danger/10 text-danger-text hover:bg-danger/20' onClick={() => setDialog('delete')}>
                   <Trash2 className='size-4'/>
                   Delete
                 </button>
@@ -384,7 +384,7 @@ function BulkResults({ result }: {result: AdminProxiesBulkResult}) {
         {(result.applied) ? 'Added' : 'Would add'} <span className='font-semibold'>{result.added.toLocaleString()}</span>
         {(result.updated) ? <>, {(result.applied) ? 'updated' : 'update'} {result.updated.toLocaleString()}</> : null}
         {(result.skipped) ? <>, {result.skipped.toLocaleString()} skipped</> : null}
-        {(result.failed) ? <>, <span className='text-danger'>{result.failed.toLocaleString()} can’t be read</span></> : null}
+        {(result.failed) ? <>, <span className='text-danger-text'>{result.failed.toLocaleString()} can’t be read</span></> : null}
       </p>
       <ul className='mt-2 max-h-56 divide-y divide-line overflow-y-auto rounded-md border border-line bg-deep text-xs'>
         {result.results.map((item) => (
@@ -469,7 +469,7 @@ function EditProxiesDialog({ data, proxyIds, onClose }: {data: AdminIdentities, 
                   key={name}
                   type='button'
                   aria-pressed={removeLabels.has(name)}
-                  className={cn('btn btn-sm', (removeLabels.has(name)) ? 'border border-danger/40 bg-danger/10 text-danger line-through' : 'btn-secondary')}
+                  className={cn('btn btn-sm', (removeLabels.has(name)) ? 'border border-danger/40 bg-danger/10 text-danger-text line-through' : 'btn-secondary')}
                   onClick={() => setRemoveLabels((current) => {
                     const next = new Set(current);
                     if (next.has(name)) {
@@ -501,9 +501,9 @@ function EditProxiesDialog({ data, proxyIds, onClose }: {data: AdminIdentities, 
           Remove their passwords
         </label>
 
-        {(patch.isError) ? <p role='alert' className='mt-4 text-sm text-danger'>{errorMessage(patch.error, 'Couldn’t update the proxies.')}</p> : null}
+        {(patch.isError) ? <p role='alert' className='mt-4 text-sm text-danger-text'>{errorMessage(patch.error, 'Couldn’t update the proxies.')}</p> : null}
         {(patch.data?.failed.length) ? (
-          <ul className='mt-3 text-xs text-danger'>
+          <ul className='mt-3 text-xs text-danger-text'>
             {patch.data.failed.map((item) => <li key={item.id}>#{item.id}: {item.error}</li>)}
           </ul>
         ) : null}
@@ -545,7 +545,7 @@ function AssignDialog({ data, proxyIds, onClose }: {data: AdminIdentities, proxy
         {(accounts) ? (
           <p className='mt-3 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-fg'>
             {service} identities are accounts. These wait for their cookies (pending) and aren’t used until they have them:
-            use Upload cookies on the <Link className='text-brand hover:underline' to={Routes.DASHBOARD_OWNER_IDENTITIES}>Identities tab</Link>.
+            use Upload cookies on the <Link className='text-brand-text hover:underline' to={Routes.DASHBOARD_OWNER_IDENTITIES}>Identities tab</Link>.
             Removing from {service} only removes the ones still waiting.
           </p>
         ) : null}
@@ -569,14 +569,14 @@ function AssignDialog({ data, proxyIds, onClose }: {data: AdminIdentities, proxy
         ) : null}
 
         {(assign.isError || unassign.isError) ? (
-          <p role='alert' className='mt-4 text-sm text-danger'>{errorMessage(assign.error ?? unassign.error, 'Couldn’t change the assignments.')}</p>
+          <p role='alert' className='mt-4 text-sm text-danger-text'>{errorMessage(assign.error ?? unassign.error, 'Couldn’t change the assignments.')}</p>
         ) : null}
 
         <div className='mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
           <button type='button' className='btn btn-secondary' onClick={onClose} disabled={pending}>Cancel</button>
           <button
             type='button'
-            className='btn btn-sm border border-danger/40 bg-danger/10 text-danger hover:bg-danger/20 sm:btn'
+            className='btn btn-sm border border-danger/40 bg-danger/10 text-danger-text hover:bg-danger/20 sm:btn'
             disabled={pending || !have}
             onClick={() => unassign.mutate({service, proxyIds}, {
               onSuccess: (result) => {
@@ -667,7 +667,7 @@ function LabelsDialog({ data, onClose }: {data: AdminIdentities, onClose: () => 
                   <button type='button' className='btn btn-ghost btn-sm ml-auto' onClick={() => setEditing({id: item.id, name: item.name})}>Rename</button>
                   <button
                     type='button'
-                    className='btn btn-ghost btn-sm text-danger'
+                    className='btn btn-ghost btn-sm text-danger-text'
                     disabled={remove.isPending}
                     onClick={() => remove.mutate(item.id, {onSuccess: () => toast(`Deleted the ${item.name} label`)})}
                   >
@@ -678,7 +678,7 @@ function LabelsDialog({ data, onClose }: {data: AdminIdentities, onClose: () => 
             </li>
           ))}
         </ul>
-        {(rename.isError) ? <p role='alert' className='mt-3 text-sm text-danger'>{errorMessage(rename.error, 'Couldn’t rename it.')}</p> : null}
+        {(rename.isError) ? <p role='alert' className='mt-3 text-sm text-danger-text'>{errorMessage(rename.error, 'Couldn’t rename it.')}</p> : null}
         <div className='mt-6 flex justify-end'>
           <button type='button' className='btn btn-secondary' onClick={onClose}>Close</button>
         </div>
@@ -730,7 +730,7 @@ function ProxyModal({ proxy, onClose }: {proxy: IdentityProxyItem, onClose: () =
             <ul className='flex flex-wrap gap-1.5'>
               {proxy.identities.map((identity) => (
                 <li key={identity.id}>
-                  <Link className='font-mono text-xs text-brand hover:underline' to={`${Routes.DASHBOARD_OWNER_IDENTITIES}?${new URLSearchParams({q: identity.id})}`}>
+                  <Link className='font-mono text-xs text-brand-text hover:underline' to={`${Routes.DASHBOARD_OWNER_IDENTITIES}?${new URLSearchParams({q: identity.id})}`}>
                     {identity.id}
                   </Link>
                   {(identity.status !== 'active') ? <span className='ml-1 text-xs text-subtle'>({identity.status})</span> : null}
@@ -806,7 +806,7 @@ function ProxyModal({ proxy, onClose }: {proxy: IdentityProxyItem, onClose: () =
                 then sign in from a different ip.
               </p>
             ) : null}
-            {(patch.isError) ? <p role='alert' className='mt-3 text-sm text-danger'>{errorMessage(patch.error, 'Couldn’t save the proxy.')}</p> : null}
+            {(patch.isError) ? <p role='alert' className='mt-3 text-sm text-danger-text'>{errorMessage(patch.error, 'Couldn’t save the proxy.')}</p> : null}
             <div className='mt-4 flex justify-end gap-2'>
               <button type='button' className='btn btn-secondary btn-sm' onClick={() => setEditing(false)} disabled={patch.isPending}>Cancel</button>
               <button type='submit' className='btn btn-primary btn-sm' disabled={patch.isPending || !valid}>

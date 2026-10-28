@@ -361,7 +361,7 @@ function ReportDetails({ report, onFilterReporter, onFilterTarget, navigation }:
               className='group/user -ml-1.5 flex min-w-0 items-center gap-1.5 rounded-md py-1 pr-2 pl-1.5 transition-colors hover:bg-surface-3'
             >
               <UserCell user={user} size='sm'/>
-              <ArrowUpRight aria-hidden className='size-3.5 shrink-0 text-subtle transition-colors group-hover/user:text-brand'/>
+              <ArrowUpRight aria-hidden className='size-3.5 shrink-0 text-subtle transition-colors group-hover/user:text-brand-text'/>
             </Link>
             {/* the filter by their name, and copying their id under it by the id (outside the link, so copying doesn't open
                 their page) */}
@@ -396,7 +396,7 @@ function ReportDetails({ report, onFilterReporter, onFilterTarget, navigation }:
                     className='group/user -ml-1.5 flex min-w-0 items-center gap-1.5 rounded-md py-1 pr-2 pl-1.5 transition-colors hover:bg-surface-3'
                   >
                     <UserCell user={report.target_user} size='sm'/>
-                    <ArrowUpRight aria-hidden className='size-3.5 shrink-0 text-subtle transition-colors group-hover/user:text-brand'/>
+                    <ArrowUpRight aria-hidden className='size-3.5 shrink-0 text-subtle transition-colors group-hover/user:text-brand-text'/>
                   </Link>
                   <div className='flex shrink-0 flex-col items-center gap-0.5'>
                     <FilterButton label='Show reports about this user' onClick={() => onFilterTarget(report.target_user!.id)}/>

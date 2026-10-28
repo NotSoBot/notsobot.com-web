@@ -16,7 +16,7 @@ export function LegalPage({ document, icon: Icon }: {document: LegalDocument, ic
     <div className='mx-auto max-w-4xl px-4 py-8 sm:px-6'>
       <header className='card mb-6 p-8'>
         <div className='mb-4 flex items-center gap-3'>
-          <Icon className='size-10 shrink-0 text-brand'/>
+          <Icon className='size-10 shrink-0 text-brand-text'/>
           <h1 className='text-3xl font-bold text-white sm:text-4xl'>{document.title}</h1>
         </div>
         <div className='flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted'>
@@ -47,9 +47,9 @@ export function LegalPage({ document, icon: Icon }: {document: LegalDocument, ic
       </div>
 
       <div className='mt-6 flex items-center gap-3 rounded-lg border border-brand/30 bg-brand/10 p-6'>
-        <Mail className='size-5 shrink-0 text-brand'/>
+        <Mail className='size-5 shrink-0 text-brand-text'/>
         <p className='text-sm'>
-          {rich('legal.questions', {email: (chunk) => <a href={`mailto:${chunk}`} className='text-brand hover:underline'>{chunk}</a>}, {email: Urls.CONTACT_EMAIL})}
+          {rich('legal.questions', {email: (chunk) => <a href={`mailto:${chunk}`} className='text-brand-text hover:underline'>{chunk}</a>}, {email: Urls.CONTACT_EMAIL})}
         </p>
       </div>
     </div>

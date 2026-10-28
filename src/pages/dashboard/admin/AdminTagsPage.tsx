@@ -167,7 +167,7 @@ export function AdminTagsPage() {
             (filter.verified === null) ? 'No directory tags match that search.' : (
               <>
                 No {filter.label.toLowerCase()} directory tags match that search.{' '}
-                <button type='button' className='cursor-pointer text-brand hover:underline' onClick={() => update({status: 'all'})}>Search all tags</button>
+                <button type='button' className='cursor-pointer text-brand-text hover:underline' onClick={() => update({status: 'all'})}>Search all tags</button>
               </>
             )
           ) : `No ${filter.label.toLowerCase()} directory tags.`}
@@ -213,7 +213,7 @@ function DirectoryTagCard({ item, onOpen }: {item: AdminTagDirectoryItem, onOpen
       <div className='mb-3 flex items-start justify-between gap-3'>
         <div className='min-w-0 flex-1'>
           <div className='flex items-center gap-2'>
-            <h2 className='truncate font-medium text-white transition-colors group-hover:text-brand'>
+            <h2 className='truncate font-medium text-white transition-colors group-hover:text-brand-text'>
               {/* stretched: the whole card opens the tag */}
               <button
                 type='button'
@@ -594,7 +594,7 @@ function DirectoryTagDetails({ item, navigation, onDelete }: {
           label='Delete'
           short='Delete'
           icon={Trash2}
-          className='border border-danger/50 bg-transparent text-danger hover:bg-danger/15'
+          className='border border-danger/50 bg-transparent text-danger-text hover:bg-danger/15'
           disabled={mutation.isPending}
           pending={false}
           onClick={onDelete}
@@ -617,7 +617,7 @@ function AssetRow({ asset, ownerId }: {asset: TagDirectoryAsset, ownerId: string
     <li className='text-sm'>
       <div className='flex flex-wrap items-baseline gap-x-2'>
         {(asset.urls?.cdn) ? (
-          <a href={asset.urls.cdn} target='_blank' rel='noreferrer noopener' className='font-mono text-brand hover:underline'>{asset.filename}</a>
+          <a href={asset.urls.cdn} target='_blank' rel='noreferrer noopener' className='font-mono text-brand-text hover:underline'>{asset.filename}</a>
         ) : (
           <span className='font-mono text-fg'>{asset.filename}</span>
         )}

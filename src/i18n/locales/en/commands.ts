@@ -23,9 +23,9 @@ export const Commands = {
 
   'command_type.prefixed': 'Prefix',
   'command_type.slash': 'Slash',
-  'command_type.context': 'Context Menus',
-  'command_type.user_menu': 'User Menu',
-  'command_type.message_menu': 'Message Menu',
+  'command_type.context': 'Context menus',
+  'command_type.user_menu': 'User menu',
+  'command_type.message_menu': 'Message menu',
 
   'command_access.free': 'Free',
   'command_access.premium': 'Premium',
@@ -79,7 +79,7 @@ export const Commands = {
   'commands.drawer.examples': 'Examples',
   'commands.drawer.arguments': 'Arguments',
   'commands.drawer.aliases': 'Aliases',
-  'commands.drawer.also_as': 'Also available as',
+  'commands.drawer.also_as': 'Also Available As',
   'commands.drawer.ratelimits': 'Ratelimits',
   'commands.drawer.ratelimit': '{limit} per {seconds}s',
   'commands.drawer.credits': 'Credits',

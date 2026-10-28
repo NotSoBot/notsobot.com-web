@@ -257,7 +257,7 @@ export function BulkAddIdentitiesDialog({ data, onClose }: {data: AdminIdentitie
                           <span className='block text-subtle'>{extrasText(row.login)}</span>
                         </>
                       ) : null}
-                      {(row.error) ? <span className='block text-danger'>{row.error}</span> : null}
+                      {(row.error) ? <span className='block text-danger-text'>{row.error}</span> : null}
                     </td>
                     <td className='px-2 py-1.5'>
                       {(row.login) ? (
@@ -300,7 +300,7 @@ export function BulkAddIdentitiesDialog({ data, onClose }: {data: AdminIdentitie
           {(rows.length) ? (
             <p className='mr-auto text-sm text-muted'>
               {ready.length.toLocaleString()} ready
-              {(rows.length - ready.length) ? <span className='text-danger'>, {(rows.length - ready.length).toLocaleString()} with a problem (left out)</span> : null}
+              {(rows.length - ready.length) ? <span className='text-danger-text'>, {(rows.length - ready.length).toLocaleString()} with a problem (left out)</span> : null}
             </p>
           ) : null}
           <button type='button' className='btn btn-secondary' onClick={onClose} disabled={sending}>Cancel</button>

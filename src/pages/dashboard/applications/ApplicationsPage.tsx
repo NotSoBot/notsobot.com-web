@@ -146,7 +146,7 @@ export function ApplicationsPage() {
                     <Pencil className='size-4'/>
                     <span className='sr-only'>{t('apps.rename')}</span>
                   </button>
-                  <button type='button' className='btn btn-sm btn-ghost text-danger' title={t('common.delete')} onClick={() => setDialog({kind: 'delete', application})}>
+                  <button type='button' className='btn btn-sm btn-ghost text-danger-text' title={t('common.delete')} onClick={() => setDialog({kind: 'delete', application})}>
                     <Trash2 className='size-4'/>
                     <span className='sr-only'>{t('common.delete')}</span>
                   </button>

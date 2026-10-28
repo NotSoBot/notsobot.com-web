@@ -88,7 +88,7 @@ export const Ui = {
   'dash.view_only': 'View only',
   'dash.load_error': 'Couldn’t load this',
   'dash.unsaved': 'Unsaved changes',
-  'dash.discard_title': 'Discard unsaved changes?',
+  'dash.discard_title': 'Discard Unsaved Changes?',
   'dash.discard_description': 'You have edits that haven’t been saved. If you leave now, they’ll be lost.',
   'dash.discard_leave': 'Discard and leave',
   'pagination.label': 'Pagination',

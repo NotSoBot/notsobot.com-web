@@ -451,7 +451,7 @@ function IdentitiesTab({ data, now, onShowProxies }: {data: AdminIdentities, now
 
       {(!data.identities.length) ? (
         <EmptyState icon={<Fingerprint className='size-10'/>} title='No identities yet'>
-          Add proxies on the <button type='button' className='cursor-pointer text-brand hover:underline' onClick={onShowProxies}>Proxies tab</button> and
+          Add proxies on the <button type='button' className='cursor-pointer text-brand-text hover:underline' onClick={onShowProxies}>Proxies tab</button> and
           assign them to services, or add an account on one of them here.
         </EmptyState>
       ) : (!identities.length) ? (
@@ -504,7 +504,7 @@ function IdentitiesTab({ data, now, onShowProxies }: {data: AdminIdentities, now
         <div className='fixed inset-x-0 bottom-4 z-30 flex justify-center px-4'>
           <div className='flex max-w-full flex-wrap items-center gap-2 rounded-lg border border-brand/40 bg-surface-2 px-3 py-2 shadow-xl shadow-black/40'>
             <span className='text-sm text-fg tabular-nums'>{selectedIds.length.toLocaleString()} selected</span>
-            <button type='button' className='btn btn-sm border border-danger/40 bg-danger/10 text-danger hover:bg-danger/20' onClick={() => setDeleting(true)}>
+            <button type='button' className='btn btn-sm border border-danger/40 bg-danger/10 text-danger-text hover:bg-danger/20' onClick={() => setDeleting(true)}>
               <Trash2 className='size-4'/>
               Delete
             </button>
@@ -612,7 +612,7 @@ function ServiceCard({ service, selected, onSelect }: {service: IdentityService,
 
       {(service.paused_for) ? (
         <div className='mt-3 flex items-center gap-3 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-fg'>
-          <Pause aria-hidden className='size-4 shrink-0 text-danger'/>
+          <Pause aria-hidden className='size-4 shrink-0 text-danger-text'/>
           <p className='flex-1'>
             {service.flagged_recently.toLocaleString()} got flagged within a few minutes, so nothing uses {service.service} for
             another {formatSpan(service.paused_for * 1000)}. It’s usually the proxy provider being flagged, not each account.
@@ -872,7 +872,7 @@ function IdentityModal({ identity, data, now, onClose }: {identity: Identity, da
           </button>
           <button
             type='button'
-            className='btn btn-sm ml-auto border border-danger/40 bg-danger/10 text-danger hover:bg-danger/20'
+            className='btn btn-sm ml-auto border border-danger/40 bg-danger/10 text-danger-text hover:bg-danger/20'
             disabled={busy}
             onClick={() => setDeleting(true)}
           >
@@ -962,12 +962,12 @@ function LoginSection({ identity, now }: {identity: Identity, now: number}) {
             </button>
           ) : null}
           {(identity.has_login) ? (
-            <button type='button' className='btn btn-ghost btn-sm text-danger' onClick={() => setRemoving(true)}>Remove</button>
+            <button type='button' className='btn btn-ghost btn-sm text-danger-text' onClick={() => setRemoving(true)}>Remove</button>
           ) : null}
         </div>
       </div>
 
-      {(reveal.isError) ? <p role='alert' className='mt-3 text-sm text-danger'>{errorMessage(reveal.error, 'Couldn’t reveal the login.')}</p> : null}
+      {(reveal.isError) ? <p role='alert' className='mt-3 text-sm text-danger-text'>{errorMessage(reveal.error, 'Couldn’t reveal the login.')}</p> : null}
 
       {(revealed) ? (
         <div className='mt-3'>
@@ -979,7 +979,7 @@ function LoginSection({ identity, now }: {identity: Identity, now: number}) {
               (!!revealed.login.recovery_phone) && ['Recovery phone', <SecretValue key='rp' value={revealed.login.recovery_phone ?? ''}/>],
               (!!revealed.login.channel_email) && ['Channel email', <SecretValue key='ce' value={revealed.login.channel_email ?? ''}/>],
               (!!revealed.login.channel_url) && ['Channel', (
-                <a key='c' className='break-all text-brand hover:underline' href={revealed.login.channel_url ?? undefined} target='_blank' rel='noreferrer noopener'>
+                <a key='c' className='break-all text-brand-text hover:underline' href={revealed.login.channel_url ?? undefined} target='_blank' rel='noreferrer noopener'>
                   {revealed.login.channel_url}
                 </a>
               )],
@@ -1172,7 +1172,7 @@ function LoginForm({ identity, initial, onDone }: {identity: Identity, initial: 
       }}
     >
       <LoginFields login={login} onChange={setLogin} disabled={save.isPending}/>
-      {(save.isError) ? <p role='alert' className='mt-3 text-sm text-danger'>{errorMessage(save.error, 'Couldn’t save the login.')}</p> : null}
+      {(save.isError) ? <p role='alert' className='mt-3 text-sm text-danger-text'>{errorMessage(save.error, 'Couldn’t save the login.')}</p> : null}
       <div className='mt-4 flex justify-end gap-2'>
         <button type='button' className='btn btn-secondary btn-sm' onClick={() => onDone(false)} disabled={save.isPending}>Cancel</button>
         <button type='submit' className='btn btn-primary btn-sm' disabled={save.isPending || !valid}>
@@ -1265,7 +1265,7 @@ function ReplaceCookiesForm({ identity, onDone }: {identity: Identity, onDone: (
     >
       <h3 className='text-sm font-semibold text-white'>{(identity.status === 'dead') ? 'Revive with new cookies' : 'Replace cookies'}</h3>
       <CookiesField value={cookies} onChange={setCookies} disabled={patch.isPending}/>
-      {(patch.isError) ? <p role='alert' className='mt-3 text-sm text-danger'>{errorMessage(patch.error, 'Couldn’t replace the cookies.')}</p> : null}
+      {(patch.isError) ? <p role='alert' className='mt-3 text-sm text-danger-text'>{errorMessage(patch.error, 'Couldn’t replace the cookies.')}</p> : null}
       <div className='mt-4 flex justify-end gap-2'>
         <button type='button' className='btn btn-secondary btn-sm' onClick={onDone} disabled={patch.isPending}>Cancel</button>
         <button type='submit' className='btn btn-primary btn-sm' disabled={patch.isPending || !cookies.trim()}>
@@ -1313,7 +1313,7 @@ function MoveIdentityForm({ identity, data, onDone }: {identity: Identity, data:
         onChange={setProxyId}
         disabled={patch.isPending}
       />
-      {(patch.isError) ? <p role='alert' className='mt-3 text-sm text-danger'>{errorMessage(patch.error, 'Couldn’t move the identity.')}</p> : null}
+      {(patch.isError) ? <p role='alert' className='mt-3 text-sm text-danger-text'>{errorMessage(patch.error, 'Couldn’t move the identity.')}</p> : null}
       <div className='mt-4 flex justify-end gap-2'>
         <button type='button' className='btn btn-secondary btn-sm' onClick={onDone} disabled={patch.isPending}>Cancel</button>
         <button type='submit' className='btn btn-primary btn-sm' disabled={patch.isPending || !valid}>
@@ -1388,7 +1388,7 @@ function AddIdentityDialog({ data, onShowProxies, onClose, onAdded }: {
 
         {(!data.proxies.length) ? (
           <p role='alert' className='mt-4 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-fg'>
-            There are no proxies yet, add them on the <button type='button' className='cursor-pointer text-brand hover:underline' onClick={() => { onClose(); onShowProxies(); }}>Proxies tab</button> first.
+            There are no proxies yet, add them on the <button type='button' className='cursor-pointer text-brand-text hover:underline' onClick={() => { onClose(); onShowProxies(); }}>Proxies tab</button> first.
           </p>
         ) : null}
 
@@ -1542,7 +1542,7 @@ function UploadCookiesDialog({ data, onClose }: {data: AdminIdentities, onClose:
           <p className='mt-4 text-sm text-subtle'>No {service} identities {(onlyPending) ? 'are waiting for cookies' : 'yet'}. Assign proxies to {service} on the Proxies tab first.</p>
         ) : null}
 
-        {(upload.isError) ? <p role='alert' className='mt-4 text-sm text-danger'>{errorMessage(upload.error, 'Couldn’t upload the cookies.')}</p> : null}
+        {(upload.isError) ? <p role='alert' className='mt-4 text-sm text-danger-text'>{errorMessage(upload.error, 'Couldn’t upload the cookies.')}</p> : null}
 
         <div className='mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
           <button type='button' className='btn btn-secondary' onClick={onClose} disabled={upload.isPending}>{(upload.data) ? 'Close' : 'Cancel'}</button>

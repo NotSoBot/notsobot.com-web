@@ -115,7 +115,7 @@ export function ApplicationTokenDialog({ application, heading, onClose }: {
     <Modal labelledBy={titleId} onClose={onClose} className='max-w-lg'>
       <div className='p-5 sm:p-6'>
         <h2 id={titleId} className='flex items-center gap-2 pr-10 text-lg font-semibold text-white'>
-          <KeyRound aria-hidden className='size-5 shrink-0 text-success'/>
+          <KeyRound aria-hidden className='size-5 shrink-0 text-success-text'/>
           {heading}
         </h2>
         <p className='mt-2 text-sm break-words text-muted'>{application.name}</p>

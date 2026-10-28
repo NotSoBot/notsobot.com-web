@@ -85,7 +85,7 @@ function ServerLoadError({ error, onRetry, retrying }: {error: Error | null, onR
   }
   return (
     <div className='card px-6 py-16 text-center'>
-      <AlertTriangle className='mx-auto mb-4 size-14 text-danger'/>
+      <AlertTriangle className='mx-auto mb-4 size-14 text-danger-text'/>
       <h1 className='mb-3 text-2xl font-bold text-white'>{t((notFound) ? 'server.not_found' : 'server.load_error')}</h1>
       <p className='mb-6 text-muted'>{(notFound) ? t('server.not_found_description') : errorMessage(error)}</p>
       {(notFound) ? null : <button type='button' className='btn btn-secondary' disabled={retrying} onClick={onRetry}>{t('common.retry')}</button>}
@@ -128,7 +128,7 @@ function ServerLayout({ guild, setDirty }: {guild: UserGuild, setDirty: ServerOu
         {(lockedAreas.length) ? <ViewOnlyBanner lockedAreas={lockedAreas} all={!canEditAnything}/> : null}
         {(guild.blocked) ? (
           <p role='status' className='flex items-start gap-2 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-fg'>
-            <Ban aria-hidden className='mt-0.5 size-4 shrink-0 text-danger'/>
+            <Ban aria-hidden className='mt-0.5 size-4 shrink-0 text-danger-text'/>
             <span>{t('server.blocked_notice')}{(guild.blocked_reason) ? t('server.blocked_reason', {reason: guild.blocked_reason}) : null}</span>
           </p>
         ) : null}
@@ -236,12 +236,12 @@ function YourStuffLinks({ guildId }: {guildId: string}) {
 function YourStuffLink({ to, icon: Icon, label, count }: {to: string, icon: LucideIcon, label: string, count: number | undefined}) {
   return (
     <Link to={to} className='group/stuff inline-flex items-center gap-2 rounded-md border border-line-strong bg-surface-2 px-3 py-2 text-sm font-medium text-fg transition-colors hover:border-brand hover:text-white'>
-      <Icon aria-hidden className='size-4 text-muted transition-colors group-hover/stuff:text-brand'/>
+      <Icon aria-hidden className='size-4 text-muted transition-colors group-hover/stuff:text-brand-text'/>
       {label}
       {(count === undefined) ? null : (
         <span className='rounded bg-surface-3 px-1.5 text-xs text-muted tabular-nums'>{formatNumber(count)}</span>
       )}
-      <ArrowUpRight aria-hidden className='size-3.5 text-subtle transition-colors group-hover/stuff:text-brand'/>
+      <ArrowUpRight aria-hidden className='size-3.5 text-subtle transition-colors group-hover/stuff:text-brand-text'/>
     </Link>
   );
 }

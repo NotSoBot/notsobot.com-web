@@ -219,7 +219,7 @@ export const Dashboard = {
   'pservers.removable': 'Can be removed {date}',
   'pservers.remove_label': 'Remove {name}',
   'pservers.given': '{name} has your premium now',
-  'pservers.dialog_title': 'Give a server your premium',
+  'pservers.dialog_title': 'Give a Server Your Premium',
   'pservers.dialog_description': 'Servers you share with NotSoBot. Once added, a server can’t be removed for {hours} hours.',
   'pservers.give_error': 'Couldn’t give that server your premium.',
   'pservers.search': 'Search your servers',
@@ -259,7 +259,7 @@ export const Dashboard = {
   'server_chip.server': 'Server',
   'server_chip.show_all': 'Show every server',
   'linked.loading': 'Loading {noun}',
-  'linked.not_found': '{noun} not found',
+  'linked.not_found': '{noun} Not Found',
   'linked.load_error': 'Couldn’t load this {noun}',
   'linked.back': 'Back to the list',
 } as const;

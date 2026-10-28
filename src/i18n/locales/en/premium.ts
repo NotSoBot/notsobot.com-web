@@ -75,7 +75,7 @@ export const Premium = {
   'premium.value.songs_100': '100 songs',
   'premium.value.songs_1000': '1,000 songs',
 
-  'premium.servers.title': 'Premium servers',
+  'premium.servers.title': 'Premium Servers',
   'premium.servers.description': 'Plus and Plus AI come with 2 premium server slots. Put one on a server or group DM and everyone there gets these perks while they use NotSoBot, and you keep your own premium. Add one with <code>/settings premium-servers add</code> in the server, or from the dashboard. A slot can be moved to another server 24 hours after it was added.',
   'premium.servers.stacking': 'With Plus AI, slots stack: every Plus AI slot on a server adds 50 NotSoAI messages every 12 hours, so putting both of yours on one server (or two members adding theirs) gives it 100.',
   'premium.servers.owning': 'Owning a server doesn’t give it premium on its own.',

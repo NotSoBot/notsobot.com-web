@@ -17,7 +17,7 @@ export function PersonalityHint({ children }: {children: ReactNode}) {
       <span className='block'>
         {children}{' '}
         {rich('settings.personality_hint', {
-          docs: (chunk) => <Link to={Routes.TAG_DOCS} className='text-brand hover:underline'>{chunk}</Link>,
+          docs: (chunk) => <Link to={Routes.TAG_DOCS} className='text-brand-text hover:underline'>{chunk}</Link>,
           code: (chunk) => <code className='font-mono text-fg'>{chunk}</code>,
         })}
       </span>

@@ -67,7 +67,7 @@ export function TagDetailsModal({ tagId, guildNames, previousId, nextId, onNavig
         </div>
       ) : (
         <div className='px-6 py-16 text-center'>
-          <AlertTriangle className='mx-auto mb-4 size-14 text-danger'/>
+          <AlertTriangle className='mx-auto mb-4 size-14 text-danger-text'/>
           <h2 id={TITLE_ID} className='mb-3 text-2xl font-bold text-white'>{t((isError) ? 'dtags.modal.load_error' : 'dtags.modal.not_found')}</h2>
           <p className='mb-6 text-muted'>{errorMessage(error, t('dtags.modal.maybe_deleted'))}</p>
           {(isError) ? <button type='button' className='btn btn-secondary' onClick={() => refetch()}>{t('common.retry')}</button> : null}

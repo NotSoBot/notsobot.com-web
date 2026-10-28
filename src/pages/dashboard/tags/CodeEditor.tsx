@@ -100,7 +100,7 @@ export function CodeEditor({ value, onChange, onSave, readOnly = false, maxLengt
         <span>Ln {cursor.line}, Col {cursor.column}</span>
         <span>
           {lineCount.toLocaleString()} {lineCount === 1 ? 'line' : 'lines'}
-          {(maxLength) ? <> · <span className={cn(maxLength < value.length && 'text-danger')}>{value.length.toLocaleString()} / {maxLength.toLocaleString()}</span></> : null}
+          {(maxLength) ? <> · <span className={cn(maxLength < value.length && 'text-danger-text')}>{value.length.toLocaleString()} / {maxLength.toLocaleString()}</span></> : null}
         </span>
       </div>
     </div>

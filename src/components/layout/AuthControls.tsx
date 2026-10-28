@@ -167,7 +167,7 @@ function UserMenu({ compact }: {compact: boolean}) {
               role='menuitem'
               disabled={loggingOut}
               onClick={onLogout}
-              className='flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-danger hover:bg-surface-2 disabled:opacity-60'
+              className='flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-danger-text hover:bg-surface-2 disabled:opacity-60'
             >
               <LogOut className='size-4'/>
               {t(loggingOut ? 'account.logging_out' : 'account.log_out')}

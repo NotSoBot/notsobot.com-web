@@ -188,7 +188,7 @@ type ApplicationDialog = 'rename' | 'disable' | 'reset' | 'delete';
 
 // footer actions, short labels and no icons on phones; destructive ones tinted red
 const ACTION = 'btn min-w-0 flex-auto px-1.5 sm:flex-none sm:px-3';
-const DANGER_TINT = 'border border-danger/40 bg-danger/10 text-danger hover:bg-danger/20';
+const DANGER_TINT = 'border border-danger/40 bg-danger/10 text-danger-text hover:bg-danger/20';
 
 // Laid out like the user and server modals: the application, its id and when it was made on the left, whether it's the
 // bot's in the middle and whether it works in the top right. Then who owns it, what it's been used for recently, and
@@ -274,7 +274,7 @@ function ApplicationDetails({ application, navigation, onFilterOwner, onDeleted 
               className='group/user -ml-1.5 flex min-w-0 items-center gap-1.5 rounded-md py-1 pr-2 pl-1.5 transition-colors hover:bg-surface-3'
             >
               <UserCell user={application.user} fallbackId={ownerId} size='sm'/>
-              <ArrowUpRight aria-hidden className='size-3.5 shrink-0 text-subtle transition-colors group-hover/user:text-brand'/>
+              <ArrowUpRight aria-hidden className='size-3.5 shrink-0 text-subtle transition-colors group-hover/user:text-brand-text'/>
             </Link>
           ) : <UserCell user={null}/>}
           {(ownerId) ? (

@@ -32,7 +32,7 @@ export function AssetProvenanceLine({ provenance, ownerId, className }: {
       {(source_url) ? (
         <span className='inline-flex min-w-0 max-w-full items-center gap-1'>
           from
-          <a href={source_url} target='_blank' rel='noreferrer noopener nofollow' title={source_url} className='truncate font-mono text-brand hover:underline'>
+          <a href={source_url} target='_blank' rel='noreferrer noopener nofollow' title={source_url} className='truncate font-mono text-brand-text hover:underline'>
             {source_url}
           </a>
         </span>

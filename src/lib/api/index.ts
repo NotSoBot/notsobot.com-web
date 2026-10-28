@@ -69,6 +69,7 @@ import type {
   GuildMusicStatsSort,
   GuildMusicControl,
   GuildMusicEffectControl,
+  GuildMusicSoundControl,
   GuildMusicSettings,
   GuildCommandStats,
   GuildReminder,
@@ -795,7 +796,7 @@ export const api = {
     return apiRequest<GuildMusic>(guildEndpoints(scope, guildId).MUSIC, {method: 'PATCH', body: patch});
   },
 
-  controlGuildMusic: (scope: GuildScope, guildId: string, control: {action: GuildMusicControl} | GuildMusicEffectControl) => {
+  controlGuildMusic: (scope: GuildScope, guildId: string, control: {action: GuildMusicControl} | GuildMusicEffectControl | GuildMusicSoundControl) => {
     return apiRequest<void>(guildEndpoints(scope, guildId).MUSIC_CONTROL, {method: 'POST', body: control});
   },
 

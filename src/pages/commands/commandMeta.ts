@@ -136,17 +136,31 @@ export function categoryOrder(label: (key: TranslationKey) => string): Array<str
 }
 
 
+// one way to run a command (prefix, slash, a context menu) and its uses in the stats window (0 when unused or unknown)
+export interface Variant {
+  metadata: CommandMetadata,
+  uses: number,
+}
+
+// One card: a command's prefix and slash variants share one (they're the same command typed two ways), each context
+// menu gets its own since it's used differently.
 export interface Entry {
   key: string,
   command: Command,
+  // the variant the card shows, the prefix one when there is one
   metadata: CommandMetadata,
+  // sorted by type, so prefix before slash
+  variants: Array<Variant>,
   // slash/context metadata has no category of its own; borrow it from a sibling
   category: string,
-  // uses in the stats window (0 when unused or unknown)
+  // all of its variants' uses together
   uses: number,
   // 1-based popularity rank among all entries with uses, null when unused
   rank: number | null,
 }
+
+
+const MERGED_TYPES: ReadonlySet<CommandType> = new Set([CommandTypes.PREFIXED, CommandTypes.APPLICATION_SLASH]);
 
 
 export function entryKey(commandId: string, type: CommandType): string {
@@ -154,22 +168,34 @@ export function entryKey(commandId: string, type: CommandType): string {
 }
 
 
-function commandTypes(entries: Array<Entry>, commandId: string): Array<CommandType> {
-  return entries.filter((entry) => entry.command.id === commandId).map((entry) => entry.metadata.type);
+// every variant a command is offered as, filters aside (what its paths are worked out from)
+function commandTypes(command: Command): Array<CommandType> {
+  return enabledCommandVariants(command).filter((metadata) => metadata.name).map((metadata) => metadata.type);
 }
 
-export function commandPath(entry: Entry, entries: Array<Entry>): string {
-  return commandPathFor(entry.command.id, entry.metadata.type, commandTypes(entries, entry.command.id));
+export function commandPath(command: Command, type: CommandType): string {
+  return commandPathFor(command.id, type, commandTypes(command));
 }
 
-// the entry a /commands/:commandId(/:commandType) path points at, undefined for an unknown command or type
-export function entryFromPath(entries: Array<Entry>, commandId: string, slug: string | undefined): Entry | undefined {
-  const type = commandTypeFromPath(slug, commandTypes(entries, commandId));
-  return (type === undefined) ? undefined : entries.find((entry) => entry.command.id === commandId && entry.metadata.type === type);
+// the entry (and which of its variants) a /commands/:commandId(/:commandType) path points at, undefined for an unknown
+// command or type
+export function entryFromPath(entries: Array<Entry>, commandId: string, slug: string | undefined): {entry: Entry, type: CommandType} | undefined {
+  const command = entries.find((entry) => entry.command.id === commandId)?.command;
+  const type = (command) ? commandTypeFromPath(slug, commandTypes(command)) : undefined;
+  if (type === undefined) {
+    return undefined;
+  }
+  const entry = entries.find((item) => item.command.id === commandId && item.variants.some((variant) => variant.metadata.type === type));
+  return (entry) ? {entry, type} : undefined;
 }
 
 
-export function buildEntries(commands: Array<Command>, stats: Array<CommandStat> | undefined): Array<Entry> {
+// `include` narrows the variants first (type, DMs, free/premium), so a card's uses are only the ones that match
+export function buildEntries(
+  commands: Array<Command>,
+  stats: Array<CommandStat> | undefined,
+  include?: (metadata: CommandMetadata) => boolean,
+): Array<Entry> {
   const usage = new Map<string, number>();
   for (const stat of stats || []) {
     const key = entryKey(stat.id, stat.type);
@@ -181,21 +207,28 @@ export function buildEntries(commands: Array<Command>, stats: Array<CommandStat>
   for (const command of commands) {
     // a disabled sibling can still lend its category
     const fallbackCategory = command.metadata.find((x) => x.category)?.category || '';
-    for (const metadata of enabledCommandVariants(command)) {
-      if (!metadata.name) {
+    const variants = enabledCommandVariants(command)
+      .filter((metadata) => metadata.name && (!include || include(metadata)))
+      .sort((x, y) => x.type - y.type);
+    const merged = variants.filter((metadata) => MERGED_TYPES.has(metadata.type));
+    const groups = [ merged, ...variants.filter((metadata) => !MERGED_TYPES.has(metadata.type)).map((metadata) => [metadata]) ];
+    for (const group of groups) {
+      if (!group.length) {
         continue;
       }
+      const [ metadata ] = group;
       const category = metadata.category || fallbackCategory;
       if (HIDDEN_CATEGORIES.has(category)) {
         continue;
       }
-      const key = entryKey(command.id, metadata.type);
+      const entryVariants = group.map((item) => ({metadata: item, uses: usage.get(entryKey(command.id, item.type)) || 0}));
       entries.push({
-        key,
+        key: entryKey(command.id, metadata.type),
         command,
         metadata,
+        variants: entryVariants,
         category,
-        uses: usage.get(key) || 0,
+        uses: entryVariants.reduce((sum, variant) => sum + variant.uses, 0),
         rank: null,
       });
     }

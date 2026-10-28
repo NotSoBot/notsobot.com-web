@@ -51,7 +51,7 @@ export function GuildTagsSection({ guild }: {guild: UserGuild}) {
             <Skeleton className='h-14 w-full bg-surface-2'/>
           </div>
         ) : (tags.error) ? (
-          <p role='alert' className='text-sm text-danger'>{errorMessage(tags.error, t('stags.load_error'))}</p>
+          <p role='alert' className='text-sm text-danger-text'>{errorMessage(tags.error, t('stags.load_error'))}</p>
         ) : (items.length) ? (
           <ul className='divide-y divide-line rounded-md border border-line'>
             {items.map((tag) => (

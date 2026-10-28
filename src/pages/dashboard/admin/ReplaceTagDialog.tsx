@@ -89,7 +89,7 @@ export function ReplaceTagDialog({ tag, onReplaced, onClose }: {
               disabled={mutation.isPending}
               autoFocus
             />
-            {(inputError) ? <p id={errorId} className='mt-1.5 text-xs text-danger'>{inputError}</p> : null}
+            {(inputError) ? <p id={errorId} className='mt-1.5 text-xs text-danger-text'>{inputError}</p> : null}
           </div>
 
           {(targetId && !preview.isError && !summary) ? (

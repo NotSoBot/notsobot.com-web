@@ -145,7 +145,7 @@ export function OverviewPage() {
     [Routes.DASHBOARD_REPORTS]: {
       count: countOf(reports, reports.data?.count),
       detail: (unreadReports) ? (
-        <span className='inline-flex items-center gap-1.5 font-medium text-brand'>
+        <span className='inline-flex items-center gap-1.5 font-medium text-brand-text'>
           <span aria-hidden className='size-1.5 rounded-full bg-brand'/>
           {t('overview.with_updates', {count: formatNumber(unreadReports)})}
         </span>
@@ -162,11 +162,19 @@ export function OverviewPage() {
     },
   };
 
+  // a user cached from before the api returned it has no field at all
+  const accentColor = (typeof user.accent_color === 'number') ? `#${user.accent_color.toString(16).padStart(6, '0')}` : null;
+
   return (
     <div className='space-y-6'>
       <section className='card relative overflow-hidden p-5 sm:p-6'>
-        <div aria-hidden className='absolute inset-x-0 top-0 h-16 bg-gradient-to-r from-brand/40 via-brand/10 to-transparent'/>
-        <div className='relative flex flex-col gap-4 sm:flex-row sm:items-center'>
+        {/* their discord profile color, like the banner strip on a discord profile. the content starts below it so text never sits on a color we don't pick */}
+        <div
+          aria-hidden
+          className={cn('absolute inset-x-0 top-0 h-16', !accentColor && 'bg-surface-3')}
+          style={(accentColor) ? {backgroundColor: accentColor} : undefined}
+        />
+        <div className='relative flex flex-col gap-4 pt-6 sm:flex-row sm:items-end'>
           <UserAvatar user={user} size={128} className='size-20 rounded-full border-4 border-surface bg-surface-3'/>
           <div className='min-w-0 flex-1'>
             <h1 className='truncate text-2xl font-bold text-white sm:text-3xl'>{userDisplayTag(user)}</h1>
@@ -325,7 +333,7 @@ function ReportUpdatesNotice({ count }: {count: number}) {
   return (
     <Link to={Routes.DASHBOARD_REPORTS} className='group card card-hover flex items-center gap-3 border-brand/50 p-4 hover:border-brand'>
       <span className='relative flex size-9 shrink-0 items-center justify-center rounded-md bg-brand/15'>
-        <MessageSquareWarning aria-hidden className='size-5 text-brand'/>
+        <MessageSquareWarning aria-hidden className='size-5 text-brand-text'/>
         <span aria-hidden className='absolute -top-1 -right-1 size-2.5 rounded-full border-2 border-surface bg-brand'/>
       </span>
       <span className='min-w-0 flex-1'>

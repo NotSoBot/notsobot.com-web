@@ -1,5 +1,4 @@
 import { AlarmClock, ArrowLeft, AudioLines, ChevronsUpDown, Blocks, Brain, ChartColumn, Crown, Files, Fingerprint, Flag, Inbox, KeyRound, LayoutDashboard, MessageSquareWarning, RadioTower, Server, Settings, ShieldCheck, SquareTerminal, Tags, type LucideIcon, Users } from 'lucide-react';
-import type { CSSProperties } from 'react';
 import { Link, NavLink, Outlet, useLocation, useMatch, useNavigate } from 'react-router';
 
 import { isOwner, isStaff, useAuth } from '@/auth';
@@ -217,9 +216,9 @@ function SectionSelect({ groups }: {groups: ReadonlyArray<SectionGroup>}) {
   const elsewhere = all.some((section) => section !== current && section.badge);
 
   return (
-    <div style={{'--cat': current?.color ?? 'currentColor'} as CSSProperties} className='relative lg:hidden'>
+    <div className='relative lg:hidden'>
       <div aria-hidden className='flex items-center gap-2.5 rounded-md border border-brand/70 bg-surface-3 px-3 py-2.5 text-sm text-white'>
-        {(current) ? <current.icon className='size-4 shrink-0 text-[var(--cat)]'/> : null}
+        {(current) ? <current.icon className='size-4 shrink-0 text-muted'/> : null}
         <span className='min-w-0 flex-1 truncate'>{(current) ? maybeTranslate(current.label) : t('dash.choose_page')}</span>
         {(current?.badge) ? (
           <span className='min-w-5 rounded-full bg-brand px-1.5 text-center text-xs leading-5 font-semibold text-white tabular-nums'>{current.badge.toLocaleString()}</span>
@@ -272,13 +271,12 @@ function SectionList({ sections, badges }: {sections: ReadonlyArray<Section>, ba
           <NavLink
             to={section.to}
             end={section.end}
-            style={{'--cat': section.color} as CSSProperties}
             className={({ isActive }) => cn(
-              'flex items-center gap-2.5 rounded-md border border-transparent px-3 py-2 text-sm whitespace-nowrap transition-colors',
+              'group flex items-center gap-2.5 rounded-md border border-transparent px-3 py-2 text-sm whitespace-nowrap transition-colors',
               (isActive) ? 'bg-surface-3 text-white' : 'text-muted hover:bg-surface-2 hover:text-white',
             )}
           >
-            <section.icon aria-hidden className='size-4 shrink-0 text-[var(--cat)]'/>
+            <section.icon aria-hidden className='size-4 shrink-0 text-muted transition-colors group-hover:text-white group-aria-[current=page]:text-white'/>
             {maybeTranslate(section.label)}
             {(badges?.[section.to]) ? (
               <span className='ml-auto min-w-5 rounded-full bg-brand px-1.5 text-center text-xs leading-5 font-semibold text-white tabular-nums'>

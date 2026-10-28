@@ -127,7 +127,7 @@ function ServerLoadError({ error, onRetry, retrying }: {error: Error | null, onR
   const notFound = error instanceof ApiRequestError && (error.status === 404 || error.code === ApiErrorCodes.UNKNOWN_SERVER);
   return (
     <div className='px-6 py-16 text-center'>
-      <AlertTriangle className='mx-auto mb-4 size-14 text-danger'/>
+      <AlertTriangle className='mx-auto mb-4 size-14 text-danger-text'/>
       <h2 id={TITLE_ID} className='mb-3 text-2xl font-bold text-white'>{(notFound) ? 'Server not found' : 'Couldn’t load this server'}</h2>
       <p className='mb-6 text-muted'>{(notFound) ? 'NotSoBot isn’t in this server and has nothing saved for it.' : errorMessage(error)}</p>
       {(notFound) ? null : <button type='button' className='btn btn-secondary' disabled={retrying} onClick={onRetry}>Retry</button>}

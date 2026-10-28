@@ -210,7 +210,7 @@ function VariableRow({ tagId, scope, storageType, storageId, name, value, readOn
             <button type='button' className='btn btn-ghost btn-sm px-2' aria-label={t('dtags.vars.edit', {name})} onClick={() => setEditing(true)}>
               <Pencil aria-hidden className='size-4'/>
             </button>
-            <button type='button' className='btn btn-ghost btn-sm px-2 hover:text-danger' aria-label={t('dtags.delete_label', {name})} onClick={() => setConfirming(true)}>
+            <button type='button' className='btn btn-ghost btn-sm px-2 hover:text-danger-text' aria-label={t('dtags.delete_label', {name})} onClick={() => setConfirming(true)}>
               <Trash2 aria-hidden className='size-4'/>
             </button>
           </div>

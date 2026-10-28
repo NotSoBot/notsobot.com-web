@@ -72,7 +72,7 @@ export function ServerHome({ guild }: {guild: UserGuild}) {
             <StatTile
               label={t('shome.reports')}
               value={count(reports.data?.count)}
-              tone='text-danger'
+              tone='text-danger-text'
               to={dashboardServerPath(guild.id, 'reports')}
             />
           </>

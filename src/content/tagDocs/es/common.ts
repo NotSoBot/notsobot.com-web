@@ -1,6 +1,6 @@
 // Notes that many functions share word for word in English, so they read the same in Spanish too.
 
-export const ONLY_NOTSOAI = 'Solo NotSoAI puede usar esto. En el tag de un usuario (o en un tag que NotSoAI llama con {tag}) la función se deja como texto normal. También se deja como texto normal al ejecutarse desde un botón o menú que hizo NotSoAI, ya que otra persona podría pulsarlo.';
+export const ONLY_NOTSOAI = 'Solo NotSoAI puede usar esto. En el tag de un usuario (o en un tag que NotSoAI llama con {tag}) la función se deja como texto normal. También se deja como texto normal al ejecutarse desde un botón o menú que hizo NotSoAI, ya que otra persona podría pulsarlo. También se deja como texto normal cuando el prompt de NotSoAI tenía texto de otra persona (un mensaje de otro al que respondió, un enlace, un archivo que no subió el propio usuario o la opción `url`, también antes en la conversación), y en código que solo existe al ejecutarse, como una respuesta de `{ai}` o lo que ejecutan `{eval}` y `{evalsilent}`.';
 export const MEMORY_PERMANENT = 'Esto cambia de forma permanente lo que NotSoAI recuerda de la persona que se lo pidió, no solo en esta ejecución.';
 export const NETWORK = 'Cuenta para el límite de peticiones de red.';
 export const API_LIMIT = 'Cuenta para el límite de acciones de la API (1 por ejecución por defecto) y para el límite de peticiones de red.';

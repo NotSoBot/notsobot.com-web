@@ -132,7 +132,7 @@ function CopySectionLink({ id, title }: {id: string, title: string}) {
       aria-label={(copied) ? 'Link copied' : `Copy a link to ${title}`}
       onClick={copy}
     >
-      {(copied) ? <Check aria-hidden className='size-4 text-success'/> : <Link2 aria-hidden className='size-4'/>}
+      {(copied) ? <Check aria-hidden className='size-4 text-success-text'/> : <Link2 aria-hidden className='size-4'/>}
     </button>
   );
 }
@@ -177,7 +177,7 @@ export function Metric({ className, label, value, detail, color, title, to, tone
       </p>
       <p className={cn(
         'mt-1 text-xl font-semibold tabular-nums',
-        (tone === 'warning') ? 'text-warning' : (tone === 'danger') ? 'text-danger' : 'text-white',
+        (tone === 'warning') ? 'text-warning' : (tone === 'danger') ? 'text-danger-text' : 'text-white',
         to && 'group-hover/metric:underline',
       )}>
         {value}

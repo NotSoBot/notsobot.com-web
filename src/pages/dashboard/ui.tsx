@@ -84,7 +84,7 @@ export function ErrorPanel({ title, message, onRetry, retrying = false }: {
   const { t } = useI18n();
   return (
     <div role='alert' className='card flex flex-col items-center gap-3 p-8 text-center sm:p-10'>
-      <CircleAlert aria-hidden className='size-8 text-danger'/>
+      <CircleAlert aria-hidden className='size-8 text-danger-text'/>
       <div>
         <p className='font-medium text-white'>{title ?? t('dash.load_error')}</p>
         {(message) ? <p className='mt-1 text-sm text-muted'>{message}</p> : null}
@@ -102,7 +102,7 @@ export function ErrorPanel({ title, message, onRetry, retrying = false }: {
 
 export function InlineError({ children }: {children: ReactNode}) {
   return (
-    <p role='alert' className='mt-2 flex items-start gap-1.5 text-sm text-danger'>
+    <p role='alert' className='mt-2 flex items-start gap-1.5 text-sm text-danger-text'>
       <CircleAlert aria-hidden className='mt-0.5 size-4 shrink-0'/>
       <span className='min-w-0 break-words'>{children}</span>
     </p>
@@ -148,7 +148,7 @@ export function Field({ label, hint, error, counter, children, className }: {
       </div>
       {children({id, 'aria-describedby': describedBy, 'aria-invalid': (error) ? true : undefined})}
       {(error) ? (
-        <p id={hintId} className='mt-1.5 text-xs text-danger'>{error}</p>
+        <p id={hintId} className='mt-1.5 text-xs text-danger-text'>{error}</p>
       ) : (hint) ? (
         <p id={hintId} className='mt-1.5 text-xs text-subtle'>{hint}</p>
       ) : null}
@@ -159,7 +159,7 @@ export function Field({ label, hint, error, counter, children, className }: {
 
 export function CharCounter({ length, max }: {length: number, max: number}) {
   return (
-    <span className={cn(max < length ? 'text-danger' : (max * 0.9 < length) ? 'text-warning' : undefined)}>
+    <span className={cn(max < length ? 'text-danger-text' : (max * 0.9 < length) ? 'text-warning' : undefined)}>
       {formatNumber(length)} / {formatNumber(max)}
     </span>
   );

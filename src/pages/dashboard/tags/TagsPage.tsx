@@ -309,7 +309,7 @@ function TagCard({ tag, user, guildNames, period, onOpen, onDelete }: {
       <div className='mb-3 flex items-start justify-between gap-3'>
         <div className='min-w-0 flex-1'>
           <div className='flex items-center gap-2'>
-            <h2 className='truncate font-medium text-white transition-colors group-hover:text-brand'>
+            <h2 className='truncate font-medium text-white transition-colors group-hover:text-brand-text'>
               {/* stretched: the whole card opens the tag */}
               <button
                 type='button'
@@ -354,7 +354,7 @@ function TagCard({ tag, user, guildNames, period, onOpen, onDelete }: {
 function AliasOf({ reference, user, onOpen }: {reference: Tag, user: UserMe | null, onOpen: (id: string) => void}) {
   const { t } = useI18n();
   const own = !!user && reference.user?.id === user.id;
-  const linkClassName = 'relative z-10 inline-flex min-w-0 cursor-pointer items-center gap-1 text-brand hover:underline';
+  const linkClassName = 'relative z-10 inline-flex min-w-0 cursor-pointer items-center gap-1 text-brand-text hover:underline';
   const name = <span className='truncate'>{reference.name}</span>;
   return (
     <p className='mt-0.5 flex min-w-0 items-center gap-1 text-sm text-muted'>

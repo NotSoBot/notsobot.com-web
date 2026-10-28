@@ -111,7 +111,7 @@ function WarningsList({ guildId }: {guildId: string}) {
           <Skeleton className='h-14 w-full bg-surface-2'/>
         </div>
       ) : (query.error) ? (
-        <p role='alert' className='text-sm text-danger'>{errorMessage(query.error, t('warnings.load_error'))}</p>
+        <p role='alert' className='text-sm text-danger-text'>{errorMessage(query.error, t('warnings.load_error'))}</p>
       ) : (warnings.length && first) ? (
         <ul className='divide-y divide-line rounded-md border border-line'>
           {warnings.map((warning) => (

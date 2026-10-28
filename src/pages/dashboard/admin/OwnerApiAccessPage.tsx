@@ -102,7 +102,7 @@ export function OwnerApiAccessPage() {
                     <span className='max-sm:sr-only'>{(item.applications === 1) ? 'application' : 'applications'}</span>
                   </Link>
                 ) : <span className='shrink-0 text-xs text-subtle'>No applications</span>}
-                <button type='button' className='btn btn-sm shrink-0 border border-danger/40 bg-danger/10 text-danger hover:bg-danger/20' onClick={() => setRevoking(item)}>
+                <button type='button' className='btn btn-sm shrink-0 border border-danger/40 bg-danger/10 text-danger-text hover:bg-danger/20' onClick={() => setRevoking(item)}>
                   <UserMinus aria-hidden className='size-4 shrink-0'/>
                   <span className='max-sm:sr-only'>Revoke</span>
                 </button>

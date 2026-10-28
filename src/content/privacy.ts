@@ -18,7 +18,7 @@ export const PRIVACY_POLICY: LegalDocument = {
       blocks: [
         {type: 'paragraph', text: "We only collect what's needed to run the features You use, keep the Service secure, and prevent abuse. Depending on which features You use, this includes:"},
         {type: 'list', items: [
-          "Discord account information: your user ID, username, discriminator, avatar, account flags, and the ID of your DM channel with NotSoBot. This comes from Discord when You use a command.",
+          "Discord account information: your user ID, username, discriminator, avatar, account flags, and the ID of your DM channel with NotSoBot. This comes from Discord when You use a command. Your profile's banner color is also saved when You log in to the dashboard, to show on your dashboard profile.",
           "Your settings: language, timezone, units, response display preferences, file upload preferences, selected AI models and personality, text-to-speech voice, and the servers You pinned on the website's dashboard.",
           "Server information and settings for servers NotSoBot is in: server ID, name, icon, features, language, timezone, custom prefixes, AI settings, what the server's admins told NotSoAI about the server along with who added each one, and the rules for who can use which commands along with who added each rule.",
           "Warnings a server's moderators give with the warn command: the server, the warned member's user ID, the moderator's user ID, the reason and when it was given. The warned member is sent the warning in a DM.",

@@ -2993,11 +2993,11 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     aliases: ['magick', 'magic'],
     category: 'filters',
     summary: 'Applies the classic liquid-rescale "magik" warp.',
-    syntax: 'magik MEDIA_KEY ITERATIONS=1 RESCALE=false SCALE=2',
+    syntax: 'magik MEDIA_KEY ITERATIONS=1 RESCALE=true SCALE=2',
     args: [
       media(),
       {name: 'ITERATIONS', default: '1', range: '1..10', description: 'how many times to apply it'},
-      {name: 'RESCALE', default: 'false'},
+      {name: 'RESCALE', default: 'true', description: 'stretch the result back to the original size, false leaves it smaller after each pass'},
       {name: 'SCALE', default: '2', range: '1..10', description: 'how strongly each pass squishes the image'},
     ],
   },
@@ -3562,6 +3562,26 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     ],
   },
   {
+    name: 'vegastimecode',
+    aliases: ['timecode'],
+    category: 'text',
+    summary: 'Burns the media\'s running time onto it in a black box, like VEGAS\' (Sony) Timecode effect.',
+    syntax: 'vegastimecode MEDIA_KEY X=right Y=bottom TYPE=drop',
+    args: [
+      media(),
+      {name: 'X', default: 'right', range: 'left, center, right (or 0, 1, 2)', description: 'where it sits across, inside a 10% safe margin'},
+      {name: 'Y', default: 'bottom', range: 'top, center, bottom (or 0, 1, 2)', description: 'where it sits down, inside a 10% safe margin'},
+      {name: 'TYPE', default: 'drop', range: 'time, seconds, timeframes, frames, feet16, feet35, ivtc, film, ebu, nondrop, drop, smpte30 (or 0..11)', description: 'how the time is written: `time` 00:00:01,335, `seconds` 1,335, `timeframes` 00:00:01,10, `frames` 40,000, `feet16`/`feet35` 1+00, SMPTE `ivtc` (23.976), `film` (24), `ebu` (25), `nondrop` (29.97), `drop` 00:00:01;10 and `smpte30`'},
+    ],
+    examples: [
+      {code: '{mediascript:load {video} clip\nvegastimecode clip\nrender clip}', result: 'Drop frame timecode in the bottom right corner, like Vegas\' default.'},
+      {code: '{mediascript:load {video} clip\ntimecode clip left top film\nrender clip}', result: '24 fps film timecode in the top left corner.'},
+    ],
+    notes: [
+      'The time starts at 0 on the first frame, so a still image always shows 0. The SMPTE types count frames at their own rate, not the media\'s. Its size follows the media\'s height, and the audio is kept as it is.',
+    ],
+  },
+  {
     name: 'vegaswave',
     category: 'distort',
     summary: 'Bends the media along waves across and down, like VEGAS\' Wave, and can move them.',
@@ -3721,6 +3741,21 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
       {name: 'DIRECTION', default: 'RIGHT', range: 'down, left, right, up'},
     ],
     notes: ['Turns a still image into a 30-frame GIF.'],
+  },
+  {
+    name: 'prism',
+    category: 'distort',
+    summary: 'Wraps the media around a spinning pyramid, like the Obama prism, on a transparent background cut to the pyramid.',
+    syntax: 'prism MEDIA_KEY ANGLE=30 TILT=12 CLOCKWISE=TRUE REPEAT=FALSE STILL=FALSE',
+    args: [
+      media(),
+      {name: 'ANGLE', default: '30', range: '-180..180', description: 'how far it\'s turned, the media\'s middle on the front side: where the spin starts, or the pose with STILL'},
+      {name: 'TILT', default: '12', range: '0..90', description: 'how far the camera looks down at it, 0 level with it and 90 straight onto the tip'},
+      {name: 'CLOCKWISE', default: 'TRUE'},
+      {name: 'REPEAT', default: 'FALSE', description: 'put the whole media on every side instead of wrapping it once around all four, like the original'},
+      {name: 'STILL', default: 'FALSE', description: 'don\'t spin, keep the pose at ANGLE (an animation still plays on it)'},
+    ],
+    notes: ['Turns a still image into a 60-frame GIF (30 with REPEAT), or a single frame with STILL.'],
   },
   {
     name: 'globe',

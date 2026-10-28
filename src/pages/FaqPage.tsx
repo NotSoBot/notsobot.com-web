@@ -92,7 +92,7 @@ export function FaqPage() {
     <>
       <div className='border-b border-line bg-surface'>
         <div className='container-page py-10 sm:py-12'>
-          <div className='mb-3 flex items-center gap-2 text-sm font-medium text-brand'>
+          <div className='mb-3 flex items-center gap-2 text-sm font-medium text-brand-text'>
             <MessageCircleQuestion className='size-4'/>
             {t('faq.badge')}
           </div>
@@ -139,7 +139,7 @@ export function FaqPage() {
                         'hover:bg-surface-2 hover:text-white disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent lg:border-transparent',
                       )}
                     >
-                      <Icon className='size-4 shrink-0 text-brand'/>
+                      <Icon className='size-4 shrink-0 text-brand-text'/>
                       <span className='min-w-0 truncate'>{section.title}</span>
                       <span className='ml-auto shrink-0 pl-2 text-xs text-subtle tabular-nums'>{count}</span>
                     </button>
@@ -160,7 +160,7 @@ export function FaqPage() {
                 <section key={section.id} id={sectionAnchor(section.id)} aria-labelledby={`${sectionAnchor(section.id)}-title`} className='scroll-mt-24'>
                   <header className='mb-4 flex items-center gap-3'>
                     <span className='flex size-10 shrink-0 items-center justify-center rounded-lg bg-brand/15'>
-                      <Icon className='size-5 text-brand'/>
+                      <Icon className='size-5 text-brand-text'/>
                     </span>
                     <div>
                       <h2 id={`${sectionAnchor(section.id)}-title`} className='text-xl font-semibold text-white'>{section.title}</h2>
@@ -190,7 +190,7 @@ export function FaqPage() {
               </div>
             ) : null}
 
-            <aside className='flex flex-col items-start justify-between gap-4 rounded-lg border border-brand/30 bg-gradient-to-r from-brand/20 to-brand/5 p-6 sm:flex-row sm:items-center'>
+            <aside className='flex flex-col items-start justify-between gap-4 rounded-lg border border-line border-l-[3px] border-l-brand bg-surface p-6 sm:flex-row sm:items-center'>
               <div>
                 <h2 className='mb-1 text-lg font-semibold text-white'>{t('faq.stuck_title')}</h2>
                 <p className='text-sm text-muted'>{t('faq.stuck_description')}</p>
@@ -267,7 +267,7 @@ function CopyLinkButton({ id }: {id: string}) {
   };
   return (
     <button type='button' onClick={copy} className='mt-3 flex cursor-pointer items-center gap-1.5 text-xs text-subtle transition-colors hover:text-white'>
-      {(copied) ? <Check className='size-3.5 text-success'/> : <Link2 className='size-3.5'/>}
+      {(copied) ? <Check className='size-3.5 text-success-text'/> : <Link2 className='size-3.5'/>}
       {t((copied) ? 'faq.link_copied' : 'faq.copy_link')}
     </button>
   );
@@ -324,7 +324,7 @@ function Inline({ text, highlight }: {text: string, highlight: string}) {
 
 
 function AnswerLink({ href, children }: {href: string, children: ReactNode}) {
-  const className = 'font-medium text-brand underline-offset-4 hover:underline';
+  const className = 'font-medium text-brand-text underline-offset-4 hover:underline';
   if (href.startsWith('#')) {
     return <a href={href} className={className}>{children}</a>;
   }

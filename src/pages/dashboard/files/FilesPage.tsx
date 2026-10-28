@@ -285,7 +285,7 @@ function ViewMenu({ value, onChange }: {value: FilesView, onChange: (value: File
             >
               <option.icon aria-hidden className='size-4 text-muted'/>
               {t(option.label)}
-              {(option.value === value) ? <Check aria-hidden className='ml-auto size-4 text-brand'/> : null}
+              {(option.value === value) ? <Check aria-hidden className='ml-auto size-4 text-brand-text'/> : null}
             </button>
           ))}
         </div>

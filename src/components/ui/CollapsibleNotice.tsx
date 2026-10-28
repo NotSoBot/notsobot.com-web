@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 
 
 const TONES = {
-  success: {box: 'border-success/40 bg-success/10', icon: CircleCheck, iconColor: 'text-success'},
+  success: {box: 'border-success/40 bg-success/10', icon: CircleCheck, iconColor: 'text-success-text'},
   warning: {box: 'border-warning/40 bg-warning/10', icon: TriangleAlert, iconColor: 'text-warning'},
 };
 

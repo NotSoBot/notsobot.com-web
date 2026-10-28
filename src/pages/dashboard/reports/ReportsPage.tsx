@@ -246,7 +246,7 @@ function ReportRow({ report, showUpdated, onOpen }: {report: MeReport, showUpdat
         <span className='col-span-2 row-start-3 flex min-w-0 items-center gap-2 text-sm text-muted'>
           {(report.replies) ? (
             <span
-              className={cn('inline-flex shrink-0 items-center gap-1 text-xs', (replied) ? 'font-medium text-brand' : 'text-subtle')}
+              className={cn('inline-flex shrink-0 items-center gap-1 text-xs', (replied) ? 'font-medium text-brand-text' : 'text-subtle')}
               title={(replied) ? t('reports.staff_replied_title') : plural('reports.replies', report.replies)}
             >
               <MessagesSquare aria-hidden className='size-3.5'/>

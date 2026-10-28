@@ -16,10 +16,10 @@ export const Changelog = {
   'changelog.results_other': '{count} changes for “{query}”',
   'changelog.empty_title': 'No changes match these filters.',
   'changelog.empty_description': 'Try other words, another type or a later date.',
-  'changelog.idea_title': 'Found a bug or have an idea?',
+  'changelog.idea_title': 'Found a Bug or Have an Idea?',
   'changelog.idea_description': 'Use <code>.bot report bug</code> or tell us in the support server.',
   'legal.effective': 'Effective: {date}',
-  'legal.updated': 'Last Updated: {date}',
+  'legal.updated': 'Last updated: {date}',
   'legal.english_only': 'This document is only available in English.',
   'legal.questions': 'Questions? Email us at <email>{email}</email>',
 } as const;

@@ -254,7 +254,7 @@ export function ProxyCredentials({ proxy, now }: {proxy: IdentityProxy, now: num
         </div>
       ) : null}
       {(revealed) ? <AuditHistory history={revealed.history} now={now}/> : null}
-      {(reveal.isError) ? <p role='alert' className='mt-2 text-sm text-danger'>{errorMessage(reveal.error, 'Couldn’t reveal the proxy.')}</p> : null}
+      {(reveal.isError) ? <p role='alert' className='mt-2 text-sm text-danger-text'>{errorMessage(reveal.error, 'Couldn’t reveal the proxy.')}</p> : null}
     </div>
   );
 }

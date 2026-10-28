@@ -129,7 +129,7 @@ export function WarningActionsEditor({ value, onChange, disabled, error }: {
         {t('wactions.add')}
       </button>
       {(error) ? (
-        <p id={`${id}-hint`} className='mt-1.5 text-xs text-danger'>{error}</p>
+        <p id={`${id}-hint`} className='mt-1.5 text-xs text-danger-text'>{error}</p>
       ) : (
         <p id={`${id}-hint`} className='mt-1.5 text-xs text-subtle'>
           {t('wactions.hint')}

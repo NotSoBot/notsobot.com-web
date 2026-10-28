@@ -212,6 +212,8 @@ export interface User {
 }
 
 export interface UserMe extends User {
+  // discord profile banner color as an rgb int, null when they have none (or haven't logged in since it was added)
+  accent_color: number | null,
   channel_id: string | null,
   premium_type: number,
 }
@@ -914,6 +916,15 @@ export interface GuildMusic {
   queue: Array<GuildMusicQueueItem>,
   // how many songs the queue holds (100, 1,000 with premium)
   queue_limit: number,
+  // the server's saved effects, speed (`tempo`) and volume, what the bot's next session starts with (with `premium`)
+  // until someone changes them. A playing `session` has its own (the same, once the bot's caught up)
+  sound: {
+    effects: Array<string>,
+    // percent of the song's tempo, its pitch kept (100 is normal, 50 to 200)
+    tempo: number,
+    // percent (100 is normal, up to 200)
+    volume: number,
+  },
   session: null | {
     channel_id: string,
     // the stacked live effects in order (the bot's `MusicEffects` values), up to 5, the same one more than once too. They
@@ -970,6 +981,10 @@ export type GuildMusicEffectControl =
   // the one at `index` when it's still `effect` there, otherwise the last of it
   | {action: 'effect_remove', effect: string, index: number}
   | {action: 'effect_clear'};
+
+// the speed (tempo, 50 to 200) and volume (0 to 200), percent. The server keeps them for the next session too, so they
+// change with nothing playing. Anything but 100 needs `premium`
+export type GuildMusicSoundControl = {action: 'speed' | 'volume', value: number};
 
 // a music node (notsobot.voice), owners only. Its password (the node's `VOICE_PASSWORD`) only comes back when it's made,
 // reset or revealed

@@ -63,7 +63,7 @@ export function RemoveButton({ label, busy, disabled, onClick }: {label: string,
       title={label}
       disabled={disabled}
       onClick={onClick}
-      className='flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-subtle transition-colors hover:bg-surface-3 hover:text-danger disabled:cursor-not-allowed disabled:opacity-50'
+      className='flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-subtle transition-colors hover:bg-surface-3 hover:text-danger-text disabled:cursor-not-allowed disabled:opacity-50'
     >
       {(busy) ? <Spinner className='size-3.5'/> : <X aria-hidden className='size-4'/>}
     </button>
@@ -400,7 +400,7 @@ export function RulesSection({ guild }: {guild: UserGuild}) {
                 <span
                   className={cn(
                     'shrink-0 rounded px-1.5 py-0.5 text-xs font-semibold uppercase',
-                    (rule.value.allow) ? 'bg-success/15 text-success' : 'bg-danger/15 text-danger',
+                    (rule.value.allow) ? 'bg-success/15 text-success-text' : 'bg-danger/15 text-danger-text',
                   )}
                 >
                   {t((rule.value.allow) ? 'rules.allow' : 'rules.block')}

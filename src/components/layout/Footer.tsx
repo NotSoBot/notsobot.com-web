@@ -36,7 +36,7 @@ export function Footer() {
           <h2 className='mb-1 text-xl text-white'>NotSoBot</h2>
           <FooterQuote/>
           <div className='mb-3 flex gap-3'>
-            <a href={apiUrl(ApiEndpoints.HELP_DISCORD_SERVER)} aria-label={t('footer.support_server')} className='text-muted transition-colors hover:text-brand'>
+            <a href={apiUrl(ApiEndpoints.HELP_DISCORD_SERVER)} aria-label={t('footer.support_server')} className='text-muted transition-colors hover:text-brand-text'>
               <MessageSquare className='size-5'/>
             </a>
             <a href={Urls.GITHUB} target='_blank' rel='noreferrer' aria-label='GitHub' className='text-muted transition-colors hover:text-white'>

@@ -111,6 +111,22 @@ export const MEDIASCRIPT_PORTUGUESE_8: TagDocsTranslation['mediaScriptCommands']
       ...WAVE,
     },
   },
+  vegastimecode: {
+    summary: 'Escreve o tempo da mídia sobre ela numa caixa preta, como o efeito Timecode do VEGAS (Sony).',
+    args: {
+      MEDIA_KEY: MEDIA,
+      X: 'onde fica na horizontal, dentro de uma margem de segurança de 10%',
+      Y: 'onde fica na vertical, dentro de uma margem de segurança de 10%',
+      TYPE: 'como o tempo é escrito: `time` 00:00:01,335, `seconds` 1,335, `timeframes` 00:00:01,10, `frames` 40,000, `feet16`/`feet35` 1+00, SMPTE `ivtc` (23.976), `film` (24), `ebu` (25), `nondrop` (29.97), `drop` 00:00:01;10 e `smpte30`',
+    },
+    results: [
+      'Timecode drop frame no canto inferior direito, como o padrão do Vegas.',
+      'Timecode de cinema a 24 fps no canto superior esquerdo.',
+    ],
+    notes: [
+      'O tempo começa em 0 no primeiro quadro, então uma imagem parada sempre mostra 0. Os tipos SMPTE contam os quadros na própria taxa, não na da mídia. O tamanho acompanha a altura da mídia e o áudio é mantido como está.',
+    ],
+  },
   vegaswave: {
     summary: 'Dobra a mídia com ondas na horizontal e na vertical, como o Wave do VEGAS, e pode movê-las.',
     args: {
@@ -204,6 +220,17 @@ export const MEDIASCRIPT_PORTUGUESE_8: TagDocsTranslation['mediaScriptCommands']
     summary: 'Envolve a mídia em volta de um orbe ou globo girando.',
     args: ONLY_MEDIA,
     notes: [GIF_FRAMES(30)],
+  },
+  prism: {
+    summary: 'Envolve a mídia em volta de uma pirâmide girando, como o prisma do Obama, com fundo transparente recortado na pirâmide.',
+    args: {
+      MEDIA_KEY: MEDIA,
+      ANGLE: 'quanto ela está virada, com o meio da mídia na face da frente: onde o giro começa, ou a pose com STILL',
+      TILT: 'quanto a câmera olha para baixo, 0 na altura dela e 90 bem em cima da ponta',
+      REPEAT: 'colocar a mídia inteira em cada face em vez de envolvê-la uma vez pelas quatro, como o original',
+      STILL: 'não girar, manter a pose de ANGLE (uma animação continua tocando nela)',
+    },
+    notes: ['Transforma uma imagem parada num GIF de 60 quadros (30 com REPEAT), ou num quadro só com STILL.'],
   },
   globe: {
     summary: 'Envolve a mídia numa esfera, como um globo olho de peixe.',

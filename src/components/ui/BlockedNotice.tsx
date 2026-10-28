@@ -12,7 +12,7 @@ export function BlockedNotice({ className, user }: {className?: string, user: Us
   const { t, rich } = useI18n();
   return (
     <div role='alert' className={cn('flex items-start gap-3 rounded-md border border-danger/40 bg-danger/10 px-4 py-3 text-left text-sm text-fg', className)}>
-      <Ban aria-hidden className='mt-0.5 size-5 shrink-0 text-danger'/>
+      <Ban aria-hidden className='mt-0.5 size-5 shrink-0 text-danger-text'/>
       <div className='min-w-0 flex-1'>
         <p className='font-semibold text-white'>
           {t('ui.blocked.title')}

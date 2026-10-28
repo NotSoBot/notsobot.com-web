@@ -645,13 +645,13 @@ function EditRequestDraft({ tag, request, onDiscard }: {tag: Tag, request: TagDi
         </Field>
       </div>
       {(content !== tag.content) ? (
-        <button type='button' className='mt-2 cursor-pointer text-xs text-brand hover:underline' onClick={() => setContent(tag.content)}>
+        <button type='button' className='mt-2 cursor-pointer text-xs text-brand-text hover:underline' onClick={() => setContent(tag.content)}>
           {t('ddir.reset_content')}
         </button>
       ) : null}
 
       <div className='mt-5 flex flex-col-reverse gap-3 border-t border-line pt-4 sm:flex-row sm:items-center sm:justify-between'>
-        <button type='button' className='btn btn-ghost btn-sm text-danger sm:self-center' disabled={mutation.isPending} onClick={onDiscard}>
+        <button type='button' className='btn btn-ghost btn-sm text-danger-text sm:self-center' disabled={mutation.isPending} onClick={onDiscard}>
           <X className='size-3.5'/>
           {t('ddir.discard_draft')}
         </button>

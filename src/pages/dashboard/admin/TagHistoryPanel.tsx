@@ -224,7 +224,7 @@ function AssetDetails({ entry, ownerId }: {entry: TagAuditEntry, ownerId: string
       {(details.source_url) ? (
         <span className='inline-flex min-w-0 max-w-full items-center gap-1'>
           from
-          <a href={details.source_url} target='_blank' rel='noreferrer noopener nofollow' title={details.source_url} className='truncate font-mono text-brand hover:underline'>
+          <a href={details.source_url} target='_blank' rel='noreferrer noopener nofollow' title={details.source_url} className='truncate font-mono text-brand-text hover:underline'>
             {details.source_url}
           </a>
         </span>

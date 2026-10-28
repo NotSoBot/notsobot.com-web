@@ -525,7 +525,7 @@ function MediaManager({ assets, selected, selectedIndex, manage, onUploaded, chi
                 </button>
                 <button
                   type='button'
-                  className='btn btn-ghost btn-sm text-danger'
+                  className='btn btn-ghost btn-sm text-danger-text'
                   disabled={busy}
                   aria-expanded={(manage.staff) ? confirmingRemove === selected.id : undefined}
                   onClick={() => {
@@ -697,7 +697,7 @@ export function ThumbnailManager({ assets, thumbnail, manage }: {
               {(effective) ? (
                 <button
                   type='button'
-                  className='btn btn-ghost btn-sm text-danger'
+                  className='btn btn-ghost btn-sm text-danger-text'
                   disabled={busy}
                   aria-expanded={(manage.staff && !request) ? confirmingRemove : undefined}
                   onClick={() => (manage.staff && !request) ? setConfirmingRemove(!confirmingRemove) : remove()}

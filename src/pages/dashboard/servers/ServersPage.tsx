@@ -191,7 +191,7 @@ function ServerCard({ guild, pinned, onTogglePin }: {guild: UserGuildSummary, pi
         type='button'
         className={cn(
           'absolute top-2 left-2 flex size-6 cursor-pointer items-center justify-center rounded-full border border-line bg-surface-1 shadow transition focus-visible:opacity-100',
-          (pinned) ? 'text-brand' : 'text-subtle opacity-0 group-hover/server:opacity-100 hover:text-white max-sm:opacity-100',
+          (pinned) ? 'text-brand-text' : 'text-subtle opacity-0 group-hover/server:opacity-100 hover:text-white max-sm:opacity-100',
         )}
         aria-pressed={pinned}
         aria-label={t((pinned) ? 'servers.unpin_label' : 'servers.pin_label', {name: guild.name})}
@@ -212,7 +212,7 @@ export function ScopeMismatchCard({ reason = 'scope' }: {reason?: 'scope' | 'gra
   return (
     <div className='card flex flex-col items-center gap-4 p-8 text-center sm:p-10'>
       <span className='flex size-12 items-center justify-center rounded-full bg-brand/20'>
-        <KeyRound aria-hidden className='size-6 text-brand'/>
+        <KeyRound aria-hidden className='size-6 text-brand-text'/>
       </span>
       <div className='max-w-md'>
         <h2 className='text-lg font-semibold text-white'>{t((reason === 'grant') ? 'servers.grant_title' : 'servers.scope_title')}</h2>

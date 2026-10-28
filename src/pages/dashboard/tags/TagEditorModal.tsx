@@ -53,7 +53,7 @@ export function TagEditorModal({ tagId, onBack, onClose }: {tagId: string, onBac
         <TagEditorSkeleton/>
       ) : (
         <div className='px-6 py-16 text-center'>
-          <AlertTriangle className='mx-auto mb-4 size-14 text-danger'/>
+          <AlertTriangle className='mx-auto mb-4 size-14 text-danger-text'/>
           <h2 id={TITLE_ID} className='mb-3 text-2xl font-bold text-white'>{t((notFound) ? 'dtags.modal.not_found' : 'dtags.modal.load_error')}</h2>
           <p className='mb-6 text-muted'>{(notFound) ? t('dtags.editor.not_found') : errorMessage(error)}</p>
           {(isError && !notFound) ? <button type='button' className='btn btn-secondary' disabled={isRefetching} onClick={() => refetch()}>{t('common.retry')}</button> : null}
@@ -229,7 +229,7 @@ function DeleteTagButton({ tag, divider }: {tag: Tag, divider: boolean}) {
   return (
     <>
       {(divider) ? <span aria-hidden className='mx-0.5 h-6 w-px shrink-0 self-center bg-line-strong sm:mx-1'/> : null}
-      <button type='button' className='btn btn-ghost min-w-0 flex-1 px-2 text-danger hover:text-danger sm:flex-none sm:px-3' onClick={() => setConfirming(true)}>
+      <button type='button' className='btn btn-ghost min-w-0 flex-1 px-2 text-danger-text hover:text-danger-text sm:flex-none sm:px-3' onClick={() => setConfirming(true)}>
         <Trash2 aria-hidden className='hidden size-4 shrink-0 sm:block'/>
         <span className='truncate sm:hidden'>{t('common.delete')}</span>
         <span className='hidden sm:inline'>{t('dtags.delete.confirm')}</span>
@@ -258,7 +258,7 @@ function AliasStorageNote({ tag, kind }: {tag: Tag, kind: 'variables' | 'blobs'}
     <ReadOnlyNote>
       {t('dtags.editor.alias_note', {name: parent.name, kind: t(`dtags.editor.alias_note_${kind}`)})}
       {(canOpenParent) ? (
-        <> <Link to={`${dashboardTagEditPath(parent.id)}?tab=${kind}`} className='font-medium text-brand hover:underline'>{t('dtags.editor.alias_edit', {name: parent.name})}</Link></>
+        <> <Link to={`${dashboardTagEditPath(parent.id)}?tab=${kind}`} className='font-medium text-brand-text hover:underline'>{t('dtags.editor.alias_edit', {name: parent.name})}</Link></>
       ) : null}
     </ReadOnlyNote>
   );

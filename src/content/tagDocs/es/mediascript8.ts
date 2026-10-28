@@ -111,6 +111,22 @@ export const MEDIASCRIPT_SPANISH_8: TagDocsTranslation['mediaScriptCommands'] = 
       ...WAVE,
     },
   },
+  vegastimecode: {
+    summary: 'Escribe el tiempo de la multimedia sobre ella en un recuadro negro, como el efecto Timecode de VEGAS (Sony).',
+    args: {
+      MEDIA_KEY: MEDIA,
+      X: 'dónde va en horizontal, dentro de un margen de seguridad del 10%',
+      Y: 'dónde va en vertical, dentro de un margen de seguridad del 10%',
+      TYPE: 'cómo se escribe el tiempo: `time` 00:00:01,335, `seconds` 1,335, `timeframes` 00:00:01,10, `frames` 40,000, `feet16`/`feet35` 1+00, SMPTE `ivtc` (23.976), `film` (24), `ebu` (25), `nondrop` (29.97), `drop` 00:00:01;10 y `smpte30`',
+    },
+    results: [
+      'Timecode drop frame en la esquina inferior derecha, como el predeterminado de Vegas.',
+      'Timecode de cine a 24 fps en la esquina superior izquierda.',
+    ],
+    notes: [
+      'El tiempo empieza en 0 en el primer fotograma, así que una imagen fija siempre muestra 0. Los tipos SMPTE cuentan los fotogramas a su propia velocidad, no a la de la multimedia. Su tamaño sigue la altura de la multimedia y el audio se mantiene igual.',
+    ],
+  },
   vegaswave: {
     summary: 'Dobla la multimedia con ondas en horizontal y en vertical, como el Wave de VEGAS, y puede moverlas.',
     args: {
@@ -204,6 +220,17 @@ export const MEDIASCRIPT_SPANISH_8: TagDocsTranslation['mediaScriptCommands'] = 
     summary: 'Envuelve la multimedia alrededor de un orbe o globo que gira.',
     args: ONLY_MEDIA,
     notes: [GIF_FRAMES(30)],
+  },
+  prism: {
+    summary: 'Envuelve la multimedia alrededor de una pirámide que gira, como el prisma de Obama, con fondo transparente recortado a la pirámide.',
+    args: {
+      MEDIA_KEY: MEDIA,
+      ANGLE: 'cuánto está girada, con el centro de la multimedia en la cara de delante: donde empieza el giro, o la pose con STILL',
+      TILT: 'cuánto mira la cámara hacia abajo, 0 a su altura y 90 justo sobre la punta',
+      REPEAT: 'poner la multimedia entera en cada cara en lugar de envolverla una vez por las cuatro, como el original',
+      STILL: 'no girar, mantener la pose de ANGLE (una animación se sigue reproduciendo encima)',
+    },
+    notes: ['Convierte una imagen fija en un GIF de 60 fotogramas (30 con REPEAT), o en un solo fotograma con STILL.'],
   },
   globe: {
     summary: 'Envuelve la multimedia sobre una esfera, como un globo de ojo de pez.',

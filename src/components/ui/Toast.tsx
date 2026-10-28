@@ -106,7 +106,7 @@ function Toast({ toast, onDismiss }: {toast: ToastItem, onDismiss: (id: number) 
         (toast.tone === 'error') ? 'border-danger/60' : 'border-success/60',
       )}
     >
-      <Icon className={cn('mt-0.5 size-4 shrink-0', (toast.tone === 'error') ? 'text-danger' : 'text-success')}/>
+      <Icon className={cn('mt-0.5 size-4 shrink-0', (toast.tone === 'error') ? 'text-danger-text' : 'text-success-text')}/>
       <span className='min-w-0 flex-1 break-words text-fg'>{toast.message}</span>
       {(toast.action) ? (
         <button
@@ -115,7 +115,7 @@ function Toast({ toast, onDismiss }: {toast: ToastItem, onDismiss: (id: number) 
             toast.action?.onClick();
             onDismiss(toast.id);
           }}
-          className='-my-1 shrink-0 cursor-pointer rounded px-1.5 py-1 font-semibold text-brand hover:bg-surface-3 hover:text-fg'
+          className='-my-1 shrink-0 cursor-pointer rounded px-1.5 py-1 font-semibold text-brand-text hover:bg-surface-3 hover:text-fg'
         >
           {toast.action.label}
         </button>

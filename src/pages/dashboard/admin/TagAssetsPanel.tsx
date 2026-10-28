@@ -163,7 +163,7 @@ function TagAssetRow({ tagId, asset, ownerId, onArchived }: {
           )}
         </a>
         <div className='min-w-0 flex-1'>
-          <a href={asset.urls.cdn} target='_blank' rel='noreferrer noopener' className='block truncate font-mono text-sm text-brand hover:underline' title={asset.urls.cdn}>
+          <a href={asset.urls.cdn} target='_blank' rel='noreferrer noopener' className='block truncate font-mono text-sm text-brand-text hover:underline' title={asset.urls.cdn}>
             {asset.urls.cdn}
           </a>
           {(details) ? <span className='block truncate text-xs text-subtle'>{details}</span> : null}
@@ -191,7 +191,7 @@ function TagAssetRow({ tagId, asset, ownerId, onArchived }: {
             });
           }}
         >
-          {(copied) ? <Check className='size-4 text-success'/> : <Copy className='size-4'/>}
+          {(copied) ? <Check className='size-4 text-success-text'/> : <Copy className='size-4'/>}
           <span className='sr-only sm:not-sr-only'>Copy</span>
         </button>
         <button

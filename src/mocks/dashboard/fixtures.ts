@@ -35,6 +35,7 @@ import { toDate } from '@/lib/utils';
 export const MOCK_TOKEN = 'dashboard-mock-token';
 
 export const mockUser: UserMe = {
+  accent_color: 0xe67e22,
   avatar: null,
   blocked: false,
   blocked_on: null,

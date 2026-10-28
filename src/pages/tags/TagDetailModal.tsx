@@ -186,7 +186,7 @@ function TagDetail({ item, editing, onEditingChange }: {item: TagDirectoryItem, 
               {(staffManage) ? null : (access.owner && own.data && own.data.verified === TagDirectoryVerificationStates.VERIFIED) ? (
                 <p className='rounded-lg border border-line bg-surface p-4 text-sm text-muted'>
                   {rich('tags.detail.locked', {link: (chunk) => (
-                    <Link to={`${Routes.DASHBOARD_TAG_EDIT.replace(':tagId', item.id)}?tab=directory`} className='text-brand hover:underline'>{chunk}</Link>
+                    <Link to={`${Routes.DASHBOARD_TAG_EDIT.replace(':tagId', item.id)}?tab=directory`} className='text-brand-text hover:underline'>{chunk}</Link>
                   )})}
                 </p>
               ) : (access.owner && own.data) ? (
@@ -254,7 +254,7 @@ function TagDetail({ item, editing, onEditingChange }: {item: TagDirectoryItem, 
                   <Link
                     to={adminTagsPath(`id:${item.id}`)}
                     title={t('tags.detail.open_admin')}
-                    className='truncate font-mono text-sm underline-offset-2 hover:text-brand hover:underline'
+                    className='truncate font-mono text-sm underline-offset-2 hover:text-brand-text hover:underline'
                   >
                     {item.id}
                   </Link>
@@ -299,7 +299,7 @@ function TagDetail({ item, editing, onEditingChange }: {item: TagDirectoryItem, 
           </section>
           {/* the owner can't report their own tag */}
           {(access.owner) ? null : (
-            <ReportButton subject={{type: 'tag', tag}} className='btn btn-ghost w-full justify-center text-sm hover:text-danger'/>
+            <ReportButton subject={{type: 'tag', tag}} className='btn btn-ghost w-full justify-center text-sm hover:text-danger-text'/>
           )}
         </aside>
       </div>
@@ -311,7 +311,7 @@ function TagDetail({ item, editing, onEditingChange }: {item: TagDirectoryItem, 
 function TagMessage({ title, description, children }: {title: string, description: string, children?: ReactNode}) {
   return (
     <div className='px-6 py-16 text-center'>
-      <AlertTriangle className='mx-auto mb-4 size-14 text-danger'/>
+      <AlertTriangle className='mx-auto mb-4 size-14 text-danger-text'/>
       <h2 id={TITLE_ID} className='mb-3 text-2xl font-bold text-white'>{title}</h2>
       <p className='mb-6 text-muted'>{description}</p>
       {children}

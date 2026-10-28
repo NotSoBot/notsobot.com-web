@@ -210,7 +210,7 @@ function AliasStorageNote({ tag, kind }: {tag: Tag, kind: 'variables' | 'blobs'}
     <ReadOnlyNote>
       This tag is an alias of “{parent.name}”. Alias tags use their parent tag’s {kind}, so there’s nothing to edit here.
       {(canOpenParent) ? (
-        <> <Link to={`${dashboardTagPath(parent.id)}?tab=${kind}`} className='font-medium text-brand hover:underline'>Edit them on “{parent.name}”</Link></>
+        <> <Link to={`${dashboardTagPath(parent.id)}?tab=${kind}`} className='font-medium text-brand-text hover:underline'>Edit them on “{parent.name}”</Link></>
       ) : null}
     </ReadOnlyNote>
   );
@@ -307,7 +307,7 @@ function TagContentForm({ tag, readOnly, onDirtyChange }: {tag: Tag, readOnly: b
           title='Tag'
           accent='#3ba55c'
           actions={(!readOnly) ? (
-            <button type='button' className='btn btn-ghost btn-sm text-danger hover:text-danger' onClick={() => setConfirmingDelete(true)}>
+            <button type='button' className='btn btn-ghost btn-sm text-danger-text hover:text-danger-text' onClick={() => setConfirmingDelete(true)}>
               <Trash2 aria-hidden className='size-4'/>
               Delete
             </button>

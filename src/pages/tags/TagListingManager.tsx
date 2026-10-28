@@ -119,7 +119,7 @@ export function HiddenContentSection({ item, access }: {item: TagDirectoryItem, 
       ) : (isError || content === undefined) ? (
         <div className='rounded-md border border-line bg-deep p-3 text-sm text-muted'>
           {errorMessage(error, t('tags.listing.content_error'))}{' '}
-          <button type='button' className='cursor-pointer text-brand hover:underline' onClick={() => refetch()}>{t('common.retry')}</button>
+          <button type='button' className='cursor-pointer text-brand-text hover:underline' onClick={() => refetch()}>{t('common.retry')}</button>
         </div>
       ) : (
         <pre className='max-h-96 overflow-auto rounded-md border border-line bg-deep p-3 font-mono text-sm whitespace-pre-wrap break-words text-fg'>
@@ -171,7 +171,7 @@ function ServersQueryState({ query }: {query: {isPending: boolean, isError: bool
     return (
       <div className='rounded-md border border-line bg-deep p-3 text-sm text-muted'>
         {errorMessage(query.error, t('tags.listing.servers_error'))}{' '}
-        <button type='button' className='cursor-pointer text-brand hover:underline' onClick={() => query.refetch()}>{t('common.retry')}</button>
+        <button type='button' className='cursor-pointer text-brand-text hover:underline' onClick={() => query.refetch()}>{t('common.retry')}</button>
       </div>
     );
   }
@@ -570,7 +570,7 @@ export function ListingEditForm({ item, access, media, onDone }: {item: TagDirec
     <form onSubmit={onSubmit} className='space-y-5 rounded-lg border border-line bg-surface p-4'>
       <div className='flex items-center justify-between gap-3'>
         <h3 className='font-semibold text-white'>{t('tags.listing.edit')}</h3>
-        {(access.staff && !access.owner) ? <span className='rounded bg-brand/15 px-2 py-0.5 text-xs font-medium text-brand'>Staff</span> : null}
+        {(access.staff && !access.owner) ? <span className='rounded bg-brand/15 px-2 py-0.5 text-xs font-medium text-brand-text'>Staff</span> : null}
       </div>
 
       {(listingFrozen) ? (
@@ -666,7 +666,7 @@ export function ListingEditForm({ item, access, media, onDone }: {item: TagDirec
       ) : (
         <p className='text-xs text-subtle'>
           {rich((item.tag.locked) ? 'tags.listing.edit_content_locked' : 'tags.listing.edit_content', {
-            link: (chunk) => <Link to={Routes.DASHBOARD_TAG_EDIT.replace(':tagId', item.id)} className='text-brand hover:underline'>{chunk}</Link>,
+            link: (chunk) => <Link to={Routes.DASHBOARD_TAG_EDIT.replace(':tagId', item.id)} className='text-brand-text hover:underline'>{chunk}</Link>,
           })}
         </p>
       )}

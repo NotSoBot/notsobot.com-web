@@ -175,7 +175,7 @@ export function verificationInfo(verified: number): Verification {
         description: translate('tags.verified_description'),
         icon: Shield,
         className: 'bg-success',
-        textClassName: 'text-success',
+        textClassName: 'text-success-text',
       };
     case TagDirectoryVerificationStates.PENDING_VERIFICATION:
       return {

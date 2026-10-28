@@ -311,7 +311,7 @@ export function UserCell({ user, fallbackId, size = 'md', to }: {user: AdminUser
         <span className='min-w-0'>
           <Link to={to} title='Open in users' className='group/user relative z-10 flex min-w-0 items-center gap-1 text-sm font-medium text-white underline-offset-2 hover:underline'>
             <span className='truncate'>{name}</span>
-            <ArrowUpRight aria-hidden className='size-3.5 shrink-0 text-subtle transition-colors group-hover/user:text-brand'/>
+            <ArrowUpRight aria-hidden className='size-3.5 shrink-0 text-subtle transition-colors group-hover/user:text-brand-text'/>
           </Link>
           <CopyableValue value={user.id} truncate={0} className='relative z-10 max-w-full'/>
         </span>
@@ -383,7 +383,7 @@ export function CopyButton({ value, label }: {value: string, label?: string}) {
   if (label) {
     return (
       <button type='button' className='btn btn-ghost btn-sm' onClick={copy}>
-        {(copied) ? <Check className='size-4 text-success'/> : <Copy className='size-4'/>}
+        {(copied) ? <Check className='size-4 text-success-text'/> : <Copy className='size-4'/>}
         {(copied) ? t('common.copied') : label}
       </button>
     );
@@ -396,7 +396,7 @@ export function CopyButton({ value, label }: {value: string, label?: string}) {
       className='shrink-0 cursor-pointer rounded p-0.5 text-subtle hover:bg-surface-3 hover:text-fg'
       onClick={copy}
     >
-      {(copied) ? <Check className='size-3.5 text-success'/> : <Copy className='size-3.5'/>}
+      {(copied) ? <Check className='size-3.5 text-success-text'/> : <Copy className='size-3.5'/>}
     </button>
   );
 }
@@ -562,7 +562,7 @@ export function ContentFlagTiles({ flags, flagsPath }: {flags: AdminUserContentF
         <DateTile className='col-span-2 sm:col-span-3' label='Last flagged' value={flags.last_flagged_at}/>
         <StatTile label='To review' to={flagsPath('0')} value={flags.pending.toLocaleString()} tone='text-warning' title={FLAG_STATUS_TITLES['0']}/>
         <StatTile label='Unsure' to={flagsPath('4')} value={flags.unsure.toLocaleString()} tone='text-[#f47fbf]' title={FLAG_STATUS_TITLES['4']}/>
-        <StatTile label='Confirmed' to={flagsPath('1')} value={flags.confirmed.toLocaleString()} tone='text-danger' title={FLAG_STATUS_TITLES['1']}/>
+        <StatTile label='Confirmed' to={flagsPath('1')} value={flags.confirmed.toLocaleString()} tone='text-danger-text' title={FLAG_STATUS_TITLES['1']}/>
         <StatTile label='Cleared' to={flagsPath('2')} value={flags.dismissed.toLocaleString()} tone='text-muted' title={FLAG_STATUS_TITLES['2']}/>
         <StatTile className='col-span-2 sm:col-span-1' label='Reported' to={flagsPath('3')} value={flags.reported.toLocaleString()} tone='text-[#aab2ff]' title={FLAG_STATUS_TITLES['3']}/>
       </div>

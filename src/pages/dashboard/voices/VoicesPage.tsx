@@ -419,7 +419,7 @@ function ClipPlayer({ voiceId, clip }: {voiceId: string, clip: VoiceClip}) {
         ) : (playing) ? (
           <Pause className='size-4'/>
         ) : (
-          <Play className={(failed) ? 'size-4 text-danger' : 'size-4'}/>
+          <Play className={(failed) ? 'size-4 text-danger-text' : 'size-4'}/>
         )}
       </button>
       <audio

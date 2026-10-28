@@ -121,7 +121,7 @@ export const ENTRY_TYPE_LABELS: Record<string, string> = {
 export function EntryMention({ type, id }: {type: string, id: string}) {
   const { t } = useI18n();
   const Icon = (type === 'channel') ? Hash : (type === 'role') ? Shield : (type === 'guild') ? Server : AtSign;
-  const color = (type === 'channel') ? 'text-code' : (type === 'role') ? 'text-warning' : (type === 'guild') ? 'text-success' : 'text-[#a5acff]';
+  const color = (type === 'channel') ? 'text-code' : (type === 'role') ? 'text-warning' : (type === 'guild') ? 'text-success-text' : 'text-[#a5acff]';
   return (
     <span className='inline-flex min-w-0 items-center gap-1.5'>
       <Icon aria-hidden className={`size-3.5 shrink-0 ${color}`}/>

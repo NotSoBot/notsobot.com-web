@@ -301,7 +301,7 @@ export function AdminContentFlagsPage() {
   return (
     <>
       <DashboardHeader
-        title='Content flags'
+        title='Content Flags'
         description='Media the safety scan flagged. Shown as metadata, media is only loaded when you ask for it.'
       />
 
@@ -402,7 +402,7 @@ export function AdminContentFlagsPage() {
           {(!includeBlocked) ? (
             <>
               {(filtered) ? ' ' : null}Flags from blocked users are hidden.{' '}
-              <button type='button' className='cursor-pointer text-brand hover:underline' onClick={() => update({blocked: '1'})}>Show them</button>
+              <button type='button' className='cursor-pointer text-brand-text hover:underline' onClick={() => update({blocked: '1'})}>Show them</button>
             </>
           ) : null}
         </EmptyState>
@@ -716,7 +716,7 @@ function ContentFlagDetails({ flag, onReport, navigation }: {
               className='group/user -ml-1.5 flex min-w-0 items-center gap-1.5 rounded-md py-1 pr-2 pl-1.5 transition-colors hover:bg-surface-3'
             >
               <UserCell user={user} fallbackId={flag.user_id} size='sm'/>
-              <ArrowUpRight aria-hidden className='size-3.5 shrink-0 text-subtle transition-colors group-hover/user:text-brand'/>
+              <ArrowUpRight aria-hidden className='size-3.5 shrink-0 text-subtle transition-colors group-hover/user:text-brand-text'/>
             </Link>
           ) : (
             <UserCell user={null}/>
@@ -883,7 +883,7 @@ function ContentFlagDetails({ flag, onReport, navigation }: {
                       (tone === 'danger') ? 'border-danger/40 bg-danger/10' : (tone === 'warning') ? 'border-warning/40 bg-warning/10' : 'border-transparent bg-deep')}
                     title={(tone === 'danger') ? 'Flagged' : (tone === 'warning') ? 'Flagged for review' : undefined}
                   >
-                    <dt className={(tone === 'danger') ? 'text-danger' : (tone === 'warning') ? 'text-warning' : 'text-subtle'}>{key}</dt>
+                    <dt className={(tone === 'danger') ? 'text-danger-text' : (tone === 'warning') ? 'text-warning' : 'text-subtle'}>{key}</dt>
                     <dd className='font-mono text-fg tabular-nums'>{formatScore(value)}</dd>
                   </div>
                 );
@@ -1510,7 +1510,7 @@ function ReportFlagDialog({ flag, onClose }: {flag: ContentFlag, onClose: () => 
               />
               <span>
                 <span className='flex items-center gap-1.5 font-medium text-white'>
-                  <Ban aria-hidden className='size-4 text-danger'/>
+                  <Ban aria-hidden className='size-4 text-danger-text'/>
                   Block {user.username} from NotSoBot
                 </span>
                 <span className='mt-0.5 block text-muted'>Stops them from using NotSoBot anywhere.</span>
