@@ -40,6 +40,7 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'improved', text: 'Dashboard: a server\'s warnings list has pages and a search (by reason, or `#id`, `user:id` and `moderator:id`), shows avatars and names, every id can be clicked to search for it or copied, and removing a warning asks first.'},
       {kind: 'improved', text: 'Rules, loggers and auto-warn rules for deleted channels are removed by themselves, and so are deleted roles in rules, auto-warn exemptions and the DJ role.'},
       {kind: 'improved', text: 'The website and nsb.gg load their fonts from themselves instead of Google Fonts, and `notso.bot` links go to notsobot.com.'},
+      {kind: 'fixed', text: 'When NotSoBot is slow to load your settings, commands keep your language, timezone and response settings from last time instead of falling back to the server\'s language.'},
     ],
   },
   {
