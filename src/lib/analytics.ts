@@ -1,5 +1,5 @@
-import { config } from '@/config';
-
+// the umami script is only ever added by the worker (worker/index.ts, UMAMI_WEBSITE_ID in .dev.vars), so these calls
+// do nothing under plain `npm run dev` or when the worker has no website id
 
 export const AnalyticsEvents = Object.freeze({
   BOT_ADDED: 'BotAdded',
@@ -18,18 +18,6 @@ declare global {
 
 
 const SCRIPT_SELECTOR = 'script[data-website-id]';
-
-
-export function initAnalytics(): void {
-  // in production the worker (worker/index.ts) already put the script in the html
-  if (config.umamiWebsiteId && config.umamiScriptUrl && !document.querySelector(SCRIPT_SELECTOR)) {
-    const script = document.createElement('script');
-    script.defer = true;
-    script.dataset.websiteId = config.umamiWebsiteId;
-    script.src = config.umamiScriptUrl;
-    document.head.appendChild(script);
-  }
-}
 
 
 // umami has no queue for calls made before its (deferred) script runs, so wait for it

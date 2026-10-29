@@ -14,12 +14,16 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
-    "deploy": "npm run build && wrangler deploy",
-    "deploy:beta": "npm run build && wrangler deploy --env beta",
+    "deploy": "npm run build && wrangler deploy --secrets-file .dev.vars",
+    "deploy:beta": "npm run build && wrangler deploy --env beta --secrets-file .dev.vars.beta",
     "preview:worker": "npm run build && wrangler dev"
   },
   "dependencies": {
+    "@fontsource-variable/bricolage-grotesque": "^5.3.0",
+    "@fontsource-variable/figtree": "^5.3.0",
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
     "@tanstack/react-query": "^5.80.7",
+    "cf-worker-router": "^0.2.0",
     "clsx": "^2.1.1",
     "lucide-react": "^0.515.0",
     "react": "^19.1.0",

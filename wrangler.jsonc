@@ -1,7 +1,5 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  // a separate script from notsobot.cf-worker ("notsobot-com"), which keeps the cdn/proxy/umami/etc domains.
-  // these routes are more specific than its "*notsobot.com/*", so cloudflare sends the website here instead.
   "name": "notsobot-com-web",
   "main": "worker/index.ts",
   "compatibility_date": "2025-09-01",
@@ -12,16 +10,20 @@
     // hashed bundles and the favicon skip the worker (and its request billing) entirely
     "run_worker_first": ["/*", "!/assets/*", "!/favicon.svg"]
   },
+  // every subdomain of notsobot.com, like nsb.gg: notsobot.com and www. are the site, anything else 404s (SITE_HOSTS in the
+  // worker). beta.notsobot.com's own route below is more specific, so it stays on the beta script, and notsobot.com/api/*
+  // has a "no worker" route on the zone (see the readme)
   "routes": [
-    {"pattern": "notsobot.com/*", "zone_name": "notsobot.com"},
-    {"pattern": "www.notsobot.com/*", "zone_name": "notsobot.com"}
+    {"pattern": "*notsobot.com/*", "zone_name": "notsobot.com"},
+    // notso.bot and www. redirect to notsobot.com with the path kept (REDIRECT_DOMAINS in the worker), any other
+    // subdomain 404s too. production only
+    {"pattern": "*notso.bot/*", "zone_name": "notso.bot"}
   ],
   "vars": {
     "SITE_DOMAIN": "notsobot.com",
     // only production is indexed, beta gets noindex on every page and a robots.txt that disallows everything
-    "ALLOW_INDEXING": "true",
-    // from oasis.notsobot.com's website settings, analytics stays off while empty
-    "UMAMI_WEBSITE_ID": ""
+    "ALLOW_INDEXING": "true"
+    // UMAMI_WEBSITE_ID is a secret from .dev.vars (.dev.vars.beta for beta), uploaded by `npm run deploy` (see the readme)
   },
   "env": {
     "beta": {
@@ -30,8 +32,7 @@
       ],
       "vars": {
         "SITE_DOMAIN": "beta.notsobot.com",
-        "ALLOW_INDEXING": "false",
-        "UMAMI_WEBSITE_ID": ""
+        "ALLOW_INDEXING": "false"
       }
     }
   }

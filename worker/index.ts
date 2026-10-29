@@ -2,6 +2,8 @@
 // /assets/* and other files never reach this code (see run_worker_first in wrangler.jsonc). Everything else is a
 // page, so it gets dist/index.html with that page's metatags filled in for Discord/Twitter/search embeds.
 
+import { ApiRedirect, DomainRouter, FetchRouter, HttpMethods } from 'cf-worker-router';
+
 import {
   CommandCategories,
   CommandTypes,
@@ -33,13 +35,17 @@ interface Env {
   SITE_DOMAIN: string,
   // "true" lets search engines index the site. anything else (beta) marks every page noindex
   ALLOW_INDEXING: string,
-  // from Umami's website settings, one per site. empty leaves analytics off
-  UMAMI_WEBSITE_ID: string,
+  // from Umami's website settings, one per site. a secret from .dev.vars (.dev.vars.beta for beta), uploaded by
+  // `npm run deploy`. empty or unset leaves analytics off
+  UMAMI_WEBSITE_ID?: string,
 }
 
 
 // TRACKER_SCRIPT_NAME on notsobot.api's analytics-umami container. it sends events back to the same host
-const UMAMI_SCRIPT_URL = 'https://oasis.notsobot.com/drink.js';
+const UMAMI_SCRIPT_URL = 'https://oasis.notsocompany.com/drink.js';
+
+// short domains that only redirect to SITE_DOMAIN, keeping the path and query (notso.bot/invite, notso.bot/es/premium)
+const REDIRECT_DOMAINS = ['notso.bot', 'www.notso.bot'];
 
 interface Page {
   key: PageKey,
@@ -524,8 +530,8 @@ const TURNSTILE_ORIGIN = 'https://challenges.cloudflare.com';
 const CONTENT_POLICY = [
   'default-src \'self\'',
   `script-src 'self' ${new URL(UMAMI_SCRIPT_URL).origin} ${TURNSTILE_ORIGIN}`,
-  'style-src \'self\' https://fonts.googleapis.com',
-  'font-src \'self\' https://fonts.gstatic.com',
+  'style-src \'self\'',
+  'font-src \'self\'',
   'img-src \'self\' data: https://cdn.discordapp.com https://media.discordapp.net https://cdn.nsb.gg',
   `connect-src 'self' ${new URL(UMAMI_SCRIPT_URL).origin}`,
   `frame-src ${TURNSTILE_ORIGIN}`,
@@ -583,138 +589,173 @@ function renderStaticBody(language: Language, meta: PageMeta): string {
 }
 
 
+// the html for one of the site's pages (or the not-found page) with its metatags filled in, or a file from static assets
+async function renderPage(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+
+  // `/es/premium` is the Spanish copy of `/premium`, everything below works on the path without the prefix
+  const split = splitLanguagePath(url.pathname);
+  const language = split.language ?? DEFAULT_LANGUAGE;
+  const path = split.path;
+
+  // anything else that looks like a file is served as-is, unless it's a page: command ids have dots in them
+  // (/commands/media.iv.manipulation.caption)
+  const page = findPage(path);
+  if ((!page && /\.[a-z0-9]+$/i.test(url.pathname)) || (request.method !== 'GET' && request.method !== 'HEAD')) {
+    return env.ASSETS.fetch(request);
+  }
+
+  // "/" rather than "/index.html": static assets redirects the latter to the former
+  const shell = await env.ASSETS.fetch(new Request(new URL('/', url)));
+  if (!shell.ok) {
+    return shell;
+  }
+
+  const fallback: Embed = {meta: localizedPage(page?.key ?? 'NOT_FOUND', language), siteName: SITE_NAME, image: null, components: null};
+  let embed = fallback;
+  // the path's segments after the page's own, like the tag id in /tags/directory/:tagId
+  const segments = path.replace(/\/+$/, '').split('/');
+  // api responses aren't validated, so one in an unexpected shape throws here. the page still renders, with the
+  // generic embed
+  try {
+    if (page?.meta === PAGES.TAG_DIRECTORY_ITEM) {
+      const [ item, commands ] = await Promise.all([ fetchTagDirectoryItem(env, segments[3] ?? ''), fetchCommands(env, language) ]);
+      if (item) {
+        embed = tagEmbed(env, language, item, {
+          tagGet: slashCommandMention(commands?.find((command) => command.id === TAG_GET_COMMAND_ID)),
+          tagShow: slashCommandMention(commands?.find((command) => command.id === TAG_SHOW_COMMAND_ID)),
+        });
+      }
+    } else if (page?.meta === PAGES.COMMAND || page?.meta === PAGES.COMMAND_TYPE) {
+      let commandId = segments[2] ?? '';
+      try {
+        commandId = decodeURIComponent(commandId);
+      } catch {
+        // left as-is, it won't match a command
+      }
+      const found = await fetchCommandMetadata(env, language, commandId, segments[3]);
+      if (found) {
+        embed = commandEmbed(language, ...found);
+      }
+    }
+  } catch (error) {
+    console.error('embed failed', url.pathname, error);
+    embed = fallback;
+  }
+  const { meta, image } = embed;
+  const indexable = (env.ALLOW_INDEXING === 'true') && Boolean(page?.meta.index);
+  // always the main domain (not www.) and the real path (not a redirect like /privacy), so duplicates don't split
+  // search ranking. each language is its own page, so its canonical keeps the prefix. the not-found page gets none
+  const canonicalPath = (page) ? (page.canonical ?? (path.replace(/\/+$/, '') || '/')) : null;
+  const canonical = (canonicalPath) ? `https://${env.SITE_DOMAIN}${languagePath(language, canonicalPath)}` : null;
+
+  // `name` for regular and twitter tags, `property` for open graph ones (facebook/linkedin ignore `name="og:*"`)
+  const metatags: Array<['name' | 'property', string, string]> = [
+    ['name', 'description', meta.description],
+    ['property', 'og:type', 'website'],
+    ['property', 'og:site_name', embed.siteName],
+    ['property', 'og:title', meta.title ?? SITE_NAME],
+    ['property', 'og:description', meta.description],
+    ['name', 'twitter:card', 'summary'],
+  ];
+  if (image) {
+    metatags.push(['property', 'og:image', image]);
+  }
+  if (canonical) {
+    metatags.push(['property', 'og:url', canonical]);
+  }
+  if (!indexable) {
+    metatags.push(['name', 'robots', 'noindex']);
+  }
+
+  let head = metatags.map(([ attribute, key, content ]) => {
+    return `<meta ${attribute}="${escapeHtml(key)}" content="${escapeHtml(content)}"/>`;
+  }).join('');
+  if (canonical && canonicalPath) {
+    head += `<link rel="canonical" href="${escapeHtml(canonical)}"/>`;
+    for (const [ hreflang, href ] of alternateUrls(env, canonicalPath)) {
+      head += `<link rel="alternate" hreflang="${hreflang}" href="${escapeHtml(href)}"/>`;
+    }
+  }
+  // discord would drop an oversized one anyway, the og tags are used instead
+  const componentEmbed = (embed.components) ? scriptJson({component: embed.components}) : null;
+  if (componentEmbed && new TextEncoder().encode(componentEmbed).length <= COMPONENT_EMBED_MAX_BYTES) {
+    head += `<script id="discord:component-embed" type="application/json">${componentEmbed}</script>`;
+  }
+  if (env.UMAMI_WEBSITE_ID) {
+    // the only place the script is added, src/lib/analytics.ts waits for it (data-website-id) to send its events
+    head += `<script defer data-website-id="${escapeHtml(env.UMAMI_WEBSITE_ID)}" src="${UMAMI_SCRIPT_URL}"></script>`;
+  }
+
+  const response = new HTMLRewriter()
+    .on('html', {element: (element) => { element.setAttribute('lang', language); }})
+    .on('meta[name="description"]', {element: (element) => { element.remove(); }})
+    .on('meta[name="theme-color"]', {element: (element) => { element.setAttribute('content', THEME_COLOR); }})
+    // setInnerContent escapes text by default
+    .on('title', {element: (element) => { element.setInnerContent(pageTitle(meta)); }})
+    .on('head', {element: (element) => { element.append(head, {html: true}); }})
+    .on('div#root', {element: (element) => { element.setInnerContent(renderStaticBody(language, meta), {html: true}); }})
+    .transform(shell);
+
+  const headers = new Headers(response.headers);
+  headers.set('cache-control', 'no-cache');
+  // the html now depends on the path, the shell's etag no longer describes it
+  headers.delete('etag');
+  headers.set('content-security-policy', FRAME_POLICY);
+  headers.set('content-security-policy-report-only', CONTENT_POLICY);
+  headers.set('x-frame-options', 'DENY');
+  headers.set('x-content-type-options', 'nosniff');
+  headers.set('referrer-policy', 'strict-origin-when-cross-origin');
+  headers.set('strict-transport-security', STRICT_TRANSPORT_SECURITY);
+  headers.set('permissions-policy', PERMISSIONS_POLICY);
+  // unknown paths still get the app, so its not-found page renders, but as a real 404
+  return new Response(response.body, {headers, status: (page === null) ? 404 : 200});
+}
+
+
+const router = new FetchRouter();
+
+// the hosts that get the site. production's route catches every subdomain of notsobot.com (wrangler.jsonc), anything
+// not here or in REDIRECT_DOMAINS matches no route and gets cf-worker-router's 404, like nsb.gg. beta.notsobot.com is
+// the beta script's (`wrangler deploy --env beta`), and `wrangler dev` sends requests in as notsobot.com
+const SITE_HOSTS = ['notsobot.com', 'www.notsobot.com', 'beta.notsobot.com'];
+
+for (const host of SITE_HOSTS) {
+  const site = new DomainRouter(host);
+
+  // normally the zone's notsobot.com/api/* route skips workers entirely, this is just in case
+  site.route(['/api', '/api/:path...'], '*', (event) => fetch(event.request), {priority: 1});
+
+  site.route('/robots.txt', [HttpMethods.GET, HttpMethods.HEAD], (event) => {
+    return new Response(renderRobots(getEnv(event)), {headers: {'content-type': 'text/plain; charset=utf-8', 'cache-control': 'public, max-age=3600'}});
+  }, {priority: 1});
+
+  site.route('/sitemap.xml', [HttpMethods.GET, HttpMethods.HEAD], (event) => {
+    return new Response(renderSitemap(getEnv(event)), {headers: {'content-type': 'application/xml; charset=utf-8', 'cache-control': 'public, max-age=3600'}});
+  }, {priority: 1});
+
+  // every other path, the routes above win by priority (a catch-all listing every method would otherwise sort first)
+  site.route('/:path...', '*', (event) => renderPage(event.request, getEnv(event)));
+  router.addRouter(site);
+}
+
+// notso.bot is a short name for the site
+for (const domain of REDIRECT_DOMAINS) {
+  const redirect = new DomainRouter(domain);
+  redirect.route('/:path...', '*', (event) => {
+    return new ApiRedirect(`https://${getEnv(event).SITE_DOMAIN}${event.url.pathname}${event.url.search}`, {status: 301});
+  });
+  router.addRouter(redirect);
+}
+
+
+function getEnv(event: {environment: Record<string, any>}): Env {
+  return event.environment as Env;
+}
+
+
 export default {
-  async fetch(request, env): Promise<Response> {
-    const url = new URL(request.url);
-
-    // normally the zone's notsobot.com/api/* route skips workers entirely, this is just in case
-    if (url.pathname === '/api' || url.pathname.startsWith('/api/')) {
-      return fetch(request);
-    }
-
-    if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/robots.txt') {
-      return new Response(renderRobots(env), {headers: {'content-type': 'text/plain; charset=utf-8', 'cache-control': 'public, max-age=3600'}});
-    }
-    if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/sitemap.xml') {
-      return new Response(renderSitemap(env), {headers: {'content-type': 'application/xml; charset=utf-8', 'cache-control': 'public, max-age=3600'}});
-    }
-
-    // `/es/premium` is the Spanish copy of `/premium`, everything below works on the path without the prefix
-    const split = splitLanguagePath(url.pathname);
-    const language = split.language ?? DEFAULT_LANGUAGE;
-    const path = split.path;
-
-    // anything else that looks like a file is served as-is, unless it's a page: command ids have dots in them
-    // (/commands/media.iv.manipulation.caption)
-    const page = findPage(path);
-    if ((!page && /\.[a-z0-9]+$/i.test(url.pathname)) || (request.method !== 'GET' && request.method !== 'HEAD')) {
-      return env.ASSETS.fetch(request);
-    }
-
-    // "/" rather than "/index.html": static assets redirects the latter to the former
-    const shell = await env.ASSETS.fetch(new Request(new URL('/', url)));
-    if (!shell.ok) {
-      return shell;
-    }
-
-    const fallback: Embed = {meta: localizedPage(page?.key ?? 'NOT_FOUND', language), siteName: SITE_NAME, image: null, components: null};
-    let embed = fallback;
-    // the path's segments after the page's own, like the tag id in /tags/directory/:tagId
-    const segments = path.replace(/\/+$/, '').split('/');
-    // api responses aren't validated, so one in an unexpected shape throws here. the page still renders, with the
-    // generic embed
-    try {
-      if (page?.meta === PAGES.TAG_DIRECTORY_ITEM) {
-        const [ item, commands ] = await Promise.all([ fetchTagDirectoryItem(env, segments[3] ?? ''), fetchCommands(env, language) ]);
-        if (item) {
-          embed = tagEmbed(env, language, item, {
-            tagGet: slashCommandMention(commands?.find((command) => command.id === TAG_GET_COMMAND_ID)),
-            tagShow: slashCommandMention(commands?.find((command) => command.id === TAG_SHOW_COMMAND_ID)),
-          });
-        }
-      } else if (page?.meta === PAGES.COMMAND || page?.meta === PAGES.COMMAND_TYPE) {
-        let commandId = segments[2] ?? '';
-        try {
-          commandId = decodeURIComponent(commandId);
-        } catch {
-          // left as-is, it won't match a command
-        }
-        const found = await fetchCommandMetadata(env, language, commandId, segments[3]);
-        if (found) {
-          embed = commandEmbed(language, ...found);
-        }
-      }
-    } catch (error) {
-      console.error('embed failed', url.pathname, error);
-      embed = fallback;
-    }
-    const { meta, image } = embed;
-    const indexable = (env.ALLOW_INDEXING === 'true') && Boolean(page?.meta.index);
-    // always the main domain (not www.) and the real path (not a redirect like /privacy), so duplicates don't split
-    // search ranking. each language is its own page, so its canonical keeps the prefix. the not-found page gets none
-    const canonicalPath = (page) ? (page.canonical ?? (path.replace(/\/+$/, '') || '/')) : null;
-    const canonical = (canonicalPath) ? `https://${env.SITE_DOMAIN}${languagePath(language, canonicalPath)}` : null;
-
-    // `name` for regular and twitter tags, `property` for open graph ones (facebook/linkedin ignore `name="og:*"`)
-    const metatags: Array<['name' | 'property', string, string]> = [
-      ['name', 'description', meta.description],
-      ['property', 'og:type', 'website'],
-      ['property', 'og:site_name', embed.siteName],
-      ['property', 'og:title', meta.title ?? SITE_NAME],
-      ['property', 'og:description', meta.description],
-      ['name', 'twitter:card', 'summary'],
-    ];
-    if (image) {
-      metatags.push(['property', 'og:image', image]);
-    }
-    if (canonical) {
-      metatags.push(['property', 'og:url', canonical]);
-    }
-    if (!indexable) {
-      metatags.push(['name', 'robots', 'noindex']);
-    }
-
-    let head = metatags.map(([ attribute, key, content ]) => {
-      return `<meta ${attribute}="${escapeHtml(key)}" content="${escapeHtml(content)}"/>`;
-    }).join('');
-    if (canonical && canonicalPath) {
-      head += `<link rel="canonical" href="${escapeHtml(canonical)}"/>`;
-      for (const [ hreflang, href ] of alternateUrls(env, canonicalPath)) {
-        head += `<link rel="alternate" hreflang="${hreflang}" href="${escapeHtml(href)}"/>`;
-      }
-    }
-    // discord would drop an oversized one anyway, the og tags are used instead
-    const componentEmbed = (embed.components) ? scriptJson({component: embed.components}) : null;
-    if (componentEmbed && new TextEncoder().encode(componentEmbed).length <= COMPONENT_EMBED_MAX_BYTES) {
-      head += `<script id="discord:component-embed" type="application/json">${componentEmbed}</script>`;
-    }
-    if (env.UMAMI_WEBSITE_ID) {
-      // src/lib/analytics.ts sees data-website-id and doesn't load a second copy
-      head += `<script defer data-website-id="${escapeHtml(env.UMAMI_WEBSITE_ID)}" src="${UMAMI_SCRIPT_URL}"></script>`;
-    }
-
-    const response = new HTMLRewriter()
-      .on('html', {element: (element) => { element.setAttribute('lang', language); }})
-      .on('meta[name="description"]', {element: (element) => { element.remove(); }})
-      .on('meta[name="theme-color"]', {element: (element) => { element.setAttribute('content', THEME_COLOR); }})
-      // setInnerContent escapes text by default
-      .on('title', {element: (element) => { element.setInnerContent(pageTitle(meta)); }})
-      .on('head', {element: (element) => { element.append(head, {html: true}); }})
-      .on('div#root', {element: (element) => { element.setInnerContent(renderStaticBody(language, meta), {html: true}); }})
-      .transform(shell);
-
-    const headers = new Headers(response.headers);
-    headers.set('cache-control', 'no-cache');
-    // the html now depends on the path, the shell's etag no longer describes it
-    headers.delete('etag');
-    headers.set('content-security-policy', FRAME_POLICY);
-    headers.set('content-security-policy-report-only', CONTENT_POLICY);
-    headers.set('x-frame-options', 'DENY');
-    headers.set('x-content-type-options', 'nosniff');
-    headers.set('referrer-policy', 'strict-origin-when-cross-origin');
-    headers.set('strict-transport-security', STRICT_TRANSPORT_SECURITY);
-    headers.set('permissions-policy', PERMISSIONS_POLICY);
-    // unknown paths still get the app, so its not-found page renders, but as a real 404
-    return new Response(response.body, {headers, status: (page === null) ? 404 : 200});
+  async fetch(request, env, context): Promise<Response> {
+    return router.onFetch(request, env, context);
   },
 } satisfies ExportedHandler<Env>;

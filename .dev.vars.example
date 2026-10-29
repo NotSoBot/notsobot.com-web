@@ -1,0 +1,7 @@
+# the worker's secrets. copy to .dev.vars for production and .dev.vars.beta for beta.notsobot.com: `npm run deploy`
+# uploads .dev.vars (`npm run deploy:beta` uploads .dev.vars.beta), and `npm run preview:worker` reads .dev.vars.
+# not the site's VITE_* settings, those are in .env
+
+# notsobot.com's website id from oasis.notsocompany.com's website settings (beta's own website in .dev.vars.beta),
+# empty leaves analytics off
+UMAMI_WEBSITE_ID=

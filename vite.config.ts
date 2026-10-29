@@ -37,6 +37,8 @@ export default defineConfig(({ mode }) => {
       outDir: 'dist',
       // nothing uploads source maps (no Sentry etc.), so don't publish the original source with the site
       sourcemap: false,
+      // the smallest font subsets would be inlined as data: urls, which the worker's `font-src 'self'` doesn't allow
+      assetsInlineLimit: (file) => (file.endsWith('.woff2')) ? false : undefined,
       rollupOptions: {
         output: {
           // the hover logo effects ship as `effect.<hash>.webp` so their filenames don't give away the command names

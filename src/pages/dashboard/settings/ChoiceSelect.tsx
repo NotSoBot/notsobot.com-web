@@ -1,15 +1,18 @@
 import { useI18n } from '@/i18n';
+import { cn } from '@/lib/utils';
 
 import type { Choice } from './botChoices';
 
 
 // <select> over fixed choices. `noneLabel` adds an "unset" option that maps to null (bot default).
-export function ChoiceSelect<T extends string | number>({ value, choices, onChange, noneLabel, disabled, ...props }: {
+export function ChoiceSelect<T extends string | number>({ value, choices, onChange, noneLabel, disabled, className, ...props }: {
   value: T | null,
   choices: ReadonlyArray<Choice<T>>,
   onChange: (value: T | null) => void,
   noneLabel?: string,
   disabled?: boolean,
+  // on top of `input`, e.g. a compact one sized to its options
+  className?: string,
   id?: string,
   'aria-describedby'?: string,
   'aria-invalid'?: boolean,
@@ -21,7 +24,7 @@ export function ChoiceSelect<T extends string | number>({ value, choices, onChan
     <select
       {...props}
       disabled={disabled}
-      className='input'
+      className={cn('input', className)}
       value={(value === null) ? '' : String(value)}
       onChange={(event) => {
         const raw = event.target.value;

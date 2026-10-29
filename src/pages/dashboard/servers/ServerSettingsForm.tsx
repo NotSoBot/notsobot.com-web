@@ -55,6 +55,7 @@ function savedValues(guild: UserGuild): Values {
     warnings_expire: guild.settings.warnings_expire,
     warnings_actions: guild.settings.warnings_actions ?? [],
     warnings_auto: guild.settings.warnings_auto ?? [],
+    warnings_auto_exempt: guild.settings.warnings_auto_exempt ?? null,
   };
 }
 
@@ -183,6 +184,9 @@ export function ServerSettingsForm({ guild, group, onDirtyChange }: {guild: User
               <WarningAutoEditor
                 value={warningAuto}
                 onChange={(value) => draft.set('warnings_auto', value)}
+                exempt={values.warnings_auto_exempt}
+                onExemptChange={(value) => draft.set('warnings_auto_exempt', value)}
+                guildId={guild.id}
                 disabled={!editable}
                 error={autoError}
               />

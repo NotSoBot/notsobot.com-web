@@ -49,8 +49,8 @@ export const queryKeys = {
   guildCommandStats: (token: string | null, guildId: string, days: number) => ['users', '@me', token, 'guild-command-stats', guildId, days] as const,
   guildTags: (token: string | null, guildId: string, query?: string) => ['users', '@me', token, 'guild-tags', guildId, ...((query === undefined) ? [] : [query])] as const,
   guildReminders: (token: string | null, guildId: string, filters?: object) => ['users', '@me', token, 'guild-reminders', guildId, ...((filters === undefined) ? [] : [filters])] as const,
-  // every page and user filter of a server's warnings sit under the first five
-  guildWarnings: (token: string | null, scope: GuildScope, guildId: string, userId?: string) => ['users', '@me', token, 'guild-warnings', scope, guildId, ...((userId === undefined) ? [] : [userId])] as const,
+  // every page and search of a server's warnings sit under the first six
+  guildWarnings: (token: string | null, scope: GuildScope, guildId: string, filters?: object) => ['users', '@me', token, 'guild-warnings', scope, guildId, ...((filters === undefined) ? [] : [filters])] as const,
   // and every page and status filter of its members' reports (`all` for no filter)
   guildReports: (token: string | null, scope: GuildScope, guildId: string, filters?: object) => ['users', '@me', token, 'guild-reports', scope, guildId, ...((filters === undefined) ? [] : [filters])] as const,
   // admin (owner only); under the session too so logging out drops it

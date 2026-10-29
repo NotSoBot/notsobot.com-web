@@ -1,3 +1,7 @@
+// served from our own domain rather than Google Fonts, so visiting the site sends nothing to anyone else
+import '@fontsource-variable/bricolage-grotesque/opsz.css';
+import '@fontsource-variable/figtree';
+import '@fontsource-variable/jetbrains-mono';
 import './index.css';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -7,12 +11,9 @@ import { createRoot } from 'react-dom/client';
 import { AuthProvider } from '@/auth';
 import { I18nProvider, initI18n } from '@/i18n';
 import { ApiRequestError } from '@/lib/api';
-import { initAnalytics } from '@/lib/analytics';
 import { reloadForNewBuild } from '@/lib/chunkReload';
 import { createRouter } from '@/router';
 
-
-initAnalytics();
 
 // a lazy chunk from an older deploy failed to load (see chunkReload.ts)
 window.addEventListener('vite:preloadError', (event) => {

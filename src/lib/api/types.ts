@@ -727,10 +727,14 @@ export interface GuildWarning {
   weight: number,
 }
 
-// newest first; `count`/`active` are for every warning that matched, not only this page, adding up their `weight`s
+// newest first; `count`/`active` are for every warning that matched, not only this page, adding up their `weight`s, and
+// `total` is how many of them there are (for the pages)
 export interface GuildWarningsPage {
   active: number,
   count: number,
+  total: number,
+  // the warned members and moderators on this page NotSoBot has seen, anyone else is just their id
+  users: Record<string, GuildContentUser>,
   warnings: Array<GuildWarning>,
   // the server's `warnings_window`, older ones aren't active
   window: number,
@@ -1280,6 +1284,8 @@ export interface GuildSettings {
   warnings_actions: Array<GuildWarningAction>,
   // the auto-warn rules sorted by trigger, server-wide first, empty: off
   warnings_auto: Array<GuildWarningAuto>,
+  // who every auto-warn rule skips, null: nobody
+  warnings_auto_exempt: GuildWarningAutoExempt | null,
   // seconds until a warning gets deleted, null: never
   warnings_expire: number | null,
   // seconds a warning counts towards a member's active warnings
@@ -1299,16 +1305,30 @@ export interface GuildWarningAction {
 }
 
 // when the bot warns a member itself: `mentions` for a message mentioning more than `limit` users and roles,
-// `blocked_command` for running a command the server's rules block for them
+// `blocked_command` for running a command the server's rules block for them, `automod` for setting off one of the
+// server's Discord AutoMod rules
 export interface GuildWarningAuto {
+  // `automod` only (null for the others): one AutoMod rule's id, null: any of them. Where both are set, the one for that
+  // AutoMod rule goes first. Missing on older rules
+  automod_rule_id?: string | null,
   // null: anywhere in the server, a channel also covers its threads (a category, its channels). One rule per
-  // trigger and channel
+  // trigger, channel and AutoMod rule
   channel_id: string | null,
-  // 1-50 for `mentions`, null for `blocked_command`
+  // who this rule skips on top of the server's `warnings_auto_exempt`, null (or missing on older rules): nobody. Saving
+  // the list replaces every rule, so it has to be sent back as it came
+  exempt?: GuildWarningAutoExempt | null,
+  // 1-50 for `mentions`, null for the others
   limit: number | null,
-  trigger: 'blocked_command' | 'mentions',
+  trigger: 'automod' | 'blocked_command' | 'mentions',
   // 1-10, how many warnings it counts as
   warnings: number,
+}
+
+// a member with any of these permissions (discord's bitfield, as a decimal string) or any of these roles (up to 25) is
+// skipped. The bot drops deleted roles (and rules for deleted channels) when it loads the settings
+export interface GuildWarningAutoExempt {
+  permissions: string,
+  role_ids: Array<string>,
 }
 
 // `rules` covers command and category rules, `rules_admin` rules covering everything and the owner/admin bypass,
@@ -1421,6 +1441,8 @@ export interface UserGuildPatch {
   warnings_actions?: Array<GuildWarningAction> | null,
   // replaces every auto-warn rule (up to 20), null or empty turns them off
   warnings_auto?: Array<GuildWarningAuto> | null,
+  // null or empty: every rule skips nobody (besides their own `exempt`)
+  warnings_auto_exempt?: GuildWarningAutoExempt | null,
   // seconds, null: warnings never expire
   warnings_expire?: number | null,
   // seconds, null resets it to 30 days

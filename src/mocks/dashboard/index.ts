@@ -33,6 +33,7 @@ import {
   type GuildReport,
   type GuildReportMessage,
   type GuildWarning,
+  type GuildWarningAutoExempt,
   type GuildMusic,
   type GuildMusicStats,
   type GuildMusicQueueItem,
@@ -108,9 +109,18 @@ const state = {
     {content: 'The #support channel is for help with the bot, staff usually answer within a day.', created: new Date(Date.now() - 9 * 86400000).toISOString(), guild_id: guilds[0].summary.id, id: '1300000000000000101', user_id: '1000000000000000001'},
     {content: 'Members get the Regular role after a week of chatting.', created: new Date(Date.now() - 2 * 86400000).toISOString(), guild_id: guilds[0].summary.id, id: '1300000000000000102', user_id: '1000000000000000001'},
   ]]]),
-  // each server's warnings by guild id, newest last; the first server starts with a few (one past the 30 day window, one
-  // from an auto-warn rule that counts as 3)
+  // each server's warnings by guild id, newest last; the first server starts with enough for two pages (most of them past
+  // the 30 day window, some for a member NotSoBot hasn't seen, one from an auto-warn rule that counts as 3)
   guildWarnings: new Map<string, Array<GuildWarning>>([[guilds[0].summary.id, [
+    ...Array.from({length: 26}, (_, index): GuildWarning => ({
+      created: new Date(Date.now() - (90 - index) * 86400000).toISOString(),
+      guild_id: guilds[0].summary.id,
+      id: String(1300000000000000200n + BigInt(index)),
+      moderator_id: (index % 3) ? mockUser.id : '1000000000000000003',
+      reason: (index % 5 === 4) ? null : ['Spamming in #general', 'Arguing with staff', 'Off-topic in #support', 'Unmarked spoilers'][index % 4],
+      user_id: ['1000000000000000002', '1000000000000000004', '1000000000000000005', '1000000000000000099'][index % 4],
+      weight: 1,
+    })),
     {created: new Date(Date.now() - 45 * 86400000).toISOString(), guild_id: guilds[0].summary.id, id: '1300000000000000301', moderator_id: mockUser.id, reason: 'Spamming in #general', user_id: '1000000000000000002', weight: 1},
     {created: new Date(Date.now() - 6 * 86400000).toISOString(), guild_id: guilds[0].summary.id, id: '1300000000000000302', moderator_id: mockUser.id, reason: 'Posting memes in #support', user_id: '1000000000000000002', weight: 1},
     {created: new Date(Date.now() - 2 * 3600000).toISOString(), guild_id: guilds[0].summary.id, id: '1300000000000000303', moderator_id: '1000000000000000003', reason: null, user_id: '1000000000000000004', weight: 1},
@@ -1249,8 +1259,25 @@ function applyAdminBypassSettings(detail: {settings: UserGuild['settings']}, bod
   }
 }
 
-// `GuildWarningAuto` in the api's guild validators: one rule per trigger and channel, sorted by trigger, server-wide first
+// `GuildWarningAutoExempt.to_setting()`: empty is null, roles deduped (up to 25)
+function warningsAutoExempt(key: string, exempt: GuildWarningAutoExempt | null | undefined): GuildWarningAutoExempt | null {
+  if (!exempt) {
+    return null;
+  }
+  const roleIds = [...new Set((exempt.role_ids ?? []).map(String))];
+  const permissions = String(exempt.permissions ?? '0');
+  if (25 < roleIds.length || roleIds.some((id) => !/^\d{15,21}$/.test(id)) || !/^\d+$/.test(permissions)) {
+    throw new MockError(400, 50001, 'Invalid Form Body', {errors: {[key]: 'Invalid exemption'}});
+  }
+  return (permissions === '0' && !roleIds.length) ? null : {permissions, role_ids: roleIds};
+}
+
+// `GuildWarningAuto` in the api's guild validators: one rule per trigger, channel and AutoMod rule, sorted by trigger,
+// server-wide first, then any AutoMod rule first
 function applyWarningsAuto(detail: {settings: UserGuild['settings']}, body: Record<string, unknown>) {
+  if ('warnings_auto_exempt' in body) {
+    detail.settings.warnings_auto_exempt = warningsAutoExempt('warnings_auto_exempt', body.warnings_auto_exempt as GuildWarningAutoExempt | null);
+  }
   if (!('warnings_auto' in body)) {
     return;
   }
@@ -1262,21 +1289,32 @@ function applyWarningsAuto(detail: {settings: UserGuild['settings']}, body: Reco
   const keys = new Set<string>();
   for (const rule of rules) {
     const integer = (value: unknown, max: number) => Number.isInteger(value) && 1 <= (value as number) && (value as number) <= max;
-    if ((rule.trigger !== 'mentions' && rule.trigger !== 'blocked_command') || !integer(rule.warnings, 10) || (rule.channel_id !== null && !/^\d{15,21}$/.test(rule.channel_id))) {
+    if (!['automod', 'blocked_command', 'mentions'].includes(rule.trigger) || !integer(rule.warnings, 10) || [rule.channel_id, rule.automod_rule_id].some((id) => id != null && !/^\d{15,21}$/.test(id))) {
       throw invalid('Invalid rule');
     }
     if (rule.trigger === 'mentions' && !integer(rule.limit, 50)) {
       throw invalid('A mentions rule needs a limit');
     }
-    const key = `${rule.trigger}:${rule.channel_id}`;
+    const key = `${rule.trigger}:${rule.channel_id}:${(rule.trigger === 'automod') ? rule.automod_rule_id ?? null : null}`;
     if (keys.has(key)) {
-      throw invalid('Each auto-warn trigger can only have one rule per channel');
+      throw invalid('Each auto-warn trigger can only have one rule per channel (and AutoMod rule)');
     }
     keys.add(key);
   }
   detail.settings.warnings_auto = rules
-    .map((rule) => ({channel_id: rule.channel_id, limit: (rule.trigger === 'mentions') ? rule.limit : null, trigger: rule.trigger, warnings: rule.warnings}))
-    .sort((x, y) => x.trigger.localeCompare(y.trigger) || Number(x.channel_id !== null) - Number(y.channel_id !== null) || Number(BigInt(x.channel_id ?? 0) - BigInt(y.channel_id ?? 0)));
+    .map((rule) => ({
+      automod_rule_id: (rule.trigger === 'automod') ? rule.automod_rule_id ?? null : null,
+      channel_id: rule.channel_id,
+      exempt: warningsAutoExempt('warnings_auto', rule.exempt),
+      limit: (rule.trigger === 'mentions') ? rule.limit : null,
+      trigger: rule.trigger,
+      warnings: rule.warnings,
+    }))
+    .sort((x, y) => {
+      return x.trigger.localeCompare(y.trigger)
+        || Number(x.channel_id !== null) - Number(y.channel_id !== null) || Number(BigInt(x.channel_id ?? 0) - BigInt(y.channel_id ?? 0))
+        || Number(x.automod_rule_id !== null) - Number(y.automod_rule_id !== null) || Number(BigInt(x.automod_rule_id ?? 0) - BigInt(y.automod_rule_id ?? 0));
+    });
 }
 
 route('PATCH', '/users/@me/guilds/(\\d+)', ([ , guildId ], { body }) => {
@@ -3431,21 +3469,41 @@ function guildWarnings(guildId: string): Array<GuildWarning> {
   return state.guildWarnings.get(guildId) ?? [];
 }
 
+// mirrors `guild_warning_search_condition` in `utilities/tools/guild_warnings.py`
+function mockGuildWarningMatches(warning: GuildWarning, search: string): boolean {
+  const scoped: Array<boolean> = [];
+  const text = search.replace(/(?<!\S)(?:(id|user|member|moderator|mod)\s*:\s*|#)(\d{1,20})(?!\S)/gi, (_match, scope: string | undefined, id: string) => {
+    const kind = (scope || 'id').toLowerCase();
+    scoped.push((kind === 'id') ? warning.id === id : (kind === 'user' || kind === 'member') ? warning.user_id === id : warning.moderator_id === id);
+    return ' ';
+  }).trim();
+  if (scoped.some((matched) => !matched)) {
+    return false;
+  }
+  if (/^\d+$/.test(text)) {
+    return [warning.id, warning.user_id, warning.moderator_id].includes(text);
+  }
+  return !text || (warning.reason ?? '').toLowerCase().includes(text.toLowerCase());
+}
+
 route('GET', '/users/@me/guilds/(\\d+)/warnings', ([ , guildId ], { query }) => {
   const { detail } = requireEditable(guildId, 'moderation');
-  const userId = query.get('user_id');
-  const before = query.get('before');
+  const search = (query.get('query') ?? '').trim();
+  const offset = Number(query.get('offset')) || 0;
   const limit = Number(query.get('limit')) || 25;
   const { warnings_expire: expire, warnings_window: window } = detail.settings;
   // expired ones are hidden before the cleaner deletes them
   const matched = guildWarnings(guildId)
-    .filter((warning) => (!userId || warning.user_id === userId) && (!expire || Date.now() - expire * 1000 <= Date.parse(warning.created)))
+    .filter((warning) => (!search || mockGuildWarningMatches(warning, search)) && (!expire || Date.now() - expire * 1000 <= Date.parse(warning.created)))
     .reverse();
-  const page = matched.filter((warning) => !before || BigInt(warning.id) < BigInt(before)).slice(0, limit);
+  const page = matched.slice(offset, offset + limit);
   return {
     // weighted, a warning from an auto-warn rule can count as several
     active: matched.filter((warning) => Date.now() - window * 1000 <= Date.parse(warning.created)).reduce((total, warning) => total + warning.weight, 0),
     count: matched.reduce((total, warning) => total + warning.weight, 0),
+    total: matched.length,
+    // the same people the mock reports have, anyone else shows as just their id
+    users: mockUsers(page.flatMap((warning) => [warning.user_id, warning.moderator_id])),
     warnings: page,
     window,
   };
@@ -3500,6 +3558,16 @@ function findGuildReport(guildId: string, reportId: string): GuildReport {
   return report;
 }
 
+// the first server starts with auto-warn rules (one with its own exemptions, AutoMod ones for any rule and for one of
+// them) and a server-wide exemption
+guilds[0].detail.settings.warnings_auto = [
+  {automod_rule_id: null, channel_id: null, exempt: null, limit: null, trigger: 'automod', warnings: 1},
+  {automod_rule_id: '1160000000000000031', channel_id: null, exempt: null, limit: null, trigger: 'automod', warnings: 3},
+  {automod_rule_id: null, channel_id: null, exempt: null, limit: null, trigger: 'blocked_command', warnings: 1},
+  {automod_rule_id: null, channel_id: null, exempt: {permissions: String(1n << 13n), role_ids: ['1150000000000000021']}, limit: 8, trigger: 'mentions', warnings: 2},
+];
+guilds[0].detail.settings.warnings_auto_exempt = {permissions: String(1n << 5n), role_ids: ['1150000000000000020']};
+
 guilds[0].detail.loggers.push({added: new Date(Date.now() - 30 * 86400000).toISOString(), channel_id: '1200000000000000023', disabled_events: 0, guild_id: guilds[0].summary.id, type: 8, user_id: mockUser.id});
 
 function guildReports(guildId: string): Array<GuildReport> {
@@ -3535,8 +3603,13 @@ const MOCK_REPORT_USERS: Record<string, string> = {
 };
 
 function mockReportUsers(reports: Array<GuildReport>) {
+  return mockUsers(reports.flatMap((report) => [report.user_id, report.target_id, report.handled_by]));
+}
+
+// the ones of these NotSoBot "has seen", by id (the api's `users` maps)
+function mockUsers(ids: Array<string | null>) {
   const users: Record<string, GuildContentUser> = {};
-  for (const id of reports.flatMap((report) => [report.user_id, report.target_id, report.handled_by])) {
+  for (const id of ids) {
     if (id === mockUser.id) {
       users[id] = {avatar: mockUser.avatar ?? null, bot: false, discriminator: mockUser.discriminator, id, username: mockUser.username};
     } else if (id && MOCK_REPORT_USERS[id]) {

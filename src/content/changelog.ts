@@ -32,9 +32,14 @@ export const CHANGELOG: Array<ChangelogDay> = [
     title: 'Auto-warn rules',
     items: [
       {kind: 'new', text: '`.autowarn` and `/server autowarn`: NotSoBot warns members by itself for mentioning more than a number of users and roles in one message (`.autowarn mentions 5`) or for using a command the server\'s rules block for them (`.autowarn blocked`). Each rule can count as up to 10 warnings and can be for one channel (with its threads, or a category\'s channels) or the whole server. The warnings count towards `set warnings`\' actions like any other.'},
-      {kind: 'new', text: 'Dashboard: edit a server\'s auto-warn rules in its Warnings settings, and warnings that count as more than 1 say so.'},
+      {kind: 'new', text: '`.autowarn automod` and `/server autowarn automod`: warn members that set off one of the server\'s Discord AutoMod rules, any of them or one in particular (`.autowarn automod -rule Bad Words -warnings 5`). NotSoBot needs Manage Server to see AutoMod.'},
+      {kind: 'new', text: 'Auto-warn can skip members: `.autowarn exempt` (`/server autowarn exempt`) sets the roles and permissions every rule skips, and `-exempt-roles`/`-exempt-permissions` add more for one rule.'},
+      {kind: 'new', text: 'Dashboard: edit a server\'s auto-warn rules and who they skip in its Warnings settings, and warnings that count as more than 1 say so.'},
       {kind: 'improved', text: 'Reporting one of NotSoBot\'s responses to a server reports whoever used the command, and reports and `.quote` show a video\'s thumbnail instead of leaving it out.'},
       {kind: 'improved', text: 'Dashboard: Add NotSoBot next to a server picks that server in Discord\'s invite.'},
+      {kind: 'improved', text: 'Dashboard: a server\'s warnings list has pages and a search (by reason, or `#id`, `user:id` and `moderator:id`), shows avatars and names, every id can be clicked to search for it or copied, and removing a warning asks first.'},
+      {kind: 'improved', text: 'Rules, loggers and auto-warn rules for deleted channels are removed by themselves, and so are deleted roles in rules, auto-warn exemptions and the DJ role.'},
+      {kind: 'improved', text: 'The website and nsb.gg load their fonts from themselves instead of Google Fonts, and `notso.bot` links go to notsobot.com.'},
     ],
   },
   {

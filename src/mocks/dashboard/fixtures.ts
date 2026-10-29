@@ -202,6 +202,7 @@ export function createGuildSettings(): UserGuild['settings'] {
     search_provider_web: null,
     warnings_actions: [],
     warnings_auto: [],
+    warnings_auto_exempt: null,
     warnings_expire: null,
     warnings_window: 30 * 24 * 60 * 60,
   };

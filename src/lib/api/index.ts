@@ -723,9 +723,10 @@ export const api = {
   },
 
   // the server's warnings, newest first (a member's, or everyone's), Timeout Members sees and removes them
-  fetchGuildWarnings: (scope: GuildScope, guildId: string, options: {before?: string, limit?: number, userId?: string}, signal?: AbortSignal) => {
+  // newest first a page at a time. `query` is the reason, or `#<id>`, `user:<member>`, `moderator:<id>` or a bare id
+  fetchGuildWarnings: (scope: GuildScope, guildId: string, options: {limit?: number, offset?: number, query?: string}, signal?: AbortSignal) => {
     return apiRequest<GuildWarningsPage>(guildEndpoints(scope, guildId).WARNINGS, {
-      query: {before: options.before, limit: options.limit, user_id: options.userId},
+      query: {limit: options.limit, offset: options.offset, query: options.query || undefined},
       signal,
     });
   },

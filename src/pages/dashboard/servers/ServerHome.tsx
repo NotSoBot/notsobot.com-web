@@ -20,7 +20,7 @@ export function ServerHome({ guild }: {guild: UserGuild}) {
   const knowledge = useGuildLLMKnowledgeQuery(guild.id);
   const tags = useGuildTagsQuery(guild.id, '');
   const reminders = useGuildRemindersQuery(guild.id, DEFAULT_GUILD_REMINDERS_FILTERS, guild.editable.reminders);
-  const warnings = useGuildWarningsQuery(guild.id, null, moderator);
+  const warnings = useGuildWarningsQuery(guild.id, {page: 0, query: ''}, moderator);
   const reports = useGuildReportsQuery(guild.id, {awaitingReply: null, page: 0, query: '', queue: false, status: ReportStatuses.OPEN, type: null}, moderator);
 
   const created = snowflakeTimestamp(guild.id);
@@ -65,7 +65,7 @@ export function ServerHome({ guild }: {guild: UserGuild}) {
           <>
             <StatTile
               label={t('shome.warnings')}
-              value={count(warnings.data?.pages[0]?.active)}
+              value={count(warnings.data?.active)}
               tone='text-warning'
               to={dashboardServerPath(guild.id, 'warnings')}
             />

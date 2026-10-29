@@ -3,7 +3,7 @@ import type { LegalDocument } from './legal';
 export const PRIVACY_POLICY: LegalDocument = {
   title: "Privacy Policy",
   effective: "October 13, 2026",
-  lastUpdated: "October 28, 2026",
+  lastUpdated: "October 29, 2026",
   intro: "This Privacy Policy explains what information NotSoBot collects, why, who it's shared with, how long it's kept, and how You can get a copy of it or have it deleted.",
   sections: [
     {
@@ -176,6 +176,7 @@ export const PRIVACY_POLICY: LegalDocument = {
       title: "Section 11 - Cookies and Browser Storage",
       blocks: [
         {type: 'paragraph', text: "The website doesn't use advertising or analytics cookies. It uses your browser's local storage to keep You logged in and to remember display preferences. Cloudflare may set cookies that are needed to protect the website from attacks."},
+        {type: 'paragraph', text: "The website and nsb.gg count visits with Umami, an analytics tool We host Ourselves at oasis.notsocompany.com. It doesn't use cookies or keep your IP address, and it isn't linked to your Discord account. NotSoCompany's privacy policy at notsocompany.com/privacy lists what it records."},
       ],
     },
     {

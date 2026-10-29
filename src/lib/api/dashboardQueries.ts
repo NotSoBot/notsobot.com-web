@@ -1327,17 +1327,20 @@ export function useGuildLLMKnowledgeMutation(guildId: string) {
 
 /* the server's warnings */
 
-const GUILD_WARNINGS_PAGE_SIZE = 25;
+export const GUILD_WARNINGS_PAGE_SIZE = 25;
 
-// newest first, a page at a time (`fetchNextPage` for older ones), only theirs with a `userId`
-export function useGuildWarningsQuery(guildId: string, userId: string | null, enabled = true) {
+// newest first, a page at a time like the server's reports. `query` is the search box as typed (see `fetchGuildWarnings`)
+export function useGuildWarningsQuery(guildId: string, filters: {page: number, query: string}, enabled = true) {
   const { token } = useAuth();
   const scope = useGuildScope();
-  return useInfiniteQuery({
-    queryKey: queryKeys.guildWarnings(token, scope, guildId, userId ?? ''),
-    queryFn: ({ pageParam, signal }) => api.fetchGuildWarnings(scope, guildId, {before: pageParam, limit: GUILD_WARNINGS_PAGE_SIZE, userId: userId ?? undefined}, signal),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (page) => (page.warnings.length < GUILD_WARNINGS_PAGE_SIZE) ? undefined : page.warnings[page.warnings.length - 1]?.id,
+  return useQuery({
+    queryKey: queryKeys.guildWarnings(token, scope, guildId, filters),
+    queryFn: ({ signal }) => api.fetchGuildWarnings(scope, guildId, {
+      limit: GUILD_WARNINGS_PAGE_SIZE,
+      offset: filters.page * GUILD_WARNINGS_PAGE_SIZE,
+      query: filters.query,
+    }, signal),
+    placeholderData: keepPreviousData,
     enabled: !!token && enabled,
     retry: retryDiscordRefresh,
   });
