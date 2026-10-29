@@ -28,6 +28,16 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 
 export const CHANGELOG: Array<ChangelogDay> = [
   {
+    date: '2026-10-29',
+    title: 'Auto-warn rules',
+    items: [
+      {kind: 'new', text: '`.autowarn` and `/server autowarn`: NotSoBot warns members by itself for mentioning more than a number of users and roles in one message (`.autowarn mentions 5`) or for using a command the server\'s rules block for them (`.autowarn blocked`). Each rule can count as up to 10 warnings and can be for one channel (with its threads, or a category\'s channels) or the whole server. The warnings count towards `set warnings`\' actions like any other.'},
+      {kind: 'new', text: 'Dashboard: edit a server\'s auto-warn rules in its Warnings settings, and warnings that count as more than 1 say so.'},
+      {kind: 'improved', text: 'Reporting one of NotSoBot\'s responses to a server reports whoever used the command, and reports and `.quote` show a video\'s thumbnail instead of leaving it out.'},
+      {kind: 'improved', text: 'Dashboard: Add NotSoBot next to a server picks that server in Discord\'s invite.'},
+    ],
+  },
+  {
     date: '2026-10-28',
     title: 'Face cropping and VEGAS timecodes',
     items: [
@@ -37,6 +47,15 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'improved', text: 'Prefix command examples and the TagScript and MediaScript docs\' examples use NotSoBot\'s own sample files (music, a voice clip, a video, a face, a QR code, a green screen clip, `.veg`/`.wlmp`/`.cube`/`.xyt` projects) that fit each command, instead of outside links.'},
       {kind: 'fixed', text: '`.google reverse` (`.images`) works again: Google closed the old reverse image search, so it now uses Google Lens, with one match per page showing the image, a link to the page and the site.'},
       {kind: 'new', text: 'Home page: a Show other commands button under the gallery goes through every command\'s preview before repeating one.'},
+      {kind: 'new', text: '`.wobble` and `/media-iv-animate wobble`: makes an image or video wobble like jelly, its sides pull in and its middle gets dragged around. Still images (and single-frame GIFs and videos) settle back between wobbles, animated GIFs and videos keep wobbling the whole way and are back to normal by the last frame. `-amount` for how far (40% by default), `-wobbles` per second, `-duration` for still images. **MediaScript:** `wobble`.'},
+      {kind: 'improved', text: 'Without 24/7, NotSoBot stays in the voice channel for 2 minutes after the queue runs out instead of leaving right away, and anything played in that time carries on.'},
+      {kind: 'improved', text: 'Logging in to the website only asks Discord for your account. Your server list is only asked for when you want it (Show my servers), until then the dashboard lists the servers NotSoBot has seen you in.'},
+      {kind: 'new', text: 'Dashboard: channels in a server\'s loggers, rules and reminders open in Discord, and server and DM tags have an Open in Discord link to the server or DM they belong to.'},
+      {kind: 'new', text: 'Files hosted on cdn.nsb.gg show a preview in the player and in embeds: a video\'s frame, or an audio file\'s cover art or else its waveform.'},
+      {kind: 'improved', text: '`.waveform` is much faster on long audio.'},
+      {kind: 'improved', text: '`.xyt` color filters that use lookup tables render with them, and a template the renderer can\'t draw says why.'},
+      {kind: 'fixed', text: '**MediaScript:** `concatmultiple` failing when the media had different pixel shapes (like a clip after `hueshifthsv` next to the original).'},
+      {kind: 'removed', text: 'Animated results from the face moods, eye contact, open mouth, face feature swap and the Buscemi, Chad and Kirk face swaps, for now: GIFs give their first frame and videos a frame past any black intro, as a still image.'},
     ],
   },
   {

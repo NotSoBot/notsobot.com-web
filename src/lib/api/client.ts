@@ -1,6 +1,7 @@
 import { tokenStorage } from '@/auth/tokenStorage';
 import { config } from '@/config';
 
+import { ApiEndpoints } from './endpoints';
 import type { ApiErrorBody } from './types';
 
 
@@ -59,6 +60,12 @@ export function apiUrl(path: string, query?: ApiRequestOptions['query']): string
   return url;
 }
 
+
+
+// the bot's invite (the API redirects to Discord), with `guildId` that server is already picked in Discord's server picker
+export function botInviteUrl(guildId?: string | null): string {
+  return apiUrl(ApiEndpoints.HELP_DISCORD_BOT, {guild_id: (guildId && /^\d+$/.test(guildId)) ? guildId : undefined});
+}
 
 /**
  * Fetch wrapper for notsobot.api.

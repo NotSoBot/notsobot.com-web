@@ -69,6 +69,22 @@ export function shardIdForGuild(guildId: string, shardCount: number): number | n
 }
 
 
+// a server in the Discord client
+export function discordGuildUrl(guildId: string): string {
+  return `https://discord.com/channels/${guildId}`;
+}
+
+// a server's channel in the Discord client
+export function discordChannelUrl(guildId: string, channelId: string): string {
+  return `https://discord.com/channels/${guildId}/${channelId}`;
+}
+
+// a dm or group dm in the Discord client
+export function discordDmUrl(channelId: string): string {
+  return `https://discord.com/channels/@me/${channelId}`;
+}
+
+
 // Discord snowflake -> when it was made, in ms (null for anything that isn't one)
 export function snowflakeTimestamp(id: string): number | null {
   return (/^\d{15,21}$/.test(id)) ? Number(BigInt(id) >> 22n) + 1420070400000 : null;

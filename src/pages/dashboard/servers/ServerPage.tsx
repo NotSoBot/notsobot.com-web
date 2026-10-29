@@ -1,11 +1,11 @@
-import { AlarmClock, AlertTriangle, ArrowUpRight, Ban, Crown, Eye, SquareTerminal, Tags as TagsIcon, type LucideIcon } from 'lucide-react';
+import { AlarmClock, AlertTriangle, ArrowUpRight, Ban, Crown, ExternalLink, Eye, SquareTerminal, Tags as TagsIcon, type LucideIcon } from 'lucide-react';
 import { Link, Outlet, useOutletContext, useParams } from 'react-router';
 
 import { Routes } from '@/config';
 import { useI18n } from '@/i18n';
 import { ApiErrorCodes, ApiRequestError, type GuildEditableArea, type UserGuild } from '@/lib/api';
 import { errorMessage, isDiscordGrantError, isScopeMismatch, useMeGuildQuery, useMeRemindersQuery, useMeTagsCountQuery } from '@/lib/api/dashboardQueries';
-import { formatNumber } from '@/lib/utils';
+import { discordGuildUrl, formatNumber } from '@/lib/utils';
 
 import { Chip, CopyableValue } from '../admin/adminUi';
 import { PanelSkeleton, Skeleton, UnsavedChangesGuard } from '../ui';
@@ -111,7 +111,13 @@ function ServerLayout({ guild, setDirty }: {guild: UserGuild, setDirty: ServerOu
               {(guild.owner) ? <Chip tone='warning' title={t('server.owner_title')} className='gap-1'><Crown aria-hidden className='size-3'/>{t('server.owner')}</Chip> : null}
               {(guild.blocked) ? <Chip tone='danger' title={guild.blocked_reason || t('server.blocked_title')}>{t('server.blocked')}</Chip> : null}
             </div>
-            <div className='mt-0.5 text-sm text-muted'><CopyableValue value={guild.id} truncate={0}/></div>
+            <div className='mt-0.5 flex flex-wrap items-center gap-x-3 text-sm text-muted'>
+              <CopyableValue value={guild.id} truncate={0}/>
+              <a href={discordGuildUrl(guild.id)} target='_blank' rel='noopener noreferrer' className='inline-flex items-center gap-1 text-code hover:underline'>
+                {t('common.open_discord')}
+                <ExternalLink aria-hidden className='size-3.5'/>
+              </a>
+            </div>
           </div>
         </div>
         <Chip

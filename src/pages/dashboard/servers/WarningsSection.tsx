@@ -51,6 +51,8 @@ function WarningsList({ guildId }: {guildId: string}) {
   const pages = query.data?.pages ?? [];
   const first = pages[0];
   const warnings = pages.flatMap((page) => page.warnings);
+  // `count`/`active` add up weights, so with an auto-warn on screen they can be more than the rows shown
+  const weighted = warnings.some((warning) => 1 < warning.weight);
 
   const run = async (key: string, action: GuildWarningsAction, success: string): Promise<boolean> => {
     setBusyKey(key);
@@ -101,7 +103,7 @@ function WarningsList({ guildId }: {guildId: string}) {
 
       {(first) ? (
         <p className='text-sm text-muted'>
-          {plural('warnings.summary', first.count, {active: formatNumber(first.active), window: formatSeconds(first.window)})}
+          {plural((weighted) ? 'warnings.summary_weighted' : 'warnings.summary', first.count, {active: formatNumber(first.active), window: formatSeconds(first.window)})}
         </p>
       ) : null}
 
@@ -141,7 +143,7 @@ function WarningsList({ guildId }: {guildId: string}) {
       {(confirmingClear && userId && first) ? (
         <ConfirmDialog
           title={t('warnings.clear_title')}
-          description={t('warnings.clear_description', {count: formatNumber(first.count), user: userId})}
+          description={t((weighted) ? 'warnings.clear_description_weighted' : 'warnings.clear_description', {count: formatNumber(first.count), user: userId})}
           confirmLabel={t('warnings.clear')}
           pending={busyKey === userId}
           onConfirm={async () => {
@@ -179,6 +181,7 @@ function WarningRow({ warning, window, showUser, busy, disabled, onFilter, onRem
             </button>
           ) : null}
           {(inactive) ? <Chip title={t('warnings.inactive_title', {window: formatSeconds(window)})}>{t('warnings.inactive')}</Chip> : null}
+          {(1 < warning.weight) ? <Chip title={t('warnings.weight_title', {count: formatNumber(warning.weight)})}>{t('warnings.weight', {count: formatNumber(warning.weight)})}</Chip> : null}
         </div>
         {(warning.reason) ? (
           <p className='text-sm break-words whitespace-pre-wrap text-fg'>{warning.reason}</p>
@@ -189,7 +192,12 @@ function WarningRow({ warning, window, showUser, busy, disabled, onFilter, onRem
           {rich('warnings.by', {b: (chunk) => <span className='font-mono'>{chunk}</span>}, {moderator: warning.moderator_id, date: formatDate(created), id: warning.id})}
         </p>
       </div>
-      <RemoveButton label={t('warnings.remove_label', {id: warning.id})} busy={busy} disabled={disabled} onClick={onRemove}/>
+      <RemoveButton
+        label={(1 < warning.weight) ? t('warnings.remove_label_weighted', {id: warning.id, count: formatNumber(warning.weight)}) : t('warnings.remove_label', {id: warning.id})}
+        busy={busy}
+        disabled={disabled}
+        onClick={onRemove}
+      />
     </li>
   );
 }

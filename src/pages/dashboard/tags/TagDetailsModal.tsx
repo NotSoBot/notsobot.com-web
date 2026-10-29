@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowUpRight, Lock, Pencil } from 'lucide-react';
+import { AlertTriangle, ArrowUpRight, ExternalLink, Lock, Pencil } from 'lucide-react';
 import { useEffect, useRef, type ReactNode } from 'react';
 import { Link } from 'react-router';
 
@@ -15,7 +15,7 @@ import { tagDirectoryItemPath, VerificationBadge } from '@/pages/tags/tagDirecto
 import { MediaSection } from '@/pages/tags/TagMedia';
 
 import { Chip, CopyableValue, CopyButton, DETAIL_LIST_STACKED, DetailList, ExactDate, selectAllScope } from '../admin/adminUi';
-import { tagLocation, TagLocationChip, tagServerPath } from './tagMeta';
+import { tagDiscordUrl, tagLocation, TagLocationChip, tagServerPath } from './tagMeta';
 
 
 const TITLE_ID = 'dashboard-tag-modal-title';
@@ -114,10 +114,18 @@ export function TagModalHeader({ tag, titleId, title, meta }: {tag: Tag, titleId
 // where the tag lives, in the strip under the header. `children` go on the right
 export function TagLocationStrip({ tag, guildNames, children }: {tag: Tag, guildNames: Map<string, string>, children?: ReactNode}) {
   const { user } = useAuth();
+  const { t } = useI18n();
   const location = tagLocation(tag, user, guildNames);
+  const discordUrl = tagDiscordUrl(location);
   return (
     <DetailModalStrip className='flex flex-wrap items-center gap-x-3 gap-y-1.5'>
       <TagLocationChip location={location} to={tagServerPath(location)}/>
+      {(discordUrl) ? (
+        <a href={discordUrl} target='_blank' rel='noopener noreferrer' className='inline-flex items-center gap-1 text-xs text-code hover:underline'>
+          {t('common.open_discord')}
+          <ExternalLink aria-hidden className='size-3'/>
+        </a>
+      ) : null}
       {(children) ? <div className='ml-auto flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-subtle'>{children}</div> : null}
     </DetailModalStrip>
   );

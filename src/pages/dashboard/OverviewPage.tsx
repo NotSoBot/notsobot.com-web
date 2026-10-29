@@ -238,7 +238,8 @@ export function OverviewPage() {
             to={Routes.DASHBOARD_SERVERS}
             value={(guilds.isPending) ? null : (guilds.isError) ? '—' : formatNumber(guilds.data.length)}
             detail={
-              (isScopeMismatch(guilds.error) || isDiscordGrantError(guilds.error)) ? t('overview.relogin')
+              (isScopeMismatch(guilds.error)) ? t('overview.allow_servers')
+                : (isDiscordGrantError(guilds.error)) ? t('overview.relogin')
                 : (guilds.data) ? t('overview.can_manage', {count: formatNumber(manageable)}) : undefined
             }
             color='#faa81a'

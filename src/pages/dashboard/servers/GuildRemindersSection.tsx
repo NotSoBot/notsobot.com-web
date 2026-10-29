@@ -207,7 +207,7 @@ function ReminderRow({ reminder, disabled, onMove }: {reminder: GuildReminder, d
           {(reminder.channel_id) ? (
             <>
               <span aria-hidden>•</span>
-              <EntryMention type='channel' id={reminder.channel_id}/>
+              <EntryMention type='channel' id={reminder.channel_id} guildId={reminder.guild_id ?? undefined}/>
             </>
           ) : null}
           <span aria-hidden>•</span>

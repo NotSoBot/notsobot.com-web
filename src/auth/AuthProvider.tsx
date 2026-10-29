@@ -7,8 +7,9 @@ import { api, ApiEndpoints, ApiRequestError, apiUrl } from '@/lib/api';
 import { removeStored } from '@/hooks/usePersistentState';
 import { SAVED_GUILDS_KEY, queryKeys } from '@/lib/api/queries';
 
-import { AuthContext, type AuthContextValue, type AuthStatus } from './AuthContext';
+import { AuthContext, type AuthContextValue, type AuthStatus, type LoginOptions } from './AuthContext';
 import { markLoginPending, saveReturnTo } from './returnTo';
+import { confirmPendingScopes, forgetGrantedScopes, grantedScopes, markScopesPending } from './scopes';
 import { tokenStorage } from './tokenStorage';
 
 
@@ -48,7 +49,7 @@ export function AuthProvider({ children }: {children: ReactNode}) {
     }
   }, [queryClient, token]);
 
-  const login = useCallback((returnTo?: string) => {
+  const login = useCallback((returnTo?: string, options?: LoginOptions) => {
     // with auth off nothing may start the Discord OAuth flow, whatever button or route asked for it
     if (!config.authEnabled) {
       return;
@@ -58,7 +59,9 @@ export function AuthProvider({ children }: {children: ReactNode}) {
     const language = splitLanguagePath(window.location.pathname).language ?? DEFAULT_LANGUAGE;
     saveReturnTo((returnTo) ? languagePath(language, returnTo) : (window.location.pathname + window.location.search));
     markLoginPending();
-    window.location.assign(apiUrl(ApiEndpoints.AUTH_LOGIN));
+    const scopes = Array.from(new Set([...grantedScopes(), ...(options?.scopes ?? [])]));
+    markScopesPending(scopes);
+    window.location.assign(apiUrl(ApiEndpoints.AUTH_LOGIN, (scopes.length) ? {scopes: scopes.join(',')} : undefined));
   }, []);
 
   const logout = useCallback(async () => {
@@ -70,11 +73,13 @@ export function AuthProvider({ children }: {children: ReactNode}) {
       }
     }
     setLoggedOut(true);
+    forgetGrantedScopes();
     tokenStorage.clear();
   }, []);
 
   const completeLogin = useCallback((value: string) => {
     setLoggedOut(false);
+    confirmPendingScopes();
     tokenStorage.set(value);
   }, []);
 

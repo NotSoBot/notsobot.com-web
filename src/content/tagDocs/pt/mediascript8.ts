@@ -155,6 +155,19 @@ export const MEDIASCRIPT_PORTUGUESE_8: TagDocsTranslation['mediaScriptCommands']
       LOOP: 'balançar continuamente em vez de recomeçar, para um loop suave',
     },
   },
+  wobble: {
+    summary: 'Faz a mídia tremer como gelatina: os lados encolhem e o meio é arrastado de um lado para o outro.',
+    args: {
+      MEDIA_KEY: MEDIA,
+      AMOUNT: 'quanto treme, em porcentagem do tamanho',
+      WOBBLES: 'tremidas por segundo',
+      DURATION: 'segundos, para imagens estáticas',
+    },
+    notes: [
+      'Uma imagem estática (ou um GIF ou vídeo de um só quadro) vira DURATION segundos a 25 quadros por segundo que voltam ao original entre as tremidas; uma imagem estática vira um GIF em loop.',
+      'GIFs animados e vídeos tremem o tempo todo e voltam ao original no último quadro.',
+    ],
+  },
   skew: {
     summary: 'Inclina a mídia para o lado (ou para cima e para baixo).',
     args: {

@@ -2,7 +2,7 @@
 // owning one doesn't give it anything. The dashboard can only add guilds, group dms are added with the bot. Plus AI
 // subscribers can stack more than one slot on a server, each raises its NotSoAI limit.
 
-import { Layers, Lock, MessagesSquare, Plus, Server, Trash2 } from 'lucide-react';
+import { ExternalLink, Layers, Lock, MessagesSquare, Plus, Server, Trash2 } from 'lucide-react';
 import { useId, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 
@@ -20,16 +20,17 @@ import {
   isDiscordGrantError,
   isScopeMismatch,
   useDeleteMePremiumServerMutation,
+  useMeGuildListingQuery,
   useMeGuildsQuery,
   useMePremiumServersQuery,
   usePutMePremiumServerMutation,
 } from '@/lib/api/dashboardQueries';
-import { formatDate, formatExactDateTime, formatNumber, toDate } from '@/lib/utils';
+import { discordDmUrl, discordGuildUrl, formatDate, formatExactDateTime, formatNumber, toDate } from '@/lib/utils';
 
 import { Chip } from './admin/adminUi';
 import { hasPremiumPlusAI } from './premium';
 import { GuildIcon } from './servers/GuildIcon';
-import { ScopeMismatchCard } from './servers/ServersPage';
+import { MissingServersNotice, ScopeMismatchCard } from './servers/ServersPage';
 import { EmptyState, ErrorPanel, Skeleton } from './ui';
 
 
@@ -217,6 +218,16 @@ function ServerRow({ server, active, onStack, stacking, onRemove }: {
         <div className='mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-subtle'>
           <span title={formatExactDateTime(server.created)}>{t('pservers.added', {date: formatDate(server.created)})}</span>
           <span className='font-mono'>{server.server_id}</span>
+          {/* no guild row is almost always a group dm, the bot knows every guild it's in */}
+          <a
+            href={(server.guild) ? discordGuildUrl(server.server_id) : discordDmUrl(server.server_id)}
+            target='_blank'
+            rel='noopener noreferrer'
+            className='inline-flex items-center gap-1 text-code hover:underline'
+          >
+            {t('common.open_discord')}
+            <ExternalLink aria-hidden className='size-3'/>
+          </a>
         </div>
       </div>
       {(onStack) ? (
@@ -253,6 +264,8 @@ function AddServerDialog({ taken, onClose }: {taken: Array<string>, onClose: () 
   const titleId = useId();
   const toast = useToast();
   const guilds = useMeGuildsQuery();
+  // the same query, for whether it's every server they're in
+  const listing = useMeGuildListingQuery();
   const put = usePutMePremiumServerMutation();
   const [ query, setQuery ] = useState('');
   const [ pendingId, setPendingId ] = useState<string | null>(null);
@@ -303,6 +316,7 @@ function AddServerDialog({ taken, onClose }: {taken: Array<string>, onClose: () 
           ) : (
             <>
               <SearchInput value={query} onValueChange={setQuery} placeholder={t('pservers.search')} size='sm' aria-label={t('pservers.search')}/>
+              {(listing.data && !listing.data.complete) ? <MissingServersNotice compact className='mt-2'/> : null}
               {(!available.length) ? (
                 <p className='mt-4 text-center text-sm text-subtle'>
                   {t((query) ? 'pservers.no_match' : 'pservers.all_have')}

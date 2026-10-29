@@ -4,6 +4,7 @@ import { Routes } from '@/config';
 import { translate, translatePlural, useI18n, type TranslationKey } from '@/i18n';
 import type { GuildEditableArea } from '@/lib/api';
 import { useGuildScope } from '@/lib/api/dashboardQueries';
+import { discordChannelUrl, discordGuildUrl } from '@/lib/utils';
 
 import type { Choice } from '../settings/botChoices';
 
@@ -117,13 +118,15 @@ export const ENTRY_TYPE_LABELS: Record<string, string> = {
 };
 
 
-// IDs only for now (the API doesn't store names), formatted like Discord mentions
-export function EntryMention({ type, id }: {type: string, id: string}) {
+// IDs only for now (the API doesn't store names), formatted like Discord mentions. With `guildId`, channels and the
+// server itself open in Discord
+export function EntryMention({ type, id, guildId }: {type: string, id: string, guildId?: string}) {
   const { t } = useI18n();
   const Icon = (type === 'channel') ? Hash : (type === 'role') ? Shield : (type === 'guild') ? Server : AtSign;
   const color = (type === 'channel') ? 'text-code' : (type === 'role') ? 'text-warning' : (type === 'guild') ? 'text-success-text' : 'text-[#a5acff]';
-  return (
-    <span className='inline-flex min-w-0 items-center gap-1.5'>
+  const url = (!guildId) ? null : (type === 'channel') ? discordChannelUrl(guildId, id) : (type === 'guild') ? discordGuildUrl(guildId) : null;
+  const content = (
+    <>
       <Icon aria-hidden className={`size-3.5 shrink-0 ${color}`}/>
       <span className='sr-only'>{ENTRY_TYPE_LABELS[type] ?? type} </span>
       {(type === 'guild') ? (
@@ -131,8 +134,22 @@ export function EntryMention({ type, id }: {type: string, id: string}) {
       ) : (
         <span className='truncate font-mono text-sm text-fg'>{id}</span>
       )}
-    </span>
+    </>
   );
+  if (url) {
+    return (
+      <a
+        href={url}
+        target='_blank'
+        rel='noopener noreferrer'
+        className='inline-flex min-w-0 items-center gap-1.5 decoration-subtle hover:underline'
+        title={t('common.open_discord')}
+      >
+        {content}
+      </a>
+    );
+  }
+  return <span className='inline-flex min-w-0 items-center gap-1.5'>{content}</span>;
 }
 
 

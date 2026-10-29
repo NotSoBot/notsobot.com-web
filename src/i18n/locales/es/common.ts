@@ -34,6 +34,7 @@ export const Common: Record<keyof typeof English, string> = {
   'common.not_set': 'Sin configurar',
   'common.off': 'Desactivado',
   'common.on': 'Activado',
+  'common.open_discord': 'Abrir en Discord',
   'common.optional': 'Opcional',
   'common.previous': 'Anterior',
   'common.reload': 'Recargar',

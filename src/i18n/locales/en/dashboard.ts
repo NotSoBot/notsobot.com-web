@@ -156,6 +156,7 @@ export const Dashboard = {
   'overview.since': 'Since {date}',
   'overview.servers': 'Servers with NotSoBot',
   'overview.relogin': 'Log in again to see your servers',
+  'overview.allow_servers': 'Your server list isn’t shared yet',
   'overview.can_manage': '{count} you can manage',
   'overview.report_staff_one': '{staff} replied or changed its status since you last looked.',
   'overview.report_staff_other': '{staff} replied or changed their status since you last looked.',

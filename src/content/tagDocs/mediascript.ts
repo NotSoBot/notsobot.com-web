@@ -3638,6 +3638,22 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     ],
   },
   {
+    name: 'wobble',
+    category: 'distort',
+    summary: 'Makes the media wobble like jelly: its sides pull in and its middle gets dragged around.',
+    syntax: 'wobble MEDIA_KEY AMOUNT=40 WOBBLES=0.8 DURATION=3.0',
+    args: [
+      media(),
+      {name: 'AMOUNT', default: '40', range: '1..100', description: 'how far it wobbles, a percent of the size'},
+      {name: 'WOBBLES', default: '0.8', range: '0.1..10.0', description: 'wobbles per second'},
+      {name: 'DURATION', default: '3.0', range: '0.5..30.0', description: 'seconds, for still images'},
+    ],
+    notes: [
+      'A still image (or a single-frame GIF or video) becomes DURATION seconds at 25 frames a second that settle back to the original between wobbles, a still image as a looping GIF.',
+      'Animated GIFs and videos keep wobbling the whole way and are back to the original by the last frame.',
+    ],
+  },
+  {
     name: 'skew',
     category: 'distort',
     summary: 'Slants the media sideways (or up and down).',

@@ -158,6 +158,7 @@ export const Dashboard: Record<keyof typeof English, string> = {
   'overview.since': 'Desde {date}',
   'overview.servers': 'Servidores com o NotSoBot',
   'overview.relogin': 'Entre de novo para ver seus servidores',
+  'overview.allow_servers': 'Você ainda não compartilhou sua lista de servidores',
   'overview.can_manage': '{count} que você pode gerenciar',
   'overview.report_staff_one': '{staff} respondeu ou mudou o status dela desde a última vez que você viu.',
   'overview.report_staff_other': '{staff} responderam ou mudaram o status delas desde a última vez que você viu.',

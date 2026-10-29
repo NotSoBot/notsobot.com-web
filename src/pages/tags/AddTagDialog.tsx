@@ -1,11 +1,12 @@
 import { CheckCircle2, TriangleAlert } from 'lucide-react';
 import { useId, useState } from 'react';
 
+import { useAuth } from '@/auth';
 import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
 import { translate, useI18n } from '@/i18n';
 import { ApiErrorCodes, ApiRequestError, TagDirectoryVerificationStates, type Tag } from '@/lib/api';
-import { errorMessage, isDiscordGrantError, isScopeMismatch, useAddMeTagMutation, useMeGuildsQuery } from '@/lib/api/dashboardQueries';
+import { errorMessage, isDiscordGrantError, isScopeMismatch, useAddMeTagMutation, useMeGuildListingQuery, useMeGuildsQuery } from '@/lib/api/dashboardQueries';
 import { CharCounter } from '@/pages/dashboard/ui';
 
 
@@ -33,15 +34,22 @@ export function AddTagDialog({ tag, verified, onClose }: {tag: Pick<Tag, 'id' | 
   const nameId = useId();
 
   const guilds = useMeGuildsQuery();
+  // the same query, for whether it's every server they're in
+  const listing = useMeGuildListingQuery();
+  const { login } = useAuth();
   const add = useAddMeTagMutation(tag.id);
   const [ destination, setDestination ] = useState(DM_DESTINATION);
   const [ name, setName ] = useState(tag.name);
   const [ added, setAdded ] = useState<{tag: Tag, where: string} | null>(null);
 
   const trimmedName = name.trim();
+  // logging in again asking for the server list fixes both
+  const needsServerList = guilds.isError && (isScopeMismatch(guilds.error) || isDiscordGrantError(guilds.error));
+  // the servers NotSoBot has seen them in, the one they want might not be there
+  const maybeMissing = !!listing.data && !listing.data.complete;
   const guildsError = (guilds.isError) ? (
-    (isScopeMismatch(guilds.error) || isDiscordGrantError(guilds.error)) ?
-      t('tags.add.relogin') :
+    (isScopeMismatch(guilds.error)) ? t('tags.add.allow_servers') :
+    (isDiscordGrantError(guilds.error)) ? t('tags.add.relogin') :
       errorMessage(guilds.error, t('tags.add.servers_error'))
   ) : null;
 
@@ -126,9 +134,35 @@ export function AddTagDialog({ tag, verified, onClose }: {tag: Pick<Tag, 'id' | 
                 ) : null}
               </select>
               {(guilds.isPending) ? null : (guildsError) ? (
-                <p className='mt-1.5 text-xs text-warning'>{guildsError}</p>
-              ) : (!guilds.data?.length) ? (
+                <p className='mt-1.5 text-xs text-warning'>
+                  {guildsError}
+                  {(needsServerList) ? (
+                    <>
+                      {' '}
+                      <button
+                        type='button'
+                        className='cursor-pointer text-brand-text hover:underline'
+                        onClick={() => login(undefined, {scopes: ['guilds']})}
+                      >
+                        {t('tags.add.allow')}
+                      </button>
+                    </>
+                  ) : null}
+                </p>
+              ) : (!guilds.data?.length && !maybeMissing) ? (
                 <p className='mt-1.5 text-xs text-subtle'>{t('tags.add.no_servers')}</p>
+              ) : null}
+              {(maybeMissing) ? (
+                <p className='mt-1.5 text-xs text-subtle'>
+                  {t('tags.add.missing')}{' '}
+                  <button
+                    type='button'
+                    className='cursor-pointer text-brand-text hover:underline'
+                    onClick={() => login(undefined, {scopes: ['guilds']})}
+                  >
+                    {t('tags.add.allow')}
+                  </button>
+                </p>
               ) : null}
             </div>
 

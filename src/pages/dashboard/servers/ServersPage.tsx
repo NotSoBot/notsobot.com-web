@@ -1,4 +1,4 @@
-import { Crown, Eye, KeyRound, Pin, PinOff, Search, Server, Settings2 } from 'lucide-react';
+import { Crown, Eye, KeyRound, Pin, PinOff, Plus, Search, Server, ServerCog, Settings2 } from 'lucide-react';
 import { useEffect, useMemo } from 'react';
 import { Link } from 'react-router';
 
@@ -7,12 +7,12 @@ import { SearchInput } from '@/components/ui/SearchInput';
 import { useToast } from '@/components/ui/Toast';
 import { readStored, writeStored } from '@/hooks/usePersistentState';
 import { translate, useI18n, type TranslationKey } from '@/i18n';
-import { ApiEndpoints, apiUrl, type UserGuildSummary } from '@/lib/api';
+import { botInviteUrl, type UserGuildSummary } from '@/lib/api';
 import {
   errorMessage,
   isDiscordGrantError,
   isScopeMismatch,
-  useMeGuildsQuery,
+  useMeGuildListingQuery,
   useMeSettingsQuery,
   usePatchMeSettingsMutation,
 } from '@/lib/api/dashboardQueries';
@@ -24,20 +24,26 @@ import { GuildIcon } from './GuildIcon';
 import { dashboardServerPath } from './guildMeta';
 
 
-// the page's sections, in order. A pinned server is only in Pinned, the rest go by what you can do there
+// the page's sections, in order. A pinned server is only in Pinned, the rest go by what you can do there. Last are the
+// servers they can manage that NotSoBot isn't in (the listing's `addable`)
 const SECTIONS: Array<{key: SectionKey, title: TranslationKey}> = [
   {key: 'pinned', title: 'servers.section.pinned'},
   {key: 'owned', title: 'servers.section.owned'},
   {key: 'manage', title: 'servers.section.manage'},
   {key: 'member', title: 'servers.section.member'},
+  {key: 'addable', title: 'servers.section.addable'},
 ];
-type SectionKey = 'pinned' | 'owned' | 'manage' | 'member';
+type SectionKey = 'pinned' | 'owned' | 'manage' | 'member' | 'addable';
 
 function sectionOf(guild: UserGuildSummary, pinned: Set<string>): SectionKey {
   if (pinned.has(guild.id)) {
     return 'pinned';
   }
   return (guild.owner) ? 'owned' : (guild.can_manage) ? 'manage' : 'member';
+}
+
+function byName(guilds: Array<UserGuildSummary> | undefined): Array<UserGuildSummary> {
+  return (guilds ?? []).slice().sort((a, b) => a.name.localeCompare(b.name));
 }
 
 
@@ -48,7 +54,8 @@ const MAX_PINNED = 100;
 export function ServersPage() {
   const { t } = useI18n();
   const toast = useToast();
-  const { data, isPending, isError, error, refetch, isRefetching } = useMeGuildsQuery();
+  const { data: listing, isPending, isError, error, refetch, isRefetching } = useMeGuildListingQuery();
+  const data = listing?.guilds;
   // on the account (user settings), so every device has them, in the order they were pinned. A server you've left just
   // stops showing up. The settings save optimistically, so a pin moves right away and moves back if it fails
   const settings = useMeSettingsQuery();
@@ -81,26 +88,26 @@ export function ServersPage() {
   }, [!!settings.data]);
 
   // alphabetical within each section, pinned ones in the order they were pinned
-  const guilds = useMemo(() => {
-    return (data ?? []).slice().sort((a, b) => a.name.localeCompare(b.name));
-  }, [data]);
+  const guilds = useMemo(() => byName(data), [data]);
+  const addable = useMemo(() => byName(listing?.addable), [listing?.addable]);
 
   // `?q=` filters by name (or an exact id), kept in the url so it's still there coming back from a server
   const { searchParams, update } = useSearchParamState();
   const query = searchParams.get('q') || '';
-  const shown = useMemo(() => {
+  const [ shown, shownAddable ] = useMemo(() => {
     const search = query.trim().toLowerCase();
-    return (search) ? guilds.filter((guild) => guild.name.toLowerCase().includes(search) || guild.id === search) : guilds;
-  }, [guilds, query]);
+    const matches = (guild: UserGuildSummary) => guild.name.toLowerCase().includes(search) || guild.id === search;
+    return (search) ? [guilds.filter(matches), addable.filter(matches)] : [guilds, addable];
+  }, [guilds, addable, query]);
   const sections = useMemo(() => {
     return SECTIONS.map((section) => {
-      const items = shown.filter((guild) => sectionOf(guild, pinned) === section.key);
+      const items = (section.key === 'addable') ? shownAddable : shown.filter((guild) => sectionOf(guild, pinned) === section.key);
       if (section.key === 'pinned') {
         items.sort((a, b) => pinnedIds.indexOf(a.id) - pinnedIds.indexOf(b.id));
       }
       return {...section, items};
     }).filter((section) => section.items.length);
-  }, [shown, pinned, pinnedIds]);
+  }, [shown, shownAddable, pinned, pinnedIds]);
 
   return (
     <>
@@ -108,6 +115,8 @@ export function ServersPage() {
         title={t('dash.nav.servers')}
         description={t('servers.description')}
       />
+
+      {(listing && !listing.complete) ? <MissingServersNotice className='mb-4'/> : null}
 
       {(isPending) ? (
         <ServerGridSkeleton/>
@@ -117,9 +126,9 @@ export function ServersPage() {
         <ScopeMismatchCard reason='grant'/>
       ) : (isError) ? (
         <ErrorPanel title={t('servers.load_error')} message={errorMessage(error)} onRetry={() => refetch()} retrying={isRefetching}/>
-      ) : (!guilds.length) ? (
+      ) : (!guilds.length && !addable.length) ? (
         <EmptyState icon={<Server className='size-10'/>} title={t('servers.empty')}>
-          <a href={apiUrl(ApiEndpoints.HELP_DISCORD_BOT)} className='mt-3 inline-flex btn btn-discord'>{t('servers.add')}</a>
+          <a href={botInviteUrl()} className='mt-3 inline-flex btn btn-discord'>{t('servers.add')}</a>
         </EmptyState>
       ) : (
         <>
@@ -130,7 +139,7 @@ export function ServersPage() {
             placeholder={t('servers.search_placeholder')}
             aria-label={t('servers.search_label')}
           />
-          {(shown.length) ? (
+          {(shown.length || shownAddable.length) ? (
             <div className='space-y-6'>
               {sections.map((section) => (
                 <section key={section.key} aria-labelledby={`servers-${section.key}`}>
@@ -138,7 +147,9 @@ export function ServersPage() {
                     {t(section.title)} <span className='normal-case tracking-normal text-subtle'>({section.items.length})</span>
                   </h2>
                   <ul className='grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3'>
-                    {section.items.map((guild) => (
+                    {section.items.map((guild) => (section.key === 'addable') ? (
+                      <AddServerCard key={guild.id} guild={guild}/>
+                    ) : (
                       <ServerCard key={guild.id} guild={guild} pinned={pinned.has(guild.id)} onTogglePin={() => togglePin(guild.id)}/>
                     ))}
                   </ul>
@@ -205,7 +216,65 @@ function ServerCard({ guild, pinned, onTogglePin }: {guild: UserGuildSummary, pi
 }
 
 
-// `scope`: the session predates the `guilds` scope; `grant`: Discord revoked/expired the login
+// a server they can manage that NotSoBot isn't in, the whole card is the invite with that server picked
+function AddServerCard({ guild }: {guild: UserGuildSummary}) {
+  const { t } = useI18n();
+  return (
+    <li>
+      <a
+        href={botInviteUrl(guild.id)}
+        className='group card card-hover flex h-full items-center gap-3 p-4 hover:border-line-strong'
+        aria-label={t('servers.add_to_label', {name: guild.name})}
+      >
+        <GuildIcon guild={guild} size={48} className='size-12 text-sm opacity-60 transition-opacity group-hover:opacity-100'/>
+        <div className='min-w-0 flex-1'>
+          <div className='flex items-center gap-1.5'>
+            <span className='truncate font-medium text-muted group-hover:text-white' title={guild.name}>{guild.name}</span>
+            {(guild.owner) ? <Crown aria-label={t('servers.owner')} className='size-3.5 shrink-0 text-warning'/> : null}
+          </div>
+          <div className='mt-0.5 text-xs text-subtle'>{t((guild.owner) ? 'dash.role.owner' : 'dash.role.manager')}</div>
+        </div>
+        <span className='inline-flex shrink-0 items-center gap-1.5 rounded-md bg-surface-3 px-2.5 py-1.5 text-xs font-semibold text-muted transition-colors group-hover:bg-brand group-hover:text-white'>
+          <Plus aria-hidden className='size-3.5'/>
+          {t('servers.add_to')}
+        </span>
+      </a>
+    </li>
+  );
+}
+
+
+// the list without the `guilds` scope is only the servers NotSoBot has seen them in, this asks for it to show them all.
+// `compact` is one line, for pickers inside dialogs
+export function MissingServersNotice({ className, compact = false }: {className?: string, compact?: boolean}) {
+  const { login } = useAuth();
+  const { t } = useI18n();
+  const allow = () => login(undefined, {scopes: ['guilds']});
+  if (compact) {
+    return (
+      <p className={cn('text-xs text-subtle', className)}>
+        {t('servers.missing_title')}{' '}
+        <button type='button' className='cursor-pointer text-brand-text hover:underline' onClick={allow}>
+          {t('servers.missing_button')}
+        </button>
+      </p>
+    );
+  }
+  return (
+    <div role='status' className={cn('flex flex-col gap-3 rounded-md border border-brand/40 bg-brand/10 px-4 py-3 text-sm sm:flex-row sm:items-center', className)}>
+      <ServerCog aria-hidden className='hidden size-5 shrink-0 text-brand-text sm:block'/>
+      <div className='min-w-0 flex-1'>
+        <p className='font-semibold text-white'>{t('servers.missing_title')}</p>
+        <p className='mt-0.5 text-muted'>{t('servers.missing_description')}</p>
+      </div>
+      <button type='button' className='btn btn-sm btn-discord shrink-0' onClick={allow}>{t('servers.missing_button')}</button>
+    </div>
+  );
+}
+
+
+// `scope`: the login didn't ask for the `guilds` scope (it's only asked for once someone wants their server list);
+// `grant`: Discord revoked/expired the login. Either way it logs in again asking for it
 export function ScopeMismatchCard({ reason = 'scope' }: {reason?: 'scope' | 'grant'}) {
   const { login } = useAuth();
   const { t } = useI18n();
@@ -220,7 +289,9 @@ export function ScopeMismatchCard({ reason = 'scope' }: {reason?: 'scope' | 'gra
           {t((reason === 'grant') ? 'servers.grant_description' : 'servers.scope_description')}
         </p>
       </div>
-      <button type='button' className='btn btn-discord' onClick={() => login()}>{t('servers.relogin')}</button>
+      <button type='button' className='btn btn-discord' onClick={() => login(undefined, {scopes: ['guilds']})}>
+        {t((reason === 'grant') ? 'servers.relogin' : 'servers.allow')}
+      </button>
     </div>
   );
 }

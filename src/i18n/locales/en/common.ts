@@ -32,6 +32,7 @@ export const Common = {
   'common.not_set': 'Not set',
   'common.off': 'Off',
   'common.on': 'On',
+  'common.open_discord': 'Open in Discord',
   'common.optional': 'Optional',
   'common.previous': 'Previous',
   'common.reload': 'Reload',

@@ -4,6 +4,7 @@ import { generatePath, Link } from 'react-router';
 import { Routes } from '@/config';
 import { translate, useI18n } from '@/i18n';
 import { TagDirectoryVerificationStates, TagStorageTypes, type Tag, type TagStorageType, type UserMe } from '@/lib/api';
+import { discordDmUrl, discordGuildUrl } from '@/lib/utils';
 
 import { dashboardServerPath } from '../servers/guildMeta';
 
@@ -92,6 +93,14 @@ export function tagLocation(
 // the server's modal on the dashboard, for servers in the caller's list (the named ones)
 export function tagServerPath(location: TagLocation): string | undefined {
   return (location.kind === 'server' && location.named && location.id) ? dashboardServerPath(location.id) : undefined;
+}
+
+// the server or dm in the Discord client (personal and global tags aren't anywhere)
+export function tagDiscordUrl(location: TagLocation): string | undefined {
+  if (!location.id) {
+    return undefined;
+  }
+  return (location.kind === 'server') ? discordGuildUrl(location.id) : discordDmUrl(location.id);
 }
 
 // "Cool Gamers Club (1100…)", "your DM with NotSoBot", "a group DM (1300…)"

@@ -723,9 +723,11 @@ export interface GuildWarning {
   moderator_id: string,
   reason: string | null,
   user_id: string,
+  // how many warnings it counts as (an auto-warn rule's `warnings`), 1 otherwise
+  weight: number,
 }
 
-// newest first; `count`/`active` are for every warning that matched, not only this page
+// newest first; `count`/`active` are for every warning that matched, not only this page, adding up their `weight`s
 export interface GuildWarningsPage {
   active: number,
   count: number,
@@ -1207,6 +1209,15 @@ export interface UserGuildSummary {
   permissions: string,
 }
 
+// `GET /users/@me/guilds`. `complete` is their whole server list from Discord (the `guilds` scope); without it it's the
+// servers NotSoBot has seen them in, which can miss some. `addable` is the servers they can manage that NotSoBot isn't in
+// (only with the `guilds` scope)
+export interface UserGuildListing {
+  addable: Array<UserGuildSummary>,
+  complete: boolean,
+  guilds: Array<UserGuildSummary>,
+}
+
 export type GuildRuleTargetType = 'channel' | 'guild' | 'role' | 'user';
 
 // `GuildRule.to_dict()`: who can use what, the most specific rule that matches decides
@@ -1267,14 +1278,16 @@ export interface GuildSettings {
   search_provider_web: number | null,
   // the warning ladder sorted by threshold, empty: off
   warnings_actions: Array<GuildWarningAction>,
+  // the auto-warn rules sorted by trigger, server-wide first, empty: off
+  warnings_auto: Array<GuildWarningAuto>,
   // seconds until a warning gets deleted, null: never
   warnings_expire: number | null,
   // seconds a warning counts towards a member's active warnings
   warnings_window: number,
 }
 
-// a step of the warning ladder: what the bot does once a warning brings a member's active warnings to exactly
-// `threshold`, skipped when the moderator couldn't do it themselves
+// a step of the warning ladder: what the bot does once a warning brings a member's active warnings to `threshold` or
+// past it, skipped when the moderator couldn't do it themselves
 export interface GuildWarningAction {
   action: 'ban' | 'kick' | 'mute',
   // seconds of their messages to delete (kick/ban), 0: none
@@ -1283,6 +1296,19 @@ export interface GuildWarningAction {
   duration: number | null,
   // 1-100, unique within the ladder
   threshold: number,
+}
+
+// when the bot warns a member itself: `mentions` for a message mentioning more than `limit` users and roles,
+// `blocked_command` for running a command the server's rules block for them
+export interface GuildWarningAuto {
+  // null: anywhere in the server, a channel also covers its threads (a category, its channels). One rule per
+  // trigger and channel
+  channel_id: string | null,
+  // 1-50 for `mentions`, null for `blocked_command`
+  limit: number | null,
+  trigger: 'blocked_command' | 'mentions',
+  // 1-10, how many warnings it counts as
+  warnings: number,
 }
 
 // `rules` covers command and category rules, `rules_admin` rules covering everything and the owner/admin bypass,
@@ -1393,6 +1419,8 @@ export interface UserGuildPatch {
   rules_admin_bypass?: boolean | null,
   // replaces the whole ladder (up to 10 steps), null or empty turns it off
   warnings_actions?: Array<GuildWarningAction> | null,
+  // replaces every auto-warn rule (up to 20), null or empty turns them off
+  warnings_auto?: Array<GuildWarningAuto> | null,
   // seconds, null: warnings never expire
   warnings_expire?: number | null,
   // seconds, null resets it to 30 days

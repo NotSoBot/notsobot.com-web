@@ -4,7 +4,7 @@
 import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient, type QueryClient, type UseQueryResult } from '@tanstack/react-query';
 import { createContext, useContext } from 'react';
 
-import { useAuth } from '@/auth';
+import { rememberGrantedScope, useAuth } from '@/auth';
 import { readStored, writeStored } from '@/hooks/usePersistentState';
 import { translate } from '@/i18n';
 import { formatDate, formatNumber } from '@/lib/utils';
@@ -72,6 +72,7 @@ import type {
   GuildReportImageKind,
   GuildReportMessage,
   GuildReportMessagesPage,
+  UserGuildListing,
   UserGuildSummary,
   Reminder,
   ReminderPatch,
@@ -1198,32 +1199,50 @@ function retryDiscordRefresh(failureCount: number, error: Error): boolean {
 // the last server list in this browser (`SAVED_GUILDS_KEY`), shown right away on the next visit while it's fetched again.
 // Only the account that saved it gets it back, and logging out clears it (`AuthProvider`)
 
-function readSavedGuilds(userId: string | undefined): Array<UserGuildSummary> | undefined {
+function readSavedGuilds(userId: string | undefined): UserGuildListing | undefined {
   if (!userId) {
     return undefined;
   }
-  const saved = readStored<{userId: string, guilds: Array<UserGuildSummary>} | null>(SAVED_GUILDS_KEY, null);
-  return (saved && saved.userId === userId && Array.isArray(saved.guilds)) ? saved.guilds : undefined;
+  const saved = readStored<{userId: string, addable?: Array<UserGuildSummary>, guilds: Array<UserGuildSummary>, complete?: boolean} | null>(SAVED_GUILDS_KEY, null);
+  if (!saved || saved.userId !== userId || !Array.isArray(saved.guilds)) {
+    return undefined;
+  }
+  // saved before lists could be incomplete, those were always Discord's whole list
+  return {addable: (Array.isArray(saved.addable)) ? saved.addable : [], complete: saved.complete ?? true, guilds: saved.guilds};
 }
 
-export function useMeGuildsQuery() {
+function useMeGuildListingOptions() {
   const { token, user } = useAuth();
   const userId = user?.id;
-  return useQuery({
+  return {
     queryKey: queryKeys.meGuilds(token),
-    queryFn: async ({ signal }) => {
-      const guilds = await api.fetchMeGuilds(signal);
-      if (userId) {
-        writeStored(SAVED_GUILDS_KEY, {userId, guilds});
+    queryFn: async ({ signal }: {signal: AbortSignal}) => {
+      const listing = await api.fetchMeGuilds(signal);
+      if (listing.complete) {
+        // only with the `guilds` scope, so later logins ask for it again instead of dropping it
+        rememberGrantedScope('guilds');
       }
-      return guilds;
+      if (userId) {
+        writeStored(SAVED_GUILDS_KEY, {userId, addable: listing.addable, guilds: listing.guilds, complete: listing.complete});
+      }
+      return listing;
     },
     // the saved copy counts as old, so it's shown and fetched again at once
     initialData: () => readSavedGuilds(userId),
     initialDataUpdatedAt: 0,
     staleTime: 60 * 1000,
     retry: retryDiscordRefresh,
-  });
+  };
+}
+
+// just the servers, for pages that only pick from them
+export function useMeGuildsQuery() {
+  return useQuery({...useMeGuildListingOptions(), select: (listing: UserGuildListing) => listing.guilds});
+}
+
+// with `complete`, for pages that tell people when a server might be missing
+export function useMeGuildListingQuery() {
+  return useQuery(useMeGuildListingOptions());
 }
 
 

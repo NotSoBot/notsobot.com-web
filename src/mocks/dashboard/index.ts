@@ -5,9 +5,9 @@
 // It wraps `window.fetch`: requests to the routes below get an in-memory answer, everything else
 // (commands, status, ...) goes to the real API as usual. Writes persist until the page reloads.
 //
-// In the console: `__dashboardMocks.guildsError('scope' | 'grant' | 'ratelimit' | 'refreshing' | null)` makes
-// `/users/@me/guilds*` fail like the real API does (missing `guilds` scope, revoked Discord grant, Discord 429,
-// token refresh in progress); `__dashboardMocks.latency(ms)` changes the fake delay; `__dashboardMocks.owner(false)`
+// In the console: `__dashboardMocks.guildsError('scope' | 'grant' | 'ratelimit' | 'refreshing' | null)`: `scope` makes
+// `/users/@me/guilds` answer like the real API without the `guilds` scope (`complete: false`, only some servers), the
+// others make `/users/@me/guilds*` fail like it used to (revoked Discord grant, Discord 429, token refresh in progress); `__dashboardMocks.latency(ms)` changes the fake delay; `__dashboardMocks.owner(false)`
 // (then reload) drops the owner flag so the admin section disappears and `/admin/*` answers 403; `__dashboardMocks.moderator(true)`
 // (then reload) makes the mock user a moderator, so the owner-only admin parts answer 403 and are hidden;
 // `__dashboardMocks.blocked('reason' | true | false)` (then reload) marks the mock user as blocked by staff.
@@ -53,6 +53,7 @@ import {
   type TagStorageType,
   type UserDataExport,
   type UserGuild,
+  type UserGuildSummary,
   type UserMe,
   type VoiceClip,
 } from '@/lib/api/types';
@@ -107,11 +108,13 @@ const state = {
     {content: 'The #support channel is for help with the bot, staff usually answer within a day.', created: new Date(Date.now() - 9 * 86400000).toISOString(), guild_id: guilds[0].summary.id, id: '1300000000000000101', user_id: '1000000000000000001'},
     {content: 'Members get the Regular role after a week of chatting.', created: new Date(Date.now() - 2 * 86400000).toISOString(), guild_id: guilds[0].summary.id, id: '1300000000000000102', user_id: '1000000000000000001'},
   ]]]),
-  // each server's warnings by guild id, newest last; the first server starts with a few (one past the 30 day window)
+  // each server's warnings by guild id, newest last; the first server starts with a few (one past the 30 day window, one
+  // from an auto-warn rule that counts as 3)
   guildWarnings: new Map<string, Array<GuildWarning>>([[guilds[0].summary.id, [
-    {created: new Date(Date.now() - 45 * 86400000).toISOString(), guild_id: guilds[0].summary.id, id: '1300000000000000301', moderator_id: mockUser.id, reason: 'Spamming in #general', user_id: '1000000000000000002'},
-    {created: new Date(Date.now() - 6 * 86400000).toISOString(), guild_id: guilds[0].summary.id, id: '1300000000000000302', moderator_id: mockUser.id, reason: 'Posting memes in #support', user_id: '1000000000000000002'},
-    {created: new Date(Date.now() - 2 * 3600000).toISOString(), guild_id: guilds[0].summary.id, id: '1300000000000000303', moderator_id: '1000000000000000003', reason: null, user_id: '1000000000000000004'},
+    {created: new Date(Date.now() - 45 * 86400000).toISOString(), guild_id: guilds[0].summary.id, id: '1300000000000000301', moderator_id: mockUser.id, reason: 'Spamming in #general', user_id: '1000000000000000002', weight: 1},
+    {created: new Date(Date.now() - 6 * 86400000).toISOString(), guild_id: guilds[0].summary.id, id: '1300000000000000302', moderator_id: mockUser.id, reason: 'Posting memes in #support', user_id: '1000000000000000002', weight: 1},
+    {created: new Date(Date.now() - 2 * 3600000).toISOString(), guild_id: guilds[0].summary.id, id: '1300000000000000303', moderator_id: '1000000000000000003', reason: null, user_id: '1000000000000000004', weight: 1},
+    {created: new Date(Date.now() - 20 * 60000).toISOString(), guild_id: guilds[0].summary.id, id: '1300000000000000304', moderator_id: '1000000000000000003', reason: 'Mentioned 14 users and roles in one message (the limit is 8)', user_id: '1000000000000000006', weight: 3},
   ]]]),
   // members' reports to each server's moderators by guild id, newest last; the first server (which gets a reports logger
   // below) starts with open, resolved and dismissed ones, one of them a message without text
@@ -1168,8 +1171,6 @@ route('PUT', '/users/@me/tags/(\\d+)/blobs', ([ , tagId ], { body }) => {
 
 function throwGuildsError() {
   switch (state.guildsError) {
-    case 'scope':
-      throw new MockError(403, ApiErrorCodes.DISCORD_OAUTH_SCOPE_MISMATCH, 'Scope Mismatch, required (identify, guilds)', {scopes: ['identify', 'guilds']});
     case 'grant':
       throw new MockError(401, ApiErrorCodes.DISCORD_OAUTH_ERROR, 'Discord OAuth grant is invalid');
     case 'ratelimit':
@@ -1216,9 +1217,20 @@ function scopedGuild(scope: string, guildId: string, area: keyof ReturnType<type
   return requireEditable(guildId, area);
 }
 
+// servers the mock user can manage that the bot isn't in
+const ADDABLE_GUILDS: Array<UserGuildSummary> = [
+  {can_manage: true, icon: null, id: '1300000000000000901', name: 'Weekend Raid Group', owner: true, permissions: '2251799813685247'},
+  {can_manage: true, icon: null, id: '1300000000000000902', name: 'Pixel Art Club', owner: false, permissions: '32'},
+];
+
 route('GET', '/users/@me/guilds', () => {
   throwGuildsError();
-  return state.guilds.map((entry) => entry.summary);
+  const guilds = state.guilds.map((entry) => entry.summary);
+  // without the scope it's the servers the bot has seen them in, so some are missing
+  if (state.guildsError === 'scope') {
+    return {addable: [], complete: false, guilds: guilds.filter((_, index) => index % 2 === 0)};
+  }
+  return {addable: ADDABLE_GUILDS, complete: true, guilds};
 });
 
 route('GET', '/users/@me/guilds/(\\d+)', ([ , guildId ]) => {
@@ -1237,6 +1249,36 @@ function applyAdminBypassSettings(detail: {settings: UserGuild['settings']}, bod
   }
 }
 
+// `GuildWarningAuto` in the api's guild validators: one rule per trigger and channel, sorted by trigger, server-wide first
+function applyWarningsAuto(detail: {settings: UserGuild['settings']}, body: Record<string, unknown>) {
+  if (!('warnings_auto' in body)) {
+    return;
+  }
+  const rules = (body.warnings_auto as UserGuild['settings']['warnings_auto'] | null) || [];
+  const invalid = (message: string) => new MockError(400, 50001, 'Invalid Form Body', {errors: {warnings_auto: message}});
+  if (20 < rules.length) {
+    throw invalid('Up to 20 rules');
+  }
+  const keys = new Set<string>();
+  for (const rule of rules) {
+    const integer = (value: unknown, max: number) => Number.isInteger(value) && 1 <= (value as number) && (value as number) <= max;
+    if ((rule.trigger !== 'mentions' && rule.trigger !== 'blocked_command') || !integer(rule.warnings, 10) || (rule.channel_id !== null && !/^\d{15,21}$/.test(rule.channel_id))) {
+      throw invalid('Invalid rule');
+    }
+    if (rule.trigger === 'mentions' && !integer(rule.limit, 50)) {
+      throw invalid('A mentions rule needs a limit');
+    }
+    const key = `${rule.trigger}:${rule.channel_id}`;
+    if (keys.has(key)) {
+      throw invalid('Each auto-warn trigger can only have one rule per channel');
+    }
+    keys.add(key);
+  }
+  detail.settings.warnings_auto = rules
+    .map((rule) => ({channel_id: rule.channel_id, limit: (rule.trigger === 'mentions') ? rule.limit : null, trigger: rule.trigger, warnings: rule.warnings}))
+    .sort((x, y) => x.trigger.localeCompare(y.trigger) || Number(x.channel_id !== null) - Number(y.channel_id !== null) || Number(BigInt(x.channel_id ?? 0) - BigInt(y.channel_id ?? 0)));
+}
+
 route('PATCH', '/users/@me/guilds/(\\d+)', ([ , guildId ], { body }) => {
   const { detail } = requireEditable(guildId, 'settings');
   if (ADMIN_BYPASS_SETTINGS.some((key) => key in body)) {
@@ -1247,6 +1289,7 @@ route('PATCH', '/users/@me/guilds/(\\d+)', ([ , guildId ], { body }) => {
     // the api sorts the ladder, null turns it off
     detail.settings.warnings_actions = [...((body.warnings_actions as UserGuild['settings']['warnings_actions'] | null) || [])].sort((x, y) => x.threshold - y.threshold);
   }
+  applyWarningsAuto(detail, body);
   for (const key of settingsKeys) {
     if (key in body) {
       (detail.settings as unknown as Record<string, unknown>)[key] = body[key];
@@ -2596,6 +2639,7 @@ route('PATCH', '/admin/guilds/(\\d+)', ([ , guildId ], { body }) => {
     // the api sorts the ladder, null turns it off
     detail.settings.warnings_actions = [...((body.warnings_actions as UserGuild['settings']['warnings_actions'] | null) || [])].sort((x, y) => x.threshold - y.threshold);
   }
+  applyWarningsAuto(detail, body);
   for (const key of settingsKeys) {
     if (key in body) {
       (detail.settings as unknown as Record<string, unknown>)[key] = body[key];
@@ -3399,8 +3443,9 @@ route('GET', '/users/@me/guilds/(\\d+)/warnings', ([ , guildId ], { query }) => 
     .reverse();
   const page = matched.filter((warning) => !before || BigInt(warning.id) < BigInt(before)).slice(0, limit);
   return {
-    active: matched.filter((warning) => Date.now() - window * 1000 <= Date.parse(warning.created)).length,
-    count: matched.length,
+    // weighted, a warning from an auto-warn rule can count as several
+    active: matched.filter((warning) => Date.now() - window * 1000 <= Date.parse(warning.created)).reduce((total, warning) => total + warning.weight, 0),
+    count: matched.reduce((total, warning) => total + warning.weight, 0),
     warnings: page,
     window,
   };

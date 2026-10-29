@@ -20,6 +20,7 @@ import { useDraft } from '../settings/useDraft';
 import { CharCounter, Field, InlineError, Panel, SaveBar } from '../ui';
 import { useReadOnlyMessage, warningsExpireChoices, warningsWindowChoices } from './guildMeta';
 import { WarningActionsEditor, warningActionsError } from './WarningActionsEditor';
+import { WarningAutoEditor, warningAutoError } from './WarningAutoEditor';
 
 
 // the owner/admin bypass is changed from the rules panel
@@ -53,6 +54,7 @@ function savedValues(guild: UserGuild): Values {
     warnings_window: guild.settings.warnings_window,
     warnings_expire: guild.settings.warnings_expire,
     warnings_actions: guild.settings.warnings_actions ?? [],
+    warnings_auto: guild.settings.warnings_auto ?? [],
   };
 }
 
@@ -88,6 +90,8 @@ export function ServerSettingsForm({ guild, group, onDirtyChange }: {guild: User
   const personality = values.ml_llm_personality ?? '';
   const warningActions = values.warnings_actions ?? [];
   const actionsError = (group === 'warnings') ? warningActionsError(warningActions) : null;
+  const warningAuto = values.warnings_auto ?? [];
+  const autoError = (group === 'warnings') ? warningAutoError(warningAuto) : null;
 
   useEffect(() => {
     onDirtyChange(draft.dirty);
@@ -97,7 +101,7 @@ export function ServerSettingsForm({ guild, group, onDirtyChange }: {guild: User
     <form
       onSubmit={(event) => {
         event.preventDefault();
-        if (!draft.dirty || mutation.isPending || PERSONALITY_MAX < personality.length || actionsError) {
+        if (!draft.dirty || mutation.isPending || PERSONALITY_MAX < personality.length || actionsError || autoError) {
           return;
         }
         mutation.mutate({kind: 'settings', patch: draft.changes}, {
@@ -175,6 +179,12 @@ export function ServerSettingsForm({ guild, group, onDirtyChange }: {guild: User
                 onChange={(value) => draft.set('warnings_actions', value)}
                 disabled={!editable}
                 error={actionsError}
+              />
+              <WarningAutoEditor
+                value={warningAuto}
+                onChange={(value) => draft.set('warnings_auto', value)}
+                disabled={!editable}
+                error={autoError}
               />
             </>
           ) : null}

@@ -155,6 +155,19 @@ export const MEDIASCRIPT_SPANISH_8: TagDocsTranslation['mediaScriptCommands'] = 
       LOOP: 'menearse de forma continua en lugar de reiniciarse, para un bucle suave',
     },
   },
+  wobble: {
+    summary: 'Hace que la multimedia se tambalee como gelatina: sus lados se encogen y su centro se arrastra de un lado a otro.',
+    args: {
+      MEDIA_KEY: MEDIA,
+      AMOUNT: 'cuánto se tambalea, en porcentaje del tamaño',
+      WOBBLES: 'tambaleos por segundo',
+      DURATION: 'segundos, para imágenes fijas',
+    },
+    notes: [
+      'Una imagen fija (o un GIF o video de un solo fotograma) se convierte en DURATION segundos a 25 fotogramas por segundo que vuelven a la original entre tambaleos; una imagen fija, en un GIF en bucle.',
+      'Los GIF animados y los videos se tambalean todo el tiempo y vuelven a la original en el último fotograma.',
+    ],
+  },
   skew: {
     summary: 'Inclina la multimedia hacia un lado (o arriba y abajo).',
     args: {

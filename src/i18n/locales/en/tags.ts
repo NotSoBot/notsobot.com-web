@@ -149,6 +149,9 @@ export const Tags = {
 
   'tags.add.error': 'Couldn’t add the tag.',
   'tags.add.relogin': 'Log in again to see your servers.',
+  'tags.add.allow_servers': 'Share your server list to add the tag to a server.',
+  'tags.add.allow': 'Show my servers',
+  'tags.add.missing': 'Missing a server?',
   'tags.add.servers_error': 'Couldn’t load your servers.',
   'tags.add.your_dms': 'your DMs',
   'tags.add.added': 'Tag added',

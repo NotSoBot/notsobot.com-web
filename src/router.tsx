@@ -1,7 +1,7 @@
 import { createBrowserRouter, Navigate, type RouteObject } from 'react-router';
 
 import { RequireAuth, RequireStaff } from '@/auth';
-import { ExternalRedirect } from '@/components/ExternalRedirect';
+import { BotInviteRedirect, ExternalRedirect } from '@/components/ExternalRedirect';
 import { SiteLayout } from '@/components/layout/SiteLayout';
 import { Routes, Urls } from '@/config';
 import { loadDashboardText } from '@/i18n';
@@ -74,7 +74,7 @@ const routes: Array<RouteObject> = [
       {path: '/terms', element: <Navigate to={Routes.LEGAL_TERMS_OF_SERVICE} replace/>},
 
       // vanity redirects
-      {path: Routes.INVITE, element: <ExternalRedirect to={apiUrl(ApiEndpoints.HELP_DISCORD_BOT)} label='redirect.discord'/>},
+      {path: Routes.INVITE, element: <BotInviteRedirect/>},
       {path: Routes.SUPPORT, element: <ExternalRedirect to={apiUrl(ApiEndpoints.HELP_DISCORD_SERVER)} label='redirect.support'/>},
       {path: Routes.SUPPORT_INVITE, element: <ExternalRedirect to={apiUrl(ApiEndpoints.HELP_DISCORD_SERVER)} label='redirect.support'/>},
       {path: Routes.FOXBOT, element: <ExternalRedirect to={Urls.FOXBOT}/>},

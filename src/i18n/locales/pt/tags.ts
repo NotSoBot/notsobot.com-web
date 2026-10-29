@@ -151,6 +151,9 @@ export const Tags: Record<keyof typeof English, string> = {
 
   'tags.add.error': 'Não foi possível adicionar a tag.',
   'tags.add.relogin': 'Entre de novo para ver seus servidores.',
+  'tags.add.allow_servers': 'Compartilhe sua lista de servidores para adicionar a tag a um servidor.',
+  'tags.add.allow': 'Mostrar meus servidores',
+  'tags.add.missing': 'Falta algum servidor?',
   'tags.add.servers_error': 'Não foi possível carregar seus servidores.',
   'tags.add.your_dms': 'suas DMs',
   'tags.add.added': 'Tag adicionada',

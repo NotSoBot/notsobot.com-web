@@ -2,6 +2,8 @@ import { createContext, useContext } from 'react';
 
 import type { UserMe } from '@/lib/api';
 
+import type { DiscordOptionalScope } from './scopes';
+
 
 /**
  * - `anonymous`: no token stored
@@ -12,6 +14,13 @@ import type { UserMe } from '@/lib/api';
 export type AuthStatus = 'anonymous' | 'loading' | 'authenticated' | 'error';
 
 
+export interface LoginOptions {
+  // optional Discord scopes to ask for on top of `identify` (`guilds` for the server list), ones this browser already
+  // granted are asked for again either way
+  scopes?: Array<DiscordOptionalScope>,
+}
+
+
 export interface AuthContextValue {
   status: AuthStatus,
   user: UserMe | null,
@@ -20,7 +29,7 @@ export interface AuthContextValue {
   // set after the user logs out on purpose, so protected pages go home instead of straight back to Discord
   loggedOut: boolean,
   // full-page redirect to Discord OAuth via `/api/auth/login`; returns to `returnTo` (default: current page)
-  login: (returnTo?: string) => void,
+  login: (returnTo?: string, options?: LoginOptions) => void,
   // revokes the session server-side (best effort) and clears local state
   logout: () => Promise<void>,
   // stores a token handed back by the OAuth callback

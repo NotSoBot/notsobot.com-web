@@ -1,4 +1,4 @@
-import { AlertTriangle, Ban, ShieldCheck, Sparkles } from 'lucide-react';
+import { AlertTriangle, Ban, ExternalLink, ShieldCheck, Sparkles } from 'lucide-react';
 import { useEffect, useId, useState, type KeyboardEvent } from 'react';
 
 import { isOwner, useAuth } from '@/auth';
@@ -10,7 +10,7 @@ import { useToast } from '@/components/ui/Toast';
 import { Routes } from '@/config';
 import { ApiErrorCodes, ApiRequestError, type AdminGuild, type AdminGuildSummary, type GuildFeature } from '@/lib/api';
 import { errorMessage, GuildScopeContext, useAdminGuildQuery, usePatchAdminGuildMutation } from '@/lib/api/dashboardQueries';
-import { cn, snowflakeTimestamp } from '@/lib/utils';
+import { cn, discordGuildUrl, snowflakeTimestamp } from '@/lib/utils';
 
 import { AIKnowledgeSection } from '../servers/AIKnowledgeSection';
 import { GuildIcon } from '../servers/GuildIcon';
@@ -198,7 +198,13 @@ function ServerDetails({ guild, navigation, onDirtyChange }: {guild: AdminGuild,
         meta={(
           // the id, with when it was made always on its own line under it
           <span className='flex flex-col items-start gap-0.5'>
-            <CopyableValue value={guild.id} truncate={0}/>
+            <span className='flex flex-wrap items-center gap-x-3'>
+              <CopyableValue value={guild.id} truncate={0}/>
+              <a href={discordGuildUrl(guild.id)} target='_blank' rel='noopener noreferrer' className='inline-flex items-center gap-1 text-code hover:underline'>
+                Open in Discord
+                <ExternalLink aria-hidden className='size-3'/>
+              </a>
+            </span>
             {(created) ? <span>Created <ExactDate value={created}/></span> : null}
           </span>
         )}

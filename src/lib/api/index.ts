@@ -139,7 +139,7 @@ import type {
   UserDataExport,
   UserGuildDataExport,
   UserGuildPatch,
-  UserGuildSummary,
+  UserGuildListing,
   UserMe,
   UserSession,
   UserSettings,
@@ -654,7 +654,11 @@ export const api = {
   },
 
   fetchMeGuilds:(signal?: AbortSignal) => {
-    return apiRequest<Array<UserGuildSummary>>(ApiEndpoints.USER_ME_GUILDS, {signal});
+    // the api answered with just the array (Discord's whole list) before lists could be incomplete, and without
+    // `addable` before it listed servers the bot could be added to
+    return apiRequest<UserGuildListing | UserGuildListing['guilds']>(ApiEndpoints.USER_ME_GUILDS, {signal}).then((listing): UserGuildListing => {
+      return (Array.isArray(listing)) ? {addable: [], complete: true, guilds: listing} : {...listing, addable: listing.addable ?? []};
+    });
   },
 
   fetchMeGuild: (guildId: string, signal?: AbortSignal) => {
