@@ -210,6 +210,8 @@ export interface User {
   blocked: boolean,
   blocked_on: string | null,
   blocked_reason: string | null,
+  // a timed block's end, null when it's permanent (or they aren't blocked)
+  blocked_until: string | null,
   bot: boolean,
   discriminator: string,
   flags: number,
@@ -1259,6 +1261,8 @@ export interface GuildLogger {
   channel_id: string,
   disabled_events: number,
   guild_id: string,
+  // channel ids (messages, voice, channels: a category covers its channels, a channel its threads) or role ids (roles)
+  ignored_ids: Array<string>,
   type: number,
   user_id: string | null,
 }
@@ -1339,6 +1343,7 @@ export type GuildEditableArea = 'prefixes' | 'rules' | 'rules_admin' | 'loggers'
 export interface UserGuild {
   blocked: boolean,
   blocked_reason: string | null,
+  blocked_until: string | null,
   disabled_logger_events: number,
   editable: Record<GuildEditableArea, boolean>,
   features: Array<string>,
@@ -1460,6 +1465,7 @@ export interface AdminGuildBot {
 export interface AdminGuildSummary {
   blocked: boolean,
   blocked_reason: string | null,
+  blocked_until: string | null,
   // null when the bot isn't in it
   bot: AdminGuildBot | null,
   // the detail's counts, minus reminders
@@ -1500,6 +1506,8 @@ export type GuildFeature = (typeof GuildFeatures)[keyof typeof GuildFeatures];
 export interface AdminGuildPatch extends UserGuildPatch {
   blocked?: boolean,
   blocked_reason?: string | null,
+  // iso time the block lifts on its own, null for permanent. making a block end sooner is owner only
+  blocked_until?: string | null,
   features?: Array<GuildFeature>,
 }
 
@@ -1586,6 +1594,7 @@ export interface AdminTagDirectoryPage {
 export interface AdminUser extends AdminUserRef {
   blocked: boolean,
   blocked_reason: string | null,
+  blocked_until: string | null,
   flags: number,
   premium_type: number | null,
 }
@@ -1593,6 +1602,8 @@ export interface AdminUser extends AdminUserRef {
 export interface AdminUserPatch {
   blocked?: boolean,
   blocked_reason?: string | null,
+  // iso time the block lifts on its own, null for permanent. making a block end sooner is owner only
+  blocked_until?: string | null,
   // owner only; the OWNER bit can't be changed from the dashboard
   flags?: number,
   premium_type?: number,
@@ -1623,6 +1634,42 @@ export interface AdminUserEntry {
   // bytes their files take up in storage (the same file uploaded twice is stored once)
   files_size: number,
   user: AdminUser,
+  // warnings NotSoBot staff gave them (`owner warn`, the Warn button)
+  warnings: number,
+}
+
+// a warning from NotSoBot staff. The user gets a DM, sees it in place of their next command, and has a banner on the
+// dashboard until they dismiss it (any of those `acknowledged` it). Nothing acts on how many they have. Every block
+// makes one too (`block`), with the block's reason
+export interface UserWarning {
+  acknowledged: ApiTimestamp | null,
+  block: boolean,
+  created: ApiTimestamp,
+  id: string,
+  // only a block's can be null
+  reason: string | null,
+  user_id: string,
+}
+
+// staff see who gave it and whether the DM made it
+export interface AdminUserWarning extends UserWarning {
+  dm_sent: boolean,
+  moderator_id: string,
+}
+
+export interface AdminUserWarnings {
+  items: Array<AdminUserWarning>,
+  // the moderators, by id
+  users: Record<string, AdminUserRef | null>,
+}
+
+export interface AdminUserWarningCreated {
+  count: number,
+  warning: AdminUserWarning,
+}
+
+export interface UserWarnings {
+  items: Array<UserWarning>,
 }
 
 export interface AdminUsersPage {
@@ -1899,6 +1946,7 @@ export interface ContentFlag {
 export interface ContentFlagUser extends AdminUserRef {
   blocked: boolean,
   blocked_reason: string | null,
+  blocked_until: string | null,
   flags: number,
 }
 

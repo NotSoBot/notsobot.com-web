@@ -40,6 +40,7 @@ export const mockUser: UserMe = {
   blocked: false,
   blocked_on: null,
   blocked_reason: null,
+  blocked_until: null,
   bot: false,
   // the user's one-on-one DM channel with the bot
   channel_id: '1300000000000000001',
@@ -56,6 +57,7 @@ const owner: User = {
   blocked: false,
   blocked_on: null,
   blocked_reason: null,
+  blocked_until: null,
   bot: false,
   discriminator: mockUser.discriminator,
   flags: 0,
@@ -243,12 +245,13 @@ function guild(id: string, name: string, icon: string | null, permissions: bigin
     detail: {
       blocked: false,
       blocked_reason: null,
+      blocked_until: null,
       disabled_logger_events: 0,
       features: [],
       icon,
       id,
       locale: null,
-      loggers: [{added, channel_id: '1200000000000000022', disabled_events: 0, guild_id: id, type: 0, user_id: mockUser.id}],
+      loggers: [{added, channel_id: '1200000000000000022', disabled_events: 0, guild_id: id, ignored_ids: ['1200000000000000011'], type: 0, user_id: mockUser.id}],
       name,
       prefixes: [{added, guild_id: id, prefix: '.', user_id: mockUser.id}, {added, guild_id: id, prefix: 'nsb ', user_id: mockUser.id}],
       rules: [
@@ -328,6 +331,7 @@ function fillAdminGuild(detail: MockGuild['detail'], i: number) {
     channel_id: (1200000000000000200n + BigInt(i * 4 + n)).toString(),
     disabled_events: 0,
     guild_id: detail.id,
+    ignored_ids: [],
     type: n,
     user_id: mockUser.id,
   }));
@@ -383,6 +387,8 @@ export function createAdminUsers(): Array<AdminUser> {
     blocked_reason: (i === 15)
       ? 'Repeatedly uploaded unsafe images through tags after two warnings in the support server, then made alt accounts to keep doing it. See the mod log thread from March for the full history and the screenshots.'
       : (i % 11 === 4) ? 'Repeated unsafe uploads' : null,
+    // one timed block, the rest permanent
+    blocked_until: (i === 4) ? new Date(Date.now() + 3 * 86400000).toISOString() : null,
     discriminator: (i % 7 === 3) ? String(1000 + i * 37).padStart(4, '0') : '0',
     flags: (i === 0) ? 1 : (i === 5) ? 4 : 0,
     id: (400000000000000000n + BigInt(i) * 7919n).toString(),
@@ -478,6 +484,7 @@ export function createContentFlags(users: Array<AdminUser>): Array<ContentFlag> 
         avatar: user.avatar,
         blocked: user.blocked,
         blocked_reason: user.blocked_reason,
+        blocked_until: user.blocked_until,
         discriminator: user.discriminator,
         flags: user.flags,
         id: user.id,
@@ -520,6 +527,7 @@ export function adminUserEntries(users: Array<AdminUser>, flags: Array<ContentFl
       },
       reports: reports.filter((report) => report.target_id === user.id).length,
       reports_sent: reports.filter((report) => report.user?.id === user.id).length,
+      warnings: Number(BigInt(user.id) % 3n),
       user,
     };
   });
@@ -615,6 +623,7 @@ function reportUser(user: AdminUser) {
     blocked: user.blocked,
     blocked_on: null,
     blocked_reason: user.blocked_reason,
+    blocked_until: user.blocked_until,
     bot: false,
     discriminator: user.discriminator,
     flags: user.flags,

@@ -986,6 +986,7 @@ function ContentFlagDetails({ flag, onReport, navigation }: {
           user={user}
           blocked={user.blocked}
           blockedReason={user.blocked_reason}
+          blockedUntil={user.blocked_until}
           defaultReason={flagBlockReason(flag)}
           onClose={() => setBlocking(false)}
         />

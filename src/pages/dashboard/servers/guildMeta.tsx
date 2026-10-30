@@ -156,6 +156,15 @@ export function EntryMention({ type, id, guildId }: {type: string, id: string, g
 // `GuildLoggerTypes`, labels are `logger.<value>` and descriptions `logger.<value>.description`
 export const LOGGER_TYPES: ReadonlyArray<number> = [0, 1, 2, 3, 4, 5, 6, 7, 8];
 
+// the logger types that can ignore channels (messages, voice, channels) or roles (roles), the api's `GUILD_LOGGER_IGNORE_TYPES`
+export const LOGGER_IGNORE_TYPES: ReadonlyArray<number> = [0, 3, 4, 6];
+// the api's `MAX_GUILD_LOGGER_IGNORED_AMOUNT`
+export const MAX_LOGGER_IGNORED = 50;
+
+export function loggerIgnoresRoles(type: number): boolean {
+  return type === 6;
+}
+
 export function loggerTypeLabel(type: number): string {
   return (LOGGER_TYPES.includes(type)) ? translate(`logger.${type}` as TranslationKey) : translate('logger.unknown', {type});
 }

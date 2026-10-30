@@ -213,13 +213,16 @@ export const MEDIASCRIPT_PORTUGUESE_3: TagDocsTranslation['mediaScriptCommands']
     args: {
       MEDIA_KEY: MEDIA,
       FACE: 'o número que o `drawfaces` coloca no rosto, no primeiro quadro em que ele aparece',
+      ZOOM: 'recorta cada quadro no próprio rosto e o amplia até o tamanho do maior rosto, assim o rosto fica sempre do mesmo tamanho',
     },
     results: [
       'Segue o primeiro rosto encontrado no vídeo.',
       'Recorta no segundo rosto (o que o `drawfaces` numera 1).',
+      'Segue o primeiro rosto e dá zoom junto com ele, assim fica sempre do mesmo tamanho.',
     ],
     notes: [
       'Todo quadro é recortado no mesmo tamanho, o maior que o rosto chega a ter (com uma folga em volta), e centralizado nele, então acompanha o rosto mas nunca dá zoom. Nos quadros em que ele não é encontrado, a posição vem dos quadros ao redor.',
+      'Com `ZOOM` cada quadro é recortado no próprio rosto (com a mesma folga) e ampliado até esse tamanho maior, assim o rosto fica do mesmo tamanho e o fundo dá zoom em volta dele.',
     ],
   },
   cropnft: {

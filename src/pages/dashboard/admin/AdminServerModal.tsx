@@ -20,7 +20,7 @@ import { ServerDataSection } from '../servers/ServerDataSection';
 import { LoggersSection, PrefixesSection, RulesSection } from '../servers/ServerSections';
 import { ServerSettingsForm, useDirtyGroups, type SettingsGroup } from '../servers/ServerSettingsForm';
 import { PanelSkeleton, Skeleton, UnsavedChangesGuard } from '../ui';
-import { BLOCK_REASON_MAX } from './BlockUserDialog';
+import { BLOCK_REASON_MAX, BlockDurationSelect, BlockedUntilLine, blockedUntilFromSeconds } from './BlockUserDialog';
 import { Chip, ContentFlagTiles, CopyableValue, CopyButton, DateTile, ExactDate, StatTile } from './adminUi';
 import { AdminModalFooter, AdminTagModal } from './AdminTagModal';
 import { EditGuildFeaturesDialog, GUILD_FEATURE_INFO } from './EditGuildFeaturesDialog';
@@ -259,6 +259,7 @@ function ServerDetails({ guild, navigation, onDirtyChange }: {guild: AdminGuild,
               ) : (
                 <p className='rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-subtle italic'>No reason given</p>
               )}
+              <BlockedUntilLine until={guild.blocked_until} className='mt-2'/>
               {(!canUnblock) ? <p className='mt-2 text-xs text-subtle'>{UNBLOCK_OWNER_ONLY}</p> : null}
             </div>
           ) : null}
@@ -373,11 +374,16 @@ function BlockServerDialog({ guild, onClose }: {guild: AdminGuild, onClose: () =
   const toast = useToast();
   const mutation = usePatchAdminGuildMutation(guild.id);
   const [ reason, setReason ] = useState('');
+  const [ duration, setDuration ] = useState(0);
   const { blocked } = guild;
   const name = guild.name || guild.id;
 
   const submit = () => {
-    const patch = (blocked) ? {blocked: false} : {blocked: true, blocked_reason: reason.trim() || null};
+    const patch = (blocked) ? {blocked: false} : {
+      blocked: true,
+      blocked_reason: reason.trim() || null,
+      blocked_until: blockedUntilFromSeconds(duration),
+    };
     mutation.mutate(patch, {
       onSuccess: () => {
         toast((blocked) ? `Unblocked ${name}` : `Blocked ${name}`);
@@ -415,6 +421,7 @@ function BlockServerDialog({ guild, onClose }: {guild: AdminGuild, onClose: () =
           {(blocked && guild.blocked_reason) ? (
             <p className='mt-2 text-sm break-words text-muted'><span className='text-subtle'>Blocked for: </span>{guild.blocked_reason}</p>
           ) : null}
+          {(blocked) ? <BlockedUntilLine until={guild.blocked_until} className='mt-1'/> : null}
         </div>
 
         {(!blocked) ? (
@@ -430,6 +437,7 @@ function BlockServerDialog({ guild, onClose }: {guild: AdminGuild, onClose: () =
               className='input'
               autoFocus
             />
+            <BlockDurationSelect value={duration} onChange={setDuration} disabled={mutation.isPending}/>
           </div>
         ) : null}
 

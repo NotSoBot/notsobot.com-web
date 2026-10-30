@@ -4,7 +4,7 @@ import { useId, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
 import { useI18n } from '@/i18n';
-import { CommandCategories, type GuildRule, type GuildRuleTargetType, type UserGuild } from '@/lib/api';
+import { CommandCategories, type GuildLogger, type GuildRule, type GuildRuleTargetType, type UserGuild } from '@/lib/api';
 import { errorField, errorMessage, useGuildMutation, useGuildScope, type GuildAction } from '@/lib/api/dashboardQueries';
 import { useCommandsQuery } from '@/lib/api/queries';
 import { enabledCommandVariants } from '@/lib/commandAvailability';
@@ -16,7 +16,10 @@ import { EmptyState, Field, Panel, Toggle } from '../ui';
 import {
   ENTRY_TYPE_LABELS,
   EntryMention,
+  LOGGER_IGNORE_TYPES,
+  MAX_LOGGER_IGNORED,
   RULE_TARGET_TYPES,
+  loggerIgnoresRoles,
   loggerTypeLabel,
   useReadOnlyMessage,
 } from './guildMeta';
@@ -575,6 +578,7 @@ export function LoggersSection({ guild }: {guild: UserGuild}) {
   const editable = guild.editable.loggers;
   const readOnlyMessage = useReadOnlyMessage();
   const edit = useGuildEdit(guild.id);
+  const [ editing, setEditing ] = useState<string | null>(null);
   const loggers = guild.loggers.slice().sort((a, b) => a.type - b.type);
 
   return (
@@ -588,20 +592,56 @@ export function LoggersSection({ guild }: {guild: UserGuild}) {
         <ul className='divide-y divide-line rounded-md border border-line'>
           {loggers.map((logger) => {
             const key = `${logger.type}:${logger.channel_id}`;
+            const type = loggerTypeLabel(logger.type).toLowerCase();
+            const canIgnore = LOGGER_IGNORE_TYPES.includes(logger.type);
+            const ignoredIds = logger.ignored_ids ?? [];
             return (
-              <li key={key} className='flex items-center gap-3 px-3 py-2'>
-                <div className='min-w-0 flex-1'>
-                  <div className='text-sm font-medium text-white'>{loggerTypeLabel(logger.type)}</div>
-                  <EntryMention type='channel' id={logger.channel_id} guildId={guild.id}/>
+              <li key={key} className='px-3 py-2'>
+                <div className='flex items-center gap-3'>
+                  <div className='min-w-0 flex-1'>
+                    <div className='text-sm font-medium text-white'>{loggerTypeLabel(logger.type)}</div>
+                    <EntryMention type='channel' id={logger.channel_id} guildId={guild.id}/>
+                  </div>
+                  <span className='hidden text-xs text-subtle sm:inline'>{t('loggers.added_on', {date: formatDate(logger.added)})}</span>
+                  {(editable && canIgnore) ? (
+                    <EditButton
+                      label={t('loggers.ignore_edit', {type, channel: logger.channel_id})}
+                      disabled={edit.pending || editing === key}
+                      onClick={() => setEditing(key)}
+                    />
+                  ) : null}
+                  {(editable) ? (
+                    <RemoveButton
+                      label={t('loggers.remove', {type, channel: logger.channel_id})}
+                      busy={edit.busyKey === key && editing !== key}
+                      disabled={edit.pending}
+                      onClick={() => void edit.run(key, {kind: 'logger-remove', channelId: logger.channel_id, type: logger.type}, t('loggers.removed', {type}))}
+                    />
+                  ) : null}
                 </div>
-                <span className='hidden text-xs text-subtle sm:inline'>{t('loggers.added_on', {date: formatDate(logger.added)})}</span>
-                {(editable) ? (
-                  <RemoveButton
-                    label={t('loggers.remove', {type: loggerTypeLabel(logger.type).toLowerCase(), channel: logger.channel_id})}
+                {(editing === key) ? (
+                  <LoggerIgnoreEditor
+                    logger={logger}
+                    guildId={guild.id}
                     busy={edit.busyKey === key}
                     disabled={edit.pending}
-                    onClick={() => void edit.run(key, {kind: 'logger-remove', channelId: logger.channel_id, type: logger.type}, t('loggers.removed', {type: loggerTypeLabel(logger.type).toLowerCase()}))}
+                    onCancel={() => setEditing(null)}
+                    onSave={async (next) => {
+                      const saved = await edit.run(key, {kind: 'logger-ignore', channelId: logger.channel_id, type: logger.type, ignoredIds: next}, t('loggers.ignore_saved', {type}));
+                      if (saved) {
+                        setEditing(null);
+                      }
+                    }}
                   />
+                ) : (ignoredIds.length) ? (
+                  <div className='mt-1.5 flex flex-wrap items-center gap-1.5'>
+                    <span className='text-xs text-subtle'>{t('loggers.ignoring')}</span>
+                    {ignoredIds.map((id) => (
+                      <span key={id} className='inline-flex min-w-0 items-center rounded-md border border-line bg-surface-3 px-2 py-0.5'>
+                        <EntryMention type={(loggerIgnoresRoles(logger.type)) ? 'role' : 'channel'} id={id} guildId={guild.id}/>
+                      </span>
+                    ))}
+                  </div>
                 ) : null}
               </li>
             );
@@ -611,5 +651,94 @@ export function LoggersSection({ guild }: {guild: UserGuild}) {
         <EmptyState title={t('loggers.empty')}>{t('loggers.empty_description')}</EmptyState>
       )}
     </Panel>
+  );
+}
+
+
+// what a logger skips, channel ids (a category covers its channels, a channel its threads) or role ids for the roles logger
+function LoggerIgnoreEditor({ logger, guildId, busy, disabled, onCancel, onSave }: {
+  logger: GuildLogger,
+  guildId: string,
+  busy: boolean,
+  disabled: boolean,
+  onCancel: () => void,
+  onSave: (ignoredIds: Array<string>) => void,
+}) {
+  const { t } = useI18n();
+  const roles = loggerIgnoresRoles(logger.type);
+  const initial = logger.ignored_ids ?? [];
+  const [ ids, setIds ] = useState<Array<string>>(initial);
+  const [ value, setValue ] = useState('');
+
+  const trimmed = value.trim();
+  const full = MAX_LOGGER_IGNORED <= ids.length;
+  const error = (!trimmed) ? null
+    : (!isSnowflake(trimmed)) ? t('rules.bad_id')
+    : (roles && trimmed === guildId) ? t('loggers.ignore_everyone')
+    : (ids.includes(trimmed)) ? t('loggers.ignore_exists')
+    : null;
+  const add = () => {
+    if (trimmed && !error && !full) {
+      setIds([...ids, trimmed]);
+      setValue('');
+    }
+  };
+  const unchanged = ids.length === initial.length && ids.every((id, i) => initial[i] === id);
+  const label = (roles) ? t('loggers.ignore_role_label') : t('loggers.ignore_channel_label');
+
+  return (
+    <div className='mt-2 space-y-2 rounded-md border border-line bg-surface-2 p-3'>
+      <p className='text-xs text-subtle'>{(roles) ? t('loggers.ignore_roles_help') : t('loggers.ignore_channels_help')}</p>
+      <div className='flex flex-wrap items-center gap-1.5'>
+        {ids.map((id) => (
+          <span key={id} className='inline-flex min-w-0 items-center gap-1 rounded-md border border-line bg-surface-3 py-0.5 pr-0.5 pl-2'>
+            <EntryMention type={(roles) ? 'role' : 'channel'} id={id} guildId={guildId}/>
+            <button
+              type='button'
+              aria-label={t('loggers.ignore_remove', {id})}
+              title={t('loggers.ignore_remove', {id})}
+              className='flex size-6 cursor-pointer items-center justify-center rounded text-subtle hover:bg-surface-2 hover:text-danger-text disabled:cursor-not-allowed'
+              disabled={busy}
+              onClick={() => setIds(ids.filter((other) => other !== id))}
+            >
+              <X aria-hidden className='size-3.5'/>
+            </button>
+          </span>
+        ))}
+        <input
+          className='input h-8 w-60 py-0 font-mono text-sm'
+          inputMode='numeric'
+          aria-label={label}
+          aria-invalid={!!error}
+          placeholder={label}
+          value={value}
+          disabled={full || busy}
+          onChange={(event) => setValue(event.target.value.replace(/[<>#@&!\s]/g, ''))}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              add();
+            } else if (event.key === 'Escape') {
+              event.preventDefault();
+              onCancel();
+            }
+          }}
+          autoComplete='off'
+          autoFocus
+        />
+        <button type='button' className='btn btn-sm btn-secondary' disabled={!trimmed || !!error || full || busy} onClick={add}>
+          <Plus aria-hidden className='size-4'/>
+          {t('loggers.ignore_add')}
+        </button>
+      </div>
+      {(error) ? <p className='text-xs text-danger-text'>{error}</p> : (full) ? <p className='text-xs text-subtle'>{t('loggers.ignore_full', {max: MAX_LOGGER_IGNORED})}</p> : null}
+      <div className='flex items-center gap-2'>
+        <button type='button' className='btn btn-sm btn-secondary' disabled={disabled || unchanged} onClick={() => onSave(ids)}>
+          {(busy) ? <Spinner className='size-3.5'/> : null}
+          {t('common.save')}
+        </button>
+        <button type='button' className='btn btn-sm btn-ghost' disabled={busy} onClick={onCancel}>{t('common.cancel')}</button>
+      </div>
+    </div>
   );
 }

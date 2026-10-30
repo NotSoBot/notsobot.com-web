@@ -1,4 +1,4 @@
-import { CheckCircle2, Info } from 'lucide-react';
+import { CheckCircle2, Info, TriangleAlert } from 'lucide-react';
 import { useId, useState } from 'react';
 import { Link } from 'react-router';
 
@@ -119,6 +119,12 @@ export function ReportDialog({ subject, onClose }: {subject: ReportSubject, onCl
           </h2>
           <p className='mt-2 text-sm text-muted'>
             {t((isTag) ? 'report.tag_description' : 'report.bug_description')}
+          </p>
+
+          {/* reports are for NotSoBot being abused, spamming them gets you blocked */}
+          <p className='mt-4 flex gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-fg'>
+            <TriangleAlert aria-hidden className='mt-0.5 size-4 shrink-0 text-warning'/>
+            <span>{t('report.spam_warning')}</span>
           </p>
 
           {(anonymous) ? (

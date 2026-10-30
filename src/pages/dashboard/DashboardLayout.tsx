@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useLocation, useMatch, useNavigate } from 'react
 
 import { isOwner, isStaff, useAuth } from '@/auth';
 import { BlockedNotice } from '@/components/ui/BlockedNotice';
+import { StaffWarningsNotice } from '@/components/ui/StaffWarningsNotice';
 import { ToastProvider } from '@/components/ui/Toast';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { Routes } from '@/config';
@@ -87,6 +88,7 @@ export function DashboardLayout() {
     <ToastProvider>
       <div className='container-page py-6 sm:py-8'>
         {(user?.blocked) ? <BlockedNotice user={user} className='mb-6'/> : null}
+        <StaffWarningsNotice className='mb-6'/>
         <div className='grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-8'>
           {/* sticky, so on desktop it scrolls on its own once it's taller than the window; otherwise its bottom (the admin
               links) could only be reached by scrolling the page all the way down */}

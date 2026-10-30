@@ -28,9 +28,27 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 
 export const CHANGELOG: Array<ChangelogDay> = [
   {
+    date: '2026-10-30',
+    title: 'SAM voices, logger ignores',
+    items: [
+      {kind: 'new', text: 'Loggers can ignore things: `.loggers ignore messages #bot-spam #staff` (or `/server loggers ignore`) stops the message logger from posting edits and deletes from those channels, a category covers its channels and a channel its threads. Channel and voice loggers ignore channels the same way (a voice move is only skipped when both channels are ignored), and the roles logger ignores roles (`.loggers ignore roles @Muted`). Running it again with one stops ignoring it, `-clear` stops ignoring everything and `-logger #channel` picks one logger when there are several. The dashboard\'s loggers list shows and edits them too.'},
+      {kind: 'improved', text: '`/server autowarn` is its own command now, `/server-autowarn`, to make room in `/server`. `.autowarn` is the same.'},
+      {kind: 'new', text: 'SAM, the Commodore 64\'s Software Automatic Mouth, is a TTS voice: `.tts hello, my name is sam -use sam c64`, with its classic presets as `SAM_ELF`, `SAM_LITTLE_ROBOT`, `SAM_STUFFY_GUY`, `SAM_LITTLE_OLD_LADY` and `SAM_EXTRA_TERRESTRIAL`. `-use sam` is still Microsoft Sam.'},
+      {kind: 'new', text: '**MediaScript:** `tts` takes the `SAM_C64`, `SAM_ELF`, `SAM_EXTRA_TERRESTRIAL`, `SAM_LITTLE_OLD_LADY`, `SAM_LITTLE_ROBOT` and `SAM_STUFFY_GUY` voices.'},
+      {kind: 'fixed', text: '`.tts -use` picks the voice whose name ends with what you typed when only one does, like MediaScript\'s `tts` (`-use de male 01` was a DECtalk voice instead of TikTok\'s German male).'},
+      {kind: 'new', text: '`.crop face -zoom` (`/media-iv-tools crop-face zoom`): scales each frame up to the size of the biggest face, so the face fills the crop the whole way. **MediaScript:** `cropface MEDIA_KEY FACE=0 ZOOM=true`.'},
+      {kind: 'improved', text: 'Reporting something to NotSoBot\'s developers with `report`, `bot report` or `tag report` asks you to confirm first, and every report form says what reports are for: bugs, or people and servers using NotSoBot to post rule-breaking content.'},
+      {kind: 'new', text: 'Warnings from NotSoBot\'s staff are sent to you in a DM, shown before your next command and listed on the dashboard, where you can dismiss them. Blocks from the bot can also be temporary now.'},
+      {kind: 'fixed', text: 'A tag whose `load` line isn\'t a link says `Invalid url` with what it got, instead of a confusing error.'},
+      {kind: 'fixed', text: 'Music: a track shorter than a second on repeat plays about once a second instead of restarting as fast as it can.'},
+    ],
+  },
+  {
     date: '2026-10-29',
     title: 'Auto-warn rules',
     items: [
+      {kind: 'new', text: '`.lightrays` and `/media-iv-filter light-rays`: streak the bright parts of an image or video out into glowing rays, like VEGAS\' Light Rays (`.lightrays -sensitivity 1 -strength 2`).'},
+      {kind: 'new', text: '**MediaScript:** `lightrays MEDIA_KEY SENSITIVITY=0.5 STRENGTH=1`.'},
       {kind: 'new', text: '`.autowarn` and `/server autowarn`: NotSoBot warns members by itself for mentioning more than a number of users and roles in one message (`.autowarn mentions 5`) or for using a command the server\'s rules block for them (`.autowarn blocked`). Each rule can count as up to 10 warnings and can be for one channel (with its threads, or a category\'s channels) or the whole server. The warnings count towards `set warnings`\' actions like any other.'},
       {kind: 'new', text: '`.autowarn automod` and `/server autowarn automod`: warn members that set off one of the server\'s Discord AutoMod rules, any of them or one in particular (`.autowarn automod -rule Bad Words -warnings 5`). NotSoBot needs Manage Server to see AutoMod.'},
       {kind: 'new', text: 'Auto-warn can skip members: `.autowarn exempt` (`/server autowarn exempt`) sets the roles and permissions every rule skips, and `-exempt-roles`/`-exempt-permissions` add more for one rule.'},

@@ -5,12 +5,53 @@ import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
 import { type AdminUserRef, UserFlags } from '@/lib/api';
 import { errorMessage, usePatchAdminUserMutation } from '@/lib/api/dashboardQueries';
-import { cn } from '@/lib/utils';
+import { cn, formatDateTime } from '@/lib/utils';
 
-import { UserCell } from './adminUi';
+import { ExactDate, UserCell } from './adminUi';
 
 
 export const BLOCK_REASON_MAX = 2000;
+
+// how long a block lasts, the api lifts a timed one on its own once it's past (0 is permanent)
+const HOUR = 60 * 60;
+const DAY = 24 * HOUR;
+export const BLOCK_DURATIONS: Array<{label: string, seconds: number}> = [
+  {label: 'Permanent', seconds: 0},
+  {label: '1 hour', seconds: HOUR},
+  {label: '1 day', seconds: DAY},
+  {label: '3 days', seconds: 3 * DAY},
+  {label: '7 days', seconds: 7 * DAY},
+  {label: '30 days', seconds: 30 * DAY},
+  {label: '90 days', seconds: 90 * DAY},
+  {label: '1 year', seconds: 365 * DAY},
+];
+
+// what to send as `blocked_until`, null for permanent
+export function blockedUntilFromSeconds(seconds: number): string | null {
+  return (seconds) ? new Date(Date.now() + seconds * 1000).toISOString() : null;
+}
+
+export function BlockDurationSelect({ value, onChange, disabled }: {value: number, onChange: (seconds: number) => void, disabled?: boolean}) {
+  const id = useId();
+  return (
+    <div className='mt-3'>
+      <label htmlFor={id} className='mb-1.5 block text-sm text-muted'>Length</label>
+      <select id={id} className='input' value={value} disabled={disabled} onChange={(event) => onChange(Number(event.target.value))}>
+        {BLOCK_DURATIONS.map((item) => <option key={item.seconds} value={item.seconds}>{item.label}</option>)}
+      </select>
+    </div>
+  );
+}
+
+// "Ends in 3 days" under a timed block, "Permanent" otherwise
+export function BlockedUntilLine({ until, className }: {until: string | number | null, className?: string}) {
+  return (
+    <p className={cn('text-sm break-words text-muted', className)}>
+      <span className='text-subtle'>Ends: </span>
+      {(until) ? <ExactDate value={until} format={formatDateTime}/> : 'Never (permanent)'}
+    </p>
+  );
+}
 
 // owners can't be blocked, and only owners can block moderators
 export function canBlockUser(user: {flags: number}, viewerIsOwner: boolean): boolean {
@@ -22,10 +63,11 @@ export function canBlockUser(user: {flags: number}, viewerIsOwner: boolean): boo
 
 // Blocks (with a reason) or unblocks someone from NotSoBot. `blocked` is the user's current state, so the
 // dialog does the opposite of it.
-export function BlockUserDialog({ user, blocked, blockedReason, defaultReason = '', onClose }: {
+export function BlockUserDialog({ user, blocked, blockedReason, blockedUntil = null, defaultReason = '', onClose }: {
   user: AdminUserRef,
   blocked: boolean,
   blockedReason?: string | null,
+  blockedUntil?: string | number | null,
   defaultReason?: string,
   onClose: () => void,
 }) {
@@ -34,9 +76,14 @@ export function BlockUserDialog({ user, blocked, blockedReason, defaultReason = 
   const toast = useToast();
   const mutation = usePatchAdminUserMutation();
   const [ reason, setReason ] = useState(defaultReason);
+  const [ duration, setDuration ] = useState(0);
 
   const submit = () => {
-    const patch = (blocked) ? {blocked: false, blocked_reason: null} : {blocked: true, blocked_reason: reason.trim() || null};
+    const patch = (blocked) ? {blocked: false, blocked_reason: null} : {
+      blocked: true,
+      blocked_reason: reason.trim() || null,
+      blocked_until: blockedUntilFromSeconds(duration),
+    };
     mutation.mutate({userId: user.id, patch}, {
       onSuccess: () => {
         toast((blocked) ? `Unblocked ${user.username}` : `Blocked ${user.username}`);
@@ -60,7 +107,7 @@ export function BlockUserDialog({ user, blocked, blockedReason, defaultReason = 
           {(blocked) ? `Unblock ${user.username}?` : `Block ${user.username} from NotSoBot?`}
         </h2>
         <p className='mt-2 text-sm text-muted'>
-          {(blocked) ? 'They’ll be able to use NotSoBot again.' : 'Stops them from using NotSoBot anywhere.'}
+          {(blocked) ? 'They’ll be able to use NotSoBot again.' : 'Stops them from using NotSoBot anywhere, and puts a warning on their record with the reason (DMed to them).'}
         </p>
 
         <div className='mt-3 rounded-md border border-line bg-deep p-3'>
@@ -68,6 +115,7 @@ export function BlockUserDialog({ user, blocked, blockedReason, defaultReason = 
           {(blocked && blockedReason) ? (
             <p className='mt-2 text-sm break-words text-muted'><span className='text-subtle'>Blocked for: </span>{blockedReason}</p>
           ) : null}
+          {(blocked) ? <BlockedUntilLine until={blockedUntil} className='mt-1'/> : null}
         </div>
 
         {(!blocked) ? (
@@ -83,6 +131,7 @@ export function BlockUserDialog({ user, blocked, blockedReason, defaultReason = 
               className='input'
               autoFocus
             />
+            <BlockDurationSelect value={duration} onChange={setDuration} disabled={mutation.isPending}/>
           </div>
         ) : null}
 

@@ -29,6 +29,7 @@ import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from '../ui';
 import { REPORT_TARGET_LABELS, REPORT_TONE_FILLS, REPORT_TYPES, ROW_EDGE_BAR, type ReportTone, reportJumpUrl, reportTypeInfo } from '../reports/reportLabels';
 import { ReportThread } from '../reports/ReportThread';
 import { AdminModalFooter, AdminTagModal, LinkedItemModal, useOpenListItem } from './AdminTagModal';
+import { UserModerationButtons } from './UserModerationButtons';
 import { adminServerPath, adminUserPath, Chip, CopyableValue, CopyButton, DETAIL_LIST_STACKED, DetailList, ExactDate, FilterButton, FiltersButton, Pagination, selectAllScope, useSearchParamState, useStepBackFromEmptyPage, UserCell } from './adminUi';
 
 
@@ -369,7 +370,10 @@ function ReportDetails({ report, onFilterReporter, onFilterTarget, navigation }:
               <FilterButton label='Show reports from this user' onClick={() => onFilterReporter(user.id)}/>
               <CopyButton value={user.id}/>
             </div>
-            {(user.blocked) ? <Chip tone='danger' title={user.blocked_reason ?? undefined}>Blocked</Chip> : null}
+            {/* on phones the Unblock button says it, the name needs the room */}
+            {(user.blocked) ? <Chip tone='danger' title={user.blocked_reason ?? undefined} className='max-sm:hidden'>Blocked</Chip> : null}
+            {/* for people spamming the report system */}
+            <UserModerationButtons user={user} defaultReason={`Abusing the report system (report #${report.id})`} className='ml-auto'/>
           </div>
         ) : (
           // sent from the website logged out: no account, just a hash of where it came from (the same on reports from
@@ -402,7 +406,8 @@ function ReportDetails({ report, onFilterReporter, onFilterTarget, navigation }:
                     <FilterButton label='Show reports about this user' onClick={() => onFilterTarget(report.target_user!.id)}/>
                     <CopyButton value={report.target_user.id}/>
                   </div>
-                  {(report.target_user.blocked) ? <Chip tone='danger' title={report.target_user.blocked_reason ?? undefined}>Blocked</Chip> : null}
+                  {(report.target_user.blocked) ? <Chip tone='danger' title={report.target_user.blocked_reason ?? undefined} className='max-sm:hidden'>Blocked</Chip> : null}
+                  <UserModerationButtons user={report.target_user} defaultReason={`Reported in report #${report.id}`} className='ml-auto'/>
                 </>
               ) : (report.target_id) ? (
                 <>

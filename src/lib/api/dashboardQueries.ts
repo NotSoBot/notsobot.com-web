@@ -33,6 +33,7 @@ import type {
   AdminTagDirectoryItem,
   AdminTagDirectoryPage,
   AdminUser,
+  AdminUserWarnings,
   AdminUserPatch,
   AdminUsersPage,
   AdminTagDirectorySortBy,
@@ -104,6 +105,7 @@ import type {
   UserGuildPatch,
   UserSettings,
   UserSettingsPatch,
+  UserWarnings,
   MeVoice,
   VoiceNodeCreate,
   VoiceNodeEdit,
@@ -694,6 +696,32 @@ export interface VoiceRename {
   voiceId: string,
   name: string,
 }
+
+// warnings from NotSoBot staff, for the banner over the dashboard (the pending ones) until they dismiss it
+export function useMeWarningsQuery() {
+  const { token } = useAuth();
+  return useQuery({
+    queryKey: queryKeys.meWarnings(token),
+    queryFn: ({ signal }) => api.fetchMeWarnings(signal),
+    enabled: !!token,
+  });
+}
+
+export function useAcknowledgeMeWarningsMutation() {
+  const { token } = useAuth();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (warningIds: Array<string>) => api.acknowledgeMeWarnings(warningIds),
+    onSuccess: (_, warningIds) => {
+      const acknowledged = new Date().toISOString();
+      const ids = new Set(warningIds);
+      queryClient.setQueryData<UserWarnings>(queryKeys.meWarnings(token), (page) => {
+        return (page) ? {...page, items: page.items.map((x) => (ids.has(x.id)) ? {...x, acknowledged: x.acknowledged ?? acknowledged} : x)} : page;
+      });
+    },
+  });
+}
+
 
 export function useMeRemindersQuery() {
   const { token } = useAuth();
@@ -1627,6 +1655,7 @@ export type GuildAction =
   | {kind: 'rules-add', rules: Array<GuildRuleInput>}
   | {kind: 'rule-edit', ruleId: string, adminBypass?: boolean | null, value?: GuildRule['value']}
   | {kind: 'rules-remove', ids: Array<string>}
+  | {kind: 'logger-ignore', channelId: string, type: number, ignoredIds: Array<string>}
   | {kind: 'logger-remove', channelId: string, type: number}
   | {kind: 'settings', patch: UserGuildPatch};
 
@@ -1662,6 +1691,8 @@ export function useGuildMutation(guildId: string) {
           return api.editGuildRule(scope, guildId, action.ruleId, {admin_bypass: action.adminBypass, value: action.value});
         case 'rules-remove':
           return api.deleteGuildRules(scope, guildId, action.ids);
+        case 'logger-ignore':
+          return api.editGuildLogger(scope, guildId, {channel_id: action.channelId, ignored_ids: action.ignoredIds, type: action.type});
         case 'logger-remove':
           return api.removeGuildLogger(scope, guildId, {channel_id: action.channelId, type: action.type});
         case 'settings':
@@ -2064,6 +2095,50 @@ export function useAdminUserCopyrightStrikesQuery(userId: string) {
   });
 }
 
+function userWarningsKey(token: string | null, userId: string) {
+  return [...queryKeys.admin(token), 'user-warnings', userId];
+}
+
+export function useAdminUserWarningsQuery(userId: string) {
+  const { token } = useAuth();
+  return useQuery({
+    queryKey: userWarningsKey(token, userId),
+    queryFn: ({ signal }) => api.fetchAdminUserWarnings(userId, signal),
+    enabled: !!token,
+  });
+}
+
+// the list's `warnings` count goes up too
+export function useCreateAdminUserWarningMutation(userId: string) {
+  const { token } = useAuth();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (reason: string) => api.createAdminUserWarning(userId, reason),
+    onSettled: () => Promise.all([
+      queryClient.invalidateQueries({queryKey: userWarningsKey(token, userId)}),
+      queryClient.invalidateQueries({queryKey: [...queryKeys.admin(token), 'users']}),
+    ]),
+  });
+}
+
+export function useDeleteAdminUserWarningMutation(userId: string) {
+  const { token } = useAuth();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (warningId: string) => api.deleteAdminUserWarning(userId, warningId),
+    onSuccess: (_, warningId) => {
+      queryClient.setQueryData<AdminUserWarnings>(userWarningsKey(token, userId), (page) => {
+        return (page) ? {...page, items: page.items.filter((x) => x.id !== warningId)} : page;
+      });
+    },
+    onSettled: () => Promise.all([
+      queryClient.invalidateQueries({queryKey: userWarningsKey(token, userId)}),
+      queryClient.invalidateQueries({queryKey: [...queryKeys.admin(token), 'users']}),
+    ]),
+  });
+}
+
+
 export function useAdminUsersQuery(filters: AdminUsersFilters) {
   const { token } = useAuth();
   return useQuery({
@@ -2100,14 +2175,18 @@ export function usePatchAdminUserMutation() {
         if (!page) {
           return page;
         }
-        const blocked = {blocked: user.blocked, blocked_reason: user.blocked_reason, flags: user.flags};
+        const blocked = {blocked: user.blocked, blocked_reason: user.blocked_reason, blocked_until: user.blocked_until, flags: user.flags};
         return {...page, items: page.items.map((flag) => (flag.user?.id === user.id) ? {...flag, user: {...flag.user, ...blocked}} : flag)};
       });
     },
-    // the flags list hides blocked users by default
-    onSettled: () => Promise.all([
+    // the flags list hides blocked users by default, and a block adds a warning
+    onSettled: (_data, _error, { userId }) => Promise.all([
       queryClient.invalidateQueries({queryKey: listKey}),
       queryClient.invalidateQueries({queryKey: flagsKey}),
+      queryClient.invalidateQueries({queryKey: userWarningsKey(token, userId)}),
+      // reports show whether the reporter and the reported user are blocked
+      queryClient.invalidateQueries({queryKey: [...queryKeys.admin(token), 'report']}),
+      queryClient.invalidateQueries({queryKey: [...queryKeys.admin(token), 'reports']}),
     ]),
   });
 }

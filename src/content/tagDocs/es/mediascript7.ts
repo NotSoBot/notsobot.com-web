@@ -271,6 +271,21 @@ export const MEDIASCRIPT_SPANISH_7: TagDocsTranslation['mediaScriptCommands'] = 
       DITHER: 'aplicar tramado a los colores (usa la paleta ALL si no se elige ninguna)',
     },
   },
+  lightrays: {
+    summary: 'Estira las partes brillantes de la multimedia desde el centro en rayos de luz, como el Light Rays de VEGAS.',
+    args: {
+      MEDIA_KEY: MEDIA,
+      SENSITIVITY: 'cuánto del brillo forma rayos: `1` es cada píxel (como Vegas), `0.5` solo la mitad más brillante',
+      STRENGTH: 'qué tan largos y brillantes son los rayos; `1` es lo más fuerte de Vegas',
+    },
+    results: [
+      'Rayos desde las partes más brillantes.',
+      'Toda la imagen brillando hacia afuera en rayos largos.',
+    ],
+    notes: [
+      'Como un `zoomblur` solo de las luces: los rayos tienen el mismo largo en todas partes y, en multimedia transparente, se salen de sus bordes.',
+    ],
+  },
   magikanimated: {
     summary: 'Aplica `magik` (reescalado líquido) cada vez más a lo largo de los fotogramas.',
     args: {

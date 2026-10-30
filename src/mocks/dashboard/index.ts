@@ -10,7 +10,8 @@
 // others make `/users/@me/guilds*` fail like it used to (revoked Discord grant, Discord 429, token refresh in progress); `__dashboardMocks.latency(ms)` changes the fake delay; `__dashboardMocks.owner(false)`
 // (then reload) drops the owner flag so the admin section disappears and `/admin/*` answers 403; `__dashboardMocks.moderator(true)`
 // (then reload) makes the mock user a moderator, so the owner-only admin parts answer 403 and are hidden;
-// `__dashboardMocks.blocked('reason' | true | false)` (then reload) marks the mock user as blocked by staff.
+// `__dashboardMocks.blocked('reason' | true | false)` (then reload) marks the mock user as blocked by staff;
+// `__dashboardMocks.warned('reason' | false)` (then reload) gives the mock user a staff warning they haven't seen yet.
 // A logger webhook URL whose token contains "invalid" is rejected like a webhook from another channel.
 
 import { tokenStorage } from '@/auth/tokenStorage';
@@ -27,6 +28,7 @@ import {
   type AdminDirectoryTag,
   type AdminTagDirectoryItem,
   type AdminUserRef,
+  type AdminUserWarning,
   type ContentFlag,
   type GuildLLMKnowledge,
   type GuildContentUser,
@@ -175,6 +177,29 @@ const state = {
   moderator: sessionStorage.getItem('dashboardMocks:moderator') === '1',
   // the block reason ('' for blocked without one), or null when not blocked; kept across reloads like owner
   blocked: sessionStorage.getItem('dashboardMocks:blocked'),
+  // staff warnings by user id, newest first. a few users start with some, the mock user only with `__dashboardMocks.warned`
+  userWarnings: new Map<string, Array<AdminUserWarning>>([
+    ...adminUsers.filter((user) => BigInt(user.id) % 3n).map((user): [string, Array<AdminUserWarning>] => [user.id, Array.from({length: Number(BigInt(user.id) % 3n)}, (_, index) => ({
+      acknowledged: (index) ? new Date(Date.now() - 40 * 86400000).toISOString() : null,
+      block: false,
+      created: new Date(Date.now() - (index * 40 + 2) * 86400000).toISOString(),
+      dm_sent: index !== 1,
+      id: String(1300000000000000700n + BigInt(user.id) % 1000n * 10n + BigInt(index)),
+      moderator_id: mockUser.id,
+      reason: ['Stop spamming the image commands in support servers.', 'Uploading unsafe images through tags.'][index % 2],
+      user_id: user.id,
+    }))]),
+    ...((sessionStorage.getItem('dashboardMocks:warned') !== null) ? [[mockUser.id, [{
+      acknowledged: null,
+      block: false,
+      created: new Date(Date.now() - 3600000).toISOString(),
+      dm_sent: true,
+      id: '1300000000000000699',
+      moderator_id: '1000000000000000003',
+      reason: sessionStorage.getItem('dashboardMocks:warned') || 'Stop spamming the image commands in support servers.',
+      user_id: mockUser.id,
+    }]] as [string, Array<AdminUserWarning>]] : []),
+  ]),
   tags: createTags(),
   variables: createVariables(),
   blobs: createBlobs(),
@@ -396,6 +421,22 @@ function meUser(): UserMe {
 }
 
 route('GET', '/users/@me', () => meUser());
+route('GET', '/users/@me/warnings', () => ({
+  // the user never sees who warned them, or whether the DM made it
+  items: (state.userWarnings.get(mockUser.id) ?? []).map(({ dm_sent: _dm, moderator_id: _moderator, ...warning }) => warning),
+}));
+route('POST', '/users/@me/warnings/acknowledge', (_match, { body }) => {
+  const ids = (Array.isArray(body.warning_ids)) ? new Set(body.warning_ids as Array<string>) : null;
+  let acknowledged = 0;
+  for (const warning of state.userWarnings.get(mockUser.id) ?? []) {
+    if (!warning.acknowledged && (!ids || ids.has(warning.id))) {
+      warning.acknowledged = new Date().toISOString();
+      acknowledged++;
+    }
+  }
+  sessionStorage.removeItem('dashboardMocks:warned');
+  return {acknowledged};
+});
 route('GET', '/auth/logout', () => undefined);
 route('GET', '/users/@me/settings', () => state.settings);
 route('PATCH', '/users/@me/settings', (_match, { body }) => {
@@ -1452,10 +1493,29 @@ route('PUT', '/users/@me/guilds/(\\d+)/loggers', ([ , guildId ], { body }) => {
     channel_id: channelId,
     disabled_events: Number(body.disabled_events) || 0,
     guild_id: guildId,
+    ignored_ids: [],
     type,
     user_id: mockUser.id,
   });
   return detail.loggers;
+});
+
+// the api's `GUILD_LOGGER_IGNORE_TYPES` (messages, voice, channels, roles) and `MAX_GUILD_LOGGER_IGNORED_AMOUNT`
+route('PATCH', '/(users/@me|admin)/guilds/(\\d+)/loggers', ([ , scope, guildId ], { body }) => {
+  const { detail } = scopedGuild(scope, guildId, 'loggers');
+  const logger = detail.loggers.find((item) => item.channel_id === String(body.channel_id) && item.type === Number(body.type));
+  if (!logger) {
+    throw new MockError(404, 10036, 'Unknown Logger');
+  }
+  const ignoredIds = [...new Set((body.ignored_ids as Array<unknown>).map(String))];
+  if (ignoredIds.length && ![0, 3, 4, 6].includes(logger.type)) {
+    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'This logger type cannot ignore anything');
+  }
+  if (50 < ignoredIds.length) {
+    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'Too many ignored ids', {field: 'ignored_ids'});
+  }
+  logger.ignored_ids = ignoredIds;
+  return logger;
 });
 
 route('POST', '/(users/@me|admin)/guilds/(\\d+)/loggers/delete', ([ , scope, guildId ], { body }) => {
@@ -1604,7 +1664,7 @@ function adminListingAsPublic(item: AdminTagDirectoryItem): TagDirectoryItem {
       reference_tag: null,
       scanned: 0,
       server_id: tag.server_id,
-      user: {...user, blocked: false, blocked_on: null, blocked_reason: null, bot: false, flags: 0},
+      user: {...user, blocked: false, blocked_on: null, blocked_reason: null, blocked_until: null, bot: false, flags: 0},
       uses: tag.uses,
     },
     title: item.title,
@@ -1938,12 +1998,28 @@ route('PATCH', '/admin/users/(\\d+)', ([ , userId ], { body }) => {
   if (!user) {
     throw new MockError(404, 10013, 'Unknown User');
   }
+  const newlyBlocked = !!body.blocked && !user.blocked;
   if (body.blocked !== undefined) {
     user.blocked = !!body.blocked;
   }
   if (body.blocked_reason !== undefined) {
     user.blocked_reason = (body.blocked_reason as string | null) || null;
   }
+  if (newlyBlocked) {
+    // like the api, every block puts a warning on their record with its reason
+    state.userWarnings.set(userId, [{
+      acknowledged: null,
+      block: true,
+      created: new Date().toISOString(),
+      dm_sent: !!(BigInt(userId) % 3n),
+      id: String(1300000000000000900n + BigInt(Date.now() % 100000)),
+      moderator_id: mockUser.id,
+      reason: user.blocked_reason,
+      user_id: userId,
+    }, ...(state.userWarnings.get(userId) ?? [])]);
+  }
+  // only kept while blocked, blocking without one is permanent
+  user.blocked_until = (user.blocked) ? ((body.blocked_until as string | null | undefined) ?? ((body.blocked) ? null : user.blocked_until)) : null;
   // the OWNER bit can't be changed from the dashboard
   if (typeof body.flags === 'number') {
     user.flags = (body.flags & ~1) | (user.flags & 1);
@@ -2127,6 +2203,47 @@ route('GET', '/admin/users/(\\d+)/copyright-strikes', ([ , userId ]) => {
     }
   }
   return {count: strikes.size, strikes: [...strikes.values()], users: auditUsers(entries.map((entry) => entry.actor_id))};
+});
+
+// mirrors `/admin/users/<user_id>/warnings`: staff warnings, moderators warn and only owners delete
+route('GET', '/admin/users/(\\d+)/warnings', ([ , userId ]) => {
+  requireStaff();
+  const items = state.userWarnings.get(userId) ?? [];
+  return {items, users: auditUsers(items.map((item) => item.moderator_id))};
+});
+
+route('POST', '/admin/users/(\\d+)/warnings', ([ , userId ], { body }) => {
+  requireStaff();
+  const user = state.adminUsers.find((other) => other.id === userId);
+  if (!user) {
+    throw new MockError(404, 10013, 'Unknown User');
+  }
+  if (user.flags & 1) {
+    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'Bot owners can\'t be warned');
+  }
+  const items = state.userWarnings.get(userId) ?? [];
+  const warning: AdminUserWarning = {
+    acknowledged: null,
+    block: false,
+    created: new Date().toISOString(),
+    // every third user has their dms closed
+    dm_sent: !!(BigInt(userId) % 3n),
+    id: String(1300000000000000900n + BigInt(Date.now() % 100000)),
+    moderator_id: mockUser.id,
+    reason: String(body.reason || ''),
+    user_id: userId,
+  };
+  state.userWarnings.set(userId, [warning, ...items]);
+  return {count: items.length + 1, warning};
+});
+
+route('DELETE', '/admin/users/(\\d+)/warnings/(\\d+)', ([ , userId, warningId ]) => {
+  requireBotOwner();
+  const items = state.userWarnings.get(userId) ?? [];
+  if (!items.some((item) => item.id === warningId)) {
+    throw new MockError(404, 10035, 'Unknown Warning');
+  }
+  state.userWarnings.set(userId, items.filter((item) => item.id !== warningId));
 });
 
 route('GET', '/admin/users', (_match, { query }) => {
@@ -2668,7 +2785,7 @@ route('GET', '/admin/guilds/(\\d+)', ([ , guildId ]) => adminGuildDetail(guildId
 
 route('PATCH', '/admin/guilds/(\\d+)', ([ , guildId ], { body }) => {
   // moderators can only block, changing its settings is owners only
-  if (Object.keys(body).some((key) => key !== 'blocked' && key !== 'blocked_reason')) {
+  if (Object.keys(body).some((key) => key !== 'blocked' && key !== 'blocked_reason' && key !== 'blocked_until')) {
     requireBotOwner();
   }
   const { detail } = findAdminGuild(guildId).entry;
@@ -2703,6 +2820,7 @@ route('PATCH', '/admin/guilds/(\\d+)', ([ , guildId ], { body }) => {
   if (detail.blocked && 'blocked_reason' in body) {
     detail.blocked_reason = (typeof body.blocked_reason === 'string' && body.blocked_reason) ? body.blocked_reason : null;
   }
+  detail.blocked_until = (detail.blocked) ? ((body.blocked_until as string | null | undefined) ?? ((body.blocked) ? null : detail.blocked_until)) : null;
   if (Array.isArray(body.features)) {
     // owners only, like the api
     requireBotOwner();
@@ -3568,7 +3686,7 @@ guilds[0].detail.settings.warnings_auto = [
 ];
 guilds[0].detail.settings.warnings_auto_exempt = {permissions: String(1n << 5n), role_ids: ['1150000000000000020']};
 
-guilds[0].detail.loggers.push({added: new Date(Date.now() - 30 * 86400000).toISOString(), channel_id: '1200000000000000023', disabled_events: 0, guild_id: guilds[0].summary.id, type: 8, user_id: mockUser.id});
+guilds[0].detail.loggers.push({added: new Date(Date.now() - 30 * 86400000).toISOString(), channel_id: '1200000000000000023', disabled_events: 0, guild_id: guilds[0].summary.id, ignored_ids: [], type: 8, user_id: mockUser.id});
 
 function guildReports(guildId: string): Array<GuildReport> {
   return state.guildReports.get(guildId) ?? [];
@@ -5284,6 +5402,7 @@ declare global {
   interface Window {
     __dashboardMocks?: {
       blocked: (value: string | boolean) => void,
+      warned: (value: string | false) => void,
       guildsError: (value: GuildsError) => void,
       loggedOut: (value: boolean) => void,
       latency: (ms: number) => void,
@@ -5509,6 +5628,14 @@ export function installDashboardMocks(): void {
         sessionStorage.removeItem('dashboardMocks:blocked');
       } else {
         sessionStorage.setItem('dashboardMocks:blocked', state.blocked);
+      }
+    },
+    // takes effect after a reload
+    warned: (value) => {
+      if (value === false) {
+        sessionStorage.removeItem('dashboardMocks:warned');
+      } else {
+        sessionStorage.setItem('dashboardMocks:warned', value);
       }
     },
     // takes effect after a reload

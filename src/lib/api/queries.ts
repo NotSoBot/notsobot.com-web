@@ -35,6 +35,7 @@ export const queryKeys = {
   mePremiumServers: (token: string | null) => ['users', '@me', token, 'premium', 'servers'] as const,
   meLLMMemories: (token: string | null) => ['users', '@me', token, 'llm', 'memories'] as const,
   meReminders: (token: string | null) => ['users', '@me', token, 'reminders'] as const,
+  meWarnings: (token: string | null) => ['users', '@me', token, 'warnings'] as const,
   meReports: (token: string | null, filters: object) => ['users', '@me', token, 'reports', filters] as const,
   sentGuildReports: (token: string | null, filters?: object) => ['users', '@me', token, 'sent-guild-reports', ...((filters === undefined) ? [] : [filters])] as const,
   meReportsUnread: (token: string | null) => ['users', '@me', token, 'reports-unread'] as const,

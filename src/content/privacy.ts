@@ -3,7 +3,7 @@ import type { LegalDocument } from './legal';
 export const PRIVACY_POLICY: LegalDocument = {
   title: "Privacy Policy",
   effective: "October 13, 2026",
-  lastUpdated: "October 29, 2026",
+  lastUpdated: "October 30, 2026",
   intro: "This Privacy Policy explains what information NotSoBot collects, why, who it's shared with, how long it's kept, and how You can get a copy of it or have it deleted.",
   sections: [
     {
@@ -22,6 +22,7 @@ export const PRIVACY_POLICY: LegalDocument = {
           "Your settings: language, timezone, units, response display preferences, file upload preferences, selected AI models and personality, text-to-speech voice, and the servers You pinned on the website's dashboard.",
           "Server information and settings for servers NotSoBot is in: server ID, name, icon, features, language, timezone, custom prefixes, AI settings, what the server's admins told NotSoAI about the server along with who added each one, and the rules for who can use which commands along with who added each rule.",
           "Warnings a server's moderators give with the warn command: the server, the warned member's user ID, the moderator's user ID, the reason and when it was given. The warned member is sent the warning in a DM.",
+          "Warnings from NotSoBot's staff: your user ID, the staff member's user ID, the reason, when it was given, whether it reached You in a DM, and when You saw it. You're sent it in a DM, shown it before your next command, and can see and dismiss it on the dashboard. Being blocked from the Service gives You one too, and a block can be set to end on its own at a set time.",
           "Reports members send to a server's moderators with /report, the report command or Report to Mods: the server, who sent it, who was reported, the reason, when it was sent, its status and the moderator who last resolved or dismissed it. A report of a member also keeps an image of them from when it was sent (their avatar, nickname and username), and a report of a message keeps the message's channel and message IDs, its text and an image of the message (showing its author's name and avatar, its text, and its images and embed), so moderators can still see them if they change or the message is deleted. If an image may contain NSFW content, it's kept with every picture in it (avatars, attachments, embeds and emojis) replaced by a plain block. The text and images are deleted 30 days after the report. Replies between the member who sent it and the moderators are kept with the report too (what was written, who wrote it and when), along with each time it was resolved, dismissed or reopened. The member gets the moderators' replies in a DM from \"the moderators\", without the moderator's name.",
           "Logging settings: if a server enables logging, the channel and webhook used to post logs, including the webhook token. Log events are sent to that webhook and are not kept by Us.",
           "Command replies: the IDs of your command message, its channel, the command used, and NotSoBot's reply, so that editing or deleting your command can update or remove the reply.",
@@ -149,6 +150,7 @@ export const PRIVACY_POLICY: LegalDocument = {
           "Tags, reminders and cloned voices are deleted when You delete them. Deleting a cloned voice also deletes it from the voice cloning service, along with the audio clips it was made from.",
           "AI memories are kept until You delete them, ask NotSoAI to forget them, or delete your information. Turning memory off stops NotSoAI from seeing or saving them but doesn't delete the ones already saved.",
           "Warnings are kept until a server's moderators remove them, or until the server's own expiry setting deletes them (they don't expire unless the server sets one). They're the server's records, so they stay if the warned member or the moderator leaves the server or deletes their Discord account, and deleting your information doesn't remove warnings a server gave You.",
+          "Warnings from NotSoBot's staff are kept to prevent repeat abuse, like safety records. Deleting your information doesn't remove them, and a copy of your information includes them.",
           "Reports to a server's moderators, and the replies on them, are kept until the server's data is deleted, except the reported member's image and a reported message's text and image, which are deleted 30 days after the report. Like warnings, they're the server's records, so they stay if the member who sent one or the reported member leaves the server or deletes their Discord account, and deleting your information doesn't remove them.",
           "Server settings are kept if NotSoBot is removed from a server, so they still apply if it's added back. A server owner can ask Us to delete them.",
           "Safety records are kept to prevent repeat abuse, and for as long as the law requires for anything We report.",

@@ -19,6 +19,8 @@ import type {
   AdminTagDirectoryPage,
   AdminUser,
   AdminUserPatch,
+  AdminUserWarningCreated,
+  AdminUserWarnings,
   AdminUsersPage,
   AdminTagDirectorySortBy,
   AdminCopyrightStrikes,
@@ -105,6 +107,7 @@ import type {
   MeReportsUnread,
   WebsiteReportBody,
   RemindersPage,
+  UserWarnings,
   Report,
   ReportMessage,
   ReportMessagesPage,
@@ -112,6 +115,7 @@ import type {
   ReportPatch,
   ReportStatus,
   ReportsPage,
+  GuildLogger,
   GuildRule,
   GuildRuleInput,
   InfoDiscord,
@@ -453,6 +457,16 @@ export const api = {
 
   fetchMeReminders: (signal?: AbortSignal) => {
     return apiRequest<RemindersPage>(ApiEndpoints.USER_ME_REMINDERS, {signal});
+  },
+
+  // warnings NotSoBot staff gave them, newest first
+  fetchMeWarnings: (signal?: AbortSignal) => {
+    return apiRequest<UserWarnings>(ApiEndpoints.USER_ME_WARNINGS, {signal});
+  },
+
+  // marks them seen (all the pending ones without `warningIds`), the bot stops showing them in place of a command
+  acknowledgeMeWarnings: (warningIds?: Array<string>) => {
+    return apiRequest<{acknowledged: number}>(ApiEndpoints.USER_ME_WARNINGS_ACKNOWLEDGE, {method: 'POST', body: {warning_ids: warningIds}});
   },
 
   // one of the caller's reports, `/dashboard/reports/:reportId`
@@ -851,6 +865,11 @@ export const api = {
     return apiRequest<Array<GuildRule>>(guildEndpoints(scope, guildId).RULES_DELETE, {method: 'POST', body: {ids}});
   },
 
+  // replaces what the logger ignores
+  editGuildLogger: (scope: GuildScope, guildId: string, body: {channel_id: string, ignored_ids: Array<string>, type: number}) => {
+    return apiRequest<GuildLogger>(guildEndpoints(scope, guildId).LOGGERS, {method: 'PATCH', body});
+  },
+
   removeGuildLogger: (scope: GuildScope, guildId: string, body: {channel_id: string, type: number}) => {
     return apiRequest<void>(guildEndpoints(scope, guildId).LOGGERS_DELETE, {method: 'POST', body});
   },
@@ -1066,6 +1085,20 @@ export const api = {
   // copyright removals of the user's tags and files, one per staff action, for the repeat infringer policy
   fetchAdminUserCopyrightStrikes: (userId: string, signal?: AbortSignal) => {
     return apiRequest<AdminCopyrightStrikes>(ApiEndpoints.ADMIN_USER_COPYRIGHT_STRIKES(userId), {signal});
+  },
+
+  fetchAdminUserWarnings: (userId: string, signal?: AbortSignal) => {
+    return apiRequest<AdminUserWarnings>(ApiEndpoints.ADMIN_USER_WARNINGS(userId), {signal});
+  },
+
+  // DMs them and shows it in place of their next command
+  createAdminUserWarning: (userId: string, reason: string) => {
+    return apiRequest<AdminUserWarningCreated>(ApiEndpoints.ADMIN_USER_WARNINGS(userId), {method: 'POST', body: {reason}});
+  },
+
+  // owner only
+  deleteAdminUserWarning: (userId: string, warningId: string) => {
+    return apiRequest<void>(ApiEndpoints.ADMIN_USER_WARNING(userId, warningId), {method: 'DELETE'});
   },
 
   fetchAdminTagDuplicates: (tagId: string, signal?: AbortSignal) => {

@@ -271,6 +271,21 @@ export const MEDIASCRIPT_PORTUGUESE_7: TagDocsTranslation['mediaScriptCommands']
       DITHER: 'aplicar dithering nas cores (usa a paleta ALL se nenhuma for escolhida)',
     },
   },
+  lightrays: {
+    summary: 'Estica as partes claras da mídia a partir do centro em raios de luz, como o Light Rays do VEGAS.',
+    args: {
+      MEDIA_KEY: MEDIA,
+      SENSITIVITY: 'quanto do brilho forma raios: `1` é cada pixel (como o Vegas), `0.5` só a metade mais clara',
+      STRENGTH: 'quão longos e brilhantes são os raios; `1` é o mais forte do Vegas',
+    },
+    results: [
+      'Raios a partir das partes mais claras.',
+      'A imagem toda brilhando para fora em raios longos.',
+    ],
+    notes: [
+      'Como um `zoomblur` só dos realces: os raios têm o mesmo comprimento em toda parte e, em mídia transparente, saem pelas bordas.',
+    ],
+  },
   magikanimated: {
     summary: 'Aplica o `magik` (redimensionamento líquido) cada vez mais ao longo dos quadros.',
     args: {

@@ -195,6 +195,7 @@ export function TagOwnerStrip({ user, fallbackId, blockReason, children }: {
           user={owner}
           blocked={owner.blocked}
           blockedReason={owner.blocked_reason}
+          blockedUntil={owner.blocked_until}
           defaultReason={blockReason}
           onClose={() => setBlocking(false)}
         />

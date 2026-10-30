@@ -213,13 +213,16 @@ export const MEDIASCRIPT_SPANISH_3: TagDocsTranslation['mediaScriptCommands'] = 
     args: {
       MEDIA_KEY: MEDIA,
       FACE: 'el número que `drawfaces` pone en la cara, en el primer fotograma en el que aparece',
+      ZOOM: 'recorta cada fotograma a su propia cara y lo agranda al tamaño de la cara más grande, así la cara mantiene el mismo tamaño',
     },
     results: [
       'Sigue la primera cara encontrada en el video.',
       'Recorta a la segunda cara (la que `drawfaces` numera 1).',
+      'Sigue la primera cara y hace zoom con ella, así mantiene el mismo tamaño.',
     ],
     notes: [
       'Cada fotograma se recorta al mismo tamaño, el más grande que llega a tener la cara (con algo de margen), y centrado en ella, así que se mueve con la cara pero nunca hace zoom. En los fotogramas donde no se encuentra, su posición se toma de los fotogramas de alrededor.',
+      'Con `ZOOM` cada fotograma se recorta a su propia cara (con el mismo margen) y se agranda a ese tamaño más grande, así la cara mantiene el mismo tamaño y el fondo hace zoom a su alrededor.',
     ],
   },
   cropnft: {

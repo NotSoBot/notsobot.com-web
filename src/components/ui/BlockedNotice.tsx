@@ -4,7 +4,7 @@ import { Link } from 'react-router';
 import { Routes } from '@/config';
 import { useI18n } from '@/i18n';
 import type { UserMe } from '@/lib/api';
-import { cn, formatDate, formatExactDateTime } from '@/lib/utils';
+import { cn, formatDate, formatDateTime, formatExactDateTime } from '@/lib/utils';
 
 
 // shown to a user NotSoBot staff blocked; the site still works for them, but the bot ignores their commands
@@ -18,6 +18,10 @@ export function BlockedNotice({ className, user }: {className?: string, user: Us
           {t('ui.blocked.title')}
           {(user.blocked_on) ? (
             <span className='font-normal text-subtle' title={formatExactDateTime(user.blocked_on)}>{t('ui.blocked.since', {date: formatDate(user.blocked_on)})}</span>
+          ) : null}
+          {(user.blocked_until) ? (
+            // a timed block, it lifts on its own
+            <span className='font-normal text-subtle' title={formatExactDateTime(user.blocked_until)}>{t('ui.blocked.until', {date: formatDateTime(user.blocked_until)})}</span>
           ) : null}
         </p>
         <p className='mt-1'>

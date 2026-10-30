@@ -136,6 +136,12 @@ const TTS_VOICES: Array<[string, string]> = [
   ['SAPI_MICROSOFT_EN_MALE_SAM', 'Classic SAPI: Microsoft Sam'],
   ['SAPI_SCANSOFT_EN_MALE_MLG_DANIEL', 'Classic SAPI: ScanSoft Daniel (MLG)'],
   ['KLATTSCH', 'Formant synthesizer you can steer with ARPABET phonemes, pitch and voice controls. See the Klattsch section.'],
+  ['SAM_C64', 'SAM (Commodore 64, 1982)'],
+  ['SAM_ELF', 'SAM (Commodore 64, 1982): Elf'],
+  ['SAM_EXTRA_TERRESTRIAL', 'SAM (Commodore 64, 1982): Extra-Terrestrial'],
+  ['SAM_LITTLE_OLD_LADY', 'SAM (Commodore 64, 1982): Little Old Lady'],
+  ['SAM_LITTLE_ROBOT', 'SAM (Commodore 64, 1982): Little Robot'],
+  ['SAM_STUFFY_GUY', 'SAM (Commodore 64, 1982): Stuffy Guy'],
 ];
 
 
@@ -1723,17 +1729,20 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     name: 'cropface',
     category: 'size',
     summary: 'Crops the media to one face and follows it from frame to frame.',
-    syntax: 'cropface MEDIA_KEY FACE=0',
+    syntax: 'cropface MEDIA_KEY FACE=0 ZOOM=false',
     args: [
       media(),
       {name: 'FACE', default: '0', range: '0..99', description: 'the number `drawfaces` puts on the face, on the first frame it shows up in'},
+      {name: 'ZOOM', default: 'false', description: 'crop every frame to its own face and scale it up to the biggest face\'s size, so the face stays the same size'},
     ],
     examples: [
       {code: '{mediascript:load {video} clip\ncropface clip\nrender clip}', result: 'Follows the first face found in the video.'},
       {code: '{mediascript:load {image} img\ncropface img 1\nrender img}', result: 'Crops to the second face (the one `drawfaces` numbers 1).'},
+      {code: '{mediascript:load {video} clip\ncropface clip 0 zoom\nrender clip}', result: 'Follows the first face and zooms with it, so it stays the same size.'},
     ],
     notes: [
       'Every frame is cropped to the same size, the biggest the face gets (with some room around it), and centered on the face, so it moves with the face but never zooms. Frames it isn\'t found on take its place from the frames around them.',
+      'With `ZOOM` every frame is cropped to its own face (with the same room) and scaled up to that biggest size instead, so the face stays the same size and the background zooms around it.',
     ],
   },
   {
@@ -3323,6 +3332,24 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
       {name: 'SIZE', default: 'none', range: '1..50', description: 'bricks along the longest side; none picks automatically'},
       {name: 'PALETTE', default: 'none', range: 'ALL, EFFECTS, MONO, SOLID, TRANSPARENT', description: 'limit the colors to real LEGO colors'},
       {name: 'DITHER', default: 'false', description: 'dither the colors (uses the ALL palette if none is picked)'},
+    ],
+  },
+  {
+    name: 'lightrays',
+    category: 'filters',
+    summary: 'Streaks the bright parts of the media out from the middle into glowing rays, like VEGAS\' Light Rays.',
+    syntax: 'lightrays MEDIA_KEY SENSITIVITY=0.5 STRENGTH=1',
+    args: [
+      media(),
+      {name: 'SENSITIVITY', default: '0.5', range: '0..1', description: 'how much of the brightness makes rays: `1` is every pixel (as Vegas), `0.5` only the brighter half'},
+      {name: 'STRENGTH', default: '1', range: '0..2', description: 'how long and bright the rays are; `1` is the strongest Vegas goes'},
+    ],
+    examples: [
+      {code: '{mediascript:load {iv} img\nlightrays img\nrender img}', result: 'Rays from the brightest parts.'},
+      {code: '{mediascript:load {iv} img\nlightrays img 1 2\nrender img}', result: 'The whole picture glowing out in long rays.'},
+    ],
+    notes: [
+      'Like a `zoomblur` of only the highlights: the rays are the same length all over, and on transparent media they spill past its edges.',
     ],
   },
   {

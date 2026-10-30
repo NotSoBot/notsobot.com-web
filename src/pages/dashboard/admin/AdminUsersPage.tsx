@@ -17,9 +17,10 @@ import { premiumLabel } from '../premium';
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from '../ui';
 import { adminTagsPath, adminUserPath, BLOCKED_FILTERS, Chip, ContentFlagTiles, CopyableValue, DateTile, ExactDate, FiltersButton, FLAGGED_WITHIN, Hint, Pagination, StatTile, useSearchParamState, useStepBackFromEmptyPage } from './adminUi';
 import { AdminModalFooter, AdminTagModal, LinkedItemModal, useOpenListItem } from './AdminTagModal';
-import { BlockUserDialog, canBlockUser } from './BlockUserDialog';
+import { BlockUserDialog, BlockedUntilLine, canBlockUser } from './BlockUserDialog';
 import { DeleteUserTagsDialog } from './DeleteUserTagsDialog';
 import { EditUserDialog } from './EditUserDialog';
+import { UserWarningsSection } from './UserWarnings';
 
 
 const SORTS: Array<{value: AdminUsersSortBy, label: string}> = [
@@ -200,7 +201,7 @@ function UserRow({ entry, onOpen }: {entry: AdminUserEntry, onOpen: (userId: str
         </div>
         <div className='flex shrink-0 flex-wrap justify-end gap-1.5'>
           {(user.blocked) ? (
-            <Chip tone='danger' title={user.blocked_reason || 'No reason given'}>
+            <Chip tone='danger' title={[user.blocked_reason || 'No reason given', (user.blocked_until) ? `Until ${formatDateTime(user.blocked_until)}` : null].filter(Boolean).join('\n')}>
               <Ban aria-hidden className='mr-1 size-3'/>
               Blocked
             </Chip>
@@ -305,7 +306,7 @@ function UserDetails({ entry, navigation }: {
       />
 
       <div className='px-4 pt-4 pb-5 sm:border-t sm:border-line sm:px-6'>
-        {(user.blocked) ? <div className='mb-5 [&>div]:w-full'><BlockedNotice reason={user.blocked_reason}/></div> : null}
+        {(user.blocked) ? <div className='mb-5 [&>div]:w-full'><BlockedNotice reason={user.blocked_reason} until={user.blocked_until}/></div> : null}
 
         {/* side by side from sm up so both fill two rows of tiles: the flag counts by status on the left, commands and
             reports on the right once there's room, then what they have across the bottom. Stacked below that */}
@@ -340,6 +341,9 @@ function UserDetails({ entry, navigation }: {
         </section>
 
         <CopyrightStrikes userId={user.id}/>
+
+        {/* same rules as blocking: not owners, and moderators can't warn moderators */}
+        <UserWarningsSection user={user} cantWarnReason={(canBlock) ? null : (owner) ? 'Owners can’t be warned.' : 'Only owners can warn moderators.'} viewerIsOwner={viewerIsOwner}/>
 
         {(cantBlockReason) ? <p className='mt-4 text-xs text-subtle'>{cantBlockReason}</p> : null}
       </div>
@@ -378,7 +382,7 @@ function UserDetails({ entry, navigation }: {
       </AdminModalFooter>
 
       {(blocking) ? (
-        <BlockUserDialog user={user} blocked={user.blocked} blockedReason={user.blocked_reason} onClose={() => setBlocking(false)}/>
+        <BlockUserDialog user={user} blocked={user.blocked} blockedReason={user.blocked_reason} blockedUntil={user.blocked_until} onClose={() => setBlocking(false)}/>
       ) : null}
       {(editing) ? <EditUserDialog user={user} onClose={() => setEditing(false)}/> : null}
       {(deletingTags) ? <DeleteUserTagsDialog user={user} onClose={() => setDeletingTags(false)}/> : null}
@@ -452,7 +456,7 @@ function StrikeCard({ strike, users }: {strike: AdminCopyrightStrike, users: Adm
 
 
 // a red callout with the block reason, two lines at most until "Show full reason" opens the rest
-function BlockedNotice({ reason }: {reason: string | null}) {
+function BlockedNotice({ reason, until }: {reason: string | null, until: string | number | null}) {
   const ref = useRef<HTMLParagraphElement>(null);
   const [ expanded, setExpanded ] = useState(false);
   const [ overflowing, setOverflowing ] = useState(false);
@@ -491,6 +495,7 @@ function BlockedNotice({ reason }: {reason: string | null}) {
           <ChevronDown aria-hidden className={cn('size-3.5 transition-transform', expanded && 'rotate-180')}/>
         </button>
       ) : null}
+      <BlockedUntilLine until={until} className='mt-1 text-xs'/>
     </div>
   );
 }
