@@ -283,6 +283,14 @@ export const MEDIASCRIPT_SPANISH_5: TagDocsTranslation['mediaScriptCommands'] = 
     args: ONLY_MEDIA,
     notes: ['Útil para ver qué caras van a encontrar los efectos de caras.'],
   },
+  drawobjects: {
+    summary: 'Dibuja un recuadro con nombre alrededor de cada objeto encontrado.',
+    args: ONLY_MEDIA,
+    notes: [
+      'Cada etiqueta es el nombre del objeto y qué tan seguro está el detector, los mismos objetos a los que recorta `cropauto`. El mismo tipo de objeto siempre tiene el mismo color.',
+      'En las animaciones se mira cada pocos fotogramas, los fotogramas intermedios mantienen los recuadros del último.',
+    ],
+  },
   facehalloweenhat: {
     summary: 'Pone un sombrero de Halloween encima de cada cabeza.',
     args: ONLY_MEDIA,

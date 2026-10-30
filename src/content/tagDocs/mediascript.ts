@@ -150,6 +150,11 @@ function media(description: string = 'the media to change'): TagDocMediaScriptAr
 }
 
 
+// the face effects that do one face
+function faceNumber(): TagDocMediaScriptArgument {
+  return {name: 'FACE', default: 'none', range: '0..99', description: 'the number `drawfaces` puts on a face, to use that face and follow it through the frames instead of the biggest one on every frame'};
+}
+
 const TEXT_FONTS = 'sans, serif, monospace, archivoblack, arial, calibri, daysone, dejavumono, domine, dosis, freemono, futura, impact, kalam, montserrat, montserratbold, montserratsemibold, mplus1c, mplus2p, mrdafoe, msgothic, opensans, pricedown, roboto, rubik, saira, sfpro, sfprothin, sfprotext, tahoma, titillium, titilliumblack';
 
 // the look options `text`, `fittext` and `drawtext` share, always given by name (`FONT=impact`)
@@ -1714,9 +1719,20 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     name: 'cropauto',
     aliases: ['cropsmart'],
     category: 'size',
-    summary: 'Automatically crops to the most interesting part of the media.',
-    syntax: 'cropauto MEDIA_KEY',
-    args: [media()],
+    summary: 'Automatically crops to the objects in the media and follows them from frame to frame.',
+    syntax: 'cropauto MEDIA_KEY ZOOM=false',
+    args: [
+      media(),
+      {name: 'ZOOM', default: 'false', description: 'crop every frame to its own objects and scale it up to the biggest crop\'s size, so they fill it the whole way'},
+    ],
+    examples: [
+      {code: '{mediascript:load {image} img\ncropauto img\nrender img}', result: 'Crops to the objects in the image.'},
+      {code: '{mediascript:load {video} clip\ncropauto clip zoom\nrender clip}', result: 'Follows the objects in the video and zooms with them, so they always fill it.'},
+    ],
+    notes: [
+      'The objects are the ones `drawobjects` boxes, looked for every few frames. Every frame is cropped to the same size, the biggest the box around them gets (with some room), and centered on them, so it moves with them but never zooms. With no objects it trims a plain white or black border instead.',
+      'With `ZOOM` every frame is cropped to the box around its own objects and scaled up to that biggest size instead, so the background zooms around them.',
+    ],
   },
   {
     name: 'cropcircle',
@@ -1732,7 +1748,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     syntax: 'cropface MEDIA_KEY FACE=0 ZOOM=false',
     args: [
       media(),
-      {name: 'FACE', default: '0', range: '0..99', description: 'the number `drawfaces` puts on the face, on the first frame it shows up in'},
+      {name: 'FACE', default: '0', range: '0..99', description: 'the number `drawfaces` puts on the face, it keeps that number on every frame'},
       {name: 'ZOOM', default: 'false', description: 'crop every frame to its own face and scale it up to the biggest face\'s size, so the face stays the same size'},
     ],
     examples: [
@@ -2380,7 +2396,21 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     summary: 'Puts a translucent numbered oval over every face found.',
     syntax: 'drawfaces MEDIA_KEY',
     args: [media()],
-    notes: ['Handy to see which faces the face effects will find.'],
+    notes: [
+      'Handy to see which faces the face effects will find.',
+      'A face keeps its number on every frame, even after it goes missing for a while. The first frame\'s faces are numbered biggest first, faces that show up later get the next numbers. It\'s the `FACE` that `cropface` and the face effects take.',
+    ],
+  },
+  {
+    name: 'drawobjects',
+    category: 'compose',
+    summary: 'Draws a labeled box around every object found.',
+    syntax: 'drawobjects MEDIA_KEY',
+    args: [media()],
+    notes: [
+      'Each label is the object\'s name and how sure the detector is, the same objects `cropauto` crops to. The same kind of object always gets the same color.',
+      'Animations get looked at every few frames, the frames between keep the boxes of the last one.',
+    ],
   },
   {
     name: 'facehalloweenhat',
@@ -2415,8 +2445,8 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     name: 'faceknight',
     category: 'compose',
     summary: 'Puts the biggest face on a knight with a sword.',
-    syntax: 'faceknight MEDIA_KEY',
-    args: [media()],
+    syntax: 'faceknight MEDIA_KEY FACE=none',
+    args: [media(), faceNumber()],
   },
   {
     name: 'facelenin',
@@ -2429,15 +2459,15 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     name: 'facemonalisa',
     category: 'compose',
     summary: 'Puts the biggest face onto the Mona Lisa.',
-    syntax: 'facemonalisa MEDIA_KEY',
-    args: [media()],
+    syntax: 'facemonalisa MEDIA_KEY FACE=none',
+    args: [media(), faceNumber()],
   },
   {
     name: 'facemountrushmore',
     category: 'compose',
     summary: 'Carves the biggest face into Mount Rushmore.',
-    syntax: 'facemountrushmore MEDIA_KEY',
-    args: [media()],
+    syntax: 'facemountrushmore MEDIA_KEY FACE=none',
+    args: [media(), faceNumber()],
   },
   {
     name: 'faceswap',
@@ -4023,37 +4053,43 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     name: 'facealien',
     category: 'distort',
     summary: 'Warps the biggest face into an alien.',
-    syntax: 'facealien MEDIA_KEY SKIN=true',
+    syntax: 'facealien MEDIA_KEY SKIN=true FACE=none',
     args: [
       media(),
       {name: 'SKIN', default: 'true', description: 'also turn skin green and everything else cold blue'},
+      faceNumber(),
     ],
   },
   {
     name: 'faceanime',
     category: 'distort',
     summary: 'Gives the biggest face big anime eyes.',
-    syntax: 'faceanime MEDIA_KEY EYES=NORMAL',
+    syntax: 'faceanime MEDIA_KEY EYES=NORMAL FACE=none',
     args: [
       media(),
       {name: 'EYES', default: 'NORMAL', range: 'NORMAL, AQUA, BLUE, BROWN, GREEN, PURPLE, RED', description: 'eye color'},
+      faceNumber(),
     ],
   },
   {
     name: 'faceclown',
     category: 'distort',
     summary: 'Gives the biggest face clown makeup.',
-    syntax: 'faceclown MEDIA_KEY',
-    args: [media()],
+    syntax: 'faceclown MEDIA_KEY FACE=none',
+    args: [media(), faceNumber()],
+    examples: [
+      {code: '{mediascript:load {video} clip\nfaceclown clip 1\nrender clip}', result: 'Clowns the face `drawfaces` numbers 1, on every frame, even when another face is bigger.'},
+    ],
   },
   {
     name: 'facefat',
     category: 'distort',
     summary: 'Makes the biggest face fat.',
-    syntax: 'facefat MEDIA_KEY SIZE=XXXL',
+    syntax: 'facefat MEDIA_KEY SIZE=XXXL FACE=none',
     args: [
       media(),
       {name: 'SIZE', default: 'XXXL', range: 'XL, XXL, XXXL'},
+      faceNumber(),
     ],
   },
   {
@@ -4061,10 +4097,11 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     aliases: ['forehead'],
     category: 'distort',
     summary: 'Makes the biggest face\'s forehead taller, SMOOTHBRAIN squishes it instead.',
-    syntax: 'faceforehead MEDIA_KEY SIZE=FIVEHEAD',
+    syntax: 'faceforehead MEDIA_KEY SIZE=FIVEHEAD FACE=none',
     args: [
       media(),
       {name: 'SIZE', default: 'FIVEHEAD', range: 'SMOOTHBRAIN, FIVEHEAD, SIXHEAD, SEVENHEAD'},
+      faceNumber(),
     ],
   },
 

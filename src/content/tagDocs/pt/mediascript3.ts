@@ -201,8 +201,19 @@ export const MEDIASCRIPT_PORTUGUESE_3: TagDocsTranslation['mediaScriptCommands']
     },
   },
   cropauto: {
-    summary: 'Recorta automaticamente para a parte mais interessante da mídia.',
-    args: ONLY_MEDIA,
+    summary: 'Recorta automaticamente para os objetos da mídia e os segue de quadro em quadro.',
+    args: {
+      MEDIA_KEY: MEDIA,
+      ZOOM: 'recorta cada quadro nos seus próprios objetos e o amplia ao tamanho do maior recorte, assim eles o preenchem o tempo todo',
+    },
+    results: [
+      'Recorta nos objetos da imagem.',
+      'Segue os objetos do vídeo e faz zoom com eles.',
+    ],
+    notes: [
+      'Os objetos são os que o `drawobjects` enquadra, procurados a cada poucos quadros. Cada quadro é recortado no mesmo tamanho, o maior que a caixa em volta deles chega a ter (com uma margem), e centrado neles, assim acompanha os objetos mas nunca faz zoom. Sem objetos recorta uma borda lisa branca ou preta.',
+      'Com `ZOOM` cada quadro é recortado na caixa dos seus próprios objetos e ampliado a esse maior tamanho, assim o fundo faz zoom em volta deles.',
+    ],
   },
   cropcircle: {
     summary: 'Recorta a mídia num círculo com o lado de fora transparente.',

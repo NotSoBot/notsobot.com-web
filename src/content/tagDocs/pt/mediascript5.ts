@@ -284,6 +284,14 @@ export const MEDIASCRIPT_PORTUGUESE_5: TagDocsTranslation['mediaScriptCommands']
     args: ONLY_MEDIA,
     notes: ['Útil para ver quais rostos os efeitos de rosto vão encontrar.'],
   },
+  drawobjects: {
+    summary: 'Desenha uma caixa com nome em volta de cada objeto encontrado.',
+    args: ONLY_MEDIA,
+    notes: [
+      'Cada etiqueta é o nome do objeto e o quanto o detector tem certeza, os mesmos objetos em que o `cropauto` recorta. O mesmo tipo de objeto sempre tem a mesma cor.',
+      'Nas animações olha-se a cada poucos quadros, os quadros intermediários mantêm as caixas do último.',
+    ],
+  },
   facehalloweenhat: {
     summary: 'Coloca um chapéu de Halloween em cima de cada cabeça.',
     args: ONLY_MEDIA,
