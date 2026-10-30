@@ -47,6 +47,10 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'new', text: 'Warnings from NotSoBot\'s staff are sent to you in a DM, shown before your next command and listed on the dashboard, where you can dismiss them. Blocks from the bot can also be temporary now.'},
       {kind: 'fixed', text: 'A tag whose `load` line isn\'t a link says `Invalid url` with what it got, instead of a confusing error.'},
       {kind: 'fixed', text: 'Music: a track shorter than a second on repeat plays about once a second instead of restarting as fast as it can.'},
+      {kind: 'improved', text: 'Effects on gifs and videos are faster, many about twice as fast (like `.glitch`, `.multiply` and `.edgedetect`), and long gifs save faster.'},
+      {kind: 'improved', text: '`.audio compress` (`/media-av-effect compress`) leaves a video\'s picture as it is instead of re-encoding it, and so does **MediaScript:** `audionoise`.'},
+      {kind: 'fixed', text: 'Long gifs (over 80 frames), like a video turned into a gif, keep their colors after a scene cut instead of going grey-ish for the rest of it.'},
+      {kind: 'fixed', text: '`.drawfaces` and the face number options: a face that leaves the frame and comes back a bit further off keeps its number instead of getting a new one.'},
     ],
   },
   {
