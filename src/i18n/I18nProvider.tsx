@@ -237,8 +237,9 @@ export function I18nProvider({ createRouter }: {createRouter: (basename: string)
 }
 
 
-// Outside the provider (an error page rendered after it broke, a hot reload swapping the context) this falls back to
-// whatever language is active, without switching. The error pages have to render no matter what
+// Outside the provider (an error page rendered after it broke, a hot reload swapping the context, the worker rendering
+// a page in src/entry-server.tsx) this falls back to whatever language is active, without switching. The error pages
+// have to render no matter what
 export function useI18n(): I18nContextValue {
   return useContext(I18nContext) ?? fallbackContext();
 }

@@ -1,6 +1,6 @@
-// Serves the built site (dist/) through Workers Static Assets.
+// Serves the built site (dist/client/, from the vite build) through Workers Static Assets.
 // /assets/* and other files never reach this code (see run_worker_first in wrangler.jsonc). Everything else is a
-// page, so it gets dist/index.html with that page's metatags filled in for Discord/Twitter/search embeds.
+// page, so it gets index.html with that page's metatags filled in for Discord/Twitter/search embeds.
 
 import { ApiRedirect, DomainRouter, FetchRouter, HttpMethods } from 'cf-worker-router';
 
@@ -18,6 +18,7 @@ import {
 } from '../src/lib/api/types';
 import { enabledCommandVariants } from '../src/lib/commandAvailability';
 import { commandTypeFromPath } from '../src/lib/commandPaths';
+import { renderApp, type RenderedPage } from '../src/entry-server';
 import { DEFAULT_LANGUAGE, LANGUAGE_PREFIXES, languagePath, Languages, splitLanguagePath, type Language } from '../src/i18n/languages';
 import { Layout as EnglishLayout } from '../src/i18n/locales/en/layout';
 import { Layout as SpanishLayout } from '../src/i18n/locales/es/layout';
@@ -46,6 +47,21 @@ const UMAMI_SCRIPT_URL = 'https://oasis.notsocompany.com/drink.js';
 
 // short domains that only redirect to SITE_DOMAIN, keeping the path and query (notso.bot/invite, notso.bot/es/premium)
 const REDIRECT_DOMAINS = ['notso.bot', 'www.notso.bot'];
+
+// pages the worker renders with react (src/entry-server.tsx) for the browser to hydrate, plus the not-found page.
+// every other page gets renderStaticBody until the browser renders it. most left out show data from the api, which
+// the worker doesn't load for them yet, so they would only render their loading state. CHANGELOG and TAG_DOCS(_MEDIASCRIPT)
+// show everything at once (~1 MB of html, 8-11 ms of cpu on an M-series mac), which needs the paid plan's cpu limit
+const SERVER_RENDERED_PAGES: ReadonlySet<PageKey> = new Set([
+  'HOME',
+  'FAQ',
+  'PREMIUM',
+  'CHANGELOG',
+  'TAG_DOCS',
+  'TAG_DOCS_MEDIASCRIPT',
+  'LEGAL_PRIVACY',
+  'LEGAL_TERMS_OF_SERVICE',
+]);
 
 interface Page {
   key: PageKey,
@@ -687,6 +703,16 @@ async function renderPage(request: Request, env: Env): Promise<Response> {
     head += `<script defer data-website-id="${escapeHtml(env.UMAMI_WEBSITE_ID)}" src="${UMAMI_SCRIPT_URL}"></script>`;
   }
 
+  // a page that fails to render still gets the static body, the browser renders it like any other
+  let rendered: RenderedPage | null = null;
+  if (!page || SERVER_RENDERED_PAGES.has(page.key)) {
+    try {
+      rendered = await renderApp(request, language);
+    } catch (error) {
+      console.error('render failed', url.pathname, error);
+    }
+  }
+
   const response = new HTMLRewriter()
     .on('html', {element: (element) => { element.setAttribute('lang', language); }})
     .on('meta[name="description"]', {element: (element) => { element.remove(); }})
@@ -694,7 +720,12 @@ async function renderPage(request: Request, env: Env): Promise<Response> {
     // setInnerContent escapes text by default
     .on('title', {element: (element) => { element.setInnerContent(pageTitle(meta)); }})
     .on('head', {element: (element) => { element.append(head, {html: true}); }})
-    .on('div#root', {element: (element) => { element.setInnerContent(renderStaticBody(language, meta), {html: true}); }})
+    .on('div#root', {element: (element) => {
+      element.setInnerContent(rendered?.html ?? renderStaticBody(language, meta), {html: true});
+      if (rendered) {
+        element.after(rendered.hydrationScript, {html: true});
+      }
+    }})
     .transform(shell);
 
   const headers = new Headers(response.headers);
@@ -717,14 +748,19 @@ const router = new FetchRouter();
 
 // the hosts that get the site. production's route catches every subdomain of notsobot.com (wrangler.jsonc), anything
 // not here or in REDIRECT_DOMAINS matches no route and gets cf-worker-router's 404, like nsb.gg. beta.notsobot.com is
-// the beta script's (`wrangler deploy --env beta`), and `wrangler dev` sends requests in as notsobot.com
+// the beta script's (`CLOUDFLARE_ENV=beta` build), and `wrangler dev` sends requests in as notsobot.com
 const SITE_HOSTS = ['notsobot.com', 'www.notsobot.com', 'beta.notsobot.com'];
+// `vite dev` and `vite preview` keep the request's own host. the routes never send these to the worker in production
+const LOCAL_HOSTS = ['localhost', '127.0.0.1'];
 
-for (const host of SITE_HOSTS) {
+for (const host of [...SITE_HOSTS, ...LOCAL_HOSTS]) {
   const site = new DomainRouter(host);
 
-  // normally the zone's notsobot.com/api/* route skips workers entirely, this is just in case
-  site.route(['/api', '/api/:path...'], '*', (event) => fetch(event.request), {priority: 1});
+  // normally the zone's notsobot.com/api/* route skips workers entirely, this is just in case. locally it would fetch
+  // the worker itself (`vite dev` sends `/api` to its proxy before the worker, vite.config.ts)
+  if (!LOCAL_HOSTS.includes(host)) {
+    site.route(['/api', '/api/:path...'], '*', (event) => fetch(event.request), {priority: 1});
+  }
 
   site.route('/robots.txt', [HttpMethods.GET, HttpMethods.HEAD], (event) => {
     return new Response(renderRobots(getEnv(event)), {headers: {'content-type': 'text/plain; charset=utf-8', 'cache-control': 'public, max-age=3600'}});

@@ -1,11 +1,12 @@
 import { fileURLToPath } from 'node:url';
 
+import { cloudflare } from '@cloudflare/vite-plugin';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig, loadEnv } from 'vite';
 
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ command, mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
 
   // In development, `/api/*` is proxied so the browser only ever talks to one origin, exactly like production.
@@ -16,7 +17,25 @@ export default defineConfig(({ mode }) => {
   const stripApiPrefix = !env.VITE_DEV_API_PROXY;
 
   return {
-    plugins: [react(), tailwindcss()],
+    // cloudflare() builds worker/index.ts (wrangler.jsonc's `main`) with this same config, so the worker can import
+    // anything the app does (the `@` alias, css, assets), and `vite dev`/`vite preview` run it in workerd in front of
+    // the app. the app lands in dist/client (the static assets) and the worker in dist/notsobot_com_web
+    plugins: [
+      react(),
+      tailwindcss(),
+      cloudflare({
+        // the worker gets requests before vite's own middleware, so in dev vite's module paths (`/@vite/client`,
+        // `/@react-refresh` have no extension, the worker would take them for pages) and `/api` skip it, the latter
+        // to reach the proxy below. production never sends `/api` to the worker either, the zone has a no-worker
+        // route for it (see the readme)
+        config: (command === 'serve') ? (worker) => {
+          const runWorkerFirst = worker.assets?.run_worker_first;
+          if (Array.isArray(runWorkerFirst)) {
+            runWorkerFirst.push('!/@*', '!/src/*', '!/node_modules/*', '!/api', '!/api/*');
+          }
+        } : undefined,
+      }),
+    ],
     resolve: {
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url)),

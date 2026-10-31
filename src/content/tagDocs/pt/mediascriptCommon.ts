@@ -6,7 +6,7 @@ export const MEDIA = 'a mídia a alterar';
 
 // the look options `text`, `fittext` and `drawtext` share
 export const TEXT_STYLE_ARGS: Readonly<Record<string, string>> = {
-  FONT: 'uma das fontes incluídas',
+  FONT: 'uma das fontes incluídas, ou uma chave do `loadfont`',
   SIZE: 'tamanho da fonte em pixels',
   COLOR: 'cor do texto; `none` para texto vazado (com `STROKE`)',
   WIDTH: 'quebra as linhas neste número de pixels; 0 para quebrar só na largura máxima da imagem',

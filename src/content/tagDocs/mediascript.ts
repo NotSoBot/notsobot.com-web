@@ -160,7 +160,7 @@ const TEXT_FONTS = 'sans, serif, monospace, archivoblack, arial, calibri, dayson
 // the look options `text`, `fittext` and `drawtext` share, always given by name (`FONT=impact`)
 function textStyleArgs(defaults: {color: string, stroke: string, width?: boolean}): Array<TagDocMediaScriptArgument> {
   return [
-    {name: 'FONT', default: 'sans', range: TEXT_FONTS, description: 'one of the bundled fonts'},
+    {name: 'FONT', default: 'sans', range: TEXT_FONTS, description: 'one of the bundled fonts, or a key from `loadfont`'},
     {name: 'SIZE', default: '48', range: '1..500', description: 'font size in pixels'},
     {name: 'COLOR', default: defaults.color, description: 'text color, `none` for hollow text (with `STROKE`)'},
     ...(defaults.width === false ? [] : [{name: 'WIDTH', default: '0', range: '0..2048', description: 'wrap lines at this many pixels, 0 to only wrap at the max image width'}]),
@@ -844,6 +844,28 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
       'Apply it with `applylut MEDIA_KEY CUBE_KEY`, or as `lut3d=CUBE_KEY.cube` (or `lut3d=file=CUBE_KEY.cube:interp=tetrahedral`) in `ffmpeg`.',
       'Only 3D LUTs, with `LUT_3D_SIZE` up to 65 and files up to 16mb. At most 10 per script.',
       'Cube keys are separate from media keys, a cube can\'t be used as media.',
+    ],
+  },
+  {
+    name: 'loadfont',
+    category: 'io',
+    summary: 'Loads a font for `text`, `fittext` and `drawtext`.',
+    syntax: 'loadfont URL FONT_KEY',
+    args: [
+      {name: 'URL', description: 'link to the `.ttf`, `.otf`, `.woff` or `.woff2` file, or `FILE_1`, `FILE_2`... for attached files'},
+      {name: 'FONT_KEY', description: 'name to use it by, letters, numbers and _ only'},
+    ],
+    examples: [
+      {
+        code: '{mediascript:loadfont FILE_1 myfont\ntext title Hello World FONT=myfont SIZE=72 COLOR=white STROKE=black\nrender title}',
+        result: 'Writes "Hello World" in the attached font, white with a black outline.',
+      },
+    ],
+    notes: [
+      'Use it as `FONT=FONT_KEY`, as `<span font="FONT_KEY">` in text with `MARKUP=true`, or as `fontfile=FONT_KEY` in the `ffmpeg` command\'s `drawtext` filter.',
+      'Files up to 24mb, at most 4 per script. Font collections (`.ttc`) aren\'t supported, use a single `.ttf` or `.otf`.',
+      'Every font is checked before it\'s used, a broken one fails to load with the reason.',
+      'The key can\'t be a bundled font\'s name (like `impact`), and font keys are separate from media keys.',
     ],
   },
   {
@@ -2010,6 +2032,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
       'The `drawtext` filter always draws its text as written (`expansion=none`, no `%{...}`), and its `fontsize` (1-500), `borderw` (0-100), `shadowx`/`shadowy` (-500 to 500) and `boxborderw` (0-500) have to be plain numbers. The `drawtext` command is the easier way to put text on media.',
       'Output is capped at 10 minutes, 2048x2048 and 2 minutes of FFmpeg run time.',
       '`lut3d` works with LUTs from `loadcube`, as `lut3d=CUBE_KEY.cube` (`applylut` does the same in one line).',
+      '`drawtext` and `showcqt` take a font from `loadfont` (or a bundled one, like `impact`) as `fontfile=FONT_KEY`: `drawtext=fontfile=myfont:text=hi`. Other font paths aren\'t allowed.',
     ],
   },
   {

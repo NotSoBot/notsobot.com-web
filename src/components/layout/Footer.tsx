@@ -66,21 +66,23 @@ export function Footer() {
 
 
 function FooterQuote() {
-  const [ state, setState ] = useState(() => ({quotes: shuffle(QUOTES), index: 0}));
+  // shuffled after the first render, so a page the worker rendered hydrates with the same empty line it was sent
+  const [ state, setState ] = useState<{quotes: typeof QUOTES, index: number} | null>(null);
 
   useEffect(() => {
+    setState({quotes: shuffle(QUOTES), index: 0});
     const timer = window.setInterval(() => {
-      setState(({ quotes, index }) => {
-        return (index + 1 < quotes.length) ? {quotes, index: index + 1} : {quotes: shuffle(QUOTES), index: 0};
+      setState((previous) => {
+        return (previous && previous.index + 1 < previous.quotes.length) ? {...previous, index: previous.index + 1} : {quotes: shuffle(QUOTES), index: 0};
       });
     }, QUOTE_INTERVAL);
     return () => window.clearInterval(timer);
   }, []);
 
-  const [ quote, author ] = state.quotes[state.index];
+  const [ quote, author ] = state?.quotes[state.index] ?? [];
   return (
     <p key={`${quote}-${author}`} className='mb-3 min-h-5 animate-fade-in text-sm text-muted' aria-live='polite'>
-      "{quote}" - {author}
+      {(quote) ? `"${quote}" - ${author}` : null}
     </p>
   );
 }

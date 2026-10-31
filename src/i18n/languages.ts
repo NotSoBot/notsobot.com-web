@@ -28,10 +28,18 @@ export function languageFromLocale(locale?: string | null): Language | null {
 }
 
 
+// The worker's stand-in for navigator.languages while it renders a page: the request's Accept-Language, which the
+// browser sends from the same list, so the dates and numbers it renders match the ones the browser hydrates with
+let serverLocales: ReadonlyArray<string> = [];
+
+export function setServerLocales(locales: ReadonlyArray<string>): void {
+  serverLocales = locales;
+}
+
 // the locale Intl formats dates and numbers with. the browser's own locale when it's the same language
 // ('es-MX' keeps its own date order on the Spanish site), otherwise the language itself
 export function intlLocale(language: Language): string {
-  const preferred = (typeof navigator === 'undefined') ? [] : (navigator.languages ?? [navigator.language]);
+  const preferred = (typeof window === 'undefined') ? serverLocales : (navigator.languages ?? [navigator.language]);
   return preferred.find((locale) => languageFromLocale(locale) === language) ?? language;
 }
 

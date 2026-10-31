@@ -6,7 +6,7 @@ import { Link, useLocation } from 'react-router';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Spinner } from '@/components/ui/Spinner';
 import { Routes } from '@/config';
-import { faqSearchText, loadFaqTranslation, localizedFaq, type FaqQuestion, type FaqSectionId } from '@/content/faq';
+import { faqSearchText, faqTranslationQuery, localizedFaq, type FaqQuestion, type FaqSectionId } from '@/content/faq';
 import { languagePath, Languages, useI18n } from '@/i18n';
 import { cn, decodeHash } from '@/lib/utils';
 
@@ -31,14 +31,7 @@ function sectionAnchor(id: FaqSectionId): string {
 function useFaq() {
   const { language } = useI18n();
   const translated = (language !== Languages.ENGLISH);
-  const translation = useQuery({
-    queryKey: ['faq-translation', language],
-    queryFn: () => loadFaqTranslation(language),
-    enabled: translated,
-    staleTime: Infinity,
-    gcTime: Infinity,
-    retry: 1,
-  });
+  const translation = useQuery({...faqTranslationQuery(language), enabled: translated});
   const faq = useMemo(() => localizedFaq((translated) ? translation.data ?? null : null), [translated, translation.data]);
   return {...faq, ready: !translated || !translation.isPending};
 }

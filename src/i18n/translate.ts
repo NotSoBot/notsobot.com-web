@@ -93,7 +93,10 @@ export function activeDictionary(): Translations {
 
 export function setActiveLanguage(language: Language, dictionary: Translations): void {
   active = {language, dictionary};
-  document.documentElement.lang = language;
+  // the worker sets it too when it renders a page (src/entry-server.tsx), and gives <html> its lang itself
+  if (typeof document !== 'undefined') {
+    document.documentElement.lang = language;
+  }
 }
 
 

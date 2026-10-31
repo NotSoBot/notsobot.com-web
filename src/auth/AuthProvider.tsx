@@ -20,7 +20,10 @@ function isAuthRejection(error: unknown): boolean {
 
 export function AuthProvider({ children }: {children: ReactNode}) {
   const queryClient = useQueryClient();
-  const token = useSyncExternalStore(tokenStorage.subscribe, tokenStorage.get, () => null);
+  // undefined while the worker renders a page and while the browser hydrates it (src/entry-server.tsx): nobody knows
+  // the token yet, so both show the loading state rather than the server's guess of logged out
+  const stored = useSyncExternalStore<string | null | undefined>(tokenStorage.subscribe, tokenStorage.get, () => undefined);
+  const token = stored ?? null;
   const [ loggedOut, setLoggedOut ] = useState(false);
 
   const meQuery = useQuery({
@@ -89,7 +92,9 @@ export function AuthProvider({ children }: {children: ReactNode}) {
   }, [refetch]);
 
   let status: AuthStatus;
-  if (!token) {
+  if (stored === undefined) {
+    status = 'loading';
+  } else if (!token) {
     status = 'anonymous';
   } else if (meQuery.data) {
     status = 'authenticated';

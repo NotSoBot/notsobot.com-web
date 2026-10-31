@@ -134,6 +134,22 @@ export const MEDIASCRIPT_PORTUGUESE_1: TagDocsTranslation['mediaScriptCommands']
       'Chaves de cube são separadas das chaves de mídia; um cube não pode ser usado como mídia.',
     ],
   },
+  loadfont: {
+    summary: 'Carrega uma fonte para o `text`, o `fittext` e o `drawtext`.',
+    args: {
+      URL: 'link para o arquivo `.ttf`, `.otf`, `.woff` ou `.woff2`, ou `FILE_1`, `FILE_2`... para arquivos anexados',
+      FONT_KEY: 'o nome pelo qual usá-la; só letras, números e _',
+    },
+    results: [
+      'Escreve "Hello World" com a fonte anexada, em branco com contorno preto.',
+    ],
+    notes: [
+      'Use como `FONT=FONT_KEY`, como `<span font="FONT_KEY">` em texto com `MARKUP=true`, ou como `fontfile=FONT_KEY` no filtro `drawtext` do comando `ffmpeg`.',
+      'Arquivos de até 24mb, no máximo 4 por script. Coleções de fontes (`.ttc`) não são suportadas; use um único `.ttf` ou `.otf`.',
+      'Toda fonte é verificada antes de ser usada; uma quebrada falha ao carregar e diz o motivo.',
+      'A chave não pode ser o nome de uma fonte incluída (como `impact`), e chaves de fonte são separadas das chaves de mídia.',
+    ],
+  },
   render: {
     summary: 'Encerra o script e envia a mídia como resultado, opcionalmente convertida para outro formato.',
     args: {

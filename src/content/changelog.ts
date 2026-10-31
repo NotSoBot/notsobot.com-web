@@ -31,6 +31,7 @@ export const CHANGELOG: Array<ChangelogDay> = [
     date: '2026-10-31',
     title: 'Slash and prefixed options match',
     items: [
+      {kind: 'new', text: '**MediaScript:** `loadfont` loads your own font (`.ttf`, `.otf`, `.woff` or `.woff2`, from a link or `FILE_n`) for `text`, `fittext` and `drawtext`: `loadfont FILE_1 myfont`, then `FONT=myfont`, `<span font="myfont">` in markup, or `fontfile=myfont` in the `ffmpeg` command\'s `drawtext` filter (bundled fonts work there too, like `fontfile=impact`).'},
       {kind: 'new', text: '`.fadeoverlay` (`/media-aiv fade-overlay`): slowly fades the second media in on top of the first until it covers it, with its sound crossfading in too. Works with images, gifs, videos and audio, two still images become a 3 second gif. Pick when it starts and how long it takes with `-start` and `-duration`: `.fadeoverlay @cakedan @notsobot -start 1 -duration 2`.'},
       {kind: 'new', text: '`/media-iv-face smile` has `level` (`SUBTLE`, `NORMAL`, `BIG` or `HUGE`), like `.smile -level`.'},
       {kind: 'new', text: 'Slash options the prefixed commands already had: `/media-av-effect compress norevert`, `/media-iv-filter ascii zoom`, `/media-iv-filter legofy palette`, `/media-iv-distort magik scale`, `/media-iv-filter phosimp grid-x` and `grid-y`, `/media-iv-tools uncaption tolerance`, `/media-aiv-tools convert size`, `/tag remove tag force` and `/download locale`.'},
@@ -48,6 +49,8 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'new', text: 'Dashboard: a server\'s command rules have a search box, plus filters for block or allow, what the rule covers (everything, single commands or a category) and who it\'s for. Searching a channel, role, user or command ID finds its rules, and a filtered list can be linked to.'},
       {kind: 'improved', text: 'The member leave log\'s Time in Guild counts years, like `2 years 14 days`, instead of only days.'},
       {kind: 'improved', text: 'The moderation log shows the reason in a code block on its own line.'},
+      {kind: 'improved', text: '`.warn` (`/warn`) works on users who already left the server, it goes on their record. A warning step that mutes or kicks skips them and says so, a ban step still bans them.'},
+      {kind: 'improved', text: 'The website\'s home, FAQ, premium, changelog, tag docs and legal pages arrive already rendered, so they show up before the page\'s scripts load.'},
     ],
   },
   {

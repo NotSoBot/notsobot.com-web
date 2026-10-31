@@ -3,6 +3,8 @@
 // Facts here are checked against notsobot.ts (prefixes, permissions, settings) as of the category rework.
 // Other languages are faq.<language>.ts, keyed by these ids; keep them in step when an answer changes.
 
+import { queryOptions } from '@tanstack/react-query';
+
 import { Languages, type Language } from '@/i18n/languages';
 
 
@@ -184,6 +186,17 @@ const LOADERS: Readonly<Record<Exclude<Language, typeof Languages.ENGLISH>, () =
 
 export async function loadFaqTranslation(language: Language): Promise<FaqTranslation | null> {
   return (language === Languages.ENGLISH) ? null : LOADERS[language]();
+}
+
+// FaqPage's query, also loaded before a page the worker rendered is hydrated (src/lib/pagePreload.ts)
+export function faqTranslationQuery(language: Language) {
+  return queryOptions({
+    queryKey: ['faq-translation', language],
+    queryFn: () => loadFaqTranslation(language),
+    staleTime: Infinity,
+    gcTime: Infinity,
+    retry: 1,
+  });
 }
 
 // null is English

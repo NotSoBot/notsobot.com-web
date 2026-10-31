@@ -20,7 +20,9 @@ cp .env.example .env.local   # optional
 npm run dev                  # http://localhost:5173
 ```
 
-`npm run build` type-checks the code and writes static files to `dist/`. In production it's served by the Cloudflare Worker below; `/api` stays on the notsobot.api origin.
+`npm run build` type-checks the code and builds both halves with [`@cloudflare/vite-plugin`](https://developers.cloudflare.com/workers/vite-plugin/): the app's static files go to `dist/client/` and the Cloudflare Worker below to `dist/notsobot_com_web/`, so the worker can import app code like any other module. `/api` stays on the notsobot.api origin.
+
+`npm run dev` runs that same worker (in workerd, reloading on change) in front of the app, so pages get their metatags locally too. It reads `.dev.vars` like the deploy does, and only `/api` and Vite's own module paths skip it (`vite.config.ts`). `npm run preview` does the same with the production build.
 
 ### Deploying
 
@@ -30,8 +32,10 @@ The site runs on its own Cloudflare Worker (`notsobot-com-web`) with [Workers St
 npx wrangler login       # once (on a server without a browser, put CLOUDFLARE_API_TOKEN/CLOUDFLARE_ACCOUNT_ID in .env instead, see .env.example)
 npm run deploy           # notsobot.com + www.notsobot.com (+ the notso.bot redirect)
 npm run deploy:beta      # beta.notsobot.com
-npm run preview:worker   # run the production build + worker locally
+npm run preview:worker   # run the production build + worker locally with wrangler, as notsobot.com
 ```
+
+The build writes the wrangler config the deploy uses (`dist/notsobot_com_web/wrangler.json`, found through `.wrangler/deploy/config.json`), so the environment is picked when building rather than deploying: `deploy:beta` builds with `CLOUDFLARE_ENV=beta`, and `wrangler deploy --env` isn't allowed.
 
 The worker's own settings that aren't in `wrangler.jsonc`, for now only `UMAMI_WEBSITE_ID`, live in `.dev.vars` (production) and `.dev.vars.beta` (beta, its own Umami website), both gitignored. `npm run deploy` and `npm run deploy:beta` upload their file as the worker's secrets every time (`--secrets-file`), so changing one is editing the file and deploying, and the deploy fails without it:
 
@@ -41,10 +45,11 @@ cp .dev.vars.example .dev.vars.beta
 ```
 
 - `/assets/*` and `/favicon.svg` come straight from static assets and never run the worker. Hashed files are cached for a year (`public/_headers`).
-- Every other path runs the worker, which returns `dist/index.html` with that page's `<title>`, description, `og:*` tags, canonical link and `robots` tag, plus the Umami script (`UMAMI_WEBSITE_ID` in `.dev.vars`, skipped when empty). Page titles and descriptions live in `src/seo.ts`, which the router also uses for `<title>`, so every route in `Routes` must have an entry there (it's a type error otherwise). Only pages with `index: true` are indexed and listed in `/sitemap.xml`.
+- Every other path runs the worker, which returns `index.html` with that page's `<title>`, description, `og:*` tags, canonical link and `robots` tag, plus the Umami script (`UMAMI_WEBSITE_ID` in `.dev.vars`, skipped when empty). Page titles and descriptions live in `src/seo.ts`, which the router also uses for `<title>`, so every route in `Routes` must have an entry there (it's a type error otherwise). Only pages with `index: true` are indexed and listed in `/sitemap.xml`.
+- The pages in `SERVER_RENDERED_PAGES` (home, FAQ, premium, changelog, tag docs, legal, and the not-found page; the changelog and docs take 8-11 ms of CPU, over the free plan's 10 ms limit, so they need Workers Paid) are rendered by the worker with React (`src/entry-server.tsx`: the app's own routes on a static router), and `src/main.tsx` hydrates them instead of rendering over the markup. Every other page gets a plain body (`renderStaticBody`: its title, description and the site's links) until the browser renders it. A rendered page's first render in the browser has to match the server's, so anything only the browser knows waits for an effect: the auth state shows as loading (`AuthProvider`) and the footer quote is picked after mount. Text a page loads after mounting (another language's FAQ or tag docs) is loaded before both renders instead (`src/lib/pagePreload.ts`), and dates and numbers follow the request's `Accept-Language` the way they follow `navigator.languages` in the browser. A page whose url `initI18n` moves to another language, or whose render fails, is rendered by the browser like the others.
 - `/tags/directory/:id` looks the tag up on the API (cached 60s, 3s timeout) so shared links embed with its name, description, stats and thumbnail (none for NSFW tags). Discord gets a [component embed](https://docs.discord.com/developers/link-previews/component-embeds) with an "Add to Server" button linking to `?add=true`, which opens the tag's add dialog (logging in first). The og tags stay as the fallback, and if the lookup fails the page gets the generic Tag Directory embed. `/commands/:id` (and `/commands/:id/slash` etc.) gets the command's name, type and description from `GET /api/commands` (cached 5 minutes), plus a clickable `</name:id>` for its slash variant once the bot has uploaded `external_id`. Every embed's color is the logo's gray: the worker sets `theme-color` and the component embeds' `accent_color` from the same `EMBED_ACCENT_COLOR`.
 - `/robots.txt` and `/sitemap.xml` are generated by the worker. `ALLOW_INDEXING` in `wrangler.jsonc` is `"true"` only for production, so beta is never indexed.
-- The routes catch every subdomain of notsobot.com and notso.bot (`*notsobot.com/*`, `*notso.bot/*`), like nsb.gg: `notsobot.com` and `www.notsobot.com` are the site (`SITE_HOSTS` in the worker), and any other host gets cf-worker-router's 404 (`{"code": 0, "message": "Not Found", "status": 404}`). `beta.notsobot.com/*` is the beta script's own route, which is more specific, so it wins.
+- The routes catch every subdomain of notsobot.com and notso.bot (`*notsobot.com/*`, `*notso.bot/*`), like nsb.gg: `notsobot.com` and `www.notsobot.com` are the site (`SITE_HOSTS` in the worker, plus `localhost` for `vite dev`/`vite preview`, which the routes never send it), and any other host gets cf-worker-router's 404 (`{"code": 0, "message": "Not Found", "status": 404}`). `beta.notsobot.com/*` is the beta script's own route, which is more specific, so it wins.
 - `notsobot.com/api/*` keeps its "no worker" route on the zone, so API requests still go to the origin. Anything else on the zone that isn't this worker needs one too (Workers Routes → Add route, Worker: None), or the catch-all 404s it. Until Umami moves to `oasis.notsocompany.com`, that's `oasis.notsobot.com/*`.
 - `notso.bot` and `www.notso.bot` 301 to `notsobot.com` with the path and query kept, so `notso.bot/invite`, `notso.bot/support` and `notso.bot/es/premium` are short links to the real pages. `/assets/*` and `/favicon.svg` are matched before the worker on every host, so those few paths are served instead of redirected or 404'd. The zone only needs proxied DNS records for the routes to run on (`*` lets other subdomains reach the 404 instead of not resolving), and nothing sends email from it, so it rejects spoofed mail:
 

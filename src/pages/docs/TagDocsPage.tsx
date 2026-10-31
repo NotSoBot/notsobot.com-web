@@ -18,7 +18,7 @@ import {
   type TagDocGuideSection,
   type TagDocMediaScriptCommand,
 } from '@/content/tagDocs';
-import { localizeTagDocs, loadTagDocsTranslation, type TagDocs } from '@/content/tagDocs/localize';
+import { localizeTagDocs, tagDocsTranslationQuery, type TagDocs } from '@/content/tagDocs/localize';
 import { Languages, useI18n } from '@/i18n';
 import { cn, decodeHash } from '@/lib/utils';
 
@@ -69,14 +69,7 @@ function search<T>(items: ReadonlyArray<T>, needle: string, text: (item: T) => s
 function useTagDocs(): {docs: TagDocs, ready: boolean} {
   const { language } = useI18n();
   const translated = (language !== Languages.ENGLISH);
-  const translation = useQuery({
-    queryKey: ['tag-docs-translation', language],
-    queryFn: () => loadTagDocsTranslation(language),
-    enabled: translated,
-    staleTime: Infinity,
-    gcTime: Infinity,
-    retry: 1,
-  });
+  const translation = useQuery({...tagDocsTranslationQuery(language), enabled: translated});
   const docs = useMemo(() => localizeTagDocs((translated) ? translation.data : null), [translated, translation.data]);
   return {docs, ready: !translated || !translation.isPending};
 }

@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate, type RouteObject } from 'react-router';
+import { createBrowserRouter, matchRoutes, Navigate, type HydrationState, type RouteObject } from 'react-router';
 
 import { RequireAuth, RequireStaff } from '@/auth';
 import { BotInviteRedirect, ExternalRedirect } from '@/components/ExternalRedirect';
@@ -19,7 +19,8 @@ import { NOT_FOUND_PAGE, PAGES, type PageMeta } from '@/seo';
 export type RouteHandle = PageMeta;
 
 
-const routes: Array<RouteObject> = [
+// the worker renders some pages from these same routes (src/entry-server.tsx)
+export const routes: Array<RouteObject> = [
   {
     element: <SiteLayout/>,
     errorElement: <RouteErrorPage/>,
@@ -56,8 +57,9 @@ const routes: Array<RouteObject> = [
       {
         lazy: async () => ({Component: (await import('@/pages/docs/TagDocsPage')).TagDocsPage}),
         children: [
-          {path: Routes.TAG_DOCS, handle: PAGES.TAG_DOCS},
-          {path: Routes.TAG_DOCS_MEDIASCRIPT, handle: PAGES.TAG_DOCS_MEDIASCRIPT},
+          // the page reads which one matched, they render nothing themselves (null keeps the router from warning)
+          {path: Routes.TAG_DOCS, element: null, handle: PAGES.TAG_DOCS},
+          {path: Routes.TAG_DOCS_MEDIASCRIPT, element: null, handle: PAGES.TAG_DOCS_MEDIASCRIPT},
         ],
       },
       {path: '/docs', element: <Navigate to={Routes.TAG_DOCS} replace/>},
@@ -168,7 +170,25 @@ const routes: Array<RouteObject> = [
 ];
 
 
-// one per language, `basename` is its url prefix ('' for English). src/i18n/I18nProvider.tsx swaps them
-export function createRouter(basename: string) {
-  return createBrowserRouter(routes, {basename: basename || undefined});
+// the <script type="application/json"> after #root with the router's state, on pages the worker rendered
+export const HYDRATION_DATA_ID = 'router-hydration';
+
+
+// one per language, `basename` is its url prefix ('' for English). src/i18n/I18nProvider.tsx swaps them.
+// `hydrationData` is the worker's, for the router that takes over a page it rendered
+export function createRouter(basename: string, hydrationData?: HydrationState) {
+  return createBrowserRouter(routes, {basename: basename || undefined, hydrationData});
+}
+
+
+// A page the worker rendered hydrates with its lazy route modules already loaded, or the router would render the
+// HydrateFallback (nothing) over the server's markup until they arrive. Gives back the matched routes' handles
+export async function loadRouteModules(basename: string): Promise<Array<unknown>> {
+  const matches = matchRoutes(routes, window.location, basename || undefined) ?? [];
+  await Promise.all(matches.map(async ({ route }) => {
+    if (typeof route.lazy === 'function') {
+      Object.assign(route, {...await route.lazy(), lazy: undefined});
+    }
+  }));
+  return matches.map(({ route }) => route.handle);
 }

@@ -3,6 +3,8 @@
 // language is picked. Anything missing from an overlay (a new function, a new note) falls back to English, per field.
 // Only prose is translated: names, syntax, example code, argument names, defaults and ranges always come from English.
 
+import { queryOptions } from '@tanstack/react-query';
+
 import { Languages, type Language } from '@/i18n/languages';
 
 import {
@@ -102,6 +104,17 @@ const LOADERS: Readonly<Record<Exclude<Language, typeof Languages.ENGLISH>, () =
 
 export async function loadTagDocsTranslation(language: Language): Promise<TagDocsTranslation | null> {
   return (language === Languages.ENGLISH) ? null : LOADERS[language]();
+}
+
+// TagDocsPage's query, also loaded before a page the worker rendered is hydrated (src/lib/pagePreload.ts)
+export function tagDocsTranslationQuery(language: Language) {
+  return queryOptions({
+    queryKey: ['tag-docs-translation', language],
+    queryFn: () => loadTagDocsTranslation(language),
+    staleTime: Infinity,
+    gcTime: Infinity,
+    retry: 1,
+  });
 }
 
 

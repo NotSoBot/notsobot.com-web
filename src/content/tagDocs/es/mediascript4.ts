@@ -126,6 +126,7 @@ export const MEDIASCRIPT_SPANISH_4: TagDocsTranslation['mediaScriptCommands'] = 
       'El filtro `drawtext` siempre dibuja su texto tal como se escribió (`expansion=none`, sin `%{...}`), y sus `fontsize` (1-500), `borderw` (0-100), `shadowx`/`shadowy` (de -500 a 500) y `boxborderw` (0-500) tienen que ser números simples. El comando `drawtext` es la forma más fácil de poner texto sobre la multimedia.',
       'La salida tiene un máximo de 10 minutos, 2048x2048 y 2 minutos de tiempo de ejecución de FFmpeg.',
       '`lut3d` funciona con LUTs de `loadcube`, como `lut3d=CUBE_KEY.cube` (`applylut` hace lo mismo en una línea).',
+      '`drawtext` y `showcqt` aceptan una fuente de `loadfont` (o una incluida, como `impact`) como `fontfile=FONT_KEY`: `drawtext=fontfile=myfont:text=hi`. No se permiten otras rutas de fuentes.',
     ],
   },
   fadeout: {

@@ -1,17 +1,25 @@
 {
+  // the worker renders pages with the app's own code (src/entry-server.tsx), so it's checked with the app's jsx, dom
+  // types, vite's asset imports and `@` alias too
   "compilerOptions": {
     "tsBuildInfoFile": "../node_modules/.tmp/tsconfig.worker.tsbuildinfo",
     "target": "ES2023",
-    "lib": ["ES2023"],
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "types": ["@cloudflare/workers-types"],
+    "jsx": "react-jsx",
+    "types": ["@cloudflare/workers-types", "vite/client"],
     "isolatedModules": true,
     "noEmit": true,
     "skipLibCheck": true,
     "strict": true,
     "noUnusedLocals": true,
-    "noUnusedParameters": true
+    "noUnusedParameters": true,
+
+    "baseUrl": "..",
+    "paths": {
+      "@/*": ["src/*"]
+    }
   },
   "include": ["."]
 }

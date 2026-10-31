@@ -3,8 +3,8 @@
   "name": "notsobot-com-web",
   "main": "worker/index.ts",
   "compatibility_date": "2025-09-01",
+  // the vite build (vite.config.ts) sets the assets directory to the app's output, dist/client
   "assets": {
-    "directory": "./dist",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
     // hashed bundles and the favicon skip the worker (and its request billing) entirely

@@ -81,12 +81,15 @@ export const tokenStorage = {
 };
 
 
-window.addEventListener('storage', (event) => {
-  if (event.key === STORAGE_KEY || event.key === null) {
-    const next = read();
-    if (next !== current) {
-      current = next;
-      emit();
+// the worker imports this too when it renders a page (src/entry-server.tsx), where there's no window and no token
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (event) => {
+    if (event.key === STORAGE_KEY || event.key === null) {
+      const next = read();
+      if (next !== current) {
+        current = next;
+        emit();
+      }
     }
-  }
-});
+  });
+}
