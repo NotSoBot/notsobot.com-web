@@ -78,6 +78,7 @@ function withTrigger(rule: GuildWarningAuto, trigger: GuildWarningAuto['trigger'
   return {
     ...rule,
     automod_rule_id: (trigger === 'automod') ? rule.automod_rule_id ?? null : null,
+    delete_message: (trigger === 'blocked_command') ? rule.delete_message ?? true : null,
     limit: (trigger === 'mentions') ? rule.limit ?? DEFAULT_MENTIONS_LIMIT : null,
     trigger,
   };
@@ -131,7 +132,7 @@ export function WarningAutoEditor({ value, onChange, exempt, onExemptChange, gui
     // a server-wide rule for whichever trigger doesn't have one yet, then a channel one to fill in
     const free = TRIGGER_CHOICES.find((choice) => !value.some((rule) => rule.trigger === choice.value && rule.channel_id === null && !rule.automod_rule_id));
     const trigger = free?.value ?? 'mentions';
-    onChange([...value, {automod_rule_id: null, channel_id: (free) ? null : '', exempt: null, limit: (trigger === 'mentions') ? DEFAULT_MENTIONS_LIMIT : null, trigger, warnings: 1}]);
+    onChange([...value, withTrigger({automod_rule_id: null, channel_id: (free) ? null : '', exempt: null, limit: null, trigger, warnings: 1}, trigger)]);
   };
   const remove = (index: number) => {
     onChange(value.filter((_, i) => i !== index));
@@ -184,6 +185,20 @@ export function WarningAutoEditor({ value, onChange, exempt, onExemptChange, gui
                         />
                       ) : null}
                     </>
+                  ) : null}
+                  {(rule.trigger === 'blocked_command') ? (
+                    <button
+                      type='button'
+                      aria-pressed={rule.delete_message !== false}
+                      title={t('wauto.delete_hint')}
+                      className={cn(
+                        'h-8 cursor-pointer rounded-md border px-2 text-xs transition-colors',
+                        (rule.delete_message !== false) ? 'border-brand/70 bg-surface-3 text-white' : 'border-line text-muted hover:bg-surface-2 hover:text-white',
+                      )}
+                      onClick={() => update(index, {...rule, delete_message: rule.delete_message === false})}
+                    >
+                      {t('wauto.delete_message')}
+                    </button>
                   ) : null}
                   {(rule.trigger === 'mentions') ? (
                     <>
@@ -285,6 +300,7 @@ export function WarningAutoEditor({ value, onChange, exempt, onExemptChange, gui
         <p id={`${id}-hint`} className='mt-1.5 text-xs text-subtle'>
           {t('wauto.hint')}
           {(value.some((rule) => rule.trigger === 'automod')) ? ` ${t('wauto.automod_hint')}` : null}
+          {(value.some((rule) => rule.trigger === 'blocked_command')) ? ` ${t('wauto.delete_hint')}` : null}
         </p>
       )}
       <div className='mt-4'>

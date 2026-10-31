@@ -1346,6 +1346,7 @@ function applyWarningsAuto(detail: {settings: UserGuild['settings']}, body: Reco
     .map((rule) => ({
       automod_rule_id: (rule.trigger === 'automod') ? rule.automod_rule_id ?? null : null,
       channel_id: rule.channel_id,
+      delete_message: (rule.trigger === 'blocked_command') ? rule.delete_message !== false : null,
       exempt: warningsAutoExempt('warnings_auto', rule.exempt),
       limit: (rule.trigger === 'mentions') ? rule.limit : null,
       trigger: rule.trigger,
@@ -3695,7 +3696,7 @@ function findGuildReport(guildId: string, reportId: string): GuildReport {
 guilds[0].detail.settings.warnings_auto = [
   {automod_rule_id: null, channel_id: null, exempt: null, limit: null, trigger: 'automod', warnings: 1},
   {automod_rule_id: '1160000000000000031', channel_id: null, exempt: null, limit: null, trigger: 'automod', warnings: 3},
-  {automod_rule_id: null, channel_id: null, exempt: null, limit: null, trigger: 'blocked_command', warnings: 1},
+  {automod_rule_id: null, channel_id: null, delete_message: true, exempt: null, limit: null, trigger: 'blocked_command', warnings: 1},
   {automod_rule_id: null, channel_id: null, exempt: {permissions: String(1n << 13n), role_ids: ['1150000000000000021']}, limit: 8, trigger: 'mentions', warnings: 2},
 ];
 guilds[0].detail.settings.warnings_auto_exempt = {permissions: String(1n << 5n), role_ids: ['1150000000000000020']};

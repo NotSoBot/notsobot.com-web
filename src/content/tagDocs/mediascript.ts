@@ -1829,13 +1829,18 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
   {
     name: 'offset',
     category: 'size',
-    summary: 'Shifts the picture inside its canvas by X and/or Y pixels.',
-    syntax: 'offset MEDIA_KEY X=0 Y=0',
+    summary: 'Shifts the picture inside its canvas by X and/or Y pixels, wrapping around the edges or onto a background.',
+    syntax: 'offset MEDIA_KEY X=0 Y=0 BACKGROUND=none',
     args: [
       media(),
-      {name: 'X', default: '0', description: 'horizontal shift'},
-      {name: 'Y', default: '0', description: 'vertical shift'},
+      {name: 'X', default: '0', description: 'horizontal shift, positive moves right'},
+      {name: 'Y', default: '0', description: 'vertical shift, positive moves down'},
+      {name: 'BACKGROUND', default: 'none', description: 'a color, mostused or transparent to move without wrapping around'},
     ],
+    examples: [
+      {code: '{mediascript:load {iv} img\noffset img 100 -50 transparent\nrender img}', result: 'Moves the image 100 pixels right and 50 up, leaving a transparent gap.'},
+    ],
+    notes: ['Without a background, what leaves one edge comes back in on the other. Videos can\'t be transparent, so a transparent background is black on them.'],
   },
 
   // time

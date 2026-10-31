@@ -280,11 +280,16 @@ export const MEDIASCRIPT_SPANISH_3: TagDocsTranslation['mediaScriptCommands'] = 
     notes: ['Por defecto las imágenes quedan con las esquinas transparentes y los vídeos con esquinas negras, porque el vídeo no puede ser transparente.'],
   },
   offset: {
-    summary: 'Desplaza la imagen dentro de su lienzo X o Y píxeles (o ambos).',
+    summary: 'Desplaza la imagen dentro de su lienzo X o Y píxeles (o ambos), dando la vuelta por los bordes o sobre un fondo.',
     args: {
       MEDIA_KEY: MEDIA,
-      X: 'desplazamiento horizontal',
-      Y: 'desplazamiento vertical',
+      X: 'desplazamiento horizontal, positivo la mueve a la derecha',
+      Y: 'desplazamiento vertical, positivo la mueve hacia abajo',
+      BACKGROUND: 'un color, mostused o transparent para moverla sin dar la vuelta',
     },
+    results: [
+      'Mueve la imagen 100 píxeles a la derecha y 50 hacia arriba, dejando un hueco transparente.',
+    ],
+    notes: ['Sin fondo, lo que sale por un borde vuelve a entrar por el otro. Los vídeos no pueden ser transparentes, así que en ellos un fondo transparent es negro.'],
   },
 };

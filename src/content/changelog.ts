@@ -31,6 +31,7 @@ export const CHANGELOG: Array<ChangelogDay> = [
     date: '2026-10-31',
     title: 'Slash and prefixed options match',
     items: [
+      {kind: 'new', text: '`.fadeoverlay` (`/media-aiv fade-overlay`): slowly fades the second media in on top of the first until it covers it, with its sound crossfading in too. Works with images, gifs, videos and audio, two still images become a 3 second gif. Pick when it starts and how long it takes with `-start` and `-duration`: `.fadeoverlay @cakedan @notsobot -start 1 -duration 2`.'},
       {kind: 'new', text: '`/media-iv-face smile` has `level` (`SUBTLE`, `NORMAL`, `BIG` or `HUGE`), like `.smile -level`.'},
       {kind: 'new', text: 'Slash options the prefixed commands already had: `/media-av-effect compress norevert`, `/media-iv-filter ascii zoom`, `/media-iv-filter legofy palette`, `/media-iv-distort magik scale`, `/media-iv-filter phosimp grid-x` and `grid-y`, `/media-iv-tools uncaption tolerance`, `/media-aiv-tools convert size`, `/tag remove tag force` and `/download locale`.'},
       {kind: 'new', text: 'Prefixed flags the slash commands already had: `-font` on `.caption`, `.meme` and `.recaption`, `.retro -textstyle`, `.convert -noaudio`, `-content`, `-name` and `-user` on `.tag random`, `-content`, `-global` and `-name` on `.tag list`, and `.tag search -content`.'},
@@ -38,8 +39,15 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'new', text: '`.set ban clean` (`/server set ban-clean`): how far back a ban deletes the member\'s messages when the moderator doesn\'t pick, from none up to 7 days (24 hours unless changed). It\'s also what the Ban button on warnings uses. `.set ban clean 6 hours`, `.set ban clean none`.'},
       {kind: 'new', text: '`.set dms` (`/server set dms`): turn off the DMs members get when they\'re banned, kicked, muted, warned or auto-warned, all of them or one at a time: `.set dms -dm off -for kick`.'},
       {kind: 'new', text: 'Dashboard: a server\'s settings have a Moderation section, for what bans delete by default and which moderation DMs members get.'},
+      {kind: 'improved', text: 'Auto-warn for blocked commands (`.autowarn blocked`) replies to the member, then deletes their message and the reply after 10 seconds, like `.undo`. NotSoBot needs Manage Messages to delete theirs. Turn it off with `.autowarn blocked -delete off` (`/server-autowarn blocked delete:False`) or on the dashboard.'},
       {kind: 'new', text: '`.tag info -nofile` (`/tag info nofile`): long tag content is shown in pages instead of uploaded as a file.'},
       {kind: 'improved', text: 'Dashboard: a server\'s loggers are listed by type, oldest first within each type.'},
+      {kind: 'new', text: '`.offset -background` (`/media-iv-tools offset background`): moves the image or video without wrapping around and fills the uncovered side with a color, `mostused` or `transparent`: `.offset @notsobot 100 -50 -background transparent`. Videos can\'t be transparent, so they get black.'},
+      {kind: 'new', text: '**MediaScript:** `offset` takes `BACKGROUND` to move without wrapping around.'},
+      {kind: 'fixed', text: 'Colors given as `r,g,b,a` with a red under 16 (like `0,0,255,128`) came out as the wrong color in `-color` options.'},
+      {kind: 'new', text: 'Dashboard: a server\'s command rules have a search box, plus filters for block or allow, what the rule covers (everything, single commands or a category) and who it\'s for. Searching a channel, role, user or command ID finds its rules, and a filtered list can be linked to.'},
+      {kind: 'improved', text: 'The member leave log\'s Time in Guild counts years, like `2 years 14 days`, instead of only days.'},
+      {kind: 'improved', text: 'The moderation log shows the reason in a code block on its own line.'},
     ],
   },
   {

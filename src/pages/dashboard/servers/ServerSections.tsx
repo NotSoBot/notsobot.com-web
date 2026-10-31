@@ -1,16 +1,19 @@
 import { Pencil, Plus, X } from 'lucide-react';
 import { useId, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 
+import { FiltersButton } from '@/components/ui/FiltersButton';
+import { SearchInput } from '@/components/ui/SearchInput';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
-import { useI18n } from '@/i18n';
+import { translate, useI18n } from '@/i18n';
 import { CommandCategories, type GuildLogger, type GuildRule, type GuildRuleTargetType, type UserGuild } from '@/lib/api';
 import { errorField, errorMessage, useGuildMutation, useGuildScope, type GuildAction } from '@/lib/api/dashboardQueries';
 import { useCommandsQuery } from '@/lib/api/queries';
 import { enabledCommandVariants } from '@/lib/commandAvailability';
-import { cn, formatDate } from '@/lib/utils';
+import { cn, formatDate, formatNumber } from '@/lib/utils';
 import { categoryMeta } from '@/pages/commands/commandMeta';
 
+import { useSearchParamState } from '../admin/adminUi';
 import { isSnowflake } from '../tags/tagMeta';
 import { EmptyState, Field, Panel, Toggle } from '../ui';
 import {
@@ -259,6 +262,56 @@ function coversEverything(rule: {category?: string | null, command?: string | nu
 }
 
 
+// the list's search box and filters, from the url (`q`, `action`, `who`, `what`) so a filtered list can be linked to
+interface RuleFilters {
+  search: string,
+  // 'allow' or 'block'
+  action: string | null,
+  who: GuildRuleTargetType | null,
+  // 'every', 'command', or a category (which also matches rules for its commands)
+  what: string | null,
+}
+
+function matchesRuleFilters(rule: GuildRule, filters: RuleFilters, commandNames: Map<string, string>, commandCategories: Map<string, string>): boolean {
+  if (filters.action && (filters.action === 'allow') !== rule.value.allow) {
+    return false;
+  }
+  if (filters.who && rule.target_type !== filters.who) {
+    return false;
+  }
+  if (filters.what) {
+    if (filters.what === 'every') {
+      if (!coversEverything(rule)) {
+        return false;
+      }
+    } else if (filters.what === 'command') {
+      if (!rule.command) {
+        return false;
+      }
+    } else if ((rule.category ?? (rule.command && commandCategories.get(rule.command))) !== filters.what) {
+      return false;
+    }
+  }
+  const search = filters.search.trim().toLowerCase();
+  if (!search) {
+    return true;
+  }
+  // what the row shows, plus ids so a pasted channel/role/user/command id finds its rules
+  const coverage = (rule.command) ? commandNames.get(rule.command) ?? '' : (rule.category) ? translate(categoryMeta(rule.category).label) : translate('rules.every');
+  const haystack = [
+    coverage,
+    rule.command ?? '',
+    rule.category ?? '',
+    rule.target_id,
+    ENTRY_TYPE_LABELS[rule.target_type] ?? '',
+    rule.value.message ?? '',
+    translate((rule.value.allow) ? 'rules.allow' : 'rules.block'),
+  ].join('\n').toLowerCase();
+  // every word has to be somewhere, so `block fun` or `imagine 1234…` narrow it down
+  return search.replace(/[<>#@&!]/g, ' ').split(/\s+/).filter(Boolean).every((word) => haystack.includes(word));
+}
+
+
 function RuleCoverage({ rule, commandNames }: {rule: GuildRule, commandNames: Map<string, string>}) {
   const { t } = useI18n();
   if (rule.command) {
@@ -327,7 +380,7 @@ function RuleMessageEditor({ initial, busy, disabled, onSave, onCancel }: {
 
 
 export function RulesSection({ guild }: {guild: UserGuild}) {
-  const { t, language } = useI18n();
+  const { t, plural, language } = useI18n();
   const editable = guild.editable.rules;
   const adminEditable = guild.editable.rules_admin;
   const readOnlyMessage = useReadOnlyMessage();
@@ -355,11 +408,38 @@ export function RulesSection({ guild }: {guild: UserGuild}) {
     return ids;
   }, [commandNames]);
 
-  const rules = useMemo(() => {
+  // command id -> its category, for the category filter to also find rules for single commands in it
+  const commandCategories = useMemo(() => {
+    const categories = new Map<string, string>();
+    for (const command of commands ?? []) {
+      const [ variant ] = enabledCommandVariants(command);
+      if (variant) {
+        categories.set(command.id, variant.category);
+      }
+    }
+    return categories;
+  }, [commands]);
+
+  const sortedRules = useMemo(() => {
     return guild.rules.slice().sort((a, b) => {
       return (TARGET_ORDER[a.target_type] - TARGET_ORDER[b.target_type]) || (coverageOrder(a) - coverageOrder(b)) || a.added.localeCompare(b.added);
     });
   }, [guild.rules]);
+
+  const { searchParams, update } = useSearchParamState();
+  const filters: RuleFilters = {
+    search: searchParams.get('q') || '',
+    action: (searchParams.get('action') === 'allow' || searchParams.get('action') === 'block') ? searchParams.get('action') : null,
+    who: (RULE_TARGET_TYPES as ReadonlyArray<string>).includes(searchParams.get('who') ?? '') ? searchParams.get('who') as GuildRuleTargetType : null,
+    what: searchParams.get('what') || null,
+  };
+  const [ filtersOpen, setFiltersOpen ] = useState(() => !!(filters.action || filters.who || filters.what));
+  const activeFilters = [filters.action, filters.who, filters.what].filter(Boolean).length;
+  const filtered = !!(activeFilters || filters.search.trim());
+  const rules = (filtered) ? sortedRules.filter((rule) => matchesRuleFilters(rule, filters, commandNames, commandCategories)) : sortedRules;
+  const categoryOptions = RULE_CATEGORIES
+    .map((value) => ({value, label: t(categoryMeta(value).label)}))
+    .sort((a, b) => a.label.localeCompare(b.label));
 
   const [ allow, setAllow ] = useState(false);
   // '' is everything, `category:FUN`, or `command` (then `command` holds what was typed)
@@ -390,6 +470,51 @@ export function RulesSection({ guild }: {guild: UserGuild}) {
       readOnly={(editable) ? undefined : readOnlyMessage('rules')}
     >
       <AdminBypassToggle guild={guild} edit={edit}/>
+      {(sortedRules.length) ? (
+        <div className='mb-3 space-y-3'>
+          <div className='flex gap-2'>
+            <SearchInput
+              className='min-w-0 flex-1'
+              value={filters.search}
+              onValueChange={(value) => update({q: value})}
+              placeholder={t('rules.search_placeholder')}
+              aria-label={t('rules.search_label')}
+            />
+            <FiltersButton open={filtersOpen} onToggle={() => setFiltersOpen((value) => !value)} active={activeFilters} controls='guild-rule-filters'/>
+          </div>
+          <div id='guild-rule-filters' hidden={!filtersOpen} className='grid gap-3 rounded-md border border-line p-3 sm:grid-cols-3'>
+            <label className='text-sm'>
+              <span className='mb-1 block text-subtle'>{t('rules.action')}</span>
+              <select className='input' value={filters.action ?? ''} onChange={(event) => update({action: event.target.value})}>
+                <option value=''>{t('rules.any')}</option>
+                <option value='block'>{t('rules.block')}</option>
+                <option value='allow'>{t('rules.allow')}</option>
+              </select>
+            </label>
+            <label className='text-sm'>
+              <span className='mb-1 block text-subtle'>{t('rules.what')}</span>
+              <select className='input' value={filters.what ?? ''} onChange={(event) => update({what: event.target.value})}>
+                <option value=''>{t('rules.any')}</option>
+                <option value='every'>{t('rules.every')}</option>
+                <option value='command'>{t('rules.single_commands')}</option>
+                <optgroup label={t('rules.category_group')}>
+                  {categoryOptions.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
+                </optgroup>
+              </select>
+            </label>
+            <label className='text-sm'>
+              <span className='mb-1 block text-subtle'>{t('rules.who')}</span>
+              <select className='input' value={filters.who ?? ''} onChange={(event) => update({who: event.target.value})}>
+                <option value=''>{t('rules.any')}</option>
+                {RULE_TARGET_TYPES.map((option) => <option key={option} value={option}>{ENTRY_TYPE_LABELS[option]}</option>)}
+              </select>
+            </label>
+          </div>
+          <p className='text-sm text-muted'>
+            {(filtered) ? plural('rules.count_filtered', sortedRules.length, {shown: formatNumber(rules.length)}) : plural('rules.count', sortedRules.length)}
+          </p>
+        </div>
+      ) : null}
       {(rules.length) ? (
         <ul className='divide-y divide-line rounded-md border border-line'>
           {rules.map((rule) => {
@@ -457,6 +582,11 @@ export function RulesSection({ guild }: {guild: UserGuild}) {
             );
           })}
         </ul>
+      ) : (filtered && sortedRules.length) ? (
+        <EmptyState title={t('rules.empty_filtered')}>
+          <p>{t('rules.empty_filtered_description')}</p>
+          <button type='button' className='btn btn-secondary btn-sm mt-3' onClick={() => update({q: null, action: null, who: null, what: null})}>{t('rules.clear_filters')}</button>
+        </EmptyState>
       ) : (
         <EmptyState title={t('rules.empty')}>{t('rules.empty_description')}</EmptyState>
       )}
@@ -493,10 +623,7 @@ export function RulesSection({ guild }: {guild: UserGuild}) {
               <select {...props} className='input' value={covers} onChange={(event) => setCovers(event.target.value)}>
                 <option value=''>{t('rules.every')}</option>
                 <optgroup label={t('rules.category_group')}>
-                  {RULE_CATEGORIES
-                    .map((value) => ({value, label: t(categoryMeta(value).label)}))
-                    .sort((a, b) => a.label.localeCompare(b.label))
-                    .map(({ value, label }) => <option key={value} value={`category:${value}`}>{label}</option>)}
+                  {categoryOptions.map(({ value, label }) => <option key={value} value={`category:${value}`}>{label}</option>)}
                 </optgroup>
                 <option value='command'>{t('rules.one_command')}</option>
               </select>

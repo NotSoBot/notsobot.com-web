@@ -280,11 +280,16 @@ export const MEDIASCRIPT_PORTUGUESE_3: TagDocsTranslation['mediaScriptCommands']
     notes: ['Por padrão, imagens ficam com os cantos transparentes e vídeos com cantos pretos, já que vídeo não pode ser transparente.'],
   },
   offset: {
-    summary: 'Desloca a imagem dentro da tela em X e/ou Y pixels.',
+    summary: 'Desloca a imagem dentro da tela em X e/ou Y pixels, dando a volta pelas bordas ou sobre um fundo.',
     args: {
       MEDIA_KEY: MEDIA,
-      X: 'deslocamento horizontal',
-      Y: 'deslocamento vertical',
+      X: 'deslocamento horizontal, positivo move para a direita',
+      Y: 'deslocamento vertical, positivo move para baixo',
+      BACKGROUND: 'uma cor, mostused ou transparent para mover sem dar a volta',
     },
+    results: [
+      'Move a imagem 100 pixels para a direita e 50 para cima, deixando um espaço transparente.',
+    ],
+    notes: ['Sem fundo, o que sai por uma borda volta pela outra. Vídeos não podem ser transparentes, então neles um fundo transparent fica preto.'],
   },
 };

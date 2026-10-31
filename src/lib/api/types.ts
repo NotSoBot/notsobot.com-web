@@ -1331,6 +1331,9 @@ export interface GuildWarningAuto {
   // null: anywhere in the server, a channel also covers its threads (a category, its channels). One rule per
   // trigger, channel and AutoMod rule
   channel_id: string | null,
+  // `blocked_command` only (null for the others): the bot also deletes the blocked command's message and its replies to
+  // it after 10 seconds. Null or missing on older rules: true
+  delete_message?: boolean | null,
   // who this rule skips on top of the server's `warnings_auto_exempt`, null (or missing on older rules): nobody. Saving
   // the list replaces every rule, so it has to be sent back as it came
   exempt?: GuildWarningAutoExempt | null,
