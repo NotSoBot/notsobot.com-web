@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useToast } from '@/components/ui/Toast';
 import { useI18n } from '@/i18n';
-import type { UserGuild, UserGuildPatch } from '@/lib/api';
+import { GuildModerationDmFlags, type UserGuild, type UserGuildPatch } from '@/lib/api';
 import { errorMessage, useGuildMutation } from '@/lib/api/dashboardQueries';
 
 import { ChoiceSelect } from '../settings/ChoiceSelect';
@@ -17,8 +17,8 @@ import {
 } from '../settings/settingsChoices';
 import { PersonalityHint } from '../settings/PersonalityHint';
 import { useDraft } from '../settings/useDraft';
-import { CharCounter, Field, InlineError, Panel, SaveBar } from '../ui';
-import { useReadOnlyMessage, warningsExpireChoices, warningsWindowChoices } from './guildMeta';
+import { CharCounter, Field, InlineError, Panel, SaveBar, Toggle } from '../ui';
+import { banCleanChoices, useReadOnlyMessage, warningsExpireChoices, warningsWindowChoices } from './guildMeta';
 import { WarningActionsEditor, warningActionsError } from './WarningActionsEditor';
 import { WarningAutoEditor, warningAutoError } from './WarningAutoEditor';
 
@@ -29,12 +29,13 @@ type Values = Required<{[K in keyof SettingsPatch]: Exclude<SettingsPatch[K], un
 
 // the settings are split into groups that each sit on their own server page, with their own save bar.
 // Saving one never touches another's edits
-export type SettingsGroup = 'general' | 'ai' | 'warnings';
+export type SettingsGroup = 'general' | 'ai' | 'moderation' | 'warnings';
 
 // the title, description and save/fail toasts are `ssettings.<group>.title`, `.description`, `.saved` and `.failed`
 const GROUP_ACCENTS: Record<SettingsGroup, string> = {
   general: '#00b0f4',
   ai: '#a855f7',
+  moderation: '#ed4245',
   warnings: '#fee75c',
 };
 
@@ -51,6 +52,8 @@ function savedValues(guild: UserGuild): Values {
     response_display: guild.settings.response_display,
     search_provider_images: guild.settings.search_provider_images,
     search_provider_web: guild.settings.search_provider_web,
+    ban_clean: guild.settings.ban_clean,
+    moderation_dm_disabled: guild.settings.moderation_dm_disabled,
     warnings_window: guild.settings.warnings_window,
     warnings_expire: guild.settings.warnings_expire,
     warnings_actions: guild.settings.warnings_actions ?? [],
@@ -58,6 +61,16 @@ function savedValues(guild: UserGuild): Values {
     warnings_auto_exempt: guild.settings.warnings_auto_exempt ?? null,
   };
 }
+
+
+// the moderation dms in the order they're shown, a toggle each (`ssettings.dm.<key>`)
+const MODERATION_DMS = [
+  {flag: GuildModerationDmFlags.BAN, key: 'ban'},
+  {flag: GuildModerationDmFlags.KICK, key: 'kick'},
+  {flag: GuildModerationDmFlags.MUTE, key: 'mute'},
+  {flag: GuildModerationDmFlags.WARN, key: 'warn'},
+  {flag: GuildModerationDmFlags.AUTOWARN, key: 'autowarn'},
+] as const;
 
 
 // which of a modal's forms have unsaved edits, for the tabs' dots and asking before closing
@@ -93,6 +106,8 @@ export function ServerSettingsForm({ guild, group, onDirtyChange }: {guild: User
   const actionsError = (group === 'warnings') ? warningActionsError(warningActions) : null;
   const warningAuto = values.warnings_auto ?? [];
   const autoError = (group === 'warnings') ? warningAutoError(warningAuto) : null;
+  const banClean = values.ban_clean ?? 0;
+  const dmDisabled = values.moderation_dm_disabled ?? 0;
 
   useEffect(() => {
     onDirtyChange(draft.dirty);
@@ -165,6 +180,28 @@ export function ServerSettingsForm({ guild, group, onDirtyChange }: {guild: User
               <Field label={t('settings.ai.model')}>
                 {(props) => <ChoiceSelect {...props} noneLabel={t('settings.default')} choices={LLM_MODEL_CHOICES} value={values.ml_llm_model} onChange={(value) => draft.set('ml_llm_model', value)}/>}
               </Field>
+            </>
+          ) : null}
+          {(group === 'moderation') ? (
+            <>
+              <Field label={t('ssettings.ban_clean')} hint={t('ssettings.ban_clean_hint')}>
+                {(props) => <ChoiceSelect {...props} choices={banCleanChoices(banClean)} value={banClean} onChange={(value) => draft.set('ban_clean', value ?? 0)}/>}
+              </Field>
+              <div className='space-y-3 md:col-span-2'>
+                <div>
+                  <p className='text-sm font-medium text-fg'>{t('ssettings.dm.label')}</p>
+                  <p className='mt-0.5 text-xs text-subtle'>{t('ssettings.dm.hint')}</p>
+                </div>
+                {MODERATION_DMS.map(({ flag, key }) => (
+                  <Toggle
+                    key={key}
+                    label={t(`ssettings.dm.${key}`)}
+                    checked={(dmDisabled & flag) !== flag}
+                    disabled={!editable}
+                    onChange={(value) => draft.set('moderation_dm_disabled', (value) ? (dmDisabled & ~flag) : (dmDisabled | flag))}
+                  />
+                ))}
+              </div>
             </>
           ) : null}
           {(group === 'warnings') ? (

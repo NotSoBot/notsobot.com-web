@@ -195,9 +195,11 @@ export interface MockGuild {
 
 export function createGuildSettings(): UserGuild['settings'] {
   return {
+    ban_clean: 24 * 60 * 60,
     ml_diffusion_model: null,
     ml_llm_model: null,
     ml_llm_personality: null,
+    moderation_dm_disabled: 0,
     response_display: null,
     rules_admin_bypass: true,
     search_provider_images: null,

@@ -1378,6 +1378,13 @@ route('PATCH', '/users/@me/guilds/(\\d+)', ([ , guildId ], { body }) => {
     // null resets it to 30 days
     detail.settings.warnings_window = (body.warnings_window as number | null) ?? 30 * 24 * 60 * 60;
   }
+  if ('ban_clean' in body) {
+    // null resets it to 1 day
+    detail.settings.ban_clean = (body.ban_clean as number | null) ?? 24 * 60 * 60;
+  }
+  if ('moderation_dm_disabled' in body) {
+    detail.settings.moderation_dm_disabled = (body.moderation_dm_disabled as number | null) ?? 0;
+  }
   applyAdminBypassSettings(detail, body);
   if ('locale' in body) {
     detail.locale = (body.locale as string | null) || null;
@@ -2803,6 +2810,13 @@ route('PATCH', '/admin/guilds/(\\d+)', ([ , guildId ], { body }) => {
   if ('warnings_window' in body) {
     // null resets it to 30 days
     detail.settings.warnings_window = (body.warnings_window as number | null) ?? 30 * 24 * 60 * 60;
+  }
+  if ('ban_clean' in body) {
+    // null resets it to 1 day
+    detail.settings.ban_clean = (body.ban_clean as number | null) ?? 24 * 60 * 60;
+  }
+  if ('moderation_dm_disabled' in body) {
+    detail.settings.moderation_dm_disabled = (body.moderation_dm_disabled as number | null) ?? 0;
   }
   applyAdminBypassSettings(detail, body);
   if ('locale' in body) {

@@ -579,7 +579,10 @@ export function LoggersSection({ guild }: {guild: UserGuild}) {
   const readOnlyMessage = useReadOnlyMessage();
   const edit = useGuildEdit(guild.id);
   const [ editing, setEditing ] = useState<string | null>(null);
-  const loggers = guild.loggers.slice().sort((a, b) => a.type - b.type);
+  // by type name (in the dashboard's language), then oldest first within a type
+  const loggers = guild.loggers.slice().sort((a, b) => {
+    return loggerTypeLabel(a.type).localeCompare(loggerTypeLabel(b.type)) || Date.parse(a.added) - Date.parse(b.added);
+  });
 
   return (
     <Panel

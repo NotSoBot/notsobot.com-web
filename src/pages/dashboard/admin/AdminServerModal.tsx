@@ -317,6 +317,7 @@ function ServerDetails({ guild, navigation, onDirtyChange }: {guild: AdminGuild,
           <ServerSettingsForm guild={guild} group='general' onDirtyChange={setter('general')}/>
           <ServerSettingsForm guild={guild} group='ai' onDirtyChange={setter('ai')}/>
           <AIKnowledgeSection guild={guild}/>
+          <ServerSettingsForm guild={guild} group='moderation' onDirtyChange={setter('moderation')}/>
           <ServerSettingsForm guild={guild} group='warnings' onDirtyChange={setter('warnings')}/>
           <MusicSection guild={guild}/>
           <MusicStatsSection guild={guild}/>

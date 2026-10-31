@@ -35,6 +35,11 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'new', text: 'Slash options the prefixed commands already had: `/media-av-effect compress norevert`, `/media-iv-filter ascii zoom`, `/media-iv-filter legofy palette`, `/media-iv-distort magik scale`, `/media-iv-filter phosimp grid-x` and `grid-y`, `/media-iv-tools uncaption tolerance`, `/media-aiv-tools convert size`, `/tag remove tag force` and `/download locale`.'},
       {kind: 'new', text: 'Prefixed flags the slash commands already had: `-font` on `.caption`, `.meme` and `.recaption`, `.retro -textstyle`, `.convert -noaudio`, `-content`, `-name` and `-user` on `.tag random`, `-content`, `-global` and `-name` on `.tag list`, and `.tag search -content`.'},
       {kind: 'improved', text: 'The commands page on the website lists the choices for options you pick from a search, like the TTS voices and the Google locales (`-locale`, `-to` and `-from`).'},
+      {kind: 'new', text: '`.set ban clean` (`/server set ban-clean`): how far back a ban deletes the member\'s messages when the moderator doesn\'t pick, from none up to 7 days (24 hours unless changed). It\'s also what the Ban button on warnings uses. `.set ban clean 6 hours`, `.set ban clean none`.'},
+      {kind: 'new', text: '`.set dms` (`/server set dms`): turn off the DMs members get when they\'re banned, kicked, muted, warned or auto-warned, all of them or one at a time: `.set dms -dm off -for kick`.'},
+      {kind: 'new', text: 'Dashboard: a server\'s settings have a Moderation section, for what bans delete by default and which moderation DMs members get.'},
+      {kind: 'new', text: '`.tag info -nofile` (`/tag info nofile`): long tag content is shown in pages instead of uploaded as a file.'},
+      {kind: 'improved', text: 'Dashboard: a server\'s loggers are listed by type, oldest first within each type.'},
     ],
   },
   {

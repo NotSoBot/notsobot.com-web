@@ -1274,10 +1274,23 @@ export interface GuildPrefix {
   user_id: string | null,
 }
 
+// a server's `moderation_dm_disabled` bits, the dms about what moderators (or auto-warn) did that members don't get
+export const GuildModerationDmFlags = {
+  BAN: 1 << 0,
+  KICK: 1 << 1,
+  MUTE: 1 << 2,
+  WARN: 1 << 3,
+  AUTOWARN: 1 << 4,
+} as const;
+
 export interface GuildSettings {
+  // seconds of a member's messages the bot's `ban` deletes when the moderator doesn't pick, 0: none
+  ban_clean: number,
   ml_diffusion_model: string | null,
   ml_llm_model: string | null,
   ml_llm_personality: string | null,
+  // the `GuildModerationDmFlags` members don't get dm'd about, 0: every one
+  moderation_dm_disabled: number,
   response_display: number | null,
   // if the server owner and admins skip the rules (rules can override it)
   rules_admin_bypass: boolean,
@@ -1433,6 +1446,10 @@ export interface UserDataExport {
 
 // `rules_admin_bypass` needs the `rules_admin` area, null resets it to true
 export interface UserGuildPatch {
+  // seconds (0 to 7 days), null resets it to 1 day
+  ban_clean?: number | null,
+  // null resets it to 0 (every dm)
+  moderation_dm_disabled?: number | null,
   locale?: string | null,
   timezone?: string | null,
   ml_llm_personality?: string | null,

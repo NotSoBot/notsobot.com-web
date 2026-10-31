@@ -213,6 +213,7 @@ export function ServerSettingsPage() {
     <>
       <PrefixesSection guild={guild}/>
       <ServerSettingsForm guild={guild} group='general' onDirtyChange={setDirty('general')}/>
+      <ServerSettingsForm guild={guild} group='moderation' onDirtyChange={setDirty('moderation')}/>
       <LoggersSection guild={guild}/>
       <ServerDataSection guild={guild}/>
     </>

@@ -103,6 +103,15 @@ export function warningsWindowChoices(value: number | null): ReadonlyArray<Choic
   return withSeconds([1, 3, 7, 14, 30, 60, 90, 180, 365].map((days) => days * 86400), value, WARNINGS_WINDOW_DEFAULT);
 }
 
+// the bot's `BAN_CLEAN_DEFAULT`
+export const BAN_CLEAN_DEFAULT = 86400;
+
+// the same steps as `ban`'s clean option, 0 deletes nothing
+export function banCleanChoices(value: number): ReadonlyArray<Choice<number>> {
+  const choices = withSeconds([3600, 6 * 3600, 12 * 3600, 86400, 3 * 86400, 7 * 86400], (value) ? value : null, BAN_CLEAN_DEFAULT);
+  return [{value: 0, label: translate('ssettings.ban_clean_none')}, ...choices];
+}
+
 export function warningsExpireChoices(value: number | null): ReadonlyArray<Choice<number>> {
   return withSeconds([30, 60, 90, 180, 365, 730, 1825].map((days) => days * 86400), value, null);
 }
