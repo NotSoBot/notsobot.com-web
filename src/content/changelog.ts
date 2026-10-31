@@ -28,6 +28,16 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 
 export const CHANGELOG: Array<ChangelogDay> = [
   {
+    date: '2026-10-31',
+    title: 'Slash and prefixed options match',
+    items: [
+      {kind: 'new', text: '`/media-iv-face smile` has `level` (`SUBTLE`, `NORMAL`, `BIG` or `HUGE`), like `.smile -level`.'},
+      {kind: 'new', text: 'Slash options the prefixed commands already had: `/media-av-effect compress norevert`, `/media-iv-filter ascii zoom`, `/media-iv-filter legofy palette`, `/media-iv-distort magik scale`, `/media-iv-filter phosimp grid-x` and `grid-y`, `/media-iv-tools uncaption tolerance`, `/media-aiv-tools convert size`, `/tag remove tag force` and `/download locale`.'},
+      {kind: 'new', text: 'Prefixed flags the slash commands already had: `-font` on `.caption`, `.meme` and `.recaption`, `.retro -textstyle`, `.convert -noaudio`, `-content`, `-name` and `-user` on `.tag random`, `-content`, `-global` and `-name` on `.tag list`, and `.tag search -content`.'},
+      {kind: 'improved', text: 'The commands page on the website lists the choices for options you pick from a search, like the TTS voices and the Google locales (`-locale`, `-to` and `-from`).'},
+    ],
+  },
+  {
     date: '2026-10-30',
     title: 'SAM voices, logger ignores',
     items: [
@@ -51,6 +61,11 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'improved', text: '`.audio compress` (`/media-av-effect compress`) leaves a video\'s picture as it is instead of re-encoding it, and so does **MediaScript:** `audionoise`.'},
       {kind: 'fixed', text: 'Long gifs (over 80 frames), like a video turned into a gif, keep their colors after a scene cut instead of going grey-ish for the rest of it.'},
       {kind: 'fixed', text: '`.drawfaces` and the face number options: a face that leaves the frame and comes back a bit further off keeps its number instead of getting a new one.'},
+      {kind: 'fixed', text: '`.deepfry` on gifs and videos fries every frame the same way, some frames used to flip colors (a green turning yellow) when they were a little darker than the rest.'},
+      {kind: 'fixed', text: '`.prune -until` finding nothing in busy channels, an older message someone had edited made it stop before it started.'},
+      {kind: 'improved', text: '`.prune` and `/moderation prune` always ask before deleting, even a single message, and the confirmation shows the filters it was given (`from`, `until`, `with` and the rest).'},
+      {kind: 'improved', text: 'When prune finds nothing but stopped before the end of what it was asked to search (1,000 messages checked, or the two week limit), it says how many messages it checked instead of just `Unable to prune any messages`.'},
+      {kind: 'new', text: 'The member leave log shows how long they were in the server: `Time in Guild: 2 days, 3 hours`.'},
     ],
   },
   {
