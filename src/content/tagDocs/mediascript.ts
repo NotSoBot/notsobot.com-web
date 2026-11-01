@@ -1447,10 +1447,11 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     name: 'caption',
     category: 'text',
     summary: 'Adds a white caption bar with text above the media, like the classic caption meme.',
-    syntax: 'caption MEDIA_KEY TEXT',
+    syntax: 'caption MEDIA_KEY TEXT FONT=futura',
     args: [
       media(),
       {name: 'TEXT', rest: true, description: 'the caption; separate top and bottom text with `|`'},
+      {name: 'FONT', default: 'futura', description: 'a bundled font (like `impact`) or a key from `loadfont`'},
     ],
     examples: [
       {code: '{mediascript:load {iv} img\ncaption img {jsonify:me when the tag works}\nrender img}'},
@@ -1460,10 +1461,11 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     name: 'meme',
     category: 'text',
     summary: 'Adds Impact-style meme text on top of the media.',
-    syntax: 'meme MEDIA_KEY TEXT',
+    syntax: 'meme MEDIA_KEY TEXT FONT=impact',
     args: [
       media(),
       {name: 'TEXT', rest: true, description: 'the text; separate top and bottom text with `|`'},
+      {name: 'FONT', default: 'impact', description: 'a bundled font (like `rubik`) or a key from `loadfont`'},
     ],
     examples: [
       {code: '{mediascript:load {iv} img\nmeme img {jsonify:top text|bottom text}\nrender img}'},
@@ -3358,6 +3360,14 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
       media(),
       {name: 'SIZE', default: 'none', range: '2..100', description: 'how many emojis along the longest side; none is one per 16 pixels'},
     ],
+  },
+  {
+    name: 'giggles',
+    category: 'compose',
+    summary: 'Every face gets its biggest smile, a propeller cap and a lollipop, over a dreamy rainbow sky.',
+    syntax: 'giggles MEDIA_KEY',
+    args: [media()],
+    notes: ['Always a still: GIFs give their first frame and videos a frame a bit in. The background is removed and swapped for the sky (a dolphin, hot air balloons and flowers around the edges). The lollipop is added even without a face, next to whatever is left. Counts as an ML request.'],
   },
   {
     name: 'glass',

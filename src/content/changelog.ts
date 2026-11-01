@@ -28,9 +28,23 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 
 export const CHANGELOG: Array<ChangelogDay> = [
   {
+    date: '2026-11-01',
+    title: 'Logokids in .veg, x.com media',
+    items: [
+      {kind: 'fixed', text: 'Links to x.com GIF and video posts gave the thumbnail with a play button on it instead of the GIF or video.'},
+      {kind: 'fixed', text: '`.xyt` (`/media-iv-filter xyt`) and **MediaScript:** `xytrender` failed on templates with shader effects.'},
+      {kind: 'improved', text: '`.veg` plays Vegas 10\'s older Cookie Cutter, the two colors of older Noise Textures (like Wood), and the dodge compositor that whites out what\'s under a white solid, as in the Logokids projects.'},
+      {kind: 'fixed', text: '`.veg` Cookie Cutter shapes were too small on wide videos, and an animated one jumped instead of closing smoothly. Effects with keyframes started from the right value instead of the settings the plugin was last left on.'},
+    ],
+  },
+  {
     date: '2026-10-31',
     title: 'Slash and prefixed options match',
     items: [
+      {kind: 'new', text: '`.caption`, `.meme` and `.recaption` (and their slash commands) take your own font file: attach a `.ttf`, `.otf`, `.woff` or `.woff2`, use the slash `font-file` option, or give a link with `-font <url>`.'},
+      {kind: 'new', text: 'Default font setting for caption, meme and recaption: `/settings set font` (`.set my font`) for yourself and `/server set font` (`.set font`) for a server, also on the dashboard. A font picked in the command wins, then yours, then the server\'s. Tags and NotSoAI use it too.'},
+      {kind: 'new', text: '**MediaScript:** `caption` and `meme` take `FONT=`, a bundled font or a `loadfont` key: `caption img hello FONT=myfont`.'},
+      {kind: 'new', text: '`.giggles` (`/media-iv-face giggles`): every face gets its biggest smile and a propeller cap, the background is swapped for a dreamy rainbow sky with a dolphin, hot air balloons and flowers, and there\'s always a swirl lollipop. Makes a still from GIFs and videos. **MediaScript:** `giggles`.'},
       {kind: 'new', text: '**MediaScript:** `loadfont` loads your own font (`.ttf`, `.otf`, `.woff` or `.woff2`, from a link or `FILE_n`) for `text`, `fittext` and `drawtext`: `loadfont FILE_1 myfont`, then `FONT=myfont`, `<span font="myfont">` in markup, or `fontfile=myfont` in the `ffmpeg` command\'s `drawtext` filter (bundled fonts work there too, like `fontfile=impact`).'},
       {kind: 'new', text: '`.fadeoverlay` (`/media-aiv fade-overlay`): slowly fades the second media in on top of the first until it covers it, with its sound crossfading in too. Works with images, gifs, videos and audio, two still images become a 3 second gif. Pick when it starts and how long it takes with `-start` and `-duration`: `.fadeoverlay @cakedan @notsobot -start 1 -duration 2`.'},
       {kind: 'new', text: '`/media-iv-face smile` has `level` (`SUBTLE`, `NORMAL`, `BIG` or `HUGE`), like `.smile -level`.'},
@@ -51,6 +65,9 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'improved', text: 'The moderation log shows the reason in a code block on its own line.'},
       {kind: 'improved', text: '`.warn` (`/warn`) works on users who already left the server, it goes on their record. A warning step that mutes or kicks skips them and says so, a ban step still bans them.'},
       {kind: 'improved', text: 'The website\'s home, FAQ, premium, changelog, tag docs and legal pages arrive already rendered, so they show up before the page\'s scripts load.'},
+      {kind: 'improved', text: '`.quote` draws `ansi` codeblocks in color, like Discord does: the text and background colors, bold, underline and the rest.'},
+      {kind: 'fixed', text: 'NotSoAI gave your own time when asked what time it is somewhere else, it works it out from UTC now.'},
+      {kind: 'fixed', text: 'NotSoAI sometimes replied with the placeholder text from its examples instead of an answer.'},
     ],
   },
   {

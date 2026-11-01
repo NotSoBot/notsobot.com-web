@@ -14,6 +14,23 @@ export const DIFFUSION_MODEL_CHOICES: ReadonlyArray<Choice> = [
   {value: 'FLUX_KLEIN', get label() { return translate('choice.diffusion.flux_klein'); }},
 ];
 
+// `MediaMemeFontsToText`, the API takes the keys. Font names, they aren't translated
+export const MEDIA_FONT_CHOICES: ReadonlyArray<Choice> = [
+  {value: 'ARIAL', label: 'Arial'},
+  {value: 'FUTURA_CONDENSED_EXTRA_BOLD', label: 'Futura Condensed Extra Bold'},
+  {value: 'IMPACT', label: 'Impact'},
+  {value: 'MONTSERRAT_BOLD', label: 'Montserrat Bold'},
+  {value: 'MONTSERRAT_REGULAR', label: 'Montserrat Regular'},
+  {value: 'MONTSERRAT_SEMIBOLD', label: 'Montserrat SemiBold'},
+  {value: 'MPLUS_1C_BLACK', label: 'M+ 1c'},
+  {value: 'MPLUS_2P_BLACK', label: 'M+ 2p'},
+  {value: 'RUBIK_BLACK', label: 'Rubik Black'},
+  {value: 'TAHOMA_BOLD', label: 'Tahoma Bold'},
+  {value: 'TITILLIUMWEB_BLACK', label: 'Titillium Black'},
+  {value: 'TITILLIUMWEB_BOLD', label: 'Titillium Bold'},
+  {value: 'TYPOLINE_DEMO', label: 'Typoline'},
+];
+
 // `DownloadQualities` (the API takes the values)
 export const DOWNLOAD_QUALITY_CHOICES: ReadonlyArray<Choice> = ['1440p', '1080p', '720p', '480p', '360p', '240p', '144p'].map((value) => ({value, label: value}));
 

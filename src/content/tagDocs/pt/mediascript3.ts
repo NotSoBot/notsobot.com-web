@@ -28,6 +28,7 @@ export const MEDIASCRIPT_PORTUGUESE_3: TagDocsTranslation['mediaScriptCommands']
     args: {
       MEDIA_KEY: MEDIA,
       TEXT: 'a legenda; separe o texto de cima e o de baixo com `|`',
+      FONT: 'uma fonte incluída (como `impact`) ou uma chave do `loadfont`',
     },
   },
   meme: {
@@ -35,6 +36,7 @@ export const MEDIASCRIPT_PORTUGUESE_3: TagDocsTranslation['mediaScriptCommands']
     args: {
       MEDIA_KEY: MEDIA,
       TEXT: 'o texto; separe o texto de cima e o de baixo com `|`',
+      FONT: 'uma fonte incluída (como `rubik`) ou uma chave do `loadfont`',
     },
   },
   text: {

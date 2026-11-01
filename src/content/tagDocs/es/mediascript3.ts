@@ -28,6 +28,7 @@ export const MEDIASCRIPT_SPANISH_3: TagDocsTranslation['mediaScriptCommands'] = 
     args: {
       MEDIA_KEY: MEDIA,
       TEXT: 'el subtítulo; separa el texto de arriba y el de abajo con `|`',
+      FONT: 'una fuente incluida (como `impact`) o una clave de `loadfont`',
     },
   },
   meme: {
@@ -35,6 +36,7 @@ export const MEDIASCRIPT_SPANISH_3: TagDocsTranslation['mediaScriptCommands'] = 
     args: {
       MEDIA_KEY: MEDIA,
       TEXT: 'el texto; separa el texto de arriba y el de abajo con `|`',
+      FONT: 'una fuente incluida (como `rubik`) o una clave de `loadfont`',
     },
   },
   text: {

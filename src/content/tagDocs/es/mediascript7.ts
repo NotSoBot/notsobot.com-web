@@ -248,6 +248,11 @@ export const MEDIASCRIPT_SPANISH_7: TagDocsTranslation['mediaScriptCommands'] = 
       SIZE: 'cuántos emojis a lo largo del lado más largo; none es uno cada 16 píxeles',
     },
   },
+  giggles: {
+    summary: 'Cada cara recibe su sonrisa más grande, una gorra con hélice y una piruleta, sobre un cielo de arcoíris de ensueño.',
+    args: ONLY_MEDIA,
+    notes: ['Siempre es una imagen fija: los GIFs dan su primer fotograma y los videos uno un poco más adelante. El fondo se quita y se cambia por el cielo (un delfín, globos aerostáticos y flores en los bordes). La piruleta se añade aunque no haya cara, junto a lo que quede. Cuenta como una petición de ML.'],
+  },
   glass: {
     summary: 'Pone la multimedia detrás de un cristal roto.',
     args: ONLY_MEDIA,

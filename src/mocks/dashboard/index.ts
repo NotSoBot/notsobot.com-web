@@ -1364,7 +1364,7 @@ route('PATCH', '/users/@me/guilds/(\\d+)', ([ , guildId ], { body }) => {
   if (ADMIN_BYPASS_SETTINGS.some((key) => key in body)) {
     requireEditable(guildId, 'rules_admin');
   }
-  const settingsKeys = ['ml_diffusion_model', 'ml_llm_model', 'ml_llm_personality', 'response_display', 'search_provider_images', 'search_provider_web', 'warnings_expire'] as const;
+  const settingsKeys = ['media_font', 'ml_diffusion_model', 'ml_llm_model', 'ml_llm_personality', 'response_display', 'search_provider_images', 'search_provider_web', 'warnings_expire'] as const;
   if ('warnings_actions' in body) {
     // the api sorts the ladder, null turns it off
     detail.settings.warnings_actions = [...((body.warnings_actions as UserGuild['settings']['warnings_actions'] | null) || [])].sort((x, y) => x.threshold - y.threshold);
@@ -2797,7 +2797,7 @@ route('PATCH', '/admin/guilds/(\\d+)', ([ , guildId ], { body }) => {
     requireBotOwner();
   }
   const { detail } = findAdminGuild(guildId).entry;
-  const settingsKeys = ['ml_diffusion_model', 'ml_llm_model', 'ml_llm_personality', 'response_display', 'search_provider_images', 'search_provider_web', 'warnings_expire'] as const;
+  const settingsKeys = ['media_font', 'ml_diffusion_model', 'ml_llm_model', 'ml_llm_personality', 'response_display', 'search_provider_images', 'search_provider_web', 'warnings_expire'] as const;
   if ('warnings_actions' in body) {
     // the api sorts the ladder, null turns it off
     detail.settings.warnings_actions = [...((body.warnings_actions as UserGuild['settings']['warnings_actions'] | null) || [])].sort((x, y) => x.threshold - y.threshold);

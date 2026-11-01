@@ -563,6 +563,8 @@ export interface UserSettings {
   file_upload_type: number,
   file_upload_vanity: string | null,
   locale: string | null,
+  // `MediaMemeFonts` key caption/meme/recaption use when no font is picked (before the server's), null: theirs
+  media_font: string | null,
   ml_diffusion_model: string | null,
   // NotSoAI doesn't see or save memories when this is on
   ml_llm_memory_disabled: boolean,
@@ -1286,6 +1288,8 @@ export const GuildModerationDmFlags = {
 export interface GuildSettings {
   // seconds of a member's messages the bot's `ban` deletes when the moderator doesn't pick, 0: none
   ban_clean: number,
+  // `MediaMemeFonts` key caption/meme/recaption fall back to after a member's own
+  media_font: string | null,
   ml_diffusion_model: string | null,
   ml_llm_model: string | null,
   ml_llm_personality: string | null,
@@ -1458,6 +1462,7 @@ export interface UserGuildPatch {
   ml_llm_personality?: string | null,
   ml_llm_model?: string | null,
   ml_diffusion_model?: string | null,
+  media_font?: string | null,
   response_display?: number | null,
   search_provider_images?: number | null,
   search_provider_web?: number | null,

@@ -77,6 +77,7 @@ export function createSettings(): UserSettings {
     file_upload_type: 0,
     file_upload_vanity: null,
     locale: 'en',
+    media_font: null,
     ml_diffusion_model: null,
     ml_llm_memory_disabled: false,
     ml_llm_model: 'ANTHROPIC_CLAUDE_HAIKU_5_5',
@@ -196,6 +197,7 @@ export interface MockGuild {
 export function createGuildSettings(): UserGuild['settings'] {
   return {
     ban_clean: 24 * 60 * 60,
+    media_font: null,
     ml_diffusion_model: null,
     ml_llm_model: null,
     ml_llm_personality: null,

@@ -16,6 +16,7 @@ import {
   FALLBACK_IMAGE_CHOICES,
   LLM_MODEL_CHOICES,
   LOCALE_CHOICES,
+  MEDIA_FONT_CHOICES,
   PERSONALITY_MAX,
   RESPONSE_DISPLAY_CHOICES,
   SEARCH_PROVIDER_CHOICES,
@@ -213,6 +214,7 @@ function MediaSection({ settings, onDirtyChange }: SectionProps) {
   const { t } = useI18n();
   const section = useSettingsSection('settings.media.title', settings, [
     'download_quality',
+    'media_font',
     'file_upload_threshold',
     'file_upload_type',
     'file_upload_vanity',
@@ -235,6 +237,9 @@ function MediaSection({ settings, onDirtyChange }: SectionProps) {
     <SectionForm title={t('settings.media.title')} accent='#faa81a' description={t('settings.media.description')} section={guardedSection}>
       <Field label={t('settings.media.download_quality')} hint={t('settings.media.download_quality_hint')}>
         {(props) => <ChoiceSelect {...props} noneLabel={t('settings.default')} choices={DOWNLOAD_QUALITY_CHOICES} value={section.values.download_quality} onChange={(value) => section.set('download_quality', value)}/>}
+      </Field>
+      <Field label={t('settings.media.font')} hint={t('settings.media.font_hint')}>
+        {(props) => <ChoiceSelect {...props} noneLabel={t('settings.default')} choices={MEDIA_FONT_CHOICES} value={section.values.media_font} onChange={(value) => section.set('media_font', value)}/>}
       </Field>
       <Field label={t('settings.media.fallback')} hint={t('settings.media.fallback_hint')}>
         {(props) => <ChoiceSelect {...props} choices={FALLBACK_IMAGE_CHOICES} value={section.values.fallbacks_media_image} onChange={(value) => section.set('fallbacks_media_image', value ?? 0)}/>}

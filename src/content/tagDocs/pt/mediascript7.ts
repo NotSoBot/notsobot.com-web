@@ -248,6 +248,11 @@ export const MEDIASCRIPT_PORTUGUESE_7: TagDocsTranslation['mediaScriptCommands']
       SIZE: 'quantos emojis ao longo do lado maior; none é um a cada 16 pixels',
     },
   },
+  giggles: {
+    summary: 'Cada rosto ganha seu maior sorriso, um boné de hélice e um pirulito, sobre um céu de arco-íris dos sonhos.',
+    args: ONLY_MEDIA,
+    notes: ['Sempre é uma imagem estática: GIFs dão o primeiro quadro e vídeos um quadro um pouco mais adiante. O fundo é removido e trocado pelo céu (um golfinho, balões de ar quente e flores nas bordas). O pirulito é adicionado mesmo sem rosto, ao lado do que sobrar. Conta como uma requisição de ML.'],
+  },
   glass: {
     summary: 'Coloca a mídia atrás de um vidro estilhaçado.',
     args: ONLY_MEDIA,

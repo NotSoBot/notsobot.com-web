@@ -10,6 +10,7 @@ import {
   DIFFUSION_MODEL_CHOICES,
   LLM_MODEL_CHOICES,
   LOCALE_CHOICES,
+  MEDIA_FONT_CHOICES,
   PERSONALITY_MAX,
   RESPONSE_DISPLAY_CHOICES,
   SEARCH_PROVIDER_CHOICES,
@@ -49,6 +50,7 @@ function savedValues(guild: UserGuild): Values {
     ml_llm_personality: guild.settings.ml_llm_personality,
     ml_llm_model: guild.settings.ml_llm_model,
     ml_diffusion_model: guild.settings.ml_diffusion_model,
+    media_font: guild.settings.media_font,
     response_display: guild.settings.response_display,
     search_provider_images: guild.settings.search_provider_images,
     search_provider_web: guild.settings.search_provider_web,
@@ -146,6 +148,9 @@ export function ServerSettingsForm({ guild, group, onDirtyChange }: {guild: User
               </Field>
               <Field label={t('settings.ai.image_model')}>
                 {(props) => <ChoiceSelect {...props} noneLabel={t('settings.default')} choices={DIFFUSION_MODEL_CHOICES} value={values.ml_diffusion_model} onChange={(value) => draft.set('ml_diffusion_model', value)}/>}
+              </Field>
+              <Field label={t('settings.media.font')} hint={t('ssettings.member_wins')}>
+                {(props) => <ChoiceSelect {...props} noneLabel={t('settings.default')} choices={MEDIA_FONT_CHOICES} value={values.media_font} onChange={(value) => draft.set('media_font', value)}/>}
               </Field>
               <Field label={t('settings.display.response')}>
                 {(props) => <ChoiceSelect {...props} noneLabel={t('settings.default')} choices={RESPONSE_DISPLAY_CHOICES} value={values.response_display} onChange={(value) => draft.set('response_display', value)}/>}
