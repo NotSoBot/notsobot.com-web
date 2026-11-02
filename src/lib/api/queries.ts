@@ -40,6 +40,8 @@ export const queryKeys = {
   sentGuildReports: (token: string | null, filters?: object) => ['users', '@me', token, 'sent-guild-reports', ...((filters === undefined) ? [] : [filters])] as const,
   meReportsUnread: (token: string | null) => ['users', '@me', token, 'reports-unread'] as const,
   meVoices: (token: string | null) => ['users', '@me', token, 'voices'] as const,
+  // the caller's own (`guildId` null) or a server's
+  savedFonts: (token: string | null, guildId: string | null) => ['users', '@me', token, 'saved-fonts', guildId] as const,
   meFiles: (token: string | null, filters?: object) => ['users', '@me', token, 'files', ...((filters) ? [filters] : [])] as const,
   meGuilds: (token: string | null) => ['users', '@me', token, 'guilds'] as const,
   meGuild: (token: string | null, guildId: string) => ['users', '@me', token, 'guilds', guildId] as const,

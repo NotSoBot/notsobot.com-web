@@ -137,17 +137,19 @@ export const MEDIASCRIPT_PORTUGUESE_1: TagDocsTranslation['mediaScriptCommands']
   loadfont: {
     summary: 'Carrega uma fonte para o `text`, o `fittext` e o `drawtext`.',
     args: {
-      URL: 'link para o arquivo `.ttf`, `.otf`, `.woff` ou `.woff2`, ou `FILE_1`, `FILE_2`... para arquivos anexados',
-      FONT_KEY: 'o nome pelo qual usá-la; só letras, números e _',
+      URL: 'link para o arquivo `.ttf`, `.otf`, `.woff` ou `.woff2`, `FILE_1`, `FILE_2`... para arquivos anexados, ou o nome de uma fonte salva',
+      FONT_KEY: 'o nome pelo qual usá-la; só letras, números e _. Opcional para uma fonte salva, que é usada pelo próprio nome',
     },
     results: [
       'Escreve "Hello World" com a fonte anexada, em branco com contorno preto.',
+      'Escreve "Hello World" com a fonte salva `comic`, do usuário ou do servidor.',
     ],
     notes: [
       'Use como `FONT=FONT_KEY`, como `<span font="FONT_KEY">` em texto com `MARKUP=true`, ou como `fontfile=FONT_KEY` no filtro `drawtext` do comando `ffmpeg`.',
       'Arquivos de até 24mb, no máximo 4 por script. Coleções de fontes (`.ttc`) não são suportadas; use um único `.ttf` ou `.otf`.',
       'Toda fonte é verificada antes de ser usada; uma quebrada falha ao carregar e diz o motivo.',
       'A chave não pode ser o nome de uma fonte incluída (como `impact`), e chaves de fonte são separadas das chaves de mídia.',
+      'Fontes salvas são adicionadas com o `fonts add` e o `server fonts add` do bot (ou no painel) e precisam de NotSoPremium: primeiro vêm as do usuário, depois as do servidor (que precisa de um espaço de servidor premium). Numa tag, são as fontes de quem a executa.',
     ],
   },
   render: {

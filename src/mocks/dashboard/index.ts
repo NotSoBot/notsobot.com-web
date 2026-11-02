@@ -31,6 +31,8 @@ import {
   type AdminUserWarning,
   type ContentFlag,
   type GuildLLMKnowledge,
+  type SavedFont,
+  type SavedFontsPage,
   type GuildContentUser,
   type GuildReport,
   type GuildReportMessage,
@@ -107,6 +109,20 @@ const state = {
   commandUses: createCommandUses(),
   llmMemories: createLLMMemories(),
   // what each server told NotSoAI, by guild id; the first server starts with a couple
+  // saved fonts by owner, `me` for the mock user's own and a guild id for a server's (the second guild has a premium
+  // server slot below, the first doesn't, so it shows a kept font that can't be used)
+  savedFonts: new Map<string, Array<SavedFont>>([
+    ['me', [
+      {created: new Date(Date.now() - 12 * 86400000).toISOString(), filename: 'ComicNeue-Bold.ttf', guild_id: null, id: '1300000000000000301', name: 'comic', size: 58_344, thumbnail: {height: 96, width: 1000}, uploader_id: mockUser.id, user_id: mockUser.id},
+      {created: new Date(Date.now() - 3 * 86400000).toISOString(), filename: 'NotoSansJP-Black.otf', guild_id: null, id: '1300000000000000302', name: 'noto_jp', size: 4_712_960, thumbnail: {height: 96, width: 1000}, uploader_id: mockUser.id, user_id: mockUser.id},
+    ]],
+    [guilds[0].summary.id, [
+      {created: new Date(Date.now() - 40 * 86400000).toISOString(), filename: 'Pacifico-Regular.ttf', guild_id: guilds[0].summary.id, id: '1300000000000000303', name: 'pacifico', size: 315_092, thumbnail: {height: 96, width: 1000}, uploader_id: '1000000000000000001', user_id: null},
+    ]],
+    [guilds[1].summary.id, [
+      {created: new Date(Date.now() - 6 * 86400000).toISOString(), filename: 'Bangers-Regular.ttf', guild_id: guilds[1].summary.id, id: '1300000000000000304', name: 'bangers', size: 141_204, thumbnail: {height: 96, width: 1000}, uploader_id: mockUser.id, user_id: null},
+    ]],
+  ]),
   guildLLMKnowledge: new Map<string, Array<GuildLLMKnowledge>>([[guilds[0].summary.id, [
     {content: 'The #support channel is for help with the bot, staff usually answer within a day.', created: new Date(Date.now() - 9 * 86400000).toISOString(), guild_id: guilds[0].summary.id, id: '1300000000000000101', user_id: '1000000000000000001'},
     {content: 'Members get the Regular role after a week of chatting.', created: new Date(Date.now() - 2 * 86400000).toISOString(), guild_id: guilds[0].summary.id, id: '1300000000000000102', user_id: '1000000000000000001'},
@@ -5226,6 +5242,226 @@ function toneWav(frequency: number, seconds: number): Blob {
 }
 
 const voiceClipAudio = new Map<string, Blob>();
+
+
+// saved fonts: mirrors `views/me_fonts.py`. The files the mock was given are kept to preview, the seeded ones are
+// fetched from @fontsource when they're previewed (a font that's gone falls back like one the browser won't load)
+const savedFontFiles = new Map<string, Blob>();
+const SEEDED_FONT_FILES: Record<string, string> = {
+  '1300000000000000301': 'https://cdn.jsdelivr.net/npm/@fontsource/comic-neue@5.0.8/files/comic-neue-latin-700-normal.woff2',
+  '1300000000000000302': 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-jp@5.0.8/files/noto-sans-jp-latin-900-normal.woff2',
+  '1300000000000000303': 'https://cdn.jsdelivr.net/npm/@fontsource/pacifico@5.0.8/files/pacifico-latin-400-normal.woff2',
+  '1300000000000000304': 'https://cdn.jsdelivr.net/npm/@fontsource/bangers@5.0.8/files/bangers-latin-400-normal.woff2',
+};
+const SAVED_FONT_LIMITS = {guild: 25, me: 10};
+const SAVED_FONT_MAX_FILE_SIZE = 24 * 1024 * 1024;
+// the bundled caption/meme fonts and MediaScript's, as the api compares them (`font_key`)
+const BUNDLED_FONT_KEYS = new Set([
+  'arial', 'futuracondensedextrabold', 'impact', 'montserratbold', 'montserratregular', 'montserratsemibold', 'mplus1cblack',
+  'mplus2pblack', 'rubikblack', 'tahomabold', 'titilliumwebblack', 'titilliumwebbold', 'typolinedemo', 'sans', 'serif',
+  'monospace', 'futura', 'montserrat', 'rubik', 'tahoma', 'titillium',
+]);
+
+function savedFontsPage(owner: string): SavedFontsPage {
+  const premium = (owner === 'me') ? mockUser.premium_type !== 0 : state.premiumServers.some((server) => server.server_id === owner);
+  const items = [...(state.savedFonts.get(owner) ?? [])].sort((a, b) => a.name.localeCompare(b.name));
+  return {items, limit: (owner === 'me') ? SAVED_FONT_LIMITS.me : SAVED_FONT_LIMITS.guild, max_file_size: SAVED_FONT_MAX_FILE_SIZE, premium};
+}
+
+// like `clean_saved_font_name`
+function savedFontName(owner: string, value: unknown, excluding?: string): string {
+  const name = String(value ?? '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+  if (!/^[a-z0-9_]{1,32}$/.test(name)) {
+    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'Font names can only have letters, numbers and _ (at most 32)');
+  }
+  if (BUNDLED_FONT_KEYS.has(name.replace(/_/g, '')) || /^file_[0-9]+(_copy)?$/.test(name)) {
+    throw new MockError(400, ApiErrorCodes.SAVED_FONT_NAME_TAKEN, `\`${name}\` is a built-in font, use another name`, {name});
+  }
+  if ((state.savedFonts.get(owner) ?? []).some((font) => font.name === name && font.id !== excluding)) {
+    throw new MockError(400, ApiErrorCodes.SAVED_FONT_NAME_TAKEN, `There's already a font named \`${name}\``, {name});
+  }
+  return name;
+}
+
+function findSavedFont(owner: string, fontId: string): SavedFont {
+  const font = (state.savedFonts.get(owner) ?? []).find((other) => other.id === fontId);
+  if (!font) {
+    throw new MockError(404, ApiErrorCodes.UNKNOWN_SAVED_FONT, 'Unknown Font');
+  }
+  return font;
+}
+
+function addSavedFont(owner: string, body: Record<string, unknown>): SavedFontsPage {
+  const page = savedFontsPage(owner);
+  if (!page.premium) {
+    throw new MockError(403, ApiErrorCodes.PREMIUM_REQUIRED, 'Upgrade to NotSoPremium to save fonts', {tier: (owner === 'me') ? 'premium' : 'premium_server'});
+  }
+  const file = body.file;
+  if (!(file instanceof File)) {
+    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'Missing a Font file, upload `file` or pass `url`');
+  }
+  if (page.limit <= page.items.length) {
+    throw new MockError(400, ApiErrorCodes.MAX_SAVED_FONTS, `Reached the max amount of saved fonts (${page.limit})`, {limit: page.limit});
+  }
+  const name = savedFontName(owner, body.name);
+  if (SAVED_FONT_MAX_FILE_SIZE < file.size) {
+    throw new MockError(400, ApiErrorCodes.FILE_TOO_LARGE, 'Font files can be at most 24mb');
+  }
+  // the api's OTS check, the mock only looks at the first bytes like `check_font_signature` does
+  if (!/\.(ttf|otf|woff2?)$/i.test(file.name)) {
+    throw new MockError(400, ApiErrorCodes.INVALID_FILE_TYPE, 'Unable to use that font file: Not a font, use a .ttf, .otf, .woff or .woff2 file');
+  }
+  const id = mockId();
+  savedFontFiles.set(id, file);
+  const font: SavedFont = {
+    created: new Date().toISOString(),
+    filename: file.name.slice(0, 128),
+    guild_id: (owner === 'me') ? null : owner,
+    id,
+    name,
+    size: file.size,
+    // the real size comes from drawing it, the dashboard only goes by the image's own
+    thumbnail: {height: 96, width: 1000},
+    uploader_id: mockUser.id,
+    user_id: (owner === 'me') ? mockUser.id : null,
+  };
+  state.savedFonts.set(owner, [...(state.savedFonts.get(owner) ?? []), font]);
+  return savedFontsPage(owner);
+}
+
+function renameSavedFont(owner: string, fontId: string, body: Record<string, unknown>): SavedFontsPage {
+  const font = findSavedFont(owner, fontId);
+  const name = savedFontName(owner, body.name, font.id);
+  // a Default Font setting using it follows it
+  if (owner === 'me' && state.settings.media_font === font.name) {
+    state.settings.media_font = name;
+  } else if (owner !== 'me') {
+    const entry = findGuild(owner);
+    if (entry.detail.settings.media_font === font.name) {
+      entry.detail.settings.media_font = name;
+    }
+  }
+  font.name = name;
+  return savedFontsPage(owner);
+}
+
+function deleteSavedFont(owner: string, fontId: string): SavedFontsPage {
+  const font = findSavedFont(owner, fontId);
+  if (owner === 'me' && state.settings.media_font === font.name) {
+    state.settings.media_font = null;
+  } else if (owner !== 'me') {
+    const entry = findGuild(owner);
+    if (entry.detail.settings.media_font === font.name) {
+      entry.detail.settings.media_font = null;
+    }
+  }
+  savedFontFiles.delete(font.id);
+  state.savedFonts.set(owner, (state.savedFonts.get(owner) ?? []).filter((other) => other.id !== font.id));
+  return savedFontsPage(owner);
+}
+
+function savedFontFile(owner: string, fontId: string): Response {
+  const font = findSavedFont(owner, fontId);
+  const headers = {'content-type': 'application/octet-stream'};
+  const file = savedFontFiles.get(font.id);
+  const seeded = SEEDED_FONT_FILES[font.id];
+  if (file || !seeded) {
+    return new Response(file ?? new Blob([]), {status: 200, headers});
+  }
+  // handlers answer right away, so the seeded file streams in once it's downloaded
+  const body = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      try {
+        const response = await fetch(seeded);
+        controller.enqueue(new Uint8Array(await response.arrayBuffer()));
+      } catch {
+        // nothing, the preview shows it can't be loaded
+      }
+      controller.close();
+    },
+  });
+  return new Response(body, {status: 200, headers});
+}
+
+// like `render_saved_font_thumbnail`: the sample line drawn big, cut to its glyphs and scaled to 96px tall (narrower than
+// 1200), white on transparent. The browser draws it here instead of pango, close enough to see the layout
+async function drawSavedFontThumbnail(font: SavedFont): Promise<Uint8Array> {
+  let file = savedFontFiles.get(font.id);
+  if (!file) {
+    file = await (await fetch(SEEDED_FONT_FILES[font.id])).blob();
+  }
+  const face = new FontFace(`mock-thumbnail-${font.id}`, await file.arrayBuffer());
+  await face.load();
+  document.fonts.add(face);
+  const text = 'Quick brown fox 123';
+  const size = 192;
+  const measure = new OffscreenCanvas(1, 1).getContext('2d')!;
+  measure.font = `${size}px "${face.family}"`;
+  const metrics = measure.measureText(text);
+  const inkWidth = Math.ceil(metrics.actualBoundingBoxLeft + metrics.actualBoundingBoxRight);
+  const inkHeight = Math.ceil(metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent);
+  const scale = Math.min(96 / inkHeight, 1200 / inkWidth);
+  const canvas = new OffscreenCanvas(Math.max(1, Math.round(inkWidth * scale)), Math.max(1, Math.round(inkHeight * scale)));
+  const context = canvas.getContext('2d')!;
+  context.scale(scale, scale);
+  context.font = measure.font;
+  context.fillStyle = '#ffffff';
+  context.fillText(text, metrics.actualBoundingBoxLeft, metrics.actualBoundingBoxAscent);
+  document.fonts.delete(face);
+  return new Uint8Array(await (await canvas.convertToBlob({type: 'image/png'})).arrayBuffer());
+}
+
+function savedFontThumbnail(owner: string, fontId: string): Response {
+  const font = findSavedFont(owner, fontId);
+  if (!font.thumbnail || (!savedFontFiles.has(font.id) && !SEEDED_FONT_FILES[font.id])) {
+    throw new MockError(404, ApiErrorCodes.UNKNOWN_SAVED_FONT, 'This font has no thumbnail');
+  }
+  // handlers answer right away, so the png streams in once it's drawn (one the browser can't load ends up empty, which
+  // the dashboard treats like a broken thumbnail)
+  const body = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      try {
+        controller.enqueue(await drawSavedFontThumbnail(font));
+      } catch {
+        // nothing
+      }
+      controller.close();
+    },
+  });
+  return new Response(body, {status: 200, headers: {'content-type': 'image/png'}});
+}
+
+route('GET', '/users/@me/fonts', () => savedFontsPage('me'));
+route('POST', '/users/@me/fonts', (_match, { body }) => addSavedFont('me', body));
+route('PATCH', '/users/@me/fonts/(\\d+)', ([ , fontId ], { body }) => renameSavedFont('me', fontId, body));
+route('DELETE', '/users/@me/fonts/(\\d+)', ([ , fontId ]) => deleteSavedFont('me', fontId));
+route('GET', '/users/@me/fonts/(\\d+)/file', ([ , fontId ]) => savedFontFile('me', fontId));
+route('GET', '/users/@me/fonts/(\\d+)/thumbnail', ([ , fontId ]) => savedFontThumbnail('me', fontId));
+
+route('GET', '/users/@me/guilds/(\\d+)/fonts', ([ , guildId ]) => {
+  findGuild(guildId);
+  return savedFontsPage(guildId);
+});
+route('POST', '/users/@me/guilds/(\\d+)/fonts', ([ , guildId ], { body }) => {
+  requireEditable(guildId, 'settings');
+  return addSavedFont(guildId, body);
+});
+route('PATCH', '/users/@me/guilds/(\\d+)/fonts/(\\d+)', ([ , guildId, fontId ], { body }) => {
+  requireEditable(guildId, 'settings');
+  return renameSavedFont(guildId, fontId, body);
+});
+route('DELETE', '/users/@me/guilds/(\\d+)/fonts/(\\d+)', ([ , guildId, fontId ]) => {
+  requireEditable(guildId, 'settings');
+  return deleteSavedFont(guildId, fontId);
+});
+route('GET', '/users/@me/guilds/(\\d+)/fonts/(\\d+)/file', ([ , guildId, fontId ]) => {
+  findGuild(guildId);
+  return savedFontFile(guildId, fontId);
+});
+route('GET', '/users/@me/guilds/(\\d+)/fonts/(\\d+)/thumbnail', ([ , guildId, fontId ]) => {
+  findGuild(guildId);
+  return savedFontThumbnail(guildId, fontId);
+});
 
 // the mock user's first voice has two clips, the second was cloned before clips were kept and has none
 {

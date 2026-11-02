@@ -20,6 +20,7 @@ export const Routes = Object.freeze({
   DASHBOARD_SETTINGS: '/dashboard/settings',
   DASHBOARD_PREMIUM: '/dashboard/premium',
   DASHBOARD_FILES: '/dashboard/files',
+  DASHBOARD_FONTS: '/dashboard/fonts',
   DASHBOARD_REMINDERS: '/dashboard/reminders',
   DASHBOARD_REPORTS: '/dashboard/reports',
   DASHBOARD_REPORT: '/dashboard/reports/:itemId',

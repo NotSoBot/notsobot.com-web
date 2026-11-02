@@ -28,6 +28,18 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 
 export const CHANGELOG: Array<ChangelogDay> = [
   {
+    date: '2026-11-02',
+    title: 'Saved fonts',
+    items: [
+      {kind: 'new', text: 'Saved fonts for NotSoPremium: keep up to 10 fonts of your own, and a server with a premium server slot keeps up to 25 that all its members can use. Add yours with `/fonts add` (`.fonts add comic` with a `.ttf`, `.otf`, `.woff` or `.woff2` attached) and the server\'s with `/server fonts add` (`.server fonts add`, needs Manage Server). `list`, `remove` and `rename` manage them.'},
+      {kind: 'new', text: 'Use a saved font by its name in `.caption`, `.meme` and `.recaption` (`-font comic`, or the slash `font` option, which now lists your saved fonts and the server\'s), or as your Default Font or the server\'s. Your own fonts come before the server\'s.'},
+      {kind: 'new', text: '**MediaScript:** `loadfont` loads a saved font by its name, the key is its name unless you give one: `loadfont comic`, then `FONT=comic`. In tags, it uses the fonts of whoever runs the tag.'},
+      {kind: 'new', text: 'Dashboard: a Fonts page to upload, preview, rename and delete your saved fonts, and a server fonts section on each server\'s settings. Saved fonts show up in the Default Font settings too.'},
+      {kind: 'improved', text: 'The slash `font` option on `/media-iv-text caption`, `meme` and `recaption` is a search instead of a fixed list.'},
+      {kind: 'new', text: '`/media-iv-text caption`, `meme` and `recaption` have `font-url` for a link to your own font file. The `font-file` option is now called `font-attachment`.'},
+    ],
+  },
+  {
     date: '2026-11-01',
     title: 'Logokids in .veg, x.com media',
     items: [

@@ -3,7 +3,7 @@ import type { LegalDocument } from './legal';
 export const TERMS_OF_SERVICE: LegalDocument = {
   title: "Terms of Service",
   effective: "November 12, 2026",
-  lastUpdated: "October 27, 2026",
+  lastUpdated: "November 2, 2026",
   intro: "Please read these Terms of Service carefully before using NotSoBot. They explain what you can and can't do with the Service, what we store when you use it, and how to reach us.",
   sections: [
     {
@@ -70,8 +70,8 @@ export const TERMS_OF_SERVICE: LegalDocument = {
         {type: 'paragraph', text: "We only store data needed to provide the Service's features, keep it secure and prevent abuse. Our Privacy Policy explains this in more detail. Depending on which features You use, We store:"},
         {type: 'list', items: [
           "Discord account information: your user ID, username, discriminator, avatar, account flags, and the ID of your DM channel with NotSoBot.",
-          "Your settings: language, timezone, units, response display preferences, file upload preferences, selected AI models and personality, and text-to-speech voice.",
-          "Server information and settings for servers NotSoBot is in: server ID, name, icon, features, language, timezone, custom prefixes, AI settings, and the rules for who can use which commands along with who added each rule.",
+          "Your settings: language, timezone, units, response display preferences, file upload preferences, selected AI models and personality, text-to-speech voice, and default font for captions and memes.",
+          "Server information and settings for servers NotSoBot is in: server ID, name, icon, features, language, timezone, custom prefixes, default font, AI settings, and the rules for who can use which commands along with who added each rule.",
           "Logging settings: if a server enables logging, the channel and webhook used to post logs, including the webhook token. Log events are sent to that webhook and are not kept by Us.",
           "Command replies: the IDs of your command message, its channel, the command used, and NotSoBot's reply, so that editing or deleting your command can update or remove the reply. The text of your command message is not stored.",
           "Command usage statistics: which command was used, when, and the server, channel and user IDs involved.",
@@ -81,6 +81,7 @@ export const TERMS_OF_SERVICE: LegalDocument = {
           "Uploaded files: files You ask NotSoBot to host, their file names, sizes, dimensions and a file hash (BLAKE2b).",
           "AI requests: the prompt, including any messages You replied to with the ai command, along with the instructions, model, generated response, any error and token counts.",
           "Cloned voices: the voice's name, the ID of the voice stored at the voice cloning service, and the audio clips it was made from.",
+          "Saved fonts: the font files You (or a server's members) save to use by name, with their names, original file names, sizes, a file hash (SHA-256), who saved them and a preview image.",
           "Purchases: premium entitlements and subscription status received from Discord. Payments are processed by Discord, and We never see your payment details.",
           "Website and API use: if You log in to notsobot.com, a Discord OAuth2 access and refresh token with the scopes You approved, your login sessions and their browser user agent, and request logs including the IP address, user agent, path and response time.",
           "Safety records: information about content flagged by Our automated safety systems, described in Section 7.",
@@ -111,7 +112,7 @@ export const TERMS_OF_SERVICE: LegalDocument = {
           "Links between your command messages and NotSoBot's replies are deleted after 14 days of inactivity.",
           "Temporary files are deleted automatically when they expire.",
           "AI requests, including any messages You replied to, are deleted after 30 days.",
-          "Tags, reminders and cloned voices are deleted when You delete them.",
+          "Tags, reminders, cloned voices and saved fonts are deleted when You delete them. A server's saved fonts are deleted with the server's data.",
           "Server settings are kept if NotSoBot is removed from a server, so they still apply if it is added back. A server owner can ask Us to delete them.",
           "Other data is kept while You use the Service, and deleted when You ask Us to delete it or when We no longer need it to provide the Service.",
         ]},

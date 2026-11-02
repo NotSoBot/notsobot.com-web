@@ -135,17 +135,19 @@ export const MEDIASCRIPT_SPANISH_1: TagDocsTranslation['mediaScriptCommands'] = 
   loadfont: {
     summary: 'Carga una fuente para `text`, `fittext` y `drawtext`.',
     args: {
-      URL: 'enlace al archivo `.ttf`, `.otf`, `.woff` o `.woff2`, o `FILE_1`, `FILE_2`... para archivos adjuntos',
-      FONT_KEY: 'el nombre con el que usarla; solo letras, números y _',
+      URL: 'enlace al archivo `.ttf`, `.otf`, `.woff` o `.woff2`, `FILE_1`, `FILE_2`... para archivos adjuntos, o el nombre de una fuente guardada',
+      FONT_KEY: 'el nombre con el que usarla; solo letras, números y _. Opcional para una fuente guardada, que se usa por su propio nombre',
     },
     results: [
       'Escribe "Hello World" con la fuente adjunta, en blanco con contorno negro.',
+      'Escribe "Hello World" con la fuente guardada `comic`, la del usuario o la del servidor.',
     ],
     notes: [
       'Úsala como `FONT=FONT_KEY`, como `<span font="FONT_KEY">` en texto con `MARKUP=true`, o como `fontfile=FONT_KEY` en el filtro `drawtext` del comando `ffmpeg`.',
       'Archivos de hasta 24mb, como mucho 4 por script. Las colecciones de fuentes (`.ttc`) no se admiten; usa un solo `.ttf` u `.otf`.',
       'Cada fuente se comprueba antes de usarla; una que esté rota no se carga y dice por qué.',
       'La clave no puede ser el nombre de una fuente incluida (como `impact`), y las claves de fuente son independientes de las claves de multimedia.',
+      'Las fuentes guardadas se añaden con `fonts add` y `server fonts add` del bot (o en el panel) y necesitan NotSoPremium: primero van las del usuario y luego las del servidor (que necesita un espacio de servidor premium). En una etiqueta, son las fuentes de quien la ejecuta.',
     ],
   },
   render: {

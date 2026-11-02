@@ -852,13 +852,17 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     summary: 'Loads a font for `text`, `fittext` and `drawtext`.',
     syntax: 'loadfont URL FONT_KEY',
     args: [
-      {name: 'URL', description: 'link to the `.ttf`, `.otf`, `.woff` or `.woff2` file, or `FILE_1`, `FILE_2`... for attached files'},
-      {name: 'FONT_KEY', description: 'name to use it by, letters, numbers and _ only'},
+      {name: 'URL', description: 'link to the `.ttf`, `.otf`, `.woff` or `.woff2` file, `FILE_1`, `FILE_2`... for attached files, or the name of a saved font'},
+      {name: 'FONT_KEY', description: 'name to use it by, letters, numbers and _ only. Optional for a saved font, which goes by its own name'},
     ],
     examples: [
       {
         code: '{mediascript:loadfont FILE_1 myfont\ntext title Hello World FONT=myfont SIZE=72 COLOR=white STROKE=black\nrender title}',
         result: 'Writes "Hello World" in the attached font, white with a black outline.',
+      },
+      {
+        code: '{mediascript:loadfont comic\ntext title Hello World FONT=comic SIZE=72\nrender title}',
+        result: 'Writes "Hello World" in the saved font `comic`, the user\'s own or the server\'s.',
       },
     ],
     notes: [
@@ -866,6 +870,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
       'Files up to 24mb, at most 4 per script. Font collections (`.ttc`) aren\'t supported, use a single `.ttf` or `.otf`.',
       'Every font is checked before it\'s used, a broken one fails to load with the reason.',
       'The key can\'t be a bundled font\'s name (like `impact`), and font keys are separate from media keys.',
+      'Saved fonts are added with the bot\'s `fonts add` and `server fonts add` (or on the dashboard) and need NotSoPremium: the user\'s own come first, then the server\'s (which needs a premium server slot). In a tag, they\'re the fonts of whoever runs it.',
     ],
   },
   {

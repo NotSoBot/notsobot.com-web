@@ -78,6 +78,7 @@ import type {
   Reminder,
   ReminderPatch,
   RemindersPage,
+  SavedFontsPage,
   MeReport,
   MeReportsPage,
   MeReportsSortBy,
@@ -222,6 +223,12 @@ export function errorMessage(error: unknown, fallback = translate('errors.generi
         return translate('errors.voice_clip_last');
       case ApiErrorCodes.VOICE_HAS_NO_CLIPS:
         return translate('errors.voice_has_no_clips');
+      case ApiErrorCodes.UNKNOWN_SAVED_FONT:
+        return translate('errors.unknown_saved_font');
+      case ApiErrorCodes.MAX_SAVED_FONTS:
+        return translate('errors.max_saved_fonts', {limit: (error.body as {limit?: number} | null)?.limit ?? 10});
+      case ApiErrorCodes.SAVED_FONT_NAME_TAKEN:
+        return translate('errors.saved_font_name_taken', {name: (error.body as {name?: string} | null)?.name ?? ''});
       case ApiErrorCodes.UNKNOWN_REMINDER:
         return translate('errors.unknown_reminder');
       case ApiErrorCodes.UNKNOWN_LLM_MEMORY:
@@ -1147,6 +1154,47 @@ export function useDeleteMeVoiceClipMutation() {
   return useMutation({
     mutationFn: ({ voiceId, clipId }: {voiceId: string, clipId: string}) => api.deleteMeVoiceClip(voiceId, clipId),
     onSuccess: setVoice,
+  });
+}
+
+
+/* saved fonts, the caller's own (`guildId` null) or a server's */
+
+export function useSavedFontsQuery(guildId: string | null, enabled = true) {
+  const { token } = useAuth();
+  return useQuery({
+    queryKey: queryKeys.savedFonts(token, guildId),
+    queryFn: ({ signal }) => api.fetchSavedFonts(guildId, signal),
+    enabled: !!token && enabled,
+    retry: retryDiscordRefresh,
+  });
+}
+
+
+export type SavedFontAction =
+  | {kind: 'add', name: string, file: File}
+  | {kind: 'rename', fontId: string, name: string}
+  | {kind: 'remove', fontId: string};
+
+// every route answers with the whole list, which replaces the cached one. A rename or delete can change a Default Font
+// setting (it follows the font, or goes back to none), so those are fetched again
+export function useSavedFontsMutation(guildId: string | null) {
+  const { token } = useAuth();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (action: SavedFontAction): Promise<SavedFontsPage> => {
+      switch (action.kind) {
+        case 'add': return api.uploadSavedFont(guildId, action.name, action.file);
+        case 'rename': return api.renameSavedFont(guildId, action.fontId, action.name);
+        case 'remove': return api.deleteSavedFont(guildId, action.fontId);
+      }
+    },
+    onSuccess: (page, action) => {
+      queryClient.setQueryData<SavedFontsPage>(queryKeys.savedFonts(token, guildId), page);
+      if (action.kind !== 'add') {
+        void queryClient.invalidateQueries({queryKey: (guildId) ? queryKeys.meGuild(token, guildId) : queryKeys.meSettings(token)});
+      }
+    },
   });
 }
 

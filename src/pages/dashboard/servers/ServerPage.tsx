@@ -8,6 +8,7 @@ import { errorMessage, isDiscordGrantError, isScopeMismatch, useMeGuildQuery, us
 import { discordGuildUrl, formatNumber } from '@/lib/utils';
 
 import { Chip, CopyableValue } from '../admin/adminUi';
+import { SavedFontsPanel } from '../fonts/SavedFontsPanel';
 import { PanelSkeleton, Skeleton, UnsavedChangesGuard } from '../ui';
 import { AIKnowledgeSection } from './AIKnowledgeSection';
 import { GuildCommandsSection } from './GuildCommandsSection';
@@ -15,7 +16,7 @@ import { GuildIcon } from './GuildIcon';
 import { GuildRemindersSection } from './GuildRemindersSection';
 import { GuildReportsSection } from './GuildReportsSection';
 import { GuildTagsSection } from './GuildTagsSection';
-import { AREA_LABEL, AREA_PERMISSION } from './guildMeta';
+import { AREA_LABEL, AREA_PERMISSION, useReadOnlyMessage } from './guildMeta';
 import { MusicSection } from './MusicSection';
 import { MusicStatsSection } from './MusicStatsSection';
 import { ServerDataSection } from './ServerDataSection';
@@ -209,10 +210,12 @@ export function ServerWarningsPage() {
 
 export function ServerSettingsPage() {
   const { guild, setDirty } = useServer();
+  const readOnlyMessage = useReadOnlyMessage();
   return (
     <>
       <PrefixesSection guild={guild}/>
       <ServerSettingsForm guild={guild} group='general' onDirtyChange={setDirty('general')}/>
+      <SavedFontsPanel guildId={guild.id} editable={guild.editable.settings} readOnly={readOnlyMessage('settings')}/>
       <ServerSettingsForm guild={guild} group='moderation' onDirtyChange={setDirty('moderation')}/>
       <LoggersSection guild={guild}/>
       <ServerDataSection guild={guild}/>

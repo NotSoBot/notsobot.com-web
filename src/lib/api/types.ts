@@ -469,6 +469,9 @@ export const ApiErrorCodes = {
   MAX_VOICE_CLIPS: 30026,
   UNKNOWN_GUILD_LLM_KNOWLEDGE: 10029,
   MAX_GUILD_LLM_KNOWLEDGE: 30027,
+  UNKNOWN_SAVED_FONT: 10037,
+  MAX_SAVED_FONTS: 30032,
+  SAVED_FONT_NAME_TAKEN: 50050,
   UNKNOWN_VOICE_NODE: 10031,
   UNKNOWN_MUSIC_QUEUE_ITEM: 10030,
   UNKNOWN_MUSIC_SESSION: 10032,
@@ -1122,6 +1125,31 @@ export interface MeVoice extends Voice {
 export interface VoicesPage {
   count: number,
   items: Array<MeVoice>,
+}
+
+// a font saved to use by name in caption, meme, recaption, the Default Font settings and MediaScript's `loadfont`.
+// The caller's own (`user_id`) or a server's (`guild_id`)
+export interface SavedFont {
+  created: string,
+  filename: string,
+  guild_id: string | null,
+  id: string,
+  // lowercase letters, numbers and _ (the API cleans what's sent), never a bundled font's
+  name: string,
+  size: number,
+  // a png of a sample line in the font, drawn by the API like the bot draws it and scaled so every font's glyphs are
+  // the same height. Null when the font couldn't draw it
+  thumbnail: {height: number, width: number} | null,
+  uploader_id: string,
+  user_id: string | null,
+}
+
+// every font route answers with the whole list. Without premium they're kept, but can't be added to or used
+export interface SavedFontsPage {
+  items: Array<SavedFont>,
+  limit: number,
+  max_file_size: number,
+  premium: boolean,
 }
 
 // only the name can be changed from the dashboard (max 128)

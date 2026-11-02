@@ -1,4 +1,4 @@
-import { AlarmClock, ArrowLeft, AudioLines, ChevronsUpDown, Blocks, Brain, ChartColumn, Crown, Files, Fingerprint, Flag, Inbox, KeyRound, LayoutDashboard, MessageSquareWarning, RadioTower, Server, Settings, ShieldCheck, SquareTerminal, Tags, type LucideIcon, Users } from 'lucide-react';
+import { AlarmClock, ArrowLeft, AudioLines, ChevronsUpDown, Blocks, Brain, ChartColumn, Crown, Files, Fingerprint, Flag, Inbox, KeyRound, LayoutDashboard, MessageSquareWarning, RadioTower, Server, Settings, ShieldCheck, SquareTerminal, Tags, Type, type LucideIcon, Users } from 'lucide-react';
 import { Link, NavLink, Outlet, useLocation, useMatch, useNavigate } from 'react-router';
 
 import { isOwner, isStaff, useAuth } from '@/auth';
@@ -41,6 +41,7 @@ export const DASHBOARD_SECTIONS: ReadonlyArray<Section> = [
 export const CONTENT_SECTIONS: ReadonlyArray<Section> = [
   {to: Routes.DASHBOARD_AI_MEMORY, label: 'dash.nav.ai_memory', icon: Brain, color: '#eb459e'},
   {to: Routes.DASHBOARD_FILES, label: 'dash.nav.files', icon: Files, color: '#00b0f4'},
+  {to: Routes.DASHBOARD_FONTS, label: 'dash.nav.fonts', icon: Type, color: '#3ba55d'},
   {to: Routes.DASHBOARD_REMINDERS, label: 'dash.nav.reminders', icon: AlarmClock, color: '#faa81a'},
   {to: Routes.DASHBOARD_REPORTS, label: 'dash.nav.reports', icon: MessageSquareWarning, color: '#ed4245'},
   {to: Routes.DASHBOARD_TAGS, label: 'dash.nav.tags', icon: Tags, color: '#3ba55c'},

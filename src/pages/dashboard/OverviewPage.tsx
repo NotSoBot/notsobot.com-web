@@ -20,6 +20,7 @@ import {
   useMeSettingsQuery,
   useMeTagsQuery,
   useMeVoicesQuery,
+  useSavedFontsQuery,
 } from '@/lib/api/dashboardQueries';
 import { UserPremiumTypes } from '@/lib/api';
 import { userDisplayTag } from '@/lib/discord';
@@ -112,6 +113,7 @@ export function OverviewPage() {
   const reports = useMeReportsQuery({query: '', status: null, sortBy: 'updated', page: 0});
   const tags = useMeTagsQuery('', 'newest');
   const voices = useMeVoicesQuery();
+  const fonts = useSavedFontsQuery(null);
 
   if (!user) {
     return null;
@@ -137,6 +139,11 @@ export function OverviewPage() {
     [Routes.DASHBOARD_FILES]: {
       count: countOf(files, files.data?.total.count),
       detail: (files.data) ? ((files.data.total.count) ? t('overview.stored', {size: formatMemory(files.data.total.size, 1)}) : t('overview.nothing_uploaded')) : undefined,
+    },
+    [Routes.DASHBOARD_FONTS]: {
+      count: countOf(fonts, fonts.data?.items.length),
+      detail: (fonts.data) ? ((fonts.data.items.length) ? t('overview.fonts', {used: formatNumber(fonts.data.items.length), limit: formatNumber(fonts.data.limit)}) : t('overview.no_fonts')) : undefined,
+      progress: (fonts.data?.limit) ? fonts.data.items.length / fonts.data.limit : undefined,
     },
     [Routes.DASHBOARD_REMINDERS]: {
       count: countOf(reminders, reminders.data?.count),

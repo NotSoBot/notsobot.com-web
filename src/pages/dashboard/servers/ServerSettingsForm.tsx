@@ -3,19 +3,19 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useToast } from '@/components/ui/Toast';
 import { useI18n } from '@/i18n';
 import { GuildModerationDmFlags, type UserGuild, type UserGuildPatch } from '@/lib/api';
-import { errorMessage, useGuildMutation } from '@/lib/api/dashboardQueries';
+import { errorMessage, useGuildMutation, useGuildScope } from '@/lib/api/dashboardQueries';
 
 import { ChoiceSelect } from '../settings/ChoiceSelect';
 import {
   DIFFUSION_MODEL_CHOICES,
   LLM_MODEL_CHOICES,
   LOCALE_CHOICES,
-  MEDIA_FONT_CHOICES,
   PERSONALITY_MAX,
   RESPONSE_DISPLAY_CHOICES,
   SEARCH_PROVIDER_CHOICES,
   TIMEZONE_CHOICES,
 } from '../settings/settingsChoices';
+import { useMediaFontChoices } from '../fonts/SavedFontsPanel';
 import { PersonalityHint } from '../settings/PersonalityHint';
 import { useDraft } from '../settings/useDraft';
 import { CharCounter, Field, InlineError, Panel, SaveBar, Toggle } from '../ui';
@@ -92,6 +92,8 @@ export function ServerSettingsForm({ guild, group, onDirtyChange }: {guild: User
   const editable = guild.editable.settings;
   const readOnlyMessage = useReadOnlyMessage();
   const mutation = useGuildMutation(guild.id);
+  // the server's saved fonts can be its Default Font, they're a member's view only (staff see the stored name)
+  const fontChoices = useMediaFontChoices(guild.id, useGuildScope() === 'me' && group === 'general');
   const info = {
     title: t(`ssettings.${group}.title`),
     accent: GROUP_ACCENTS[group],
@@ -150,7 +152,7 @@ export function ServerSettingsForm({ guild, group, onDirtyChange }: {guild: User
                 {(props) => <ChoiceSelect {...props} noneLabel={t('settings.default')} choices={DIFFUSION_MODEL_CHOICES} value={values.ml_diffusion_model} onChange={(value) => draft.set('ml_diffusion_model', value)}/>}
               </Field>
               <Field label={t('settings.media.font')} hint={t('ssettings.member_wins')}>
-                {(props) => <ChoiceSelect {...props} noneLabel={t('settings.default')} choices={MEDIA_FONT_CHOICES} value={values.media_font} onChange={(value) => draft.set('media_font', value)}/>}
+                {(props) => <ChoiceSelect {...props} noneLabel={t('settings.default')} choices={fontChoices} value={values.media_font} onChange={(value) => draft.set('media_font', value)}/>}
               </Field>
               <Field label={t('settings.display.response')}>
                 {(props) => <ChoiceSelect {...props} noneLabel={t('settings.default')} choices={RESPONSE_DISPLAY_CHOICES} value={values.response_display} onChange={(value) => draft.set('response_display', value)}/>}

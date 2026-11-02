@@ -122,6 +122,42 @@ one while the last is still going is `429` code `30016` (`RATELIMITED`), try aga
 | DELETE | `/users/@me/voices/<voice_id>/clips/<clip_id>` | Removes the clip from the voice on its cloning service, then from storage. No premium needed. A voice's last clip can't be deleted: `400` code `50042` (`VOICE_CLIP_LAST`), delete the voice instead. Returns the voice with its clips. |
 | GET | `/users/@me/voices/<voice_id>/clips/<clip_id>/audio` | The clip's mp3 (`audio/mpeg`), only with the owner's token (the dashboard fetches it as a blob). |
 
+## Fonts
+
+Fonts saved to use by name: caption, meme and recaption's `font` (a bundled font's key or a saved font's name), the
+Default Font settings (the user's can be one of their own, a server's one of its own) and MediaScript's `loadfont NAME`.
+A user's fonts need their premium (any tier), a server's need a premium server slot; without it they're kept (and can be
+renamed or deleted) but can't be added to or used. A command looks a name up in the caller's own fonts first, then the
+server's. The bot adds a user's with `fonts add` (`/fonts add`) and a server's with `server fonts add` (`/server fonts
+add`, Manage Server). Each file is kept as it was uploaded in the files bucket (`saved-fonts/{owner_id}/{font_id}.font`, never served
+by the cdn) and is checked by OTS when it's saved and again in every job using it.
+
+`SavedFont` is `{id, name, filename, size, created, thumbnail, uploader_id, user_id, guild_id}`: `thumbnail` is
+`{width, height}` of a png of `Quick brown fox 123` in the font (drawn with pango in the font sandbox like the bot draws
+it, cut to the glyphs and scaled to 96px tall, at most 1200 wide), or `null` when the font couldn't draw it; `name` is lowercase letters,
+numbers and _ (up to 32, the api lowercases and turns spaces/dashes into `_`), never a bundled font's name or `file_N`;
+`user_id` is set for a user's font, `guild_id` for a server's. Every route below answers with the whole list:
+`SavedFontsPage` is `{items: SavedFont[], limit, max_file_size, premium}`, items by name, `limit` is 10 for a user and 25
+for a server, `max_file_size` is 24mb.
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/users/@me/fonts` | The caller's own, `SavedFontsPage`. |
+| POST | `/users/@me/fonts` | Multipart `file` (or a `url` param) and `name`. `403` `PREMIUM_REQUIRED` (`{tier: 'premium'}`) without premium, `400` `MAX_SAVED_FONTS` (30032, `{limit}`) when full, `400` `SAVED_FONT_NAME_TAKEN` (50050, `{name}`) for a name they already have or a bundled font's, `400` `INVALID_FILE_TYPE` with the font check's reason (not a font, a `.ttc`, broken tables), `400` `FILE_TOO_LARGE` over 24mb. Rate limited to 1 per 2 seconds. |
+| PATCH | `/users/@me/fonts/<font_id>` | Body `{name}`. A Default Font setting on it follows the new name. Only the caller's own, anything else is `404` code `10037` (`UNKNOWN_SAVED_FONT`). No premium needed. |
+| DELETE | `/users/@me/fonts/<font_id>` | Deletes the file, then the row. A Default Font setting on it goes back to none. No premium needed. |
+| GET | `/users/@me/fonts/<font_id>/file` | The file as it was uploaded (`application/octet-stream`), for the dashboard's preview, only with the owner's token. |
+| GET | `/users/@me/fonts/<font_id>/thumbnail` | The thumbnail png (`image/png`), `404` `UNKNOWN_SAVED_FONT` when it has none. Stored as `saved-fonts/{owner_id}/{font_id}.thumbnail.png`. |
+| GET | `/users/@me/guilds/<guild_id>/fonts` | A server's, any member. `premium` is whether it has a premium server slot. |
+| POST | `/users/@me/guilds/<guild_id>/fonts` | Like the caller's own, needs the settings area (Manage Server). `403` `PREMIUM_REQUIRED` is `{tier: 'premium_server'}`. The caller is its `uploader_id`. |
+| PATCH | `/users/@me/guilds/<guild_id>/fonts/<font_id>` | Body `{name}`, settings area. The server's Default Font follows it. |
+| DELETE | `/users/@me/guilds/<guild_id>/fonts/<font_id>` | Settings area. The server's Default Font goes back to none if it's this one. |
+| GET | `/users/@me/guilds/<guild_id>/fonts/<font_id>/file` | Any member. |
+| GET | `/users/@me/guilds/<guild_id>/fonts/<font_id>/thumbnail` | Any member. |
+
+The data export lists them under `saved_fonts` (details only) for a user and a server, and deleting a user's or a
+server's data deletes them (files first).
+
 ## Files
 
 Files the bot uploaded to the file host (`nsb.gg`) for the caller, when a result was over Discord's limit or their

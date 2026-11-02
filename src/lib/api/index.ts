@@ -107,6 +107,7 @@ import type {
   MeReportsUnread,
   WebsiteReportBody,
   RemindersPage,
+  SavedFontsPage,
   UserWarnings,
   Report,
   ReportMessage,
@@ -665,6 +666,46 @@ export const api = {
   // an mp3, fetched with the token so it can't be linked to
   fetchMeVoiceClipAudio: (voiceId: string, clipId: string, signal?: AbortSignal) => {
     return apiRequest<Blob>(ApiEndpoints.USER_ME_VOICE_CLIP_AUDIO(voiceId, clipId), {signal, responseType: 'blob', timeout: 60_000});
+  },
+
+  // saved fonts, the caller's own (`guildId` null) or a server's (any member reads them, Manage Server changes them).
+  // Dashboard only. Every route answers with the whole list
+  fetchSavedFonts: (guildId: string | null, signal?: AbortSignal) => {
+    const path = (guildId) ? ApiEndpoints.USER_ME_GUILD_FONTS(guildId) : ApiEndpoints.USER_ME_FONTS;
+    return apiRequest<SavedFontsPage>(path, {signal});
+  },
+
+  // the api runs the file through its font checks before keeping it
+  uploadSavedFont: (guildId: string | null, name: string, file: File) => {
+    const body = new FormData();
+    body.append('name', name);
+    body.append('file', file);
+    const path = (guildId) ? ApiEndpoints.USER_ME_GUILD_FONTS(guildId) : ApiEndpoints.USER_ME_FONTS;
+    return apiRequest<SavedFontsPage>(path, {method: 'POST', body, timeout: 120_000});
+  },
+
+  // a Default Font setting using it follows the new name
+  renameSavedFont: (guildId: string | null, fontId: string, name: string) => {
+    const path = (guildId) ? ApiEndpoints.USER_ME_GUILD_FONT(guildId, fontId) : ApiEndpoints.USER_ME_FONT(fontId);
+    return apiRequest<SavedFontsPage>(path, {method: 'PATCH', body: {name}});
+  },
+
+  // a Default Font setting using it goes back to none
+  deleteSavedFont: (guildId: string | null, fontId: string) => {
+    const path = (guildId) ? ApiEndpoints.USER_ME_GUILD_FONT(guildId, fontId) : ApiEndpoints.USER_ME_FONT(fontId);
+    return apiRequest<SavedFontsPage>(path, {method: 'DELETE'});
+  },
+
+  // the file as it was uploaded, for the preview. Fetched with the token so it can't be linked to
+  fetchSavedFontFile: (guildId: string | null, fontId: string, signal?: AbortSignal) => {
+    const path = (guildId) ? ApiEndpoints.USER_ME_GUILD_FONT_FILE(guildId, fontId) : ApiEndpoints.USER_ME_FONT_FILE(fontId);
+    return apiRequest<Blob>(path, {signal, responseType: 'blob', timeout: 60_000});
+  },
+
+  // a png of a sample line in the font (`SavedFont.thumbnail`), every font at the same size
+  fetchSavedFontThumbnail: (guildId: string | null, fontId: string, signal?: AbortSignal) => {
+    const path = (guildId) ? ApiEndpoints.USER_ME_GUILD_FONT_THUMBNAIL(guildId, fontId) : ApiEndpoints.USER_ME_FONT_THUMBNAIL(fontId);
+    return apiRequest<Blob>(path, {signal, responseType: 'blob', timeout: 60_000});
   },
 
   fetchMeGuilds:(signal?: AbortSignal) => {

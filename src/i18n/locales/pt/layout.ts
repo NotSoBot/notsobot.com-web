@@ -51,6 +51,7 @@ export const Layout: Record<keyof typeof English, string> = {
   'page.DASHBOARD_PREMIUM': 'Premium',
   'page.DASHBOARD_COMMANDS': 'Histórico de comandos',
   'page.DASHBOARD_FILES': 'Seus arquivos',
+  'page.DASHBOARD_FONTS': 'Suas fontes',
   'page.DASHBOARD_AI_MEMORY': 'Memória da IA',
   'page.DASHBOARD_REMINDERS': 'Seus lembretes',
   'page.DASHBOARD_REPORTS': 'Suas denúncias',

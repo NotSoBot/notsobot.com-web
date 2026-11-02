@@ -6,6 +6,7 @@ import type { UserSettings, UserSettingsPatch } from '@/lib/api';
 import { errorMessage, useMeSettingsQuery, usePatchMeSettingsMutation } from '@/lib/api/dashboardQueries';
 import { formatNumber } from '@/lib/utils';
 
+import { useMediaFontChoices } from '../fonts/SavedFontsPanel';
 import { CharCounter, DashboardHeader, ErrorPanel, Field, InlineError, Panel, PanelSkeleton, SaveBar, UnsavedChangesGuard } from '../ui';
 import { ChoiceSelect } from './ChoiceSelect';
 import { PersonalityHint } from './PersonalityHint';
@@ -16,7 +17,6 @@ import {
   FALLBACK_IMAGE_CHOICES,
   LLM_MODEL_CHOICES,
   LOCALE_CHOICES,
-  MEDIA_FONT_CHOICES,
   PERSONALITY_MAX,
   RESPONSE_DISPLAY_CHOICES,
   SEARCH_PROVIDER_CHOICES,
@@ -220,6 +220,8 @@ function MediaSection({ settings, onDirtyChange }: SectionProps) {
     'file_upload_vanity',
     'fallbacks_media_image',
   ], onDirtyChange);
+  // their saved fonts can be their Default Font too
+  const fontChoices = useMediaFontChoices(null);
   const vanity = section.values.file_upload_vanity ?? '';
   const vanityProblem = vanityError(vanity);
   // the API would reject an invalid pattern, so don't send it
@@ -239,7 +241,7 @@ function MediaSection({ settings, onDirtyChange }: SectionProps) {
         {(props) => <ChoiceSelect {...props} noneLabel={t('settings.default')} choices={DOWNLOAD_QUALITY_CHOICES} value={section.values.download_quality} onChange={(value) => section.set('download_quality', value)}/>}
       </Field>
       <Field label={t('settings.media.font')} hint={t('settings.media.font_hint')}>
-        {(props) => <ChoiceSelect {...props} noneLabel={t('settings.default')} choices={MEDIA_FONT_CHOICES} value={section.values.media_font} onChange={(value) => section.set('media_font', value)}/>}
+        {(props) => <ChoiceSelect {...props} noneLabel={t('settings.default')} choices={fontChoices} value={section.values.media_font} onChange={(value) => section.set('media_font', value)}/>}
       </Field>
       <Field label={t('settings.media.fallback')} hint={t('settings.media.fallback_hint')}>
         {(props) => <ChoiceSelect {...props} choices={FALLBACK_IMAGE_CHOICES} value={section.values.fallbacks_media_image} onChange={(value) => section.set('fallbacks_media_image', value ?? 0)}/>}
