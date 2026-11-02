@@ -52,6 +52,7 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'fixed', text: '`/tag get` (and `.tag get`) failed with "Cannot reference a Tag Alias" when the tag you picked from your DMs was itself one you got from the Tag Directory. It now adds the tag it points to.'},
       {kind: 'improved', text: 'When NotSoBot loses its connection to the API partway through, it tries once more on its own for commands that are safe to repeat, and otherwise says the connection was lost instead of "terminated".'},
       {kind: 'improved', text: '`.imagine` and other image generation say right away when image generation is down, instead of failing after waiting in the queue.'},
+      {kind: 'improved', text: 'Auto-warns for using a blocked command say which of the server\'s rules blocked it, like `.caption • Block Media commands in #general (123456789012345678)`.'},
     ],
   },
   {
