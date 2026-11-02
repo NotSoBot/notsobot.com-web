@@ -77,6 +77,28 @@ export const TAG_DOC_FUNCTIONS_PART4: Array<TagDocFunction> = [
     ],
   },
   {
+    id: 'MUSIC_CONTROL',
+    names: ['music.control'],
+    category: 'network',
+    summary: 'Pauses, resumes, skips or sets the volume of the music playing in the server. Only NotSoAI can use this.',
+    description: 'Follows the same rules as the music commands: the person has to be in the voice channel the music is playing in, with DJ mode on it needs Manage Server or the DJ role, and with the server\'s vote skip, pause or resume on, it counts as their vote. Outputs `true` when it happened, `false` when it was already paused or playing, or `voted 1/3` when more votes are needed.',
+    syntax: '{music.control:action|value?}',
+    args: [
+      {name: 'action', description: '`pause`, `resume`, `skip` or `volume`.'},
+      {name: 'value', description: 'For `volume`, 0 to 200 (`150` or `150%`), or `reset` for 100. Anything but 100 needs a premium server.', optional: true},
+    ],
+    examples: [
+      {code: '{music.control:skip}', result: 'true'},
+      {code: '{music.control:volume|150}', result: 'true'},
+    ],
+    notes: [
+      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. When NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), or in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run, it first asks the person with Allow and Cancel buttons (up to 3 times per message) and is left as plain text if they cancel or don\'t answer within a minute.',
+      'It can\'t play, queue or remove tracks, or make the bot join or leave. Resuming after the bot left needs `music resume`.',
+      'NotSoAI can control the music at most 3 times per message.',
+      'Counts against the network request limit.',
+    ],
+  },
+  {
     id: 'NSFW_FILTER',
     names: ['nsfwfilter'],
     category: 'strings',
@@ -369,7 +391,7 @@ export const TAG_DOC_FUNCTIONS_PART4: Array<TagDocFunction> = [
     names: ['settings.set.server'],
     category: 'ai',
     summary: 'Reads or changes this server\'s settings, like its timezone or search provider. Only NotSoAI can use this, for members with Manage Server.',
-    description: 'With no arguments, outputs every server setting as a JSON object. With just a setting, outputs its current value. With a value, saves it and outputs `true`, or `false` if it was already set to that. Use `clear` to reset it, so everyone falls back to their own setting and then the default.\n\nThe settings are `AI_MODEL`, `AI_PERSONALITY`, `IMAGINE_MODEL`, `LOCALE`, `RESPONSE_DISPLAY` (`DEFAULT`/`NO_EMBED`/`LEGACY`), `SEARCH_PROVIDER_IMAGES` and `SEARCH_PROVIDER_WEB` (`GOOGLE`/`DUCK_DUCK_GO`/`BING`/`YANDEX`) and `TIMEZONE`.',
+    description: 'With no arguments, outputs every server setting as a JSON object. With just a setting, outputs its current value. With a value, saves it and outputs `true`, or `false` if it was already set to that. Use `clear` to reset it, so everyone falls back to their own setting and then the default.\n\nThe settings are `AI_MODEL`, `AI_PERSONALITY`, `IMAGINE_MODEL`, `LOCALE`, `MEDIA_FONT` (the Default Font for caption, meme and recaption: a built-in font like `IMPACT`, or one of the server\'s saved fonts by name), `RESPONSE_DISPLAY` (`DEFAULT`/`NO_EMBED`/`LEGACY`), `SEARCH_PROVIDER_IMAGES` and `SEARCH_PROVIDER_WEB` (`GOOGLE`/`DUCK_DUCK_GO`/`BING`/`YANDEX`) and `TIMEZONE`.',
     syntax: '{settings.set.server:setting?|value?}',
     args: [
       {name: 'setting', description: 'Which setting, like `TIMEZONE` or `search provider web`. Leave out to output every setting.', optional: true},
@@ -380,7 +402,7 @@ export const TAG_DOC_FUNCTIONS_PART4: Array<TagDocFunction> = [
       {code: '{settings.set.server:TIMEZONE}', result: 'Europe/London'},
     ],
     notes: [
-      'Only NotSoAI can use this, and only in its own reply: in a user\'s tag, or a button NotSoAI made, the function is left as plain text. It is also left as plain text when NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), and in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run.',
+      'Only NotSoAI can use this, and only in its own reply: in a user\'s tag, or a button NotSoAI made, the function is left as plain text. When NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), or in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run, it first asks the person with Allow and Cancel buttons (up to 3 times per message) and is left as plain text if they cancel or don\'t answer within a minute.',
       'The person who asked NotSoAI needs the Manage Server permission, even just to read the settings. Otherwise it throws an error.',
       'Only works in a server.',
       'This permanently changes the server\'s NotSoBot settings for everyone, not just this run.',
@@ -400,7 +422,7 @@ export const TAG_DOC_FUNCTIONS_PART4: Array<TagDocFunction> = [
       {code: '{settings.set.server.ai.personality:talk like a pirate}', result: 'true'},
     ],
     notes: [
-      'Only NotSoAI can use this, and only in its own reply: in a user\'s tag, or a button NotSoAI made, the function is left as plain text. The person who asked needs the Manage Server permission. It is also left as plain text when NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), and in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run.',
+      'Only NotSoAI can use this, and only in its own reply: in a user\'s tag, or a button NotSoAI made, the function is left as plain text. The person who asked needs the Manage Server permission. When NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), or in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run, it first asks the person with Allow and Cancel buttons (up to 3 times per message) and is left as plain text if they cancel or don\'t answer within a minute.',
       'NotSoBot filters the personality before saving it.',
     ],
   },
@@ -409,7 +431,7 @@ export const TAG_DOC_FUNCTIONS_PART4: Array<TagDocFunction> = [
     names: ['settings.set.user'],
     category: 'ai',
     summary: 'Reads or changes the other settings of the person using the tag, like their units or AI model. Only NotSoAI can use this.',
-    description: 'With no arguments, outputs every setting (plus `AI_PERSONALITY`, `LOCALE` and `TIMEZONE`) as a JSON object. With just a setting, outputs its current value. With a value, saves it and outputs `true`, or `false` if it was already set to that. Use `clear` to reset it to the default.\n\nThe settings are `AI_MEMORY` (`on`/`off`), `AI_MODEL`, `APP_COMMAND_RESPONSE_TYPE` (`AUTOMATIC`/`EPHEMERAL`), `DOWNLOAD_QUALITY` (`1440p` to `144p`), `FALLBACKS_MEDIA_IMAGE` (`SEARCH_GOOGLE_IMAGES`/`SEARCH_DUCK_DUCK_GO_IMAGES`/`IMAGINE`), `FILE_UPLOAD_THRESHOLD` (`EXCEEDS_DISCORD_LIMIT`/`ALWAYS`/`NEVER`), `FILE_UPLOAD_TYPE` (`AUTOMATIC`/`TEMPORARY`), `FILE_VANITY`, `IMAGINE_MODEL`, `RESPONSE_DISPLAY` (`DEFAULT`/`NO_EMBED`/`LEGACY`), `SEARCH_PROVIDER_IMAGES` and `SEARCH_PROVIDER_WEB` (`GOOGLE`/`DUCK_DUCK_GO`/`BING`/`YANDEX`), `TTS_VOICE` (a built-in voice like `TIKTOK_EN_US_FEMALE_01`, or one of your cloned voices by name) and `UNITS` (`IMPERIAL`/`METRIC`).',
+    description: 'With no arguments, outputs every setting (plus `AI_PERSONALITY`, `LOCALE` and `TIMEZONE`) as a JSON object. With just a setting, outputs its current value. With a value, saves it and outputs `true`, or `false` if it was already set to that. Use `clear` to reset it to the default.\n\nThe settings are `AI_MEMORY` (`on`/`off`), `AI_MODEL`, `APP_COMMAND_RESPONSE_TYPE` (`AUTOMATIC`/`EPHEMERAL`), `DOWNLOAD_QUALITY` (`1440p` to `144p`), `FALLBACKS_MEDIA_IMAGE` (`SEARCH_GOOGLE_IMAGES`/`SEARCH_DUCK_DUCK_GO_IMAGES`/`IMAGINE`), `FILE_UPLOAD_THRESHOLD` (`EXCEEDS_DISCORD_LIMIT`/`ALWAYS`/`NEVER`), `FILE_UPLOAD_TYPE` (`AUTOMATIC`/`TEMPORARY`), `FILE_VANITY`, `IMAGINE_MODEL`, `MEDIA_FONT` (the Default Font for caption, meme and recaption: a built-in font like `IMPACT`, or one of your saved fonts by name), `RESPONSE_DISPLAY` (`DEFAULT`/`NO_EMBED`/`LEGACY`), `SEARCH_PROVIDER_IMAGES` and `SEARCH_PROVIDER_WEB` (`GOOGLE`/`DUCK_DUCK_GO`/`BING`/`YANDEX`), `TTS_VOICE` (a built-in voice like `TIKTOK_EN_US_FEMALE_01`, or one of your cloned voices by name) and `UNITS` (`IMPERIAL`/`METRIC`).',
     syntax: '{settings.set.user:setting?|value?}',
     args: [
       {name: 'setting', description: 'Which setting, like `UNITS` or `ai model`. Leave out to output every setting.', optional: true},
@@ -421,7 +443,7 @@ export const TAG_DOC_FUNCTIONS_PART4: Array<TagDocFunction> = [
       {code: '{settings.set.user:AI_MEMORY|off}', result: 'true'},
     ],
     notes: [
-      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. It is also left as plain text when NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), and in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run.',
+      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. When NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), or in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run, it first asks the person with Allow and Cancel buttons (up to 3 times per message) and is left as plain text if they cancel or don\'t answer within a minute.',
       'This permanently changes the NotSoBot settings of the person who asked NotSoAI, not just this run.',
       'Language, timezone and AI personality have their own functions: {settings.set.user.locale}, {settings.set.user.timezone} and {settings.set.user.ai.personality}.',
       'Throws an error if the setting or value is not recognised, or if the setting needs premium.',
@@ -443,7 +465,7 @@ export const TAG_DOC_FUNCTIONS_PART4: Array<TagDocFunction> = [
       {code: '{settings.set.user.ai.personality:clear}', result: 'true (or false if none was set)'},
     ],
     notes: [
-      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left in the output as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. It is also left as plain text when NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), and in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run.',
+      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left in the output as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. When NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), or in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run, it first asks the person with Allow and Cancel buttons (up to 3 times per message) and is left as plain text if they cancel or don\'t answer within a minute.',
       'This permanently changes the NotSoBot settings of the person who asked NotSoAI, not just this run.',
     ],
   },
@@ -461,7 +483,7 @@ export const TAG_DOC_FUNCTIONS_PART4: Array<TagDocFunction> = [
       {code: '{settings.set.user.locale:spanish}', result: 'true'},
     ],
     notes: [
-      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. It is also left as plain text when NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), and in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run.',
+      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. When NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), or in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run, it first asks the person with Allow and Cancel buttons (up to 3 times per message) and is left as plain text if they cancel or don\'t answer within a minute.',
       'This permanently changes the NotSoBot settings of the person who asked NotSoAI, not just this run.',
       'Throws an error if the language is not recognised.',
     ],
@@ -481,7 +503,7 @@ export const TAG_DOC_FUNCTIONS_PART4: Array<TagDocFunction> = [
       {code: '{settings.set.user.timezone}', result: 'America/New_York'},
     ],
     notes: [
-      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. It is also left as plain text when NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), and in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run.',
+      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. When NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), or in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run, it first asks the person with Allow and Cancel buttons (up to 3 times per message) and is left as plain text if they cancel or don\'t answer within a minute.',
       'This permanently changes the NotSoBot settings of the person who asked NotSoAI, not just this run.',
       'Throws an error if the timezone is not recognised.',
     ],

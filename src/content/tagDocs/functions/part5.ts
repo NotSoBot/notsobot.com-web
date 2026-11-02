@@ -100,10 +100,54 @@ export const TAG_DOC_FUNCTIONS_PART5: Array<TagDocFunction> = [
       {code: '{tag.create:greet|{ignore:hi {user}!}}', result: '`greet`, and running `tag greet` says hi to whoever runs it'},
     ],
     notes: [
-      'Only NotSoAI can use this, and only in its own reply: in a user\'s tag, or a button NotSoAI made, the function is left as plain text. It is also left as plain text when NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), and in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run.',
-      'Only makes new tags. Errors if a tag with that name already exists in the server, even one of your own.',
+      'Only NotSoAI can use this, and only in its own reply: in a user\'s tag, or a button NotSoAI made, the function is left as plain text. When NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), or in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run, it first asks the person with Allow and Cancel buttons (up to 3 times per message) and is left as plain text if they cancel or don\'t answer within a minute.',
+      'Only makes new tags. Errors if a tag with that name already exists in the server, even one of your own ({tag.edit} changes those).',
       'NotSoAI can only create one tag per message.',
       'Counts against the API manipulation limit (1 per run by default) and the network request limit.',
+    ],
+  },
+  {
+    id: 'TAG_DELETE',
+    names: ['tag.delete'],
+    category: 'tags',
+    summary: 'Deletes one of the user\'s own tags. Only NotSoAI can use this.',
+    description: 'Deletes a tag owned by the person who asked NotSoAI, in the current server (or DM), and outputs `true`.',
+    syntax: '{tag.delete:name}',
+    args: [
+      {name: 'name', description: 'The tag\'s name.'},
+    ],
+    examples: [
+      {code: '{tag.delete:greet}', result: 'true'},
+    ],
+    notes: [
+      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. When NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), or in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run, it first asks the person with Allow and Cancel buttons (up to 3 times per message) and is left as plain text if they cancel or don\'t answer within a minute.',
+      'Only works on the user\'s own tags in the current server (or DM). Throws an error for someone else\'s tag (even for moderators, who can still use `tag remove`), a locked tag, or a name with no tag here.',
+      'NotSoAI can edit or delete at most 3 tags per message; another one throws an error.',
+      'Counts against the network request limit.',
+      'An empty name outputs nothing.',
+      'Asks the person to confirm with Allow and Cancel buttons first, even when nobody else\'s text was in the prompt. It is left as plain text if they cancel or don\'t answer within a minute.',
+    ],
+  },
+  {
+    id: 'TAG_EDIT',
+    names: ['tag.edit'],
+    category: 'tags',
+    summary: 'Replaces the content of one of the user\'s own tags. Only NotSoAI can use this.',
+    description: 'Replaces the content of a tag owned by the person who asked NotSoAI, in the current server (or DM), and outputs its name. The content is parsed like any other argument, so wrap TagScript in {ignore} to save the code itself instead of its output.',
+    syntax: '{tag.edit:name|content}',
+    args: [
+      {name: 'name', description: 'The tag\'s name.'},
+      {name: 'content', description: 'The tag\'s new content, up to 2000 characters. It replaces the whole tag.'},
+    ],
+    examples: [
+      {code: '{tag.edit:greet|{ignore:hey {user}, welcome back!}}', result: '`greet`'},
+    ],
+    notes: [
+      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. When NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), or in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run, it first asks the person with Allow and Cancel buttons (up to 3 times per message) and is left as plain text if they cancel or don\'t answer within a minute.',
+      'Only works on the user\'s own tags in the current server (or DM). Throws an error for someone else\'s tag (even for moderators, who can still use `tag remove`), a locked tag, or a name with no tag here.',
+      'NotSoAI can edit or delete at most 3 tags per message; another one throws an error.',
+      'Counts against the network request limit.',
+      'Throws an error for an alias, edit the tag it points to instead.',
     ],
   },
   {

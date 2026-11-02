@@ -30,6 +30,77 @@ export const TAG_DOC_FUNCTIONS_PART1: Array<TagDocFunction> = [
     ],
   },
   {
+    id: 'AI_KNOWLEDGE_ADD',
+    names: ['ai.knowledge.add'],
+    category: 'ai',
+    summary: 'Teaches NotSoAI a fact about the current server. Only NotSoAI can use this, for members with Manage Server.',
+    description: 'The fact is shown to NotSoAI in every future prompt from anyone in the server, numbered by position. Outputs `true` when added, or `false` if the server already had that fact (compared case-insensitively).',
+    syntax: '{ai.knowledge.add:fact}',
+    args: [
+      {name: 'fact', description: 'The fact, like the server\'s rules or what a channel is for. Cut to 1000 characters.'},
+    ],
+    examples: [
+      {code: '{ai.knowledge.add:Memes go in #shitposting, not #general}', result: 'true'},
+    ],
+    notes: [
+      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. When NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), or in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run, it first asks the person with Allow and Cancel buttons (up to 3 times per message) and is left as plain text if they cancel or don\'t answer within a minute.',
+      'Needs the Manage Server permission, and only works in a server. Throws an error otherwise.',
+      'This permanently changes what NotSoAI knows about the server for everyone in it, not just this run. It can also be changed from the dashboard.',
+      'The `ai.knowledge.*` functions can change the server\'s knowledge at most 3 times per message; another change throws an error.',
+      'Counts against the network request limit.',
+      'An empty fact outputs nothing.',
+      'Throws an error if the server already has 10 facts, the facts would be over 1000 characters together, or the fact looks like a password, token or key.',
+    ],
+  },
+  {
+    id: 'AI_KNOWLEDGE_DELETE',
+    names: ['ai.knowledge.delete'],
+    category: 'ai',
+    summary: 'Removes one of NotSoAI\'s facts about the current server, by its position. Only NotSoAI can use this, for members with Manage Server.',
+    description: 'The position is the fact\'s number in the server\'s facts NotSoAI is shown in its prompt, starting at 1. Outputs `true` when removed.',
+    syntax: '{ai.knowledge.delete:position}',
+    args: [
+      {name: 'position', description: 'The fact\'s number, starting at 1.'},
+    ],
+    examples: [
+      {code: '{ai.knowledge.delete:2}', result: 'true'},
+    ],
+    notes: [
+      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. When NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), or in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run, it first asks the person with Allow and Cancel buttons (up to 3 times per message) and is left as plain text if they cancel or don\'t answer within a minute.',
+      'Needs the Manage Server permission, and only works in a server. Throws an error otherwise.',
+      'This permanently changes what NotSoAI knows about the server for everyone in it, not just this run. It can also be changed from the dashboard.',
+      'The `ai.knowledge.*` functions can change the server\'s knowledge at most 3 times per message; another change throws an error.',
+      'Counts against the network request limit.',
+      'An empty argument outputs nothing.',
+      'Throws an error if the position is not a positive number or there is no fact at that position.',
+      'Asks the person to confirm with Allow and Cancel buttons first, even when nobody else\'s text was in the prompt. It is left as plain text if they cancel or don\'t answer within a minute.',
+    ],
+  },
+  {
+    id: 'AI_KNOWLEDGE_EDIT',
+    names: ['ai.knowledge.edit'],
+    category: 'ai',
+    summary: 'Replaces one of NotSoAI\'s facts about the current server, by its position. Only NotSoAI can use this, for members with Manage Server.',
+    description: 'The position is the fact\'s number in the server\'s facts NotSoAI is shown in its prompt, starting at 1. Outputs `true` when replaced.',
+    syntax: '{ai.knowledge.edit:position|fact}',
+    args: [
+      {name: 'position', description: 'The fact\'s number, starting at 1.'},
+      {name: 'fact', description: 'The new fact. Cut to 1000 characters.'},
+    ],
+    examples: [
+      {code: '{ai.knowledge.edit:1|Movie night is on Fridays now}', result: 'true'},
+    ],
+    notes: [
+      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. When NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), or in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run, it first asks the person with Allow and Cancel buttons (up to 3 times per message) and is left as plain text if they cancel or don\'t answer within a minute.',
+      'Needs the Manage Server permission, and only works in a server. Throws an error otherwise.',
+      'This permanently changes what NotSoAI knows about the server for everyone in it, not just this run. It can also be changed from the dashboard.',
+      'The `ai.knowledge.*` functions can change the server\'s knowledge at most 3 times per message; another change throws an error.',
+      'Counts against the network request limit.',
+      'Outputs nothing if the position or the fact is empty.',
+      'Throws an error if the position is not a positive number, there is no fact at that position, or the facts would be over 1000 characters together.',
+    ],
+  },
+  {
     id: 'AI_MEMORY_ADD',
     names: ['ai.memory.add'],
     category: 'ai',
@@ -45,7 +116,7 @@ export const TAG_DOC_FUNCTIONS_PART1: Array<TagDocFunction> = [
       {code: '{ai.memory.add:Is a moderator here|server}', result: 'true (only remembered in this server)'},
     ],
     notes: [
-      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. It is also left as plain text when NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), and in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run.',
+      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. When NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), or in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run, it first asks the person with Allow and Cancel buttons (up to 3 times per message) and is left as plain text if they cancel or don\'t answer within a minute.',
       'This permanently changes NotSoAI\'s memory of the person who asked it, not just this run.',
       'The `ai.memory.*` functions can change the memory at most 3 times per message; another change throws an error. An add only counts when it saves something new.',
       'Counts against the network request limit.',
@@ -64,10 +135,11 @@ export const TAG_DOC_FUNCTIONS_PART1: Array<TagDocFunction> = [
       {code: '{ai.memory.clear}', result: '4'},
     ],
     notes: [
-      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. It is also left as plain text when NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), and in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run.',
+      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. When NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), or in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run, it first asks the person with Allow and Cancel buttons (up to 3 times per message) and is left as plain text if they cancel or don\'t answer within a minute.',
       'This permanently changes NotSoAI\'s memory of the person who asked it, not just this run.',
       'The `ai.memory.*` functions can change the memory at most 3 times per message; another change throws an error. A clear only counts when something was forgotten.',
       'Counts against the network request limit.',
+      'Asks the person to confirm with Allow and Cancel buttons first, even when nobody else\'s text was in the prompt. It is left as plain text if they cancel or don\'t answer within a minute.',
     ],
   },
   {
@@ -84,7 +156,7 @@ export const TAG_DOC_FUNCTIONS_PART1: Array<TagDocFunction> = [
       {code: '{ai.memory.delete:2}', result: 'true'},
     ],
     notes: [
-      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. It is also left as plain text when NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), and in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run.',
+      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. When NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), or in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run, it first asks the person with Allow and Cancel buttons (up to 3 times per message) and is left as plain text if they cancel or don\'t answer within a minute.',
       'This permanently changes NotSoAI\'s memory of the person who asked it, not just this run.',
       'The `ai.memory.*` functions can change the memory at most 3 times per message; another change throws an error.',
       'Counts against the network request limit.',
@@ -107,7 +179,7 @@ export const TAG_DOC_FUNCTIONS_PART1: Array<TagDocFunction> = [
       {code: '{ai.memory.edit:1|Prefers to be called Alex now}', result: 'true'},
     ],
     notes: [
-      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. It is also left as plain text when NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), and in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run.',
+      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. When NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), or in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run, it first asks the person with Allow and Cancel buttons (up to 3 times per message) and is left as plain text if they cancel or don\'t answer within a minute.',
       'This permanently changes NotSoAI\'s memory of the person who asked it, not just this run.',
       'The `ai.memory.*` functions can change the memory at most 3 times per message; another change throws an error.',
       'Counts against the network request limit.',
@@ -150,10 +222,31 @@ export const TAG_DOC_FUNCTIONS_PART1: Array<TagDocFunction> = [
       {code: '{api.create.reminder:in 2 hours|drink water}', result: 'Creates the reminder and outputs its JSON.'},
     ],
     notes: [
-      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. It is also left as plain text when NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), and in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run.',
+      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. When NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), or in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run, it first asks the person with Allow and Cancel buttons (up to 3 times per message) and is left as plain text if they cancel or don\'t answer within a minute.',
       'Counts against the API manipulation limit (1 per run by default) and the network request limit.',
       'Throws an error if no time can be found in `time`.',
       'An empty argument outputs nothing.',
+    ],
+  },
+  {
+    id: 'API_CREATE_REPORT',
+    names: ['api.create.report'],
+    category: 'network',
+    summary: 'Sends a bug report or feedback to the NotSoBot staff. Only NotSoAI can use this.',
+    description: 'Sends a bug report from the person who asked NotSoAI, like `report bug`, and outputs the report\'s ID. Staff answer it in the person\'s reports on the dashboard.',
+    syntax: '{api.create.report:text}',
+    args: [
+      {name: 'text', description: 'What went wrong, up to 2000 characters.'},
+    ],
+    examples: [
+      {code: '{api.create.report:.caption cuts off the last line on tall images}', result: '1234567890123456789'},
+    ],
+    notes: [
+      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. When NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), or in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run, it first asks the person with Allow and Cancel buttons (up to 3 times per message) and is left as plain text if they cancel or don\'t answer within a minute.',
+      'Only bug reports and feedback. Reports about a person, server, message or tag still go through the `report` commands.',
+      'NotSoAI can send one report per message.',
+      'Counts against the network request limit.',
+      'An empty text outputs nothing.',
     ],
   },
   {
@@ -170,7 +263,7 @@ export const TAG_DOC_FUNCTIONS_PART1: Array<TagDocFunction> = [
       {code: '{api.delete.reminder:1}', result: '`true`'},
     ],
     notes: [
-      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. It is also left as plain text when NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), and in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run.',
+      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. When NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), or in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run, it first asks the person with Allow and Cancel buttons (up to 3 times per message) and is left as plain text if they cancel or don\'t answer within a minute.',
       'Counts against the API manipulation limit (1 per run by default) and the network request limit.',
       'Throws an error if the position is not a positive number or no reminder exists there.',
       'An empty argument outputs nothing.',
@@ -193,9 +286,40 @@ export const TAG_DOC_FUNCTIONS_PART1: Array<TagDocFunction> = [
       {code: '{api.edit.reminder:2||buy milk}', result: 'Changes reminder 2\'s text and outputs its JSON.'},
     ],
     notes: [
-      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. It is also left as plain text when NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), and in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run.',
+      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. When NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), or in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run, it first asks the person with Allow and Cancel buttons (up to 3 times per message) and is left as plain text if they cancel or don\'t answer within a minute.',
       'Counts against the API manipulation limit (1 per run by default) and the network request limit.',
       'Throws an error if the position is not a positive number, no reminder exists there, or the new time is in the past.',
+    ],
+  },
+  {
+    id: 'API_FETCH_COMMANDS',
+    names: ['api.fetch.commands'],
+    category: 'network',
+    summary: 'Outputs the user\'s last few commands in this channel as JSON. Only NotSoAI can use this.',
+    description: 'Outputs an object like `{"commands": [...]}` with the person\'s last 5 commands in the current channel, newest first. Each one has `command` (the command\'s ID), `timestamp`, `input` (the message they typed, the first 200 characters, `null` for slash commands) and `output` with the reply\'s `text` (the first 200 characters) and `files` (its attachment and embed image or video URLs). `output` is `null` when the reply was deleted.',
+    syntax: '{api.fetch.commands}',
+    examples: [
+      {code: '{traversejson:commands[0].output.files[0]|{api.fetch.commands}}', result: 'The first file of the user\'s last command\'s reply.'},
+    ],
+    notes: [
+      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. When NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), or in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run, it first asks the person with Allow and Cancel buttons (up to 3 times per message) and is left as plain text if they cancel or don\'t answer within a minute.',
+      'Counts against the network request limit once, and once more for each message that isn\'t cached.',
+    ],
+  },
+  {
+    id: 'API_FETCH_MUSIC',
+    names: ['api.fetch.music'],
+    category: 'network',
+    summary: 'Outputs what\'s playing in the server and the queue as JSON. Only NotSoAI can use this.',
+    description: 'Outputs an object with `playing`, `paused`, `channel_id` (the voice channel, `null` when not in one), `loop`, `dj_only`, `current` (what\'s playing, `null` if nothing), `queue` (the next 10) and `queue_count`. Each track has `title`, `artist`, `duration` (seconds), `url`, `queued_by` (a user ID) and `position` (the number `music queue` shows, 1 is what\'s playing).',
+    syntax: '{api.fetch.music}',
+    examples: [
+      {code: '{traversejson:current.title|{api.fetch.music}}', result: 'The title of the song that\'s playing.'},
+    ],
+    notes: [
+      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. When NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), or in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run, it first asks the person with Allow and Cancel buttons (up to 3 times per message) and is left as plain text if they cancel or don\'t answer within a minute.',
+      'Only works in a server.',
+      'Counts against the network request limit.',
     ],
   },
   {
@@ -212,7 +336,22 @@ export const TAG_DOC_FUNCTIONS_PART1: Array<TagDocFunction> = [
       {code: '{traversejson:count|{api.fetch.reminders}}', result: 'How many reminders the user has in this server.'},
     ],
     notes: [
-      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. It is also left as plain text when NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), and in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run.',
+      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. When NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), or in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run, it first asks the person with Allow and Cancel buttons (up to 3 times per message) and is left as plain text if they cancel or don\'t answer within a minute.',
+      'Counts against the network request limit.',
+    ],
+  },
+  {
+    id: 'API_FETCH_TAGS',
+    names: ['api.fetch.tags'],
+    category: 'tags',
+    summary: 'Outputs the user\'s own tags in this server as JSON. Only NotSoAI can use this.',
+    description: 'Outputs an object like `{"count": number, "tags": [...]}` with their newest 50 tags in the current server (or DM). Each tag has `name`, `uses`, `locked`, `alias_of` (the tag an alias points to, or `null`) and `content`, the first 100 characters of it (empty for an alias). `count` is every tag they have here.',
+    syntax: '{api.fetch.tags}',
+    examples: [
+      {code: '{traversejson:count|{api.fetch.tags}}', result: 'How many tags the user has in this server.'},
+    ],
+    notes: [
+      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. When NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), or in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run, it first asks the person with Allow and Cancel buttons (up to 3 times per message) and is left as plain text if they cancel or don\'t answer within a minute.',
       'Counts against the network request limit.',
     ],
   },
@@ -332,6 +471,25 @@ export const TAG_DOC_FUNCTIONS_PART1: Array<TagDocFunction> = [
     ],
     notes: [
       'Counts against the network request limit. Repeating the same search in one run reuses the cached result without counting again.',
+      'An empty query outputs nothing.',
+    ],
+  },
+  {
+    id: 'API_SEARCH_TAGS',
+    names: ['api.search.tags'],
+    category: 'search',
+    summary: 'Searches the public Tag Directory and outputs the results as JSON.',
+    description: 'Outputs an object like `{"count": number, "tags": [...]}` with up to 10 directory tags matching the query by title, description or name. Each one has `id`, `name`, `title`, `description` (the first 200 characters), `category`, `uses`, `servers` and `verified`. Run one with `tag <id>`.',
+    syntax: '{api.search.tags:query}',
+    args: [
+      {name: 'query', description: 'What to search for.'},
+    ],
+    examples: [
+      {code: '{traversejson:tags[0].id|{api.search.tags:8ball}}', result: 'The ID of the best match for "8ball".'},
+    ],
+    notes: [
+      'NSFW tags only show up in NSFW channels.',
+      'The same query only counts against the network request limit once per run.',
       'An empty query outputs nothing.',
     ],
   },

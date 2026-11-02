@@ -185,6 +185,7 @@ const TEXT_STYLE_NOTES = [
   'Everything after the media key that isn\'t `NAME=value` is the text. Wrap it in `{jsonify:}` when it has new lines or quotes, and always when `MARKUP=true`: an unwrapped `<span color="red">` gets read as a `COLOR=` option.',
   'Markup `<span>` takes `color`, `background`, `alpha`/`bgalpha` (percent), `font` (one of the font names), `size` (`10%`..`300%` or `xx-small`..`xx-large`, `smaller`, `larger`), `weight`, `style`, `variant`, `stretch`, `underline`, `overline`, `strikethrough`, their `_color`s, `letter_spacing` and `text_transform`. Markup can make text at most 4x bigger, and tags nest at most 10 deep.',
   'Emoji are drawn in color.',
+  '`$(EQUATION)` in the text becomes the equation\'s number, like `$(idx)` or `$(round(imgd*10)/10)`. It\'s worked out once when the command runs (once per frame or export inside `foreachframe`, `dobetween` and `reexport`), not every frame like `drawtext`\'s `X`/`Y`. Text inside `{jsonify:}` is never read for `$(`, so user input stays as it was typed: `{jsonify:{args}} #$(idx)`. Write `$$(` for a literal `$(`.',
 ];
 
 
@@ -288,6 +289,7 @@ export const MEDIASCRIPT_GUIDE: Array<TagDocGuideSection> = [
       '`set NAME VALUE` stores a number (VALUE can be an equation) and `get KEY PROPERTY NAME` copies a property of a media key into a variable. Both can then be used in any later equation. Variable names may only use letters, digits and underscores.',
       'To send numbers back to TagScript, use `export NAME` (or `export NAME ALIAS` to rename it) and `exportmultiple NAME1 NAME2 ...`. When the script finishes, each exported variable is saved with TagScript\'s `{set:}`, so you read it afterwards with `{get:NAME}`. Exported values are always numbers. Exports only come back when the script finishes successfully.',
       'Inside a `foreachframe` or `dobetween` block, the variable `idx` holds the current frame number and `time` when that frame starts, in seconds (foreachframe only), and any variables you set inside the block are thrown away when it ends.',
+      'To show a variable in `text`, `fittext` or `drawtext`, put an equation in `$(...)` in the text: `drawtext vidx {jsonify:{args}} $(idx)` writes the tag\'s arguments followed by the export or frame number. Anything inside `{jsonify:}` is kept as it is, so wrap user input in it.',
     ].join('\n\n'),
     table: {
       columns: ['Variable', 'Meaning', 'Example for key `img`'],
@@ -999,6 +1001,10 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
         code: '{mediascript:load {video} clip\nreexport clip -10 1 {jsonify:\njpeg clipx\nhueshifthsvffmpeg clipx 36\n}\nrender clip}',
         result: '10 exports joined last to first.',
       },
+      {
+        code: '{mediascript:load {video} clip\nreexport clip 5 1 {jsonify:\nspeed clipx speed=1.25\ndrawtext clipx {jsonify:{args}} #$(idx) X=10 Y=10+(idx-1)*th\n}\nrender clip}',
+        result: '5 exports, each faster than the last and numbered on its own line: "hello #1", "hello #2"... for `hello` as the arguments.',
+      },
     ],
     notes: [
       'The export being made is `MEDIA_KEYx`, and `idx` is its number (1, 2, 3...). Using `MEDIA_KEY` itself inside is an error.',
@@ -1541,6 +1547,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
       {code: '{mediascript:load {iv} vid\ndrawtext vid {jsonify:subscribe} X=w-tw-20 Y=h-th-20 FONT=impact SIZE=40\nrender vid}', result: 'Puts "subscribe" in the bottom-right corner.'},
       {code: '{mediascript:load {iv} vid\ndrawtext vid {jsonify:breaking news} X=w-t*200 Y=h-th-10 START=1 BACKGROUND=red COLOR=white STROKE=none\nrender vid}', result: 'A red ticker scrolls in from the right after one second.'},
       {code: '{mediascript:load {iv} gif\ndrawtext gif wobble Y=(h-th)/2+sin(n/3)*20\nrender gif}', result: 'Text that bobs up and down on every frame of a GIF.'},
+      {code: '{mediascript:load {iv} img\ndrawtext img {jsonify:{args}} - $(imgw)x$(imgh) Y=10\nrender img}', result: 'Writes the tag\'s arguments and the media\'s size along the top, like "hello - 512x512".'},
     ],
     notes: [
       '`X` and `Y` are normal expressions with a few extra names: `w`/`h` (the media\'s size), `tw`/`th` (the text\'s size), `t` (the frame\'s time in seconds) and `n` (the frame number). On top of the usual functions they take `floor`, `ceil`, `sqrt` and `clip(x,min,max)`, and `rand()` gives a new number every frame.',

@@ -2,7 +2,7 @@
 
 import type { TagDocsTranslation } from '../localize';
 
-import { ONLY_NOTSOAI } from './common';
+import { NETWORK, ONLY_NOTSOAI } from './common';
 
 
 const MARKUP_MENTION = 'Los signos `@` se escapan con un carácter invisible para que las menciones, `@everyone` y `@here` no notifiquen a nadie.';
@@ -64,6 +64,24 @@ export const FUNCTIONS_SPANISH_4: TagDocsTranslation['functions'] = {
       ONE_REQUEST,
       MEDIASCRIPT_SAFE,
       EMPTY_CODE,
+    ],
+  },
+  MUSIC_CONTROL: {
+    summary: 'Pausa, reanuda, salta o cambia el volumen de la música que suena en el servidor. Solo NotSoAI puede usar esto.',
+    description: 'Sigue las mismas reglas que los comandos de música: la persona tiene que estar en el canal de voz donde suena la música, con el modo DJ activado necesita Gestionar servidor o el rol de DJ, y si el servidor tiene activada la votación para saltar, pausar o reanudar, cuenta como su voto. Devuelve `true` cuando se hizo, `false` si ya estaba en pausa o sonando, o `voted 1/3` cuando hacen falta más votos.',
+    args: {
+      action: '`pause`, `resume`, `skip` o `volume`.',
+      value: 'Para `volume`, de 0 a 200 (`150` o `150%`), o `reset` para 100. Cualquier valor que no sea 100 necesita un servidor premium.',
+    },
+    results: [
+      '',
+      '',
+    ],
+    notes: [
+      ONLY_NOTSOAI,
+      'No puede reproducir, poner en cola ni quitar pistas, ni hacer que el bot entre o salga. Para reanudar después de que el bot se fue hace falta `music resume`.',
+      'NotSoAI puede controlar la música como mucho 3 veces por mensaje.',
+      NETWORK,
     ],
   },
   NSFW: {

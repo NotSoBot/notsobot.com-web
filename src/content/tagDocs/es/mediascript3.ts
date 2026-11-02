@@ -95,6 +95,7 @@ export const MEDIASCRIPT_SPANISH_3: TagDocsTranslation['mediaScriptCommands'] = 
       'Pone "subscribe" en la esquina inferior derecha.',
       'Un rótulo rojo entra desplazándose desde la derecha pasado un segundo.',
       'Texto que sube y baja en cada fotograma de un GIF.',
+      'Escribe arriba los argumentos del tag y el tamaño de la multimedia, como "hello - 512x512".',
     ],
     notes: [
       '`X` e `Y` son expresiones normales con algunos nombres extra: `w`/`h` (el tamaño de la multimedia), `tw`/`th` (el tamaño del texto), `t` (el tiempo del fotograma en segundos) y `n` (el número de fotograma). Además de las funciones habituales admiten `floor`, `ceil`, `sqrt` y `clip(x,min,max)`, y `rand()` da un número nuevo en cada fotograma.',

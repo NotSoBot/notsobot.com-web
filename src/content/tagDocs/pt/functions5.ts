@@ -2,7 +2,12 @@
 
 import type { TagDocsTranslation } from '../localize';
 
-import { API_LIMIT } from './common';
+import {
+  API_LIMIT,
+  CONFIRM_FIRST,
+  NETWORK,
+  ONLY_NOTSOAI,
+} from './common';
 
 
 const USER_LOOKUP = 'Opcional. Uma menção, um ID de usuário ou um nome para procurar entre os membros do servidor. Se omitido, é usada a pessoa que está usando a tag.';
@@ -17,6 +22,10 @@ const VARIABLES_STORAGE_NOTES = [
 const NOT_SAVED = 'Não retorna nada se não for executada a partir de uma tag salva.';
 const TIME_UNKNOWN = 'Se o horário não for entendido, nada é retornado.';
 const ONE_REQUEST = 'Conta como uma requisição de rede.';
+
+
+const OWN_TAG = 'Só funciona com as tags do próprio usuário no servidor atual (ou DM). Gera um erro para a tag de outra pessoa (mesmo para moderadores, que ainda podem usar `tag remove`), uma tag bloqueada ou um nome sem tag aqui.';
+const TAG_CHANGE_LIMIT = 'O NotSoAI pode editar ou apagar no máximo 3 tags por mensagem; mais uma gera um erro.';
 
 
 export const FUNCTIONS_PORTUGUESE_5: TagDocsTranslation['functions'] = {
@@ -86,6 +95,42 @@ export const FUNCTIONS_PORTUGUESE_5: TagDocsTranslation['functions'] = {
       'Só cria tags novas. Gera um erro se já existir uma tag com esse nome no servidor, mesmo que seja sua.',
       'O NotSoAI só pode criar uma tag por mensagem.',
       API_LIMIT,
+    ],
+  },
+  TAG_DELETE: {
+    summary: 'Apaga uma das tags do próprio usuário. Só o NotSoAI pode usar isto.',
+    description: 'Apaga uma tag da pessoa que perguntou ao NotSoAI, no servidor atual (ou DM), e retorna `true`.',
+    args: {
+      name: 'O nome da tag.',
+    },
+    results: [
+      '',
+    ],
+    notes: [
+      ONLY_NOTSOAI,
+      OWN_TAG,
+      TAG_CHANGE_LIMIT,
+      NETWORK,
+      'Um nome vazio não retorna nada.',
+      CONFIRM_FIRST,
+    ],
+  },
+  TAG_EDIT: {
+    summary: 'Substitui o conteúdo de uma das tags do próprio usuário. Só o NotSoAI pode usar isto.',
+    description: 'Substitui o conteúdo de uma tag da pessoa que perguntou ao NotSoAI, no servidor atual (ou DM), e retorna o nome dela. O conteúdo é processado como qualquer outro argumento, então coloque o TagScript dentro de {ignore} para salvar o próprio código e não o resultado dele.',
+    args: {
+      name: 'O nome da tag.',
+      content: 'O novo conteúdo da tag, até 2000 caracteres. Substitui a tag inteira.',
+    },
+    results: [
+      '',
+    ],
+    notes: [
+      ONLY_NOTSOAI,
+      OWN_TAG,
+      TAG_CHANGE_LIMIT,
+      NETWORK,
+      'Gera um erro para um alias; edite a tag para a qual ele aponta.',
     ],
   },
   TAG_ID: {

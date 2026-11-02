@@ -129,6 +129,7 @@ export const MEDIASCRIPT_GUIDE_SPANISH: TagDocsTranslation['mediaScriptGuide'] =
       '`set NAME VALUE` guarda un número (VALUE puede ser una ecuación) y `get KEY PROPERTY NAME` copia una propiedad de una clave de multimedia en una variable. Después, las dos se pueden usar en cualquier ecuación posterior. Los nombres de variable solo pueden usar letras, dígitos y guiones bajos.',
       'Para devolver números a TagScript, usa `export NAME` (o `export NAME ALIAS` para renombrarlo) y `exportmultiple NAME1 NAME2 ...`. Cuando el script termina, cada variable exportada se guarda con el `{set:}` de TagScript, así que después la lees con `{get:NAME}`. Los valores exportados siempre son números. Las exportaciones solo vuelven cuando el script termina correctamente.',
       'Dentro de un bloque `foreachframe` o `dobetween`, la variable `idx` contiene el número del fotograma actual y `time` cuándo empieza ese fotograma, en segundos (solo en foreachframe), y las variables que definas dentro del bloque se descartan cuando termina.',
+      'Para mostrar una variable en `text`, `fittext` o `drawtext`, pon una ecuación en `$(...)` dentro del texto: `drawtext vidx {jsonify:{args}} $(idx)` escribe los argumentos del tag seguidos del número de exportación o de fotograma. Lo que va dentro de `{jsonify:}` se queda tal cual, así que envuelve en él lo que escriba el usuario.',
     ].join('\n\n'),
     table: {
       columns: ['Variable', 'Significado', 'Ejemplo para la clave `img`'],

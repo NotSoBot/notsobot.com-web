@@ -8,13 +8,14 @@ import {
   CACHED_QUERY,
   CHANNEL_ARG,
   CHANNEL_MATCH,
+  CONFIRM_FIRST,
   EMPTY_ARGUMENT,
   EMPTY_QUERY,
   END_INDEX,
   MEMORY_PERMANENT,
   NETWORK,
-  NO_CHANNEL,
   NOT_A_NUMBER,
+  NO_CHANNEL,
   ONLY_NOTSOAI,
   OUT_OF_RANGE,
   QUERY_1024,
@@ -26,6 +27,11 @@ import {
 
 const MEMORY_CHANGES = 'As funções `ai.memory.*` podem mudar a memória no máximo 3 vezes por mensagem; mais uma mudança gera um erro.';
 const BAD_POSITION = 'Gera um erro se a posição não for um número positivo ou não houver nenhuma memória nessa posição.';
+
+
+const KNOWLEDGE_MANAGE = 'Precisa da permissão Gerenciar servidor e só funciona em um servidor. Caso contrário, gera um erro.';
+const KNOWLEDGE_PERMANENT = 'Isto muda de forma permanente o que o NotSoAI sabe sobre o servidor para todos nele, não só nesta execução. Também pode ser mudado pelo painel.';
+const KNOWLEDGE_LIMIT = 'As funções `ai.knowledge.*` podem mudar o que o NotSoAI sabe sobre o servidor no máximo 3 vezes por mensagem; mais uma mudança gera um erro.';
 
 
 export const FUNCTIONS_PORTUGUESE_1: TagDocsTranslation['functions'] = {
@@ -49,6 +55,65 @@ export const FUNCTIONS_PORTUGUESE_1: TagDocsTranslation['functions'] = {
       'Um prompt vazio não retorna nada.',
       'Dentro de uma tag, a resposta é adicionada como texto normal. Quando o script vem da própria IA, a resposta é interpretada como TagScript primeiro (e conta como vinda do NotSoAI para {isfromai}, mas as funções exclusivas do NotSoAI ficam como texto normal nela, já que o prompt pode ter texto de qualquer pessoa).',
       'Usar um `FILE_N` que não existe gera um erro.',
+    ],
+  },
+  AI_KNOWLEDGE_ADD: {
+    summary: 'Ensina ao NotSoAI um fato sobre o servidor atual. Só o NotSoAI pode usar isto, para membros com Gerenciar servidor.',
+    description: 'O fato é mostrado ao NotSoAI em todo prompt futuro de qualquer pessoa no servidor, numerado por posição. Retorna `true` quando é adicionado, ou `false` se o servidor já tinha esse fato (sem diferenciar maiúsculas).',
+    args: {
+      fact: 'O fato, como as regras do servidor ou para que serve um canal. É cortado em 1000 caracteres.',
+    },
+    results: [
+      '',
+    ],
+    notes: [
+      ONLY_NOTSOAI,
+      KNOWLEDGE_MANAGE,
+      KNOWLEDGE_PERMANENT,
+      KNOWLEDGE_LIMIT,
+      NETWORK,
+      'Um fato vazio não retorna nada.',
+      'Gera um erro se o servidor já tem 10 fatos, se os fatos juntos passariam de 1000 caracteres ou se o fato parece uma senha, um token ou uma chave.',
+    ],
+  },
+  AI_KNOWLEDGE_DELETE: {
+    summary: 'Remove um dos fatos do NotSoAI sobre o servidor atual, pela posição. Só o NotSoAI pode usar isto, para membros com Gerenciar servidor.',
+    description: 'A posição é o número do fato na lista de fatos do servidor que o NotSoAI vê no prompt, começando em 1. Retorna `true` quando é removido.',
+    args: {
+      position: 'O número do fato, começando em 1.',
+    },
+    results: [
+      '',
+    ],
+    notes: [
+      ONLY_NOTSOAI,
+      KNOWLEDGE_MANAGE,
+      KNOWLEDGE_PERMANENT,
+      KNOWLEDGE_LIMIT,
+      NETWORK,
+      EMPTY_ARGUMENT,
+      'Gera um erro se a posição não for um número positivo ou se não houver fato nessa posição.',
+      CONFIRM_FIRST,
+    ],
+  },
+  AI_KNOWLEDGE_EDIT: {
+    summary: 'Substitui um dos fatos do NotSoAI sobre o servidor atual, pela posição. Só o NotSoAI pode usar isto, para membros com Gerenciar servidor.',
+    description: 'A posição é o número do fato na lista de fatos do servidor que o NotSoAI vê no prompt, começando em 1. Retorna `true` quando é substituído.',
+    args: {
+      position: 'O número do fato, começando em 1.',
+      fact: 'O novo fato. É cortado em 1000 caracteres.',
+    },
+    results: [
+      '',
+    ],
+    notes: [
+      ONLY_NOTSOAI,
+      KNOWLEDGE_MANAGE,
+      KNOWLEDGE_PERMANENT,
+      KNOWLEDGE_LIMIT,
+      NETWORK,
+      'Não retorna nada se a posição ou o fato estiverem vazios.',
+      'Gera um erro se a posição não for um número positivo, se não houver fato nessa posição ou se os fatos juntos passariam de 1000 caracteres.',
     ],
   },
   AI_MEMORY_ADD: {
@@ -82,6 +147,7 @@ export const FUNCTIONS_PORTUGUESE_1: TagDocsTranslation['functions'] = {
       MEMORY_PERMANENT,
       'As funções `ai.memory.*` podem mudar a memória no máximo 3 vezes por mensagem; mais uma mudança gera um erro. Limpar só conta quando algo foi esquecido.',
       NETWORK,
+      CONFIRM_FIRST,
     ],
   },
   AI_MEMORY_DELETE: {
@@ -154,6 +220,23 @@ export const FUNCTIONS_PORTUGUESE_1: TagDocsTranslation['functions'] = {
       EMPTY_ARGUMENT,
     ],
   },
+  API_CREATE_REPORT: {
+    summary: 'Envia um relato de bug ou um feedback para a equipe do NotSoBot. Só o NotSoAI pode usar isto.',
+    description: 'Envia um relato de bug em nome da pessoa que perguntou ao NotSoAI, como o `report bug`, e retorna o ID do relato. A equipe responde nos relatos da pessoa no painel.',
+    args: {
+      text: 'O que deu errado, até 2000 caracteres.',
+    },
+    results: [
+      '',
+    ],
+    notes: [
+      ONLY_NOTSOAI,
+      'Só relatos de bug e feedback. Denúncias de uma pessoa, servidor, mensagem ou tag continuam sendo feitas com os comandos `report`.',
+      'O NotSoAI pode enviar um relato por mensagem.',
+      NETWORK,
+      'Um texto vazio não retorna nada.',
+    ],
+  },
   API_DELETE_REMINDER: {
     summary: 'Apaga um dos lembretes do usuário pela posição. Só o NotSoAI pode usar isto.',
     description: 'A posição é o campo `position` de {api.fetch.reminders}. Retorna `true` quando apagado.',
@@ -188,6 +271,29 @@ export const FUNCTIONS_PORTUGUESE_1: TagDocsTranslation['functions'] = {
       'Gera um erro se a posição não for um número positivo, se não existir nenhum lembrete nela ou se o novo horário já tiver passado.',
     ],
   },
+  API_FETCH_COMMANDS: {
+    summary: 'Retorna em JSON os últimos comandos do usuário neste canal. Só o NotSoAI pode usar isto.',
+    description: 'Retorna um objeto como `{"commands": [...]}` com os últimos 5 comandos da pessoa no canal atual, do mais novo ao mais antigo. Cada um tem `command` (o ID do comando), `timestamp`, `input` (a mensagem que ela digitou, os primeiros 200 caracteres, `null` em comandos de barra) e `output` com o `text` da resposta (os primeiros 200 caracteres) e `files` (as URLs dos anexos e das imagens ou vídeos dos embeds). `output` é `null` quando a resposta foi apagada.',
+    results: [
+      'O primeiro arquivo da resposta ao último comando do usuário.',
+    ],
+    notes: [
+      ONLY_NOTSOAI,
+      'Conta uma vez para o limite de requisições de rede, e mais uma vez para cada mensagem que não estiver em cache.',
+    ],
+  },
+  API_FETCH_MUSIC: {
+    summary: 'Retorna em JSON o que está tocando no servidor e a fila. Só o NotSoAI pode usar isto.',
+    description: 'Retorna um objeto com `playing`, `paused`, `channel_id` (o canal de voz, `null` quando não está em nenhum), `loop`, `dj_only`, `current` (o que está tocando, `null` se nada estiver), `queue` (as próximas 10) e `queue_count`. Cada faixa tem `title`, `artist`, `duration` (em segundos), `url`, `queued_by` (um ID de usuário) e `position` (o número que o `music queue` mostra; 1 é o que está tocando).',
+    results: [
+      'O título da música que está tocando.',
+    ],
+    notes: [
+      ONLY_NOTSOAI,
+      'Só funciona em um servidor.',
+      NETWORK,
+    ],
+  },
   API_FETCH_REMINDERS: {
     summary: 'Retorna os lembretes do usuário como JSON. Só o NotSoAI pode usar isto.',
     description: 'Retorna um objeto como `{"count": number, "reminders": [...]}` com os mesmos campos de lembrete de {api.create.reminder}. Só os lembretes do servidor atual são listados, a não ser que `global` seja passado.',
@@ -196,6 +302,17 @@ export const FUNCTIONS_PORTUGUESE_1: TagDocsTranslation['functions'] = {
     },
     results: [
       'Quantos lembretes o usuário tem neste servidor.',
+    ],
+    notes: [
+      ONLY_NOTSOAI,
+      NETWORK,
+    ],
+  },
+  API_FETCH_TAGS: {
+    summary: 'Retorna em JSON as tags do próprio usuário neste servidor. Só o NotSoAI pode usar isto.',
+    description: 'Retorna um objeto como `{"count": number, "tags": [...]}` com as 50 tags mais novas dele no servidor atual (ou DM). Cada tag tem `name`, `uses`, `locked`, `alias_of` (a tag para a qual um alias aponta, ou `null`) e `content`, os primeiros 100 caracteres dela (vazio em um alias). `count` é o total de tags que ele tem aqui.',
+    results: [
+      'Quantas tags o usuário tem neste servidor.',
     ],
     notes: [
       ONLY_NOTSOAI,
@@ -294,6 +411,21 @@ export const FUNCTIONS_PORTUGUESE_1: TagDocsTranslation['functions'] = {
     ],
     notes: [
       CACHED_QUERY,
+      EMPTY_QUERY,
+    ],
+  },
+  API_SEARCH_TAGS: {
+    summary: 'Pesquisa no diretório de tags público e retorna os resultados em JSON.',
+    description: 'Retorna um objeto como `{"count": number, "tags": [...]}` com até 10 tags do diretório que combinam com a pesquisa pelo título, descrição ou nome. Cada uma tem `id`, `name`, `title`, `description` (os primeiros 200 caracteres), `category`, `uses`, `servers` e `verified`. Execute uma com `tag <id>`.',
+    args: {
+      query: 'O que pesquisar.',
+    },
+    results: [
+      'O ID do melhor resultado para "8ball".',
+    ],
+    notes: [
+      'Tags NSFW só aparecem em canais NSFW.',
+      'A mesma pesquisa só conta uma vez por execução para o limite de requisições de rede.',
       EMPTY_QUERY,
     ],
   },

@@ -241,6 +241,7 @@ export const MEDIASCRIPT_PORTUGUESE_1: TagDocsTranslation['mediaScriptCommands']
     results: [
       '20 exportações dos primeiros 0,46 segundos, cada uma invertida, com o matiz alterado e o tom aumentado em relação à anterior.',
       '10 exportações juntadas da última para a primeira.',
+      '5 exportações, cada uma mais rápida que a anterior e numerada na própria linha: "hello #1", "hello #2"... com `hello` como argumentos.',
     ],
     notes: [
       'A exportação sendo feita é `MEDIA_KEYx`, e `idx` é o número dela (1, 2, 3...). Usar o próprio `MEDIA_KEY` dentro é um erro.',

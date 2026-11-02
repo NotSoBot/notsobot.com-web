@@ -95,6 +95,7 @@ export const MEDIASCRIPT_PORTUGUESE_3: TagDocsTranslation['mediaScriptCommands']
       'Coloca "subscribe" no canto inferior direito.',
       'Uma faixa vermelha de notícias entra rolando pela direita depois de um segundo.',
       'Um texto que sobe e desce em cada quadro de um GIF.',
+      'Escreve no topo os argumentos da tag e o tamanho da mídia, como "hello - 512x512".',
     ],
     notes: [
       '`X` e `Y` são expressões normais com alguns nomes extras: `w`/`h` (o tamanho da mídia), `tw`/`th` (o tamanho do texto), `t` (o tempo do quadro em segundos) e `n` (o número do quadro). Além das funções de sempre, aceitam `floor`, `ceil`, `sqrt` e `clip(x,min,max)`, e `rand()` dá um número novo a cada quadro.',
