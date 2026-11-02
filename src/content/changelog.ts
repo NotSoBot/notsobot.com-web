@@ -49,6 +49,9 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'improved', text: 'When NotSoAI\'s prompt has someone else\'s messages, files or links, it asks you with the same buttons before touching your settings, memory, reminders or tags, instead of always refusing.'},
       {kind: 'new', text: '**TagScript:** `{api.search.tags}` searches the Tag Directory. NotSoAI only: `{api.fetch.commands}`, `{api.fetch.music}`, `{music.control}` and `{api.create.report}`.'},
       {kind: 'new', text: '**MediaScript:** `text`, `fittext` and `drawtext` fill in `$(EQUATION)` with its number, so text can show variables like the export number in `reexport`: `drawtext clipx {jsonify:{args}} #$(idx)`. Text inside `{jsonify:}` is never filled in, so what people type into a tag stays as typed, and `$$(` writes a literal `$(`.'},
+      {kind: 'fixed', text: '`/tag get` (and `.tag get`) failed with "Cannot reference a Tag Alias" when the tag you picked from your DMs was itself one you got from the Tag Directory. It now adds the tag it points to.'},
+      {kind: 'improved', text: 'When NotSoBot loses its connection to the API partway through, it tries once more on its own for commands that are safe to repeat, and otherwise says the connection was lost instead of "terminated".'},
+      {kind: 'improved', text: '`.imagine` and other image generation say right away when image generation is down, instead of failing after waiting in the queue.'},
     ],
   },
   {
