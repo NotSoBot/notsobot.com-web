@@ -1,4 +1,4 @@
-// Who's using the bot and who's paying: users and servers over the page's window, and premium (active entitlements by
+// Who's using the bot and who's paying: users, servers and installs over the page's window, and premium (active entitlements by
 // tier, users' premium, subscriptions that started or ended).
 
 import { Routes } from '@/config';
@@ -19,7 +19,7 @@ export function GrowthSection({ days }: {days: number}) {
   const query = useAdminStatsQuery<AdminGrowthStats>('growth', days);
   return (
     <StatsSection id='growth' title='Growth' accent={STAT_COLORS.secondary} query={query}>
-      {({ users, servers, days: windowDays }) => {
+      {({ users, servers, installs, days: windowDays }) => {
         const net = servers.joins - servers.leaves;
         return (
           <>
@@ -65,6 +65,25 @@ export function GrowthSection({ days }: {days: number}) {
                 />
               </section>
             </div>
+
+            {/* discord's authorization webhook events, a server install is someone adding the bot (the join above is the
+                gateway's). an api from before they were tracked has no `installs`, the section is left out then */}
+            {(installs) ? <section className='mt-4'>
+              <SubHeading>Installs</SubHeading>
+              <p className='mb-2 text-sm text-muted'>
+                {plural(installs.users, 'user install')} • {plural(installs.servers, 'server install')} • {formatNumber(installs.removed)} removed
+                from authorized apps
+              </p>
+              <DailyBars
+                items={installs.series}
+                series={[
+                  {label: 'User installs', color: STAT_COLORS.primary, value: (item) => item.users},
+                  {label: 'Server installs', color: STAT_COLORS.secondary, value: (item) => item.servers},
+                ]}
+                below={{label: 'Removed', color: STAT_COLORS.bad, value: (item) => item.removed}}
+                describe={(item) => `${dayLabel(item.date)}: ${plural(item.users, 'user install')}, ${plural(item.servers, 'server install')}, ${formatNumber(item.removed)} removed`}
+              />
+            </section> : null}
 
             {/* servers the bot already left that discord still lists in READY and removes again on every identify, so they
                 track reconnects.

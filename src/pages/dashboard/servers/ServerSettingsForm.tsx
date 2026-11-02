@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useToast } from '@/components/ui/Toast';
 import { useI18n } from '@/i18n';
 import { GuildModerationDmFlags, type UserGuild, type UserGuildPatch } from '@/lib/api';
-import { errorMessage, useGuildMutation, useGuildScope } from '@/lib/api/dashboardQueries';
+import { errorMessage, useGuildMutation } from '@/lib/api/dashboardQueries';
 
 import { ChoiceSelect } from '../settings/ChoiceSelect';
 import {
@@ -92,8 +92,8 @@ export function ServerSettingsForm({ guild, group, onDirtyChange }: {guild: User
   const editable = guild.editable.settings;
   const readOnlyMessage = useReadOnlyMessage();
   const mutation = useGuildMutation(guild.id);
-  // the server's saved fonts can be its Default Font, they're a member's view only (staff see the stored name)
-  const fontChoices = useMediaFontChoices(guild.id, useGuildScope() === 'me' && group === 'general');
+  // the server's saved fonts can be its Default Font (staff get them through `/admin/guilds` too)
+  const fontChoices = useMediaFontChoices(guild.id, group === 'general');
   const info = {
     title: t(`ssettings.${group}.title`),
     accent: GROUP_ACCENTS[group],

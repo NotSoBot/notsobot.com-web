@@ -1958,10 +1958,11 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     name: 'speed',
     category: 'time',
     summary: 'Speeds up or slows down playback.',
-    syntax: 'speed MEDIA_KEY SPEED=0',
+    syntax: 'speed MEDIA_KEY SPEED=0 PITCH=false',
     args: [
       media(),
       {name: 'SPEED', default: '0', range: 'more than 0', description: 'the speed multiplier, e.g. 2 for double speed or 0.5 for half; 0 leaves it as is'},
+      {name: 'PITCH', default: 'false', description: 'let the audio\'s pitch follow the speed like a sped up tape, higher when faster and lower when slower; otherwise the pitch stays the same'},
     ],
   },
   {
@@ -4157,6 +4158,25 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
 
   // audio
   {
+    name: 'audioautotune',
+    aliases: ['autotune'],
+    category: 'audio',
+    summary: 'Autotunes a voice: each note is pulled onto the nearest note of a key, the timing stays the same.',
+    syntax: 'audioautotune MEDIA_KEY KEY=C STRENGTH=1',
+    args: [
+      media(),
+      {name: 'KEY', default: 'C', description: 'the key: a note with `#` or `b` for major (`C`, `F#`), add `m` or `minor` for minor (`Am`, `Bb minor`), or `chromatic` for every note'},
+      {name: 'STRENGTH', default: '1', range: '0..1', description: 'how far each note is pulled; 1 snaps it all the way for the robotic sound'},
+    ],
+    examples: [
+      {code: '{mediascript:load {audio} clip\naudioautotune clip Am\nrender clip}', result: 'The voice snapped onto A minor.'},
+    ],
+    notes: [
+      'Made for one voice. Chords and music under it come out warbly, and sounds without a pitch (s, t, breaths) are left as they are.',
+      'Media without audio is left as is.',
+    ],
+  },
+  {
     name: 'audiobitcrush',
     category: 'audio',
     summary: 'Bit crushes the audio: a lower sample rate and bit depth for a crunchy, lo-fi sound.',
@@ -4211,6 +4231,24 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     ],
     notes: [
       'Only as much of the media is used as fits in 10 minutes once stretched. Counts toward the `ffmpeg` limit.',
+    ],
+  },
+  {
+    name: 'audiopingpong',
+    category: 'audio',
+    summary: 'Cuts the audio into pieces that each play forwards, then backwards.',
+    syntax: 'audiopingpong MEDIA_KEY LENGTH=250 KEEP_LENGTH=false',
+    args: [
+      media(),
+      {name: 'LENGTH', default: '250', range: '10..5000', description: 'how long each piece is, in milliseconds'},
+      {name: 'KEEP_LENGTH', default: 'false', description: 'play every other piece backwards instead, so the length stays the same'},
+    ],
+    examples: [
+      {code: '{mediascript:load {audio} clip\naudiopingpong clip 100\nrender clip}', result: 'A stuttering, back-and-forth voice, twice as long.'},
+    ],
+    notes: [
+      'Without `KEEP_LENGTH` the audio is twice as long, a video is slowed down to match. `seesaw` plays the whole media forwards then backwards once.',
+      'Media without audio is left as is.',
     ],
   },
   {
@@ -4274,7 +4312,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     args: [
       media('the media with the voice (it keeps its video)'),
       {name: 'CHORD', default: 'C4,E4,G4', description: 'up to 8 notes split by commas: a letter, `#` or `b`, then the octave (octave 4 has middle C), like `A3,C#4,E4`. Frequencies in Hz work too'},
-      {name: 'SYNTH', default: 'choir', description: 'the sound the chord is played with: `choir` (soft voices with vibrato), `robot` (one square wave), `saw` (bright and wide), `pad` (slow and dark) or `organ`'},
+      {name: 'SYNTH', default: 'choir', description: 'the sound the chord is played with: `choir` (soft voices with vibrato), `robot` (one square wave), `saw` (bright and wide), `pad` (slow and dark), `organ` or `power` (a big, buzzy lead in the spirit of Vocodex\'s Power carrier)'},
       {name: 'BANDS', default: '75', range: '1..512', description: 'how many frequency bands the voice is split into: fewer sounds more robotic, more sounds clearer'},
     ],
     examples: [
@@ -4285,6 +4323,28 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     notes: [
       'Each note is a few detuned voices of the synth sound, with a little hiss so the voice\'s s and t sounds still come through. Our own sounds, not a copy of any plugin\'s.',
       'The result is mono. Counts toward the `ffmpeg` limit. Outside of tags, the bot has the same thing as the `.vocoderchord` command and `/media-av-pitch vocoder-chord`.',
+    ],
+  },
+  {
+    name: 'vocodermelody',
+    aliases: ['melodyvocoder'],
+    category: 'audio',
+    summary: 'Makes the voice in your media sing a melody: notes one after another, looped to the voice\'s length.',
+    syntax: 'vocodermelody MEDIA_KEY NOTES BPM=120 SYNTH=choir BANDS=75',
+    args: [
+      media('the media with the voice (it keeps its video)'),
+      {name: 'NOTES', description: 'steps split by commas: a note (`C4`, `F#3`), a chord joined by `+` (`C4+E4+G4`) or `r` for a rest. Each is a beat long unless it ends in `:BEATS` (`G4:2`, `r:0.5`). At most 1024 steps'},
+      {name: 'BPM', default: '120', range: '20..400', description: 'beats per minute'},
+      {name: 'SYNTH', default: 'choir', description: 'the sound the melody is played with, as in `vocoderchord`'},
+      {name: 'BANDS', default: '75', range: '1..512', description: 'how many frequency bands the voice is split into: fewer sounds more robotic, more sounds clearer'},
+    ],
+    examples: [
+      {code: '{mediascript:load {audio} voice\nvocodermelody voice C4,E4,G4,C5:2,G4,E4:2 160\nrender voice}', result: 'The voice singing an arpeggio up and back down.'},
+      {code: '{mediascript:load {video} clip\nvocodermelody clip A3+C4+E4:4,F3+A3+C4:4 90 power\nrender clip}', result: 'Two big, buzzy chords, four beats each.'},
+    ],
+    notes: [
+      'Outside of tags, `.vocodermelody` and `/media-av-pitch vocoder-melody` also take a MIDI file (.mid) in place of the notes: every track but the drums, the highest 8 notes at a time.',
+      'The result is mono. Counts toward the `ffmpeg` limit.',
     ],
   },
   {
@@ -4316,6 +4376,19 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     ],
   },
   {
+    name: 'audiowahwah',
+    category: 'audio',
+    summary: 'Adds a wah-wah: a band of the sound turned up, sweeping up and down.',
+    syntax: 'audiowahwah MEDIA_KEY RATE=1 DEPTH=70',
+    aliases: ['audiowah'],
+    args: [
+      media(),
+      {name: 'RATE', default: '1', range: '0.1..10', description: 'sweeps per second'},
+      {name: 'DEPTH', default: '70', range: '0..100', description: 'how wide the sweep is; it starts at 350 Hz and 100 goes up 4 octaves'},
+    ],
+    notes: ['Media without audio is left as is.'],
+  },
+  {
     name: 'audionormalize',
     category: 'audio',
     summary: 'Normalizes the loudness to a loud level with ffmpeg\'s loudnorm.',
@@ -4326,6 +4399,26 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     ],
     notes: [
       'The same effect is the `.audio normalize` command (`/media-av-effect normalize`).',
+    ],
+  },
+  {
+    name: 'audiosentencemix',
+    aliases: ['sentencemix'],
+    category: 'audio',
+    summary: 'Sentence mixing: makes the media say a sentence by cutting together the words said in it.',
+    syntax: 'audiosentencemix MEDIA_KEY ...SENTENCE SKIP_MISSING=false GAP=0',
+    args: [
+      media('the media with the words (its video is cut along with them)'),
+      {name: 'SENTENCE', description: 'what to make it say, every word left after the others'},
+      {name: 'SKIP_MISSING', default: 'false', description: 'leave out words that aren\'t said instead of failing'},
+      {name: 'GAP', default: '0', range: '0..1000', description: 'milliseconds of silence (and the last frame) between the pieces'},
+    ],
+    examples: [
+      {code: '{mediascript:load {video} clip\naudiosentencemix clip i can do that\nrender clip}', result: 'The clip saying "I can do that", cut out of its own words.'},
+    ],
+    notes: [
+      'The words are found with speech recognition. Words said one after another stay one piece, and a word that isn\'t said is built from two or three that are (`hotdog` from `hot` and `dog`). Without `SKIP_MISSING` it fails, listing the words it couldn\'t find.',
+      'Only the first 15 minutes are listened to. The result is an mp4, or an mp3 without video. Counts toward the `ffmpeg` limit.',
     ],
   },
   {
@@ -4364,6 +4457,60 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
       {name: 'WIDTH', default: '71', range: '0..100'},
       {name: 'SPEED', default: '0.5', range: '0.1..10'},
       {name: 'PHASE', default: '25', range: '0..100'},
+    ],
+  },
+  {
+    name: 'audiochorus',
+    category: 'audio',
+    summary: 'Adds a chorus like VEGAS Chorus: copies of the sound singing along slightly out of time.',
+    syntax: 'audiochorus MEDIA_KEY VOICES=3 DELAY=20 RATE=1 DEPTH=50 MIX=0.5',
+    args: [
+      media(),
+      {name: 'VOICES', default: '3', range: '1..3', description: 'how many copies sing along, every other one upside down'},
+      {name: 'DELAY', default: '20', range: '1..100', description: 'how late the copies are, in milliseconds'},
+      {name: 'RATE', default: '1', range: '0.01..20', description: 'wobbles per second'},
+      {name: 'DEPTH', default: '50', range: '1..100', description: 'how far the copies wobble, a percent of the delay (100 wobbles as far as the delay)'},
+      {name: 'MIX', default: '0.5', range: '0..1', description: 'how much of the copies are used, the rest is the original'},
+    ],
+    examples: [
+      {code: '{mediascript:load {audio} clip\naudiochorus clip 1 5 4 100 1\nrender clip}', result: 'One fast wobbling copy and none of the original, a warbly, seasick voice.'},
+    ],
+    notes: ['Media without audio is left as is.'],
+  },
+  {
+    name: 'audiodistortion',
+    category: 'audio',
+    summary: 'Distorts the audio like VEGAS ExpressFX Distortion: boosted and hard clipped.',
+    syntax: 'audiodistortion MEDIA_KEY DRIVE=50 MIX=1 LOWPASS=0',
+    args: [
+      media(),
+      {name: 'DRIVE', default: '50', range: '0..100', description: 'how hard the audio is pushed into clipping; 100 boosts it by 40 dB'},
+      {name: 'MIX', default: '1', range: '0..1', description: 'how much of the distorted audio is used, the rest is the original'},
+      {name: 'LOWPASS', default: '0', range: '0..20000', description: 'cut the sound above this many Hz afterwards, 0 for off'},
+    ],
+    examples: [
+      {code: '{mediascript:load {audio} clip\naudiodistortion clip 100 1 3000\nrender clip}', result: 'Fully clipped audio with the fizz cut off, like a blown speaker.'},
+    ],
+    notes: ['Media without audio is left as is.'],
+  },
+  {
+    name: 'audiogapper',
+    category: 'audio',
+    summary: 'Gapper/Snipper: puts gaps of silence in the audio, or cuts pieces out of it.',
+    syntax: 'audiogapper MEDIA_KEY FREQUENCY=10 LENGTH=50 SNIP=false',
+    args: [
+      media(),
+      {name: 'FREQUENCY', default: '10', range: '0.1..100', description: 'gaps per second'},
+      {name: 'LENGTH', default: '50', range: '1..1000', description: 'how long each gap is, in milliseconds'},
+      {name: 'SNIP', default: 'false', description: 'cut that much audio out instead of putting silence in'},
+    ],
+    examples: [
+      {code: '{mediascript:load {audio} clip\naudiogapper clip 20 20 true\nrender clip}', result: 'A choppy voice, 40% shorter.'},
+    ],
+    notes: [
+      'Gaps make the audio longer and snips make it shorter, a video is slowed down or sped up to stay in sync.',
+      'A gap is at most 3 times the time between gaps, and a snip at most 95% of it.',
+      'Media without audio is left as is.',
     ],
   },
   {

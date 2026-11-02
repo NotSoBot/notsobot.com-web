@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Segmented } from '@/components/ui/Segmented';
 import { useI18n, type TranslationKey } from '@/i18n';
 import { CommandTypes, type UserGuild } from '@/lib/api';
-import { errorMessage, useGuildCommandStatsQuery } from '@/lib/api/dashboardQueries';
+import { errorMessage, useGuildCommandStatsQuery, useGuildScope } from '@/lib/api/dashboardQueries';
 import { formatNumber } from '@/lib/utils';
 
 import { compact, DailyBars, dayLabel, Metric, MetricGrid, RankedList, STAT_COLORS, SubHeading } from '../admin/stats/statsUi';
@@ -23,13 +23,15 @@ function displayPrefix(guild: UserGuild): string {
 
 
 // Commands run in the server over the last 7, 30 or 90 days: how many, by how many members, a bar per day and the most
-// used. Counts only, never who ran what. Needs Manage Server, like the owner stats page's commands section for one server
+// used. Counts only, never who ran what. Needs Manage Server (any staff in the admin panel, there's nothing to change), like
+// the owner stats page's commands section for one server
 export function GuildCommandsSection({ guild }: {guild: UserGuild}) {
   const { t, plural } = useI18n();
-  const editable = guild.editable.settings;
+  const staff = useGuildScope() === 'admin';
+  const visible = guild.editable.settings || staff;
   const readOnlyMessage = useReadOnlyMessage();
   const [ days, setDays ] = useState('30');
-  const query = useGuildCommandStatsQuery(guild.id, Number(days), editable);
+  const query = useGuildCommandStatsQuery(guild.id, Number(days), visible);
   const data = query.data;
   // how a command is written here: with the server's prefix, `/` for slash commands, a right-click menu's name as is
   const prefix = displayPrefix(guild);
@@ -40,9 +42,9 @@ export function GuildCommandsSection({ guild }: {guild: UserGuild}) {
       title={t('scommands.title')}
       accent={STAT_COLORS.primary}
       description={t('scommands.description')}
-      readOnly={(editable) ? undefined : readOnlyMessage('settings')}
+      readOnly={(visible) ? undefined : readOnlyMessage('settings')}
     >
-      {(!editable) ? (
+      {(!visible) ? (
         <p className='text-sm text-muted'>{t('scommands.managers_only')}</p>
       ) : (
         <div className='space-y-4'>

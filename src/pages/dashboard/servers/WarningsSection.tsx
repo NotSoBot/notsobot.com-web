@@ -11,6 +11,7 @@ import type { GuildContentUser, GuildWarning, UserGuild } from '@/lib/api';
 import {
   GUILD_WARNINGS_PAGE_SIZE,
   errorMessage,
+  useGuildScope,
   useGuildWarningsMutation,
   useGuildWarningsQuery,
   type GuildWarningsAction,
@@ -24,10 +25,13 @@ import { formatSeconds, useReadOnlyMessage } from './guildMeta';
 
 
 // The server's warnings from the bot's `warn`, newest first. Seeing and removing them needs Timeout Members, the same as
-// the bot's commands; how long they stay active and when they're deleted are in the server settings.
+// the bot's commands (in the admin panel any staff sees them, bot owners remove them); how long they stay active and when
+// they're deleted are in the server settings.
 export function WarningsSection({ guild }: {guild: UserGuild}) {
   const { t } = useI18n();
   const editable = guild.editable.moderation;
+  const staff = useGuildScope() === 'admin';
+  const visible = editable || staff;
   const readOnlyMessage = useReadOnlyMessage();
 
   return (
@@ -37,7 +41,7 @@ export function WarningsSection({ guild }: {guild: UserGuild}) {
       description={t('warnings.description')}
       readOnly={(editable) ? undefined : readOnlyMessage('moderation')}
     >
-      {(editable) ? <WarningsList guildId={guild.id}/> : <p className='text-sm text-muted'>{t('warnings.mods_only')}</p>}
+      {(visible) ? <WarningsList guildId={guild.id} editable={editable}/> : <p className='text-sm text-muted'>{t('warnings.mods_only')}</p>}
     </Panel>
   );
 }
@@ -52,7 +56,7 @@ type WarningUsers = Record<string, GuildContentUser>;
 
 // like the server's reports: a search box and page numbers, both in the url so a search can be linked to. The page scrolls
 // inside its own box, the server's warning settings sit above it
-function WarningsList({ guildId }: {guildId: string}) {
+function WarningsList({ guildId, editable }: {guildId: string, editable: boolean}) {
   const { t, plural, rich } = useI18n();
   const toast = useToast();
   const { searchParams, page, update } = useSearchParamState();
@@ -119,7 +123,7 @@ function WarningsList({ guildId }: {guildId: string}) {
           placeholder={t('warnings.search_placeholder')}
           aria-label={t('warnings.search_label')}
         />
-        {(memberId && data?.count && !isPlaceholderData) ? (
+        {(editable && memberId && data?.count && !isPlaceholderData) ? (
           <button type='button' className='btn btn-secondary btn-sm h-9' disabled={mutation.isPending} onClick={() => setConfirmingClear(true)}>
             {t('warnings.clear_all')}
           </button>
@@ -167,7 +171,7 @@ function WarningsList({ guildId }: {guildId: string}) {
                 window={data.window}
                 disabled={mutation.isPending}
                 onFilter={filterBy}
-                onRemove={() => setRemoving(warning)}
+                onRemove={(editable) ? () => setRemoving(warning) : null}
               />
             ))}
           </ul>
@@ -290,7 +294,8 @@ function WarningRow({ warning, users, window, disabled, onFilter, onRemove }: {
   window: number,
   disabled: boolean,
   onFilter: (query: string) => void,
-  onRemove: () => void,
+  // null when it can't be removed (a moderator in the admin panel)
+  onRemove: (() => void) | null,
 }) {
   const { t, rich } = useI18n();
   const created = Date.parse(warning.created);
@@ -302,16 +307,18 @@ function WarningRow({ warning, users, window, disabled, onFilter, onRemove }: {
         {(1 < warning.weight) ? <Chip title={t('warnings.weight_title', {count: formatNumber(warning.weight)})}>{t('warnings.weight', {count: formatNumber(warning.weight)})}</Chip> : null}
         {(inactive) ? <Chip title={t('warnings.inactive_title', {window: formatSeconds(window)})}>{t('warnings.inactive')}</Chip> : null}
       </div>
-      <button
-        type='button'
-        className='-mr-1 flex h-7 cursor-pointer items-center gap-1 justify-self-end rounded-md px-2 text-xs text-muted transition-colors hover:bg-surface-3 hover:text-danger-text disabled:cursor-not-allowed disabled:opacity-50'
-        aria-label={(1 < warning.weight) ? t('warnings.remove_label_weighted', {id: warning.id, count: formatNumber(warning.weight)}) : t('warnings.remove_label', {id: warning.id})}
-        disabled={disabled}
-        onClick={onRemove}
-      >
-        <Trash2 aria-hidden className='size-3.5'/>
-        {t('warnings.remove')}
-      </button>
+      {(onRemove) ? (
+        <button
+          type='button'
+          className='-mr-1 flex h-7 cursor-pointer items-center gap-1 justify-self-end rounded-md px-2 text-xs text-muted transition-colors hover:bg-surface-3 hover:text-danger-text disabled:cursor-not-allowed disabled:opacity-50'
+          aria-label={(1 < warning.weight) ? t('warnings.remove_label_weighted', {id: warning.id, count: formatNumber(warning.weight)}) : t('warnings.remove_label', {id: warning.id})}
+          disabled={disabled}
+          onClick={onRemove}
+        >
+          <Trash2 aria-hidden className='size-3.5'/>
+          {t('warnings.remove')}
+        </button>
+      ) : <span/>}
       <div className='col-span-2 flex min-w-0'>
         <WarningPerson user={users[warning.user_id]} id={warning.user_id} scope='user' title={t('warnings.only_theirs')} onFilter={onFilter}/>
       </div>

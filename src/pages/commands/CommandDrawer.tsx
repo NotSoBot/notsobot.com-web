@@ -1,5 +1,5 @@
 import { Crown, X } from 'lucide-react';
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router';
 
@@ -10,15 +10,21 @@ import { cn, formatCompact, formatNumber } from '@/lib/utils';
 
 import { CategoryBadge, categoryStyle, CommandName, PremiumBadge } from './CommandCards';
 import { CommandPreview } from './CommandPreview';
-import { PREFIXES, premiumMeta, TYPE_LABELS, type Entry } from './commandMeta';
+import { PREFIXES, premiumMeta, sharedRatelimitLabel, SHARED_RATELIMIT_PREFIX, TYPE_LABELS, type Entry } from './commandMeta';
 
 
-export function CommandDrawer({ entry, type, siblings, totalRanked, onSelect, onClose }: {
+// how many of the other commands in a shared ratelimit are listed, the media one has hundreds
+const SHARED_RATELIMIT_SHOWN = 12;
+
+
+export function CommandDrawer({ entry, type, siblings, entries, totalRanked, onSelect, onClose }: {
   entry: Entry,
   // which of the entry's variants is shown (prefix or slash, from the path)
   type: CommandType,
   // the same command's other entries (its context menus)
   siblings: Array<Entry>,
+  // all of them, to find the ones sharing this command's ratelimit
+  entries: Array<Entry>,
   totalRanked: number,
   onSelect: (entry: Entry, type?: CommandType) => void,
   onClose: () => void,
@@ -27,6 +33,19 @@ export function CommandDrawer({ entry, type, siblings, totalRanked, onSelect, on
   const closeRef = useRef<HTMLButtonElement>(null);
   const { metadata } = entry.variants.find((variant) => variant.metadata.type === type) || entry.variants[0];
   const prefix = PREFIXES[metadata.type] ?? '';
+
+  // the other commands counting toward the same limit, most used first. its other variants and context menus share it
+  // too, but those are the same command (the tabs and "also available as")
+  const sharedKey = metadata.ratelimits?.find((limit) => limit.key?.startsWith(SHARED_RATELIMIT_PREFIX))?.key ?? null;
+  const sharing = useMemo(() => {
+    if (!sharedKey) {
+      return [];
+    }
+    return entries
+      .filter((other) => other.command.id !== entry.command.id)
+      .filter((other) => other.variants.some((variant) => variant.metadata.ratelimits?.some((limit) => limit.key === sharedKey)))
+      .sort((a, b) => b.uses - a.uses);
+  }, [entries, entry, sharedKey]);
 
   // focus in, Escape out, page scroll locked, focus handed back on close
   useEffect(() => {
@@ -188,6 +207,31 @@ export function CommandDrawer({ entry, type, siblings, totalRanked, onSelect, on
                     </li>
                   ))}
                 </ul>
+                {(sharedKey) ? (
+                  <div className='mt-2 rounded-md bg-deep px-3 py-2.5 text-sm'>
+                    <p className='text-muted'>
+                      <span className='font-medium text-white'>{t('commands.drawer.ratelimit_shared', {group: t(sharedRatelimitLabel(sharedKey))})}</span>{' '}
+                      {t('commands.drawer.ratelimit_shared_description')}
+                    </p>
+                    {(sharing.length) ? (
+                      <div className='mt-2 flex flex-wrap items-center gap-1.5'>
+                        {sharing.slice(0, SHARED_RATELIMIT_SHOWN).map((other) => (
+                          <button
+                            key={other.key}
+                            type='button'
+                            onClick={() => onSelect(other)}
+                            className='cursor-pointer rounded border border-line bg-surface px-2 py-0.5 text-xs transition-colors hover:border-[var(--cat)]'
+                          >
+                            <CommandName type={other.metadata.type} name={other.metadata.name} className='text-fg'/>
+                          </button>
+                        ))}
+                        {(SHARED_RATELIMIT_SHOWN < sharing.length) ? (
+                          <span className='text-xs text-subtle'>{t('commands.drawer.ratelimit_shared_more', {count: formatNumber(sharing.length - SHARED_RATELIMIT_SHOWN)})}</span>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
               </Section>
             ) : null}
 

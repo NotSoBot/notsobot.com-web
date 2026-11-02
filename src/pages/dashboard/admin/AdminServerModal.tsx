@@ -1,5 +1,5 @@
 import { AlertTriangle, Ban, ExternalLink, ShieldCheck, Sparkles } from 'lucide-react';
-import { useEffect, useId, useState, type KeyboardEvent } from 'react';
+import { useEffect, useId, useState, type KeyboardEvent, type ReactNode } from 'react';
 
 import { isOwner, useAuth } from '@/auth';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -8,20 +8,28 @@ import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
 import { Routes } from '@/config';
+import { useI18n, type TranslationKey } from '@/i18n';
 import { ApiErrorCodes, ApiRequestError, type AdminGuild, type AdminGuildSummary, type GuildFeature } from '@/lib/api';
 import { errorMessage, GuildScopeContext, useAdminGuildQuery, usePatchAdminGuildMutation } from '@/lib/api/dashboardQueries';
 import { cn, discordGuildUrl, snowflakeTimestamp } from '@/lib/utils';
 
+import { SavedFontsPanel } from '../fonts/SavedFontsPanel';
 import { AIKnowledgeSection } from '../servers/AIKnowledgeSection';
+import { GuildCommandsSection } from '../servers/GuildCommandsSection';
 import { GuildIcon } from '../servers/GuildIcon';
+import { GuildReportsSection } from '../servers/GuildReportsSection';
+import { GuildTagsSection } from '../servers/GuildTagsSection';
+import { SERVER_TAB_GROUPS, useReadOnlyMessage, type ServerTab as ServerPageTab } from '../servers/guildMeta';
 import { MusicSection } from '../servers/MusicSection';
 import { MusicStatsSection } from '../servers/MusicStatsSection';
 import { ServerDataSection } from '../servers/ServerDataSection';
+import { ServerHome } from '../servers/ServerHome';
 import { LoggersSection, PrefixesSection, RulesSection } from '../servers/ServerSections';
 import { ServerSettingsForm, useDirtyGroups, type SettingsGroup } from '../servers/ServerSettingsForm';
+import { WarningsSection } from '../servers/WarningsSection';
 import { PanelSkeleton, Skeleton, UnsavedChangesGuard } from '../ui';
 import { BLOCK_REASON_MAX, BlockDurationSelect, BlockedUntilLine, blockedUntilFromSeconds } from './BlockUserDialog';
-import { Chip, ContentFlagTiles, CopyableValue, CopyButton, DateTile, ExactDate, StatTile } from './adminUi';
+import { adminUserPath, Chip, ContentFlagTiles, CopyableValue, CopyButton, DateTile, ExactDate, LocalSearchParamsContext, StatTile, UserCell } from './adminUi';
 import { AdminModalFooter, AdminTagModal } from './AdminTagModal';
 import { EditGuildFeaturesDialog, GUILD_FEATURE_INFO } from './EditGuildFeaturesDialog';
 
@@ -39,9 +47,9 @@ function adminListPath(route: string, params: Record<string, string>): string {
 
 type Navigation = {previousId: string | null, nextId: string | null, onNavigate: (id: string) => void};
 
-// Any server over the admin server list (`/dashboard/admin/servers/<id>`): what's happened in it, the same settings
-// sections as the user dashboard's server pages (all editable, through `/admin/guilds`), and editing its features and
-// blocking it in the footer, between Previous / Next. ← / → (and the footer's arrows) step through the list page's servers.
+// Any server over the admin server list (`/dashboard/admin/servers/<id>`): what's happened in it, everything the user
+// dashboard's server pages show (through `/admin/guilds`: any staff looks, bot owners change), and editing its features
+// and blocking it in the footer, between Previous / Next. ← / → (and the footer's arrows) step through the list page's servers.
 export function AdminServerModal({ guildId, previousId, nextId, onNavigate, onClose }: {
   guildId: string,
   previousId: string | null,
@@ -136,23 +144,20 @@ function ServerLoadError({ error, onRetry, retrying }: {error: Error | null, onR
 }
 
 
-// the "Has" tiles' explanations, worded like their sections in the Settings tab
-const LIST_TITLES = {
-  rulesAllow: 'Rules allowing every command, a category or a command for the whole server, a channel, a role or a user.',
-  rulesBlock: 'Rules blocking every command, a category or a command for the whole server, a channel, a role or a user.',
-  loggers: 'Channels server events (message edits, joins, bans…) are posted to.',
-};
+// the user dashboard's server pages (`SERVER_TAB_GROUPS`) as tabs, its Home as Information with what only staff see.
+// Reminders are left out, they're people's private notes (Information has how many there are)
+type ServerTab = Exclude<ServerPageTab, 'reminders'>;
+const SERVER_TABS = SERVER_TAB_GROUPS.flatMap((group) => group.tabs.map((tab) => tab.id)).filter((id): id is ServerTab => id !== 'reminders');
 
-const SERVER_TABS = [
-  {id: 'information', label: 'Information'},
-  {id: 'settings', label: 'Settings'},
-] as const;
-type ServerTab = (typeof SERVER_TABS)[number]['id'];
+// which tab each settings form is on, for the unsaved changes dot
+const SETTINGS_GROUP_TABS: Record<SettingsGroup, ServerTab> = {ai: 'notsoai', general: 'settings', moderation: 'settings', warnings: 'warnings'};
 
 // Laid out like the user modal: the server, its id and when it was made on the left, whether the bot's in it in the
-// middle and whether it's blocked in the top right. Then two tabs: what's happened in it (its content flags, activity and
-// what's in it) and its settings. Editing its features (owners) and blocking it are in the footer.
+// middle and whether it's blocked in the top right. Then a tab for each of the server's pages, the first with what's
+// happened in it (its content flags and activity) over its Home page. Editing its features (owners) and blocking it are
+// in the footer.
 function ServerDetails({ guild, navigation, onDirtyChange }: {guild: AdminGuild, navigation: Navigation, onDirtyChange: (dirty: boolean) => void}) {
+  const { t } = useI18n();
   const { user } = useAuth();
   const viewerIsOwner = isOwner(user);
   // like users, only bot owners can unblock
@@ -160,12 +165,20 @@ function ServerDetails({ guild, navigation, onDirtyChange }: {guild: AdminGuild,
   const [ blocking, setBlocking ] = useState(false);
   const [ editingFeatures, setEditingFeatures ] = useState(false);
   const tabsId = useId();
-  const [ tab, setTab ] = useState<ServerTab>('information');
-  // the server settings are split into general, NotSoAI and warnings forms, each saved on its own
-  const { setter, any: settingsDirty } = useDirtyGroups<SettingsGroup>();
+  const [ tab, setTabState ] = useState<ServerTab>('home');
+  // a tab's sections load once it's first opened, then stay mounted so unsaved settings survive switching tabs
+  const [ opened, setOpened ] = useState<ReadonlySet<ServerTab>>(() => new Set(['home']));
+  const setTab = (value: ServerTab) => {
+    setTabState(value);
+    setOpened((previous) => (previous.has(value)) ? previous : new Set([...previous, value]));
+  };
+  const readOnlyMessage = useReadOnlyMessage();
+  // the server settings are split into general, NotSoAI, moderation and warnings forms, each saved on its own
+  const { setter, any: settingsDirty, dirty } = useDirtyGroups<SettingsGroup>();
   useEffect(() => {
     onDirtyChange(settingsDirty);
   }, [settingsDirty, onDirtyChange]);
+  const dirtyTabs = new Set((Object.keys(SETTINGS_GROUP_TABS) as Array<SettingsGroup>).filter((group) => dirty[group]).map((group) => SETTINGS_GROUP_TABS[group]));
   const created = snowflakeTimestamp(guild.id);
   const name = guild.name || 'Unnamed server';
   const flagsPath = (status: string) => adminListPath(Routes.DASHBOARD_ADMIN_FLAGS, {guild_id: guild.id, status, blocked: '1'});
@@ -173,13 +186,14 @@ function ServerDetails({ guild, navigation, onDirtyChange }: {guild: AdminGuild,
   const { counts, content_flags: flags } = guild as Partial<AdminGuild>;
 
   const onTabKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    const index = SERVER_TABS.findIndex((item) => item.id === tab);
-    const next = (event.key === 'ArrowRight' || event.key === 'End') ? SERVER_TABS.length - 1 :
-      (event.key === 'ArrowLeft' || event.key === 'Home') ? 0 : -1;
+    const index = SERVER_TABS.indexOf(tab);
+    const next = (event.key === 'ArrowRight') ? (index + 1) % SERVER_TABS.length :
+      (event.key === 'ArrowLeft') ? (index - 1 + SERVER_TABS.length) % SERVER_TABS.length :
+      (event.key === 'Home') ? 0 : (event.key === 'End') ? SERVER_TABS.length - 1 : -1;
     if (next !== -1 && next !== index) {
       event.preventDefault();
-      setTab(SERVER_TABS[next].id);
-      document.getElementById(`${tabsId}-${SERVER_TABS[next].id}`)?.focus();
+      setTab(SERVER_TABS[next]);
+      document.getElementById(`${tabsId}-${SERVER_TABS[next]}`)?.focus();
     }
     // ← / → would step to another server too
     if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
@@ -223,109 +237,142 @@ function ServerDetails({ guild, navigation, onDirtyChange }: {guild: AdminGuild,
 
       <div className='border-b border-line px-4 sm:border-t sm:px-6'>
         <div role='tablist' aria-label='Server sections' onKeyDown={onTabKeyDown} className='-mb-px mt-1 flex gap-1 overflow-x-auto'>
-          {SERVER_TABS.map((item) => (
+          {SERVER_TABS.map((id) => (
             <button
-              key={item.id}
-              id={`${tabsId}-${item.id}`}
+              key={id}
+              id={`${tabsId}-${id}`}
               type='button'
               role='tab'
-              aria-selected={tab === item.id}
-              aria-controls={`${tabsId}-${item.id}-panel`}
-              tabIndex={(tab === item.id) ? 0 : -1}
-              onClick={() => setTab(item.id)}
+              aria-selected={tab === id}
+              aria-controls={`${tabsId}-${id}-panel`}
+              tabIndex={(tab === id) ? 0 : -1}
+              onClick={() => setTab(id)}
               className={cn(
                 'flex shrink-0 cursor-pointer items-center gap-1.5 border-b-2 px-3 py-2 text-sm whitespace-nowrap transition-colors',
-                (tab === item.id) ? 'border-brand text-white' : 'border-transparent text-muted hover:text-white',
+                (tab === id) ? 'border-brand text-white' : 'border-transparent text-muted hover:text-white',
               )}
             >
-              {item.label}
-              {(item.id === 'settings' && settingsDirty) ? <span aria-label='(unsaved changes)' className='size-1.5 rounded-full bg-warning'/> : null}
+              {(id === 'home') ? 'Information' : t(`server_tab.${id}` as TranslationKey)}
+              {(dirtyTabs.has(id)) ? <span aria-label='(unsaved changes)' className='size-1.5 rounded-full bg-warning'/> : null}
             </button>
           ))}
         </div>
       </div>
 
-      <div className='px-4 pt-4 pb-5 sm:px-6'>
-        {/* panels stay mounted so unsaved settings survive switching tabs */}
-        <div id={`${tabsId}-information-panel`} role='tabpanel' aria-labelledby={`${tabsId}-information`} hidden={tab !== 'information'} className='space-y-5'>
-          {(guild.blocked) ? (
-            <div>
-              <div className='mb-1 flex min-h-8 items-center justify-between gap-2'>
-                <h3 className='section-label'>Block reason</h3>
-                {(guild.blocked_reason) ? <CopyButton value={guild.blocked_reason} label='Copy'/> : null}
+      {/* lists in the tabs keep their search, filters and page to themselves, the url's are the server list's */}
+      <LocalSearchParamsContext.Provider value={true}>
+        <div className='px-4 pt-4 pb-5 sm:px-6'>
+          <TabPanel tabsId={tabsId} id='home' tab={tab} opened={opened} className='space-y-5'>
+            {(guild.blocked) ? (
+              <div>
+                <div className='mb-1 flex min-h-8 items-center justify-between gap-2'>
+                  <h3 className='section-label'>Block reason</h3>
+                  {(guild.blocked_reason) ? <CopyButton value={guild.blocked_reason} label='Copy'/> : null}
+                </div>
+                {(guild.blocked_reason) ? (
+                  <p className='rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm whitespace-pre-wrap break-words text-fg'>{guild.blocked_reason}</p>
+                ) : (
+                  <p className='rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-subtle italic'>No reason given</p>
+                )}
+                <BlockedUntilLine until={guild.blocked_until} className='mt-2'/>
+                {(!canUnblock) ? <p className='mt-2 text-xs text-subtle'>{UNBLOCK_OWNER_ONLY}</p> : null}
               </div>
-              {(guild.blocked_reason) ? (
-                <p className='rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm whitespace-pre-wrap break-words text-fg'>{guild.blocked_reason}</p>
-              ) : (
-                <p className='rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-subtle italic'>No reason given</p>
-              )}
-              <BlockedUntilLine until={guild.blocked_until} className='mt-2'/>
-              {(!canUnblock) ? <p className='mt-2 text-xs text-subtle'>{UNBLOCK_OWNER_ONLY}</p> : null}
-            </div>
-          ) : null}
+            ) : null}
 
-          {/* like the user modal: the flag counts by status on the left, commands and reports on the right, then what's
-              in it across the bottom, once there's room. Stacked below that */}
-          <div className='grid gap-5 lg:grid-cols-[minmax(0,5fr)_minmax(0,3fr)] lg:gap-4'>
-            {(flags) ? <ContentFlagTiles flags={flags} flagsPath={flagsPath}/> : null}
+            {/* like the user modal: the flag counts by status on the left, commands and reports on the right, then what's
+                in it across the bottom, once there's room. Stacked below that */}
+            <div className='grid gap-5 lg:grid-cols-[minmax(0,5fr)_minmax(0,3fr)] lg:gap-4'>
+              {(flags) ? <ContentFlagTiles flags={flags} flagsPath={flagsPath}/> : null}
+              <section>
+                <h3 className='section-label mb-2'>Activity</h3>
+                <div className='grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-2'>
+                  <StatTile label='Commands run' value={(guild.commands ?? 0).toLocaleString()} title='Commands run in this server, ever'/>
+                  <DateTile label='First seen' value={guild.first_seen ?? null} empty='Never' title='When the first command was run in this server'/>
+                  <StatTile
+                    label='Staff reports'
+                    to={adminListPath(Routes.DASHBOARD_ADMIN_REPORTS, {q: `server:${guild.id}`, status: 'all'})}
+                    value={(counts?.reports ?? 0).toLocaleString()}
+                    tone='text-warning'
+                    title='Reports to NotSoBot’s staff sent from this server, or about it. Its members’ reports to its own moderators are in the Reports tab'
+                  />
+                  <DateTile
+                    label='Last seen'
+                    value={guild.bot?.updated ?? null}
+                    title={(guild.bot) ? `When the bot last synced it (shard ${guild.bot.shard_id})` : 'The bot isn’t in this server'}
+                  />
+                  {/* an api from before it was sent has no `added`, the tile is left out then */}
+                  {(guild.added !== undefined) ? (
+                    <div className='col-span-2 rounded-md border border-line bg-deep px-3 py-2 sm:col-span-4 lg:col-span-2'>
+                      <p className='text-xs text-subtle' title='Who last added the bot to this server, from Discord’s install events'>Added by</p>
+                      {(guild.added) ? (
+                        <div className='mt-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-1'>
+                          <UserCell user={guild.added.user} fallbackId={guild.added.user_id} size='sm' to={adminUserPath(guild.added.user_id)}/>
+                          <ExactDate value={guild.added.at} className='text-xs text-muted'/>
+                        </div>
+                      ) : (
+                        <p className='mt-0.5 text-sm text-subtle'>Not recorded</p>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+              </section>
+            </div>
+
             <section>
-              <h3 className='section-label mb-2'>Activity</h3>
-              <div className='grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-2'>
-                <StatTile label='Commands run' value={(guild.commands ?? 0).toLocaleString()} title='Commands run in this server, ever'/>
-                <DateTile label='First seen' value={guild.first_seen ?? null} empty='Never' title='When the first command was run in this server'/>
-                <StatTile
-                  label='Reports'
-                  to={adminListPath(Routes.DASHBOARD_ADMIN_REPORTS, {q: `server:${guild.id}`, status: 'all'})}
-                  value={(counts?.reports ?? 0).toLocaleString()}
-                  tone='text-warning'
-                  title='Reports sent from this server, or about it'
-                />
-                <DateTile
-                  label='Last seen'
-                  value={guild.bot?.updated ?? null}
-                  title={(guild.bot) ? `When the bot last synced it (shard ${guild.bot.shard_id})` : 'The bot isn’t in this server'}
-                />
+              <h3 className='section-label mb-2'>Has</h3>
+              <div className='grid grid-cols-2 gap-2 sm:grid-cols-3'>
+                <div className='col-span-2 rounded-md border border-line bg-deep px-3 py-2'>
+                  <p className='text-xs text-subtle'>Features</p>
+                  <div className='mt-1 flex flex-wrap gap-1'>
+                    {(guild.features.length) ? guild.features.map((feature) => {
+                      const info = GUILD_FEATURE_INFO[feature as GuildFeature];
+                      return <Chip key={feature} tone='brand' title={info?.description}>{info?.label ?? feature}</Chip>;
+                    }) : <span className='text-sm text-subtle'>None</span>}
+                  </div>
+                </div>
+                {/* a count only: reminders are people's private notes, so staff don't get to read them */}
+                <StatTile label='Reminders' value={(counts?.reminders ?? 0).toLocaleString()} title='Reminders set in this server. Their contents are private.'/>
               </div>
             </section>
-          </div>
 
-          <section>
-            <h3 className='section-label mb-2'>Has</h3>
-            {/* the settings counts open the Settings tab, where they're listed */}
-            <div className='grid grid-cols-2 gap-2 sm:grid-cols-3'>
-              <StatTile label='Block rules' value={guild.rules.filter((rule) => !rule.value.allow).length.toLocaleString()} onClick={() => setTab('settings')} title={LIST_TITLES.rulesBlock}/>
-              <StatTile label='Allow rules' value={guild.rules.filter((rule) => rule.value.allow).length.toLocaleString()} onClick={() => setTab('settings')} title={LIST_TITLES.rulesAllow}/>
-              <div className='col-span-2 rounded-md border border-line bg-deep px-3 py-2'>
-                <p className='text-xs text-subtle'>Features</p>
-                <div className='mt-1 flex flex-wrap gap-1'>
-                  {(guild.features.length) ? guild.features.map((feature) => {
-                    const info = GUILD_FEATURE_INFO[feature as GuildFeature];
-                    return <Chip key={feature} tone='brand' title={info?.description}>{info?.label ?? feature}</Chip>;
-                  }) : <span className='text-sm text-subtle'>None</span>}
-                </div>
-              </div>
-              <StatTile label='Loggers' value={guild.loggers.length.toLocaleString()} onClick={() => setTab('settings')} title={LIST_TITLES.loggers}/>
-              {/* a count only: reminders are people's private notes, so staff don't get to read them */}
-              <StatTile label='Reminders' value={(counts?.reminders ?? 0).toLocaleString()} title='Reminders set in this server. Their contents are private.'/>
-              <StatTile label='Tags' to={adminListPath(Routes.DASHBOARD_ADMIN_TAGS, {server: guild.id})} value={(counts?.tags ?? 0).toLocaleString()}/>
-            </div>
-          </section>
-        </div>
+            {/* the server page's Home, each tile opens its tab */}
+            <ServerHome guild={guild} onOpen={(id) => setTab(id as ServerTab)}/>
+          </TabPanel>
 
-        <div id={`${tabsId}-settings-panel`} role='tabpanel' aria-labelledby={`${tabsId}-settings`} hidden={tab !== 'settings'} className='space-y-4'>
-          <PrefixesSection guild={guild}/>
-          <ServerSettingsForm guild={guild} group='general' onDirtyChange={setter('general')}/>
-          <ServerSettingsForm guild={guild} group='ai' onDirtyChange={setter('ai')}/>
-          <AIKnowledgeSection guild={guild}/>
-          <ServerSettingsForm guild={guild} group='moderation' onDirtyChange={setter('moderation')}/>
-          <ServerSettingsForm guild={guild} group='warnings' onDirtyChange={setter('warnings')}/>
-          <MusicSection guild={guild}/>
-          <MusicStatsSection guild={guild}/>
-          <RulesSection guild={guild}/>
-          <LoggersSection guild={guild}/>
-          <ServerDataSection guild={guild}/>
+          <TabPanel tabsId={tabsId} id='commands' tab={tab} opened={opened}>
+            <GuildCommandsSection guild={guild}/>
+          </TabPanel>
+          <TabPanel tabsId={tabsId} id='music' tab={tab} opened={opened}>
+            <MusicSection guild={guild}/>
+            <MusicStatsSection guild={guild}/>
+          </TabPanel>
+          <TabPanel tabsId={tabsId} id='notsoai' tab={tab} opened={opened}>
+            <ServerSettingsForm guild={guild} group='ai' onDirtyChange={setter('ai')}/>
+            <AIKnowledgeSection guild={guild}/>
+          </TabPanel>
+          <TabPanel tabsId={tabsId} id='tags' tab={tab} opened={opened}>
+            <GuildTagsSection guild={guild}/>
+          </TabPanel>
+          <TabPanel tabsId={tabsId} id='reports' tab={tab} opened={opened}>
+            <GuildReportsSection guild={guild}/>
+          </TabPanel>
+          <TabPanel tabsId={tabsId} id='rules' tab={tab} opened={opened}>
+            <RulesSection guild={guild}/>
+          </TabPanel>
+          <TabPanel tabsId={tabsId} id='warnings' tab={tab} opened={opened}>
+            <ServerSettingsForm guild={guild} group='warnings' onDirtyChange={setter('warnings')}/>
+            <WarningsSection guild={guild}/>
+          </TabPanel>
+          <TabPanel tabsId={tabsId} id='settings' tab={tab} opened={opened}>
+            <PrefixesSection guild={guild}/>
+            <ServerSettingsForm guild={guild} group='general' onDirtyChange={setter('general')}/>
+            <SavedFontsPanel guildId={guild.id} editable={guild.editable.settings} readOnly={readOnlyMessage('settings')}/>
+            <ServerSettingsForm guild={guild} group='moderation' onDirtyChange={setter('moderation')}/>
+            <LoggersSection guild={guild}/>
+            <ServerDataSection guild={guild}/>
+          </TabPanel>
         </div>
-      </div>
+      </LocalSearchParamsContext.Provider>
 
       {/* features (owners) set apart from blocking by a divider. The block slot turns into "Unblock", disabled for
           moderators rather than left out so it never moves around */}
@@ -355,6 +402,23 @@ function ServerDetails({ guild, navigation, onDirtyChange }: {guild: AdminGuild,
 
       {(blocking) ? <BlockServerDialog guild={guild} onClose={() => setBlocking(false)}/> : null}
       {(editingFeatures) ? <EditGuildFeaturesDialog guild={guild} onClose={() => setEditingFeatures(false)}/> : null}
+    </div>
+  );
+}
+
+
+// one tab's sections, mounted once the tab is first opened and only hidden after that
+function TabPanel({ tabsId, id, tab, opened, className = 'space-y-4', children }: {
+  tabsId: string,
+  id: ServerTab,
+  tab: ServerTab,
+  opened: ReadonlySet<ServerTab>,
+  className?: string,
+  children: ReactNode,
+}) {
+  return (
+    <div id={`${tabsId}-${id}-panel`} role='tabpanel' aria-labelledby={`${tabsId}-${id}`} hidden={tab !== id} className={className}>
+      {(opened.has(id)) ? children : null}
     </div>
   );
 }

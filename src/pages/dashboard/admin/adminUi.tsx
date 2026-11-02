@@ -1,5 +1,5 @@
 import { ArrowUpRight, Check, ChevronDown, ChevronLeft, ChevronRight, Copy, Filter, Info, X } from 'lucide-react';
-import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useSearchParams } from 'react-router';
 
@@ -52,12 +52,19 @@ export const BLOCKED_FILTERS = [
 ] as const;
 
 
+// Lists shown inside a modal over another list (the server sections in the admin server modal) keep their search, filters
+// and page to themselves, the url's are the page's behind it
+export const LocalSearchParamsContext = createContext(false);
+
 export function useSearchParamState() {
-  const [ searchParams, setSearchParams ] = useSearchParams();
+  const local = useContext(LocalSearchParamsContext);
+  const [ urlParams, setUrlParams ] = useSearchParams();
+  const [ localParams, setLocalParams ] = useState(() => new URLSearchParams());
+  const searchParams = (local) ? localParams : urlParams;
   const page = Math.max(0, (Number(searchParams.get('page')) || 1) - 1);
 
   const update = (changes: Record<string, string | null>, resetPage = true) => {
-    setSearchParams((previous) => {
+    const apply = (previous: URLSearchParams) => {
       const next = new URLSearchParams(previous);
       for (const [ key, value ] of Object.entries(changes)) {
         if (value === null || value === '') {
@@ -70,12 +77,20 @@ export function useSearchParamState() {
         next.delete('page');
       }
       return next;
-    }, {replace: true, preventScrollReset: true});
+    };
+    if (local) {
+      setLocalParams(apply);
+    } else {
+      setUrlParams(apply, {replace: true, preventScrollReset: true});
+    }
   };
 
   const setPage = (value: number) => {
     update({page: (value <= 0) ? null : String(value + 1)}, false);
-    window.scrollTo({top: 0});
+    // the modal's own scroll isn't the window's
+    if (!local) {
+      window.scrollTo({top: 0});
+    }
   };
 
   return {searchParams, page, update, setPage};

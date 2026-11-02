@@ -355,6 +355,7 @@ export function CommandsPage() {
           entry={selected.entry}
           type={selected.type}
           siblings={siblings}
+          entries={entries}
           totalRanked={totalRanked}
           onSelect={openCommand}
           onClose={closeCommand}

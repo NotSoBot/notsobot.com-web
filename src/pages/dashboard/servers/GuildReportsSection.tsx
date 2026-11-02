@@ -29,6 +29,7 @@ import {
   useGuildReportImageQuery,
   useGuildReportMessagesQuery,
   useGuildReportMutation,
+  useGuildScope,
   useGuildReportQuery,
   useGuildReportsQuery,
   usePostGuildReportMessageMutation,
@@ -112,9 +113,12 @@ function ReportUser({ users, id }: {users: ReportUsers, id: string}) {
 }
 
 
+// in the admin panel any staff sees them, bot owners handle and reply to them
 export function GuildReportsSection({ guild }: {guild: UserGuild}) {
   const { t } = useI18n();
   const editable = guild.editable.moderation;
+  const staff = useGuildScope() === 'admin';
+  const visible = editable || staff;
   const readOnlyMessage = useReadOnlyMessage();
   const hasLogger = guild.loggers.some((logger) => logger.type === REPORTS_LOGGER_TYPE);
 
@@ -125,7 +129,7 @@ export function GuildReportsSection({ guild }: {guild: UserGuild}) {
       description={t('greports.description')}
       readOnly={(editable) ? undefined : readOnlyMessage('moderation')}
     >
-      {(editable) ? <ReportsList guildId={guild.id} hasLogger={hasLogger}/> : <p className='text-sm text-muted'>{t('greports.mods_only')}</p>}
+      {(visible) ? <ReportsList guildId={guild.id} hasLogger={hasLogger} editable={editable}/> : <p className='text-sm text-muted'>{t('greports.mods_only')}</p>}
     </Panel>
   );
 }
@@ -151,7 +155,7 @@ function parseBool(value: string | null): boolean | null {
 
 // like the admin reports page: a search box with the filters behind a button, and page numbers. The filters live in the
 // url, so a filtered list can be linked to
-function ReportsList({ guildId, hasLogger }: {guildId: string, hasLogger: boolean}) {
+function ReportsList({ guildId, hasLogger, editable }: {guildId: string, hasLogger: boolean, editable: boolean}) {
   const { t, rich } = useI18n();
   const { searchParams, page, update, setPage } = useSearchParamState();
   const status = parseStatus(searchParams.get('status'));
@@ -264,7 +268,7 @@ function ReportsList({ guildId, hasLogger }: {guildId: string, hasLogger: boolea
 
       {(openItem) ? (
         <AdminTagModal labelledBy={TITLE_ID} previousId={previousId} nextId={nextId} onNavigate={open} onClose={close} footer={false} stickyClose>
-          <ReportDetails key={openItem.id} guildId={guildId} report={openItem} users={users} navigation={{previousId, nextId, onNavigate: open}}/>
+          <ReportDetails key={openItem.id} guildId={guildId} report={openItem} users={users} editable={editable} navigation={{previousId, nextId, onNavigate: open}}/>
         </AdminTagModal>
       ) : (linkedId && linked.data) ? (
         <AdminTagModal labelledBy={TITLE_ID} previousId={null} nextId={null} onNavigate={() => {}} onClose={closeLinked} footer={false} stickyClose>
@@ -273,6 +277,7 @@ function ReportsList({ guildId, hasLogger }: {guildId: string, hasLogger: boolea
             guildId={guildId}
             report={linked.data.report}
             users={{...users, ...linked.data.users}}
+            editable={editable}
             navigation={{previousId: null, nextId: null, onNavigate: () => {}}}
           />
         </AdminTagModal>
@@ -328,11 +333,12 @@ function ReportRow({ report, users, onOpen }: {report: GuildReport, users: Repor
 }
 
 
-// `navigation` is the modal's Previous / Next, the status actions go between them
-function ReportDetails({ guildId, report: listed, users, navigation }: {
+// `navigation` is the modal's Previous / Next, the status actions go between them (not for staff who can only look)
+function ReportDetails({ guildId, report: listed, users, editable, navigation }: {
   guildId: string,
   report: GuildReport,
   users: ReportUsers,
+  editable: boolean,
   navigation: {previousId: string | null, nextId: string | null, onNavigate: (id: string) => void},
 }) {
   const { t } = useI18n();
@@ -432,12 +438,12 @@ function ReportDetails({ guildId, report: listed, users, navigation }: {
           <div className='mb-1 flex min-h-8 items-center'>
             <h3 className='section-label'>{t('greports.conversation_with')}</h3>
           </div>
-          <Conversation guildId={guildId} report={report} reporter={users[report.user_id] ?? null}/>
+          <Conversation guildId={guildId} report={report} reporter={users[report.user_id] ?? null} editable={editable}/>
         </section>
       </div>
 
       <AdminModalFooter {...navigation}>
-        {ACTION_SLOTS.map((slot) => {
+        {(editable) ? ACTION_SLOTS.map((slot) => {
           const value = (report.status === slot) ? ReportStatuses.OPEN : slot;
           const Icon = STATUS_ICONS[value] ?? RotateCcw;
           return (
@@ -452,7 +458,7 @@ function ReportDetails({ guildId, report: listed, users, navigation }: {
               <span className='truncate'>{t(STATUS_ACTIONS[value])}</span>
             </button>
           );
-        })}
+        }) : null}
       </AdminModalFooter>
     </div>
   );
@@ -538,7 +544,7 @@ function imageAlt(report: GuildReport, kind: GuildReportImageKind): string {
 
 
 // moderators are the thread's staff side here, the reporter only ever sees "the moderators" in the bot's DMs
-function Conversation({ guildId, report, reporter }: {guildId: string, report: GuildReport, reporter: GuildContentUser | null}) {
+function Conversation({ guildId, report, reporter, editable }: {guildId: string, report: GuildReport, reporter: GuildContentUser | null, editable: boolean}) {
   const { t } = useI18n();
   const toast = useToast();
   const query = useGuildReportMessagesQuery(guildId, report.id);
@@ -555,10 +561,10 @@ function Conversation({ guildId, report, reporter }: {guildId: string, report: G
       loading={query.isPending}
       error={query.error}
       onRetry={() => void query.refetch()}
-      onSend={(content) => mutation.mutateAsync(content).catch((error) => {
+      onSend={(editable) ? (content) => mutation.mutateAsync(content).catch((error) => {
         toast(errorMessage(error, translate('sreports.send_error')), 'error');
         throw error;
-      })}
+      }) : undefined}
       sending={mutation.isPending}
       staff={{name: t('sreports.moderators'), icon: <Shield className='size-4 text-brand-text'/>}}
       emptyText={t('greports.empty_thread')}

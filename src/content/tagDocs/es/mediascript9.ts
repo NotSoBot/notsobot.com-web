@@ -104,7 +104,7 @@ export const MEDIASCRIPT_SPANISH_9: TagDocsTranslation['mediaScriptCommands'] = 
     args: {
       MEDIA_KEY: WITH_VOICE,
       CHORD: 'hasta 8 notas separadas por comas: una letra, `#` o `b`, y luego la octava (en la octava 4 está el do central), como `A3,C#4,E4`. También funcionan las frecuencias en Hz',
-      SYNTH: 'el sonido con el que se toca el acorde: `choir` (voces suaves con vibrato), `robot` (una onda cuadrada), `saw` (brillante y amplio), `pad` (lento y oscuro) u `organ`',
+      SYNTH: 'el sonido con el que se toca el acorde: `choir` (voces suaves con vibrato), `robot` (una onda cuadrada), `saw` (brillante y amplio), `pad` (lento y oscuro), `organ` o `power` (un lead grande y zumbón al estilo del carrier Power de Vocodex)',
       BANDS: BANDS,
     },
     results: [
@@ -145,6 +145,22 @@ export const MEDIASCRIPT_SPANISH_9: TagDocsTranslation['mediaScriptCommands'] = 
       'El mismo efecto es el comando `.audio normalize` (`/media-av-effect normalize`).',
     ],
   },
+  audiosentencemix: {
+    summary: 'Sentence mixing: hace que la multimedia diga una frase uniendo las palabras que se dicen en ella.',
+    args: {
+      MEDIA_KEY: 'la multimedia con las palabras (su vídeo se corta junto con ellas)',
+      SENTENCE: 'lo que quieres que diga, todas las palabras que quedan tras los demás argumentos',
+      SKIP_MISSING: 'omitir las palabras que no se dicen en vez de fallar',
+      GAP: 'milisegundos de silencio (y el último fotograma) entre los trozos',
+    },
+    results: [
+      'El clip diciendo "I can do that", cortado de sus propias palabras.',
+    ],
+    notes: [
+      'Las palabras se encuentran con reconocimiento de voz. Las que se dicen seguidas quedan en un solo trozo, y una palabra que no se dice se arma con dos o tres que sí (`hotdog` con `hot` y `dog`). Sin `SKIP_MISSING` falla y lista las palabras que no encontró.',
+      'Solo se escuchan los primeros 15 minutos. El resultado es un mp4, o un mp3 sin vídeo. Cuenta para el límite de `ffmpeg`.',
+    ],
+  },
   audiotremolo: {
     summary: 'Añade trémolo (un volumen que late).',
     args: {
@@ -162,6 +178,108 @@ export const MEDIASCRIPT_SPANISH_9: TagDocsTranslation['mediaScriptCommands'] = 
   audioflanger: {
     summary: 'Añade un flanger (un barrido como el de un avión a reacción).',
     args: ONLY_MEDIA,
+  },
+  audiochorus: {
+    summary: 'Añade un chorus como VEGAS Chorus: copias del sonido cantando un poco desfasadas.',
+    args: {
+      MEDIA_KEY: MEDIA,
+      VOICES: 'cuántas copias cantan a la vez, una de cada dos invertida',
+      DELAY: 'cuánto se retrasan las copias, en milisegundos',
+      RATE: 'oscilaciones por segundo',
+      DEPTH: 'cuánto oscilan las copias, en porcentaje del retraso (100 oscila tanto como el retraso)',
+      MIX: 'cuánto de las copias se usa, el resto es el original',
+    },
+    results: [
+      'Una sola copia oscilando rápido y nada del original: una voz temblorosa y mareada.',
+    ],
+    notes: [NO_AUDIO],
+  },
+  audiodistortion: {
+    summary: 'Distorsiona el audio como VEGAS ExpressFX Distortion: lo sube y lo recorta a lo bruto.',
+    args: {
+      MEDIA_KEY: MEDIA,
+      DRIVE: 'cuánto se empuja el audio a la saturación; 100 lo sube 40 dB',
+      MIX: 'cuánto del audio distorsionado se usa, el resto es el original',
+      LOWPASS: 'corta el sonido por encima de estos Hz después, 0 para desactivar',
+    },
+    results: [
+      'Audio totalmente saturado sin el siseo agudo, como un altavoz reventado.',
+    ],
+    notes: [NO_AUDIO],
+  },
+  audiogapper: {
+    summary: 'Gapper/Snipper: pone huecos de silencio en el audio, o le recorta trozos.',
+    args: {
+      MEDIA_KEY: MEDIA,
+      FREQUENCY: 'huecos por segundo',
+      LENGTH: 'cuánto dura cada hueco, en milisegundos',
+      SNIP: 'recortar ese tanto de audio en vez de poner silencio',
+    },
+    results: [
+      'Una voz entrecortada, un 40% más corta.',
+    ],
+    notes: [
+      'Los huecos alargan el audio y los recortes lo acortan; un vídeo se ralentiza o se acelera para seguir sincronizado.',
+      'Un hueco dura como mucho 3 veces el tiempo entre huecos, y un recorte como mucho el 95%.',
+      NO_AUDIO,
+    ],
+  },
+  audiowahwah: {
+    summary: 'Añade un wah-wah: una banda del sonido subida de volumen que barre arriba y abajo.',
+    args: {
+      MEDIA_KEY: MEDIA,
+      RATE: 'barridos por segundo',
+      DEPTH: 'qué tan amplio es el barrido; empieza en 350 Hz y 100 sube 4 octavas',
+    },
+    notes: [NO_AUDIO],
+  },
+  vocodermelody: {
+    summary: 'Hace que la voz de tu multimedia cante una melodía: notas una tras otra, en bucle hasta lo que dure la voz.',
+    args: {
+      MEDIA_KEY: WITH_VOICE,
+      NOTES: 'pasos separados por comas: una nota (`C4`, `F#3`), un acorde unido con `+` (`C4+E4+G4`) o `r` para un silencio. Cada uno dura un pulso salvo que termine en `:PULSOS` (`G4:2`, `r:0.5`). Como mucho 1024 pasos',
+      BPM: 'pulsos por minuto',
+      SYNTH: 'el sonido con el que se toca la melodía, como en `vocoderchord`',
+      BANDS: BANDS,
+    },
+    results: [
+      'La voz cantando un arpegio que sube y vuelve a bajar.',
+      'Dos acordes grandes y zumbones, de cuatro pulsos cada uno.',
+    ],
+    notes: [
+      'Fuera de los tags, `.vocodermelody` y `/media-av-pitch vocoder-melody` también aceptan un archivo MIDI (.mid) en vez de las notas: todas las pistas menos la batería, las 8 notas más agudas a la vez.',
+      'El resultado es mono. Cuenta para el límite de `ffmpeg`.',
+    ],
+  },
+  audioautotune: {
+    summary: 'Aplica autotune a una voz: cada nota se lleva a la nota más cercana de una tonalidad y el ritmo no cambia.',
+    args: {
+      MEDIA_KEY: MEDIA,
+      KEY: 'la tonalidad: una nota con `#` o `b` para mayor (`C`, `F#`), añade `m` o `minor` para menor (`Am`, `Bb minor`), o `chromatic` para todas las notas',
+      STRENGTH: 'cuánto se lleva cada nota; 1 la ajusta del todo para el sonido robótico',
+    },
+    results: [
+      'La voz ajustada a la menor.',
+    ],
+    notes: [
+      'Pensado para una sola voz. Los acordes y la música de fondo salen temblorosos, y los sonidos sin tono (s, t, respiraciones) se quedan como están.',
+      NO_AUDIO,
+    ],
+  },
+  audiopingpong: {
+    summary: 'Corta el audio en trozos que suenan hacia delante y luego al revés.',
+    args: {
+      MEDIA_KEY: MEDIA,
+      LENGTH: 'cuánto dura cada trozo, en milisegundos',
+      KEEP_LENGTH: 'poner al revés uno de cada dos trozos, así la duración no cambia',
+    },
+    results: [
+      'Una voz que tartamudea adelante y atrás, el doble de larga.',
+    ],
+    notes: [
+      'Sin `KEEP_LENGTH` el audio dura el doble y un vídeo se ralentiza para seguirlo. `seesaw` reproduce toda la multimedia hacia delante y luego al revés una vez.',
+      NO_AUDIO,
+    ],
   },
   audioequalizer: {
     summary: 'Ajusta siete bandas de frecuencia, en decibelios.',

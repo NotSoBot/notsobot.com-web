@@ -1275,6 +1275,11 @@ function scopedGuildRead(scope: string, guildId: string) {
   return (scope === 'admin') ? findAdminGuild(guildId).entry : findGuild(guildId);
 }
 
+// looking at a section only some members can see (warnings, reports, command stats): any staff, or that area
+function scopedGuildView(scope: string, guildId: string, area: keyof ReturnType<typeof guildEditable>) {
+  return (scope === 'admin') ? findAdminGuild(guildId).entry : requireEditable(guildId, area);
+}
+
 function scopedGuild(scope: string, guildId: string, area: keyof ReturnType<typeof guildEditable>) {
   if (scope === 'admin') {
     // editing any server is owners only
@@ -2724,6 +2729,20 @@ function adminGuildCounts(guildId: string) {
   };
 }
 
+
+// who added the bot, made up but stable per server: someone in the admin users list, or now and then a user the api
+// has no row for
+function adminGuildAddedBy(guildId: string) {
+  const id = BigInt(guildId);
+  const user = (id % 5n) ? state.adminUsers[Number(id % BigInt(state.adminUsers.length || 1))] : undefined;
+  return {
+    at: new Date(Date.UTC(2026, 9, 1 + Number(id % 30n))).toISOString(),
+    user: (user) ? {avatar: user.avatar, discriminator: user.discriminator, id: user.id, username: user.username} : null,
+    user_id: user?.id ?? '300000000000000001',
+  };
+}
+
+
 function adminGuildDetail(guildId: string) {
   const item = findAdminGuild(guildId);
   // opening one the bot never saved creates its row from Discord, like the api
@@ -2747,6 +2766,8 @@ function adminGuildDetail(guildId: string) {
       unsure: flags.filter((flag) => flag.status === 4).length,
     },
     first_seen: (commands) ? new Date(Date.UTC(2020, Number(BigInt(guildId) % 48n), 1)).toISOString() : null,
+    // install webhooks only go back so far, older servers have no record of who added the bot
+    added: (BigInt(guildId) % 3n) ? adminGuildAddedBy(guildId) : null,
     counts: {
       ...adminGuildCounts(guildId),
       // the mock user's own, or a made up count for servers they aren't in (staff only see a count anyway)
@@ -3044,6 +3065,12 @@ route('GET', '/admin/stats/growth', (_match, { query }) => {
     leaves: daily(date, 'leaves', 410),
     ghosts: (wobble(date, 'restart') < 0.3) ? daily(date, 'ghosts-restart', 1800) : daily(date, 'ghosts', 40),
   }));
+  const installsSeries = dates.map((date) => ({
+    date,
+    users: daily(date, 'user-installs', 2_300),
+    servers: daily(date, 'server-installs', 590),
+    removed: daily(date, 'deauthorized', 380),
+  }));
   return {
     days,
     starts_at,
@@ -3054,6 +3081,12 @@ route('GET', '/admin/stats/growth', (_match, { query }) => {
       leaves: sumOf(serversSeries, (x) => x.leaves),
       ghosts: sumOf(serversSeries, (x) => x.ghosts),
       series: serversSeries,
+    },
+    installs: {
+      users: sumOf(installsSeries, (x) => x.users),
+      servers: sumOf(installsSeries, (x) => x.servers),
+      removed: sumOf(installsSeries, (x) => x.removed),
+      series: installsSeries,
     },
   };
 });
@@ -3465,8 +3498,8 @@ function guildContentUser(user: {avatar: string | null, bot: boolean, discrimina
   return {avatar: user.avatar, bot: user.bot, discriminator: user.discriminator, id: user.id, username: user.username};
 }
 
-route('GET', '/users/@me/guilds/(\\d+)/tags', ([ , guildId ], { query }) => {
-  findGuild(guildId);
+route('GET', '/(users/@me|admin)/guilds/(\\d+)/tags', ([ , scope, guildId ], { query }) => {
+  scopedGuildRead(scope, guildId);
   const search = (query.get('query') || '').toLowerCase();
   const before = query.get('before');
   const limit = Number(query.get('limit')) || 25;
@@ -3485,8 +3518,8 @@ route('GET', '/users/@me/guilds/(\\d+)/tags', ([ , guildId ], { query }) => {
   };
 });
 
-route('DELETE', '/users/@me/guilds/(\\d+)/tags/(\\d+)', ([ , guildId, tagId ]) => {
-  requireEditable(guildId, 'tags');
+route('DELETE', '/(users/@me|admin)/guilds/(\\d+)/tags/(\\d+)', ([ , scope, guildId, tagId ]) => {
+  scopedGuild(scope, guildId, 'tags');
   const index = state.tags.findIndex((tag) => tag.id === tagId && tag.server_id === guildId);
   if (index === -1) {
     throw new MockError(404, ApiErrorCodes.UNKNOWN_TAG, 'Unknown Tag');
@@ -3551,8 +3584,8 @@ const MOCK_GUILD_TOP_COMMANDS: Array<[string, number, string]> = [
   ['utils.help', 1, 'help'],
 ];
 
-route('GET', '/users/@me/guilds/(\\d+)/commands/stats', ([ , guildId ], { query }) => {
-  scopedGuild('users/@me', guildId, 'settings');
+route('GET', '/(users/@me|admin)/guilds/(\\d+)/commands/stats', ([ , scope, guildId ], { query }) => {
+  scopedGuildView(scope, guildId, 'settings');
   const days = Math.min(Math.max(Number(query.get('days')) || 30, 1), 90);
   const seed = Number(BigInt(guildId) % 97n);
   const today = new Date();
@@ -3613,7 +3646,7 @@ route('DELETE', '/(users/@me|admin)/guilds/(\\d+)/llm/knowledge/(\\d+)', ([ , sc
   state.guildLLMKnowledge.set(guildId, guildLLMKnowledge(guildId).filter((other) => other.id !== knowledgeId));
 });
 
-// the server's warnings: mirrors `me_guild_warnings` in `views/guild_warnings.py` (there are no staff routes for them)
+// the server's warnings: mirrors `me_guild_warnings` in `views/guild_warnings.py` (and staff's in `views/admin_guild_sections.py`)
 function guildWarnings(guildId: string): Array<GuildWarning> {
   return state.guildWarnings.get(guildId) ?? [];
 }
@@ -3635,8 +3668,8 @@ function mockGuildWarningMatches(warning: GuildWarning, search: string): boolean
   return !text || (warning.reason ?? '').toLowerCase().includes(text.toLowerCase());
 }
 
-route('GET', '/users/@me/guilds/(\\d+)/warnings', ([ , guildId ], { query }) => {
-  const { detail } = requireEditable(guildId, 'moderation');
+route('GET', '/(users/@me|admin)/guilds/(\\d+)/warnings', ([ , scope, guildId ], { query }) => {
+  const { detail } = scopedGuildView(scope, guildId, 'moderation');
   const search = (query.get('query') ?? '').trim();
   const offset = Number(query.get('offset')) || 0;
   const limit = Number(query.get('limit')) || 25;
@@ -3658,8 +3691,8 @@ route('GET', '/users/@me/guilds/(\\d+)/warnings', ([ , guildId ], { query }) => 
   };
 });
 
-route('DELETE', '/users/@me/guilds/(\\d+)/warnings/(\\d+)', ([ , guildId, warningId ]) => {
-  requireEditable(guildId, 'moderation');
+route('DELETE', '/(users/@me|admin)/guilds/(\\d+)/warnings/(\\d+)', ([ , scope, guildId, warningId ]) => {
+  scopedGuild(scope, guildId, 'moderation');
   const warning = guildWarnings(guildId).find((other) => other.id === warningId);
   if (!warning) {
     throw new MockError(404, ApiErrorCodes.UNKNOWN_GUILD_WARNING, 'Unknown Warning');
@@ -3668,16 +3701,16 @@ route('DELETE', '/users/@me/guilds/(\\d+)/warnings/(\\d+)', ([ , guildId, warnin
   return warning;
 });
 
-route('POST', '/users/@me/guilds/(\\d+)/warnings/delete', ([ , guildId ], { body }) => {
-  requireEditable(guildId, 'moderation');
+route('POST', '/(users/@me|admin)/guilds/(\\d+)/warnings/delete', ([ , scope, guildId ], { body }) => {
+  scopedGuild(scope, guildId, 'moderation');
   const userIds = (Array.isArray(body.user_ids)) ? body.user_ids.map(String) : [];
   const deleted = Object.fromEntries(userIds.map((userId: string) => [userId, guildWarnings(guildId).filter((warning) => warning.user_id === userId).length]));
   state.guildWarnings.set(guildId, guildWarnings(guildId).filter((warning) => !userIds.includes(warning.user_id)));
   return {deleted};
 });
 
-// members' reports to the server's moderators: mirrors `me_guild_reports` in `views/guild_reports.py` (there are no staff
-// routes for them either). Members can only report in a server with a reports logger, so the first server has one
+// members' reports to the server's moderators: mirrors `me_guild_reports` in `views/guild_reports.py` (and staff's in
+// `views/admin_guild_sections.py`). Members can only report in a server with a reports logger, so the first server has one
 function mockGuildReport(report: Partial<GuildReport> & Pick<GuildReport, 'created' | 'id' | 'reason' | 'target_id' | 'user_id'>): GuildReport {
   // like the api, only while there's text to clear
   const expires = (report.message_content || report.message_quote || (!report.type && report.target_quote !== false)) ? new Date(Date.parse(report.created) + 30 * 86400000).toISOString() : null;
@@ -3768,8 +3801,8 @@ function mockUsers(ids: Array<string | null>) {
   return users;
 }
 
-route('GET', '/users/@me/guilds/(\\d+)/reports', ([ , guildId ], { query }) => {
-  requireEditable(guildId, 'moderation');
+route('GET', '/(users/@me|admin)/guilds/(\\d+)/reports', ([ , scope, guildId ], { query }) => {
+  scopedGuildView(scope, guildId, 'moderation');
   const status = query.get('status');
   const type = query.get('type');
   const awaiting = query.get('awaiting_reply');
@@ -3786,14 +3819,14 @@ route('GET', '/users/@me/guilds/(\\d+)/reports', ([ , guildId ], { query }) => {
   return {count: matched.length, reports: page, users: mockReportUsers(page)};
 });
 
-route('GET', '/users/@me/guilds/(\\d+)/reports/(\\d+)', ([ , guildId, reportId ]) => {
-  requireEditable(guildId, 'moderation');
+route('GET', '/(users/@me|admin)/guilds/(\\d+)/reports/(\\d+)', ([ , scope, guildId, reportId ]) => {
+  scopedGuildView(scope, guildId, 'moderation');
   const report = guildReportPayload(findGuildReport(guildId, reportId));
   return {report, users: mockReportUsers([report])};
 });
 
-route('PATCH', '/users/@me/guilds/(\\d+)/reports/(\\d+)', ([ , guildId, reportId ], { body }) => {
-  requireEditable(guildId, 'moderation');
+route('PATCH', '/(users/@me|admin)/guilds/(\\d+)/reports/(\\d+)', ([ , scope, guildId, reportId ], { body }) => {
+  scopedGuild(scope, guildId, 'moderation');
   const report = findGuildReport(guildId, reportId);
   const status = Number(body.status) as GuildReport['status'];
   if (report.status !== status) {
@@ -3816,8 +3849,8 @@ function mockQuoteImage(report: GuildReport): Blob {
   return new Blob([svg], {type: 'image/svg+xml'});
 }
 
-route('GET', '/users/@me/guilds/(\\d+)/reports/(\\d+)/quote', ([ , guildId, reportId ]) => {
-  requireEditable(guildId, 'moderation');
+route('GET', '/(users/@me|admin)/guilds/(\\d+)/reports/(\\d+)/quote', ([ , scope, guildId, reportId ]) => {
+  scopedGuildView(scope, guildId, 'moderation');
   const report = findGuildReport(guildId, reportId);
   if (!report.message_quote) {
     throw new MockError(404, ApiErrorCodes.UNKNOWN_GUILD_REPORT, 'Unknown Report Quote');
@@ -3832,8 +3865,8 @@ function mockMemberImage(report: GuildReport): Blob {
   return new Blob([svg], {type: 'image/svg+xml'});
 }
 
-route('GET', '/users/@me/guilds/(\\d+)/reports/(\\d+)/member', ([ , guildId, reportId ]) => {
-  requireEditable(guildId, 'moderation');
+route('GET', '/(users/@me|admin)/guilds/(\\d+)/reports/(\\d+)/member', ([ , scope, guildId, reportId ]) => {
+  scopedGuildView(scope, guildId, 'moderation');
   const report = findGuildReport(guildId, reportId);
   if (!report.target_quote) {
     throw new MockError(404, ApiErrorCodes.UNKNOWN_GUILD_REPORT, 'Unknown Report Image');
@@ -3894,14 +3927,14 @@ route('POST', '/users/@me/guild-reports/(\\d+)/messages', ([ , reportId ], { bod
   return message;
 });
 
-route('GET', '/users/@me/guilds/(\\d+)/reports/(\\d+)/messages', ([ , guildId, reportId ]) => {
-  requireEditable(guildId, 'moderation');
+route('GET', '/(users/@me|admin)/guilds/(\\d+)/reports/(\\d+)/messages', ([ , scope, guildId, reportId ]) => {
+  scopedGuildView(scope, guildId, 'moderation');
   const report = findGuildReport(guildId, reportId);
   return {items: state.guildReportMessages.get(report.id) ?? []};
 });
 
-route('POST', '/users/@me/guilds/(\\d+)/reports/(\\d+)/messages', ([ , guildId, reportId ], { body }) => {
-  requireEditable(guildId, 'moderation');
+route('POST', '/(users/@me|admin)/guilds/(\\d+)/reports/(\\d+)/messages', ([ , scope, guildId, reportId ], { body }) => {
+  scopedGuild(scope, guildId, 'moderation');
   const report = findGuildReport(guildId, reportId);
   const content = (typeof body.content === 'string') ? body.content.trim() : '';
   if (!content || content.length > 1000) {
@@ -5448,28 +5481,28 @@ route('DELETE', '/users/@me/fonts/(\\d+)', ([ , fontId ]) => deleteSavedFont('me
 route('GET', '/users/@me/fonts/(\\d+)/file', ([ , fontId ]) => savedFontFile('me', fontId));
 route('GET', '/users/@me/fonts/(\\d+)/thumbnail', ([ , fontId ]) => savedFontThumbnail('me', fontId));
 
-route('GET', '/users/@me/guilds/(\\d+)/fonts', ([ , guildId ]) => {
-  findGuild(guildId);
+route('GET', '/(users/@me|admin)/guilds/(\\d+)/fonts', ([ , scope, guildId ]) => {
+  scopedGuildRead(scope, guildId);
   return savedFontsPage(guildId);
 });
-route('POST', '/users/@me/guilds/(\\d+)/fonts', ([ , guildId ], { body }) => {
-  requireEditable(guildId, 'settings');
+route('POST', '/(users/@me|admin)/guilds/(\\d+)/fonts', ([ , scope, guildId ], { body }) => {
+  scopedGuild(scope, guildId, 'settings');
   return addSavedFont(guildId, body);
 });
-route('PATCH', '/users/@me/guilds/(\\d+)/fonts/(\\d+)', ([ , guildId, fontId ], { body }) => {
-  requireEditable(guildId, 'settings');
+route('PATCH', '/(users/@me|admin)/guilds/(\\d+)/fonts/(\\d+)', ([ , scope, guildId, fontId ], { body }) => {
+  scopedGuild(scope, guildId, 'settings');
   return renameSavedFont(guildId, fontId, body);
 });
-route('DELETE', '/users/@me/guilds/(\\d+)/fonts/(\\d+)', ([ , guildId, fontId ]) => {
-  requireEditable(guildId, 'settings');
+route('DELETE', '/(users/@me|admin)/guilds/(\\d+)/fonts/(\\d+)', ([ , scope, guildId, fontId ]) => {
+  scopedGuild(scope, guildId, 'settings');
   return deleteSavedFont(guildId, fontId);
 });
-route('GET', '/users/@me/guilds/(\\d+)/fonts/(\\d+)/file', ([ , guildId, fontId ]) => {
-  findGuild(guildId);
+route('GET', '/(users/@me|admin)/guilds/(\\d+)/fonts/(\\d+)/file', ([ , scope, guildId, fontId ]) => {
+  scopedGuildRead(scope, guildId);
   return savedFontFile(guildId, fontId);
 });
-route('GET', '/users/@me/guilds/(\\d+)/fonts/(\\d+)/thumbnail', ([ , guildId, fontId ]) => {
-  findGuild(guildId);
+route('GET', '/(users/@me|admin)/guilds/(\\d+)/fonts/(\\d+)/thumbnail', ([ , scope, guildId, fontId ]) => {
+  scopedGuildRead(scope, guildId);
   return savedFontThumbnail(guildId, fontId);
 });
 

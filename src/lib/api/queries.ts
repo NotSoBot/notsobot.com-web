@@ -40,8 +40,8 @@ export const queryKeys = {
   sentGuildReports: (token: string | null, filters?: object) => ['users', '@me', token, 'sent-guild-reports', ...((filters === undefined) ? [] : [filters])] as const,
   meReportsUnread: (token: string | null) => ['users', '@me', token, 'reports-unread'] as const,
   meVoices: (token: string | null) => ['users', '@me', token, 'voices'] as const,
-  // the caller's own (`guildId` null) or a server's
-  savedFonts: (token: string | null, guildId: string | null) => ['users', '@me', token, 'saved-fonts', guildId] as const,
+  // the caller's own (`guildId` null) or a server's, yours or through the admin panel
+  savedFonts: (token: string | null, scope: GuildScope, guildId: string | null) => ['users', '@me', token, 'saved-fonts', scope, guildId] as const,
   meFiles: (token: string | null, filters?: object) => ['users', '@me', token, 'files', ...((filters) ? [filters] : [])] as const,
   meGuilds: (token: string | null) => ['users', '@me', token, 'guilds'] as const,
   meGuild: (token: string | null, guildId: string) => ['users', '@me', token, 'guilds', guildId] as const,
@@ -49,8 +49,8 @@ export const queryKeys = {
   guildLLMKnowledge: (token: string | null, scope: GuildScope, guildId: string) => ['users', '@me', token, 'guild-llm-knowledge', scope, guildId] as const,
   guildMusic: (token: string | null, scope: GuildScope, guildId: string) => ['users', '@me', token, 'guild-music', scope, guildId] as const,
   guildMusicStats: (token: string | null, scope: GuildScope, guildId: string, period: string, sort: string) => ['users', '@me', token, 'guild-music-stats', scope, guildId, period, sort] as const,
-  guildCommandStats: (token: string | null, guildId: string, days: number) => ['users', '@me', token, 'guild-command-stats', guildId, days] as const,
-  guildTags: (token: string | null, guildId: string, query?: string) => ['users', '@me', token, 'guild-tags', guildId, ...((query === undefined) ? [] : [query])] as const,
+  guildCommandStats: (token: string | null, scope: GuildScope, guildId: string, days: number) => ['users', '@me', token, 'guild-command-stats', scope, guildId, days] as const,
+  guildTags: (token: string | null, scope: GuildScope, guildId: string, query?: string) => ['users', '@me', token, 'guild-tags', scope, guildId, ...((query === undefined) ? [] : [query])] as const,
   guildReminders: (token: string | null, guildId: string, filters?: object) => ['users', '@me', token, 'guild-reminders', guildId, ...((filters === undefined) ? [] : [filters])] as const,
   // every page and search of a server's warnings sit under the first six
   guildWarnings: (token: string | null, scope: GuildScope, guildId: string, filters?: object) => ['users', '@me', token, 'guild-warnings', scope, guildId, ...((filters === undefined) ? [] : [filters])] as const,

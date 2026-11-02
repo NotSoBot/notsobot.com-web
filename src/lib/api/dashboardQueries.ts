@@ -1158,13 +1158,14 @@ export function useDeleteMeVoiceClipMutation() {
 }
 
 
-/* saved fonts, the caller's own (`guildId` null) or a server's */
+/* saved fonts, the caller's own (`guildId` null) or a server's (through `GuildScopeContext`) */
 
 export function useSavedFontsQuery(guildId: string | null, enabled = true) {
   const { token } = useAuth();
+  const scope = useGuildScope();
   return useQuery({
-    queryKey: queryKeys.savedFonts(token, guildId),
-    queryFn: ({ signal }) => api.fetchSavedFonts(guildId, signal),
+    queryKey: queryKeys.savedFonts(token, scope, guildId),
+    queryFn: ({ signal }) => api.fetchSavedFonts(scope, guildId, signal),
     enabled: !!token && enabled,
     retry: retryDiscordRefresh,
   });
@@ -1180,19 +1181,20 @@ export type SavedFontAction =
 // setting (it follows the font, or goes back to none), so those are fetched again
 export function useSavedFontsMutation(guildId: string | null) {
   const { token } = useAuth();
+  const scope = useGuildScope();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (action: SavedFontAction): Promise<SavedFontsPage> => {
       switch (action.kind) {
-        case 'add': return api.uploadSavedFont(guildId, action.name, action.file);
-        case 'rename': return api.renameSavedFont(guildId, action.fontId, action.name);
-        case 'remove': return api.deleteSavedFont(guildId, action.fontId);
+        case 'add': return api.uploadSavedFont(scope, guildId, action.name, action.file);
+        case 'rename': return api.renameSavedFont(scope, guildId, action.fontId, action.name);
+        case 'remove': return api.deleteSavedFont(scope, guildId, action.fontId);
       }
     },
     onSuccess: (page, action) => {
-      queryClient.setQueryData<SavedFontsPage>(queryKeys.savedFonts(token, guildId), page);
+      queryClient.setQueryData<SavedFontsPage>(queryKeys.savedFonts(token, scope, guildId), page);
       if (action.kind !== 'add') {
-        void queryClient.invalidateQueries({queryKey: (guildId) ? queryKeys.meGuild(token, guildId) : queryKeys.meSettings(token)});
+        void queryClient.invalidateQueries({queryKey: (guildId) ? guildQueryKey(scope, token, guildId) : queryKeys.meSettings(token)});
       }
     },
   });
@@ -1345,12 +1347,13 @@ export function useGuildLLMKnowledgeQuery(guildId: string) {
 }
 
 
-// commands run in one of your servers (Manage Server), counts only
+// commands run in one of your servers (Manage Server), or any through the admin panel, counts only
 export function useGuildCommandStatsQuery(guildId: string, days: number, enabled = true) {
   const { token } = useAuth();
+  const scope = useGuildScope();
   return useQuery({
-    queryKey: queryKeys.guildCommandStats(token, guildId, days),
-    queryFn: ({ signal }) => api.fetchGuildCommandStats(guildId, days, signal),
+    queryKey: queryKeys.guildCommandStats(token, scope, guildId, days),
+    queryFn: ({ signal }) => api.fetchGuildCommandStats(scope, guildId, days, signal),
     enabled: !!token && enabled,
     retry: retryDiscordRefresh,
   });
@@ -1556,9 +1559,10 @@ export const GUILD_REMINDERS_PAGE_SIZE = 25;
 // newest first, a page at a time, `query` matches a tag's name or content
 export function useGuildTagsQuery(guildId: string, query: string) {
   const { token } = useAuth();
+  const scope = useGuildScope();
   return useInfiniteQuery({
-    queryKey: queryKeys.guildTags(token, guildId, query),
-    queryFn: ({ pageParam, signal }) => api.fetchGuildTags(guildId, {before: pageParam, limit: GUILD_TAGS_PAGE_SIZE, query: query || undefined}, signal),
+    queryKey: queryKeys.guildTags(token, scope, guildId, query),
+    queryFn: ({ pageParam, signal }) => api.fetchGuildTags(scope, guildId, {before: pageParam, limit: GUILD_TAGS_PAGE_SIZE, query: query || undefined}, signal),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => (page.items.length < GUILD_TAGS_PAGE_SIZE) ? undefined : page.items[page.items.length - 1]?.id,
     enabled: !!token,
@@ -1569,10 +1573,11 @@ export function useGuildTagsQuery(guildId: string, query: string) {
 
 export function useGuildTagDeleteMutation(guildId: string) {
   const { token } = useAuth();
+  const scope = useGuildScope();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (tagId: string) => api.deleteGuildTag(guildId, tagId),
-    onSettled: () => queryClient.invalidateQueries({queryKey: queryKeys.guildTags(token, guildId)}),
+    mutationFn: (tagId: string) => api.deleteGuildTag(scope, guildId, tagId),
+    onSettled: () => queryClient.invalidateQueries({queryKey: queryKeys.guildTags(token, scope, guildId)}),
   });
 }
 

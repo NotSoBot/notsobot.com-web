@@ -1549,6 +1549,9 @@ export interface AdminGuild extends UserGuild {
   content_flags: AdminUserContentFlags,
   counts: {content_flags: number, reminders: number, reports: number, tags: number},
   first_seen: ApiTimestamp | null,
+  // who last added the bot to it (discord's install webhook), null for servers added before those were recorded.
+  // `user` is null for someone the api has no record of. missing from an api from before it was sent
+  added?: {at: ApiTimestamp, user: AdminUserRef | null, user_id: string} | null,
 }
 
 // what a server's `features` turn on, set by bot owners (`GuildFeatures` in the api)
@@ -2631,7 +2634,8 @@ export interface AdminApiStats extends AdminStatsWindow {
 // `/admin/stats/growth`: `users.total` is every (non-bot) user row, `active_ever` everyone who's run a command, `new`
 // the ones whose first command was in the window. `servers.current` is the servers the bot is in now. `ghosts` are servers
 // the bot had already left that discord still lists when a shard identifies, then removes again: not leaves, but how
-// often shards identified
+// often shards identified. `installs` are discord's authorization webhook events, each user (or user and server) once a
+// day: added to an account, added to a server, and `removed` from someone's authorized apps
 export interface AdminGrowthStats extends AdminStatsWindow {
   users: {
     total: number,
@@ -2647,6 +2651,13 @@ export interface AdminGrowthStats extends AdminStatsWindow {
     // missing from an api from before they were counted
     ghosts?: number,
     series: DailySeries<{joins: number, leaves: number, ghosts?: number}>,
+  },
+  // missing from an api from before they were tracked
+  installs?: {
+    users: number,
+    servers: number,
+    removed: number,
+    series: DailySeries<{users: number, servers: number, removed: number}>,
   },
 }
 

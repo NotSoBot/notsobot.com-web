@@ -8,7 +8,7 @@ import { useToast } from '@/components/ui/Toast';
 import { Routes } from '@/config';
 import { translate, useI18n } from '@/i18n';
 import { api, type SavedFont } from '@/lib/api';
-import { errorMessage, useSavedFontsMutation, useSavedFontsQuery, type SavedFontAction } from '@/lib/api/dashboardQueries';
+import { errorMessage, useGuildScope, useSavedFontsMutation, useSavedFontsQuery, type SavedFontAction } from '@/lib/api/dashboardQueries';
 import { formatDate, formatMemory } from '@/lib/utils';
 
 import { MEDIA_FONT_CHOICES, type Choice } from '../settings/settingsChoices';
@@ -333,6 +333,7 @@ function RenameForm({ font, busy, disabled, onSave, onCancel }: {
 // browser is pickier about
 function FontPreview({ guildId, font, text }: {guildId: string | null, font: SavedFont, text: string}) {
   const { t } = useI18n();
+  const scope = useGuildScope();
   const [ family, setFamily ] = useState<string | null>(null);
   const [ failed, setFailed ] = useState(false);
 
@@ -343,7 +344,7 @@ function FontPreview({ guildId, font, text }: {guildId: string | null, font: Sav
     setFailed(false);
     void (async () => {
       try {
-        const blob = await api.fetchSavedFontFile(guildId, font.id, controller.signal);
+        const blob = await api.fetchSavedFontFile(scope, guildId, font.id, controller.signal);
         face = new FontFace(`nsb-saved-font-${font.id}`, await blob.arrayBuffer());
         await face.load();
         if (controller.signal.aborted) {
@@ -363,7 +364,7 @@ function FontPreview({ guildId, font, text }: {guildId: string | null, font: Sav
         document.fonts.delete(face);
       }
     };
-  }, [guildId, font.id]);
+  }, [scope, guildId, font.id]);
 
   if (failed) {
     return <p className='mt-1 text-sm text-muted italic'>{t('fonts.preview_unavailable')}</p>;
@@ -388,6 +389,7 @@ function FontPreview({ guildId, font, text }: {guildId: string | null, font: Sav
 // the API's png of a sample line (`SavedFont.thumbnail`), drawn the way the bot draws the font and scaled so every font's
 // glyphs are the same height. One that won't load shows the font drawn by the browser instead
 function FontThumbnail({ guildId, font, fallbackText }: {guildId: string | null, font: SavedFont, fallbackText: string}) {
+  const scope = useGuildScope();
   const [ url, setUrl ] = useState<string | null>(null);
   const [ failed, setFailed ] = useState(false);
 
@@ -396,7 +398,7 @@ function FontThumbnail({ guildId, font, fallbackText }: {guildId: string | null,
     let objectUrl: string | null = null;
     setUrl(null);
     setFailed(false);
-    api.fetchSavedFontThumbnail(guildId, font.id, controller.signal).then((blob) => {
+    api.fetchSavedFontThumbnail(scope, guildId, font.id, controller.signal).then((blob) => {
       objectUrl = URL.createObjectURL(blob);
       setUrl(objectUrl);
     }).catch(() => {
@@ -410,7 +412,7 @@ function FontThumbnail({ guildId, font, fallbackText }: {guildId: string | null,
         URL.revokeObjectURL(objectUrl);
       }
     };
-  }, [guildId, font.id]);
+  }, [scope, guildId, font.id]);
 
   if (failed) {
     return <FontPreview guildId={guildId} font={font} text={fallbackText}/>;

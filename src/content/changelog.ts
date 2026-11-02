@@ -29,8 +29,17 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: Array<ChangelogDay> = [
   {
     date: '2026-11-02',
-    title: 'Saved fonts',
+    title: 'Saved fonts, Vegas audio effects, melody vocoder and sentence mixing',
     items: [
+      {kind: 'new', text: '`/media-av-effect sentence-mix` (`.sentencemix`): makes an audio or video say your sentence by cutting together the words said in it. Phrases said in a row stay together, a word that isn\'t said is built from ones that are (`hotdog` from `hot` and `dog`), `skip-missing` leaves out the rest and `gap` spaces the words out.'},
+      {kind: 'new', text: '**MediaScript:** `audiosentencemix` (alias `sentencemix`).'},
+      {kind: 'new', text: '`/media-av-pitch vocoder-melody` (`.vocodermelody`): the voice sings a melody instead of one chord. Type the notes (`C4 E4 G4:2 C4+E4+G4:4 r`, with `bpm`) or give it a MIDI file (.mid), every track but the drums.'},
+      {kind: 'new', text: 'A `power` synth for `vocoderchord` and `vocoder-melody`: a big, buzzy lead in the spirit of Vocodex\'s Power carrier.'},
+      {kind: 'new', text: '`/media-av-pitch autotune` (`.autotune`): snaps a voice onto the notes of a key (`C`, `F#`, `Am`, `chromatic`), with a `strength` for how hard.'},
+      {kind: 'new', text: '`/media-av-effect ping-pong` (`.audio pingpong`): cuts the audio into pieces that each play forwards then backwards, or with `keep-length` every other one backwards.'},
+      {kind: 'new', text: '**MediaScript:** `vocodermelody`, `audioautotune` and `audiopingpong`, and `power` for `SYNTH`.'},
+      {kind: 'new', text: 'Four Vegas-style audio effects under `/media-av-effect`: `chorus` (copies of the sound singing along slightly out of time), `distortion` (pushed into clipping like VEGAS ExpressFX Distortion), `gapper` (gaps of silence put in, or with `snip` pieces cut out, Gapper/Snipper style) and `wah-wah`. Also `.audio chorus`, `.audio distortion`, `.audio gapper` and `.audio wahwah`.'},
+      {kind: 'new', text: '**MediaScript:** `audiochorus`, `audiodistortion`, `audiogapper` and `audiowahwah`.'},
       {kind: 'new', text: 'Saved fonts for NotSoPremium: keep up to 10 fonts of your own, and a server with a premium server slot keeps up to 25 that all its members can use. Add yours with `/fonts add` (`.fonts add comic` with a `.ttf`, `.otf`, `.woff` or `.woff2` attached) and the server\'s with `/server fonts add` (`.server fonts add`, needs Manage Server). `list`, `remove` and `rename` manage them.'},
       {kind: 'new', text: 'Use a saved font by its name in `.caption`, `.meme` and `.recaption` (`-font comic`, or the slash `font` option, which now lists your saved fonts and the server\'s), or as your Default Font or the server\'s. Your own fonts come before the server\'s.'},
       {kind: 'new', text: '**MediaScript:** `loadfont` loads a saved font by its name, the key is its name unless you give one: `loadfont comic`, then `FONT=comic`. In tags, it uses the fonts of whoever runs the tag.'},
@@ -56,6 +65,13 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'improved', text: 'The music pauses when nobody\'s listening on every server now, not just with 24/7: when everyone else leaves the voice channel or deafens (other bots don\'t count), and it carries on once someone can hear it again. Premium servers can turn it off with `.music autopause off` or on the dashboard.'},
       {kind: 'new', text: '`.music autopause 30s` (`/music autopause leave_after`, or on the dashboard) picks how long NotSoBot stays paused before it leaves the voice channel, from right away (`instant`) up to 5 minutes (3 by default). The song is kept for the next `music play`, and 24/7 still stays paused.'},
       {kind: 'improved', text: 'Pausing when nobody\'s listening moved from `.music 247 pause on/off` (`/music 247 pause_when_alone`) to `.music autopause on/off`.'},
+      {kind: 'new', text: '`.speed 2 -pitch` (the slash `pitch` option) lets the pitch change with the speed like a sped up tape, higher when faster and lower when slower. Without it the pitch stays the same, like before.'},
+      {kind: 'new', text: '**MediaScript:** `speed` takes `PITCH=true` for the same thing, `speed v 2 true`. It sounds cleaner than `speed` followed by `pitch`, which stretches the audio twice.'},
+      {kind: 'new', text: 'Warnings have a **Prune** button next to Mute, Kick and Ban: it asks how many messages (and optionally how far back) and deletes the warned members\' recent messages in that channel. It shows when both you and NotSoBot can manage messages there.'},
+      {kind: 'improved', text: '`.veg` and `/media-aiv veg` take Vegas Movie Studio projects (`.vf`) as well as `.veg`.'},
+      {kind: 'fixed', text: '`.audio multipitch` (and `multipitch` in MediaScript) with the `bungee` engine sped the audio up for pitches lower than -24 semitones, now they keep their timing and land on the right note.'},
+      {kind: 'improved', text: 'Downloading a Threads post that Threads hides from people without an account (region, age or sensitive content) says so with Threads\' own reason, instead of "no post data".'},
+      {kind: 'new', text: 'The commands page shows when a command shares its limit with others, like all the media commands, and lists the other commands in the group.'},
     ],
   },
   {

@@ -54,6 +54,21 @@ export const PREFIXES: Record<CommandType, string> = {
   [CommandTypes.APPLICATION_MENU_MESSAGE]: '',
 };
 
+// shared ratelimit buckets (the bot's `RatelimitKeys`), every command with the key counts toward the same limit
+export const SHARED_RATELIMIT_PREFIX = 'shared.';
+const SHARED_RATELIMIT_LABELS: Record<string, TranslationKey> = {
+  'shared.browser': 'commands.ratelimit_group.browser',
+  'shared.media': 'commands.ratelimit_group.media',
+  'shared.ml': 'commands.ratelimit_group.ml',
+  'shared.ml_image': 'commands.ratelimit_group.ml_image',
+  'shared.search': 'commands.ratelimit_group.search',
+};
+
+export function sharedRatelimitLabel(key: string): TranslationKey {
+  return SHARED_RATELIMIT_LABELS[key] ?? 'commands.ratelimit_group.other';
+}
+
+
 export const TYPE_LABELS: Record<CommandType, TranslationKey> = {
   [CommandTypes.PREFIXED]: 'command_type.prefixed',
   [CommandTypes.APPLICATION_SLASH]: 'command_type.slash',

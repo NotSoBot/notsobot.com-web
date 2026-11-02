@@ -668,43 +668,44 @@ export const api = {
     return apiRequest<Blob>(ApiEndpoints.USER_ME_VOICE_CLIP_AUDIO(voiceId, clipId), {signal, responseType: 'blob', timeout: 60_000});
   },
 
-  // saved fonts, the caller's own (`guildId` null) or a server's (any member reads them, Manage Server changes them).
-  // Dashboard only. Every route answers with the whole list
-  fetchSavedFonts: (guildId: string | null, signal?: AbortSignal) => {
-    const path = (guildId) ? ApiEndpoints.USER_ME_GUILD_FONTS(guildId) : ApiEndpoints.USER_ME_FONTS;
+  // saved fonts, the caller's own (`guildId` null) or a server's (any member reads them, Manage Server changes them;
+  // staff read any server's through `/admin/guilds`, owners change them). Dashboard only. Every route answers with the
+  // whole list
+  fetchSavedFonts: (scope: GuildScope, guildId: string | null, signal?: AbortSignal) => {
+    const path = (guildId) ? guildEndpoints(scope, guildId).FONTS : ApiEndpoints.USER_ME_FONTS;
     return apiRequest<SavedFontsPage>(path, {signal});
   },
 
   // the api runs the file through its font checks before keeping it
-  uploadSavedFont: (guildId: string | null, name: string, file: File) => {
+  uploadSavedFont: (scope: GuildScope, guildId: string | null, name: string, file: File) => {
     const body = new FormData();
     body.append('name', name);
     body.append('file', file);
-    const path = (guildId) ? ApiEndpoints.USER_ME_GUILD_FONTS(guildId) : ApiEndpoints.USER_ME_FONTS;
+    const path = (guildId) ? guildEndpoints(scope, guildId).FONTS : ApiEndpoints.USER_ME_FONTS;
     return apiRequest<SavedFontsPage>(path, {method: 'POST', body, timeout: 120_000});
   },
 
   // a Default Font setting using it follows the new name
-  renameSavedFont: (guildId: string | null, fontId: string, name: string) => {
-    const path = (guildId) ? ApiEndpoints.USER_ME_GUILD_FONT(guildId, fontId) : ApiEndpoints.USER_ME_FONT(fontId);
+  renameSavedFont: (scope: GuildScope, guildId: string | null, fontId: string, name: string) => {
+    const path = (guildId) ? guildEndpoints(scope, guildId).FONT(fontId) : ApiEndpoints.USER_ME_FONT(fontId);
     return apiRequest<SavedFontsPage>(path, {method: 'PATCH', body: {name}});
   },
 
   // a Default Font setting using it goes back to none
-  deleteSavedFont: (guildId: string | null, fontId: string) => {
-    const path = (guildId) ? ApiEndpoints.USER_ME_GUILD_FONT(guildId, fontId) : ApiEndpoints.USER_ME_FONT(fontId);
+  deleteSavedFont: (scope: GuildScope, guildId: string | null, fontId: string) => {
+    const path = (guildId) ? guildEndpoints(scope, guildId).FONT(fontId) : ApiEndpoints.USER_ME_FONT(fontId);
     return apiRequest<SavedFontsPage>(path, {method: 'DELETE'});
   },
 
   // the file as it was uploaded, for the preview. Fetched with the token so it can't be linked to
-  fetchSavedFontFile: (guildId: string | null, fontId: string, signal?: AbortSignal) => {
-    const path = (guildId) ? ApiEndpoints.USER_ME_GUILD_FONT_FILE(guildId, fontId) : ApiEndpoints.USER_ME_FONT_FILE(fontId);
+  fetchSavedFontFile: (scope: GuildScope, guildId: string | null, fontId: string, signal?: AbortSignal) => {
+    const path = (guildId) ? guildEndpoints(scope, guildId).FONT_FILE(fontId) : ApiEndpoints.USER_ME_FONT_FILE(fontId);
     return apiRequest<Blob>(path, {signal, responseType: 'blob', timeout: 60_000});
   },
 
   // a png of a sample line in the font (`SavedFont.thumbnail`), every font at the same size
-  fetchSavedFontThumbnail: (guildId: string | null, fontId: string, signal?: AbortSignal) => {
-    const path = (guildId) ? ApiEndpoints.USER_ME_GUILD_FONT_THUMBNAIL(guildId, fontId) : ApiEndpoints.USER_ME_FONT_THUMBNAIL(fontId);
+  fetchSavedFontThumbnail: (scope: GuildScope, guildId: string | null, fontId: string, signal?: AbortSignal) => {
+    const path = (guildId) ? guildEndpoints(scope, guildId).FONT_THUMBNAIL(fontId) : ApiEndpoints.USER_ME_FONT_THUMBNAIL(fontId);
     return apiRequest<Blob>(path, {signal, responseType: 'blob', timeout: 60_000});
   },
 
@@ -726,18 +727,19 @@ export const api = {
     return apiRequest<GuildLLMKnowledgePage>(guildEndpoints(scope, guildId).LLM_KNOWLEDGE, {signal});
   },
 
-  // dashboard only, staff see command stats on the owner stats page
-  fetchGuildCommandStats: (guildId: string, days: number, signal?: AbortSignal) => {
-    return apiRequest<GuildCommandStats>(`${ApiEndpoints.USER_ME_GUILD(guildId)}/commands/stats`, {query: {days}, signal});
+  // dashboard only (Manage Server), and staff's admin server modal
+  fetchGuildCommandStats: (scope: GuildScope, guildId: string, days: number, signal?: AbortSignal) => {
+    return apiRequest<GuildCommandStats>(guildEndpoints(scope, guildId).COMMAND_STATS, {query: {days}, signal});
   },
 
-  // a server's tags (any member) and reminders (Manage Messages), for its moderators. Dashboard only
-  fetchGuildTags: (guildId: string, options: {before?: string, limit?: number, query?: string}, signal?: AbortSignal) => {
-    return apiRequest<GuildTagsPage>(`${ApiEndpoints.USER_ME_GUILD(guildId)}/tags`, {query: {before: options.before, limit: options.limit, query: options.query}, signal});
+  // a server's tags (any member, staff any server) and reminders (Manage Messages, never staff: they're private), for its
+  // moderators. Dashboard only
+  fetchGuildTags: (scope: GuildScope, guildId: string, options: {before?: string, limit?: number, query?: string}, signal?: AbortSignal) => {
+    return apiRequest<GuildTagsPage>(guildEndpoints(scope, guildId).TAGS, {query: {before: options.before, limit: options.limit, query: options.query}, signal});
   },
 
-  deleteGuildTag: (guildId: string, tagId: string) => {
-    return apiRequest<void>(`${ApiEndpoints.USER_ME_GUILD(guildId)}/tags/${tagId}`, {method: 'DELETE'});
+  deleteGuildTag: (scope: GuildScope, guildId: string, tagId: string) => {
+    return apiRequest<void>(guildEndpoints(scope, guildId).TAG(tagId), {method: 'DELETE'});
   },
 
   fetchGuildReminders: (guildId: string, options: {

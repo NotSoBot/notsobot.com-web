@@ -39,8 +39,8 @@ export function ReportThread({ viewer, reporter, messages, loading, error, onRet
   loading: boolean,
   error: unknown,
   onRetry: () => void,
-  // resolves when it's sent, the draft is only cleared then
-  onSend: (content: string) => Promise<unknown>,
+  // resolves when it's sent, the draft is only cleared then. Left out, there's no reply box (staff who can only look)
+  onSend?: (content: string) => Promise<unknown>,
   sending: boolean,
   // shown above the reply box, e.g. that replying won't reopen it
   notice?: ReactNode,
@@ -109,7 +109,7 @@ export function ReportThread({ viewer, reporter, messages, loading, error, onRet
   const staffName = staff?.name ?? REPORT_STAFF_NAME;
 
   const send = () => {
-    if (!canSend) {
+    if (!canSend || !onSend) {
       return;
     }
     // the reply comes back as a new message, which scrolls down to it (set before it lands, the list can update first)
@@ -162,39 +162,41 @@ export function ReportThread({ viewer, reporter, messages, loading, error, onRet
         </div>
       )}
 
-      <form
-        className='mt-3'
-        onSubmit={(event) => {
-          event.preventDefault();
-          send();
-        }}
-      >
-        {(notice) ? <p className='mb-2 text-xs text-subtle'>{notice}</p> : null}
-        <textarea
-          aria-label={t('thread.reply_label')}
-          className='input min-h-20 resize-y'
-          rows={3}
-          maxLength={maxLength}
-          value={draft}
-          placeholder={placeholder}
-          onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={(event) => {
-            // ctrl/cmd+enter sends, a plain enter is a new line
-            if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
-              event.preventDefault();
-              send();
-            }
+      {(onSend) ? (
+        <form
+          className='mt-3'
+          onSubmit={(event) => {
+            event.preventDefault();
+            send();
           }}
-        />
-        <div className='mt-2 flex flex-wrap items-center justify-end gap-2'>
-          {(draft.length) ? <span className='mr-auto text-xs text-subtle'><CharCounter length={draft.length} max={maxLength}/></span> : null}
-          {actions}
-          <button type='submit' className='btn btn-primary btn-sm' disabled={!canSend}>
-            {(sending) ? <Spinner className='size-3.5 border-white/40 border-t-white'/> : <Send aria-hidden className='size-3.5'/>}
-            {t('thread.send')}
-          </button>
-        </div>
-      </form>
+        >
+          {(notice) ? <p className='mb-2 text-xs text-subtle'>{notice}</p> : null}
+          <textarea
+            aria-label={t('thread.reply_label')}
+            className='input min-h-20 resize-y'
+            rows={3}
+            maxLength={maxLength}
+            value={draft}
+            placeholder={placeholder}
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={(event) => {
+              // ctrl/cmd+enter sends, a plain enter is a new line
+              if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+                event.preventDefault();
+                send();
+              }
+            }}
+          />
+          <div className='mt-2 flex flex-wrap items-center justify-end gap-2'>
+            {(draft.length) ? <span className='mr-auto text-xs text-subtle'><CharCounter length={draft.length} max={maxLength}/></span> : null}
+            {actions}
+            <button type='submit' className='btn btn-primary btn-sm' disabled={!canSend}>
+              {(sending) ? <Spinner className='size-3.5 border-white/40 border-t-white'/> : <Send aria-hidden className='size-3.5'/>}
+              {t('thread.send')}
+            </button>
+          </div>
+        </form>
+      ) : null}
     </section>
   );
 }
