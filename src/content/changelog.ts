@@ -53,6 +53,9 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'improved', text: 'When NotSoBot loses its connection to the API partway through, it tries once more on its own for commands that are safe to repeat, and otherwise says the connection was lost instead of "terminated".'},
       {kind: 'improved', text: '`.imagine` and other image generation say right away when image generation is down, instead of failing after waiting in the queue.'},
       {kind: 'improved', text: 'Auto-warns for using a blocked command say which of the server\'s rules blocked it, like `.caption • Block Media commands in #general (123456789012345678)`.'},
+      {kind: 'improved', text: 'The music pauses when nobody\'s listening on every server now, not just with 24/7: when everyone else leaves the voice channel or deafens (other bots don\'t count), and it carries on once someone can hear it again. Premium servers can turn it off with `.music autopause off` or on the dashboard.'},
+      {kind: 'new', text: '`.music autopause 30s` (`/music autopause leave_after`, or on the dashboard) picks how long NotSoBot stays paused before it leaves the voice channel, from right away (`instant`) up to 5 minutes (3 by default). The song is kept for the next `music play`, and 24/7 still stays paused.'},
+      {kind: 'improved', text: 'Pausing when nobody\'s listening moved from `.music 247 pause on/off` (`/music 247 pause_when_alone`) to `.music autopause on/off`.'},
     ],
   },
   {

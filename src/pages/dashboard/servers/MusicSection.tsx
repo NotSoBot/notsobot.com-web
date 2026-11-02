@@ -349,7 +349,7 @@ function MusicSettings({ guildId, music, editable, busyKey, disabled, run }: {
         <div className='px-3 py-2.5'>
           <Toggle
             checked={music.pause_alone}
-            disabled={locked || !music.stay}
+            disabled={locked || !music.premium}
             label={t('music.pause_alone')}
             description={t('music.pause_alone_description')}
             onChange={(value) => void run(
@@ -358,7 +358,11 @@ function MusicSettings({ guildId, music, editable, busyKey, disabled, run }: {
               t((value) ? 'music.pause_alone_on' : 'music.pause_alone_off'),
             )}
           />
+          {(!music.premium) ? (
+            <PremiumNote>{t('music.pause_alone_premium')}</PremiumNote>
+          ) : null}
         </div>
+        <PauseTimeoutSetting music={music} editable={editable} busy={busyKey === 'pause_timeout'} run={run}/>
         <CrossfadeSetting music={music} editable={editable} busy={busyKey === 'crossfade'} run={run}/>
         <p className='flex items-center gap-2 px-3 py-2.5 text-xs text-subtle'>
           <ListMusic aria-hidden className='size-3.5 shrink-0'/>
@@ -503,6 +507,75 @@ function CrossfadeSetting({ music, editable, busy, run }: {
       </div>
       {(!music.premium) ? (
         <PremiumNote>{t('music.crossfade_premium')}</PremiumNote>
+      ) : null}
+    </div>
+  );
+}
+
+
+// how long the bot stays paused before it leaves with the song held, right away up to 5 minutes. 24/7 (with premium)
+// stays paused for good, it's kept for when 24/7 is off
+function PauseTimeoutSetting({ music, editable, busy, run }: {
+  music: GuildMusic,
+  editable: boolean,
+  busy: boolean,
+  run: (key: string, action: GuildMusicAction, success?: string) => Promise<boolean>,
+}) {
+  const { t } = useI18n();
+  const id = useId();
+  const [ draft, setDraft ] = useState(music.pause_timeout);
+  // it's fetched again every few seconds, only a change from somewhere else moves the slider
+  useEffect(() => setDraft(music.pause_timeout), [music.pause_timeout]);
+
+  // back to the saved one if it fails. `run` is made again every render, only a new value schedules a save
+  useEffect(() => {
+    if (draft === music.pause_timeout) {
+      return;
+    }
+    const saved = music.pause_timeout;
+    const timeout = setTimeout(() => {
+      void run(
+        'pause_timeout',
+        {kind: 'settings', settings: {pause_timeout: draft}},
+        (draft) ? translate('music.pause_timeout_on', {length: formatTime(draft * 1000)}) : translate('music.pause_timeout_instant_on'),
+      ).then((ok) => {
+        if (!ok) {
+          setDraft(saved);
+        }
+      });
+    }, CROSSFADE_SAVE_DELAY);
+    return () => clearTimeout(timeout);
+  }, [draft, music.pause_timeout]);
+
+  const stays = music.stay && music.premium;
+  return (
+    <div className='px-3 py-2.5'>
+      <div className='flex items-baseline justify-between gap-4'>
+        <label htmlFor={id} className='text-sm font-medium text-fg'>{t('music.pause_timeout')}</label>
+        <span className='flex items-center gap-1.5 text-sm text-fg tabular-nums'>
+          {(busy) ? <Spinner className='size-3.5'/> : null}
+          {(draft) ? formatTime(draft * 1000) : t('music.pause_timeout_instant')}
+        </span>
+      </div>
+      <p className='mt-0.5 text-xs text-subtle'>{t('music.pause_timeout_description')}</p>
+      <input
+        id={id}
+        type='range'
+        min={0}
+        max={MAX_PAUSE_TIMEOUT}
+        step={PAUSE_TIMEOUT_STEP}
+        value={draft}
+        disabled={!editable}
+        aria-valuetext={(draft) ? formatTime(draft * 1000) : t('music.pause_timeout_instant')}
+        onChange={(event) => setDraft(Number(event.target.value))}
+        className={cn('mt-2 w-full cursor-pointer accent-[#1db954] disabled:cursor-not-allowed disabled:opacity-60', stays && 'opacity-60')}
+      />
+      <div aria-hidden className='flex justify-between text-xs text-subtle'>
+        <span>{t('music.pause_timeout_instant')}</span>
+        <span>{formatTime(MAX_PAUSE_TIMEOUT * 1000)}</span>
+      </div>
+      {(stays) ? (
+        <p className='mt-1.5 text-xs text-subtle'>{t('music.pause_timeout_stay')}</p>
       ) : null}
     </div>
   );
@@ -1100,8 +1173,11 @@ export function musicItemTitle(item: MusicItemLike): string {
 
 // the longest crossfade (seconds), the API's cap
 const MAX_CROSSFADE = 12;
-// how long the crossfade slider waits after it last moved to save (milliseconds)
+// how long the crossfade and pause timeout sliders wait after they last moved to save (milliseconds)
 const CROSSFADE_SAVE_DELAY = 600;
+// the longest the bot stays paused before it leaves (seconds), the API's cap, in steps of 15 seconds
+const MAX_PAUSE_TIMEOUT = 5 * 60;
+const PAUSE_TIMEOUT_STEP = 15;
 
 // the longest a server can limit songs to (seconds), the API's cap
 const MAX_SONG_LENGTH = 24 * 60 * 60;

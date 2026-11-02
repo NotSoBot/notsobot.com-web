@@ -928,8 +928,11 @@ export interface GuildMusic {
   max_duration: null | number,
   // a song can't be queued while it's queued or playing already
   no_duplicates: boolean,
-  // with 24/7: paused while nobody else is in the voice channel, it carries on when someone's back (off by default)
+  // paused while nobody else in the voice channel can hear it (left or deafened, bots don't count), it carries on when
+  // someone can again. On for every server, only `premium` can turn it off
   pause_alone: boolean,
+  // seconds paused before the bot leaves with the song held (0 right away, up to 5 minutes, 3 by default), without 24/7
+  pause_timeout: number,
   // a premium server slot or `MUSIC_ACCESS`: 24/7 and the bigger `queue_limit`
   premium: boolean,
   queue: Array<GuildMusicQueueItem>,
@@ -986,6 +989,7 @@ export interface GuildMusicSettings {
   max_duration?: number,
   no_duplicates?: boolean,
   pause_alone?: boolean,
+  pause_timeout?: number,
   stay?: boolean,
   vote_pause?: boolean,
   vote_resume?: boolean,

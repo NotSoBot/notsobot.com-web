@@ -3937,20 +3937,20 @@ function guildMusicPremium(guildId: string): boolean {
 }
 
 // nothing playing, with the server's settings (they stay when the bot leaves)
-type GuildMusicSettingKey = 'crossfade' | 'dj_only' | 'dj_role_id' | 'fair_queue' | 'max_duration' | 'no_duplicates' | 'pause_alone' | 'stay' | 'vote_pause' | 'vote_resume' | 'vote_skip';
+type GuildMusicSettingKey = 'crossfade' | 'dj_only' | 'dj_role_id' | 'fair_queue' | 'max_duration' | 'no_duplicates' | 'pause_alone' | 'pause_timeout' | 'stay' | 'vote_pause' | 'vote_resume' | 'vote_skip';
 
 const MUSIC_BOOLEAN_SETTINGS = ['dj_only', 'fair_queue', 'no_duplicates', 'pause_alone', 'stay', 'vote_pause', 'vote_resume', 'vote_skip'] as const;
 
 function emptyGuildMusic(settings: Pick<GuildMusic, GuildMusicSettingKey>): GuildMusic {
-  const { crossfade, dj_only, dj_role_id, fair_queue, max_duration, no_duplicates, pause_alone, stay, vote_pause, vote_resume, vote_skip } = settings;
-  return {crossfade, current: null, dj_only, dj_role_id, fair_queue, held_position: null, loop: 'off', max_duration, no_duplicates, pause_alone, premium: false, queue: [], queue_limit: 100, session: null, sound: {effects: [], tempo: 100, volume: 100}, stay, vote_pause, vote_resume, vote_skip};
+  const { crossfade, dj_only, dj_role_id, fair_queue, max_duration, no_duplicates, pause_alone, pause_timeout, stay, vote_pause, vote_resume, vote_skip } = settings;
+  return {crossfade, current: null, dj_only, dj_role_id, fair_queue, held_position: null, loop: 'off', max_duration, no_duplicates, pause_alone, pause_timeout, premium: false, queue: [], queue_limit: 100, session: null, sound: {effects: [], tempo: 100, volume: 100}, stay, vote_pause, vote_resume, vote_skip};
 }
 
 function guildMusic(guildId: string): GuildMusic {
   let music = state.guildMusic.get(guildId);
   if (!music) {
     const playing = guildId === guilds[0].summary.id;
-    music = emptyGuildMusic({crossfade: 0, dj_only: true, dj_role_id: null, fair_queue: false, max_duration: null, no_duplicates: false, pause_alone: false, stay: true, vote_pause: true, vote_resume: true, vote_skip: true});
+    music = emptyGuildMusic({crossfade: 0, dj_only: true, dj_role_id: null, fair_queue: false, max_duration: null, no_duplicates: false, pause_alone: true, pause_timeout: 180, stay: true, vote_pause: true, vote_resume: true, vote_skip: true});
     if (playing) {
       music.current = mockMusicItem(guildId, '1400000000000000001', 0, {album: 'Melodrama', artist: 'Lorde', duration: 228000, thumbnail: 'https://placehold.co/96x96/1db954/fff?text=M', title: 'Green Light'}, 'https://open.spotify.com/track/6ie2Bw3xLj2JcGowOlcMhb');
       music.queue = [
@@ -4083,6 +4083,13 @@ route('PATCH', '/(users/@me|admin)/guilds/(\\d+)/music', ([ , scope, guildId ], 
   if (body.max_duration !== undefined && (typeof(body.max_duration) !== 'number' || !Number.isInteger(body.max_duration) || body.max_duration < 0 || 24 * 60 * 60 < body.max_duration)) {
     throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'max_duration must be 0 to 86400 seconds');
   }
+  if (body.pause_timeout !== undefined && (typeof(body.pause_timeout) !== 'number' || !Number.isInteger(body.pause_timeout) || body.pause_timeout < 0 || 5 * 60 < body.pause_timeout)) {
+    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'pause_timeout must be 0 to 300 seconds');
+  }
+  // on for everyone, only premium turns it off
+  if (body.pause_alone === false && !music.premium) {
+    throw new MockError(403, ApiErrorCodes.MUSIC_PREMIUM_REQUIRED, 'Only premium servers can turn off pausing when nobody\'s listening');
+  }
   if (body.loop !== undefined) {
     music.loop = body.loop;
   }
@@ -4100,6 +4107,9 @@ route('PATCH', '/(users/@me|admin)/guilds/(\\d+)/music', ([ , scope, guildId ], 
   }
   if (body.max_duration !== undefined) {
     music.max_duration = (body.max_duration as number) || null;
+  }
+  if (body.pause_timeout !== undefined) {
+    music.pause_timeout = body.pause_timeout as number;
   }
   return guildMusic(guildId);
 });
