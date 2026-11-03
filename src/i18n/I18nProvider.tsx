@@ -9,7 +9,7 @@ import { readStored, removeStored, writeStored } from '@/hooks/usePersistentStat
 import { api } from '@/lib/api';
 import { queryKeys } from '@/lib/api/queries';
 
-import { DEFAULT_LANGUAGE, LANGUAGE_PREFIXES, languageFromLocale, languagePath, splitLanguagePath, type Language } from './languages';
+import { DEFAULT_LANGUAGE, languageFromLocale, languagePath, splitLanguagePath, type Language } from './languages';
 import {
   activeDictionary,
   activeLanguage,
@@ -84,8 +84,8 @@ export async function initI18n(): Promise<void> {
 }
 
 
-// The router's basename is the language prefix, so every link and navigate() stays in the language without knowing
-// about it. Switching languages swaps in a router for the other prefix. One at a time, kept outside React so
+// The router's basename is the url's language prefix (`/en` too when the page was opened with it), so every link and
+// navigate() stays in the language without knowing about it. Switching languages swaps in a router for the other prefix. One at a time, kept outside React so
 // StrictMode's double renders can't leave a second one listening to the history.
 type AppRouter = ReturnType<typeof createBrowserRouter>;
 let mounted: {language: Language, router: AppRouter} | null = null;
@@ -93,7 +93,7 @@ let mounted: {language: Language, router: AppRouter} | null = null;
 function routerFor(language: Language, create: (basename: string) => AppRouter): AppRouter {
   if (mounted?.language !== language) {
     mounted?.router.dispose();
-    mounted = {language, router: create(LANGUAGE_PREFIXES[language])};
+    mounted = {language, router: create(splitLanguagePath(window.location.pathname).prefix)};
   }
   return mounted.router;
 }

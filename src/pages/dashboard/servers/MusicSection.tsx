@@ -925,6 +925,8 @@ function NowPlaying({ music, item, fetchedAt, editable, busyKey, disabled, onCon
   const { t, rich } = useI18n();
   const session = music.session;
   const paused = !!session?.paused;
+  // nobody in the channel can hear it, it carries on by itself once someone can (resuming it here is refused)
+  const pausedAlone = paused && !!session?.paused_alone;
   const duration = item.track?.duration ?? 0;
   // the position from when it was fetched, moving on while it plays (it's fetched again every few seconds)
   const [ now, setNow ] = useState(() => Date.now());
@@ -954,7 +956,7 @@ function NowPlaying({ music, item, fetchedAt, editable, busyKey, disabled, onCon
           </p>
           <p className='flex min-w-0 flex-wrap items-center gap-x-1.5 text-xs text-subtle'>
             {(item.track?.album) ? <><span className='truncate'>{item.track.album}</span><span aria-hidden>•</span></> : null}
-            <span>{t((!session) ? 'music.not_in_voice' : (paused) ? 'music.paused' : 'music.playing')}</span>
+            <span>{t((!session) ? 'music.not_in_voice' : (pausedAlone) ? 'music.paused_alone' : (paused) ? 'music.paused' : 'music.playing')}</span>
             {(tempo !== 100) ? <><span aria-hidden>•</span><span className='tabular-nums'>{t('music.speed', {speed: `${tempo / 100}×`})}</span></> : null}
             <span aria-hidden>•</span>
             <span className='inline-flex items-center gap-1'>{rich('music.requested_by', {user: () => <EntryMention type='user' id={item.user_id}/>})}</span>
@@ -962,7 +964,7 @@ function NowPlaying({ music, item, fetchedAt, editable, busyKey, disabled, onCon
         </div>
         {(editable && session) ? (
           <div className='flex shrink-0'>
-            <IconButton label={t((paused) ? 'music.resume' : 'music.pause')} disabled={disabled} onClick={() => onControl((paused) ? 'resume' : 'pause')}>
+            <IconButton label={t((pausedAlone) ? 'music.resume_alone' : (paused) ? 'music.resume' : 'music.pause')} disabled={disabled || pausedAlone} onClick={() => onControl((paused) ? 'resume' : 'pause')}>
               {(busyKey === 'pause' || busyKey === 'resume') ? <Spinner className='size-3.5'/> : (paused) ? <Play aria-hidden className='size-4'/> : <Pause aria-hidden className='size-4'/>}
             </IconButton>
             <IconButton label={t('music.skip')} disabled={disabled} onClick={() => onControl('skip')}>

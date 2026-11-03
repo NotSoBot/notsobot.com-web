@@ -22,14 +22,15 @@ export interface RenderedPage {
 }
 
 
-// one per language, since the basename is its prefix. they only hold the routes, so each isolate keeps them
-const handlers = new Map<Language, ReturnType<typeof createStaticHandler>>();
+// one per url prefix (`/es`, `/en` and none for English), the basename. they only hold the routes, so each isolate
+// keeps them
+const handlers = new Map<string, ReturnType<typeof createStaticHandler>>();
 
-function handlerFor(language: Language): ReturnType<typeof createStaticHandler> {
-  let handler = handlers.get(language);
+function handlerFor(prefix: string): ReturnType<typeof createStaticHandler> {
+  let handler = handlers.get(prefix);
   if (!handler) {
-    handler = createStaticHandler(routes, {basename: LANGUAGE_PREFIXES[language] || undefined});
-    handlers.set(language, handler);
+    handler = createStaticHandler(routes, {basename: prefix || undefined});
+    handlers.set(prefix, handler);
   }
   return handler;
 }
@@ -42,8 +43,9 @@ function acceptedLocales(header: string | null): Array<string> {
 
 
 // null when the browser should render the page itself: a redirect, or a route that threw
-export async function renderApp(request: Request, language: Language): Promise<RenderedPage | null> {
-  const handler = handlerFor(language);
+// `prefix` is the url's (`splitLanguagePath`), the language's own when left out
+export async function renderApp(request: Request, language: Language, prefix: string = LANGUAGE_PREFIXES[language]): Promise<RenderedPage | null> {
+  const handler = handlerFor(prefix);
   // loads the matched routes' lazy modules too
   const context = await handler.query(request);
   if (context instanceof Response || context.errors) {

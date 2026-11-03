@@ -14,7 +14,7 @@ import { CharCounter, Field } from '../ui';
 export const VOICE_NAME_MAX_LENGTH = 128;
 
 
-// Renames a cloned voice; `mutation` is the caller's own (`usePatchMeVoiceMutation`) or the admin one
+// Renames a cloned voice; `mutation` is the dashboard's (`usePatchVoiceMutation`, own or a server's) or the admin one
 export function RenameVoiceDialog({ voice, mutation, onClose }: {
   voice: Voice,
   mutation: UseMutationResult<Voice, Error, VoiceRename>,

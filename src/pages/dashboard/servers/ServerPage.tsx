@@ -23,6 +23,7 @@ import { ServerDataSection } from './ServerDataSection';
 import { LoggersSection, PrefixesSection, RulesSection } from './ServerSections';
 import { ServerHome } from './ServerHome';
 import { ServerSettingsForm, useDirtyGroups, type SettingsGroup } from './ServerSettingsForm';
+import { ServerVoicesSection } from './ServerVoicesSection';
 import { ScopeMismatchCard } from './ServersPage';
 import { WarningsSection } from './WarningsSection';
 
@@ -188,6 +189,17 @@ export function ServerTagsPage() {
   return <GuildTagsSection guild={guild}/>;
 }
 
+export function ServerVoicesPage() {
+  const { guild } = useServer();
+  return <ServerVoicesSection guild={guild}/>;
+}
+
+export function ServerFontsPage() {
+  const { guild } = useServer();
+  const readOnlyMessage = useReadOnlyMessage();
+  return <SavedFontsPanel guildId={guild.id} editable={guild.editable.settings} readOnly={readOnlyMessage('settings')}/>;
+}
+
 export function ServerReportsPage() {
   const { guild } = useServer();
   return <GuildReportsSection guild={guild}/>;
@@ -210,12 +222,10 @@ export function ServerWarningsPage() {
 
 export function ServerSettingsPage() {
   const { guild, setDirty } = useServer();
-  const readOnlyMessage = useReadOnlyMessage();
   return (
     <>
       <PrefixesSection guild={guild}/>
       <ServerSettingsForm guild={guild} group='general' onDirtyChange={setDirty('general')}/>
-      <SavedFontsPanel guildId={guild.id} editable={guild.editable.settings} readOnly={readOnlyMessage('settings')}/>
       <ServerSettingsForm guild={guild} group='moderation' onDirtyChange={setDirty('moderation')}/>
       <LoggersSection guild={guild}/>
       <ServerDataSection guild={guild}/>

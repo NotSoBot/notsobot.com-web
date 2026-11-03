@@ -1,4 +1,4 @@
-import { AlarmClock, AtSign, ChartColumn, Hash, LayoutDashboard, ListChecks, MessageSquareWarning, Music, Server, Settings, Shield, Sparkles, Tags, TriangleAlert } from 'lucide-react';
+import { AlarmClock, AtSign, AudioLines, ChartColumn, Hash, LayoutDashboard, ListChecks, MessageSquareWarning, Music, Server, Settings, Shield, Sparkles, Tags, TriangleAlert, Type } from 'lucide-react';
 
 import { Routes } from '@/config';
 import { translate, translatePlural, useI18n, type TranslationKey } from '@/i18n';
@@ -10,17 +10,20 @@ import type { Choice } from '../settings/botChoices';
 
 
 // a server's pages (`/dashboard/servers/:guildId/<id>`, Home is the server's own url), grouped like the dashboard's
-// sidebar lists them while a server is open. A group's label is `server_tab.group.<id>`, a tab's `server_tab.<id>`
+// sidebar lists them while a server is open. Alphabetical in English (the admin modal's tabs), the sidebar sorts them by
+// the label on screen with Home first. A group's label is `server_tab.group.<id>`, a tab's `server_tab.<id>`
 export const SERVER_TAB_GROUPS = [
   {id: 'overview', tabs: [
     {id: 'home', icon: LayoutDashboard, color: '#5865f2'},
     {id: 'commands', icon: ChartColumn, color: '#00b0f4'},
   ]},
   {id: 'features', tabs: [
+    {id: 'fonts', icon: Type, color: '#3ba55d'},
     {id: 'music', icon: Music, color: '#eb459e'},
     {id: 'notsoai', icon: Sparkles, color: '#a855f7'},
     {id: 'reminders', icon: AlarmClock, color: '#faa81a'},
     {id: 'tags', icon: Tags, color: '#3ba55c'},
+    {id: 'voices', icon: AudioLines, color: '#eb459e'},
   ]},
   {id: 'moderation', tabs: [
     {id: 'reports', icon: MessageSquareWarning, color: '#ed4245'},

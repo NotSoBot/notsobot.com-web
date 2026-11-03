@@ -51,19 +51,29 @@ export const LANGUAGE_PREFIXES: Readonly<Record<Language, string>> = Object.free
   [Languages.PORTUGUESE]: '/pt',
 });
 
-// '/es/premium' -> {language: 'es', path: '/premium'}, '/premium' -> {language: null, path: '/premium'}
-export function splitLanguagePath(pathname: string): {language: Language | null, path: string} {
-  for (const [ language, prefix ] of Object.entries(LANGUAGE_PREFIXES) as Array<[Language, string]>) {
-    if (!prefix) {
-      continue;
-    }
-    // react router matches case-insensitively, so `/ES/premium` is the Spanish page too
-    const lower = pathname.toLowerCase();
+// `/en/premium` is English too, for links that want English whatever the visitor's saved choice or browser says, like
+// `/es/` does for Spanish. It keeps its prefix while browsing (the router's basename is the url's prefix, not the
+// language's), but the unprefixed url stays the canonical one
+const PREFIX_ALIASES: Readonly<Record<string, Language>> = Object.freeze({
+  '/en': Languages.ENGLISH,
+});
+
+const URL_PREFIXES = [
+  ...(Object.entries(LANGUAGE_PREFIXES) as Array<[Language, string]>).filter(([ , prefix ]) => prefix).map(([ language, prefix ]) => [prefix, language] as const),
+  ...Object.entries(PREFIX_ALIASES),
+];
+
+// '/es/premium' -> {language: 'es', path: '/premium', prefix: '/es'}, '/en/premium' -> {language: 'en', ..., prefix: '/en'},
+// '/premium' -> {language: null, path: '/premium', prefix: ''}. `prefix` is the router's basename for the url
+export function splitLanguagePath(pathname: string): {language: Language | null, path: string, prefix: string} {
+  // react router matches case-insensitively, so `/ES/premium` is the Spanish page too
+  const lower = pathname.toLowerCase();
+  for (const [ prefix, language ] of URL_PREFIXES) {
     if (lower === prefix || lower.startsWith(`${prefix}/`)) {
-      return {language, path: pathname.slice(prefix.length) || '/'};
+      return {language, path: pathname.slice(prefix.length) || '/', prefix};
     }
   }
-  return {language: null, path: pathname};
+  return {language: null, path: pathname, prefix: ''};
 }
 
 // '/premium' in Spanish -> '/es/premium', '/' in Spanish -> '/es'

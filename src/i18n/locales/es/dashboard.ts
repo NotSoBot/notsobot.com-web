@@ -38,6 +38,8 @@ export const Dashboard: Record<keyof typeof English, string> = {
   'server_tab.notsoai': 'NotSoAI',
   'server_tab.reminders': 'Recordatorios',
   'server_tab.tags': 'Tags',
+  'server_tab.voices': 'Voces',
+  'server_tab.fonts': 'Fuentes',
   'server_tab.reports': 'Reportes',
   'server_tab.rules': 'Reglas',
   'server_tab.warnings': 'Advertencias',

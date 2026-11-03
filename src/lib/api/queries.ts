@@ -41,6 +41,8 @@ export const queryKeys = {
   sentGuildReports: (token: string | null, filters?: object) => ['users', '@me', token, 'sent-guild-reports', ...((filters === undefined) ? [] : [filters])] as const,
   meReportsUnread: (token: string | null) => ['users', '@me', token, 'reports-unread'] as const,
   meVoices: (token: string | null) => ['users', '@me', token, 'voices'] as const,
+  // under `meVoices`, so invalidating that (an admin rename) gets the servers' lists too
+  guildVoices: (token: string | null, scope: GuildScope, guildId: string) => ['users', '@me', token, 'voices', scope, guildId] as const,
   // the caller's own (`guildId` null) or a server's, yours or through the admin panel
   savedFonts: (token: string | null, scope: GuildScope, guildId: string | null) => ['users', '@me', token, 'saved-fonts', scope, guildId] as const,
   meFiles: (token: string | null, filters?: object) => ['users', '@me', token, 'files', ...((filters) ? [filters] : [])] as const,

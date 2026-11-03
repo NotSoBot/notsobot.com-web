@@ -1,6 +1,17 @@
 import { useI18n } from '@/i18n';
 import { ReportStatuses, type UserGuild } from '@/lib/api';
-import { DEFAULT_GUILD_REMINDERS_FILTERS, useGuildCommandStatsQuery, useGuildLLMKnowledgeQuery, useGuildRemindersQuery, useGuildReportsQuery, useGuildScope, useGuildTagsQuery, useGuildWarningsQuery } from '@/lib/api/dashboardQueries';
+import {
+  DEFAULT_GUILD_REMINDERS_FILTERS,
+  useGuildCommandStatsQuery,
+  useGuildLLMKnowledgeQuery,
+  useGuildRemindersQuery,
+  useGuildReportsQuery,
+  useGuildScope,
+  useGuildTagsQuery,
+  useGuildVoicesQuery,
+  useGuildWarningsQuery,
+  useSavedFontsQuery,
+} from '@/lib/api/dashboardQueries';
 import { formatDate, formatNumber, snowflakeTimestamp } from '@/lib/utils';
 
 import { StatTile } from '../admin/adminUi';
@@ -23,6 +34,8 @@ export function ServerHome({ guild, onOpen }: {guild: UserGuild, onOpen?: (tab: 
   const commands = useGuildCommandStatsQuery(guild.id, 30, manager);
   const knowledge = useGuildLLMKnowledgeQuery(guild.id);
   const tags = useGuildTagsQuery(guild.id, '');
+  const voices = useGuildVoicesQuery(guild.id);
+  const fonts = useSavedFontsQuery(guild.id);
   const reminders = useGuildRemindersQuery(guild.id, DEFAULT_GUILD_REMINDERS_FILTERS, reminderCount);
   const warnings = useGuildWarningsQuery(guild.id, {page: 0, query: ''}, moderator);
   const reports = useGuildReportsQuery(guild.id, {awaitingReply: null, page: 0, query: '', queue: false, status: ReportStatuses.OPEN, type: null}, moderator);
@@ -61,6 +74,8 @@ export function ServerHome({ guild, onOpen }: {guild: UserGuild, onOpen?: (tab: 
         />
         <StatTile label={t('shome.knowledge')} value={count(knowledge.data?.items.length)} {...open('notsoai')}/>
         <StatTile label={t('shome.tags')} value={count(tags.data?.pages[0]?.count)} {...open('tags')}/>
+        <StatTile label={t('shome.voices')} value={count(voices.data?.count)} {...open('voices')}/>
+        <StatTile label={t('shome.fonts')} value={count(fonts.data?.items.length)} {...open('fonts')}/>
         {(reminderCount) ? (
           <StatTile label={t('shome.reminders')} value={count(reminders.data?.count)} {...open('reminders')}/>
         ) : null}

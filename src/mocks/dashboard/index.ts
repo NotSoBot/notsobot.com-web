@@ -60,6 +60,7 @@ import {
   type UserGuild,
   type UserGuildSummary,
   type UserMe,
+  type Voice,
   type VoiceClip,
 } from '@/lib/api/types';
 import { toDate } from '@/lib/utils';
@@ -4044,7 +4045,7 @@ function guildMusic(guildId: string): GuildMusic {
         mockMusicItem(guildId, '1400000000000000003', 2, {artist: 'Lorde', duration: 211000, title: 'Ribs'}, 'https://open.spotify.com/track/2MvvoeRt8NcOXWESkxWn3g'),
         mockMusicItem(guildId, '1400000000000000004', 3, null, 'https://notsobot.com/some/audio/file.mp3'),
       ];
-      music.session = {channel_id: '1100000000000000001', effects: ['bassboost', 'nightcore'], finished: false, guild_id: guildId, node_id: null, paused: false, position: 64000, speed: 1.25 * 1.2, stay: false, tempo: 120, volume: 100};
+      music.session = {channel_id: '1100000000000000001', effects: ['bassboost', 'nightcore'], finished: false, guild_id: guildId, node_id: null, paused: false, paused_alone: false, position: 64000, speed: 1.25 * 1.2, stay: false, tempo: 120, volume: 100};
     }
     state.guildMusic.set(guildId, music);
   }
@@ -4224,7 +4225,11 @@ route('POST', '/(users/@me|admin)/guilds/(\\d+)/music/control', ([ , scope, guil
   switch (body.action) {
     case 'pause':
     case 'resume': {
+      if (body.action === 'resume' && music.session.paused && music.session.paused_alone) {
+        throw new MockError(400, ApiErrorCodes.MUSIC_PAUSED_ALONE, 'Nobody in the voice channel can hear it, it carries on once someone joins');
+      }
       music.session.paused = body.action === 'pause';
+      music.session.paused_alone = false;
     }; break;
     case 'skip': {
       const next = music.queue.shift();
@@ -5659,6 +5664,145 @@ route('DELETE', '/users/@me/voices/(\\d+)/clips/(\\d+)', ([ , voiceId, clipId ])
 
 route('GET', '/users/@me/voices/(\\d+)/clips/(\\d+)/audio', ([ , voiceId, clipId ]) => {
   const { clip } = findOwnVoiceClip(voiceId, clipId);
+  const audio = voiceClipAudio.get(clip.id) ?? toneWav(220, 2);
+  return new Response(audio, {status: 200, headers: {'content-type': audio.type || 'audio/mpeg'}});
+});
+
+// mirrors the server half of `views/me_voices.py` (and `admin_guild_sections`): any member lists and plays them,
+// Manage Server (staff: owners) changes them, adding audio needs the server's premium (the second guild's slot here)
+type MockGuildVoice = Voice & {created_by: GuildContentUser | null};
+
+const mockGuildVoices = new Map<string, Array<MockGuildVoice>>();
+{
+  const maker = state.adminUsers[0];
+  const seeded: Array<[string, Array<MockGuildVoice>]> = [
+    [guilds[0].summary.id, [
+      {created: new Date(Date.now() - 9 * 86400000).toISOString(), id: '1310000000000009001', name: 'server mascot', platform_type: VoiceCloneTypes.ELEVENLABS,
+        created_by: {avatar: maker.avatar, bot: false, discriminator: maker.discriminator, id: maker.id, username: maker.username}},
+      {created: new Date(Date.now() - 2 * 86400000).toISOString(), id: '1310000000000009002', name: 'movie trailer guy', platform_type: VoiceCloneTypes.FISH_AUDIO, created_by: null},
+    ]],
+    [guilds[1].summary.id, [
+      {created: new Date(Date.now() - 4 * 86400000).toISOString(), id: '1310000000000009003', name: 'raid caller', platform_type: VoiceCloneTypes.FISH_AUDIO,
+        created_by: {avatar: mockUser.avatar, bot: false, discriminator: mockUser.discriminator, id: mockUser.id, username: mockUser.username}},
+    ]],
+  ];
+  for (const [ guildId, voices ] of seeded) {
+    mockGuildVoices.set(guildId, voices);
+    for (const [ i, voice ] of voices.entries()) {
+      const clips = Array.from({length: 2 - i}, (_, j) => {
+        const id = (BigInt(voice.id) + BigInt(j + 1) * 4194304n).toString();
+        const audio = toneWav(260 + 70 * j, 3 + j);
+        voiceClipAudio.set(id, audio);
+        return {created: voice.created, duration: (3 + j) * 1000, id, name: `clip ${j + 1}.mp3`, size: audio.size};
+      });
+      state.voiceClips.set(voice.id, clips);
+    }
+  }
+}
+
+function guildVoicePayload(voice: MockGuildVoice) {
+  return {...voice, clips: state.voiceClips.get(voice.id) ?? []};
+}
+
+function findGuildVoice(guildId: string, voiceId: string) {
+  const voice = mockGuildVoices.get(guildId)?.find((other) => other.id === voiceId);
+  if (!voice) {
+    throw new MockError(404, ApiErrorCodes.UNKNOWN_VOICE, 'Unknown Voice Clone');
+  }
+  const clips = state.voiceClips.get(voice.id) ?? [];
+  return {voice, clips};
+}
+
+function findGuildVoiceClip(guildId: string, voiceId: string, clipId: string) {
+  const { voice, clips } = findGuildVoice(guildId, voiceId);
+  const clip = clips.find((other) => other.id === clipId);
+  if (!clip) {
+    throw new MockError(404, ApiErrorCodes.UNKNOWN_VOICE_CLIP, 'Unknown Voice Clip');
+  }
+  return {voice, clips, clip};
+}
+
+function requireGuildVoicePremium(guildId: string) {
+  if (!state.premiumServers.some((server) => server.server_id === guildId)) {
+    throw new MockError(403, ApiErrorCodes.PREMIUM_REQUIRED, 'This server needs NotSoPremium Plus from a member to add audio to its voices', {tier: 'premium_plus'});
+  }
+}
+
+route('GET', '/(users/@me|admin)/guilds/(\\d+)/voices', ([ , scope, guildId ]) => {
+  scopedGuildRead(scope, guildId);
+  const items = (mockGuildVoices.get(guildId) ?? []).map(guildVoicePayload).reverse();
+  return {count: items.length, items, limit: 5, premium: state.premiumServers.some((server) => server.server_id === guildId)};
+});
+
+route('PATCH', '/(users/@me|admin)/guilds/(\\d+)/voices/(\\d+)', ([ , scope, guildId, voiceId ], { body }) => {
+  scopedGuild(scope, guildId, 'settings');
+  const { voice } = findGuildVoice(guildId, voiceId);
+  const name = (typeof body.name === 'string') ? body.name.replace(/[\r\n]+/g, ' ').trim() : '';
+  if (!name || 128 < name.length) {
+    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'name must be 1-128 characters', {field: 'name'});
+  }
+  voice.name = name;
+  return guildVoicePayload(voice);
+});
+
+route('DELETE', '/(users/@me|admin)/guilds/(\\d+)/voices/(\\d+)', ([ , scope, guildId, voiceId ]) => {
+  scopedGuild(scope, guildId, 'settings');
+  const { voice, clips } = findGuildVoice(guildId, voiceId);
+  for (const clip of clips) {
+    voiceClipAudio.delete(clip.id);
+  }
+  state.voiceClips.delete(voice.id);
+  mockGuildVoices.set(guildId, (mockGuildVoices.get(guildId) ?? []).filter((other) => other.id !== voice.id));
+});
+
+route('POST', '/(users/@me|admin)/guilds/(\\d+)/voices/(\\d+)/transfer', ([ , scope, guildId, voiceId ], { body }) => {
+  scopedGuild(scope, guildId, 'settings');
+  const { voice, clips } = findGuildVoice(guildId, voiceId);
+  if (Number(body.platform_type) !== VoiceCloneTypes.FISH_AUDIO || voice.platform_type === VoiceCloneTypes.FISH_AUDIO) {
+    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'Voices can only be moved to fish.audio');
+  }
+  if (!clips.length) {
+    throw new MockError(400, ApiErrorCodes.VOICE_HAS_NO_CLIPS, 'This voice was cloned before its audio was kept, so it can\'t be moved yet');
+  }
+  voice.platform_type = VoiceCloneTypes.FISH_AUDIO;
+  return guildVoicePayload(voice);
+});
+
+route('POST', '/(users/@me|admin)/guilds/(\\d+)/voices/(\\d+)/clips', ([ , scope, guildId, voiceId ], { body }) => {
+  scopedGuild(scope, guildId, 'settings');
+  requireGuildVoicePremium(guildId);
+  const { voice, clips } = findGuildVoice(guildId, voiceId);
+  if (10 <= clips.length) {
+    throw new MockError(400, ApiErrorCodes.MAX_VOICE_CLIPS, 'Voices can have up to 10 audio clips', {limit: 10});
+  }
+  state.voiceClips.set(voice.id, [...clips, mockVoiceClip(body)]);
+  return guildVoicePayload(voice);
+});
+
+route('PUT', '/(users/@me|admin)/guilds/(\\d+)/voices/(\\d+)/clips/(\\d+)', ([ , scope, guildId, voiceId, clipId ], { body }) => {
+  scopedGuild(scope, guildId, 'settings');
+  requireGuildVoicePremium(guildId);
+  const { voice, clips, clip } = findGuildVoiceClip(guildId, voiceId, clipId);
+  const added = mockVoiceClip(body);
+  voiceClipAudio.delete(clip.id);
+  state.voiceClips.set(voice.id, [...clips.filter((other) => other.id !== clip.id), added]);
+  return guildVoicePayload(voice);
+});
+
+route('DELETE', '/(users/@me|admin)/guilds/(\\d+)/voices/(\\d+)/clips/(\\d+)', ([ , scope, guildId, voiceId, clipId ]) => {
+  scopedGuild(scope, guildId, 'settings');
+  const { voice, clips, clip } = findGuildVoiceClip(guildId, voiceId, clipId);
+  if (clips.length <= 1) {
+    throw new MockError(400, ApiErrorCodes.VOICE_CLIP_LAST, 'A voice needs at least one audio clip, delete the voice instead');
+  }
+  voiceClipAudio.delete(clip.id);
+  state.voiceClips.set(voice.id, clips.filter((other) => other.id !== clip.id));
+  return guildVoicePayload(voice);
+});
+
+route('GET', '/(users/@me|admin)/guilds/(\\d+)/voices/(\\d+)/clips/(\\d+)/audio', ([ , scope, guildId, voiceId, clipId ]) => {
+  scopedGuildRead(scope, guildId);
+  const { clip } = findGuildVoiceClip(guildId, voiceId, clipId);
   const audio = voiceClipAudio.get(clip.id) ?? toneWav(220, 2);
   return new Response(audio, {status: 200, headers: {'content-type': audio.type || 'audio/mpeg'}});
 });

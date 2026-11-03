@@ -707,7 +707,7 @@ async function renderPage(request: Request, env: Env): Promise<Response> {
   let rendered: RenderedPage | null = null;
   if (!page || SERVER_RENDERED_PAGES.has(page.key)) {
     try {
-      rendered = await renderApp(request, language);
+      rendered = await renderApp(request, language, split.prefix);
     } catch (error) {
       console.error('render failed', url.pathname, error);
     }

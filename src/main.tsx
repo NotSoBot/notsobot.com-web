@@ -10,7 +10,7 @@ import { createRoot, hydrateRoot } from 'react-dom/client';
 import type { HydrationState } from 'react-router';
 
 import { AuthProvider } from '@/auth';
-import { activeLanguage, I18nProvider, initI18n, LANGUAGE_PREFIXES } from '@/i18n';
+import { activeLanguage, I18nProvider, initI18n, splitLanguagePath } from '@/i18n';
 import { ApiRequestError } from '@/lib/api';
 import { reloadForNewBuild } from '@/lib/chunkReload';
 import { preloadPage } from '@/lib/pagePreload';
@@ -73,7 +73,7 @@ async function start(hydrationData: HydrationState | null): Promise<boolean> {
   if (!hydrationData || window.location.pathname !== path) {
     return false;
   }
-  const handles = await loadRouteModules(LANGUAGE_PREFIXES[activeLanguage()]);
+  const handles = await loadRouteModules(splitLanguagePath(window.location.pathname).prefix);
   await preloadPage(queryClient, handles, activeLanguage());
   return true;
 }

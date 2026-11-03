@@ -4,7 +4,7 @@ import { DashboardHeader } from '../ui';
 import { SavedFontsPanel } from './SavedFontsPanel';
 
 
-// the caller's own saved fonts, a server's are on its settings page
+// the caller's own saved fonts, a server's are on its Fonts page
 export function FontsPage() {
   const { t, rich } = useI18n();
   return (

@@ -26,6 +26,7 @@ import { ServerDataSection } from '../servers/ServerDataSection';
 import { ServerHome } from '../servers/ServerHome';
 import { LoggersSection, PrefixesSection, RulesSection } from '../servers/ServerSections';
 import { ServerSettingsForm, useDirtyGroups, type SettingsGroup } from '../servers/ServerSettingsForm';
+import { ServerVoicesSection } from '../servers/ServerVoicesSection';
 import { WarningsSection } from '../servers/WarningsSection';
 import { PanelSkeleton, Skeleton, UnsavedChangesGuard } from '../ui';
 import { BLOCK_REASON_MAX, BlockDurationSelect, BlockedUntilLine, blockedUntilFromSeconds } from './BlockUserDialog';
@@ -353,6 +354,12 @@ function ServerDetails({ guild, navigation, onDirtyChange }: {guild: AdminGuild,
           <TabPanel tabsId={tabsId} id='tags' tab={tab} opened={opened}>
             <GuildTagsSection guild={guild}/>
           </TabPanel>
+          <TabPanel tabsId={tabsId} id='voices' tab={tab} opened={opened}>
+            <ServerVoicesSection guild={guild}/>
+          </TabPanel>
+          <TabPanel tabsId={tabsId} id='fonts' tab={tab} opened={opened}>
+            <SavedFontsPanel guildId={guild.id} editable={guild.editable.settings} readOnly={readOnlyMessage('settings')}/>
+          </TabPanel>
           <TabPanel tabsId={tabsId} id='reports' tab={tab} opened={opened}>
             <GuildReportsSection guild={guild}/>
           </TabPanel>
@@ -366,7 +373,6 @@ function ServerDetails({ guild, navigation, onDirtyChange }: {guild: AdminGuild,
           <TabPanel tabsId={tabsId} id='settings' tab={tab} opened={opened}>
             <PrefixesSection guild={guild}/>
             <ServerSettingsForm guild={guild} group='general' onDirtyChange={setter('general')}/>
-            <SavedFontsPanel guildId={guild.id} editable={guild.editable.settings} readOnly={readOnlyMessage('settings')}/>
             <ServerSettingsForm guild={guild} group='moderation' onDirtyChange={setter('moderation')}/>
             <LoggersSection guild={guild}/>
             <ServerDataSection guild={guild}/>

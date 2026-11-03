@@ -36,6 +36,8 @@ export const Dashboard = {
   'server_tab.notsoai': 'NotSoAI',
   'server_tab.reminders': 'Reminders',
   'server_tab.tags': 'Tags',
+  'server_tab.voices': 'Voices',
+  'server_tab.fonts': 'Fonts',
   'server_tab.reports': 'Reports',
   'server_tab.rules': 'Rules',
   'server_tab.warnings': 'Warnings',

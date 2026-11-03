@@ -156,7 +156,10 @@ function ServerSidebar({ guildId }: {guildId: string}) {
       <SectionMenu
         groups={SERVER_TAB_GROUPS.map((group) => ({
           label: `server_tab.group.${group.id}`,
-          sections: group.tabs.map((tab) => ({
+          // alphabetical in the language on screen, Home stays first
+          sections: [...group.tabs].sort((a, b) => {
+            return Number(b.id === 'home') - Number(a.id === 'home') || t(`server_tab.${a.id}`).localeCompare(t(`server_tab.${b.id}`));
+          }).map((tab) => ({
             to: dashboardServerPath(guildId, tab.id),
             label: `server_tab.${tab.id}`,
             icon: tab.icon,

@@ -482,6 +482,8 @@ export const ApiErrorCodes = {
   MAX_GUILD_WARNINGS: 30029,
   // queuing an album or playlist link needs a premium server
   MUSIC_PREMIUM_REQUIRED: 50048,
+  // resuming music that's paused because nobody in the voice channel can hear it
+  MUSIC_PAUSED_ALONE: 50051,
   // a voice can't lose its last audio clip, it's deleted with the bot instead
   VOICE_CLIP_LAST: 50042,
   // a voice cloned before its audio was kept can't be moved to another cloning service
@@ -963,6 +965,9 @@ export interface GuildMusic {
     guild_id: string,
     node_id: string | null,
     paused: boolean,
+    // `pause_alone` paused it, nobody else in the voice channel can hear it: it carries on by itself once someone can,
+    // `resume` is refused (`MUSIC_PAUSED_ALONE`)
+    paused_alone: boolean,
     // milliseconds into the track (its own time), when it was fetched
     position: number,
     // how fast it plays with the effects and `tempo` together (1 for neither), `position` moves on at it and a song
@@ -1135,6 +1140,21 @@ export interface MeVoice extends Voice {
 export interface VoicesPage {
   count: number,
   items: Array<MeVoice>,
+}
+
+// `/users/@me/guilds/<id>/voices` (staff: `/admin/guilds/<id>/voices`), a server's voices with who made each one (null
+// when their account is gone, or for voices made before that was kept). Any member sees them, Manage Server changes them
+export interface GuildVoice extends MeVoice {
+  created_by: GuildContentUser | null,
+}
+
+export interface GuildVoicesPage {
+  count: number,
+  items: Array<GuildVoice>,
+  // the api's `MAX_SERVER_VOICE_CLONE_AMOUNT`, bot owners aren't held to it
+  limit: number,
+  // a member's premium plus slot (or the staff-given `VOICE_CLONE_ACCESS`), needed to add audio to them
+  premium: boolean,
 }
 
 // a font saved to use by name in caption, meme, recaption, the Default Font settings and MediaScript's `loadfont`.

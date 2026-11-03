@@ -108,6 +108,8 @@ import type {
   UserSettingsPatch,
   UserWarnings,
   MeVoice,
+  GuildVoice,
+  GuildVoicesPage,
   VoiceNodeCreate,
   VoiceNodeEdit,
   VoicesPage,
@@ -1081,59 +1083,89 @@ export function useDeleteMeReminderMutation() {
 }
 
 
-export function useMeVoicesQuery() {
+export function useMeVoicesQuery(enabled = true) {
   const { token } = useAuth();
   return useQuery({
     queryKey: queryKeys.meVoices(token),
     queryFn: ({ signal }) => api.fetchMeVoices(signal),
+    enabled,
   });
 }
 
 
-// every voice route answers with the voice and its clips, which replaces it in the list
-function useSetMeVoice() {
+// a server's voices (through `GuildScopeContext`)
+export function useGuildVoicesQuery(guildId: string, enabled = true) {
   const { token } = useAuth();
+  const scope = useGuildScope();
+  return useQuery({
+    queryKey: queryKeys.guildVoices(token, scope, guildId),
+    queryFn: ({ signal }) => api.fetchGuildVoices(scope, guildId, signal),
+    enabled: !!token && enabled,
+    retry: retryDiscordRefresh,
+  });
+}
+
+
+// The mutations below are for the caller's own voices (`guildId` null) or a server's (through `GuildScopeContext`).
+// Every voice route answers with the voice and its clips, which replaces it in the list
+function useSetVoice(guildId: string | null) {
+  const { token } = useAuth();
+  const scope = useGuildScope();
   const queryClient = useQueryClient();
-  const key = queryKeys.meVoices(token);
   return (voice: MeVoice) => {
-    queryClient.setQueryData<VoicesPage>(key, (page) => {
-      return (page) ? {...page, items: page.items.map((other) => (other.id === voice.id) ? voice : other)} : page;
-    });
+    if (guildId) {
+      queryClient.setQueryData<GuildVoicesPage>(queryKeys.guildVoices(token, scope, guildId), (page) => {
+        // a server's routes answer with `created_by` too
+        return (page) ? {...page, items: page.items.map((other) => (other.id === voice.id) ? voice as GuildVoice : other)} : page;
+      });
+    } else {
+      queryClient.setQueryData<VoicesPage>(queryKeys.meVoices(token), (page) => {
+        return (page) ? {...page, items: page.items.map((other) => (other.id === voice.id) ? voice : other)} : page;
+      });
+    }
   };
 }
 
 
-export function usePatchMeVoiceMutation() {
-  const setVoice = useSetMeVoice();
+export function usePatchVoiceMutation(guildId: string | null) {
+  const scope = useGuildScope();
+  const setVoice = useSetVoice(guildId);
   return useMutation({
-    mutationFn: ({ voiceId, name }: VoiceRename) => api.patchMeVoice(voiceId, {name}),
+    mutationFn: ({ voiceId, name }: VoiceRename) => api.patchVoice(scope, guildId, voiceId, {name}),
     onSuccess: setVoice,
   });
 }
 
 
-export function useTransferMeVoiceMutation() {
-  const setVoice = useSetMeVoice();
+export function useTransferVoiceMutation(guildId: string | null) {
+  const scope = useGuildScope();
+  const setVoice = useSetVoice(guildId);
   return useMutation({
     mutationFn: ({ voiceId, platformType }: {voiceId: string, platformType: number}) => {
-      return api.transferMeVoice(voiceId, {platform_type: platformType});
+      return api.transferVoice(scope, guildId, voiceId, {platform_type: platformType});
     },
     onSuccess: setVoice,
   });
 }
 
 
-export function useDeleteMeVoiceMutation() {
+export function useDeleteVoiceMutation(guildId: string | null) {
   const { token } = useAuth();
+  const scope = useGuildScope();
   const queryClient = useQueryClient();
-  const key = queryKeys.meVoices(token);
   return useMutation({
-    mutationFn: (voiceId: string) => api.deleteMeVoice(voiceId),
+    mutationFn: (voiceId: string) => api.deleteVoice(scope, guildId, voiceId),
     onSuccess: (_result, voiceId) => {
-      queryClient.setQueryData<VoicesPage>(key, (page) => {
-        return (page) ? {count: Math.max(0, page.count - 1), items: page.items.filter((other) => other.id !== voiceId)} : page;
-      });
-      // a staff member deleting one of their own voices
+      if (guildId) {
+        queryClient.setQueryData<GuildVoicesPage>(queryKeys.guildVoices(token, scope, guildId), (page) => {
+          return (page) ? {...page, count: Math.max(0, page.count - 1), items: page.items.filter((other) => other.id !== voiceId)} : page;
+        });
+      } else {
+        queryClient.setQueryData<VoicesPage>(queryKeys.meVoices(token), (page) => {
+          return (page) ? {count: Math.max(0, page.count - 1), items: page.items.filter((other) => other.id !== voiceId)} : page;
+        });
+      }
+      // a staff member deleting one they can see in the admin panel's list
       void queryClient.invalidateQueries({queryKey: [...queryKeys.admin(token), 'voices']});
     },
   });
@@ -1147,21 +1179,23 @@ export interface VoiceClipUpload {
   file: File,
 }
 
-export function useUploadMeVoiceClipMutation() {
-  const setVoice = useSetMeVoice();
+export function useUploadVoiceClipMutation(guildId: string | null) {
+  const scope = useGuildScope();
+  const setVoice = useSetVoice(guildId);
   return useMutation({
     mutationFn: ({ voiceId, clipId, file }: VoiceClipUpload) => {
-      return (clipId) ? api.replaceMeVoiceClip(voiceId, clipId, file) : api.uploadMeVoiceClip(voiceId, file);
+      return (clipId) ? api.replaceVoiceClip(scope, guildId, voiceId, clipId, file) : api.uploadVoiceClip(scope, guildId, voiceId, file);
     },
     onSuccess: setVoice,
   });
 }
 
 
-export function useDeleteMeVoiceClipMutation() {
-  const setVoice = useSetMeVoice();
+export function useDeleteVoiceClipMutation(guildId: string | null) {
+  const scope = useGuildScope();
+  const setVoice = useSetVoice(guildId);
   return useMutation({
-    mutationFn: ({ voiceId, clipId }: {voiceId: string, clipId: string}) => api.deleteMeVoiceClip(voiceId, clipId),
+    mutationFn: ({ voiceId, clipId }: {voiceId: string, clipId: string}) => api.deleteVoiceClip(scope, guildId, voiceId, clipId),
     onSuccess: setVoice,
   });
 }
@@ -2674,7 +2708,7 @@ export function usePatchAdminVoiceMutation() {
       queryClient.setQueriesData<AdminVoicesPage>({queryKey: listKey}, (page) => {
         return (page) ? {...page, items: page.items.map((other) => (other.id === voice.id) ? voice : other)} : page;
       });
-      // a staff member renaming one of their own voices
+      // a staff member renaming one of their own voices, or a server's (the servers' lists are under it)
       void queryClient.invalidateQueries({queryKey: queryKeys.meVoices(token)});
     },
     onSettled: () => queryClient.invalidateQueries({queryKey: listKey}),

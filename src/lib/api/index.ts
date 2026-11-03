@@ -83,6 +83,7 @@ import type {
   GuildRemindersPage,
   GuildReminderWithin,
   GuildTagsPage,
+  GuildVoicesPage,
   GuildLLMKnowledgePage,
   GuildWarning,
   GuildWarningsPage,
@@ -638,41 +639,55 @@ export const api = {
     return apiRequest<VoicesPage>(ApiEndpoints.USER_ME_VOICES, {signal});
   },
 
-  patchMeVoice: (voiceId: string, body: VoicePatch) => {
-    return apiRequest<MeVoice>(ApiEndpoints.USER_ME_VOICE(voiceId), {method: 'PATCH', body});
+  // a server's voices, any member reads them (staff any server's through `/admin/guilds`)
+  fetchGuildVoices: (scope: GuildScope, guildId: string, signal?: AbortSignal) => {
+    return apiRequest<GuildVoicesPage>(guildEndpoints(scope, guildId).VOICES, {signal});
+  },
+
+  // the rest are the caller's own voice (`guildId` null) or a server's (Manage Server, staff: owners), and answer with
+  // the voice and its clips (a server's with `created_by` too)
+  patchVoice: (scope: GuildScope, guildId: string | null, voiceId: string, body: VoicePatch) => {
+    const path = (guildId) ? guildEndpoints(scope, guildId).VOICE(voiceId) : ApiEndpoints.USER_ME_VOICE(voiceId);
+    return apiRequest<MeVoice>(path, {method: 'PATCH', body});
   },
 
   // also deletes it on its cloning service and every clip it's made from
-  deleteMeVoice: (voiceId: string) => {
-    return apiRequest<void>(ApiEndpoints.USER_ME_VOICE(voiceId), {method: 'DELETE'});
+  deleteVoice: (scope: GuildScope, guildId: string | null, voiceId: string) => {
+    const path = (guildId) ? guildEndpoints(scope, guildId).VOICE(voiceId) : ApiEndpoints.USER_ME_VOICE(voiceId);
+    return apiRequest<void>(path, {method: 'DELETE'});
   },
 
   // clones it again on another service from its clips, then deletes it from the old one
-  transferMeVoice: (voiceId: string, body: VoiceTransfer) => {
-    return apiRequest<MeVoice>(ApiEndpoints.USER_ME_VOICE_TRANSFER(voiceId), {method: 'POST', body, timeout: 120_000});
+  transferVoice: (scope: GuildScope, guildId: string | null, voiceId: string, body: VoiceTransfer) => {
+    const path = (guildId) ? guildEndpoints(scope, guildId).VOICE_TRANSFER(voiceId) : ApiEndpoints.USER_ME_VOICE_TRANSFER(voiceId);
+    return apiRequest<MeVoice>(path, {method: 'POST', body, timeout: 120_000});
   },
 
   // the api converts it to the mp3 it keeps (the first minute) and adds it to the voice on the cloning service
-  uploadMeVoiceClip: (voiceId: string, file: File) => {
+  uploadVoiceClip: (scope: GuildScope, guildId: string | null, voiceId: string, file: File) => {
     const body = new FormData();
     body.append('file', file);
-    return apiRequest<MeVoice>(ApiEndpoints.USER_ME_VOICE_CLIPS(voiceId), {method: 'POST', body, timeout: 120_000});
+    const path = (guildId) ? guildEndpoints(scope, guildId).VOICE_CLIPS(voiceId) : ApiEndpoints.USER_ME_VOICE_CLIPS(voiceId);
+    return apiRequest<MeVoice>(path, {method: 'POST', body, timeout: 120_000});
   },
 
   // the new audio gets a new clip id, the old clip is deleted once it's in
-  replaceMeVoiceClip: (voiceId: string, clipId: string, file: File) => {
+  replaceVoiceClip: (scope: GuildScope, guildId: string | null, voiceId: string, clipId: string, file: File) => {
     const body = new FormData();
     body.append('file', file);
-    return apiRequest<MeVoice>(ApiEndpoints.USER_ME_VOICE_CLIP(voiceId, clipId), {method: 'PUT', body, timeout: 120_000});
+    const path = (guildId) ? guildEndpoints(scope, guildId).VOICE_CLIP(voiceId, clipId) : ApiEndpoints.USER_ME_VOICE_CLIP(voiceId, clipId);
+    return apiRequest<MeVoice>(path, {method: 'PUT', body, timeout: 120_000});
   },
 
-  deleteMeVoiceClip: (voiceId: string, clipId: string) => {
-    return apiRequest<MeVoice>(ApiEndpoints.USER_ME_VOICE_CLIP(voiceId, clipId), {method: 'DELETE'});
+  deleteVoiceClip: (scope: GuildScope, guildId: string | null, voiceId: string, clipId: string) => {
+    const path = (guildId) ? guildEndpoints(scope, guildId).VOICE_CLIP(voiceId, clipId) : ApiEndpoints.USER_ME_VOICE_CLIP(voiceId, clipId);
+    return apiRequest<MeVoice>(path, {method: 'DELETE'});
   },
 
   // an mp3, fetched with the token so it can't be linked to
-  fetchMeVoiceClipAudio: (voiceId: string, clipId: string, signal?: AbortSignal) => {
-    return apiRequest<Blob>(ApiEndpoints.USER_ME_VOICE_CLIP_AUDIO(voiceId, clipId), {signal, responseType: 'blob', timeout: 60_000});
+  fetchVoiceClipAudio: (scope: GuildScope, guildId: string | null, voiceId: string, clipId: string, signal?: AbortSignal) => {
+    const path = (guildId) ? guildEndpoints(scope, guildId).VOICE_CLIP_AUDIO(voiceId, clipId) : ApiEndpoints.USER_ME_VOICE_CLIP_AUDIO(voiceId, clipId);
+    return apiRequest<Blob>(path, {signal, responseType: 'blob', timeout: 60_000});
   },
 
   // saved fonts, the caller's own (`guildId` null) or a server's (any member reads them, Manage Server changes them;

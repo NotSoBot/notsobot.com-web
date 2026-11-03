@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 
 import { config } from '@/config';
-import { DEFAULT_LANGUAGE, languagePath, splitLanguagePath } from '@/i18n/languages';
+import { splitLanguagePath } from '@/i18n/languages';
 import { api, ApiEndpoints, ApiRequestError, apiUrl } from '@/lib/api';
 import { removeStored } from '@/hooks/usePersistentState';
 import { SAVED_GUILDS_KEY, queryKeys } from '@/lib/api/queries';
@@ -59,8 +59,8 @@ export function AuthProvider({ children }: {children: ReactNode}) {
     }
     setLoggedOut(false);
     // a path from the router has no language prefix, the callback needs it to come back to the same language
-    const language = splitLanguagePath(window.location.pathname).language ?? DEFAULT_LANGUAGE;
-    saveReturnTo((returnTo) ? languagePath(language, returnTo) : (window.location.pathname + window.location.search));
+    const { prefix } = splitLanguagePath(window.location.pathname);
+    saveReturnTo((returnTo) ? ((prefix && returnTo === '/') ? prefix : `${prefix}${returnTo}`) : (window.location.pathname + window.location.search));
     markLoginPending();
     const scopes = Array.from(new Set([...grantedScopes(), ...(options?.scopes ?? [])]));
     markScopesPending(scopes);
