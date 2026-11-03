@@ -1,6 +1,7 @@
 // What each NotSoPremium tier unlocks, and the NotSoCredits packs, linked from the navbar, footer and the bot's
 // `premium` command. The numbers mirror notsobot.api's `utilities/constants/limits.py` and the bot's
-// `TagLimitDefaults` (credits are in `lib/credits.ts`), keep them in sync.
+// `TagLimitDefaults` (credits are in `lib/credits.ts`), keep them in sync. NotSoAI's copy of this page is
+// notsobot.api's `prompts/sections/premium.txt`, update it too when perks change.
 
 import { ArrowRight, Bot, Check, Clock, Coins, Crown, FileUp, Minus, Server, Sparkles, type LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -16,6 +17,7 @@ import {
   CREDITS_AI_MESSAGE,
   CREDITS_PER_TTS_BYTE,
   CREDITS_WEEKLY_PREMIUM_PLUS,
+  CREDITS_ROLLOVER_PREMIUM_PLUS_AI,
   CREDITS_WEEKLY_PREMIUM_PLUS_AI,
   CREDITS_WEEKLY_SERVER_TTS_SLOT,
   MAX_SERVER_VOICE_CLONES,
@@ -108,6 +110,8 @@ const COMPARISON: Array<{group: TranslationKey, icon: LucideIcon, rows: Array<{l
       {label: 'premium.row.ai_tags', values: ['premium.value.with_credits', 'premium.value.with_credits', 'premium.value.with_credits', true]},
       // a Plus member's go to their cloned voice, Plus AI's to NotSoAI and voices both
       {label: 'premium.row.weekly_credits', values: [false, false, creditsLabel(CREDITS_WEEKLY_PREMIUM_PLUS), creditsLabel(CREDITS_WEEKLY_PREMIUM_PLUS_AI)]},
+      // the most a Plus AI member's unused weeks bank
+      {label: 'premium.row.credits_rollover', values: [false, false, false, creditsLabel(CREDITS_ROLLOVER_PREMIUM_PLUS_AI)]},
     ],
   },
 ];
@@ -148,6 +152,7 @@ function creditVariables() {
     tts_byte: formatNumber(CREDITS_PER_TTS_BYTE),
     plus_ai_credits: formatNumber(CREDITS_WEEKLY_PREMIUM_PLUS_AI),
     plus_ai_messages: formatNumber(creditsToMessages(CREDITS_WEEKLY_PREMIUM_PLUS_AI)),
+    plus_ai_rollover: formatNumber(CREDITS_ROLLOVER_PREMIUM_PLUS_AI),
     plus_credits: formatNumber(CREDITS_WEEKLY_PREMIUM_PLUS),
     plus_minutes: formatNumber(Math.round(creditsToSpeechHours(CREDITS_WEEKLY_PREMIUM_PLUS) * 60)),
     saved_fonts: formatNumber(MAX_SAVED_FONTS_USER),

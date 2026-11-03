@@ -201,6 +201,8 @@ export const Dashboard: Record<keyof typeof English, string> = {
   'dcredits.weekly': 'Esta semana',
   'dcredits.weekly_value': 'Restam {left} de {weekly}',
   'dcredits.resets': 'Renova em',
+  'dcredits.rollover': 'Acumulados',
+  'dcredits.rollover_hint': 'O que você não usou nas semanas anteriores, gasto depois dos desta semana. Ficam enquanto você tiver o Plus AI',
   'dcredits.bought': 'Comprados',
   'dcredits.bought_hint': 'Usados quando os desta semana acabam, nunca expiram',
   'dcredits.bought_hint_no_weekly': 'Nunca expiram. O Plus e o Plus AI também recebem créditos toda semana.',

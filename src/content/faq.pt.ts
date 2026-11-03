@@ -85,7 +85,7 @@ export const FAQ_PORTUGUESE: FaqTranslation = {
     },
     'notsoai': {
       question: 'Como converso com o NotSoAI?',
-      answer: 'Mencione o bot com uma mensagem, ou responda a uma das mensagens dele, e o NotSoAI vai responder. Precisa do **NotSoPremium Plus AI**, seja o seu ou o de um membro que deu o premium dele ao servidor. Você pode escolher a personalidade dele com `/settings set ai-personality`.',
+      answer: 'Mencione o bot com uma mensagem, ou responda a uma das mensagens dele, e o NotSoAI vai responder. Ele funciona com NotSoCredits: o **NotSoPremium Plus AI** vem com alguns toda semana, um servidor recebe alguns de cada vaga de servidor premium Plus AI nele, e qualquer um pode comprar um pacote de créditos na loja para usar sem assinar (ou dar alguns a um servidor com `/settings credits give`). Veja a [página do Premium](/premium) para saber quanto eles rendem. Você pode escolher a personalidade dele com `/settings set ai-personality`.',
     },
 
     // privacidade e suporte

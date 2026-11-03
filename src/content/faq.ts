@@ -141,7 +141,7 @@ export const FAQ_QUESTIONS: Array<FaqQuestion> = [
     id: 'notsoai',
     section: 'premium',
     question: 'How do I talk to NotSoAI?',
-    answer: 'Mention the bot with a message, or reply to one of its messages, and NotSoAI will answer. It needs **NotSoPremium Plus AI**, either yours or from a member who gave the server their premium. You can set its personality with `/settings set ai-personality`.',
+    answer: 'Mention the bot with a message, or reply to one of its messages, and NotSoAI will answer. It runs on NotSoCredits: **NotSoPremium Plus AI** comes with some every week, a server gets some from each Plus AI premium server slot on it, and anyone can buy a credit pack in the store to use it without subscribing (or give some to a server with `/settings credits give`). See the [Premium page](/premium) for how far they go. You can set its personality with `/settings set ai-personality`.',
   },
 
   // privacy & support

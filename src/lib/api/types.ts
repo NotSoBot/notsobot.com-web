@@ -2603,6 +2603,10 @@ export interface AdminCreditTransaction extends CreditTransaction {
 export interface CreditBalance {
   refill_left: number,
   resets_at: ApiTimestamp,
+  // a Plus AI user's banked leftover weeks, spent after the week's and before bought ones, up to `rollover_max`. Both 0
+  // for everyone else (and servers)
+  rollover_left: number,
+  rollover_max: number,
   weekly: number,
   weekly_left: number,
 }

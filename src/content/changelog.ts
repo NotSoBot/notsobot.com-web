@@ -28,6 +28,17 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 
 export const CHANGELOG: Array<ChangelogDay> = [
   {
+    date: '2026-11-03',
+    title: 'Older media with ^2, credits rollover',
+    items: [
+      {kind: 'new', text: 'NotSoPremium Plus AI credits roll over: what you don\'t use in a week is banked, up to 120,000 (two weeks\' worth), and spent after that week\'s credits and before bought ones. `/settings credits balance` and the dashboard show what\'s banked. It\'s kept while you have Plus AI.'},
+      {kind: 'new', text: '**NotSoAI** knows what NotSoPremium and NotSoCredits include, from the Premium page, so it can answer questions about them and point you to the store.'},
+      {kind: 'improved', text: 'When something needs NotSoPremium, the tier\'s name in the reply links to it in NotSoBot\'s store, and errors that premium would fix (running out of NotSoCredits or a server\'s NotSoAI, a command running out of time, music perks on a server without premium) say which tier helps.'},
+      {kind: 'improved', text: 'A job waiting in the free queue says where it is in line, and that premium has its own faster line.'},
+      {kind: 'new', text: 'Media commands and **TagScript:** `{iv}`, `{image}`, `{media}` and the others take `^2` for the media before the last one (`^3` for the one before that, up to `^99`), like `.invert ^2` or `{iv:^2}`. `^` is still the last one.'},
+    ],
+  },
+  {
     date: '2026-11-02',
     title: 'Saved fonts, auto subtitles, Vegas audio effects, melody vocoder and sentence mixing',
     items: [

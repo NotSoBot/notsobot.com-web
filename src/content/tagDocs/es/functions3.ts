@@ -5,7 +5,7 @@ import type { TagDocsTranslation } from '../localize';
 
 const LAST_MEDIA_DESCRIPTION = [
   'Sin argumento, el bot busca la multimedia más reciente que coincida en este orden: un archivo adjunto de un comando de barra, el mensaje que ejecutó el tag (archivos adjuntos, embeds, stickers), el mensaje al que responde y, por último, los últimos 25 mensajes del canal (primero los que el bot tiene en caché, y después los que obtiene si puede leer el historial de mensajes).',
-  'Con argumento, los archivos adjuntos del mensaje que ejecutó el tag y del mensaje al que responde siguen yendo primero. Después, el argumento se lee como: `^` (la última multimedia, igual que sin argumento), una URL o un enlace a un mensaje de Discord (coge la multimedia de ese mensaje), una mención de usuario, un ID, `@name` o `name#0000` (el avatar de ese usuario), un emoji personalizado (su imagen), un emoji unicode (su imagen de Twemoji), o una búsqueda por nombre de miembro (su avatar).',
+  'Con argumento, los archivos adjuntos del mensaje que ejecutó el tag y del mensaje al que responde siguen yendo primero. Después, el argumento se lee como: `^` (la última multimedia, igual que sin argumento), de `^2` a `^99` (la multimedia anterior, contando hacia atrás con los archivos adjuntos y la respuesta como los más recientes), una URL o un enlace a un mensaje de Discord (coge la multimedia de ese mensaje), una mención de usuario, un ID, `@name` o `name#0000` (el avatar de ese usuario), un emoji personalizado (su imagen), un emoji unicode (su imagen de Twemoji), o una búsqueda por nombre de miembro (su avatar).',
 ].join('\n\n');
 
 const LAST_MEDIA = 'Cuenta como 1 petición de red, aunque no se encuentre nada.';
@@ -354,16 +354,17 @@ export const FUNCTIONS_SPANISH_3: TagDocsTranslation['functions'] = {
     summary: 'Obtiene la URL de una imagen o un vídeo.',
     description: 'Funciona como `{media}`, pero se salta el audio.\n\n' + LAST_MEDIA_DESCRIPTION,
     args: {
-      query: 'Una URL, un enlace a un mensaje, un usuario, un emoji o `^`. Déjalo vacío para usar la última imagen/vídeo del canal.',
+      query: 'Una URL, un enlace a un mensaje, un usuario, un emoji, `^` o `^2` (la anterior a la última). Déjalo vacío para usar la última imagen/vídeo del canal.',
     },
     results: [
+      '',
       '',
     ],
     notes: [LAST_MEDIA, IV_FALLBACK, NOTHING_FOUND],
   },
   MEDIA_LIST: {
     summary: 'Obtiene las URLs de varios elementos multimedia como un array JSON.',
-    description: 'Reúne multimedia en este orden: archivos adjuntos de un comando de barra, el mensaje que ejecutó el tag (archivos adjuntos, stickers), el mensaje al que responde y, por último, el argumento de texto. Se detiene cuando tiene `max` URLs.\n\nA diferencia de `{media}`, no busca en los mensajes anteriores del canal, así que la lista es solo lo que se envió o se indicó. Pon `^` en el texto para añadir la última multimedia del canal.\n\nEl texto se lee como el argumento de `{media}`: URLs, enlaces a mensajes de Discord, menciones de usuario, IDs, `@name` (su avatar), emojis y búsquedas por nombre de miembro. Úsalo con `{foreach}` para recorrer cada URL, o con `{traversejson}` para elegirlas o contarlas.',
+    description: 'Reúne multimedia en este orden: archivos adjuntos de un comando de barra, el mensaje que ejecutó el tag (archivos adjuntos, stickers), el mensaje al que responde y, por último, el argumento de texto. Se detiene cuando tiene `max` URLs.\n\nA diferencia de `{media}`, no busca en los mensajes anteriores del canal, así que la lista es solo lo que se envió o se indicó. Pon `^` en el texto para añadir la última multimedia del canal, o `^2` para la anterior.\n\nEl texto se lee como el argumento de `{media}`: URLs, enlaces a mensajes de Discord, menciones de usuario, IDs, `@name` (su avatar), emojis y búsquedas por nombre de miembro. Úsalo con `{foreach}` para recorrer cada URL, o con `{traversejson}` para elegirlas o contarlas.',
     args: {
       type: '`media` (por defecto), `image`, `video`, `audio`, `av` (audio o vídeo) o `iv` (imagen o vídeo).',
       max: 'El máximo de URLs que devolver, de 1 a 10. Por defecto, 10.',

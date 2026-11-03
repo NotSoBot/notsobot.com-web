@@ -2887,7 +2887,8 @@ route('PATCH', '/admin/guilds/(\\d+)', ([ , guildId ], { body }) => {
 
 
 // entitlements: read only, newest first like the api
-// the mock user's credits: a Plus pool part way through the week, a bought pack and some of it given to a server
+// the mock user's credits: a Plus AI pool part way through the week with some banked from the weeks before, a bought
+// pack and some of it given to a server
 route('GET', '/users/@me/credits', () => {
   const now = Date.now();
   const day = 24 * 60 * 60 * 1000;
@@ -2896,7 +2897,7 @@ route('GET', '/users/@me/credits', () => {
   monday.setUTCDate(monday.getUTCDate() + ((8 - monday.getUTCDay()) % 7 || 7));
   return {
     ai_message: 75,
-    balance: {refill_left: 40_000, resets_at: monday.toISOString(), weekly: 15_000, weekly_left: 2_350},
+    balance: {refill_left: 40_000, resets_at: monday.toISOString(), rollover_left: 48_600, rollover_max: 120_000, weekly: 60_000, weekly_left: 2_350},
     transactions: [
       {amount: 10_000, created: new Date(now - day).toISOString(), entitlement_id: null, id: '1380000000000000002', server_id: guilds[1].summary.id, type: 2, user_id: mockUser.id},
       {amount: 50_000, created: new Date(now - 3 * day).toISOString(), entitlement_id: '1370000000000000099', id: '1380000000000000001', server_id: null, type: 1, user_id: mockUser.id},
@@ -5689,6 +5690,8 @@ function mockGuildCredits(guildId: string) {
       refill_given: transactions.reduce((total, transaction) => total + transaction.amount, 0),
       refill_left: (transactions.length) ? 31_200 : 0,
       resets_at: week.toISOString(),
+      rollover_left: 0,
+      rollover_max: 0,
       weekly: 25_000 * slots.ai,
       weekly_left: (slots.ai) ? 4_650 : 0,
     },

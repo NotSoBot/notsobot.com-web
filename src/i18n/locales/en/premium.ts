@@ -67,6 +67,7 @@ export const Premium = {
   'premium.row.notsoai': 'NotSoAI',
   'premium.row.ai_tags': '{ai} in tags',
   'premium.row.weekly_credits': 'NotSoCredits every week',
+  'premium.row.credits_rollover': 'Unused credits roll over',
   'premium.value.discord_limit_100': 'Your Discord limit, up to 100 MB',
   'premium.value.discord_limit': 'Discord limit',
   'premium.value.days_14': '14 days',
@@ -99,7 +100,7 @@ export const Premium = {
   'premium.server_perk.voices': 'Up to {server_voices} of the server’s own cloned voices for everyone, made by members with Manage Server, with {server_voice_credits} NotSoCredits a week of their own from each slot (about {server_voice_minutes} minutes of speech)',
 
   'premium.credits.title': 'NotSoCredits',
-  'premium.credits.description': 'NotSoAI and cloned voices run on NotSoCredits. A NotSoAI message is {ai_message} credits and a cloned voice uses about {tts_byte} per letter. Plus gets {plus_credits} every week and Plus AI gets {plus_ai_credits}, they come back every Monday.',
+  'premium.credits.description': 'NotSoAI and cloned voices run on NotSoCredits. A NotSoAI message is {ai_message} credits and a cloned voice uses about {tts_byte} per letter. Plus gets {plus_credits} every week and Plus AI gets {plus_ai_credits}, they come back every Monday. Plus AI’s don’t go to waste: what’s left at the end of a week rolls over, up to {plus_ai_rollover} banked.',
   'premium.credits.packs': 'Need more? Credit packs work for everyone, even without premium, so you can use NotSoAI without subscribing. They’re used once your weekly credits run out and never expire, and you can give some to a server with <code>/settings credits give</code> so everyone there can use NotSoAI.',
   'premium.credits.pack_name': '{amount} NotSoCredits',
   'premium.credits.bonus': '+{percent}% bonus',

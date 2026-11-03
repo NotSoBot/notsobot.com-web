@@ -5,7 +5,7 @@ import type { TagDocsTranslation } from '../localize';
 
 const LAST_MEDIA_DESCRIPTION = [
   'Sem argumento, o bot procura a mídia correspondente mais recente nesta ordem: um anexo de um comando de barra, a mensagem que executou a tag (anexos, embeds, figurinhas), a mensagem que ela responde e, por fim, as últimas 25 mensagens do canal (primeiro as que o bot tem em cache, e depois as que ele busca se puder ler o histórico de mensagens).',
-  'Com argumento, os anexos da mensagem que executou a tag e da mensagem que ela responde continuam vindo primeiro. Depois disso, o argumento é lido como: `^` (a última mídia, igual a sem argumento), uma URL ou um link de mensagem do Discord (pega a mídia dessa mensagem), uma menção de usuário, ID, `@name` ou `name#0000` (o avatar desse usuário), um emoji personalizado (a imagem dele), um emoji unicode (a imagem dele no Twemoji), ou uma busca por nome de membro (o avatar dele).',
+  'Com argumento, os anexos da mensagem que executou a tag e da mensagem que ela responde continuam vindo primeiro. Depois disso, o argumento é lido como: `^` (a última mídia, igual a sem argumento), de `^2` a `^99` (a mídia anterior, contando para trás com os anexos e a resposta como os mais recentes), uma URL ou um link de mensagem do Discord (pega a mídia dessa mensagem), uma menção de usuário, ID, `@name` ou `name#0000` (o avatar desse usuário), um emoji personalizado (a imagem dele), um emoji unicode (a imagem dele no Twemoji), ou uma busca por nome de membro (o avatar dele).',
 ].join('\n\n');
 
 const LAST_MEDIA = 'Conta como 1 requisição de rede, mesmo que nada seja encontrado.';
@@ -354,16 +354,17 @@ export const FUNCTIONS_PORTUGUESE_3: TagDocsTranslation['functions'] = {
     summary: 'Pega a URL de uma imagem ou vídeo.',
     description: 'Funciona como `{media}`, mas pula áudio.\n\n' + LAST_MEDIA_DESCRIPTION,
     args: {
-      query: 'Uma URL, link de mensagem, usuário, emoji ou `^`. Deixe vazio para usar a última imagem/vídeo do canal.',
+      query: 'Uma URL, link de mensagem, usuário, emoji, `^` ou `^2` (a anterior à última). Deixe vazio para usar a última imagem/vídeo do canal.',
     },
     results: [
+      '',
       '',
     ],
     notes: [LAST_MEDIA, IV_FALLBACK, NOTHING_FOUND],
   },
   MEDIA_LIST: {
     summary: 'Pega as URLs de várias mídias como um array JSON.',
-    description: 'Junta mídia nesta ordem: anexos de um comando de barra, a mensagem que executou a tag (anexos, figurinhas), a mensagem que ela responde e, por fim, o argumento de texto. Para quando tiver `max` URLs.\n\nAo contrário do `{media}`, não procura nas mensagens mais antigas do canal, então a lista é só o que foi enviado ou indicado. Coloque `^` no texto para adicionar a última mídia do canal.\n\nO texto é lido como o argumento do `{media}`: URLs, links de mensagens do Discord, menções de usuário, IDs, `@name` (o avatar), emojis e buscas por nome de membro. Use com `{foreach}` para passar por cada URL, ou com `{traversejson}` para escolher ou contar.',
+    description: 'Junta mídia nesta ordem: anexos de um comando de barra, a mensagem que executou a tag (anexos, figurinhas), a mensagem que ela responde e, por fim, o argumento de texto. Para quando tiver `max` URLs.\n\nAo contrário do `{media}`, não procura nas mensagens mais antigas do canal, então a lista é só o que foi enviado ou indicado. Coloque `^` no texto para adicionar a última mídia do canal, ou `^2` para a anterior.\n\nO texto é lido como o argumento do `{media}`: URLs, links de mensagens do Discord, menções de usuário, IDs, `@name` (o avatar), emojis e buscas por nome de membro. Use com `{foreach}` para passar por cada URL, ou com `{traversejson}` para escolher ou contar.',
     args: {
       type: '`media` (o padrão), `image`, `video`, `audio`, `av` (áudio ou vídeo) ou `iv` (imagem ou vídeo).',
       max: 'O máximo de URLs a retornar, de 1 a 10. O padrão é 10.',

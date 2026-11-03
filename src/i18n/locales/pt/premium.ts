@@ -69,6 +69,7 @@ export const Premium: Record<keyof typeof English, string> = {
   'premium.row.notsoai': 'NotSoAI',
   'premium.row.ai_tags': '{ai} em tags',
   'premium.row.weekly_credits': 'NotSoCredits por semana',
+  'premium.row.credits_rollover': 'Créditos não usados acumulam',
   'premium.value.discord_limit_100': 'Seu limite do Discord, até 100 MB',
   'premium.value.discord_limit': 'Limite do Discord',
   'premium.value.days_14': '14 dias',
@@ -101,7 +102,7 @@ export const Premium: Record<keyof typeof English, string> = {
   'premium.server_perk.voices': 'Até {server_voices} vozes clonadas do próprio servidor para todos, criadas por membros com Gerenciar servidor, com {server_voice_credits} NotSoCredits por semana só para elas de cada vaga (cerca de {server_voice_minutes} minutos de fala)',
 
   'premium.credits.title': 'NotSoCredits',
-  'premium.credits.description': 'O NotSoAI e as vozes clonadas funcionam com NotSoCredits. Uma mensagem do NotSoAI custa {ai_message} créditos e uma voz clonada usa cerca de {tts_byte} por letra. O Plus recebe {plus_credits} por semana e o Plus AI {plus_ai_credits}, e eles voltam toda segunda-feira.',
+  'premium.credits.description': 'O NotSoAI e as vozes clonadas funcionam com NotSoCredits. Uma mensagem do NotSoAI custa {ai_message} créditos e uma voz clonada usa cerca de {tts_byte} por letra. O Plus recebe {plus_credits} por semana e o Plus AI {plus_ai_credits}, e eles voltam toda segunda-feira. Os do Plus AI não se perdem: o que sobra no fim da semana acumula, até {plus_ai_rollover}.',
   'premium.credits.packs': 'Precisa de mais? Os pacotes de créditos servem para todos, mesmo sem premium, então você pode usar o NotSoAI sem assinar. Eles são usados quando seus créditos semanais acabam, nunca expiram e você pode dar alguns a um servidor com <code>/settings credits give</code> para que todos lá possam usar o NotSoAI.',
   'premium.credits.pack_name': '{amount} NotSoCredits',
   'premium.credits.bonus': '+{percent}% de bônus',

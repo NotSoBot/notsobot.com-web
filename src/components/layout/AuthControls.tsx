@@ -47,9 +47,9 @@ function UserMenu({ compact }: {compact: boolean}) {
   // reports with something from staff they haven't opened: a dot on the avatar and a Reports item in the menu
   const unreadReports = useReportsUnreadQuery(token).data?.count ?? 0;
   const [ open, setOpen ] = useState(false);
-  // this week's credits and the bought ones together, null for owners (they don't use any)
+  // this week's credits, the banked and the bought ones together, null for owners (they don't use any)
   const creditsBalance = useMeCreditsMenuQuery(token, open).data?.balance;
-  const credits = (creditsBalance) ? creditsBalance.weekly_left + creditsBalance.refill_left : null;
+  const credits = (creditsBalance) ? creditsBalance.weekly_left + creditsBalance.rollover_left + creditsBalance.refill_left : null;
   const [ loggingOut, setLoggingOut ] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const menuId = useId();

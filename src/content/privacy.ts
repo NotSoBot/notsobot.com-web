@@ -3,7 +3,7 @@ import type { LegalDocument } from './legal';
 export const PRIVACY_POLICY: LegalDocument = {
   title: "Privacy Policy",
   effective: "October 13, 2026",
-  lastUpdated: "November 2, 2026",
+  lastUpdated: "November 3, 2026",
   intro: "This Privacy Policy explains what information NotSoBot collects, why, who it's shared with, how long it's kept, and how You can get a copy of it or have it deleted.",
   sections: [
     {
@@ -38,7 +38,7 @@ export const PRIVACY_POLICY: LegalDocument = {
           "Saved fonts: fonts You (or a server's members) save to use by name, kept as the file that was uploaded, along with its name, the file's original name, size and a file hash (SHA-256), who saved it, when, and a preview image of a sample line in the font. They're only reachable through NotSoBot and the logged-in dashboard, not from a public link.",
           "Adding and removing NotSoBot: when You add NotSoBot to your account or to a server, log in to the website with Discord, or remove NotSoBot from your authorized apps, Discord tells Us your user ID, the server it was added to, the permissions (scopes) granted and when. We use it to count how many people add NotSoBot, and Our staff can see who added it to a server.",
           "Purchases: premium entitlements and subscription status received from Discord.",
-          "NotSoCredits: how many credits You and each server have spent this week, your bought credits, and a record of every pack bought, credits given to a server (who gave how many to which server) and credits taken back after a refund or chargeback. A server's members can see who gave it credits and how many, with the bot's credits command or on the dashboard.",
+          "NotSoCredits: how many credits You and each server have spent this week, the ones You rolled over with Plus AI, your bought credits, and a record of every pack bought, credits given to a server (who gave how many to which server) and credits taken back after a refund or chargeback. A server's members can see who gave it credits and how many, with the bot's credits command or on the dashboard.",
           "Website login: if You log in to notsobot.com with Discord, an OAuth2 access and refresh token with the \"identify\" scope (and the \"guilds\" scope if You let the website see your server list), and your login sessions with their browser user agent. With the \"guilds\" scope, your list of servers is fetched from Discord when the dashboard needs it. Without it, the dashboard lists the servers NotSoBot already sees You in, and your permissions in a server come from NotSoBot or Discord. Either way the list is cached for about a minute.",
           "Website and API request logs: the IP address, user agent, path, response status and response time of requests to the website's API, along with your user ID if You're logged in.",
           "Safety records: information about content flagged by Our automated safety systems, described in Section 6.",

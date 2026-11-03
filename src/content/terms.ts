@@ -3,7 +3,7 @@ import type { LegalDocument } from './legal';
 export const TERMS_OF_SERVICE: LegalDocument = {
   title: "Terms of Service",
   effective: "November 12, 2026",
-  lastUpdated: "November 2, 2026",
+  lastUpdated: "November 3, 2026",
   intro: "Please read these Terms of Service carefully before using NotSoBot. They explain what you can and can't do with the Service, what we store when you use it, and how to reach us.",
   sections: [
     {
@@ -130,7 +130,7 @@ export const TERMS_OF_SERVICE: LegalDocument = {
       title: "Section 10 - Premium",
       blocks: [
         {type: 'paragraph', text: "Some features require NotSoBot Premium. Premium is purchased through Discord, and Discord's own terms, billing and refund policies apply to those purchases. Premium perks may change over time. If your access is ended for breaking these Terms, You won't be refunded for unused time unless the law requires it."},
-        {type: 'paragraph', text: "NotSoCredits are only for using the Service. They have no cash value and can't be sold or exchanged, and the only way to move them is giving them to a server, which can't be undone. Weekly credits don't carry over to the next week. If a credit pack is refunded or charged back, We take back its credits, even ones already spent or given away, which can leave You with a negative balance. Costs and weekly amounts may change over time."},
+        {type: 'paragraph', text: "NotSoCredits are only for using the Service. They have no cash value and can't be sold or exchanged, and the only way to move them is giving them to a server, which can't be undone. Weekly credits don't carry over to the next week, except NotSoPremium Plus AI's, which roll over up to a limit and end when Plus AI does. If a credit pack is refunded or charged back, We take back its credits, even ones already spent or given away, which can leave You with a negative balance. Costs and weekly amounts may change over time."},
       ],
     },
     {

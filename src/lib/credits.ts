@@ -11,6 +11,9 @@ export const CREDITS_PER_TTS_BYTE = 4;
 // every week (from Monday 00:00 UTC)
 export const CREDITS_WEEKLY_PREMIUM_PLUS = 30_000;
 export const CREDITS_WEEKLY_PREMIUM_PLUS_AI = 60_000;
+// what's left of a Plus AI week is banked, up to this many weeks' worth (the api's `CREDITS_ROLLOVER_WEEKS_PREMIUM_PLUS_AI`)
+export const CREDITS_ROLLOVER_WEEKS_PREMIUM_PLUS_AI = 2;
+export const CREDITS_ROLLOVER_PREMIUM_PLUS_AI = CREDITS_WEEKLY_PREMIUM_PLUS_AI * CREDITS_ROLLOVER_WEEKS_PREMIUM_PLUS_AI;
 // for everyone in a server without Plus AI of their own, per Plus AI premium server slot on it
 export const CREDITS_WEEKLY_SERVER_AI_SLOT = 25_000;
 // what every Plus (or Plus AI) slot adds for the server's own cloned voices only

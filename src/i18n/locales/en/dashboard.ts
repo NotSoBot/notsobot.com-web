@@ -199,6 +199,8 @@ export const Dashboard = {
   'dcredits.weekly': 'This week',
   'dcredits.weekly_value': '{left} of {weekly} left',
   'dcredits.resets': 'Resets',
+  'dcredits.rollover': 'Rolled over',
+  'dcredits.rollover_hint': 'What you didn’t use in past weeks, spent after this week’s. Kept while you have Plus AI',
   'dcredits.bought': 'Bought',
   'dcredits.bought_hint': 'Used once this week’s run out, they never expire',
   'dcredits.bought_hint_no_weekly': 'They never expire. Plus and Plus AI also get credits every week.',

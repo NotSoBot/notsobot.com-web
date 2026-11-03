@@ -142,7 +142,7 @@ function CreditBalances({ balance }: {balance: CreditBalance}) {
   const { t } = useI18n();
   const used = (balance.weekly) ? Math.min(100, Math.round(((balance.weekly - balance.weekly_left) / balance.weekly) * 100)) : 0;
   return (
-    <div className={cn('grid gap-4', (balance.weekly) && 'sm:grid-cols-2')}>
+    <div className={cn('grid gap-4', (balance.weekly) && 'sm:grid-cols-2', (balance.rollover_max) && 'lg:grid-cols-3')}>
       {(balance.weekly) ? (
         <div className='rounded-lg bg-surface-2 p-4'>
           <div className='text-sm text-muted'>{t('dcredits.weekly')}</div>
@@ -162,6 +162,15 @@ function CreditBalances({ balance }: {balance: CreditBalance}) {
           <div className='mt-2 text-xs text-subtle'>
             <DateLabel label={t('dcredits.resets')} value={balance.resets_at}/>
           </div>
+        </div>
+      ) : null}
+      {(balance.rollover_max) ? (
+        <div className='rounded-lg bg-surface-2 p-4'>
+          <div className='text-sm text-muted'>{t('dcredits.rollover')}</div>
+          <div className='mt-1 text-xl font-bold text-white tabular-nums'>
+            {t('dcredits.weekly_value', {left: formatNumber(balance.rollover_left), weekly: formatNumber(balance.rollover_max)})}
+          </div>
+          <div className='mt-2 text-xs text-subtle'>{t('dcredits.rollover_hint')}</div>
         </div>
       ) : null}
       <div className='rounded-lg bg-surface-2 p-4'>

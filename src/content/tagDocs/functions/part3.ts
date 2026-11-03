@@ -4,7 +4,7 @@ import type { TagDocFunction } from '../types';
 // Shared wording for the "last media" lookup used by {media}, {image}, {video}, etc.
 const LAST_MEDIA_DESCRIPTION = [
   'With no argument, the bot looks for the most recent matching media in this order: an attachment on a slash command, the message that ran the tag (attachments, embeds, stickers), the message it replies to, then the channel\'s last 25 messages (the ones the bot has cached first, then fetched if the bot can read message history).',
-  'With an argument, attachments on the message that ran the tag and the message it replies to still come first. After that the argument is read as: `^` (the last media, same as no argument), a URL or a Discord message link (it takes the media from that message), a user mention, ID, `@name` or `name#0000` (that user\'s avatar), a custom emoji (its image), a unicode emoji (its Twemoji image), or a member name search (their avatar).',
+  'With an argument, attachments on the message that ran the tag and the message it replies to still come first. After that the argument is read as: `^` (the last media, same as no argument), `^2` to `^99` (the media before that, counting back with the attachments and reply as the newest), a URL or a Discord message link (it takes the media from that message), a user mention, ID, `@name` or `name#0000` (that user\'s avatar), a custom emoji (its image), a unicode emoji (its Twemoji image), or a member name search (their avatar).',
 ].join('\n\n');
 
 const LAST_MEDIA_NOTE = 'Counts as 1 network request, even if nothing is found.';
@@ -447,10 +447,11 @@ export const TAG_DOC_FUNCTIONS_PART3: Array<TagDocFunction> = [
     description: 'Works like `{media}` but skips audio.\n\n' + LAST_MEDIA_DESCRIPTION,
     syntax: '{iv:query?}',
     args: [
-      {name: 'query', description: 'A URL, message link, user, emoji or `^`. Leave empty to use the last image/video in the channel.', optional: true},
+      {name: 'query', description: 'A URL, message link, user, emoji, `^` or `^2` (the one before the last). Leave empty to use the last image/video in the channel.', optional: true},
     ],
     examples: [
       {code: '{iv}', result: 'https://cdn.discordapp.com/attachments/.../funny.gif'},
+      {code: '{iv:^2}', result: 'https://cdn.discordapp.com/attachments/.../older.png'},
     ],
     notes: [LAST_MEDIA_NOTE, IV_FALLBACK_NOTE, NOTHING_FOUND_NOTE],
   },
@@ -459,7 +460,7 @@ export const TAG_DOC_FUNCTIONS_PART3: Array<TagDocFunction> = [
     names: ['medialist', 'media.list'],
     category: 'media',
     summary: 'Get the URLs of several pieces of media as a JSON array.',
-    description: 'Collects media in this order: attachments on a slash command, the message that ran the tag (attachments, stickers), the message it replies to, then the text argument. It stops once it has `max` URLs.\n\nUnlike `{media}`, it does not look through the channel\'s older messages, so a list is only what was sent or pointed at. Put `^` in the text to add the last media in the channel.\n\nThe text is read like `{media}`\'s argument: URLs, Discord message links, user mentions, IDs, `@name` (their avatar), emojis and member name searches. Use it with `{foreach}` to go through each URL, or `{traversejson}` to pick or count them.',
+    description: 'Collects media in this order: attachments on a slash command, the message that ran the tag (attachments, stickers), the message it replies to, then the text argument. It stops once it has `max` URLs.\n\nUnlike `{media}`, it does not look through the channel\'s older messages, so a list is only what was sent or pointed at. Put `^` in the text to add the last media in the channel, or `^2` for the one before it.\n\nThe text is read like `{media}`\'s argument: URLs, Discord message links, user mentions, IDs, `@name` (their avatar), emojis and member name searches. Use it with `{foreach}` to go through each URL, or `{traversejson}` to pick or count them.',
     syntax: '{medialist:type?|max?|text?}',
     args: [
       {name: 'type', description: '`media` (the default), `image`, `video`, `audio`, `av` (audio or video) or `iv` (image or video).', optional: true},
