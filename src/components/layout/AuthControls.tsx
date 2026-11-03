@@ -1,4 +1,4 @@
-import { ChevronDown, LayoutDashboard, LogIn, LogOut, MessageSquareWarning, RefreshCw, Settings } from 'lucide-react';
+import { ChevronDown, Coins, LayoutDashboard, LogIn, LogOut, MessageSquareWarning, RefreshCw, Settings } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router';
 
@@ -6,9 +6,9 @@ import { useAuth } from '@/auth';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { Routes } from '@/config';
 import { useI18n } from '@/i18n';
-import { useReportsUnreadQuery } from '@/lib/api/queries';
+import { useMeCreditsMenuQuery, useReportsUnreadQuery } from '@/lib/api/queries';
 import { userDisplayTag } from '@/lib/discord';
-import { cn } from '@/lib/utils';
+import { cn, formatNumber } from '@/lib/utils';
 
 
 export function AuthControls({ compact = false }: {compact?: boolean}) {
@@ -47,6 +47,9 @@ function UserMenu({ compact }: {compact: boolean}) {
   // reports with something from staff they haven't opened: a dot on the avatar and a Reports item in the menu
   const unreadReports = useReportsUnreadQuery(token).data?.count ?? 0;
   const [ open, setOpen ] = useState(false);
+  // this week's credits and the bought ones together, null for owners (they don't use any)
+  const creditsBalance = useMeCreditsMenuQuery(token, open).data?.balance;
+  const credits = (creditsBalance) ? creditsBalance.weekly_left + creditsBalance.refill_left : null;
   const [ loggingOut, setLoggingOut ] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
@@ -111,8 +114,8 @@ function UserMenu({ compact }: {compact: boolean}) {
             </span>
           ) : null}
         </span>
-        {/* `compact` (the navbar) only leaves the name out on phones, there's room for it from sm up */}
-        <span className={cn('max-w-40 truncate text-sm font-medium text-white', compact && 'hidden sm:inline')}>{user.username}</span>
+        {/* `compact` (the navbar) leaves the name out on phones, and from md to lg where the nav links take its room */}
+        <span className={cn('max-w-40 truncate text-sm font-medium text-white', compact && 'hidden sm:inline md:hidden lg:inline')}>{user.username}</span>
         <ChevronDown className={cn('size-4 text-subtle transition-transform', open && 'rotate-180')}/>
       </button>
 
@@ -152,6 +155,17 @@ function UserMenu({ compact }: {compact: boolean}) {
                 </span>
               </Link>
             ) : null}
+            <Link
+              to={Routes.DASHBOARD_PREMIUM}
+              role='menuitem'
+              className='flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-fg hover:bg-surface-2'
+            >
+              <Coins className='size-4 text-muted'/>
+              {t('account.credits')}
+              {(credits !== null) ? (
+                <span className='ml-auto text-xs font-semibold text-muted tabular-nums'>{formatNumber(credits)}</span>
+              ) : null}
+            </Link>
             <Link
               to={Routes.DASHBOARD_SETTINGS}
               role='menuitem'

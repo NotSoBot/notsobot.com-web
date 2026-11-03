@@ -78,6 +78,7 @@ import type {
   GuildMusicSoundControl,
   GuildMusicSettings,
   GuildCommandStats,
+  GuildCredits,
   GuildReminder,
   GuildReminderSort,
   GuildRemindersPage,
@@ -569,6 +570,11 @@ export const api = {
 
   fetchMeCredits: (signal?: AbortSignal) => {
     return apiRequest<MeCredits>(ApiEndpoints.USER_ME_CREDITS, {signal});
+  },
+
+  // a server's, any member (staff any server's through `/admin/guilds`)
+  fetchGuildCredits: (scope: GuildScope, guildId: string, signal?: AbortSignal) => {
+    return apiRequest<GuildCredits>(guildEndpoints(scope, guildId).CREDITS, {signal});
   },
 
   fetchMeEntitlements: (signal?: AbortSignal) => {

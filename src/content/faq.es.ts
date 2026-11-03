@@ -81,7 +81,7 @@ export const FAQ_SPANISH: FaqTranslation = {
     // premium e ia
     'premium': {
       question: '¿Qué es NotSoPremium?',
-      answer: 'NotSoPremium es una suscripción opcional que se compra a través de Discord, en el perfil de NotSoBot. Tiene tres niveles:\n\n- **NotSoPremium**: archivos más grandes, más tiempo para cada comando y tus propios comandos personalizados\n- **NotSoPremium Plus**: todo lo anterior, y además 2 espacios de servidor premium y clonación de voz\n- **NotSoPremium Plus AI**: todo lo anterior, y además NotSoAI\n\nCon **NotSoPremium Plus** puedes darle tu premium a hasta 2 servidores (o MD grupales) con `/settings premium-servers add` o desde la página Premium del panel, para que algunos comandos premium funcionen allí para todos. Ser dueño de un servidor no le da premium por sí solo.',
+      answer: 'NotSoPremium es una suscripción opcional que se compra a través de Discord, en el perfil de NotSoBot. Tiene tres niveles:\n\n- **NotSoPremium**: archivos más grandes, más tiempo para cada comando y tus propios comandos personalizados\n- **NotSoPremium Plus**: todo lo anterior, y además 2 espacios de servidor premium y clonación de voz\n- **NotSoPremium Plus AI**: todo lo anterior, y además NotSoAI\n\nCon **NotSoPremium Plus** puedes darle tu premium a hasta 2 servidores (o MD grupales) con `/settings premium-servers add` o desde la página Premium del panel, para que algunos comandos premium funcionen allí para todos. Ser dueño de un servidor no le da premium por sí solo.\n\nLa [página de Premium](/premium) compara todos los niveles.',
     },
     'notsoai': {
       question: '¿Cómo hablo con NotSoAI?',

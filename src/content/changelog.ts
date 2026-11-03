@@ -31,6 +31,11 @@ export const CHANGELOG: Array<ChangelogDay> = [
     date: '2026-11-02',
     title: 'Saved fonts, auto subtitles, Vegas audio effects, melody vocoder and sentence mixing',
     items: [
+      {kind: 'new', text: 'notsobot.com has a Premium page, linked from the navbar and footer: what each NotSoPremium tier unlocks side by side, what premium servers get, and the NotSoCredits packs.'},
+      {kind: 'new', text: '`/premium` (`.premium`): what NotSoPremium unlocks, with buttons to NotSoBot\'s store on Discord and the website\'s Premium page.'},
+      {kind: 'new', text: 'Your NotSoCredits show in the account menu on notsobot.com, and take you to the dashboard\'s Premium page.'},
+      {kind: 'new', text: 'Servers on the dashboard have a **Credits** page that every member can see: what\'s left of the week\'s NotSoAI and server voice credits, what members gave it and who gave each.'},
+      {kind: 'improved', text: 'A server\'s cloned voices get a week of credits of their own (7,500 per premium server slot), so they don\'t use up its NotSoAI, and `/settings credits balance` shows both.'},
       {kind: 'new', text: '`/media-av-tools auto-subtitle` (`.autosubtitle`, `.autosub`): subtitles what\'s said in an audio or video, burned in like `.subtitle`. `highlight` shows a few words at a time with the one being said in yellow, `yellow` makes the text yellow, and `font` takes any caption font, your saved fonts or a font file of your own. An audio gets a black video.'},
       {kind: 'new', text: '**MediaScript:** `autosubtitle` (aliases `autosubtitles`, `autosub`).'},
       {kind: 'new', text: '`.transcribe -file ass|lrc|srt` (`/tools transcribe file`) also attaches the transcription as subtitles (`.ass`, `.srt`) for a video player or editor, or lyrics (`.lrc`) for a music player. `highlight` highlights the word being said in `.ass` and times every word in `.lrc` (enhanced LRC, for karaoke-style players).'},

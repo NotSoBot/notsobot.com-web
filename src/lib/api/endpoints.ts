@@ -173,6 +173,7 @@ export function guildEndpoints(scope: GuildScope, guildId: string) {
     FONT_FILE: (fontId: string) => `${base}/fonts/${fontId}/file`,
     FONT_THUMBNAIL: (fontId: string) => `${base}/fonts/${fontId}/thumbnail`,
     VOICES: `${base}/voices`,
+    CREDITS: `${base}/credits`,
     VOICE: (voiceId: string) => `${base}/voices/${voiceId}`,
     VOICE_TRANSFER: (voiceId: string) => `${base}/voices/${voiceId}/transfer`,
     VOICE_CLIPS: (voiceId: string) => `${base}/voices/${voiceId}/clips`,

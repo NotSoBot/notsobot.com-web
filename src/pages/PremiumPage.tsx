@@ -1,5 +1,5 @@
-// What each NotSoPremium tier unlocks, and the NotSoCredits packs. Not linked from the navbar or footer yet, only from the
-// dashboard's Premium page. The numbers mirror notsobot.api's `utilities/constants/limits.py` and the bot's
+// What each NotSoPremium tier unlocks, and the NotSoCredits packs, linked from the navbar, footer and the bot's
+// `premium` command. The numbers mirror notsobot.api's `utilities/constants/limits.py` and the bot's
 // `TagLimitDefaults` (credits are in `lib/credits.ts`), keep them in sync.
 
 import { ArrowRight, Bot, Check, Clock, Coins, Crown, FileUp, Minus, Server, Sparkles, type LucideIcon } from 'lucide-react';
@@ -135,7 +135,8 @@ const SERVER_PERKS: Array<{label: TranslationKey, free?: Cell, server?: Cell}> =
   {label: 'premium.server_perk.image_fallback'},
   // the api's `CREDITS_WEEKLY_SERVER_AI_SLOT` in messages, shared by everyone in the server without Plus AI
   {label: 'premium.server_perk.notsoai'},
-  // made by members with Manage Server, `CREDITS_WEEKLY_SERVER_TTS_SLOT` a week from each slot goes to them
+  // made by members with Manage Server, `CREDITS_WEEKLY_SERVER_TTS_SLOT` a week from each slot goes to them (their own
+  // week, NotSoAI's messages aren't touched)
   {label: 'premium.server_perk.voices'},
 ];
 
@@ -152,6 +153,7 @@ function creditVariables() {
     saved_fonts: formatNumber(MAX_SAVED_FONTS_USER),
     saved_fonts_server: formatNumber(MAX_SAVED_FONTS_SERVER),
     server_voice_credits: formatNumber(CREDITS_WEEKLY_SERVER_TTS_SLOT),
+    server_voice_minutes: formatNumber(Math.round(creditsToSpeechHours(CREDITS_WEEKLY_SERVER_TTS_SLOT) * 60)),
     server_voices: formatNumber(MAX_SERVER_VOICE_CLONES),
     voices_plus: formatNumber(MAX_VOICE_CLONES_PLUS),
     voices_plus_ai: formatNumber(MAX_VOICE_CLONES_PLUS_AI),
@@ -205,6 +207,8 @@ export function PremiumPage() {
         <div className='grid gap-6 lg:grid-cols-3'>
           {TIERS.map((tier) => <TierCard key={tier.id} tier={tier} current={current === tier.id}/>)}
         </div>
+        {/* a nod to NotSoSuper, the bot's original creator. english in every language, the pun is on the name */}
+        <p className='mt-4 text-center text-sm italic text-subtle'>Isn’t this a NotSoSuper deal?</p>
       </section>
 
       <section id='premium-servers' aria-labelledby='premium-servers-title' className='mb-16 scroll-mt-24'>
@@ -332,20 +336,16 @@ function CreditsSection() {
   const { t, rich } = useI18n();
   return (
     <section id='premium-credits' aria-labelledby='premium-credits-title' className='mb-16 scroll-mt-24'>
-      <div className='card p-6 md:p-8'>
-        <div className='mb-6 grid gap-6 md:grid-cols-[1fr_1.4fr]'>
-          <div>
-            <div className='mb-4 flex size-12 items-center justify-center rounded-lg bg-brand/10'>
-              <Coins className='size-6 text-brand-text'/>
-            </div>
-            <h2 id='premium-credits-title' className='mb-2 text-2xl text-white'>{t('premium.credits.title')}</h2>
+      <div className='card grid gap-6 p-6 md:p-8 lg:grid-cols-[1fr_1.4fr]'>
+        <div>
+          <div className='mb-4 flex size-12 items-center justify-center rounded-lg bg-brand/10'>
+            <Coins className='size-6 text-brand-text'/>
           </div>
-          <div className='space-y-3 text-muted md:pt-16'>
-            <p>{t('premium.credits.description', creditVariables())}</p>
-            <p>{rich('premium.credits.packs', {code: (chunk) => <code className='text-code'>{chunk}</code>})}</p>
-          </div>
+          <h2 id='premium-credits-title' className='mb-2 text-2xl text-white'>{t('premium.credits.title')}</h2>
+          <p className='text-muted'>{t('premium.credits.description', creditVariables())}</p>
+          <p className='mt-3 text-muted'>{rich('premium.credits.packs', {code: (chunk) => <code className='text-code'>{chunk}</code>})}</p>
         </div>
-        <ul className='grid gap-4 sm:grid-cols-2 lg:grid-cols-4'>
+        <ul className='grid content-start gap-4 sm:grid-cols-2'>
           {CREDIT_PACKS.map((pack) => <CreditPackCard key={pack.sku} pack={pack}/>)}
         </ul>
       </div>

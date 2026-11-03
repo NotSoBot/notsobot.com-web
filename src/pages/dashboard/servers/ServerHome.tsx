@@ -3,6 +3,7 @@ import { ReportStatuses, type UserGuild } from '@/lib/api';
 import {
   DEFAULT_GUILD_REMINDERS_FILTERS,
   useGuildCommandStatsQuery,
+  useGuildCreditsQuery,
   useGuildLLMKnowledgeQuery,
   useGuildRemindersQuery,
   useGuildReportsQuery,
@@ -36,6 +37,7 @@ export function ServerHome({ guild, onOpen }: {guild: UserGuild, onOpen?: (tab: 
   const tags = useGuildTagsQuery(guild.id, '');
   const voices = useGuildVoicesQuery(guild.id);
   const fonts = useSavedFontsQuery(guild.id);
+  const credits = useGuildCreditsQuery(guild.id);
   const reminders = useGuildRemindersQuery(guild.id, DEFAULT_GUILD_REMINDERS_FILTERS, reminderCount);
   const warnings = useGuildWarningsQuery(guild.id, {page: 0, query: ''}, moderator);
   const reports = useGuildReportsQuery(guild.id, {awaitingReply: null, page: 0, query: '', queue: false, status: ReportStatuses.OPEN, type: null}, moderator);
@@ -79,6 +81,11 @@ export function ServerHome({ guild, onOpen }: {guild: UserGuild, onOpen?: (tab: 
         {(reminderCount) ? (
           <StatTile label={t('shome.reminders')} value={count(reminders.data?.count)} {...open('reminders')}/>
         ) : null}
+        <StatTile
+          label={t('shome.credits')}
+          value={(credits.data) ? formatNumber(credits.data.balance.weekly_left + credits.data.voices.weekly_left + Math.max(0, credits.data.balance.refill_left)) : '…'}
+          {...open('credits')}
+        />
         <StatTile label={t('shome.block_rules')} value={count(blockRules)} {...open('rules')}/>
         <StatTile label={t('shome.allow_rules')} value={count(allowRules)} {...open('rules')}/>
         {(moderator) ? (

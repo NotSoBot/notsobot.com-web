@@ -125,6 +125,7 @@ export const routes: Array<RouteObject> = [
                   {path: 'reports', lazy: async () => ({Component: (await import('@/pages/dashboard/servers/ServerPage')).ServerReportsPage})},
                   {path: 'rules', lazy: async () => ({Component: (await import('@/pages/dashboard/servers/ServerPage')).ServerRulesPage})},
                   {path: 'warnings', lazy: async () => ({Component: (await import('@/pages/dashboard/servers/ServerPage')).ServerWarningsPage})},
+                  {path: 'credits', lazy: async () => ({Component: (await import('@/pages/dashboard/servers/ServerPage')).ServerCreditsPage})},
                   {path: 'settings', lazy: async () => ({Component: (await import('@/pages/dashboard/servers/ServerPage')).ServerSettingsPage})},
                 ],
               },

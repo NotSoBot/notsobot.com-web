@@ -2616,6 +2616,26 @@ export interface MeCredits {
   transactions: Array<CreditTransaction>,
 }
 
+// `/users/@me/guilds/<id>/credits` (staff: `/admin/guilds/<id>/credits`), any member. Spending isn't recorded, so what it's
+// used is this week's (`weekly - weekly_left`) and of what it was given (`refill_given - refill_left`). `balance` is
+// NotSoAI's week and what was given, `voices` the server's own cloned voices' week, which they spend before what was given
+export interface GuildCredits {
+  ai_message: number,
+  balance: CreditBalance & {
+    // what people gave it minus what chargebacks took back
+    refill_given: number,
+  },
+  // staff-given features that make NotSoAI (`AI_ACCESS`) or its own voices (`VOICE_CLONE_ACCESS`) free there
+  free: {ai: boolean, voices: boolean},
+  // premium server slots on it from members with Plus AI (25k a week each for NotSoAI), and with Plus or Plus AI
+  // (7.5k a week each for its voices)
+  slots: {ai: number, plus: number},
+  // what was given to it and taken back, newest first, with who gave it
+  transactions: Array<CreditTransaction & {user: GuildContentUser}>,
+  tts_byte: number,
+  voices: Pick<CreditBalance, 'resets_at' | 'weekly' | 'weekly_left'>,
+}
+
 export interface AdminCreditTransactionsPage {
   count: number,
   items: Array<AdminCreditTransaction>,

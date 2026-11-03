@@ -43,6 +43,7 @@ export const Dashboard: Record<keyof typeof English, string> = {
   'server_tab.reports': 'Reportes',
   'server_tab.rules': 'Reglas',
   'server_tab.warnings': 'Advertencias',
+  'server_tab.credits': 'Créditos',
   'server_tab.settings': 'Ajustes',
   'premium_type.free': 'Gratis',
   'premium_type.complimentary': 'Premium+ (de regalo)',

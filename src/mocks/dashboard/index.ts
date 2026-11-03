@@ -19,6 +19,7 @@ import { config } from '@/config';
 import {
   ApiErrorCodes,
   CONTENT_FLAG_TEXT_MIMETYPE,
+  CreditTransactionTypes,
   TAG_DIRECTORY_ASSET_SIZE_MAX,
   TAG_DIRECTORY_ASSETS_MAX,
   TagDirectoryCategories,
@@ -5667,6 +5668,43 @@ route('GET', '/users/@me/voices/(\\d+)/clips/(\\d+)/audio', ([ , voiceId, clipId
   const audio = voiceClipAudio.get(clip.id) ?? toneWav(220, 2);
   return new Response(audio, {status: 200, headers: {'content-type': audio.type || 'audio/mpeg'}});
 });
+
+// mirrors `views/me_credits.py` `guild_credits_payload`: the first guild only has credits people gave it, the second
+// has the mock user's Plus AI slot on it (so a week of NotSoAI and voice credits), the rest nothing
+function mockGuildCredits(guildId: string) {
+  const giver = state.adminUsers[2];
+  const member = (user: {avatar: string | null, discriminator: string, id: string, username: string}) => ({avatar: user.avatar, bot: false, discriminator: user.discriminator, id: user.id, username: user.username});
+  const week = new Date();
+  week.setUTCDate(week.getUTCDate() + ((8 - week.getUTCDay()) % 7 || 7));
+  week.setUTCHours(0, 0, 0, 0);
+  const transactions = (guildId === guilds[0].summary.id) ? [
+    {amount: -10_000, created: new Date(Date.now() - 2 * 86400000).toISOString(), entitlement_id: '1320000000000000771', id: '1320000000000000803', server_id: guildId, type: CreditTransactionTypes.REVOKE, user: member(giver), user_id: giver.id},
+    {amount: 10_000, created: new Date(Date.now() - 5 * 86400000).toISOString(), entitlement_id: null, id: '1320000000000000802', server_id: guildId, type: CreditTransactionTypes.GIVE, user: member(giver), user_id: giver.id},
+    {amount: 50_000, created: new Date(Date.now() - 9 * 86400000).toISOString(), entitlement_id: null, id: '1320000000000000801', server_id: guildId, type: CreditTransactionTypes.GIVE, user: member(mockUser), user_id: mockUser.id},
+  ] : [];
+  const slots = (state.premiumServers.some((server) => server.server_id === guildId)) ? {ai: 1, plus: 1} : {ai: 0, plus: 0};
+  return {
+    ai_message: 75,
+    balance: {
+      refill_given: transactions.reduce((total, transaction) => total + transaction.amount, 0),
+      refill_left: (transactions.length) ? 31_200 : 0,
+      resets_at: week.toISOString(),
+      weekly: 25_000 * slots.ai,
+      weekly_left: (slots.ai) ? 4_650 : 0,
+    },
+    free: {ai: false, voices: false},
+    slots,
+    transactions,
+    tts_byte: 4,
+    voices: {resets_at: week.toISOString(), weekly: 7_500 * slots.plus, weekly_left: (slots.plus) ? 5_900 : 0},
+  };
+}
+
+route('GET', '/(users/@me|admin)/guilds/(\\d+)/credits', ([ , scope, guildId ]) => {
+  scopedGuildRead(scope, guildId);
+  return mockGuildCredits(guildId);
+});
+
 
 // mirrors the server half of `views/me_voices.py` (and `admin_guild_sections`): any member lists and plays them,
 // Manage Server (staff: owners) changes them, adding audio needs the server's premium (the second guild's slot here)

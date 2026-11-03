@@ -19,6 +19,7 @@ import { GuildTagsSection } from './GuildTagsSection';
 import { AREA_LABEL, AREA_PERMISSION, useReadOnlyMessage } from './guildMeta';
 import { MusicSection } from './MusicSection';
 import { MusicStatsSection } from './MusicStatsSection';
+import { ServerCreditsSection } from './ServerCreditsSection';
 import { ServerDataSection } from './ServerDataSection';
 import { LoggersSection, PrefixesSection, RulesSection } from './ServerSections';
 import { ServerHome } from './ServerHome';
@@ -218,6 +219,11 @@ export function ServerWarningsPage() {
       <WarningsSection guild={guild}/>
     </>
   );
+}
+
+export function ServerCreditsPage() {
+  const { guild } = useServer();
+  return <ServerCreditsSection guild={guild}/>;
 }
 
 export function ServerSettingsPage() {

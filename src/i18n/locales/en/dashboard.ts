@@ -41,6 +41,7 @@ export const Dashboard = {
   'server_tab.reports': 'Reports',
   'server_tab.rules': 'Rules',
   'server_tab.warnings': 'Warnings',
+  'server_tab.credits': 'Credits',
   'server_tab.settings': 'Settings',
   'premium_type.free': 'Free',
   'premium_type.complimentary': 'Premium+ (complimentary)',

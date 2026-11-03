@@ -52,6 +52,7 @@ export function Footer() {
           <ul className='space-y-2 text-sm'>
             <li><Link to={Routes.FAQ} className='text-muted transition-colors hover:text-white'>{t('nav.faq')}</Link></li>
             <li><Link to={Routes.CHANGELOG} className='text-muted transition-colors hover:text-white'>{t('nav.changelog')}</Link></li>
+            <li><Link to={Routes.PREMIUM} className='text-muted transition-colors hover:text-white'>{t('nav.premium')}</Link></li>
             <li><Link to={Routes.TAG_DOCS} className='text-muted transition-colors hover:text-white'>{t('footer.tag_docs')}</Link></li>
             {/* anonymous when logged out (behind a captcha), or logging in first when the site has no captcha set up */}
             <li><ReportButton subject={{type: 'bug'}} className='cursor-pointer text-muted transition-colors hover:text-white'>{t('footer.report_bug')}</ReportButton></li>

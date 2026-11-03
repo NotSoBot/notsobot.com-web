@@ -96,7 +96,7 @@ export const Premium = {
   'premium.server_perk.tts': 'Text to speech in voice channels for everyone in the server',
   'premium.server_perk.image_fallback': 'Image commands find an image for you when there’s nothing to edit',
   'premium.server_perk.notsoai': 'NotSoAI for everyone, {slot_messages} messages a week for each Plus AI slot on the server',
-  'premium.server_perk.voices': 'Up to {server_voices} of the server’s own cloned voices for everyone, made by members with Manage Server, with {server_voice_credits} NotSoCredits a week for them from each slot',
+  'premium.server_perk.voices': 'Up to {server_voices} of the server’s own cloned voices for everyone, made by members with Manage Server, with {server_voice_credits} NotSoCredits a week of their own from each slot (about {server_voice_minutes} minutes of speech)',
 
   'premium.credits.title': 'NotSoCredits',
   'premium.credits.description': 'NotSoAI and cloned voices run on NotSoCredits. A NotSoAI message is {ai_message} credits and a cloned voice uses about {tts_byte} per letter. Plus gets {plus_credits} every week and Plus AI gets {plus_ai_credits}, they come back every Monday.',

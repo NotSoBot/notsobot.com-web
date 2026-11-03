@@ -7,6 +7,7 @@ export const NAV_LINKS: ReadonlyArray<{to: string, label: TranslationKey, also?:
   {to: Routes.COMMANDS, label: 'nav.commands'},
   {to: Routes.TAG_DIRECTORY, label: 'nav.tags'},
   {to: Routes.TAG_DOCS, label: 'nav.docs', also: [Routes.TAG_DOCS_MEDIASCRIPT]},
+  {to: Routes.PREMIUM, label: 'nav.premium'},
   {to: Routes.STATUS, label: 'nav.status'},
   {to: Routes.CHANGELOG, label: 'nav.changelog'},
   {to: Routes.FAQ, label: 'nav.faq'},

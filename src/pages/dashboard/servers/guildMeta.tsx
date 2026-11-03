@@ -1,4 +1,4 @@
-import { AlarmClock, AtSign, AudioLines, ChartColumn, Hash, LayoutDashboard, ListChecks, MessageSquareWarning, Music, Server, Settings, Shield, Sparkles, Tags, TriangleAlert, Type } from 'lucide-react';
+import { AlarmClock, AtSign, AudioLines, ChartColumn, Coins, Hash, LayoutDashboard, ListChecks, MessageSquareWarning, Music, Server, Settings, Shield, Sparkles, Tags, TriangleAlert, Type } from 'lucide-react';
 
 import { Routes } from '@/config';
 import { translate, translatePlural, useI18n, type TranslationKey } from '@/i18n';
@@ -31,6 +31,7 @@ export const SERVER_TAB_GROUPS = [
     {id: 'warnings', icon: TriangleAlert, color: '#fee75c'},
   ]},
   {id: 'server', tabs: [
+    {id: 'credits', icon: Coins, color: '#faa81a'},
     {id: 'settings', icon: Settings, color: '#00b0f4'},
   ]},
 ] as const;

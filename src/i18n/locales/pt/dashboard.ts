@@ -43,6 +43,7 @@ export const Dashboard: Record<keyof typeof English, string> = {
   'server_tab.reports': 'Denúncias',
   'server_tab.rules': 'Regras',
   'server_tab.warnings': 'Advertências',
+  'server_tab.credits': 'Créditos',
   'server_tab.settings': 'Configurações',
   'premium_type.free': 'Grátis',
   'premium_type.complimentary': 'Premium+ (cortesia)',

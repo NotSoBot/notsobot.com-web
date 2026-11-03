@@ -85,10 +85,10 @@ export const PAGES: Readonly<Record<keyof typeof Routes, PageMeta>> = Object.fre
   INVITE: {title: 'Invite', description: 'Add NotSoBot to your Discord server.'},
   LEGAL_PRIVACY: {title: 'Privacy Policy', description: 'How NotSoBot collects, uses and stores your data.', index: true},
   LEGAL_TERMS_OF_SERVICE: {title: 'Terms of Service', description: 'The terms for using NotSoBot and notsobot.com.', index: true},
-  // not indexed until it's linked from the navbar/footer
   PREMIUM: {
     title: 'Premium',
     description: 'What NotSoPremium, Plus and Plus AI unlock: bigger files, longer time limits, custom commands, premium servers, voice cloning and NotSoAI.',
+    index: true,
   },
   STATUS: {title: 'Status', description: 'Live NotSoBot shard and cluster health.', index: true},
   STATUS_VOICE: {title: 'Voice Status', description: 'Live health of the NotSoBot voice nodes that play music.', index: true},

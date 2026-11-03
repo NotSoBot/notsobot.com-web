@@ -750,6 +750,19 @@ export function useMeCreditsQuery() {
 }
 
 
+// a server's (through `GuildScopeContext`)
+export function useGuildCreditsQuery(guildId: string, enabled = true) {
+  const { token } = useAuth();
+  const scope = useGuildScope();
+  return useQuery({
+    queryKey: queryKeys.guildCredits(token, scope, guildId),
+    queryFn: ({ signal }) => api.fetchGuildCredits(scope, guildId, signal),
+    enabled: !!token && enabled,
+    retry: retryDiscordRefresh,
+  });
+}
+
+
 export function useMeEntitlementsQuery() {
   const { token } = useAuth();
   return useQuery({

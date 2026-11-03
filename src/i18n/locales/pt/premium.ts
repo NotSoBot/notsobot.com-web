@@ -98,7 +98,7 @@ export const Premium: Record<keyof typeof English, string> = {
   'premium.server_perk.tts': 'Texto para fala em canais de voz para todos no servidor',
   'premium.server_perk.image_fallback': 'Os comandos de imagem buscam uma imagem para você quando não há nada para editar',
   'premium.server_perk.notsoai': 'NotSoAI para todos, {slot_messages} mensagens por semana por vaga Plus AI no servidor',
-  'premium.server_perk.voices': 'Até {server_voices} vozes clonadas do próprio servidor para todos, criadas por membros com Gerenciar servidor, com {server_voice_credits} NotSoCredits por semana para elas de cada vaga',
+  'premium.server_perk.voices': 'Até {server_voices} vozes clonadas do próprio servidor para todos, criadas por membros com Gerenciar servidor, com {server_voice_credits} NotSoCredits por semana só para elas de cada vaga (cerca de {server_voice_minutes} minutos de fala)',
 
   'premium.credits.title': 'NotSoCredits',
   'premium.credits.description': 'O NotSoAI e as vozes clonadas funcionam com NotSoCredits. Uma mensagem do NotSoAI custa {ai_message} créditos e uma voz clonada usa cerca de {tts_byte} por letra. O Plus recebe {plus_credits} por semana e o Plus AI {plus_ai_credits}, e eles voltam toda segunda-feira.',

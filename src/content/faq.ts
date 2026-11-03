@@ -135,7 +135,7 @@ export const FAQ_QUESTIONS: Array<FaqQuestion> = [
     id: 'premium',
     section: 'premium',
     question: 'What is NotSoPremium?',
-    answer: 'NotSoPremium is an optional subscription, bought through Discord on NotSoBot\'s profile. It comes in three tiers:\n\n- **NotSoPremium**: bigger files, more time for every command and your own custom commands\n- **NotSoPremium Plus**: everything above, plus 2 premium server slots and voice cloning\n- **NotSoPremium Plus AI**: everything above, plus NotSoAI\n\nWith **NotSoPremium Plus** you can give up to 2 servers (or group DMs) your premium with `/settings premium-servers add` or from the dashboard\'s Premium page, so some premium commands work there for everyone. Owning a server doesn\'t give it premium by itself.',
+    answer: 'NotSoPremium is an optional subscription, bought through Discord on NotSoBot\'s profile. It comes in three tiers:\n\n- **NotSoPremium**: bigger files, more time for every command and your own custom commands\n- **NotSoPremium Plus**: everything above, plus 2 premium server slots and voice cloning\n- **NotSoPremium Plus AI**: everything above, plus NotSoAI\n\nWith **NotSoPremium Plus** you can give up to 2 servers (or group DMs) your premium with `/settings premium-servers add` or from the dashboard\'s Premium page, so some premium commands work there for everyone. Owning a server doesn\'t give it premium by itself.\n\nThe [Premium page](/premium) compares every tier side by side.',
   },
   {
     id: 'notsoai',

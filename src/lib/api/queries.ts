@@ -32,6 +32,7 @@ export const queryKeys = {
   meApplications: (token: string | null) => ['users', '@me', token, 'applications'] as const,
   meCommands: (token: string | null, filters: object) => ['users', '@me', token, 'commands', filters] as const,
   meCredits: (token: string | null) => ['users', '@me', token, 'credits'] as const,
+  guildCredits: (token: string | null, scope: GuildScope, guildId: string) => ['users', '@me', token, 'guild-credits', scope, guildId] as const,
   meEntitlements: (token: string | null) => ['users', '@me', token, 'entitlements'] as const,
   mePremiumServers: (token: string | null) => ['users', '@me', token, 'premium', 'servers'] as const,
   meLLMMemories: (token: string | null) => ['users', '@me', token, 'llm', 'memories'] as const,
@@ -96,6 +97,17 @@ export function useReportsUnreadQuery(token: string | null) {
     queryFn: ({ signal }) => api.fetchMeReportsUnread(signal),
     enabled: !!token,
     refetchInterval: REPORTS_UNREAD_REFETCH_INTERVAL,
+  });
+}
+
+
+// the account menu's NotSoCredits, only fetched once it's opened. Same key as the dashboard's `useMeCreditsQuery`, so
+// spending or giving credits there updates it too
+export function useMeCreditsMenuQuery(token: string | null, enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.meCredits(token),
+    queryFn: ({ signal }) => api.fetchMeCredits(signal),
+    enabled: !!token && enabled,
   });
 }
 
