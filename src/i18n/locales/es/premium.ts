@@ -75,6 +75,7 @@ export const Premium: Record<keyof typeof English, string> = {
   'premium.value.days_14': '14 días',
   'premium.value.days_28': '28 días',
   'premium.value.up_to_720': 'Hasta 720p',
+  'premium.value.up_to_1080': 'Hasta 1080p',
   'premium.value.up_to_1440': 'Hasta 1440p',
   'premium.value.shared': 'Compartida',
   'premium.value.priority': 'Prioritaria',

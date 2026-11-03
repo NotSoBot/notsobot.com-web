@@ -71,7 +71,7 @@ const COMPARISON: Array<{group: TranslationKey, icon: LucideIcon, rows: Array<{l
       // free follows the caller's discord upload limit (nitro, server boosts), which the bot sends as `max_file_size`
       {label: 'premium.row.largest_file', values: ['premium.value.discord_limit_100', '200 MB', '200 MB', '200 MB']},
       {label: 'premium.row.file_lifetime', values: ['premium.value.days_14', 'premium.value.days_28', 'premium.value.days_28', 'premium.value.days_28']},
-      {label: 'premium.row.download_quality', values: ['premium.value.up_to_720', 'premium.value.up_to_1440', 'premium.value.up_to_1440', 'premium.value.up_to_1440']},
+      {label: 'premium.row.download_quality', values: ['premium.value.up_to_720', 'premium.value.up_to_1080', 'premium.value.up_to_1440', 'premium.value.up_to_1440']},
       {label: 'premium.row.image_fallback', values: [false, true, true, true]},
     ],
   },

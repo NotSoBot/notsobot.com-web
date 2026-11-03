@@ -73,6 +73,7 @@ export const Premium = {
   'premium.value.days_14': '14 days',
   'premium.value.days_28': '28 days',
   'premium.value.up_to_720': 'Up to 720p',
+  'premium.value.up_to_1080': 'Up to 1080p',
   'premium.value.up_to_1440': 'Up to 1440p',
   'premium.value.shared': 'Shared',
   'premium.value.priority': 'Priority',

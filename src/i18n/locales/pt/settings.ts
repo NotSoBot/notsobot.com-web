@@ -30,7 +30,7 @@ export const Settings: Record<keyof typeof English, string> = {
   'settings.media.title': 'Mídia',
   'settings.media.description': 'Downloads, envios para o host de arquivos do NotSoBot e o que fazer quando um comando precisa de uma imagem que você não deu.',
   'settings.media.download_quality': 'Qualidade de download',
-  'settings.media.download_quality_hint': 'Qualidade de vídeo preferida para downloads.',
+  'settings.media.download_quality_hint': 'Qualidade de vídeo preferida para downloads. 1440p precisa do NotSoPremium Plus.',
   'settings.media.font': 'Fonte padrão',
   'settings.media.font_hint': 'Usada por caption, meme e recaption quando você não escolhe uma fonte.',
   'settings.media.fallback': 'Imagem reserva',

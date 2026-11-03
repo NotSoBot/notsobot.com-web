@@ -31,6 +31,10 @@ export const CHANGELOG: Array<ChangelogDay> = [
     date: '2026-11-03',
     title: 'Older media with ^2, credits rollover',
     items: [
+      {kind: 'improved', text: '1440p downloads are now part of NotSoPremium Plus. NotSoPremium downloads go up to 1080p, and when a video has 1440p, the download says Plus has it.'},
+      {kind: 'improved', text: 'Large YouTube downloads are faster: videos now download in several parts at once.'},
+      {kind: 'improved', text: '`.download` says when your quality limit lowered a download and how high the video goes, and a file that\'s too big says when NotSoPremium would take it.'},
+      {kind: 'new', text: '`.prune 50 -yes` (`-y`) deletes what it finds without asking to continue first.'},
       {kind: 'new', text: 'NotSoPremium Plus AI credits roll over: what you don\'t use in a week is banked, up to 120,000 (two weeks\' worth), and spent after that week\'s credits and before bought ones. `/settings credits balance` and the dashboard show what\'s banked. It\'s kept while you have Plus AI.'},
       {kind: 'new', text: '**NotSoAI** knows what NotSoPremium and NotSoCredits include, from the Premium page, so it can answer questions about them and point you to the store.'},
       {kind: 'improved', text: 'When something needs NotSoPremium, the tier\'s name in the reply links to it in NotSoBot\'s store, and errors that premium would fix (running out of NotSoCredits or a server\'s NotSoAI, a command running out of time, music perks on a server without premium) say which tier helps.'},

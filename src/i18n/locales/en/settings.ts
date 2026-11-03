@@ -28,7 +28,7 @@ export const Settings = {
   'settings.media.title': 'Media',
   'settings.media.description': 'Downloads, uploads to NotSoBot’s file host, and what to do when a command needs an image you didn’t give it.',
   'settings.media.download_quality': 'Download quality',
-  'settings.media.download_quality_hint': 'Preferred video quality for downloads.',
+  'settings.media.download_quality_hint': 'Preferred video quality for downloads. 1440p needs NotSoPremium Plus.',
   'settings.media.font': 'Default font',
   'settings.media.font_hint': 'Used by caption, meme and recaption when you don’t pick a font.',
   'settings.media.fallback': 'Image fallback',
