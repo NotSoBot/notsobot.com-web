@@ -739,6 +739,15 @@ export function useMeRemindersQuery() {
 }
 
 
+export function useMeCreditsQuery() {
+  const { token } = useAuth();
+  return useQuery({
+    queryKey: queryKeys.meCredits(token),
+    queryFn: ({ signal }) => api.fetchMeCredits(signal),
+  });
+}
+
+
 export function useMeEntitlementsQuery() {
   const { token } = useAuth();
   return useQuery({
@@ -2548,6 +2557,42 @@ export function usePostAdminReportMessageMutation(reportId: string) {
 export function useTranslateAdminReportMutation() {
   return useMutation({
     mutationFn: ({ reportId, messageId }: {reportId: string, messageId?: string}) => api.translateAdminReport(reportId, messageId),
+  });
+}
+
+
+export interface AdminCreditTransactionsFilters {
+  userId: string,
+  serverId: string,
+  type: number | null,
+  page: number,
+}
+
+export function useAdminCreditTransactionsQuery(filters: AdminCreditTransactionsFilters) {
+  const { token } = useAuth();
+  return useQuery({
+    queryKey: queryKeys.adminCreditTransactions(token, filters),
+    queryFn: ({ signal }) => api.fetchAdminCreditTransactions({
+      userId: filters.userId,
+      serverId: filters.serverId,
+      type: filters.type,
+      offset: filters.page * ADMIN_PAGE_SIZE,
+      limit: ADMIN_PAGE_SIZE,
+    }, signal),
+    placeholderData: keepPreviousData,
+  });
+}
+
+// the revoke rows show up in the ledger and the entitlement turns deleted
+export function useRevokeAdminEntitlementCreditsMutation() {
+  const { token } = useAuth();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (entitlementId: string) => api.revokeAdminEntitlementCredits(entitlementId),
+    onSettled: () => Promise.all([
+      queryClient.invalidateQueries({queryKey: [...queryKeys.admin(token), 'credit-transactions']}),
+      queryClient.invalidateQueries({queryKey: [...queryKeys.admin(token), 'entitlements']}),
+    ]),
   });
 }
 

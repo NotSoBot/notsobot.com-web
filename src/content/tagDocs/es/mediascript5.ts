@@ -228,6 +228,23 @@ export const MEDIASCRIPT_SPANISH_5: TagDocsTranslation['mediaScriptCommands'] = 
       TEXT: 'los subtítulos, de hasta 200 caracteres',
     },
   },
+  autosubtitle: {
+    summary: 'Subtitula lo que se dice en la multimedia, encontrado con reconocimiento de voz y grabado como `subtitle`.',
+    args: {
+      MEDIA_KEY: 'un audio o vídeo con voz',
+      HIGHLIGHT: 'mostrar unas pocas palabras a la vez con la que se está diciendo en el otro color',
+      YELLOW: 'subtítulos amarillos al estilo DVD en lugar de blancos',
+      FONT: 'el nombre de una fuente incluida o una clave de `loadfont`',
+    },
+    results: [
+      'El clip con subtítulos de lo que se dice en él.',
+      'Un vídeo negro con el audio, sus palabras resaltadas en Impact a medida que se dicen.',
+    ],
+    notes: [
+      'Un audio recibe un vídeo negro de 1280x720. Solo se escuchan los primeros 15 minutos. El resultado es un mp4. Cuenta para el límite de `ffmpeg`.',
+      'El mismo efecto es el comando `.autosubtitle` (`/media-av-tools auto-subtitle`), que también acepta tus fuentes guardadas.',
+    ],
+  },
   news: {
     summary: 'Pone sobre la multimedia un rótulo de informativo de televisión: una pestaña roja encima de una barra blanca con el titular, y un rótulo de noticias debajo opcional.',
     args: {

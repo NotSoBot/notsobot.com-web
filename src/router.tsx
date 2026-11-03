@@ -154,6 +154,7 @@ export const routes: Array<RouteObject> = [
                 element: <RequireStaff owner/>,
                 children: [
                   {path: Routes.DASHBOARD_OWNER_API_ACCESS, lazy: async () => ({Component: (await import('@/pages/dashboard/admin/OwnerApiAccessPage')).OwnerApiAccessPage}), handle: PAGES.DASHBOARD_OWNER_API_ACCESS},
+                  {path: Routes.DASHBOARD_OWNER_CREDITS, lazy: async () => ({Component: (await import('@/pages/dashboard/admin/OwnerCreditsPage')).OwnerCreditsPage}), handle: PAGES.DASHBOARD_OWNER_CREDITS},
                   {path: Routes.DASHBOARD_OWNER_ENTITLEMENTS, lazy: async () => ({Component: (await import('@/pages/dashboard/admin/AdminEntitlementsPage')).AdminEntitlementsPage}), handle: PAGES.DASHBOARD_OWNER_ENTITLEMENTS},
                   {path: Routes.DASHBOARD_OWNER_IDENTITIES, lazy: async () => ({Component: (await import('@/pages/dashboard/admin/OwnerIdentitiesPage')).OwnerIdentitiesPage}), handle: PAGES.DASHBOARD_OWNER_IDENTITIES},
                   {path: Routes.DASHBOARD_OWNER_STATS, lazy: async () => ({Component: (await import('@/pages/dashboard/admin/OwnerStatsPage')).OwnerStatsPage}), handle: PAGES.DASHBOARD_OWNER_STATS},

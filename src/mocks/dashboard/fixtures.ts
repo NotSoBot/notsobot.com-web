@@ -1,6 +1,7 @@
 // Fixture data for the dev-only dashboard mocks. Shapes follow notsobot.api's `to_dict()` output.
 
 import type {
+  AdminCreditTransaction,
   AdminApplication,
   AdminEntitlement,
   AdminTagDirectoryItem,
@@ -848,6 +849,38 @@ const PREMIUM_SKUS: Record<number, string> = {
 
 // the mock user has an active Premium+ subscription, an older cancelled Premium one and a replaced staff grant;
 // everyone else gets a mix of active, expired, cancelled and staff-given ones
+// the credits ledger: a few refills (50K/150K/700K), some given to servers, one taken back after a chargeback
+export function createCreditTransactions(users: Array<AdminUser>): Array<AdminCreditTransaction> {
+  const hour = 3600000;
+  const now = Date.now();
+  const ref = (user: AdminUser) => ({avatar: user.avatar, discriminator: user.discriminator, id: user.id, username: user.username});
+  const transactions: Array<AdminCreditTransaction> = [];
+  let id = 1360000000000000000n;
+  const add = (user: AdminUser, type: number, amount: number, hoursAgo: number, serverId: string | null, entitlementId: string | null) => {
+    id += 1n;
+    transactions.push({
+      amount, created: new Date(now - hoursAgo * hour).toISOString(), entitlement_id: entitlementId, id: String(id),
+      server_id: serverId, type, user: ref(user), user_id: user.id,
+    });
+  };
+  const amounts = [50_000, 150_000, 50_000, 700_000, 50_000, 325_000];
+  amounts.forEach((amount, i) => {
+    const user = users[(i * 7) % users.length];
+    const entitlementId = String(1370000000000000000n + BigInt(i));
+    add(user, 1, amount, 300 - i * 40, null, entitlementId);
+    if (i % 2 === 1) {
+      add(user, 2, Math.floor(amount / 3), 290 - i * 40, String(1290000000000000100n + BigInt(i)), null);
+    }
+    // a chargeback: the buyer still had some, the rest came out of the server they gave to
+    if (i === 3) {
+      add(user, 3, -466_667, 20, null, entitlementId);
+      add(user, 3, -233_333, 20, String(1290000000000000100n + BigInt(i)), entitlementId);
+    }
+  });
+  return transactions.reverse();
+}
+
+
 export function createEntitlements(users: Array<AdminUser>): Array<AdminEntitlement> {
   const day = 24 * 3600000;
   const now = Date.now();

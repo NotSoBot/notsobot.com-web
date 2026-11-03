@@ -130,6 +130,7 @@ export const TERMS_OF_SERVICE: LegalDocument = {
       title: "Section 10 - Premium",
       blocks: [
         {type: 'paragraph', text: "Some features require NotSoBot Premium. Premium is purchased through Discord, and Discord's own terms, billing and refund policies apply to those purchases. Premium perks may change over time. If your access is ended for breaking these Terms, You won't be refunded for unused time unless the law requires it."},
+        {type: 'paragraph', text: "NotSoCredits are only for using the Service. They have no cash value and can't be sold or exchanged, and the only way to move them is giving them to a server, which can't be undone. Weekly credits don't carry over to the next week. If a credit pack is refunded or charged back, We take back its credits, even ones already spent or given away, which can leave You with a negative balance. Costs and weekly amounts may change over time."},
       ],
     },
     {

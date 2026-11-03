@@ -472,6 +472,8 @@ export const ApiErrorCodes = {
   UNKNOWN_SAVED_FONT: 10037,
   MAX_SAVED_FONTS: 30032,
   SAVED_FONT_NAME_TAKEN: 50050,
+  UNKNOWN_ENTITLEMENT: 10038,
+  CREDITS_LIMIT: 30033,
   UNKNOWN_VOICE_NODE: 10031,
   UNKNOWN_MUSIC_QUEUE_ITEM: 10030,
   UNKNOWN_MUSIC_SESSION: 10032,
@@ -546,8 +548,12 @@ export const UserPremiumTypes = {
 } as const;
 
 
-// `DiscordSkus`, the store sku for each tier
+// `DiscordSkus`, the store sku for each tier and NotSoCredits pack
 export const DiscordSkus = {
+  USER_NOTSOCREDITS_50K: '1566959825756102716',
+  USER_NOTSOCREDITS_150K: '1566964078545608804',
+  USER_NOTSOCREDITS_325K: '1566964421790666893',
+  USER_NOTSOCREDITS_700K: '1566964635691917413',
   USER_NOTSOPREMIUM: '1182569865735831582',
   USER_NOTSOPREMIUM_PLUS: '1318864356179710044',
   USER_NOTSOPREMIUM_PLUS_AI: '1492322196146618429',
@@ -1559,6 +1565,7 @@ export const GuildFeatures = {
   AI_ACCESS: 'AI_ACCESS',
   FREE_CUSTOM_COMMANDS: 'FREE_CUSTOM_COMMANDS',
   MUSIC_ACCESS: 'MUSIC_ACCESS',
+  VOICE_CLONE_ACCESS: 'VOICE_CLONE_ACCESS',
 } as const;
 export type GuildFeature = (typeof GuildFeatures)[keyof typeof GuildFeatures];
 
@@ -2542,6 +2549,64 @@ export interface AdminEntitlement extends Entitlement {
 export interface AdminEntitlementsPage {
   count: number,
   items: Array<AdminEntitlement>,
+}
+
+// the api's `CreditTransactionTypes`
+export enum CreditTransactionTypes {
+  // a refill bought on Discord
+  REFILL = 1,
+  // refill credits a user gave a server
+  GIVE = 2,
+  // credits taken back after a chargeback/refund, `amount` is negative
+  REVOKE = 3,
+}
+
+// where NotSoCredits refills came from and went, spending isn't recorded
+export interface CreditTransaction {
+  amount: number,
+  created: ApiTimestamp,
+  // the refill bought, or the one a revoke was for
+  entitlement_id: string | null,
+  id: string,
+  // the server given to, or a revoke took from (null when it was the user's own)
+  server_id: string | null,
+  type: CreditTransactionTypes,
+  user_id: string,
+}
+
+// `/admin/credits/transactions`, everyone's
+export interface AdminCreditTransaction extends CreditTransaction {
+  user: AdminUserRef,
+}
+
+// a pool of NotSoCredits, `weekly` is 0 when it only has bought ones
+export interface CreditBalance {
+  refill_left: number,
+  resets_at: ApiTimestamp,
+  weekly: number,
+  weekly_left: number,
+}
+
+// `/users/@me/credits`, `balance` is null for owners (they don't use any)
+export interface MeCredits {
+  // what one NotSoAI message costs
+  ai_message: number,
+  balance: CreditBalance | null,
+  // the newest few
+  transactions: Array<CreditTransaction>,
+}
+
+export interface AdminCreditTransactionsPage {
+  count: number,
+  items: Array<AdminCreditTransaction>,
+}
+
+// what taking a refill back took and from where, `owed` is what's left as a negative balance on the buyer
+export interface CreditRevokeResult {
+  already_revoked: boolean,
+  amount: number,
+  items: Array<{amount: number, server_id: string | null}>,
+  owed: number,
 }
 
 

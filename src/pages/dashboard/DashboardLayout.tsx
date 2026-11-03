@@ -1,4 +1,4 @@
-import { AlarmClock, ArrowLeft, AudioLines, ChevronsUpDown, Blocks, Brain, ChartColumn, Crown, Files, Fingerprint, Flag, Inbox, KeyRound, LayoutDashboard, MessageSquareWarning, RadioTower, Server, Settings, ShieldCheck, SquareTerminal, Tags, Type, type LucideIcon, Users } from 'lucide-react';
+import { AlarmClock, ArrowLeft, AudioLines, ChevronsUpDown, Blocks, Brain, ChartColumn, Coins, Crown, Files, Fingerprint, Flag, Inbox, KeyRound, LayoutDashboard, MessageSquareWarning, RadioTower, Server, Settings, ShieldCheck, SquareTerminal, Tags, Type, type LucideIcon, Users } from 'lucide-react';
 import { Link, NavLink, Outlet, useLocation, useMatch, useNavigate } from 'react-router';
 
 import { isOwner, isStaff, useAuth } from '@/auth';
@@ -69,6 +69,7 @@ export const ADMIN_SECTIONS: ReadonlyArray<Section> = [
 // only shown to NotSoBot owners, not moderators (the routes are guarded by <RequireStaff owner/> too); alphabetical
 export const OWNER_SECTIONS: ReadonlyArray<Section> = [
   {to: Routes.DASHBOARD_OWNER_API_ACCESS, label: 'API Access', icon: KeyRound, color: '#3ba55c'},
+  {to: Routes.DASHBOARD_OWNER_CREDITS, label: 'Credits', icon: Coins, color: '#7b84f5'},
   {to: Routes.DASHBOARD_OWNER_ENTITLEMENTS, label: 'Entitlements', icon: Crown, color: '#f0b232'},
   {to: Routes.DASHBOARD_OWNER_IDENTITIES, label: 'Identities', icon: Fingerprint, color: '#eb459e'},
   {to: Routes.DASHBOARD_OWNER_STATS, label: 'Stats', icon: ChartColumn, color: '#00b0f4'},

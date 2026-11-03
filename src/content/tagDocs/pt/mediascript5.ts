@@ -229,6 +229,23 @@ export const MEDIASCRIPT_PORTUGUESE_5: TagDocsTranslation['mediaScriptCommands']
       TEXT: UP_TO(200, 'as legendas'),
     },
   },
+  autosubtitle: {
+    summary: 'Legenda o que é dito na mídia, encontrado com reconhecimento de voz e gravado como em `subtitle`.',
+    args: {
+      MEDIA_KEY: 'um áudio ou vídeo com fala',
+      HIGHLIGHT: 'mostrar poucas palavras por vez com a que está sendo dita na outra cor',
+      YELLOW: 'legendas amarelas estilo DVD em vez de brancas',
+      FONT: 'o nome de uma fonte incluída ou uma chave de `loadfont`',
+    },
+    results: [
+      'O clipe com legendas do que é dito nele.',
+      'Um vídeo preto com o áudio, as palavras destacadas em Impact conforme são ditas.',
+    ],
+    notes: [
+      'Um áudio ganha um vídeo preto de 1280x720. Só os primeiros 15 minutos são ouvidos. O resultado é um mp4. Conta para o limite do `ffmpeg`.',
+      'O mesmo efeito é o comando `.autosubtitle` (`/media-av-tools auto-subtitle`), que também aceita suas fontes salvas.',
+    ],
+  },
   news: {
     summary: 'Coloca uma tarja de telejornal na mídia: uma aba vermelha sobre uma barra branca com a manchete, e uma faixa de notícias opcional embaixo.',
     args: {

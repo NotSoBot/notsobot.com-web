@@ -24,6 +24,10 @@ export const GUILD_FEATURE_INFO: Record<GuildFeature, {label: string, descriptio
     label: 'Music access',
     description: 'The music commands work for everyone in this server, like a premium server.',
   },
+  [GuildFeatures.VOICE_CLONE_ACCESS]: {
+    label: 'Voice clone access',
+    description: 'The server can have its own cloned voices without a member’s Plus slot, and using them spends no NotSoCredits.',
+  },
 };
 
 const FEATURES = Object.values(GuildFeatures);

@@ -73,6 +73,7 @@ import {
   createBlobs,
   createCommandUses,
   createContentFlags,
+  createCreditTransactions,
   createEntitlements,
   createFiles,
   createLLMMemories,
@@ -182,6 +183,7 @@ const state = {
   voiceClips: new Map<string, Array<VoiceClip>>(),
   applications: createApplications(adminUsers),
   entitlements: createEntitlements(adminUsers),
+  creditTransactions: createCreditTransactions(adminUsers),
   // premium server slots, a guild added two days ago (still locked) and a group dm from the bot three weeks ago
   premiumServers: [
     {created: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), server_id: guilds[1].summary.id, slots: 1},
@@ -2883,6 +2885,23 @@ route('PATCH', '/admin/guilds/(\\d+)', ([ , guildId ], { body }) => {
 
 
 // entitlements: read only, newest first like the api
+// the mock user's credits: a Plus pool part way through the week, a bought pack and some of it given to a server
+route('GET', '/users/@me/credits', () => {
+  const now = Date.now();
+  const day = 24 * 60 * 60 * 1000;
+  const monday = new Date(now);
+  monday.setUTCHours(0, 0, 0, 0);
+  monday.setUTCDate(monday.getUTCDate() + ((8 - monday.getUTCDay()) % 7 || 7));
+  return {
+    ai_message: 75,
+    balance: {refill_left: 40_000, resets_at: monday.toISOString(), weekly: 15_000, weekly_left: 2_350},
+    transactions: [
+      {amount: 10_000, created: new Date(now - day).toISOString(), entitlement_id: null, id: '1380000000000000002', server_id: guilds[1].summary.id, type: 2, user_id: mockUser.id},
+      {amount: 50_000, created: new Date(now - 3 * day).toISOString(), entitlement_id: '1370000000000000099', id: '1380000000000000001', server_id: null, type: 1, user_id: mockUser.id},
+    ],
+  };
+});
+
 route('GET', '/users/@me/entitlements', () => {
   const items = state.entitlements
     .filter((entitlement) => entitlement.user?.id === mockUser.id)
@@ -2903,6 +2922,40 @@ route('GET', '/admin/entitlements', (_match, { query }) => {
     .filter((entitlement) => active === null || entitlement.active === active)
     .sort((a, b) => (BigInt(b.id) > BigInt(a.id)) ? 1 : -1);
   return pageOf(matching, query);
+});
+
+
+// credits ledger: newest first like the api, a revoke adds negative rows (here all from the buyer)
+route('GET', '/admin/credits/transactions', (_match, { query }) => {
+  requireBotOwner();
+  const userId = query.get('user_id');
+  const serverId = query.get('server_id');
+  const type = query.get('type');
+  const matching = state.creditTransactions
+    .filter((item) => !userId || item.user_id === userId)
+    .filter((item) => !serverId || item.server_id === serverId)
+    .filter((item) => !type || item.type === Number(type))
+    .sort((a, b) => (BigInt(b.id) > BigInt(a.id)) ? 1 : -1);
+  return pageOf(matching, query);
+});
+
+route('POST', '/admin/entitlements/(\\d+)/credits/revoke', ([ , entitlementId ]) => {
+  requireBotOwner();
+  const refill = state.creditTransactions.find((item) => item.type === 1 && item.entitlement_id === entitlementId);
+  if (!refill) {
+    throw new MockError(404, ApiErrorCodes.UNKNOWN_ENTITLEMENT, 'Unknown Entitlement');
+  }
+  if (state.creditTransactions.some((item) => item.type === 3 && item.entitlement_id === entitlementId)) {
+    return {already_revoked: true, amount: refill.amount, items: [], owed: 0};
+  }
+  state.creditTransactions.push({
+    ...refill,
+    amount: -refill.amount,
+    created: new Date().toISOString(),
+    id: String(BigInt(state.creditTransactions.reduce((max, item) => (BigInt(item.id) > BigInt(max) ? item.id : max), '0')) + 1n),
+    type: 3,
+  });
+  return {already_revoked: false, amount: refill.amount, items: [{amount: refill.amount, server_id: null}], owed: 0};
 });
 
 

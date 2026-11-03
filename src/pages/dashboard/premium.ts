@@ -1,5 +1,6 @@
 import { translate, type TranslationKey } from '@/i18n';
 import { EntitlementProviders, UserPremiumTypes, type Entitlement } from '@/lib/api';
+import { CREDIT_PACKS, creditsLabel } from '@/lib/credits';
 import { toDate } from '@/lib/utils';
 import { isOwner } from '@/auth/permissions';
 
@@ -44,7 +45,12 @@ export const ENTITLEMENT_TIERS: ReadonlyArray<{value: number, label: string}> = 
 ];
 
 export function entitlementTierLabel(entitlement: Entitlement): string {
-  return (entitlement.premium_type === null) ? translate('premium_type.unknown_sku') : premiumLabel(entitlement.premium_type);
+  if (entitlement.premium_type !== null) {
+    return premiumLabel(entitlement.premium_type);
+  }
+  // a NotSoCredits pack, it's a one time purchase rather than a tier
+  const pack = CREDIT_PACKS.find((item) => item.sku === entitlement.sku_id);
+  return (pack) ? translate('dcredits.pack_name', {amount: creditsLabel(pack.credits)}) : translate('premium_type.unknown_sku');
 }
 
 

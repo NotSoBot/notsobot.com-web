@@ -29,8 +29,18 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: Array<ChangelogDay> = [
   {
     date: '2026-11-02',
-    title: 'Saved fonts, Vegas audio effects, melody vocoder and sentence mixing',
+    title: 'Saved fonts, auto subtitles, Vegas audio effects, melody vocoder and sentence mixing',
     items: [
+      {kind: 'new', text: '`/media-av-tools auto-subtitle` (`.autosubtitle`, `.autosub`): subtitles what\'s said in an audio or video, burned in like `.subtitle`. `highlight` shows a few words at a time with the one being said in yellow, `yellow` makes the text yellow, and `font` takes any caption font, your saved fonts or a font file of your own. An audio gets a black video.'},
+      {kind: 'new', text: '**MediaScript:** `autosubtitle` (aliases `autosubtitles`, `autosub`).'},
+      {kind: 'new', text: '`.transcribe -file ass|lrc|srt` (`/tools transcribe file`) also attaches the transcription as subtitles (`.ass`, `.srt`) for a video player or editor, or lyrics (`.lrc`) for a music player. `highlight` highlights the word being said in `.ass` and times every word in `.lrc` (enhanced LRC, for karaoke-style players).'},
+      {kind: 'improved', text: 'Sentence mixing, transcribing and auto subtitles are faster, and running them again on the same media skips listening to it again.'},
+      {kind: 'new', text: 'NotSoCredits for NotSoPremium: Plus gets 30,000 a week and Plus AI 60,000 (starting Mondays at 00:00 UTC), spent by NotSoAI (75 a message) and cloned voices (4 a letter). Credit packs from 50K to 700K on Discord top you up when the week\'s run out, and also unlock NotSoAI without Plus AI. You\'re told when you\'ve used most of them.'},
+      {kind: 'new', text: '`/settings credits balance` (`.credits`) shows your NotSoCredits and the server\'s, also on the dashboard\'s Premium page. `/settings credits give` (`.credits give`) gives the server some of your bought ones so everyone there can use NotSoAI.'},
+      {kind: 'new', text: 'Server voices: `/tts voice-server create` (`.tts voice server create`) clones a voice for the whole server, up to 5, that every member can pick in `/tts`. Creating them needs Manage Server and a premium server, `list`, `rename`, `sample` and `delete` manage them.'},
+      {kind: 'improved', text: 'Cloning your own voices needs Plus: up to 5, or 10 with Plus AI.'},
+      {kind: 'improved', text: 'A premium server\'s NotSoAI is weekly now: each Plus AI premium server slot gives everyone there about 333 messages a week, and credits given to the server top it up.'},
+      {kind: 'new', text: 'Warnings in the moderation logger have Undo, Mute, Kick and Ban buttons that anyone with that permission can use, and they keep working after NotSoBot restarts.'},
       {kind: 'new', text: '`/media-av-effect sentence-mix` (`.sentencemix`): makes an audio or video say your sentence by cutting together the words said in it. Phrases said in a row stay together, a word that isn\'t said is built from ones that are (`hotdog` from `hot` and `dog`), `skip-missing` leaves out the rest and `gap` spaces the words out.'},
       {kind: 'new', text: '**MediaScript:** `audiosentencemix` (alias `sentencemix`).'},
       {kind: 'new', text: '`/media-av-pitch vocoder-melody` (`.vocodermelody`): the voice sings a melody instead of one chord. Type the notes (`C4 E4 G4:2 C4+E4+G4:4 r`, with `bpm`) or give it a MIDI file (.mid), every track but the drums.'},

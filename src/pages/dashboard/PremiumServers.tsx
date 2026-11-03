@@ -25,6 +25,7 @@ import {
   useMePremiumServersQuery,
   usePutMePremiumServerMutation,
 } from '@/lib/api/dashboardQueries';
+import { SERVER_AI_MESSAGES_PER_SLOT } from '@/lib/credits';
 import { discordDmUrl, discordGuildUrl, formatDate, formatExactDateTime, formatNumber, toDate } from '@/lib/utils';
 
 import { Chip } from './admin/adminUi';
@@ -38,8 +39,6 @@ import { EmptyState, ErrorPanel, Skeleton } from './ui';
 const LOCK_HOURS = 24;
 // the lock only lasts a day, so the time matters more than the year
 const LOCK_FORMAT: Intl.DateTimeFormatOptions = {month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'};
-// the api's `MAX_SERVER_AI_MESSAGES`, NotSoAI messages every 12 hours each Plus AI slot gives a server
-const SERVER_AI_MESSAGES_PER_SLOT = 50;
 
 
 function serverName(server: PremiumServer): string {

@@ -8,6 +8,7 @@ import type {
   AdminApplicationPatch,
   AdminApplicationDetail,
   AdminApplicationsPage,
+  AdminCreditTransactionsPage,
   AdminEntitlementsPage,
   AdminFileStats,
   AdminGuild,
@@ -66,6 +67,7 @@ import type {
   ContentFlagsPage,
   CommandStat,
   EntitlementsPage,
+  MeCredits,
   GuildLLMKnowledge,
   GuildMusic,
   GuildMusicStats,
@@ -161,6 +163,7 @@ import type {
   VoicePatch,
   VoiceTransfer,
   VoicesPage,
+  CreditRevokeResult,
 } from './types';
 
 
@@ -561,6 +564,10 @@ export const api = {
 
   deleteMeReminder: (reminderId: string) => {
     return apiRequest<void>(ApiEndpoints.USER_ME_REMINDER(reminderId), {method: 'DELETE'});
+  },
+
+  fetchMeCredits: (signal?: AbortSignal) => {
+    return apiRequest<MeCredits>(ApiEndpoints.USER_ME_CREDITS, {signal});
   },
 
   fetchMeEntitlements: (signal?: AbortSignal) => {
@@ -1302,6 +1309,30 @@ export const api = {
   translateAdminReport: (reportId: string, messageId?: string) => {
     const endpoint = (messageId) ? ApiEndpoints.ADMIN_REPORT_MESSAGE_TRANSLATE(reportId, messageId) : ApiEndpoints.ADMIN_REPORT_TRANSLATE(reportId);
     return apiRequest<ReportTranslation>(endpoint, {method: 'POST'});
+  },
+
+  fetchAdminCreditTransactions: (params: {
+    userId?: string,
+    serverId?: string,
+    type?: number | null,
+    offset?: number,
+    limit?: number,
+  }, signal?: AbortSignal) => {
+    return apiRequest<AdminCreditTransactionsPage>(ApiEndpoints.ADMIN_CREDIT_TRANSACTIONS, {
+      signal,
+      query: {
+        user_id: params.userId || undefined,
+        server_id: params.serverId || undefined,
+        type: params.type ?? undefined,
+        offset: params.offset || undefined,
+        limit: params.limit,
+      },
+    });
+  },
+
+  // takes a NotSoCredits refill back after a chargeback, from the buyer first and then the servers they gave to
+  revokeAdminEntitlementCredits: (entitlementId: string) => {
+    return apiRequest<CreditRevokeResult>(ApiEndpoints.ADMIN_ENTITLEMENT_CREDITS_REVOKE(entitlementId), {method: 'POST'});
   },
 
   fetchAdminEntitlements: (params: {

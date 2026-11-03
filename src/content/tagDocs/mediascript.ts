@@ -2365,6 +2365,27 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     ],
   },
   {
+    name: 'autosubtitle',
+    aliases: ['autosubtitles', 'autosub'],
+    category: 'compose',
+    summary: 'Subtitles what\'s said in the media, found with speech recognition and burned in like `subtitle`.',
+    syntax: 'autosubtitle MEDIA_KEY HIGHLIGHT=false YELLOW=false FONT=arial',
+    args: [
+      media('an audio or video with speech'),
+      {name: 'HIGHLIGHT', default: 'false', description: 'show a few words at a time with the one being said in the other color'},
+      {name: 'YELLOW', default: 'false', description: 'DVD style yellow subtitles instead of white'},
+      {name: 'FONT', default: 'arial', description: 'a bundled font\'s name or a `loadfont` key'},
+    ],
+    examples: [
+      {code: '{mediascript:load {video} clip\nautosubtitle clip\nrender clip}', result: 'The clip with subtitles of what\'s said in it.'},
+      {code: '{mediascript:load {audio} voice\nautosubtitle voice HIGHLIGHT=true FONT=impact\nrender voice}', result: 'A black video with the audio, its words highlighted in Impact as they\'re said.'},
+    ],
+    notes: [
+      'An audio gets a black 1280x720 video. Only the first 15 minutes are listened to. The result is an mp4. Counts toward the `ffmpeg` limit.',
+      'The same effect is the `.autosubtitle` command (`/media-av-tools auto-subtitle`), which also takes your saved fonts.',
+    ],
+  },
+  {
     name: 'news',
     category: 'compose',
     summary: 'Puts a TV news lower third on the media: a red label tab over a white headline bar, with an optional ticker under it.',
