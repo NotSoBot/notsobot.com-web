@@ -29,8 +29,13 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: Array<ChangelogDay> = [
   {
     date: '2026-11-03',
-    title: 'Older media with ^2, credits rollover',
+    title: 'Older media with ^2, credits rollover, more frames on premium',
     items: [
+      {kind: 'improved', text: 'With NotSoPremium or on a premium server, GIFs and videos can have up to 2,160 frames instead of 1,080. The frames past 1,080 are a bit smaller.'},
+      {kind: 'improved', text: 'Sentence mixing builds a word that isn\'t said from the sounds of other words when it can\'t be made from whole ones (`notsobot` from `not so` and the sounds of other words).'},
+      {kind: 'improved', text: '`.prune -from @user` (and `/prune from`, and the warn prune button) also deletes NotSoBot\'s replies to that user\'s commands.'},
+      {kind: 'improved', text: 'Video effects like `.invert` keep the video\'s audio as it is instead of re-encoding it, so they\'re faster and the audio sounds the same.'},
+      {kind: 'fixed', text: 'Media that can\'t be read, Vegas projects that fail to render, failed downloads and failed transcriptions say what went wrong instead of a generic error.'},
       {kind: 'improved', text: '1440p downloads are now part of NotSoPremium Plus. NotSoPremium downloads go up to 1080p, and when a video has 1440p, the download says Plus has it.'},
       {kind: 'improved', text: 'Large YouTube downloads are faster: videos now download in several parts at once.'},
       {kind: 'improved', text: '`.download` says when your quality limit lowered a download and how high the video goes, and a file that\'s too big says when NotSoPremium would take it.'},

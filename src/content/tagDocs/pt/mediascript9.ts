@@ -157,7 +157,7 @@ export const MEDIASCRIPT_PORTUGUESE_9: TagDocsTranslation['mediaScriptCommands']
       'O clipe dizendo "I can do that", cortado das próprias palavras.',
     ],
     notes: [
-      'As palavras são encontradas com reconhecimento de fala. As ditas em sequência ficam num só pedaço, e uma palavra que não é dita é montada com duas ou três que são (`hotdog` com `hot` e `dog`). Sem `SKIP_MISSING` falha e lista as palavras que não encontrou.',
+      'As palavras são encontradas com reconhecimento de fala. As ditas em sequência ficam num só pedaço, e uma palavra que não é dita é montada com duas ou três que são (`hotdog` com `hot` e `dog`), ou então com os sons delas (`notsobot` com `not so` e os sons de outras palavras). Sem `SKIP_MISSING` falha e lista as palavras que não encontrou.',
       'Só os primeiros 15 minutos são ouvidos. O resultado é um mp4, ou um mp3 sem vídeo. Conta para o limite de `ffmpeg`.',
     ],
   },

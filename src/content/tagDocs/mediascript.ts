@@ -4438,7 +4438,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
       {code: '{mediascript:load {video} clip\naudiosentencemix clip i can do that\nrender clip}', result: 'The clip saying "I can do that", cut out of its own words.'},
     ],
     notes: [
-      'The words are found with speech recognition. Words said one after another stay one piece, and a word that isn\'t said is built from two or three that are (`hotdog` from `hot` and `dog`). Without `SKIP_MISSING` it fails, listing the words it couldn\'t find.',
+      'The words are found with speech recognition. Words said one after another stay one piece, and a word that isn\'t said is built from two or three that are (`hotdog` from `hot` and `dog`), or else from their sounds (`notsobot` from `not so` and the sounds of other words). Without `SKIP_MISSING` it fails, listing the words it couldn\'t find.',
       'Only the first 15 minutes are listened to. The result is an mp4, or an mp3 without video. Counts toward the `ffmpeg` limit.',
     ],
   },
