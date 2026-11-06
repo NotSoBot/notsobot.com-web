@@ -29,13 +29,21 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: Array<ChangelogDay> = [
   {
     date: '2026-11-06',
-    title: 'YouTube previews in text replies and clearer limits',
+    title: 'Translated images, Firefox screenshots and 1080p reels',
     items: [
+      {kind: 'new', text: '`.ocrtranslate -replace` (`/tools ocr-translate replace:True`) sends the image back with its text replaced by the translation, matching the text\'s size, color, outline, weight and angle. GIFs and transparent images keep their frames and transparency.'},
+      {kind: 'new', text: '`.screenshot -browser firefox` (`/tools screenshot browser:firefox`) takes the screenshot with Firefox, which gets past more bot checks, always at 1920x1080. **MediaScript:** `screenshot` takes `BROWSER=firefox`. **TagScript:** `{api.utilities.screenshot:url|firefox}`.'},
+      {kind: 'improved', text: 'Instagram and Threads videos download in 1080p with premium when the post has it, instead of always 720p.'},
+      {kind: 'improved', text: 'Bluesky, Pinterest, Reddit and X videos download at the best quality your download quality allows, like YouTube downloads, and say when premium would get a better one. TikTok, Facebook, Streamable, Niconico and Amazon downloads say it too.'},
+      {kind: 'improved', text: 'Images from TikTok photo posts, Facebook and X always download at full size (X\'s originals), whatever your download quality.'},
       {kind: 'improved', text: 'With the **No Embeds** response display, `.youtube` (`/search youtube`) results link the video so Discord shows YouTube\'s own player instead of a thumbnail.'},
       {kind: 'improved', text: 'Reaching a limit (tags, reminders, reports, timed bans, voice clones, prefixes, loggers, rules, custom commands, applications, tag files and variables) says how many you get, translated.'},
       {kind: 'improved', text: 'A command that runs out of time says how long it waited in the queue, which doesn\'t count toward its limit, and errors no longer repeat themselves in their details.'},
+      {kind: 'improved', text: 'The **Translate (w/ OCR & Transcribe)** message command is now **Translate Anything**. It still translates a message\'s text, image, audio or video.'},
       {kind: 'fixed', text: 'Asking `.4chan` (`/search 4chan`) for an NSFW board outside an NSFW channel says it needs an NSFW channel, instead of that the media was blocked for NSFW content.'},
       {kind: 'fixed', text: 'Movie Maker projects (`.wlmp`) with untrimmed clips play those clips to the end of your media instead of failing.'},
+      {kind: 'fixed', text: 'Slash commands that give back audio (like `/download` with an audio format) failing instead of sending it with Discord\'s player.'},
+      {kind: 'fixed', text: 'Instagram audio links say audio pages aren\'t supported and to use a reel with that sound, instead of failing to find the post.'},
     ],
   },
   {

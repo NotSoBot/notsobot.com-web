@@ -651,12 +651,14 @@ export const TAG_DOC_FUNCTIONS_PART1: Array<TagDocFunction> = [
     category: 'network',
     summary: 'Attaches a screenshot of a website.',
     description: 'Adds the screenshot as a file attachment on the tag\'s output. NSFW sites are blocked unless the channel is marked NSFW.',
-    syntax: '{api.utilities.screenshot:url}',
+    syntax: '{api.utilities.screenshot:url[|browser]}',
     args: [
       {name: 'url', description: 'The website to screenshot.'},
+      {name: 'browser', description: '`chrome` (default) or `firefox` (case-insensitive). Firefox can get past more bot checks but has no WebGL. Only treated as the browser if the last `|` part is one of these; otherwise it stays part of the url.', optional: true},
     ],
     examples: [
       {code: '{api.utilities.screenshot:https://notsobot.com}', result: 'Attaches a screenshot of the NotSoBot site.'},
+      {code: '{api.utilities.screenshot:https://notsobot.com|firefox}', result: 'The same, taken with Firefox.'},
     ],
     notes: [
       'Counts against the attachment limit and the network request limit.',
