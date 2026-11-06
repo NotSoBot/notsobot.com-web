@@ -29,9 +29,13 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: Array<ChangelogDay> = [
   {
     date: '2026-11-06',
-    title: 'YouTube previews in text replies',
+    title: 'YouTube previews in text replies and clearer limits',
     items: [
       {kind: 'improved', text: 'With the **No Embeds** response display, `.youtube` (`/search youtube`) results link the video so Discord shows YouTube\'s own player instead of a thumbnail.'},
+      {kind: 'improved', text: 'Reaching a limit (tags, reminders, reports, timed bans, voice clones, prefixes, loggers, rules, custom commands, applications, tag files and variables) says how many you get, translated.'},
+      {kind: 'improved', text: 'A command that runs out of time says how long it waited in the queue, which doesn\'t count toward its limit, and errors no longer repeat themselves in their details.'},
+      {kind: 'fixed', text: 'Asking `.4chan` (`/search 4chan`) for an NSFW board outside an NSFW channel says it needs an NSFW channel, instead of that the media was blocked for NSFW content.'},
+      {kind: 'fixed', text: 'Movie Maker projects (`.wlmp`) with untrimmed clips play those clips to the end of your media instead of failing.'},
     ],
   },
   {
