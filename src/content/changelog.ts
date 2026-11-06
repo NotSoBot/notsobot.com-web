@@ -45,6 +45,7 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'fixed', text: 'Asking `.4chan` (`/search 4chan`) for an NSFW board outside an NSFW channel says it needs an NSFW channel, instead of that the media was blocked for NSFW content.'},
       {kind: 'fixed', text: 'Movie Maker projects (`.wlmp`) with untrimmed clips play those clips to the end of your media instead of failing.'},
       {kind: 'fixed', text: 'Slash commands that give back audio (like `/download` with an audio format) failing instead of sending it with Discord\'s player.'},
+      {kind: 'improved', text: 'Code in saved tags only loads the tag\'s storage and blobs when it mentions `storage` or `blob`, so code that doesn\'t use them starts faster and costs 2 fewer network requests.'},
       {kind: 'fixed', text: 'Tags whose text is only invisible characters (zero width spaces, braille blanks) say they returned no content, instead of sending a message that looks empty.'},
       {kind: 'fixed', text: 'Instagram audio links say audio pages aren\'t supported and to use a reel with that sound, instead of failing to find the post.'},
     ],
