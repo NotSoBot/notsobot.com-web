@@ -28,6 +28,22 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 
 export const CHANGELOG: Array<ChangelogDay> = [
   {
+    date: '2026-11-06',
+    title: 'YouTube previews in text replies',
+    items: [
+      {kind: 'improved', text: 'With the **No Embeds** response display, `.youtube` (`/search youtube`) results link the video so Discord shows YouTube\'s own player instead of a thumbnail.'},
+    ],
+  },
+  {
+    date: '2026-11-05',
+    title: 'Time limits in errors',
+    items: [
+      {kind: 'fixed', text: 'Code that runs too long stops at its time limit and says what the limit was, instead of failing later with "An external service timed out".'},
+      {kind: 'improved', text: 'A command that runs out of time says its time limit, and which NotSoPremium tier gives it more.'},
+      {kind: 'improved', text: 'When something needs NotSoPremium Plus, Plus AI or a premium server, the error says which instead of just NotSoPremium.'},
+    ],
+  },
+  {
     date: '2026-11-03',
     title: 'Older media with ^2, credits rollover, more frames on premium',
     items: [
