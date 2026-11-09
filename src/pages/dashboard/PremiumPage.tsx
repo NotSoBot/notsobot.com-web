@@ -191,12 +191,14 @@ function CreditTransactionRow({ transaction }: {transaction: CreditTransaction})
     text = t('dcredits.type.refill', {amount});
   } else if (transaction.type === CreditTransactionTypes.GIVE) {
     text = t('dcredits.type.give', {amount, server: transaction.server_id ?? ''});
+  } else if (transaction.type === CreditTransactionTypes.GRANT) {
+    text = t((transaction.amount < 0) ? 'dcredits.type.grant_taken' : 'dcredits.type.grant', {amount});
   } else {
     text = (transaction.server_id) ? t('dcredits.type.revoke_server', {amount, server: transaction.server_id}) : t('dcredits.type.revoke', {amount});
   }
   return (
     <li className='flex items-center justify-between gap-3 py-2'>
-      <span className={cn('min-w-0', (transaction.type === CreditTransactionTypes.REVOKE) ? 'text-[#ff8a8c]' : 'text-fg')}>{text}</span>
+      <span className={cn('min-w-0', (transaction.type === CreditTransactionTypes.REVOKE || transaction.amount < 0) ? 'text-[#ff8a8c]' : 'text-fg')}>{text}</span>
       <span className='shrink-0 text-xs text-subtle'>
         <DateLabel label='' value={transaction.created}/>
       </span>

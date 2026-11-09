@@ -28,6 +28,14 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 
 export const CHANGELOG: Array<ChangelogDay> = [
   {
+    date: '2026-11-09',
+    title: 'Premium on user info',
+    items: [
+      {kind: 'improved', text: '`.user` (`/info user`) shows a NotSoBot line with the user\'s premium tier, linked to its store page, and whether they\'re NotSoBot staff.'},
+      {kind: 'fixed', text: 'Premium bought in Discord\'s store turns on within 3 hours even if Discord never told us about the purchase, instead of waiting until you next used a slash command. Upgrading to a higher tier is picked up the same way.'},
+    ],
+  },
+  {
     date: '2026-11-07',
     title: 'Media links, /tts play and durations in ban reasons',
     items: [

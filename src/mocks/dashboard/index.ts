@@ -2961,6 +2961,39 @@ route('POST', '/admin/entitlements/(\\d+)/credits/revoke', ([ , entitlementId ])
   return {already_revoked: false, amount: refill.amount, items: [{amount: refill.amount, server_id: null}], owed: 0};
 });
 
+// a staff grant: a negative amount only takes what the ledger says they still have
+route('POST', '/admin/users/(\\d+)/credits/grant', ([ , userId ], { body }) => {
+  requireBotOwner();
+  const user = (userId === mockUser.id) ? mockUser : state.adminUsers.find((other) => other.id === userId);
+  if (!user) {
+    throw new MockError(404, 10008, 'Unknown User');
+  }
+  const have = Math.max(0, state.creditTransactions
+    .filter((item) => item.user_id === userId && !(item.type === 3 && item.server_id))
+    .reduce((sum, item) => sum + ((item.type === 2) ? -item.amount : item.amount), 0));
+  let amount = Math.trunc(Number(body.amount));
+  if (!amount) {
+    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'Invalid Form Body');
+  }
+  if (amount < 0) {
+    amount = -Math.min(have, -amount);
+    if (!amount) {
+      throw new MockError(400, ApiErrorCodes.CREDITS_LIMIT, 'They have no refill credits to take');
+    }
+  }
+  state.creditTransactions.push({
+    amount,
+    created: new Date().toISOString(),
+    entitlement_id: null,
+    id: String(BigInt(state.creditTransactions.reduce((max, item) => (BigInt(item.id) > BigInt(max) ? item.id : max), '0')) + 1n),
+    server_id: null,
+    type: 4,
+    user: {avatar: user.avatar, discriminator: user.discriminator, id: user.id, username: user.username},
+    user_id: user.id,
+  });
+  return {amount, refill_left: have + amount};
+});
+
 
 // stats: made up from the day count, shaped like `GET /admin/stats/files`
 route('GET', '/admin/stats/files', (_match, { query }) => {

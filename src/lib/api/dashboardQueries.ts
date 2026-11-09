@@ -2643,6 +2643,16 @@ export function useRevokeAdminEntitlementCreditsMutation() {
   });
 }
 
+// the grant row shows up in the ledger
+export function useGrantAdminUserCreditsMutation() {
+  const { token } = useAuth();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, amount }: {userId: string, amount: number}) => api.grantAdminUserCredits(userId, amount),
+    onSettled: () => queryClient.invalidateQueries({queryKey: [...queryKeys.admin(token), 'credit-transactions']}),
+  });
+}
+
 
 export interface AdminEntitlementsFilters {
   userId: string,

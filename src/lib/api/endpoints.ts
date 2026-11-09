@@ -105,6 +105,7 @@ export const ApiEndpoints = Object.freeze({
   ADMIN_USER_COPYRIGHT_STRIKES: (userId: string) => `/admin/users/${userId}/copyright-strikes`,
   ADMIN_USER_WARNINGS: (userId: string) => `/admin/users/${userId}/warnings`,
   ADMIN_USER_WARNING: (userId: string, warningId: string) => `/admin/users/${userId}/warnings/${warningId}`,
+  ADMIN_USER_CREDITS_GRANT: (userId: string) => `/admin/users/${userId}/credits/grant`,
   ADMIN_CONTENT_FLAGS: '/admin/content-flags',
   ADMIN_CREDIT_TRANSACTIONS: '/admin/credits/transactions',
   ADMIN_ENTITLEMENTS: '/admin/entitlements',

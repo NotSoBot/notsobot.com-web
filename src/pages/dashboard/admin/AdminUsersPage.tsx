@@ -8,7 +8,7 @@ import { SearchInput } from '@/components/ui/SearchInput';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { Routes } from '@/config';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
-import { UserFlags, type AdminCopyrightStrike, type AdminCopyrightStrikes, type AdminUserEntry, type AdminUsersSortBy } from '@/lib/api';
+import { UserFlags, UserPremiumTypes, type AdminCopyrightStrike, type AdminCopyrightStrikes, type AdminUserEntry, type AdminUsersSortBy } from '@/lib/api';
 import { ADMIN_PAGE_SIZE, errorMessage, useAdminUserCopyrightStrikesQuery, useAdminUserEntryQuery, useAdminUsersQuery } from '@/lib/api/dashboardQueries';
 import { userDisplayTag } from '@/lib/discord';
 import { cn, formatCompact, formatDateTime, formatMemory, snowflakeTimestamp } from '@/lib/utils';
@@ -172,11 +172,34 @@ function userRoles(user: AdminUserEntry['user']) {
 }
 
 
+// every `UserFlags` bit, so a user's flags can be read without opening the edit dialog
+const FLAG_CHIPS: ReadonlyArray<{flag: number, label: string, title: string}> = [
+  {flag: UserFlags.OWNER, label: 'Owner', title: 'Bot owner: everything is unlocked and free for them'},
+  {flag: UserFlags.MODERATOR, label: 'Moderator', title: 'Can use the admin panel'},
+  {flag: UserFlags.API_ACCESS, label: 'API access', title: 'Can create API applications'},
+];
+
+// A user's flags and premium type as chips. With `always` the premium one is there even without any ("No premium"),
+// so the modal answers it either way; the rows leave it out to stay short
+function userChips(user: AdminUserEntry['user'], always = false) {
+  const premiumType = user.premium_type ?? UserPremiumTypes.NONE;
+  return [
+    ...FLAG_CHIPS.filter(({ flag }) => (user.flags & flag) === flag).map(({ flag, label, title }) => (
+      <Chip key={`flag-${flag}`} tone='brand' title={title}>{label}</Chip>
+    )),
+    (premiumType) ? (
+      <Chip key='premium' tone='success' title='Premium type'>{premiumLabel(premiumType)}</Chip>
+    ) : (always) ? (
+      <Chip key='premium' title='Premium type' className='text-subtle'>No premium</Chip>
+    ) : null,
+  ];
+}
+
+
 // One line per user, like the server rows: who they are, their roles and whether they're blocked, then a few counts to
 // spot busy or troublesome users without opening each one (under the name on phones).
 function UserRow({ entry, onOpen }: {entry: AdminUserEntry, onOpen: (userId: string) => void}) {
   const { user } = entry;
-  const { owner, moderator } = userRoles(user);
   return (
     <li>
       <Link
@@ -206,9 +229,7 @@ function UserRow({ entry, onOpen }: {entry: AdminUserEntry, onOpen: (userId: str
               Blocked
             </Chip>
           ) : null}
-          {(owner) ? <Chip tone='brand'>Owner</Chip> : null}
-          {(moderator) ? <Chip tone='brand'>Moderator</Chip> : null}
-          {(user.premium_type) ? <Chip>{premiumLabel(user.premium_type)}</Chip> : null}
+          {userChips(user)}
         </div>
         <UserCounts entry={entry} className='hidden sm:flex'/>
         <ChevronRight aria-hidden className='size-4 shrink-0 text-subtle'/>
@@ -262,7 +283,7 @@ function UserDetails({ entry, navigation }: {
   const { user, content_flags: flags } = entry;
   const { user: me } = useAuth();
   const viewerIsOwner = isOwner(me);
-  const { owner, moderator } = userRoles(user);
+  const { owner } = userRoles(user);
   const canBlock = canBlockUser(user, viewerIsOwner);
   const cantBlockReason = (canBlock) ? null : (owner) ? 'Owners can’t be blocked.' : 'Only owners can block moderators.';
   // deleting everything they made can't be undone, so owners only (moderators delete tags one at a time)
@@ -288,11 +309,7 @@ function UserDetails({ entry, navigation }: {
             {(created) ? <span>Created <ExactDate value={created}/></span> : null}
           </span>
         )}
-        states={[
-          (owner) ? <Chip key='owner' tone='brand'>Owner</Chip> : null,
-          (moderator) ? <Chip key='moderator' tone='brand'>Moderator</Chip> : null,
-          (user.premium_type) ? <Chip key='premium'>{premiumLabel(user.premium_type)}</Chip> : null,
-        ]}
+        states={userChips(user, true)}
         status={(
           <Chip
             tone={(user.blocked) ? 'danger' : 'neutral'}

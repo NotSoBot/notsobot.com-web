@@ -208,6 +208,8 @@ export const Dashboard = {
   'dcredits.recent': 'Recent',
   'dcredits.type.refill': 'Bought {amount}',
   'dcredits.type.give': 'Gave {amount} to server {server}',
+  'dcredits.type.grant': '{amount} from the NotSoBot team',
+  'dcredits.type.grant_taken': '{amount} taken back by the NotSoBot team',
   'dcredits.type.revoke': 'Taken back {amount} after a refund',
   'dcredits.type.revoke_server': 'Taken back {amount} from server {server} after a refund',
   'dcredits.pack_name': '{amount} NotSoCredits',

@@ -849,7 +849,7 @@ const PREMIUM_SKUS: Record<number, string> = {
 
 // the mock user has an active Premium+ subscription, an older cancelled Premium one and a replaced staff grant;
 // everyone else gets a mix of active, expired, cancelled and staff-given ones
-// the credits ledger: a few refills (50K/150K/700K), some given to servers, one taken back after a chargeback
+// the credits ledger: a few refills (50K/150K/700K), some given to servers, one taken back after a chargeback, one staff grant
 export function createCreditTransactions(users: Array<AdminUser>): Array<AdminCreditTransaction> {
   const hour = 3600000;
   const now = Date.now();
@@ -877,6 +877,8 @@ export function createCreditTransactions(users: Array<AdminUser>): Array<AdminCr
       add(user, 3, -233_333, 20, String(1290000000000000100n + BigInt(i)), entitlementId);
     }
   });
+  // an apology from staff, no entitlement behind it
+  add(users[3 % users.length], 4, 325_000, 6, null, null);
   return transactions.reverse();
 }
 

@@ -2579,6 +2579,8 @@ export enum CreditTransactionTypes {
   GIVE = 2,
   // credits taken back after a chargeback/refund, `amount` is negative
   REVOKE = 3,
+  // refill credits staff gave for free, or took away (`amount` is negative)
+  GRANT = 4,
 }
 
 // where NotSoCredits refills came from and went, spending isn't recorded
@@ -2651,6 +2653,12 @@ export interface CreditRevokeResult {
   amount: number,
   items: Array<{amount: number, server_id: string | null}>,
   owed: number,
+}
+
+// what a staff grant really added (or took, negative) and the refill credits the user has now
+export interface CreditGrantResult {
+  amount: number,
+  refill_left: number,
 }
 
 

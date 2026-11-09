@@ -210,6 +210,8 @@ export const Dashboard: Record<keyof typeof English, string> = {
   'dcredits.recent': 'Recientes',
   'dcredits.type.refill': 'Compraste {amount}',
   'dcredits.type.give': 'Diste {amount} al servidor {server}',
+  'dcredits.type.grant': '{amount} de parte del equipo de NotSoBot',
+  'dcredits.type.grant_taken': 'El equipo de NotSoBot retiró {amount}',
   'dcredits.type.revoke': 'Se retiraron {amount} tras un reembolso',
   'dcredits.type.revoke_server': 'Se retiraron {amount} del servidor {server} tras un reembolso',
   'dcredits.pack_name': '{amount} NotSoCredits',

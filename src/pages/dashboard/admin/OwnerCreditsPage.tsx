@@ -1,5 +1,6 @@
-// The NotSoCredits ledger: refills bought on Discord, the ones users gave to servers, and what was taken back after a
-// chargeback. A refill can be taken back from here when Discord never sent its `ENTITLEMENT_DELETE`.
+// The NotSoCredits ledger: refills bought on Discord, the ones users gave to servers, what was taken back after a
+// chargeback, and what staff granted for free. A refill can be taken back from here when Discord never sent its
+// `ENTITLEMENT_DELETE`, and credits can be granted to (or with a negative amount taken from) a user.
 
 import { useState } from 'react';
 import { Coins } from 'lucide-react';
@@ -9,7 +10,7 @@ import { SearchInput } from '@/components/ui/SearchInput';
 import { useToast } from '@/components/ui/Toast';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { CreditTransactionTypes, type AdminCreditTransaction } from '@/lib/api';
-import { ADMIN_PAGE_SIZE, errorMessage, useAdminCreditTransactionsQuery, useRevokeAdminEntitlementCreditsMutation } from '@/lib/api/dashboardQueries';
+import { ADMIN_PAGE_SIZE, errorMessage, useAdminCreditTransactionsQuery, useGrantAdminUserCreditsMutation, useRevokeAdminEntitlementCreditsMutation } from '@/lib/api/dashboardQueries';
 import { cn } from '@/lib/utils';
 
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from '../ui';
@@ -20,9 +21,12 @@ const TYPES: ReadonlyArray<{value: CreditTransactionTypes, label: string, tone: 
   {value: CreditTransactionTypes.REFILL, label: 'Bought', tone: 'success'},
   {value: CreditTransactionTypes.GIVE, label: 'Given', tone: 'brand'},
   {value: CreditTransactionTypes.REVOKE, label: 'Taken back', tone: 'danger'},
+  {value: CreditTransactionTypes.GRANT, label: 'Granted', tone: 'brand'},
 ];
 
 const ID = /^\d{1,20}$/;
+// the api's limit either way
+const GRANT_MAX = 10_000_000;
 
 
 function parseType(value: string | null): number | null {
@@ -51,6 +55,12 @@ export function OwnerCreditsPage() {
   });
   const revoke = useRevokeAdminEntitlementCreditsMutation();
   const [ revoking, setRevoking ] = useState<AdminCreditTransaction | null>(null);
+  const grant = useGrantAdminUserCreditsMutation();
+  const [ grantUserId, setGrantUserId ] = useState('');
+  const [ grantAmount, setGrantAmount ] = useState('');
+  const [ granting, setGranting ] = useState<{userId: string, amount: number} | null>(null);
+  const parsedGrantAmount = (/^-?\d+$/.test(grantAmount.trim())) ? Number(grantAmount.trim()) : 0;
+  const canGrant = ID.test(grantUserId.trim()) && parsedGrantAmount !== 0 && Math.abs(parsedGrantAmount) <= GRANT_MAX;
 
   const items = data?.items ?? [];
   // refills already taken back on this page (the api ignores a second revoke anyway, this just hides the button)
@@ -70,13 +80,51 @@ export function OwnerCreditsPage() {
     setRevoking(null);
     revoke.reset();
   };
+  const closeGrantDialog = () => {
+    setGranting(null);
+    grant.reset();
+  };
 
   return (
     <>
       <DashboardHeader
         title='Credits'
-        description='NotSoCredits refills bought on Discord, given to servers and taken back, newest first. Balances themselves live in Redis.'
+        description='NotSoCredits refills bought on Discord, given to servers, taken back and granted by staff, newest first. Balances themselves live in Redis.'
       />
+
+      <form
+        className='card mb-4 flex flex-wrap items-end gap-3 p-4'
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (canGrant) {
+            setGranting({userId: grantUserId.trim(), amount: parsedGrantAmount});
+          }
+        }}
+      >
+        <label className='min-w-48 flex-1 text-xs text-muted'>
+          Grant credits to user id
+          <input
+            className='input mt-1 w-full'
+            inputMode='numeric'
+            autoComplete='off'
+            value={grantUserId}
+            onChange={(event) => setGrantUserId(event.target.value)}
+            placeholder='User id'
+          />
+        </label>
+        <label className='min-w-40 flex-1 text-xs text-muted'>
+          Credits (negative takes them away)
+          <input
+            className='input mt-1 w-full'
+            inputMode='numeric'
+            autoComplete='off'
+            value={grantAmount}
+            onChange={(event) => setGrantAmount(event.target.value)}
+            placeholder='325000'
+          />
+        </label>
+        <button type='submit' className='btn btn-primary' disabled={!canGrant}>Grant</button>
+      </form>
 
       <div className='mb-4 space-y-3'>
         <div className='grid gap-3 sm:grid-cols-2'>
@@ -113,7 +161,7 @@ export function OwnerCreditsPage() {
         <ErrorPanel title='Couldn’t load credits' message={errorMessage(error)} onRetry={() => refetch()} retrying={isRefetching}/>
       ) : (!items.length) ? (
         <EmptyState icon={<Coins className='size-10'/>} title='Nothing yet'>
-          {(filtered) ? 'Try different filters.' : 'Refills show up here once someone buys one.'}
+          {(filtered) ? 'Try different filters.' : 'Refills show up here once someone buys one, grants once you give some.'}
         </EmptyState>
       ) : (
         <>
@@ -173,7 +221,15 @@ export function OwnerCreditsPage() {
                         <ExactDate value={transaction.created}/>
                       </td>
                       <td className='px-4 py-3 text-right'>
-                        {(transaction.type !== CreditTransactionTypes.REFILL || !transaction.entitlement_id) ? null : (revoked.has(transaction.entitlement_id)) ? (
+                        {(transaction.type === CreditTransactionTypes.GRANT && 0 < transaction.amount) ? (
+                          <button
+                            type='button'
+                            className='btn btn-ghost btn-sm whitespace-nowrap text-danger'
+                            onClick={() => setGranting({userId: transaction.user_id, amount: -transaction.amount})}
+                          >
+                            Take back
+                          </button>
+                        ) : (transaction.type !== CreditTransactionTypes.REFILL || !transaction.entitlement_id) ? null : (revoked.has(transaction.entitlement_id)) ? (
                           <span className='text-xs whitespace-nowrap text-subtle'>Taken back</span>
                         ) : (
                           <button type='button' className='btn btn-ghost btn-sm whitespace-nowrap text-danger' onClick={() => setRevoking(transaction)}>
@@ -210,6 +266,29 @@ export function OwnerCreditsPage() {
             },
           })}
           onClose={closeDialog}
+        />
+      ) : null}
+
+      {(granting) ? (
+        <ConfirmDialog
+          title={(granting.amount < 0) ? `Take ${(-granting.amount).toLocaleString()} credits away?` : `Grant ${granting.amount.toLocaleString()} credits?`}
+          description={(granting.amount < 0)
+            ? `From user ${granting.userId}’s refill credits, up to what they have left. Nothing is left owed.`
+            : `To user ${granting.userId}, as refill credits: they never expire, pay for NotSoAI and cloned voices, and can be given to servers.`}
+          confirmLabel={(granting.amount < 0) ? 'Take away' : 'Grant'}
+          tone={(granting.amount < 0) ? 'danger' : 'primary'}
+          pending={grant.isPending}
+          error={(grant.isError) ? errorMessage(grant.error, 'Couldn’t change their credits.') : null}
+          onConfirm={() => grant.mutate(granting, {
+            onSuccess: (result) => {
+              const verb = (result.amount < 0) ? 'Took away' : 'Granted';
+              toast(`${verb} ${Math.abs(result.amount).toLocaleString()} credits, they have ${result.refill_left.toLocaleString()} now`);
+              setGrantUserId('');
+              setGrantAmount('');
+              closeGrantDialog();
+            },
+          })}
+          onClose={closeGrantDialog}
         />
       ) : null}
     </>

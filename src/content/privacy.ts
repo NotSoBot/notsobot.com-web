@@ -3,7 +3,7 @@ import type { LegalDocument } from './legal';
 export const PRIVACY_POLICY: LegalDocument = {
   title: "Privacy Policy",
   effective: "October 13, 2026",
-  lastUpdated: "November 3, 2026",
+  lastUpdated: "November 9, 2026",
   intro: "This Privacy Policy explains what information NotSoBot collects, why, who it's shared with, how long it's kept, and how You can get a copy of it or have it deleted.",
   sections: [
     {
@@ -107,7 +107,7 @@ export const PRIVACY_POLICY: LegalDocument = {
           "Sentry, which receives error reports when something breaks. These can include the IDs and command details involved in the error.",
         ]},
         {type: 'paragraph', text: "Each of these providers handles data under its own terms and privacy policy. We may also share information when the law requires it, for example to respond to a valid court order, or when We believe it's needed to protect someone's safety or to investigate a violation of Our Terms of Service. If NotSoBot is ever transferred to a new owner, your information would be transferred with it and would remain covered by this policy."},
-        {type: 'paragraph', text: "Some information is visible to other people because of how the Service works. For example, tags You create and reminders You set in a server can be seen by members of that server, tags in the public directory can be seen by anyone, server administrators can see who added entries to their server's settings, and a server's moderators can see the warnings given there, including who gave them, and the reports members sent them, including who sent each one."},
+        {type: 'paragraph', text: "Some information is visible to other people because of how the Service works. For example, tags You create and reminders You set in a server can be seen by members of that server, tags in the public directory can be seen by anyone, server administrators can see who added entries to their server's settings, and a server's moderators can see the warnings given there, including who gave them, and the reports members sent them, including who sent each one. Anyone who looks You up with the user info command can see your premium tier and whether You're NotSoBot staff."},
       ],
     },
     {

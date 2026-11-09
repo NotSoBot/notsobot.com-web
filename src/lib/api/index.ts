@@ -165,6 +165,7 @@ import type {
   VoicePatch,
   VoiceTransfer,
   VoicesPage,
+  CreditGrantResult,
   CreditRevokeResult,
 } from './types';
 
@@ -1354,6 +1355,11 @@ export const api = {
   // takes a NotSoCredits refill back after a chargeback, from the buyer first and then the servers they gave to
   revokeAdminEntitlementCredits: (entitlementId: string) => {
     return apiRequest<CreditRevokeResult>(ApiEndpoints.ADMIN_ENTITLEMENT_CREDITS_REVOKE(entitlementId), {method: 'POST'});
+  },
+
+  // gives a user refill credits for free, a negative amount takes some away (up to what they have left)
+  grantAdminUserCredits: (userId: string, amount: number) => {
+    return apiRequest<CreditGrantResult>(ApiEndpoints.ADMIN_USER_CREDITS_GRANT(userId), {method: 'POST', body: {amount}});
   },
 
   fetchAdminEntitlements: (params: {
