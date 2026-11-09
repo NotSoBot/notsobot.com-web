@@ -28,6 +28,19 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 
 export const CHANGELOG: Array<ChangelogDay> = [
   {
+    date: '2026-11-07',
+    title: 'Media links, /tts play and durations in ban reasons',
+    items: [
+      {kind: 'new', text: '`.url` gives the link of the last image, video or audio in chat (or of a reply, a user\'s avatar or an emoji), easy to copy. `-image`, `-video` and `-audio` pick which kinds count.'},
+      {kind: 'new', text: '`/tts play` says text in your voice channel, queued like a song, the same as `.tts play`.'},
+      {kind: 'improved', text: '`/tts speak` is now `/tts generate`.'},
+      {kind: 'improved', text: '`.ban` and `.mute` take the duration at the start or end of the reason, like `.ban @user 2h spamming` or `.mute @user spamming for 2 days`. `-for` still works and wins over one in the reason.'},
+      {kind: 'improved', text: 'Sentence mixing builds missing words more carefully: it only cuts a word apart where its sounds can be heard clearly (not in singing over loud music, where it uses whole words instead), a full vowel isn\'t filled with a mumbled one, and a sound the media never has is replaced by a similar one or left out (`hexagon` as `exagon`) instead of failing the word.'},
+      {kind: 'improved', text: 'Media errors from a format that can\'t hold a codec (WebM, GIF, MP3, OGG) say which codecs it takes, instead of "Error sending frames to consumers".'},
+      {kind: 'fixed', text: 'Code with big input files (`.code`, tags) no longer fails with "Code execution service took too long to respond" when sending the files took longer than the run\'s time limit. Sending them doesn\'t count toward it anymore.'},
+    ],
+  },
+  {
     date: '2026-11-06',
     title: 'Translated images, Firefox screenshots and 1080p reels',
     items: [
