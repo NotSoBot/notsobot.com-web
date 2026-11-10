@@ -51,7 +51,7 @@ const MAX_SAVED_FONTS_SERVER = 25;
 
 // the tagline is `premium.<id>.tagline`
 const TIERS: Array<Tier> = [
-  {id: 'premium', name: 'NotSoPremium', sku: DiscordSkus.USER_NOTSOPREMIUM, perks: 9},
+  {id: 'premium', name: 'NotSoPremium', sku: DiscordSkus.USER_NOTSOPREMIUM, perks: 8},
   {id: 'plus', name: 'NotSoPremium Plus', sku: DiscordSkus.USER_NOTSOPREMIUM_PLUS, includes: 'NotSoPremium', perks: 4},
   {id: 'plusAi', name: 'NotSoPremium Plus AI', sku: DiscordSkus.USER_NOTSOPREMIUM_PLUS_AI, includes: 'NotSoPremium Plus', perks: 5},
 ];
@@ -97,8 +97,8 @@ const COMPARISON: Array<{group: TranslationKey, icon: LucideIcon, rows: Array<{l
       {label: 'premium.row.saved_fonts', values: [false, String(MAX_SAVED_FONTS_USER), String(MAX_SAVED_FONTS_USER), String(MAX_SAVED_FONTS_USER)]},
       // music is free, its perks come from a premium server slot (or `MUSIC_ACCESS`), not the user's own premium
       {label: 'premium.row.music', values: [true, true, true, true]},
-      // `tts play` (premium, premium servers, or a server staff gave `MUSIC_ACCESS`)
-      {label: 'premium.row.tts', values: [false, true, true, true]},
+      // `tts play` is free like music
+      {label: 'premium.row.tts', values: [true, true, true, true]},
       {label: 'premium.row.server_slots', values: [false, false, '2', '2']},
       {label: 'premium.row.voice_clones', values: [false, false, String(MAX_VOICE_CLONES_PLUS), String(MAX_VOICE_CLONES_PLUS_AI)]},
     ],
@@ -139,7 +139,6 @@ const SERVER_PERKS: Array<{label: TranslationKey, free?: Cell, server?: Cell}> =
   {label: 'premium.server_perk.music_playlists'},
   {label: 'premium.server_perk.music_effects'},
   {label: 'premium.server_perk.music_volume'},
-  {label: 'premium.server_perk.tts'},
   {label: 'premium.server_perk.image_fallback'},
   // the api's `CREDITS_WEEKLY_SERVER_AI_SLOT` in messages, shared by everyone in the server without Plus AI
   {label: 'premium.server_perk.notsoai'},

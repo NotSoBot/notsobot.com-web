@@ -861,6 +861,8 @@ export interface GuildMusicQueueItem {
   batch_name: string | null,
   // when it was queued (unix milliseconds)
   created: number,
+  // an nsb.gg link's real file name (its url only has its vanity), null for any other link and for songs
+  filename?: string | null,
   guild_id: string,
   id: string,
   // 1 is next

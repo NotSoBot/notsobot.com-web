@@ -1119,7 +1119,7 @@ function useDragReorder(count: number, enabled: boolean, onDrop: (from: number, 
 
 
 // what a song shows as, a queue item or a music stats entry
-export type MusicItemLike = Pick<GuildMusicQueueItem, 'source' | 'track' | 'url'>;
+export type MusicItemLike = Pick<GuildMusicQueueItem, 'filename' | 'source' | 'track' | 'url'>;
 
 export function TrackCover({ item, className }: {item: MusicItemLike, className?: string}) {
   if (item.track?.thumbnail) {
@@ -1158,10 +1158,13 @@ function IconButton({ label, danger = false, disabled, onClick, children }: {
 }
 
 
-// `artist - title` like the bot, a link that isn't converted yet by its file name
+// `artist - title` like the bot, a link by its file name (an nsb.gg file's real one, otherwise its url's)
 export function musicItemTitle(item: MusicItemLike): string {
   if (item.source === 'opus' && item.track) {
     return (item.track.artist) ? `${item.track.artist} - ${item.track.title}` : item.track.title;
+  }
+  if (item.filename) {
+    return item.filename;
   }
   try {
     const url = new URL(item.url);

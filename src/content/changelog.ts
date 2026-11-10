@@ -28,10 +28,19 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 
 export const CHANGELOG: Array<ChangelogDay> = [
   {
+    date: '2026-11-10',
+    title: 'Free .tts play and real file names in music',
+    items: [
+      {kind: 'improved', text: '`.tts play` is free for everyone now, like `/tts play` and music. It needed premium, a premium server or music access before.'},
+      {kind: 'improved', text: 'Music shows an nsb.gg link by the name the file was uploaded with instead of its link\'s random name, so `.tts play` shows the speech\'s file name in the queue, history and dashboard.'},
+    ],
+  },
+  {
     date: '2026-11-09',
-    title: 'Premium on user info',
+    title: 'Premium on user info and more .xyt templates',
     items: [
       {kind: 'improved', text: '`.user` (`/info user`) shows a NotSoBot line with the user\'s premium tier, linked to its store page, and whether they\'re NotSoBot staff.'},
+      {kind: 'improved', text: '`.xyt` (`/media-iv-filter xyt`) renders more templates, like TPG\'s tritone, Old Film2 and Vitascope\'s projector shake and dust.'},
       {kind: 'fixed', text: 'Premium bought in Discord\'s store turns on within 3 hours even if Discord never told us about the purchase, instead of waiting until you next used a slash command. Upgrading to a higher tier is picked up the same way.'},
     ],
   },
