@@ -29,10 +29,16 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: Array<ChangelogDay> = [
   {
     date: '2026-11-10',
-    title: 'Free .tts play and real file names in music',
+    title: 'Free .tts play, more medias in .veg and .xyt templates by name',
     items: [
+      {kind: 'new', text: '`.veg` and `/media-aiv veg` take up to 3 more medias with `-also` (the `also` option): the project\'s files are shared out between your medias in the order they first play, instead of every one becoming the same media.'},
+      {kind: 'new', text: '**MediaScript:** `vegrender` takes more media keys after the project (`vegrender clip p song intro`) to play each of the project\'s files with its own media.'},
+      {kind: 'new', text: '`.xyt` takes a VivaVideo template\'s id or name instead of a file, like `.xyt rose` or `/media-iv-filter xyt xyt-id:rose`, from a library of 88 templates.'},
+      {kind: 'improved', text: '`.xyt` renders VivaVideo overlays that only come as a placeholder (like Rose) in full, and overlays with music (like Petal and Miss U) add it to videos, looped with the overlay.'},
       {kind: 'improved', text: '`.tts play` is free for everyone now, like `/tts play` and music. It needed premium, a premium server or music access before.'},
       {kind: 'improved', text: 'Music shows an nsb.gg link by the name the file was uploaded with instead of its link\'s random name, so `.tts play` shows the speech\'s file name in the queue, history and dashboard.'},
+      {kind: 'fixed', text: 'Reddit downloads try once more on another connection when Reddit blocks the first, instead of failing right away.'},
+      {kind: 'fixed', text: 'Emojis in text drawn on images show in color again instead of coming out blank.'},
     ],
   },
   {
