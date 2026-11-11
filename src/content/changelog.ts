@@ -28,6 +28,28 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 
 export const CHANGELOG: Array<ChangelogDay> = [
   {
+    date: '2026-11-11',
+    title: 'Faster audio and video effects and steadier downloads',
+    items: [
+      {kind: 'improved', text: 'Getting audio out of a video is much faster: `.extract audio`, `.convert` to mp3, flac or m4a, `.android` and `.audio compress` no longer encode a copy of the video only to throw it away.'},
+      {kind: 'improved', text: 'Putting audio on a video (`.audio put replace`, `mix` and `concat`) and MediaScript\'s `repeat` and `repeatduration` keep the video as it is instead of encoding it again, so they finish in a fraction of the time without losing quality.'},
+      {kind: 'improved', text: '**MediaScript:** big videos are shrunk while they load and a video over the frame limit is stopped right away, so long or 1080p videos run faster and use far less memory.'},
+      {kind: 'improved', text: '`.scramble`, `.acid`, `.dice` and `.deepfry` are faster on videos, wavy and template effects (like `.vhs`) use less memory on long ones, and `.veg` renders projects with still images faster.'},
+      {kind: 'improved', text: '`.shuffle` is up to 10 times faster, and like `.reverse` it shrinks long videos so they fit (up to 1080 frames, 2160 with premium).'},
+      {kind: 'improved', text: '`.stammer` runs up to twice as fast with long videos to take frames from, `.glitch` and `.eyes` are faster on videos, and `.veg` renders HEVC videos without converting them first.'},
+      {kind: 'improved', text: 'X videos too big at their best quality download at the next smaller one that fits instead of failing.'},
+      {kind: 'improved', text: 'X, Instagram and Facebook downloads say to try again when the site is limiting us or having problems, instead of saying there\'s no media.'},
+      {kind: 'improved', text: 'Downloads that stall stop after 15 seconds instead of holding up the command, and Bluesky, Pinterest and Amazon videos download faster.'},
+      {kind: 'fixed', text: 'X downloads keep working when X rejects its token, instead of failing until the bot restarts.'},
+      {kind: 'fixed', text: 'Instagram and Threads images sent as webp or heic are saved as what they are instead of as broken jpegs.'},
+      {kind: 'fixed', text: 'Links with `/events/` in them, like some X and Reddit posts, no longer fail as Facebook events, and links with capital letters (`Twitter.com`) download like lowercase ones.'},
+      {kind: 'fixed', text: 'A track from a SoundCloud set downloads that track instead of the set\'s first one, and SoundCloud private links work.'},
+      {kind: 'fixed', text: 'Reddit videos too big to download say so instead of giving only their audio, and removed Reddit videos no longer show a parser error.'},
+      {kind: 'fixed', text: 'Amazon images of the same product from different Amazon sites no longer get mixed up.'},
+      {kind: 'fixed', text: '`.adhd` pads videos narrower than 9:16 at the sides like it\'s meant to and picks footage at least as long as your video, MediaScript\'s `setframedelay` no longer drops frames on mp4s, and `.speed` no longer adds frames to videos with a changing frame rate.'},
+    ],
+  },
+  {
     date: '2026-11-10',
     title: 'Free .tts play, more medias in .veg, .xyt templates by name and sentence mixing on a beat',
     items: [
