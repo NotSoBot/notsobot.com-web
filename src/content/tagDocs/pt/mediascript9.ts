@@ -151,14 +151,20 @@ export const MEDIASCRIPT_PORTUGUESE_9: TagDocsTranslation['mediaScriptCommands']
       MEDIA_KEY: 'a mídia com as palavras (o vídeo dela é cortado junto)',
       SENTENCE: 'o que ela deve dizer, todas as palavras que sobram depois dos outros argumentos',
       SKIP_MISSING: 'pular as palavras que não são ditas em vez de falhar',
-      GAP: 'milissegundos de silêncio (e o último quadro) entre os pedaços',
+      GAP: 'milissegundos de silêncio (e o último quadro) entre os pedaços, não é usado com `BPM`',
+      BPM: 'encaixa cada palavra numa batida neste andamento (`0`: desligado)',
     },
     results: [
       'O clipe dizendo "I can do that", cortado das próprias palavras.',
+      'O clipe dizendo "I want donuts", com "donuts" montado com sons das outras palavras dele.',
+      'As mesmas palavras numa batida de 120 bpm, cada uma um pouco mais aguda e a última segurada por duas batidas.',
     ],
     notes: [
       'As palavras são encontradas com reconhecimento de fala. As ditas em sequência ficam num só pedaço, e uma palavra que não é dita é montada com duas ou três que são (`hotdog` com `hot` e `dog`), ou então com os sons delas (`notsobot` com `not so` e os sons de outras palavras). Sem `SKIP_MISSING` falha e lista as palavras que não encontrou.',
-      'Só os primeiros 15 minutos são ouvidos. O resultado é um mp4, ou um mp3 sem vídeo. Conta para o limite de `ffmpeg`.',
+      'Uma palavra pode terminar com marcas: `word^3` sobe 3 semitons (`^-2` desce, até 24 para cada lado), `word*2` deixa ela com o dobro da duração sem mudar o tom (de `0.25` a `4`), e as duas vão juntas como `word^3*2`. Um `_` sozinho é uma pausa de um quarto de segundo (`_*2` o dobro). Uma palavra com marcas é cortada sozinha em vez de como parte de uma frase.',
+      'Uma palavra pode ser escrita com os sons dela entre barras, separados por `-`: `/d-ow-n-ah-t-s/` é "donuts". Ela é montada com esses sons das palavras que são ditas, como uma palavra que não é dita, e também aceita marcas (`/d-ow-n-ah-t-s/^3`). Os sons são códigos ARPAbet (`aa` `ae` `ah` `ao` `aw` `ax` `ay` `b` `ch` `d` `dh` `eh` `er` `ey` `f` `g` `hh` `ih` `iy` `jh` `k` `l` `m` `n` `ng` `ow` `oy` `p` `r` `s` `sh` `t` `th` `uh` `uw` `v` `w` `y` `z` `zh`) ou símbolos do AFI.',
+      'Com `BPM` cada palavra ocupa uma batida: ela é esticada ou acelerada para preencher (no máximo até o dobro da duração, o resto da batida é silêncio), `word*2` passa a significar duas batidas (de `0.125` a `16`) e `_` é uma pausa de uma batida. O que cai na batida é a vogal da palavra, as consoantes antes dela (o `tr` de `try`) tocam logo antes. O vídeo fica mais lento e mais rápido junto com as palavras.',
+      'Só os primeiros 15 minutos são ouvidos. O resultado é um mp4, ou um mp3 sem vídeo, de no máximo 10 minutos. Conta para o limite de `ffmpeg`.',
     ],
   },
   audiotremolo: {

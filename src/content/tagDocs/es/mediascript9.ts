@@ -151,14 +151,20 @@ export const MEDIASCRIPT_SPANISH_9: TagDocsTranslation['mediaScriptCommands'] = 
       MEDIA_KEY: 'la multimedia con las palabras (su vídeo se corta junto con ellas)',
       SENTENCE: 'lo que quieres que diga, todas las palabras que quedan tras los demás argumentos',
       SKIP_MISSING: 'omitir las palabras que no se dicen en vez de fallar',
-      GAP: 'milisegundos de silencio (y el último fotograma) entre los trozos',
+      GAP: 'milisegundos de silencio (y el último fotograma) entre los trozos, no se usa con `BPM`',
+      BPM: 'ajusta cada palabra a un pulso a este tempo (`0`: desactivado)',
     },
     results: [
       'El clip diciendo "I can do that", cortado de sus propias palabras.',
+      'El clip diciendo "I want donuts", con "donuts" armado con sonidos de sus otras palabras.',
+      'Las mismas palabras sobre un pulso de 120 bpm, cada una un poco más aguda y la última sostenida durante dos pulsos.',
     ],
     notes: [
       'Las palabras se encuentran con reconocimiento de voz. Las que se dicen seguidas quedan en un solo trozo, y una palabra que no se dice se arma con dos o tres que sí (`hotdog` con `hot` y `dog`), o si no con sus sonidos (`notsobot` con `not so` y los sonidos de otras palabras). Sin `SKIP_MISSING` falla y lista las palabras que no encontró.',
-      'Solo se escuchan los primeros 15 minutos. El resultado es un mp4, o un mp3 sin vídeo. Cuenta para el límite de `ffmpeg`.',
+      'Una palabra puede terminar con marcas: `word^3` la sube 3 semitonos (`^-2` la baja, hasta 24 en cada dirección), `word*2` la hace el doble de larga sin cambiar su tono (de `0.25` a `4`), y las dos van juntas como `word^3*2`. Un `_` solo es un silencio de un cuarto de segundo (`_*2` el doble). Una palabra con marcas se corta sola en vez de como parte de una frase.',
+      'Una palabra se puede escribir con sus sonidos entre barras, separados por `-`: `/d-ow-n-ah-t-s/` es "donuts". Se arma con esos sonidos de las palabras que sí se dicen, como una palabra que no se dice, y también acepta marcas (`/d-ow-n-ah-t-s/^3`). Los sonidos son códigos ARPAbet (`aa` `ae` `ah` `ao` `aw` `ax` `ay` `b` `ch` `d` `dh` `eh` `er` `ey` `f` `g` `hh` `ih` `iy` `jh` `k` `l` `m` `n` `ng` `ow` `oy` `p` `r` `s` `sh` `t` `th` `uh` `uw` `v` `w` `y` `z` `zh`) o símbolos del AFI.',
+      'Con `BPM` cada palabra ocupa un pulso: se estira o se acelera para llenarlo (como mucho al doble de su duración, el resto del pulso es silencio), `word*2` pasa a significar dos pulsos (de `0.125` a `16`) y `_` es un silencio de un pulso. Lo que cae en el pulso es la vocal de la palabra, las consonantes de antes (el `tr` de `try`) suenan justo antes. El vídeo se ralentiza y se acelera junto con las palabras.',
+      'Solo se escuchan los primeros 15 minutos. El resultado es un mp4, o un mp3 sin vídeo, de 10 minutos como máximo. Cuenta para el límite de `ffmpeg`.',
     ],
   },
   audiotremolo: {

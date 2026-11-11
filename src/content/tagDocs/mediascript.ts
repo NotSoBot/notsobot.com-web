@@ -4432,19 +4432,25 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     aliases: ['sentencemix'],
     category: 'audio',
     summary: 'Sentence mixing: makes the media say a sentence by cutting together the words said in it.',
-    syntax: 'audiosentencemix MEDIA_KEY ...SENTENCE SKIP_MISSING=false GAP=0',
+    syntax: 'audiosentencemix MEDIA_KEY ...SENTENCE SKIP_MISSING=false GAP=0 BPM=0',
     args: [
       media('the media with the words (its video is cut along with them)'),
       {name: 'SENTENCE', description: 'what to make it say, every word left after the others'},
       {name: 'SKIP_MISSING', default: 'false', description: 'leave out words that aren\'t said instead of failing'},
-      {name: 'GAP', default: '0', range: '0..1000', description: 'milliseconds of silence (and the last frame) between the pieces'},
+      {name: 'GAP', default: '0', range: '0..1000', description: 'milliseconds of silence (and the last frame) between the pieces, not used with `BPM`'},
+      {name: 'BPM', default: '0', range: '30..600', description: 'fit every word to a beat at this tempo (`0`: off)'},
     ],
     examples: [
       {code: '{mediascript:load {video} clip\naudiosentencemix clip i can do that\nrender clip}', result: 'The clip saying "I can do that", cut out of its own words.'},
+      {code: '{mediascript:load {video} clip\naudiosentencemix clip i want /d-ow-n-ah-t-s/\nrender clip}', result: 'The clip saying "I want donuts", with "donuts" pieced together from sounds of its other words.'},
+      {code: '{mediascript:load {video} clip\naudiosentencemix clip i^2 can^4 do^5 that^7*2 BPM=120\nrender clip}', result: 'The same words on a 120 bpm beat, each one pitched a step higher and the last held for two beats.'},
     ],
     notes: [
       'The words are found with speech recognition. Words said one after another stay one piece, and a word that isn\'t said is built from two or three that are (`hotdog` from `hot` and `dog`), or else from their sounds (`notsobot` from `not so` and the sounds of other words). Without `SKIP_MISSING` it fails, listing the words it couldn\'t find.',
-      'Only the first 15 minutes are listened to. The result is an mp4, or an mp3 without video. Counts toward the `ffmpeg` limit.',
+      'A word can end in marks: `word^3` pitches it 3 semitones up (`^-2` down, up to 24 either way), `word*2` makes it twice as long without changing its pitch (`0.25` to `4`), and both go together as `word^3*2`. A `_` on its own is a rest of a quarter second (`_*2` twice that). A marked word is cut on its own instead of as part of a phrase.',
+      'A word can be written as its sounds between slashes, with `-` between them: `/d-ow-n-ah-t-s/` is "donuts". It\'s built from those sounds of the words that are said, like a word that isn\'t said, and takes marks too (`/d-ow-n-ah-t-s/^3`). The sounds are ARPAbet codes (`aa` `ae` `ah` `ao` `aw` `ax` `ay` `b` `ch` `d` `dh` `eh` `er` `ey` `f` `g` `hh` `ih` `iy` `jh` `k` `l` `m` `n` `ng` `ow` `oy` `p` `r` `s` `sh` `t` `th` `uh` `uw` `v` `w` `y` `z` `zh`), or IPA symbols.',
+      'With `BPM` every word takes one beat: it\'s stretched or sped up to fill it (stretched to twice as long at most, the rest of the beat is silence), `word*2` then means two beats (`0.125` to `16`) and `_` rests for a beat. It\'s the word\'s vowel that lands on the beat, the consonants before it (the `tr` of `try`) play just ahead of it. The video is slowed and sped up along with the words.',
+      'Only the first 15 minutes are listened to. The result is an mp4, or an mp3 without video, at most 10 minutes long. Counts toward the `ffmpeg` limit.',
     ],
   },
   {

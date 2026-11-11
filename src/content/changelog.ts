@@ -29,14 +29,19 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: Array<ChangelogDay> = [
   {
     date: '2026-11-10',
-    title: 'Free .tts play, more medias in .veg and .xyt templates by name',
+    title: 'Free .tts play, more medias in .veg, .xyt templates by name and sentence mixing on a beat',
     items: [
       {kind: 'new', text: '`.veg` and `/media-aiv veg` take up to 3 more medias with `-also` (the `also` option): the project\'s files are shared out between your medias in the order they first play, instead of every one becoming the same media.'},
       {kind: 'new', text: '**MediaScript:** `vegrender` takes more media keys after the project (`vegrender clip p song intro`) to play each of the project\'s files with its own media.'},
-      {kind: 'new', text: '`.xyt` takes a VivaVideo template\'s id or name instead of a file, like `.xyt rose` or `/media-iv-filter xyt xyt-id:rose`, from a library of 88 templates.'},
+      {kind: 'new', text: '`.xyt` takes a VivaVideo template\'s id or name instead of a file, like `.xyt rose` or `/media-iv-filter xyt xyt-id:rose`, from a library of 198 filters and overlays.'},
+      {kind: 'new', text: 'Sentence mixing (`/media-av-effect sentence-mix`, `.sentencemix`) takes YTPMV-style marks on a word: `word^3` pitches it 3 semitones up (`^-2` down), `word*2` makes it twice as long without changing its pitch, and `_` is a rest.'},
+      {kind: 'new', text: 'Sentence mixing has a `bpm` option (`-bpm 120`) that puts every word on a beat: each one is stretched or sped up to fill it, `word*2` holds it for two beats and `_` rests for one, with each word\'s vowel landing on the beat, like `.sentencemix try^2 this^4 on^5 your^7*2 _ voice -bpm 120`.'},
+      {kind: 'new', text: 'Sentence mixing takes a word written as its sounds, like `/d-ow-n-ah-t-s/` for "donuts" (ARPAbet codes or IPA with `-` between them), to choose exactly which sounds a word that isn\'t said is built from.'},
+      {kind: 'new', text: '**MediaScript:** `audiosentencemix` takes the same word marks, written sounds and `BPM=`.'},
       {kind: 'improved', text: '`.xyt` renders VivaVideo overlays that only come as a placeholder (like Rose) in full, and overlays with music (like Petal and Miss U) add it to videos, looped with the overlay.'},
       {kind: 'improved', text: '`.tts play` is free for everyone now, like `/tts play` and music. It needed premium, a premium server or music access before.'},
       {kind: 'improved', text: 'Music shows an nsb.gg link by the name the file was uploaded with instead of its link\'s random name, so `.tts play` shows the speech\'s file name in the queue, history and dashboard.'},
+      {kind: 'improved', text: 'Sentence mixing\'s built words sound less choppy: their pieces fade into each other instead of to silence, the sounds they\'re built from are picked more carefully (a consonant is taken along with the vowel it was said next to), and `gap` goes between words instead of inside them.'},
       {kind: 'fixed', text: 'Reddit downloads try once more on another connection when Reddit blocks the first, instead of failing right away.'},
       {kind: 'fixed', text: 'Emojis in text drawn on images show in color again instead of coming out blank.'},
     ],
