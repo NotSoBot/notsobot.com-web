@@ -53,6 +53,7 @@ export const Premium = {
   'premium.row.file_lifetime': 'nsb.gg file lifetime',
   'premium.row.download_quality': 'Download quality',
   'premium.row.animated_frames': 'Frames in GIFs and videos',
+  'premium.row.still_size': 'Still image resolution',
   'premium.row.image_fallback': 'Image search fallback',
   'premium.row.queue': 'Processing queue',
   'premium.row.media': 'Media processing',

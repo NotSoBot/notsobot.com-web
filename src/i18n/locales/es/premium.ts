@@ -55,6 +55,7 @@ export const Premium: Record<keyof typeof English, string> = {
   'premium.row.file_lifetime': 'Duración de archivos en nsb.gg',
   'premium.row.download_quality': 'Calidad de descarga',
   'premium.row.animated_frames': 'Fotogramas en GIFs y vídeos',
+  'premium.row.still_size': 'Resolución de imágenes fijas',
   'premium.row.image_fallback': 'Búsqueda de imagen de respaldo',
   'premium.row.queue': 'Cola de procesamiento',
   'premium.row.media': 'Procesar multimedia',

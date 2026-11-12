@@ -72,8 +72,10 @@ const COMPARISON: Array<{group: TranslationKey, icon: LucideIcon, rows: Array<{l
       {label: 'premium.row.largest_file', values: ['premium.value.discord_limit_100', '200 MB', '200 MB', '200 MB']},
       {label: 'premium.row.file_lifetime', values: ['premium.value.days_14', 'premium.value.days_28', 'premium.value.days_28', 'premium.value.days_28']},
       {label: 'premium.row.download_quality', values: ['premium.value.up_to_720', 'premium.value.up_to_1080', 'premium.value.up_to_1440', 'premium.value.up_to_1440']},
-      // premium jobs (the `high`/`medium` queues) get the api's MAX_ANIMATED_FRAMES_PREMIUM, the frames past 1,080 smaller
+      // premium jobs (the `high`/`medium` queues) get the api's MAX_ANIMATED_FRAMES_PREMIUM
       {label: 'premium.row.animated_frames', values: ['premium.value.frames_1080', 'premium.value.frames_2160', 'premium.value.frames_2160', 'premium.value.frames_2160']},
+      // a still image's size before it's shrunk, the api's MAX_WIDTH and MAX_STILL_WIDTH_PREMIUM (premium jobs)
+      {label: 'premium.row.still_size', values: ['2048px', '4096px', '4096px', '4096px']},
       {label: 'premium.row.image_fallback', values: [false, true, true, true]},
     ],
   },
@@ -129,6 +131,7 @@ const SERVER_PERKS: Array<{label: TranslationKey, free?: Cell, server?: Cell}> =
   {label: 'premium.row.download_quality', free: '720p', server: '1080p'},
   // a premium server's jobs go to the `medium` queue, which gets the premium frame limit too
   {label: 'premium.row.animated_frames', free: 'premium.value.frames_1080', server: 'premium.value.frames_2160'},
+  {label: 'premium.row.still_size', free: '2048px', server: '4096px'},
   {label: 'premium.row.queue', free: 'premium.value.shared', server: 'premium.value.priority'},
   {label: 'premium.server_perk.custom_commands'},
   // `server fonts add`, members with Manage Server

@@ -29,9 +29,14 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: Array<ChangelogDay> = [
   {
     date: '2026-11-12',
-    title: 'Original file names on results',
+    title: 'Bigger premium images, .xyt stickers and unusual DM activity in logs',
     items: [
+      {kind: 'new', text: 'Member logs show when Discord flags a member for unusual DM activity (messaging a lot of people they don\'t know), when it\'s cleared, and on joins from a flagged member.'},
+      {kind: 'improved', text: '`.xyt` renders VivaVideo sticker templates you send as a file (like Disaster), growing in and then looping over your media.'},
       {kind: 'improved', text: 'Results and tag files named with spaces, accents or other characters Discord strips from file names show their original name instead of the cleaned-up one.'},
+      {kind: 'improved', text: 'With NotSoPremium or on a premium server, GIFs and videos over 1,080 frames are no longer made smaller, they keep the same size as shorter ones (up to 640px).'},
+      {kind: 'improved', text: 'With NotSoPremium or on a premium server, image effects keep pictures up to 4096px instead of shrinking them to 2048px, so phone photos and 4K screenshots come back at full size. A few heavier effects still use their own smaller limits.'},
+      {kind: 'fixed', text: 'AI image commands given a blocked prompt say it was blocked, instead of failing with a generic error.'},
     ],
   },
   {
