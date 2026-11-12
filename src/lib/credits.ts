@@ -19,7 +19,9 @@ export const CREDITS_WEEKLY_SERVER_AI_SLOT = 25_000;
 // what every Plus (or Plus AI) slot adds for the server's own cloned voices only
 export const CREDITS_WEEKLY_SERVER_TTS_SLOT = 7_500;
 
-// the api's `MAX_VOICE_CLONE_AMOUNT`, `MAX_VOICE_CLONE_AMOUNT_PREMIUM_PLUS_AI` and `MAX_SERVER_VOICE_CLONE_AMOUNT`
+// the api's `MAX_VOICE_CLONE_AMOUNT`, `MAX_VOICE_CLONE_AMOUNT_PREMIUM_PLUS_AI` and `MAX_SERVER_VOICE_CLONE_AMOUNT`, and
+// `MAX_VOICE_CLONE_AMOUNT_CREDITS` for anyone (or any server) without plus that has bought credits
+export const MAX_VOICE_CLONES_CREDITS = 2;
 export const MAX_VOICE_CLONES_PLUS = 5;
 export const MAX_VOICE_CLONES_PLUS_AI = 10;
 export const MAX_SERVER_VOICE_CLONES = 5;

@@ -21,6 +21,7 @@ import {
   CREDITS_WEEKLY_PREMIUM_PLUS_AI,
   CREDITS_WEEKLY_SERVER_TTS_SLOT,
   MAX_SERVER_VOICE_CLONES,
+  MAX_VOICE_CLONES_CREDITS,
   MAX_VOICE_CLONES_PLUS,
   MAX_VOICE_CLONES_PLUS_AI,
   SERVER_AI_MESSAGES_PER_SLOT,
@@ -102,17 +103,18 @@ const COMPARISON: Array<{group: TranslationKey, icon: LucideIcon, rows: Array<{l
       // `tts play` is free like music
       {label: 'premium.row.tts', values: [true, true, true, true]},
       {label: 'premium.row.server_slots', values: [false, false, '2', '2']},
-      {label: 'premium.row.voice_clones', values: [false, false, String(MAX_VOICE_CLONES_PLUS), String(MAX_VOICE_CLONES_PLUS_AI)]},
+      // without plus, bought credits clone a few
+      {label: 'premium.row.voice_clones', values: ['premium.value.voices_with_credits', 'premium.value.voices_with_credits', String(MAX_VOICE_CLONES_PLUS), String(MAX_VOICE_CLONES_PLUS_AI)]},
     ],
   },
   {
     group: 'premium.group.ai',
     icon: Bot,
     rows: [
-      // NotSoCredits packs let anyone use NotSoAI, Plus AI comes with its own every week
-      {label: 'premium.row.notsoai', values: ['premium.value.with_credits', 'premium.value.with_credits', 'premium.value.with_credits', true]},
-      {label: 'premium.row.ai_tags', values: ['premium.value.with_credits', 'premium.value.with_credits', 'premium.value.with_credits', true]},
-      // a Plus member's go to their cloned voice, Plus AI's to NotSoAI and voices both
+      // NotSoCredits packs let anyone use NotSoAI, Plus and Plus AI come with their own every week
+      {label: 'premium.row.notsoai', values: ['premium.value.with_credits', 'premium.value.with_credits', true, true]},
+      {label: 'premium.row.ai_tags', values: ['premium.value.with_credits', 'premium.value.with_credits', true, true]},
+      // both tiers' go to NotSoAI and cloned voices alike
       {label: 'premium.row.weekly_credits', values: [false, false, creditsLabel(CREDITS_WEEKLY_PREMIUM_PLUS), creditsLabel(CREDITS_WEEKLY_PREMIUM_PLUS_AI)]},
       // the most a Plus AI member's unused weeks bank
       {label: 'premium.row.credits_rollover', values: [false, false, false, creditsLabel(CREDITS_ROLLOVER_PREMIUM_PLUS_AI)]},
@@ -160,12 +162,14 @@ function creditVariables() {
     plus_ai_messages: formatNumber(creditsToMessages(CREDITS_WEEKLY_PREMIUM_PLUS_AI)),
     plus_ai_rollover: formatNumber(CREDITS_ROLLOVER_PREMIUM_PLUS_AI),
     plus_credits: formatNumber(CREDITS_WEEKLY_PREMIUM_PLUS),
+    plus_messages: formatNumber(creditsToMessages(CREDITS_WEEKLY_PREMIUM_PLUS)),
     plus_minutes: formatNumber(Math.round(creditsToSpeechHours(CREDITS_WEEKLY_PREMIUM_PLUS) * 60)),
     saved_fonts: formatNumber(MAX_SAVED_FONTS_USER),
     saved_fonts_server: formatNumber(MAX_SAVED_FONTS_SERVER),
     server_voice_credits: formatNumber(CREDITS_WEEKLY_SERVER_TTS_SLOT),
     server_voice_minutes: formatNumber(Math.round(creditsToSpeechHours(CREDITS_WEEKLY_SERVER_TTS_SLOT) * 60)),
     server_voices: formatNumber(MAX_SERVER_VOICE_CLONES),
+    voices_credits: formatNumber(MAX_VOICE_CLONES_CREDITS),
     voices_plus: formatNumber(MAX_VOICE_CLONES_PLUS),
     voices_plus_ai: formatNumber(MAX_VOICE_CLONES_PLUS_AI),
     slot_messages: formatNumber(SERVER_AI_MESSAGES_PER_SLOT),
@@ -177,7 +181,7 @@ function creditVariables() {
 // a cell's text: its translation when it's a key, as-is otherwise ('30s', '200 MB')
 function useCellText(): (value: string) => string {
   const { t } = useI18n();
-  return (value) => (hasTranslation(value)) ? t(value) : value;
+  return (value) => (hasTranslation(value)) ? t(value, creditVariables()) : value;
 }
 
 
@@ -354,7 +358,7 @@ function CreditsSection() {
           </div>
           <h2 id='premium-credits-title' className='mb-2 text-2xl text-white'>{t('premium.credits.title')}</h2>
           <p className='text-muted'>{t('premium.credits.description', creditVariables())}</p>
-          <p className='mt-3 text-muted'>{rich('premium.credits.packs', {code: (chunk) => <code className='text-code'>{chunk}</code>})}</p>
+          <p className='mt-3 text-muted'>{rich('premium.credits.packs', {code: (chunk) => <code className='text-code'>{chunk}</code>}, creditVariables())}</p>
         </div>
         <ul className='grid content-start gap-4 sm:grid-cols-2'>
           {CREDIT_PACKS.map((pack) => <CreditPackCard key={pack.sku} pack={pack}/>)}

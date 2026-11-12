@@ -29,14 +29,20 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: Array<ChangelogDay> = [
   {
     date: '2026-11-12',
-    title: 'Bigger premium images, .xyt stickers and unusual DM activity in logs',
+    title: '.xyt stickers and text, bigger premium images and faster 3D effects',
     items: [
       {kind: 'new', text: 'Member logs show when Discord flags a member for unusual DM activity (messaging a lot of people they don\'t know), when it\'s cleared, and on joins from a flagged member.'},
-      {kind: 'improved', text: '`.xyt` renders VivaVideo sticker templates you send as a file (like Disaster), growing in and then looping over your media.'},
+      {kind: 'new', text: '`.xyt` renders VivaVideo sticker, text bubble and animated text templates you send as a file (like Disaster, speech bubbles, Typewriter and Raining Characters), and a new `text` option (`-text` on `.xyt`) puts your own words in the text ones. **MediaScript:** `xytrender` renders them too, with their own words.'},
       {kind: 'improved', text: 'Results and tag files named with spaces, accents or other characters Discord strips from file names show their original name instead of the cleaned-up one.'},
       {kind: 'improved', text: 'With NotSoPremium or on a premium server, GIFs and videos over 1,080 frames are no longer made smaller, they keep the same size as shorter ones (up to 640px).'},
       {kind: 'improved', text: 'With NotSoPremium or on a premium server, image effects keep pictures up to 4096px instead of shrinking them to 2048px, so phone photos and 4K screenshots come back at full size. A few heavier effects still use their own smaller limits.'},
+      {kind: 'improved', text: '`.rotate3d` is about 2 times faster on videos and 4 times on images, and `.spin3d` about 4 times. **MediaScript:** `skew` is faster too.'},
+      {kind: 'improved', text: '`.emboss` is up to 7 times faster and `.edgedetect` up to 3 times on images, and both keep premium pictures up to 4096px.'},
+      {kind: 'improved', text: '`.veg` renders projects with lots of stacked warp effects much faster (one went from over 6 minutes to 22 seconds), and other projects a bit faster.'},
       {kind: 'fixed', text: 'AI image commands given a blocked prompt say it was blocked, instead of failing with a generic error.'},
+      {kind: 'fixed', text: '`.rotate3d` turned exactly sideways (a pan or tilt of 90) gives an empty image instead of failing on transparent ones.'},
+      {kind: 'fixed', text: '`.edgedetect` on GIFs and on images with transparency comes out as an edge sketch instead of colored noise, `-mix` blends in as much as you ask for (50 was barely visible), and the `darkenintensity` and `lightenintensity` methods work.'},
+      {kind: 'fixed', text: '`.emboss` with a `-depth` other than 1 no longer comes out black, `-gray` sets how gray flat areas are, the `PHOTOSHOP` method no longer gives an empty image, and `-compose` keeps transparent backgrounds.'},
     ],
   },
   {

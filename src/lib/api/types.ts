@@ -1142,6 +1142,8 @@ export interface MeVoice extends Voice {
 export interface VoicesPage {
   count: number,
   items: Array<MeVoice>,
+  // premium plus or bought NotSoCredits, needed to add audio to them
+  premium: boolean,
 }
 
 // `/users/@me/guilds/<id>/voices` (staff: `/admin/guilds/<id>/voices`), a server's voices with who made each one (null
@@ -1153,9 +1155,11 @@ export interface GuildVoice extends MeVoice {
 export interface GuildVoicesPage {
   count: number,
   items: Array<GuildVoice>,
-  // the api's `MAX_SERVER_VOICE_CLONE_AMOUNT`, bot owners aren't held to it
+  // the api's `MAX_SERVER_VOICE_CLONE_AMOUNT` (`MAX_VOICE_CLONE_AMOUNT_CREDITS` with only given credits), bot owners
+  // aren't held to it
   limit: number,
-  // a member's premium plus slot (or the staff-given `VOICE_CLONE_ACCESS`), needed to add audio to them
+  // a member's premium plus slot, NotSoCredits given to it (or the staff-given `VOICE_CLONE_ACCESS`), needed to add
+  // audio to them
   premium: boolean,
 }
 

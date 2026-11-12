@@ -30,7 +30,7 @@ export const Premium: Record<keyof typeof English, string> = {
   'premium.plus.perk_1': '2 espacios de servidor premium: todos en esos servidores o MD grupales reciben ventajas premium, y tú conservas las tuyas',
   'premium.plus.perk_2': 'Ventajas de música en tus servidores premium: 24/7, una cola de 1000 canciones, enlaces de álbumes y listas, efectos en directo, volumen y fundido',
   'premium.plus.perk_3': '90 segundos para procesar multimedia, 100 para ejecutar tags y 45 para ejecutar código',
-  'premium.plus.perk_4': 'Clona hasta {voices_plus} voces para texto a voz, con {plus_credits} NotSoCredits cada semana para ellas (unos {plus_minutes} minutos de voz)',
+  'premium.plus.perk_4': 'Clona hasta {voices_plus} voces para texto a voz, con {plus_credits} NotSoCredits cada semana para ellas y NotSoAI (unos {plus_minutes} minutos de voz o {plus_messages} mensajes de NotSoAI)',
   'premium.plusAi.tagline': 'Todo, y además NotSoAI.',
   'premium.plusAi.perk_1': 'Habla con NotSoAI en cualquier lado mencionando al bot o respondiéndole, con {plus_ai_credits} NotSoCredits cada semana para eso y tus voces (unos {plus_ai_messages} mensajes)',
   'premium.plusAi.perk_2': 'IA en tus tags con {ai}',
@@ -85,6 +85,7 @@ export const Premium: Record<keyof typeof English, string> = {
   'premium.value.songs_100': '100 canciones',
   'premium.value.songs_1000': '1000 canciones',
   'premium.value.with_credits': 'Con créditos',
+  'premium.value.voices_with_credits': '{voices_credits} con créditos',
 
   'premium.servers.title': 'Servidores premium',
   'premium.servers.description': 'Plus y Plus AI incluyen 2 espacios de servidor premium. Pon uno en un servidor o MD grupal y todos allí recibirán estas ventajas mientras usen NotSoBot, y tú conservas tu propio premium. Añade uno con <code>/settings premium-servers add</code> en el servidor, o desde el panel. Un espacio se puede mover a otro servidor 24 horas después de añadirlo.',
@@ -106,7 +107,7 @@ export const Premium: Record<keyof typeof English, string> = {
 
   'premium.credits.title': 'NotSoCredits',
   'premium.credits.description': 'NotSoAI y las voces clonadas funcionan con NotSoCredits. Un mensaje de NotSoAI cuesta {ai_message} créditos y una voz clonada usa alrededor de {tts_byte} por letra. Plus recibe {plus_credits} cada semana y Plus AI {plus_ai_credits}, y se renuevan cada lunes. Los de Plus AI no se pierden: lo que sobra al final de la semana se acumula, hasta {plus_ai_rollover}.',
-  'premium.credits.packs': '¿Necesitas más? Los paquetes de créditos sirven para todos, incluso sin premium, así que puedes usar NotSoAI sin suscribirte. Se usan cuando se acaban tus créditos semanales, nunca caducan y puedes darle algunos a un servidor con <code>/settings credits give</code> para que todos ahí puedan usar NotSoAI.',
+  'premium.credits.packs': '¿Necesitas más? Los paquetes de créditos sirven para todos, incluso sin premium, así que puedes usar NotSoAI y clonar hasta {voices_credits} voces sin suscribirte. Se usan cuando se acaban tus créditos semanales, nunca caducan y puedes darle algunos a un servidor con <code>/settings credits give</code> para que todos ahí puedan usar NotSoAI y el servidor pueda tener {voices_credits} voces clonadas propias.',
   'premium.credits.pack_name': '{amount} NotSoCredits',
   'premium.credits.bonus': '+{percent}% extra',
   'premium.credits.pack_messages': 'Unos {count} mensajes de NotSoAI',

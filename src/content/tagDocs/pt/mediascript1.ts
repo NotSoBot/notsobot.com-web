@@ -91,7 +91,7 @@ export const MEDIASCRIPT_PORTUGUESE_1: TagDocsTranslation['mediaScriptCommands']
     ],
   },
   loadxyt: {
-    summary: 'Carrega um modelo de filtro, fx ou moldura do VivaVideo (.xyt) para o `xytrender`.',
+    summary: 'Carrega um modelo de filtro, fx, moldura, sticker ou texto do VivaVideo (.xyt) para o `xytrender`.',
     args: {
       URL: ATTACHED_FILES('.xyt'),
       XYT_KEY: KEY_NAME,
@@ -102,7 +102,7 @@ export const MEDIASCRIPT_PORTUGUESE_1: TagDocsTranslation['mediaScriptCommands']
     notes: [
       'Arquivos de até 16mb (ou o limite de download do script, se for menor), no máximo 10 por script, e eles contam para o limite de download do script.',
       'Chaves de xyt são separadas das chaves de mídia. Carregar o mesmo link na mesma chave de novo (como dentro de `reexport`) é pulado.',
-      'Modelos de filtro, fx e moldura funcionam. Modelos de tema, modelos de preenchimento (`_dummy`), efeitos de shader com imagens próprias e efeitos de quadros alfa ainda não são suportados e falham ao carregar.',
+      'Modelos de filtro, fx, moldura, sticker, balão de texto e texto animado funcionam, os de texto com as próprias palavras. Modelos de tema, modelos de preenchimento (`_dummy`), efeitos de shader com imagens próprias e efeitos de quadros alfa ainda não são suportados e falham ao carregar.',
     ],
   },
   xytrender: {

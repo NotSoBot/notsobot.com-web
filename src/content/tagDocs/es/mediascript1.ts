@@ -89,7 +89,7 @@ export const MEDIASCRIPT_SPANISH_1: TagDocsTranslation['mediaScriptCommands'] = 
     ],
   },
   loadxyt: {
-    summary: 'Carga una plantilla de filtro, fx o marco de VivaVideo (.xyt) para `xytrender`.',
+    summary: 'Carga una plantilla de filtro, fx, marco, sticker o texto de VivaVideo (.xyt) para `xytrender`.',
     args: {
       URL: 'enlace al archivo `.xyt`, o `FILE_1`, `FILE_2`... para archivos adjuntos al tag',
       XYT_KEY: 'el nombre con el que usarlo, cualquier nombre como el de una clave de multimedia',
@@ -100,7 +100,7 @@ export const MEDIASCRIPT_SPANISH_1: TagDocsTranslation['mediaScriptCommands'] = 
     notes: [
       'Archivos de hasta 16mb (o el límite de descarga del script, si es menor), como mucho 10 por script, y cuentan para el límite de descarga del script.',
       'Las claves de xyt son independientes de las claves de multimedia. Volver a cargar el mismo enlace en la misma clave (como dentro de `reexport`) se omite.',
-      'Funcionan las plantillas de filtro, fx y marco. Las plantillas de tema, las plantillas de relleno (`_dummy`), los efectos de shader con imágenes propias y los efectos de fotogramas alfa todavía no son compatibles y fallan al cargar.',
+      'Funcionan las plantillas de filtro, fx, marco, sticker, bocadillo de texto y texto animado, las de texto con sus propias palabras. Las plantillas de tema, las plantillas de relleno (`_dummy`), los efectos de shader con imágenes propias y los efectos de fotogramas alfa todavía no son compatibles y fallan al cargar.',
     ],
   },
   xytrender: {

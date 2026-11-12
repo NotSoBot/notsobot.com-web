@@ -5634,7 +5634,7 @@ function mockVoiceClip(body: Record<string, unknown>): VoiceClip {
 
 route('GET', '/users/@me/voices', () => {
   const items = state.voices.filter((voice) => voice.user?.id === mockUser.id).map(meVoice);
-  return {count: items.length, items};
+  return {count: items.length, items, premium: mockUser.premium_type !== 0};
 });
 
 route('PATCH', '/users/@me/voices/(\\d+)', ([ , voiceId ], { body }) => {
@@ -5798,7 +5798,7 @@ function findGuildVoiceClip(guildId: string, voiceId: string, clipId: string) {
 
 function requireGuildVoicePremium(guildId: string) {
   if (!state.premiumServers.some((server) => server.server_id === guildId)) {
-    throw new MockError(403, ApiErrorCodes.PREMIUM_REQUIRED, 'This server needs NotSoPremium Plus from a member to add audio to its voices', {tier: 'premium_plus'});
+    throw new MockError(403, ApiErrorCodes.PREMIUM_REQUIRED, 'This server needs NotSoPremium Plus from a member, or NotSoCredits given to it, to add audio to its voices', {credits: true, tier: 'premium_server'});
   }
 }
 

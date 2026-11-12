@@ -28,7 +28,7 @@ export const Premium = {
   'premium.plus.perk_1': '2 premium server slots: everyone in those servers or group DMs gets premium perks, and you keep yours',
   'premium.plus.perk_2': 'Music perks on your premium servers: 24/7, a 1,000 song queue, album and playlist links, live effects, volume and crossfade',
   'premium.plus.perk_3': '90 seconds to process media, 100 to run tags and 45 to run code',
-  'premium.plus.perk_4': 'Clone up to {voices_plus} voices for text to speech, with {plus_credits} NotSoCredits every week for them (about {plus_minutes} minutes of speech)',
+  'premium.plus.perk_4': 'Clone up to {voices_plus} voices for text to speech, with {plus_credits} NotSoCredits every week for them and NotSoAI (about {plus_minutes} minutes of speech or {plus_messages} NotSoAI messages)',
   'premium.plusAi.tagline': 'Everything, plus NotSoAI.',
   'premium.plusAi.perk_1': 'Talk to NotSoAI anywhere by mentioning the bot or replying to it, with {plus_ai_credits} NotSoCredits every week for it and your voices (about {plus_ai_messages} messages)',
   'premium.plusAi.perk_2': 'AI in your tags with {ai}',
@@ -83,6 +83,7 @@ export const Premium = {
   'premium.value.songs_100': '100 songs',
   'premium.value.songs_1000': '1,000 songs',
   'premium.value.with_credits': 'With credits',
+  'premium.value.voices_with_credits': '{voices_credits} with credits',
 
   'premium.servers.title': 'Premium Servers',
   'premium.servers.description': 'Plus and Plus AI come with 2 premium server slots. Put one on a server or group DM and everyone there gets these perks while they use NotSoBot, and you keep your own premium. Add one with <code>/settings premium-servers add</code> in the server, or from the dashboard. A slot can be moved to another server 24 hours after it was added.',
@@ -104,7 +105,7 @@ export const Premium = {
 
   'premium.credits.title': 'NotSoCredits',
   'premium.credits.description': 'NotSoAI and cloned voices run on NotSoCredits. A NotSoAI message is {ai_message} credits and a cloned voice uses about {tts_byte} per letter. Plus gets {plus_credits} every week and Plus AI gets {plus_ai_credits}, they come back every Monday. Plus AI’s don’t go to waste: what’s left at the end of a week rolls over, up to {plus_ai_rollover} banked.',
-  'premium.credits.packs': 'Need more? Credit packs work for everyone, even without premium, so you can use NotSoAI without subscribing. They’re used once your weekly credits run out and never expire, and you can give some to a server with <code>/settings credits give</code> so everyone there can use NotSoAI.',
+  'premium.credits.packs': 'Need more? Credit packs work for everyone, even without premium, so you can use NotSoAI and clone up to {voices_credits} voices without subscribing. They’re used once your weekly credits run out and never expire, and you can give some to a server with <code>/settings credits give</code> so everyone there can use NotSoAI and the server can have {voices_credits} cloned voices of its own.',
   'premium.credits.pack_name': '{amount} NotSoCredits',
   'premium.credits.bonus': '+{percent}% bonus',
   'premium.credits.pack_messages': 'About {count} NotSoAI messages',

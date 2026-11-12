@@ -2,7 +2,6 @@ import { AudioLines, ChevronDown, Fish, Pause, Pencil, Play, Plus, RefreshCw, Tr
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 
-import { useAuth } from '@/auth';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
@@ -23,7 +22,6 @@ import {
 import { cn, formatDate, formatMemory } from '@/lib/utils';
 
 import { Chip } from '../admin/adminUi';
-import { hasPremiumPlus } from '../premium';
 import { Owner } from '../servers/GuildTagsSection';
 import { EmptyState, ErrorPanel, InlineError, Skeleton } from '../ui';
 import { RenameVoiceDialog, voicePlatformLabel } from './RenameVoiceDialog';
@@ -39,11 +37,10 @@ function formatDuration(ms: number): string {
 }
 
 
-// Cloned voices and the clips they're made from: the caller's own (`guildId` null, their premium plus adds audio) or a
-// server's (through `GuildScopeContext`): anyone in it listens to them, `editable` renames, moves and deletes them, and
-// adding audio also needs the server's premium plus
+// Cloned voices and the clips they're made from: the caller's own (`guildId` null, their premium plus or bought credits
+// add audio) or a server's (through `GuildScopeContext`): anyone in it listens to them, `editable` renames, moves and
+// deletes them, and adding audio also needs the server's premium plus (or credits given to it)
 export function VoiceList({ guildId, editable = true }: {guildId: string | null, editable?: boolean}) {
-  const { user } = useAuth();
   const { t, rich, plural } = useI18n();
   const toast = useToast();
   const own = useMeVoicesQuery(!guildId);
@@ -56,7 +53,7 @@ export function VoiceList({ guildId, editable = true }: {guildId: string | null,
   const [ deleting, setDeleting ] = useState<MeVoice | null>(null);
   const [ transferring, setTransferring ] = useState<MeVoice | null>(null);
   const items: Array<MeVoice & {created_by?: GuildContentUser | null}> = data?.items ?? [];
-  const canUpload = editable && ((guildId) ? !!server.data?.premium : hasPremiumPlus(user));
+  const canUpload = editable && !!data?.premium;
   const code = (chunk: ReactNode) => <code className='text-fg'>{chunk}</code>;
   const premiumLink = (chunk: ReactNode) => <Link to={Routes.DASHBOARD_PREMIUM} className='text-code hover:underline'>{chunk}</Link>;
 
@@ -78,7 +75,7 @@ export function VoiceList({ guildId, editable = true }: {guildId: string | null,
         <>
           {(editable && !canUpload) ? (
             <p className='mb-3 text-sm text-muted'>
-              {(guildId) ? rich('voices.server_needs_plus', {link: premiumLink}) : t('voices.needs_plus')}
+              {rich((guildId) ? 'voices.server_needs_plus' : 'voices.needs_plus', {link: premiumLink})}
             </p>
           ) : null}
           <ul className='space-y-3'>

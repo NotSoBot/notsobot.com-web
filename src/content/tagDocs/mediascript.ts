@@ -795,7 +795,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
   {
     name: 'loadxyt',
     category: 'io',
-    summary: 'Loads a VivaVideo filter, fx or frame template (.xyt) for `xytrender`.',
+    summary: 'Loads a VivaVideo filter, fx, frame, sticker or text template (.xyt) for `xytrender`.',
     syntax: 'loadxyt URL XYT_KEY',
     args: [
       {name: 'URL', description: 'link to the `.xyt` file, or `FILE_1`, `FILE_2`... for files attached to the tag'},
@@ -807,7 +807,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     notes: [
       'Files up to 16mb (or the script\'s download limit, if that\'s smaller), at most 10 per script, and they count toward the script\'s download limit.',
       'Xyt keys are separate from media keys. Loading the same link into the same key again (like inside `reexport`) is skipped.',
-      'Filter, fx and frame templates work. Theme templates, placeholder (`_dummy`) templates, shader effects with their own images and alpha frame effects aren\'t supported yet and fail to load.',
+      'Filter, fx, frame, sticker, text bubble and animated text templates work, text templates with their own words. Theme templates, placeholder (`_dummy`) templates, shader effects with their own images and alpha frame effects aren\'t supported yet and fail to load.',
     ],
   },
   {
