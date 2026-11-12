@@ -28,6 +28,13 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 
 export const CHANGELOG: Array<ChangelogDay> = [
   {
+    date: '2026-11-12',
+    title: 'Original file names on results',
+    items: [
+      {kind: 'improved', text: 'Results and tag files named with spaces, accents or other characters Discord strips from file names show their original name instead of the cleaned-up one.'},
+    ],
+  },
+  {
     date: '2026-11-11',
     title: 'Faster audio and video effects and steadier downloads',
     items: [
