@@ -20,8 +20,8 @@ import { commandPath, PREFIXES } from './commands/commandMeta';
 // what the gallery doesn't show, `home.features.<key>.title` / `.description`, two rows of four on wide screens
 // shown in alphabetical order of their translated titles
 const FEATURES = ['ai', 'audio', 'conversion', 'moderation', 'music', 'search', 'tags', 'tts', 'voices'] as const;
-// NotSoAI needs Plus AI and cloning a voice needs Plus (`.ai` / `tts voice create` in the bot)
-const FEATURE_PREMIUM = {ai: 'home.features.premium_plus_ai', voices: 'home.features.premium_plus'} as const;
+// NotSoAI needs Max and cloning a voice needs Plus (`.ai` / `tts voice create` in the bot)
+const FEATURE_PREMIUM = {ai: 'home.features.premium_max', voices: 'home.features.premium_plus'} as const;
 
 // `home.steps.<key>.title` / `.description`
 const STEPS: Array<{icon: LucideIcon, key: 'post' | 'run' | 'result'}> = [

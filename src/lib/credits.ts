@@ -10,23 +10,25 @@ export const CREDITS_AI_MESSAGE = 75;
 export const CREDITS_PER_TTS_BYTE = 4;
 // every week (from Monday 00:00 UTC)
 export const CREDITS_WEEKLY_PREMIUM_PLUS = 30_000;
-export const CREDITS_WEEKLY_PREMIUM_PLUS_AI = 60_000;
-// what's left of a Plus AI week is banked, up to this many weeks' worth (the api's `CREDITS_ROLLOVER_WEEKS_PREMIUM_PLUS_AI`)
-export const CREDITS_ROLLOVER_WEEKS_PREMIUM_PLUS_AI = 2;
-export const CREDITS_ROLLOVER_PREMIUM_PLUS_AI = CREDITS_WEEKLY_PREMIUM_PLUS_AI * CREDITS_ROLLOVER_WEEKS_PREMIUM_PLUS_AI;
-// for everyone in a server without Plus AI of their own, per Plus AI premium server slot on it
+export const CREDITS_WEEKLY_PREMIUM_MAX = 60_000;
+// what's left of a Max week is banked, up to this many weeks' worth (the api's `CREDITS_ROLLOVER_WEEKS_PREMIUM_MAX`)
+export const CREDITS_ROLLOVER_WEEKS_PREMIUM_MAX = 2;
+export const CREDITS_ROLLOVER_PREMIUM_MAX = CREDITS_WEEKLY_PREMIUM_MAX * CREDITS_ROLLOVER_WEEKS_PREMIUM_MAX;
+// for everyone in a server without Max of their own, per Max premium server slot on it
 export const CREDITS_WEEKLY_SERVER_AI_SLOT = 25_000;
-// what every Plus (or Plus AI) slot adds for the server's own cloned voices only
+// what every Plus (or Max) slot adds for the server's own cloned voices only
 export const CREDITS_WEEKLY_SERVER_TTS_SLOT = 7_500;
 
-// the api's `MAX_VOICE_CLONE_AMOUNT`, `MAX_VOICE_CLONE_AMOUNT_PREMIUM_PLUS_AI` and `MAX_SERVER_VOICE_CLONE_AMOUNT`, and
+// the api's `MAX_VOICE_CLONE_AMOUNT`, `MAX_VOICE_CLONE_AMOUNT_PREMIUM_MAX` and `MAX_SERVER_VOICE_CLONE_AMOUNT`, and
 // `MAX_VOICE_CLONE_AMOUNT_CREDITS` for anyone (or any server) without plus that has bought credits
 export const MAX_VOICE_CLONES_CREDITS = 2;
 export const MAX_VOICE_CLONES_PLUS = 5;
-export const MAX_VOICE_CLONES_PLUS_AI = 10;
+export const MAX_VOICE_CLONES_MAX = 10;
 export const MAX_SERVER_VOICE_CLONES = 5;
+// the api's `MAX_SERVER_VOICE_CLONE_AMOUNT_PREMIUM_MAX`, a server with a Max member's slot
+export const MAX_SERVER_VOICE_CLONES_MAX = 10;
 
-// NotSoAI messages a Plus AI premium server slot gives a server each week
+// NotSoAI messages a Max premium server slot gives a server each week
 export const SERVER_AI_MESSAGES_PER_SLOT = Math.floor(CREDITS_WEEKLY_SERVER_AI_SLOT / CREDITS_AI_MESSAGE);
 
 // roughly how fast a cloned voice speaks, for turning credits into time
@@ -60,5 +62,6 @@ export function creditsLabel(credits: number): string {
   if (1_000_000 <= credits) {
     return `${Number((credits / 1_000_000).toFixed(1))}M`;
   }
-  return `${Math.round(credits / 1000)}K`;
+  // one decimal for amounts like a server voice slot's 7,500 ("7.5K"), whole thousands stay "30K"
+  return `${Number((credits / 1000).toFixed(1))}K`;
 }

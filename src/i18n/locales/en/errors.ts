@@ -37,7 +37,7 @@ export const Errors = {
   'errors.unknown_reminder': 'That reminder doesn’t exist anymore. It may have already been sent or deleted with the bot.',
   'errors.unknown_llm_memory': 'NotSoAI already forgot that one.',
   'errors.unknown_guild_llm_knowledge': 'That was already removed. Someone else may have deleted it.',
-  'errors.premium_required': 'You need NotSoPremium Plus (or Plus AI) for this.',
+  'errors.premium_required': 'You need NotSoPremium Plus (or Max) for this.',
   'errors.max_premium_servers': 'You’ve already given all of your servers premium. Remove one first.',
   'errors.unknown_premium_server': 'That server doesn’t have your premium anymore.',
   'errors.text_blocked_guidelines': 'That text was blocked because it may violate Discord’s Community Guidelines.',

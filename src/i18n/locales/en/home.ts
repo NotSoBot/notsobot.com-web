@@ -30,7 +30,7 @@ export const Home = {
   'home.features.voices.description': 'Clone a voice from an audio or video clip and have NotSoBot speak with it in text to speech.',
   // tier names, same as the dashboard's `premium_type.*` (not loaded on this page)
   'home.features.premium_plus': 'Premium+',
-  'home.features.premium_plus_ai': 'Premium+ AI',
+  'home.features.premium_max': 'Premium Max',
 
   'home.steps.title': 'How It Works',
   'home.steps.post.title': 'Post Some Media',

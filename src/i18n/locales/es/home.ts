@@ -33,7 +33,7 @@ export const Home: Record<keyof typeof English, string> = {
   'home.features.voices.description': 'Clona una voz a partir de un clip de audio o vídeo y haz que NotSoBot hable con ella en texto a voz.',
   // tier names, same as the dashboard's `premium_type.*` (not loaded on this page)
   'home.features.premium_plus': 'Premium+',
-  'home.features.premium_plus_ai': 'Premium+ AI',
+  'home.features.premium_max': 'Premium Max',
 
   'home.steps.title': 'Cómo funciona',
   'home.steps.post.title': 'Publica algo',

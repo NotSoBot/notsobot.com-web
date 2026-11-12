@@ -294,6 +294,27 @@ export const MEDIASCRIPT_SPANISH_5: TagDocsTranslation['mediaScriptCommands'] = 
       MEDIA_KEY: MEDIA,
       FLIPPED: 'reflejar la imagen del ojo',
     },
+    notes: [
+      'Los tipos LASER_ disparan rayos desde los ojos hacia donde mira la cabeza, y los LIGHTNING_ hacen brillar los ojos con rayos saliendo de ellos (FLIPPED no hace nada en ninguno de los dos).',
+    ],
+  },
+  facecutout: {
+    summary: 'Recorta los ojos y la boca de la cara más grande y los vuelve a pegar más grandes, como un objeto que habla.',
+    args: {
+      MEDIA_KEY: MEDIA,
+      COVER_MEDIA_KEY: 'una multimedia (su primer fotograma) que tapa la cara, debajo de los ojos y la boca',
+      COLOR: 'sin multimedia de portada, una mancha de este color tapa la cara',
+      SIZE: 'cuánto más grandes se hacen los ojos y la boca',
+      FACE: 'el número que `drawfaces` pone en una cara, para usar esa cara y seguirla por los fotogramas en vez de la más grande en cada fotograma',
+    },
+    results: [
+      'Tu avatar tapa la cara del vídeo, con los propios ojos y boca de la cara hablando encima.',
+      'Una mancha azul con ojos grandes y una boca grande.',
+    ],
+    notes: [
+      'Sin portada ni color, los ojos y la boca más grandes van sobre la propia cara.',
+      'Los ojos y la boca siguen la cara por los fotogramas de un vídeo, así que sigue hablando y parpadeando.',
+    ],
   },
   drawfaces: {
     summary: 'Pone un óvalo translúcido numerado sobre cada cara encontrada.',

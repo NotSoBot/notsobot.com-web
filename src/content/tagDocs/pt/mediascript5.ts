@@ -295,6 +295,27 @@ export const MEDIASCRIPT_PORTUGUESE_5: TagDocsTranslation['mediaScriptCommands']
       MEDIA_KEY: MEDIA,
       FLIPPED: 'espelhar a imagem do olho',
     },
+    notes: [
+      'Os tipos LASER_ disparam feixes dos olhos para onde a cabeça está virada, e os LIGHTNING_ fazem os olhos brilharem com raios saindo deles (FLIPPED não faz nada em nenhum dos dois).',
+    ],
+  },
+  facecutout: {
+    summary: 'Recorta os olhos e a boca do maior rosto e cola de volta maiores, como um objeto que fala.',
+    args: {
+      MEDIA_KEY: MEDIA,
+      COVER_MEDIA_KEY: 'uma mídia (o primeiro quadro dela) que cobre o rosto, embaixo dos olhos e da boca',
+      COLOR: 'sem mídia de capa, uma mancha dessa cor cobre o rosto',
+      SIZE: 'quanto maiores ficam os olhos e a boca',
+      FACE: 'o número que o `drawfaces` coloca num rosto, para usar esse rosto e segui-lo pelos quadros em vez do maior em cada quadro',
+    },
+    results: [
+      'Seu avatar cobre o rosto do vídeo, com os próprios olhos e boca do rosto falando por cima.',
+      'Uma mancha azul com olhos grandes e uma boca grande.',
+    ],
+    notes: [
+      'Sem capa nem cor, os olhos e a boca maiores vão sobre o próprio rosto.',
+      'Os olhos e a boca seguem o rosto pelos quadros de um vídeo, então ele continua falando e piscando.',
+    ],
   },
   drawfaces: {
     summary: 'Coloca um oval translúcido numerado sobre cada rosto encontrado.',

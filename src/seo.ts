@@ -87,7 +87,7 @@ export const PAGES: Readonly<Record<keyof typeof Routes, PageMeta>> = Object.fre
   LEGAL_TERMS_OF_SERVICE: {title: 'Terms of Service', description: 'The terms for using NotSoBot and notsobot.com.', index: true},
   PREMIUM: {
     title: 'Premium',
-    description: 'What NotSoPremium, Plus and Plus AI unlock: bigger files, longer time limits, custom commands, premium servers, voice cloning and NotSoAI.',
+    description: 'What NotSoPremium, Plus and Max unlock: bigger files, longer time limits, custom commands, premium servers, voice cloning and NotSoAI.',
     index: true,
   },
   STATUS: {title: 'Status', description: 'Live NotSoBot shard and cluster health.', index: true},

@@ -557,7 +557,7 @@ export const TAG_DOC_GUIDE: Array<TagDocGuideSection> = [
     table: {
       columns: ['Limit', 'Default', 'What it covers'],
       rows: [
-        ['Run time', '40 seconds', 'How long the whole run can take, everything it calls included: 60 seconds in a premium server, 70 with Premium, 100 with Plus and 130 with Plus AI.'],
+        ['Run time', '40 seconds', 'How long the whole run can take, everything it calls included: 60 seconds in a premium server, 70 with Premium, 100 with Plus and 130 with Max.'],
         ['Iterations', '450', 'Times text is parsed per run. When it runs out the remaining text is output unevaluated.'],
         ['Network requests', '15', 'Functions that reach the internet: downloads, searches, attachments, code runs, looking up users and so on.'],
         ['AI requests', '1', '`{ai}` calls.'],

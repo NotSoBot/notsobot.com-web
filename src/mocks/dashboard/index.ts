@@ -2887,7 +2887,7 @@ route('PATCH', '/admin/guilds/(\\d+)', ([ , guildId ], { body }) => {
 
 
 // entitlements: read only, newest first like the api
-// the mock user's credits: a Plus AI pool part way through the week with some banked from the weeks before, a bought
+// the mock user's credits: a Max pool part way through the week with some banked from the weeks before, a bought
 // pack and some of it given to a server
 route('GET', '/users/@me/credits', () => {
   const now = Date.now();
@@ -4374,7 +4374,7 @@ route('DELETE', '/users/@me/llm/memories', () => {
 });
 
 // premium server slots: mirrors `views/me_premium_servers.py` (the mock user has premium plus, and can stack slots
-// like plus ai). The limit is counted in slots so stacking shows up even though the mock user is an owner
+// like max). The limit is counted in slots so stacking shows up even though the mock user is an owner
 const MAX_PREMIUM_SERVERS = 3;
 const PREMIUM_SERVER_LOCK = 24 * 60 * 60 * 1000;
 
@@ -5704,7 +5704,7 @@ route('GET', '/users/@me/voices/(\\d+)/clips/(\\d+)/audio', ([ , voiceId, clipId
 });
 
 // mirrors `views/me_credits.py` `guild_credits_payload`: the first guild only has credits people gave it, the second
-// has the mock user's Plus AI slot on it (so a week of NotSoAI and voice credits), the rest nothing
+// has the mock user's Max slot on it (so a week of NotSoAI and voice credits), the rest nothing
 function mockGuildCredits(guildId: string) {
   const giver = state.adminUsers[2];
   const member = (user: {avatar: string | null, discriminator: string, id: string, username: string}) => ({avatar: user.avatar, bot: false, discriminator: user.discriminator, id: user.id, username: user.username});

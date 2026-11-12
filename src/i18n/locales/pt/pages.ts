@@ -34,7 +34,7 @@ export const Pages: PageDescriptions = Object.freeze({
   INVITE: 'Adicione o NotSoBot ao seu servidor do Discord.',
   LEGAL_PRIVACY: 'Como o NotSoBot coleta, usa e guarda seus dados.',
   LEGAL_TERMS_OF_SERVICE: 'Os termos para usar o NotSoBot e o notsobot.com.',
-  PREMIUM: 'O que o NotSoPremium, o Plus e o Plus AI liberam: arquivos maiores, limites de tempo maiores, comandos personalizados, servidores premium, clonagem de voz e NotSoAI.',
+  PREMIUM: 'O que o NotSoPremium, o Plus e o Max liberam: arquivos maiores, limites de tempo maiores, comandos personalizados, servidores premium, clonagem de voz e NotSoAI.',
   STATUS: 'O status ao vivo dos shards e clusters do NotSoBot.',
   STATUS_VOICE: 'O status ao vivo dos nós de voz do NotSoBot que tocam música.',
   TAG_DIRECTORY: 'Pesquise tags do NotSoBot feitas pela comunidade: comandos personalizados que você pode usar em qualquer servidor.',

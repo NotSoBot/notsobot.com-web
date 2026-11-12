@@ -3,9 +3,9 @@
 // `TagLimitDefaults` (credits are in `lib/credits.ts`), keep them in sync. NotSoAI's copy of this page is
 // notsobot.api's `prompts/sections/premium.txt`, update it too when perks change.
 
-import { ArrowRight, Bot, Check, Clock, Coins, Crown, FileUp, Minus, Server, Sparkles, type LucideIcon } from 'lucide-react';
-import type { ReactNode } from 'react';
-import { Link } from 'react-router';
+import { ArrowRight, Bot, Check, Clock, Coins, Crown, FileUp, Link2, Minus, Music, Server, Sparkles, type LucideIcon } from 'lucide-react';
+import { useEffect, type ReactNode } from 'react';
+import { Link, useLocation } from 'react-router';
 
 import { useAuth } from '@/auth';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -17,23 +17,25 @@ import {
   CREDITS_AI_MESSAGE,
   CREDITS_PER_TTS_BYTE,
   CREDITS_WEEKLY_PREMIUM_PLUS,
-  CREDITS_ROLLOVER_PREMIUM_PLUS_AI,
-  CREDITS_WEEKLY_PREMIUM_PLUS_AI,
+  CREDITS_ROLLOVER_PREMIUM_MAX,
+  CREDITS_WEEKLY_PREMIUM_MAX,
+  CREDITS_WEEKLY_SERVER_AI_SLOT,
   CREDITS_WEEKLY_SERVER_TTS_SLOT,
   MAX_SERVER_VOICE_CLONES,
+  MAX_SERVER_VOICE_CLONES_MAX,
   MAX_VOICE_CLONES_CREDITS,
   MAX_VOICE_CLONES_PLUS,
-  MAX_VOICE_CLONES_PLUS_AI,
+  MAX_VOICE_CLONES_MAX,
   SERVER_AI_MESSAGES_PER_SLOT,
   creditsLabel,
   creditsToMessages,
   creditsToSpeechHours,
   type CreditPack,
 } from '@/lib/credits';
-import { cn, formatNumber } from '@/lib/utils';
+import { cn, decodeHash, formatNumber } from '@/lib/utils';
 
 
-type TierId = 'free' | 'premium' | 'plus' | 'plusAi';
+type TierId = 'free' | 'premium' | 'plus' | 'max';
 
 interface Tier {
   id: Exclude<TierId, 'free'>,
@@ -49,22 +51,40 @@ interface Tier {
 // premium server for the server's)
 const MAX_SAVED_FONTS_USER = 10;
 const MAX_SAVED_FONTS_SERVER = 25;
+// the api's `MAX_SAVED_FONTS_GUILD_PREMIUM_MAX`, a server with a Max member's slot
+const MAX_SAVED_FONTS_SERVER_MAX = 50;
 
 // the tagline is `premium.<id>.tagline`
 const TIERS: Array<Tier> = [
   {id: 'premium', name: 'NotSoPremium', sku: DiscordSkus.USER_NOTSOPREMIUM, perks: 8},
-  {id: 'plus', name: 'NotSoPremium Plus', sku: DiscordSkus.USER_NOTSOPREMIUM_PLUS, includes: 'NotSoPremium', perks: 4},
-  {id: 'plusAi', name: 'NotSoPremium Plus AI', sku: DiscordSkus.USER_NOTSOPREMIUM_PLUS_AI, includes: 'NotSoPremium Plus', perks: 5},
+  {id: 'plus', name: 'NotSoPremium Plus', sku: DiscordSkus.USER_NOTSOPREMIUM_PLUS, includes: 'NotSoPremium', perks: 5},
+  // NotSoPremium Plus AI until 2026-11-12
+  {id: 'max', name: 'NotSoPremium Max', sku: DiscordSkus.USER_NOTSOPREMIUM_MAX, includes: 'NotSoPremium Plus', perks: 5},
 ];
 
 // labels are `premium.column.<id>`
-const TIER_COLUMNS: Array<TierId> = ['free', 'premium', 'plus', 'plusAi'];
+const TIER_COLUMNS: Array<TierId> = ['free', 'premium', 'plus', 'max'];
 
-// `true`/`false` render as a check or a dash, translation keys as their text and anything else as-is. One value per
-// column in TIER_COLUMNS
-type Cell = TranslationKey | string | boolean;
+interface ComparisonColumn {
+  id: string,
+  label: TranslationKey,
+}
 
-const COMPARISON: Array<{group: TranslationKey, icon: LucideIcon, rows: Array<{label: TranslationKey, values: [Cell, Cell, Cell, Cell]}>}> = [
+const TIER_TABLE_COLUMNS: Array<ComparisonColumn> = TIER_COLUMNS.map((id) => ({id, label: `premium.column.${id}` as TranslationKey}));
+
+// `true`/`false` render as a check or a dash, translation keys as their text and anything else as-is, `{value, sub}` the
+// value with a smaller line under it (what a week's credits buy). One value per column of its table
+type CellText = TranslationKey | string;
+type Cell = CellText | boolean | {value: CellText, sub: CellText};
+
+// a group of rows, one value per column of the table it's in
+interface ComparisonGroup {
+  group: TranslationKey,
+  icon: LucideIcon,
+  rows: Array<{label: TranslationKey, values: ReadonlyArray<Cell>}>,
+}
+
+const COMPARISON: Array<ComparisonGroup> = [
   {
     group: 'premium.group.media',
     icon: FileUp,
@@ -98,80 +118,136 @@ const COMPARISON: Array<{group: TranslationKey, icon: LucideIcon, rows: Array<{l
     rows: [
       {label: 'premium.row.custom_commands', values: [false, true, true, true]},
       {label: 'premium.row.saved_fonts', values: [false, String(MAX_SAVED_FONTS_USER), String(MAX_SAVED_FONTS_USER), String(MAX_SAVED_FONTS_USER)]},
-      // music is free, its perks come from a premium server slot (or `MUSIC_ACCESS`), not the user's own premium
-      {label: 'premium.row.music', values: [true, true, true, true]},
-      // `tts play` is free like music
-      {label: 'premium.row.tts', values: [true, true, true, true]},
       {label: 'premium.row.server_slots', values: [false, false, '2', '2']},
       // without plus, bought credits clone a few
-      {label: 'premium.row.voice_clones', values: ['premium.value.voices_with_credits', 'premium.value.voices_with_credits', String(MAX_VOICE_CLONES_PLUS), String(MAX_VOICE_CLONES_PLUS_AI)]},
+      {label: 'premium.row.voice_clones', values: ['premium.value.voices_with_credits', 'premium.value.voices_with_credits', String(MAX_VOICE_CLONES_PLUS), String(MAX_VOICE_CLONES_MAX)]},
     ],
   },
   {
     group: 'premium.group.ai',
     icon: Bot,
     rows: [
-      // NotSoCredits packs let anyone use NotSoAI, Plus and Plus AI come with their own every week
-      {label: 'premium.row.notsoai', values: ['premium.value.with_credits', 'premium.value.with_credits', true, true]},
-      {label: 'premium.row.ai_tags', values: ['premium.value.with_credits', 'premium.value.with_credits', true, true]},
-      // both tiers' go to NotSoAI and cloned voices alike
-      {label: 'premium.row.weekly_credits', values: [false, false, creditsLabel(CREDITS_WEEKLY_PREMIUM_PLUS), creditsLabel(CREDITS_WEEKLY_PREMIUM_PLUS_AI)]},
-      // the most a Plus AI member's unused weeks bank
-      {label: 'premium.row.credits_rollover', values: [false, false, false, creditsLabel(CREDITS_ROLLOVER_PREMIUM_PLUS_AI)]},
+      // NotSoCredits packs let anyone use NotSoAI, Plus and Max also pay for it with their weekly credits
+      {label: 'premium.row.notsoai', values: ['premium.value.credit_packs', 'premium.value.credit_packs', 'premium.value.weekly_credits', 'premium.value.weekly_credits']},
+      {label: 'premium.row.ai_tags', values: ['premium.value.credit_packs', 'premium.value.credit_packs', 'premium.value.weekly_credits', 'premium.value.weekly_credits']},
+      // the weekly credits with what they buy under them, all on NotSoAI or all on voices (`compare_credits_note`)
+      {label: 'premium.row.weekly_credits', values: [
+        false,
+        false,
+        {value: creditsLabel(CREDITS_WEEKLY_PREMIUM_PLUS), sub: 'premium.value.worth_plus'},
+        {value: creditsLabel(CREDITS_WEEKLY_PREMIUM_MAX), sub: 'premium.value.worth_max'},
+      ]},
+      // the most a Max member's unused weeks bank
+      {label: 'premium.row.credits_rollover', values: [false, false, false, 'premium.value.rollover_up_to']},
     ],
   },
 ];
 
-// what a server gets from a member who gave it their premium (the api's `*_PREMIUM_FROM_SERVER` limits), next to what
-// it has without. perks with no `free` are things a server can't have at all without premium
-const SERVER_PERKS: Array<{label: TranslationKey, free?: Cell, server?: Cell}> = [
-  {label: 'premium.row.media', free: '30s', server: '45s'},
-  {label: 'premium.row.tag', free: '40s', server: '60s'},
-  {label: 'premium.row.code', free: '15s', server: '20s'},
-  {label: 'premium.row.largest_file', free: 'premium.value.discord_limit', server: '100 MB'},
-  {label: 'premium.row.file_lifetime', free: 'premium.value.days_14', server: 'premium.value.days_28'},
-  {label: 'premium.row.download_quality', free: '720p', server: '1080p'},
-  // a premium server's jobs go to the `medium` queue, which gets the premium frame limit too
-  {label: 'premium.row.animated_frames', free: 'premium.value.frames_1080', server: 'premium.value.frames_2160'},
-  {label: 'premium.row.still_size', free: '2048px', server: '4096px'},
-  {label: 'premium.row.queue', free: 'premium.value.shared', server: 'premium.value.priority'},
-  {label: 'premium.server_perk.custom_commands'},
-  // `server fonts add`, members with Manage Server
-  {label: 'premium.server_perk.saved_fonts'},
-  // the api's `MAX_MUSIC_QUEUE_AMOUNT` and `MAX_MUSIC_QUEUE_PREMIUM_AMOUNT`
-  {label: 'premium.server_perk.music_queue', free: 'premium.value.songs_100', server: 'premium.value.songs_1000'},
-  {label: 'premium.server_perk.music_247'},
-  {label: 'premium.server_perk.music_playlists'},
-  {label: 'premium.server_perk.music_effects'},
-  {label: 'premium.server_perk.music_volume'},
-  {label: 'premium.server_perk.image_fallback'},
-  // the api's `CREDITS_WEEKLY_SERVER_AI_SLOT` in messages, shared by everyone in the server without Plus AI
-  {label: 'premium.server_perk.notsoai'},
-  // made by members with Manage Server, `CREDITS_WEEKLY_SERVER_TTS_SLOT` a week from each slot goes to them (their own
-  // week, NotSoAI's messages aren't touched)
-  {label: 'premium.server_perk.voices'},
+// the premium servers table under the tiers': what one slot a member put on a server gives it (the api's
+// `*_PREMIUM_FROM_SERVER` limits), next to none. Plus and Max slots only differ in NotSoAI, and NotSoAI messages and
+// voice credits add up per slot (`compare_servers_note` says so)
+const SERVER_TABLE_COLUMNS: Array<ComparisonColumn> = [
+  {id: 'none', label: 'premium.server_column.none'},
+  {id: 'plus', label: 'premium.server_column.plus'},
+  {id: 'max', label: 'premium.server_column.max'},
 ];
 
+const SERVER_COMPARISON: Array<ComparisonGroup> = [
+  {
+    group: 'premium.group.media',
+    icon: FileUp,
+    rows: [
+      {label: 'premium.row.largest_file', values: ['premium.value.discord_limit', '100 MB', '100 MB']},
+      // the api's `MAX_FILE_UPLOAD_EXPIRE_TIME_PREMIUM_FROM_SERVER`, a Max slot keeps them as long as premium users
+      {label: 'premium.row.file_lifetime', values: ['premium.value.days_14', 'premium.value.days_21', 'premium.value.days_28']},
+      {label: 'premium.row.download_quality', values: ['premium.value.up_to_720', 'premium.value.up_to_1080', 'premium.value.up_to_1080']},
+      // a premium server's jobs go to the `medium` queue, which gets the premium frame and still size limits too
+      {label: 'premium.row.animated_frames', values: ['premium.value.frames_1080', 'premium.value.frames_2160', 'premium.value.frames_2160']},
+      {label: 'premium.row.still_size', values: ['2048px', '4096px', '4096px']},
+      {label: 'premium.row.image_fallback', values: [false, true, true]},
+    ],
+  },
+  {
+    group: 'premium.group.time',
+    icon: Clock,
+    rows: [
+      // a premium server's jobs go to the `medium` queue, between free's `low` and premium users' `high`
+      {label: 'premium.row.queue', values: ['premium.value.shared', 'premium.value.medium_priority', 'premium.value.medium_priority']},
+      {label: 'premium.row.media', values: ['30s', '45s', '45s']},
+      {label: 'premium.row.tag', values: ['40s', '60s', '60s']},
+      {label: 'premium.row.code', values: ['15s', '20s', '20s']},
+    ],
+  },
+  {
+    group: 'premium.group.commands',
+    icon: Server,
+    rows: [
+      {label: 'premium.server_perk.custom_commands', values: [false, true, true]},
+      // `server fonts add`, members with Manage Server
+      {label: 'premium.row.saved_fonts', values: [false, String(MAX_SAVED_FONTS_SERVER), String(MAX_SAVED_FONTS_SERVER_MAX)]},
+    ],
+  },
+  {
+    group: 'premium.group.music',
+    icon: Music,
+    rows: [
+      // the api's `MAX_MUSIC_QUEUE_AMOUNT` and `MAX_MUSIC_QUEUE_PREMIUM_AMOUNT`
+      // the api's `MAX_MUSIC_QUEUE_PREMIUM_MAX_AMOUNT` with a Max slot
+      {label: 'premium.server_perk.music_queue', values: ['premium.value.songs_100', 'premium.value.songs_1000', 'premium.value.songs_2000']},
+      {label: 'premium.server_perk.music_247', values: [false, true, true]},
+      // turning `pause_alone` off (the api's `update_music_settings`)
+      {label: 'premium.row.music_alone', values: [false, true, true]},
+      {label: 'premium.server_perk.music_playlists', values: [false, true, true]},
+      {label: 'premium.server_perk.music_effects', values: [false, true, true]},
+      // any speed or volume but 100% (the api's `control_guild_music`)
+      {label: 'premium.row.music_speed_volume', values: [false, true, true]},
+      {label: 'premium.row.music_crossfade', values: [false, true, true]},
+    ],
+  },
+  {
+    group: 'premium.group.ai',
+    icon: Bot,
+    rows: [
+      // only Max slots give NotSoAI weekly credits, otherwise it's the credits members give it
+      {label: 'premium.row.notsoai', values: ['premium.value.credit_packs', 'premium.value.credit_packs', 'premium.value.weekly_credits']},
+      // without a slot, credits given to it let it have the api's `MAX_VOICE_CLONE_AMOUNT_CREDITS`
+      {label: 'premium.row.server_voices', values: ['premium.value.voices_with_credits', String(MAX_SERVER_VOICE_CLONES), String(MAX_SERVER_VOICE_CLONES_MAX)]},
+      // `CREDITS_WEEKLY_SERVER_AI_SLOT` (Max only) and `CREDITS_WEEKLY_SERVER_TTS_SLOT` (every slot), each its own
+      // week that only buys its own thing, so what they buy adds up (`+`) instead of the tiers' `or`
+      {label: 'premium.row.weekly_credits', values: [
+        false,
+        {value: 'premium.value.slot_credits_plus', sub: 'premium.value.worth_slot_plus'},
+        {value: 'premium.value.slot_credits_max', sub: 'premium.value.worth_slot_max'},
+      ]},
+    ],
+  },
+];
 
 // the credit numbers the perks and the credits section are written with, formatted for the reader's language
 function creditVariables() {
   return {
     ai_message: formatNumber(CREDITS_AI_MESSAGE),
     tts_byte: formatNumber(CREDITS_PER_TTS_BYTE),
-    plus_ai_credits: formatNumber(CREDITS_WEEKLY_PREMIUM_PLUS_AI),
-    plus_ai_messages: formatNumber(creditsToMessages(CREDITS_WEEKLY_PREMIUM_PLUS_AI)),
-    plus_ai_rollover: formatNumber(CREDITS_ROLLOVER_PREMIUM_PLUS_AI),
+    max_credits: formatNumber(CREDITS_WEEKLY_PREMIUM_MAX),
+    max_credits_label: creditsLabel(CREDITS_WEEKLY_PREMIUM_MAX),
+    max_messages: formatNumber(creditsToMessages(CREDITS_WEEKLY_PREMIUM_MAX)),
+    max_minutes: formatNumber(Math.round(creditsToSpeechHours(CREDITS_WEEKLY_PREMIUM_MAX) * 60)),
+    max_rollover: formatNumber(CREDITS_ROLLOVER_PREMIUM_MAX),
+    max_rollover_label: creditsLabel(CREDITS_ROLLOVER_PREMIUM_MAX),
     plus_credits: formatNumber(CREDITS_WEEKLY_PREMIUM_PLUS),
+    plus_credits_label: creditsLabel(CREDITS_WEEKLY_PREMIUM_PLUS),
     plus_messages: formatNumber(creditsToMessages(CREDITS_WEEKLY_PREMIUM_PLUS)),
     plus_minutes: formatNumber(Math.round(creditsToSpeechHours(CREDITS_WEEKLY_PREMIUM_PLUS) * 60)),
     saved_fonts: formatNumber(MAX_SAVED_FONTS_USER),
     saved_fonts_server: formatNumber(MAX_SAVED_FONTS_SERVER),
     server_voice_credits: formatNumber(CREDITS_WEEKLY_SERVER_TTS_SLOT),
+    server_voice_credits_label: creditsLabel(CREDITS_WEEKLY_SERVER_TTS_SLOT),
+    slot_credits_label: creditsLabel(CREDITS_WEEKLY_SERVER_AI_SLOT),
     server_voice_minutes: formatNumber(Math.round(creditsToSpeechHours(CREDITS_WEEKLY_SERVER_TTS_SLOT) * 60)),
     server_voices: formatNumber(MAX_SERVER_VOICE_CLONES),
     voices_credits: formatNumber(MAX_VOICE_CLONES_CREDITS),
     voices_plus: formatNumber(MAX_VOICE_CLONES_PLUS),
-    voices_plus_ai: formatNumber(MAX_VOICE_CLONES_PLUS_AI),
+    voices_max: formatNumber(MAX_VOICE_CLONES_MAX),
     slot_messages: formatNumber(SERVER_AI_MESSAGES_PER_SLOT),
     slot_messages_double: formatNumber(SERVER_AI_MESSAGES_PER_SLOT * 2),
   };
@@ -190,9 +266,9 @@ function currentTierId(premiumType: number | undefined): TierId | null {
     case UserPremiumTypes.NONE: return 'free';
     case UserPremiumTypes.PREMIUM: return 'premium';
     case UserPremiumTypes.PREMIUM_PLUS: return 'plus';
-    // complimentary premium has everything plus ai has
+    // complimentary premium has everything max has
     case UserPremiumTypes.PREMIUM_FREE:
-    case UserPremiumTypes.PREMIUM_PLUS_AI: return 'plusAi';
+    case UserPremiumTypes.PREMIUM_MAX: return 'max';
   }
   return null;
 }
@@ -202,6 +278,15 @@ export function PremiumPage() {
   const { user } = useAuth();
   const { t, rich } = useI18n();
   const current = currentTierId(user?.premium_type);
+  const location = useLocation();
+
+  // `/premium#premium-compare-servers` (or any section's id) jumps to it, also when the hash changes on the page
+  useEffect(() => {
+    const id = decodeHash(location.hash);
+    if (id) {
+      document.getElementById(id)?.scrollIntoView({block: 'start'});
+    }
+  }, [location.hash]);
 
   return (
     <div className='container-page pb-16'>
@@ -227,41 +312,58 @@ export function PremiumPage() {
       </section>
 
       <section id='premium-servers' aria-labelledby='premium-servers-title' className='mb-16 scroll-mt-24'>
-        <div className='card grid gap-6 p-6 md:grid-cols-[1fr_1.4fr] md:p-8'>
-          <div>
-            <div className='mb-4 flex size-12 items-center justify-center rounded-lg bg-brand/10'>
-              <Server className='size-6 text-brand-text'/>
-            </div>
-            <h2 id='premium-servers-title' className='mb-2 text-2xl text-white'>{t('premium.servers.title')}</h2>
+        {/* how slots work, what they give a server is the comparison table at the bottom */}
+        <div className='card p-6 md:p-8'>
+          <div className='mb-4 flex size-12 items-center justify-center rounded-lg bg-brand/10'>
+            <Server className='size-6 text-brand-text'/>
+          </div>
+          <h2 id='premium-servers-title' className='mb-2 text-2xl text-white'>{t('premium.servers.title')}</h2>
+          <div className='max-w-3xl'>
             <p className='text-muted'>
               {rich('premium.servers.description', {code: (chunk) => <code className='text-code'>{chunk}</code>})}
             </p>
             <p className='mt-3 text-muted'>{t('premium.servers.stacking', creditVariables())}</p>
             <p className='mt-3 text-sm text-subtle'>{t('premium.servers.owning')}</p>
           </div>
-          <div>
-            <div aria-hidden className='mb-1 flex justify-end gap-2 px-1 text-xs text-subtle'>
-              <span>{t('premium.servers.without')}</span>
-              <ArrowRight className='size-3.5'/>
-              <span className='text-warning'>{t('premium.servers.with')}</span>
-            </div>
-            <ul className='divide-y divide-line'>
-              {SERVER_PERKS.map((perk) => <ServerPerk key={perk.label} {...perk}/>)}
-            </ul>
-          </div>
+          <a href='#premium-compare-servers' className='mt-5 inline-flex items-center gap-1.5 text-sm font-medium text-brand-text hover:underline'>
+            {t('premium.servers.compare_link')}
+            <ArrowRight className='size-4' aria-hidden/>
+          </a>
         </div>
       </section>
 
       <CreditsSection/>
 
       <section id='premium-compare' aria-labelledby='premium-compare-title' className='scroll-mt-24'>
-        <h2 id='premium-compare-title' className='section-label mb-4'>{t('premium.compare')}</h2>
-        <ComparisonTable current={current}/>
-        <p className='mt-3 text-xs text-subtle'>
+        <AnchorHeading id='premium-compare-title' sectionId='premium-compare'>{t('premium.compare')}</AnchorHeading>
+        <ComparisonTable columns={TIER_TABLE_COLUMNS} groups={COMPARISON} current={current}/>
+        <p className='mt-3 text-xs text-subtle'>{t('premium.compare_credits_note')}</p>
+        <p className='mt-1 text-xs text-subtle'>
           {rich('premium.compare_note', {terms: (chunk) => <Link to={Routes.LEGAL_TERMS_OF_SERVICE} className='underline hover:text-muted'>{chunk}</Link>})}
         </p>
       </section>
+
+      <section id='premium-compare-servers' aria-labelledby='premium-compare-servers-title' className='mt-12 scroll-mt-24'>
+        <AnchorHeading id='premium-compare-servers-title' sectionId='premium-compare-servers'>{t('premium.compare_servers')}</AnchorHeading>
+        <ComparisonTable columns={SERVER_TABLE_COLUMNS} groups={SERVER_COMPARISON} current={null}/>
+        <p className='mt-3 text-xs text-subtle'>{t('premium.compare_servers_note', creditVariables())}</p>
+        <p className='mt-1 text-xs text-subtle'>{t('premium.compare_credits_note')}</p>
+      </section>
     </div>
+  );
+}
+
+
+// a section heading that links to its own section (`/premium#premium-compare`), like the changelog's days, so it can be
+// shared. The icon shows on hover and focus
+function AnchorHeading({ id, sectionId, children }: {id: string, sectionId: string, children: ReactNode}) {
+  return (
+    <h2 id={id} className='section-label mb-4'>
+      <a href={`#${sectionId}`} className='group inline-flex items-center gap-1.5 transition-colors hover:text-white'>
+        {children}
+        <Link2 className='size-3.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100' aria-hidden/>
+      </a>
+    </h2>
   );
 }
 
@@ -270,17 +372,18 @@ function HowToSubscribe({ signedIn }: {signedIn: boolean}) {
   const { t, rich } = useI18n();
   return (
     <div className='flex flex-col gap-4 sm:flex-row sm:items-center'>
-      <div className='flex items-center gap-3 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm'>
+      {/* the hint wraps instead of the buttons, which keep their text on one line */}
+      <div className='flex min-w-0 items-center gap-3 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm'>
         <Sparkles className='size-5 shrink-0 text-warning' aria-hidden/>
         <span className='text-fg'>
           {rich('premium.how.store', {b: (chunk) => <span className='font-semibold text-white'>{chunk}</span>})}
         </span>
       </div>
-      <a href={Urls.DISCORD_STORE} target='_blank' rel='noreferrer' className='btn btn-primary'>{t('premium.how.open_store')}</a>
+      <a href={Urls.DISCORD_STORE} target='_blank' rel='noreferrer' className='btn btn-primary shrink-0 whitespace-nowrap'>{t('premium.how.open_store')}</a>
       {(signedIn) ? (
-        <Link to={Routes.DASHBOARD_PREMIUM} className='btn btn-secondary'>{t('premium.how.manage')}</Link>
+        <Link to={Routes.DASHBOARD_PREMIUM} className='btn btn-secondary shrink-0 whitespace-nowrap'>{t('premium.how.manage')}</Link>
       ) : (
-        <Link to={`${Routes.FAQ}#premium`} className='btn btn-ghost'>{t('premium.how.faq')}</Link>
+        <Link to={`${Routes.FAQ}#premium`} className='btn btn-ghost shrink-0 whitespace-nowrap'>{t('premium.how.faq')}</Link>
       )}
     </div>
   );
@@ -289,7 +392,7 @@ function HowToSubscribe({ signedIn }: {signedIn: boolean}) {
 
 function TierCard({ tier, current }: {tier: Tier, current: boolean}) {
   const { t, rich } = useI18n();
-  const ai = tier.id === 'plusAi';
+  const ai = tier.id === 'max';
   return (
     <article
       className={cn(
@@ -326,27 +429,6 @@ function TierCard({ tier, current }: {tier: Tier, current: boolean}) {
 }
 
 
-function ServerPerk({ label, free, server }: {label: TranslationKey, free?: Cell, server?: Cell}) {
-  const { t } = useI18n();
-  const text = useCellText();
-  return (
-    <li className='flex items-center justify-between gap-4 px-1 py-2 text-sm'>
-      <span className='flex items-center gap-2.5 text-fg'>
-        <Check className='size-4 shrink-0 text-success-text' aria-hidden/>
-        {t(label, creditVariables())}
-      </span>
-      {(typeof free === 'string' && typeof server === 'string') ? (
-        <span className='flex shrink-0 items-center gap-2 tabular-nums'>
-          <span className='text-subtle'>{text(free)}</span>
-          <ArrowRight className='size-3.5 text-subtle' aria-label={t('premium.servers.becomes')}/>
-          <span className='font-medium text-warning'>{text(server)}</span>
-        </span>
-      ) : null}
-    </li>
-  );
-}
-
-
 function CreditsSection() {
   const { t, rich } = useI18n();
   return (
@@ -358,7 +440,12 @@ function CreditsSection() {
           </div>
           <h2 id='premium-credits-title' className='mb-2 text-2xl text-white'>{t('premium.credits.title')}</h2>
           <p className='text-muted'>{t('premium.credits.description', creditVariables())}</p>
-          <p className='mt-3 text-muted'>{rich('premium.credits.packs', {code: (chunk) => <code className='text-code'>{chunk}</code>}, creditVariables())}</p>
+          <p className='mt-3 text-muted'>{t('premium.credits.packs')}</p>
+          <ul className='mt-2 grid gap-2'>
+            <Perk>{t('premium.credits.packs_1', creditVariables())}</Perk>
+            <Perk>{t('premium.credits.packs_2')}</Perk>
+            <Perk>{rich('premium.credits.packs_3', {code: (chunk) => <code className='text-code'>{chunk}</code>}, creditVariables())}</Perk>
+          </ul>
         </div>
         <ul className='grid content-start gap-4 sm:grid-cols-2'>
           {CREDIT_PACKS.map((pack) => <CreditPackCard key={pack.sku} pack={pack}/>)}
@@ -411,7 +498,8 @@ function Perk({ children }: {children: ReactNode}) {
 }
 
 
-function ComparisonTable({ current }: {current: TierId | null}) {
+// `current` highlights the reader's own column (the tiers' table)
+function ComparisonTable({ columns, groups, current }: {columns: Array<ComparisonColumn>, groups: Array<ComparisonGroup>, current: string | null}) {
   const { t } = useI18n();
   return (
     <div className='card overflow-x-auto'>
@@ -419,22 +507,22 @@ function ComparisonTable({ current }: {current: TierId | null}) {
         <thead>
           <tr className='border-b border-line text-left'>
             <th scope='col' className='px-4 py-3 font-medium text-muted'><span className='sr-only'>{t('premium.perk')}</span></th>
-            {TIER_COLUMNS.map((column) => (
+            {columns.map((column) => (
               <th
-                key={column}
+                key={column.id}
                 scope='col'
-                className={cn('px-4 py-3 text-center font-semibold', (current === column) ? 'text-warning' : 'text-white')}
+                className={cn('px-4 py-3 text-center font-semibold', (current === column.id) ? 'text-warning' : 'text-white')}
               >
-                {t(`premium.column.${column}`)}
-                {(current === column) ? <span className='block text-xs font-normal'>{t('premium.column.you')}</span> : null}
+                {t(column.label)}
+                {(current === column.id) ? <span className='block text-xs font-normal'>{t('premium.column.you')}</span> : null}
               </th>
             ))}
           </tr>
         </thead>
-        {COMPARISON.map(({ group, icon: Icon, rows }) => (
+        {groups.map(({ group, icon: Icon, rows }) => (
           <tbody key={group} className='border-b border-line last:border-b-0'>
             <tr>
-              <th scope='colgroup' colSpan={TIER_COLUMNS.length + 1} className='bg-surface-2 px-4 py-2 text-left'>
+              <th scope='colgroup' colSpan={columns.length + 1} className='bg-surface-2 px-4 py-2 text-left'>
                 <span className='section-label flex items-center gap-2'>
                   <Icon className='size-3.5' aria-hidden/>
                   {t(group)}
@@ -445,7 +533,7 @@ function ComparisonTable({ current }: {current: TierId | null}) {
               <tr key={row.label} className='border-t border-line/60'>
                 <th scope='row' className='px-4 py-2.5 text-left font-normal text-fg'>{t(row.label)}</th>
                 {row.values.map((value, index) => (
-                  <td key={TIER_COLUMNS[index]} className={cn('px-4 py-2.5 text-center whitespace-nowrap tabular-nums', (current === TIER_COLUMNS[index]) && 'bg-warning/5')}>
+                  <td key={columns[index].id} className={cn('px-4 py-2.5 text-center whitespace-nowrap tabular-nums', (current === columns[index].id) && 'bg-warning/5')}>
                     <CellValue value={value}/>
                   </td>
                 ))}
@@ -467,6 +555,14 @@ function CellValue({ value }: {value: Cell}) {
   }
   if (value === false) {
     return <Minus className='mx-auto size-4 text-subtle' aria-label={t('premium.not_included')}/>;
+  }
+  if (typeof value === 'object') {
+    return (
+      <>
+        <span className='block text-fg'>{text(value.value)}</span>
+        <span className='mt-0.5 block whitespace-normal text-xs text-subtle'>{text(value.sub)}</span>
+      </>
+    );
   }
   return <span className='text-fg'>{text(value)}</span>;
 }

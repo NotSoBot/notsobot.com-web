@@ -329,7 +329,7 @@ export const GUIDE_SPANISH: TagDocsTranslation['guide'] = {
     table: {
       columns: ['Límite', 'Por defecto', 'Qué cubre'],
       rows: [
-        ['Tiempo de ejecución', '40 segundos', 'Cuánto puede durar toda la ejecución, incluido todo lo que llama: 60 segundos en un servidor premium, 70 con Premium, 100 con Plus y 130 con Plus AI.'],
+        ['Tiempo de ejecución', '40 segundos', 'Cuánto puede durar toda la ejecución, incluido todo lo que llama: 60 segundos en un servidor premium, 70 con Premium, 100 con Plus y 130 con Max.'],
         ['Iteraciones', '', 'Veces que se analiza texto por ejecución. Cuando se agotan, el texto restante se muestra sin evaluar.'],
         ['Peticiones de red', '', 'Funciones que acceden a internet: descargas, búsquedas, archivos adjuntos, ejecuciones de código, buscar usuarios, etc.'],
         ['Peticiones de IA', '', 'Llamadas a `{ai}`.'],

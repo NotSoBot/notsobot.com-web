@@ -39,7 +39,7 @@ export const Errors: Record<keyof typeof English, string> = {
   'errors.unknown_reminder': 'Esse lembrete não existe mais. Ele pode já ter sido enviado ou excluído pelo bot.',
   'errors.unknown_llm_memory': 'O NotSoAI já esqueceu isso.',
   'errors.unknown_guild_llm_knowledge': 'Isso já foi removido. Outra pessoa pode ter excluído.',
-  'errors.premium_required': 'Você precisa do NotSoPremium Plus (ou Plus AI) para isso.',
+  'errors.premium_required': 'Você precisa do NotSoPremium Plus (ou Max) para isso.',
   'errors.max_premium_servers': 'Você já deu premium para todos os seus servidores. Remova um antes.',
   'errors.unknown_premium_server': 'Esse servidor não tem mais o seu premium.',
   'errors.text_blocked_guidelines': 'Esse texto foi bloqueado porque pode violar as Diretrizes da Comunidade do Discord.',

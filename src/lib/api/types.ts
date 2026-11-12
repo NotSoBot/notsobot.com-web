@@ -546,7 +546,7 @@ export const UserPremiumTypes = {
   PREMIUM_FREE: 1,
   PREMIUM: 2,
   PREMIUM_PLUS: 3,
-  PREMIUM_PLUS_AI: 4,
+  PREMIUM_MAX: 4,
 } as const;
 
 
@@ -558,7 +558,7 @@ export const DiscordSkus = {
   USER_NOTSOCREDITS_700K: '1566964635691917413',
   USER_NOTSOPREMIUM: '1182569865735831582',
   USER_NOTSOPREMIUM_PLUS: '1318864356179710044',
-  USER_NOTSOPREMIUM_PLUS_AI: '1492322196146618429',
+  USER_NOTSOPREMIUM_MAX: '1492322196146618429',
 } as const;
 
 
@@ -2551,7 +2551,7 @@ export interface PremiumServer {
   // when it can be taken off, a server is locked in for a while after getting it
   removable_at: ApiTimestamp,
   server_id: string,
-  // how many of the caller's slots are on it, Plus AI subscribers can stack them to raise its NotSoAI limit
+  // how many of the caller's slots are on it, Max subscribers can stack them to raise its NotSoAI limit
   slots: number,
   user_id: string,
 }
@@ -2611,7 +2611,7 @@ export interface AdminCreditTransaction extends CreditTransaction {
 export interface CreditBalance {
   refill_left: number,
   resets_at: ApiTimestamp,
-  // a Plus AI user's banked leftover weeks, spent after the week's and before bought ones, up to `rollover_max`. Both 0
+  // a Max user's banked leftover weeks, spent after the week's and before bought ones, up to `rollover_max`. Both 0
   // for everyone else (and servers)
   rollover_left: number,
   rollover_max: number,
@@ -2639,7 +2639,7 @@ export interface GuildCredits {
   },
   // staff-given features that make NotSoAI (`AI_ACCESS`) or its own voices (`VOICE_CLONE_ACCESS`) free there
   free: {ai: boolean, voices: boolean},
-  // premium server slots on it from members with Plus AI (25k a week each for NotSoAI), and with Plus or Plus AI
+  // premium server slots on it from members with Max (25k a week each for NotSoAI), and with Plus or Max
   // (7.5k a week each for its voices)
   slots: {ai: number, plus: number},
   // what was given to it and taken back, newest first, with who gave it

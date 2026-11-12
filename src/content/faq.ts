@@ -83,7 +83,7 @@ export const FAQ_QUESTIONS: Array<FaqQuestion> = [
     id: 'files-as-links',
     section: 'commands',
     question: 'Why did I get a link instead of a file?',
-    answer: 'When a result is bigger than Discord lets the bot upload, NotSoBot hosts it on [nsb.gg](https://nsb.gg) and sends you a link instead. Those links are temporary: they last 14 days, or 28 days with NotSoPremium.\n\nYou can control when this happens with `/settings set file-upload-threshold` and `/settings set file-upload-type`.',
+    answer: 'When a result is bigger than Discord lets the bot upload, NotSoBot hosts it on [nsb.gg](https://nsb.gg) and sends you a link instead. Those links are temporary: they last 14 days, or up to 28 days with NotSoPremium.\n\nYou can control when this happens with `/settings set file-upload-threshold` and `/settings set file-upload-type`.',
   },
   {
     id: 'undo',
@@ -135,13 +135,13 @@ export const FAQ_QUESTIONS: Array<FaqQuestion> = [
     id: 'premium',
     section: 'premium',
     question: 'What is NotSoPremium?',
-    answer: 'NotSoPremium is an optional subscription, bought through Discord on NotSoBot\'s profile. It comes in three tiers:\n\n- **NotSoPremium**: bigger files, more time for every command and your own custom commands\n- **NotSoPremium Plus**: everything above, plus 2 premium server slots and voice cloning\n- **NotSoPremium Plus AI**: everything above, plus NotSoAI\n\nWith **NotSoPremium Plus** you can give up to 2 servers (or group DMs) your premium with `/settings premium-servers add` or from the dashboard\'s Premium page, so some premium commands work there for everyone. Owning a server doesn\'t give it premium by itself.\n\nThe [Premium page](/premium) compares every tier side by side.',
+    answer: 'NotSoPremium is an optional subscription, bought through Discord on NotSoBot\'s profile. It comes in three tiers:\n\n- **NotSoPremium**: bigger files, more time for every command and your own custom commands\n- **NotSoPremium Plus**: everything above, plus 2 premium server slots and voice cloning\n- **NotSoPremium Max**: everything above, plus NotSoAI\n\nWith **NotSoPremium Plus** you can give up to 2 servers (or group DMs) your premium with `/settings premium-servers add` or from the dashboard\'s Premium page, so some premium commands work there for everyone. Owning a server doesn\'t give it premium by itself.\n\nThe [Premium page](/premium) compares every tier side by side.',
   },
   {
     id: 'notsoai',
     section: 'premium',
     question: 'How do I talk to NotSoAI?',
-    answer: 'Mention the bot with a message, or reply to one of its messages, and NotSoAI will answer. It runs on NotSoCredits: **NotSoPremium Plus AI** comes with some every week, a server gets some from each Plus AI premium server slot on it, and anyone can buy a credit pack in the store to use it without subscribing (or give some to a server with `/settings credits give`). See the [Premium page](/premium) for how far they go. You can set its personality with `/settings set ai-personality`.',
+    answer: 'Mention the bot with a message, or reply to one of its messages, and NotSoAI will answer. It runs on NotSoCredits: **NotSoPremium Max** comes with some every week, a server gets some from each Max premium server slot on it, and anyone can buy a credit pack in the store to use it without subscribing (or give some to a server with `/settings credits give`). See the [Premium page](/premium) for how far they go. You can set its personality with `/settings set ai-personality`.',
   },
 
   // privacy & support

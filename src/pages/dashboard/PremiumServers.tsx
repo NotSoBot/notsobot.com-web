@@ -1,5 +1,5 @@
 // The servers the user gave their premium plus perks to (premium server slots). A server only gets premium this way,
-// owning one doesn't give it anything. The dashboard can only add guilds, group dms are added with the bot. Plus AI
+// owning one doesn't give it anything. The dashboard can only add guilds, group dms are added with the bot. Max
 // subscribers can stack more than one slot on a server, each raises its NotSoAI limit.
 
 import { ExternalLink, Layers, Lock, MessagesSquare, Plus, Server, Trash2 } from 'lucide-react';
@@ -29,7 +29,7 @@ import { SERVER_AI_MESSAGES_PER_SLOT } from '@/lib/credits';
 import { discordDmUrl, discordGuildUrl, formatDate, formatExactDateTime, formatNumber, toDate } from '@/lib/utils';
 
 import { Chip } from './admin/adminUi';
-import { hasPremiumPlusAI } from './premium';
+import { hasPremiumMax } from './premium';
 import { GuildIcon } from './servers/GuildIcon';
 import { MissingServersNotice, ScopeMismatchCard } from './servers/ServersPage';
 import { EmptyState, ErrorPanel, Skeleton } from './ui';
@@ -58,8 +58,8 @@ export function PremiumServers() {
 
   const items = data?.items ?? [];
   const full = !!data && data.limit !== null && data.limit <= data.used;
-  // only Plus AI makes a second slot on a server worth anything (more NotSoAI messages)
-  const canStack = !!data?.active && !full && hasPremiumPlusAI(user);
+  // only Max makes a second slot on a server worth anything (more NotSoAI messages)
+  const canStack = !!data?.active && !full && hasPremiumMax(user);
 
   const confirmRemove = () => {
     if (!removing) {
@@ -93,7 +93,7 @@ export function PremiumServers() {
             ) : t('pservers.slots_unknown')}
             {' '}{t('pservers.explain', {messages: SERVER_AI_MESSAGES_PER_SLOT})}
             {' '}
-            <Link to={`${Routes.PREMIUM}#premium-servers`} className='text-brand-text hover:underline'>{t('pservers.see_what')}</Link>
+            <Link to={`${Routes.PREMIUM}#premium-compare-servers`} className='text-brand-text hover:underline'>{t('pservers.see_what')}</Link>
           </p>
         </div>
         {(data?.active) ? (

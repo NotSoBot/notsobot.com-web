@@ -10,25 +10,25 @@ const LABELS: Record<number, TranslationKey> = {
   [UserPremiumTypes.PREMIUM_FREE]: 'premium_type.complimentary',
   [UserPremiumTypes.PREMIUM]: 'premium_type.premium',
   [UserPremiumTypes.PREMIUM_PLUS]: 'premium_type.plus',
-  [UserPremiumTypes.PREMIUM_PLUS_AI]: 'premium_type.plus_ai',
+  [UserPremiumTypes.PREMIUM_MAX]: 'premium_type.max',
 };
 
 
-// Plus AI's perks, which complimentary premium and bot owners get too (the api's `has_premium_plus_ai`)
-export function hasPremiumPlusAI(user: {flags: number, premium_type: number} | null | undefined): boolean {
+// Max's perks, which complimentary premium and bot owners get too (the api's `has_premium_max`)
+export function hasPremiumMax(user: {flags: number, premium_type: number} | null | undefined): boolean {
   if (!user) {
     return false;
   }
-  return isOwner(user) || user.premium_type === UserPremiumTypes.PREMIUM_PLUS_AI || user.premium_type === UserPremiumTypes.PREMIUM_FREE;
+  return isOwner(user) || user.premium_type === UserPremiumTypes.PREMIUM_MAX || user.premium_type === UserPremiumTypes.PREMIUM_FREE;
 }
 
 
-// Plus's perks (the api's `has_premium_plus`), Plus AI includes them
+// Plus's perks (the api's `has_premium_plus`), Max includes them
 export function hasPremiumPlus(user: {flags: number, premium_type: number} | null | undefined): boolean {
   if (!user) {
     return false;
   }
-  return hasPremiumPlusAI(user) || user.premium_type === UserPremiumTypes.PREMIUM_PLUS;
+  return hasPremiumMax(user) || user.premium_type === UserPremiumTypes.PREMIUM_PLUS;
 }
 
 
@@ -41,7 +41,7 @@ export function premiumLabel(premiumType: number): string {
 export const ENTITLEMENT_TIERS: ReadonlyArray<{value: number, label: string}> = [
   {value: UserPremiumTypes.PREMIUM, label: premiumLabel(UserPremiumTypes.PREMIUM)},
   {value: UserPremiumTypes.PREMIUM_PLUS, label: premiumLabel(UserPremiumTypes.PREMIUM_PLUS)},
-  {value: UserPremiumTypes.PREMIUM_PLUS_AI, label: premiumLabel(UserPremiumTypes.PREMIUM_PLUS_AI)},
+  {value: UserPremiumTypes.PREMIUM_MAX, label: premiumLabel(UserPremiumTypes.PREMIUM_MAX)},
 ];
 
 export function entitlementTierLabel(entitlement: Entitlement): string {

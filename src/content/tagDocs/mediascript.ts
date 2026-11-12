@@ -2455,8 +2455,32 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     syntax: 'eyes MEDIA_KEY TYPE=EYE FLIPPED=false',
     args: [
       media(),
-      {name: 'TYPE', default: 'EYE', range: 'BIG, BLOODSHOT, CENTER, EYE, FLARE_BLACK, FLARE_BLUE, FLARE_GREEN, FLARE_PINK, FLARE_RED, FLARE_WHITE, FLARE_YELLOW, GOOGLY, ILLUMINATI, MONEY, RED, SMALL, SPINNER, SPONGEBOB'},
+      {name: 'TYPE', default: 'EYE', range: 'BIG, BLOODSHOT, CENTER, EYE, FLARE_BLACK, FLARE_BLUE, FLARE_GREEN, FLARE_PINK, FLARE_RED, FLARE_WHITE, FLARE_YELLOW, GOOGLY, ILLUMINATI, LASER_BLUE, LASER_GREEN, LASER_RED, LASER_YELLOW, LIGHTNING_BLUE, LIGHTNING_GREEN, LIGHTNING_PINK, LIGHTNING_RED, MONEY, RED, SMALL, SPINNER, SPONGEBOB'},
       {name: 'FLIPPED', default: 'false', description: 'mirror the eye image'},
+    ],
+    notes: [
+      'LASER_ types fire beams out of the eyes along where the head faces, LIGHTNING_ types make the eyes glow with lightning crackling off them (FLIPPED does nothing for either).',
+    ],
+  },
+  {
+    name: 'facecutout',
+    category: 'compose',
+    summary: 'Cuts the eyes and mouth out of the biggest face and pastes them back bigger, like a talking object.',
+    syntax: 'facecutout MEDIA_KEY COVER_MEDIA_KEY=none COLOR=none SIZE=1.8 FACE=none',
+    args: [
+      media(),
+      {name: 'COVER_MEDIA_KEY', default: 'none', description: 'a media (its first frame) put over the face, under the eyes and mouth'},
+      {name: 'COLOR', default: 'none', description: 'without a cover media, a blob of this color covers the face instead'},
+      {name: 'SIZE', default: '1.8', range: '1..3', description: 'how much bigger the eyes and mouth get'},
+      faceNumber(),
+    ],
+    examples: [
+      {code: '{mediascript:load {video} clip\nload {avatar} logo\nfacecutout clip logo\nrender clip}', result: 'Your avatar covers the face in the video, with the face\'s own eyes and mouth talking on top of it.'},
+      {code: '{mediascript:load {iv} img\nfacecutout img none #3399ff 2.4\nrender img}', result: 'A blue blob with big eyes and a big mouth.'},
+    ],
+    notes: [
+      'With neither a cover nor a color, the bigger eyes and mouth go over the face itself.',
+      'The eyes and mouth follow the face through a video\'s frames, so it still talks and blinks.',
     ],
   },
   {

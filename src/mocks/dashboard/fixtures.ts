@@ -844,7 +844,7 @@ export function createApplications(users: Array<AdminUser>): Array<AdminApplicat
 const PREMIUM_SKUS: Record<number, string> = {
   2: DiscordSkus.USER_NOTSOPREMIUM,
   3: DiscordSkus.USER_NOTSOPREMIUM_PLUS,
-  4: DiscordSkus.USER_NOTSOPREMIUM_PLUS_AI,
+  4: DiscordSkus.USER_NOTSOPREMIUM_MAX,
 };
 
 // the mock user has an active Premium+ subscription, an older cancelled Premium one and a replaced staff grant;

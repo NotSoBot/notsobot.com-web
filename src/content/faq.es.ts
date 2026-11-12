@@ -45,7 +45,7 @@ export const FAQ_SPANISH: FaqTranslation = {
     },
     'files-as-links': {
       question: '¿Por qué recibí un enlace en lugar de un archivo?',
-      answer: 'Cuando un resultado es más grande de lo que Discord deja subir al bot, NotSoBot lo aloja en [nsb.gg](https://nsb.gg) y te manda un enlace. Esos enlaces son temporales: duran 14 días, o 28 con NotSoPremium.\n\nPuedes controlar cuándo pasa esto con `/settings set file-upload-threshold` y `/settings set file-upload-type`.',
+      answer: 'Cuando un resultado es más grande de lo que Discord deja subir al bot, NotSoBot lo aloja en [nsb.gg](https://nsb.gg) y te manda un enlace. Esos enlaces son temporales: duran 14 días, o hasta 28 con NotSoPremium.\n\nPuedes controlar cuándo pasa esto con `/settings set file-upload-threshold` y `/settings set file-upload-type`.',
     },
     'undo': {
       question: '¿Cómo borro la respuesta del bot a mi comando?',
@@ -81,11 +81,11 @@ export const FAQ_SPANISH: FaqTranslation = {
     // premium e ia
     'premium': {
       question: '¿Qué es NotSoPremium?',
-      answer: 'NotSoPremium es una suscripción opcional que se compra a través de Discord, en el perfil de NotSoBot. Tiene tres niveles:\n\n- **NotSoPremium**: archivos más grandes, más tiempo para cada comando y tus propios comandos personalizados\n- **NotSoPremium Plus**: todo lo anterior, y además 2 espacios de servidor premium y clonación de voz\n- **NotSoPremium Plus AI**: todo lo anterior, y además NotSoAI\n\nCon **NotSoPremium Plus** puedes darle tu premium a hasta 2 servidores (o MD grupales) con `/settings premium-servers add` o desde la página Premium del panel, para que algunos comandos premium funcionen allí para todos. Ser dueño de un servidor no le da premium por sí solo.\n\nLa [página de Premium](/premium) compara todos los niveles.',
+      answer: 'NotSoPremium es una suscripción opcional que se compra a través de Discord, en el perfil de NotSoBot. Tiene tres niveles:\n\n- **NotSoPremium**: archivos más grandes, más tiempo para cada comando y tus propios comandos personalizados\n- **NotSoPremium Plus**: todo lo anterior, y además 2 espacios de servidor premium y clonación de voz\n- **NotSoPremium Max**: todo lo anterior, y además NotSoAI\n\nCon **NotSoPremium Plus** puedes darle tu premium a hasta 2 servidores (o MD grupales) con `/settings premium-servers add` o desde la página Premium del panel, para que algunos comandos premium funcionen allí para todos. Ser dueño de un servidor no le da premium por sí solo.\n\nLa [página de Premium](/premium) compara todos los niveles.',
     },
     'notsoai': {
       question: '¿Cómo hablo con NotSoAI?',
-      answer: 'Menciona al bot con un mensaje, o responde a uno de sus mensajes, y NotSoAI contestará. Funciona con NotSoCredits: **NotSoPremium Plus AI** trae algunos cada semana, un servidor recibe algunos por cada espacio de servidor premium Plus AI que tenga, y cualquiera puede comprar un paquete de créditos en la tienda para usarlo sin suscribirse (o darle algunos a un servidor con `/settings credits give`). Mira la [página de Premium](/premium) para ver cuánto rinden. Puedes elegir su personalidad con `/settings set ai-personality`.',
+      answer: 'Menciona al bot con un mensaje, o responde a uno de sus mensajes, y NotSoAI contestará. Funciona con NotSoCredits: **NotSoPremium Max** trae algunos cada semana, un servidor recibe algunos por cada espacio de servidor premium Max que tenga, y cualquiera puede comprar un paquete de créditos en la tienda para usarlo sin suscribirse (o darle algunos a un servidor con `/settings credits give`). Mira la [página de Premium](/premium) para ver cuánto rinden. Puedes elegir su personalidad con `/settings set ai-personality`.',
     },
 
     // privacidad y soporte

@@ -1175,7 +1175,7 @@ export function useDeleteVoiceMutation(guildId: string | null) {
         });
       } else {
         queryClient.setQueryData<VoicesPage>(queryKeys.meVoices(token), (page) => {
-          return (page) ? {count: Math.max(0, page.count - 1), items: page.items.filter((other) => other.id !== voiceId)} : page;
+          return (page) ? {...page, count: Math.max(0, page.count - 1), items: page.items.filter((other) => other.id !== voiceId)} : page;
         });
       }
       // a staff member deleting one they can see in the admin panel's list
