@@ -392,7 +392,8 @@ export function RulesSection({ guild }: {guild: UserGuild}) {
   const commandNames = useMemo(() => {
     const names = new Map<string, string>();
     for (const command of commands ?? []) {
-      const [ variant ] = enabledCommandVariants(command);
+      // the custom command fallback's prefixed variant has no name (`.<tagname>`), it goes by its slash one
+      const variant = enabledCommandVariants(command).find((metadata) => metadata.name);
       if (variant && variant.category !== CommandCategories.OWNER) {
         names.set(command.id, variant.name);
       }

@@ -260,6 +260,7 @@ export const Dashboard = {
   'pservers.all_have': 'Every server you share with NotSoBot already has your premium.',
   'pservers.give': 'Give premium',
   'history.dms': 'Direct messages',
+  'history.custom_command': '.<custom command>',
   'history.description': 'Every command you’ve used with NotSoBot, newest first. New ones can take a minute to show up.',
   'history.matching': 'Matching commands',
   'history.used': 'Commands used',

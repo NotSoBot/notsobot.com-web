@@ -6027,6 +6027,14 @@ const mockCommands = [
   mockCommand('ai', 'ai', 'AI', 'Talk to NotSoAI', 'premium_server', [0, 1]),
   mockCommand('voice.clone', 'tts voice create', 'AUDIO', 'Clone a voice for Text-to-Speech', 'premium_plus'),
   mockCommand('tag.show', 'tag', 'TAGS', 'Show a tag', null, [0, 1]),
+  // the custom command fallback (`.<tagname>`): its prefixed variant has no name, the slash one does
+  {
+    ...mockCommand('tag.show.custom.command', '', 'TAGS', 'Execute a custom command tag', null),
+    metadata: [
+      ...mockCommand('tag.show.custom.command', '', 'TAGS', 'Execute a custom command tag', null).metadata,
+      ...mockCommand('tag.show.custom.command', 'tag commands show', 'TAGS', 'Run a custom command tag', null, [1]).metadata,
+    ],
+  },
   // one or two of each preview layout (./commandPreviews): slider, animated slider, side by side, video, audio, several inputs
   mockCommand('media.iv.manipulation.swirl', 'swirl', 'EFFECTS', 'Swirl an Image or Video from the center', null, [0, 1]),
   mockCommand('media.iv.manipulation.magik', 'magik', 'EFFECTS', 'Liquid rescale an Image or Video', null, [0, 1]),

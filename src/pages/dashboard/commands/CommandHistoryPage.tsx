@@ -24,7 +24,12 @@ import { COMMAND_TYPE_LABELS, RESULT_LABELS, resultInfo, TONE_FILLS } from './co
 const MAX_OFFSET = 100000;
 const DMS = '0';
 
-function commandLabel(use: MeCommandUse): string {
+// `customCommand` for the custom command fallback, its prefixed variant has no name (`.<tagname>`) and the use doesn't
+// say which tag ran
+function commandLabel(use: MeCommandUse, customCommand: string): string {
+  if (use.command_name === '') {
+    return customCommand;
+  }
   const name = use.command_name ?? use.command_id;
   return (use.command_type === CommandTypes.APPLICATION_SLASH) ? `/${name}` : name;
 }
@@ -61,8 +66,11 @@ export function CommandHistoryPage() {
   const commands = useCommandsQuery(language);
   const guildNames = useMemo(() => new Map((guilds.data ?? []).map((guild) => [guild.id, guild.name])), [guilds.data]);
   // only the variants still offered get a link; a disabled (removed) command shows its name without one, since its
-  // page on the commands site no longer exists
-  const commandTypes = useMemo(() => new Map((commands.data ?? []).map((command) => [command.id, enabledCommandVariants(command).map((x) => x.type)])), [commands.data]);
+  // page on the commands site no longer exists. same for a nameless variant (the custom command fallback's prefixed one),
+  // the commands site doesn't list those
+  const commandTypes = useMemo(() => new Map((commands.data ?? []).map((command) => {
+    return [command.id, enabledCommandVariants(command).filter((x) => x.name).map((x) => x.type)];
+  })), [commands.data]);
 
   const items = data?.items ?? [];
   const steppingBack = useStepBackFromEmptyPage({page, setPage, data, isPlaceholderData, pageSize: ME_COMMANDS_PAGE_SIZE});
@@ -305,7 +313,7 @@ function CommandRow({ use, serverName, commandTypes, onFilter }: {
 }) {
   const { t } = useI18n();
   const result = (use.result) ? resultInfo(use.result) : null;
-  const label = commandLabel(use);
+  const label = commandLabel(use, t('history.custom_command'));
   const linkable = !!commandTypes?.includes(use.command_type);
 
   return (

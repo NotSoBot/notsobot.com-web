@@ -727,6 +727,8 @@ export function createCommandUses(): Array<MeCommandUse> {
     ['tag.show', 'tag', 0], ['tag.show', 'tag show', 1], ['tag.create', 'tag create', 0], ['ping', 'ping', 0],
     ['image.caption', 'caption', 0], ['image.caption', 'caption', 1], ['ai.chat', 'chat', 1], ['image.reverse', 'reverse', 3],
     ['info.user', 'userinfo', 2], ['reminder.create', 'reminder create', 1], ['oldcommand', null, 0],
+    // a custom command (`.<tagname>`), the fallback's prefixed variant has no name
+    ['tag.show.custom.command', '', 0],
   ];
   const results = ['ran', 'ran', 'ran', 'ran', 'ran', 'ran', 'run_error', 'argument_error', 'ratelimited', 'blocked', null];
   const places: Array<[string | null, string]> = [

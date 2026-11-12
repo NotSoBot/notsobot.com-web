@@ -262,6 +262,7 @@ export const Dashboard: Record<keyof typeof English, string> = {
   'pservers.all_have': 'Todos los servidores que compartes con NotSoBot ya tienen tu premium.',
   'pservers.give': 'Dar premium',
   'history.dms': 'Mensajes directos',
+  'history.custom_command': '.<comando personalizado>',
   'history.description': 'Todos los comandos que has usado con NotSoBot, los más recientes primero. Los nuevos pueden tardar un minuto en aparecer.',
   'history.matching': 'Comandos que coinciden',
   'history.used': 'Comandos usados',
