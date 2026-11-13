@@ -148,7 +148,7 @@ export const MEDIASCRIPT_GUIDE_PORTUGUESE: TagDocsTranslation['mediaScriptGuide'
   },
 
   'ms-functions': {
-    title: 'Funções',
+    title: 'Funções matemáticas',
     body: [
       'As funções podem ser usadas em qualquer lugar onde uma equação é permitida. Como o resto de uma equação, elas não podem ter espaços.',
       'Dentro do MediaScript, prefira `rand()` ao `{range:}` do TagScript: `rand()` é sorteado de novo toda vez que a linha roda, então dentro de um `foreachframe` cada quadro ganha o próprio número aleatório, enquanto `{range:}` é substituído uma vez só, antes mesmo de o script começar.',
@@ -190,6 +190,7 @@ export const MEDIASCRIPT_GUIDE_PORTUGUESE: TagDocsTranslation['mediaScriptGuide'
       '`if LEFT OPERATOR RIGHT CODE` compara duas equações. Ao contrário da função `if()`, os dois lados e o operador precisam estar separados por espaços: `if imgw > 500 ...`.',
       'Chaves de mídia e variáveis criadas dentro de um loop desaparecem quando ele termina; mudanças em chaves que já existiam são mantidas. Não dá para usar `render` de dentro de um loop.',
       'Dentro de `foreachframe`, `dobetween` e `reexport`, a própria chave pai é proibida: usar `pfp` dentro de `foreachframe pfp ...` é um erro, só `pfpx` funciona. As variáveis de tamanho dela (`pfpw`, `pfpd`...) ainda podem ser lidas.',
+      'Para reutilizar código, `function NAME CODE` o salva e `call NAME ARGUMENTS` o executa, com `$1`, `$2`... do código substituídos pelos argumentos: `function glow huecurvergba $1 all 0 1 0` e depois `call glow img`. Diferente dos loops, a mídia que uma função cria ou muda continua depois; só as variáveis dela somem.',
     ].join('\n\n'),
     results: [
       'Cria um GIF do avatar com pelo menos 10 quadros que passa por todas as cores.',

@@ -37,6 +37,7 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'new', text: '`.eyes -type` has lasers and lightning on images, GIFs and videos: `LASER_YELLOW`, `LASER_RED`, `LASER_BLUE` and `LASER_GREEN` fire beams out of the eyes the way the head is facing, and `LIGHTNING_PINK`, `LIGHTNING_RED`, `LIGHTNING_BLUE` and `LIGHTNING_GREEN` make the eyes glow with lightning crackling off them. `.eyes laser` and `.eyes lightning` pick one with `-color` (`/media-iv-eyes laser` and `/media-iv-eyes lightning` with `color`). **MediaScript:** `eyes` takes the same types.'},
       {kind: 'new', text: 'Anyone with NotSoCredits can clone voices for text to speech: up to 2 with bought credits, without NotSoPremium (Plus still gets 5 and Max 10). A server that was given credits can have 2 voices of its own too.'},
       {kind: 'new', text: 'NotSoPremium Plus\'s 30,000 weekly NotSoCredits pay for NotSoAI too, about 400 messages a week, shared with your cloned voices.'},
+      {kind: 'new', text: '**MediaScript:** functions. `function NAME CODE` saves code under a name and `call NAME ARGUMENTS` runs it, with `$1`, `$2`... replaced by the arguments, so the same steps can run on different media keys without copying them.'},
       {kind: 'improved', text: '`.eyes` without a `-type` lets you pick the eye effect from a menu, and every `.eyes` result has menus under it to switch to another effect on the same picture.'},
       {kind: 'improved', text: 'NotSoPremium Plus AI is now called NotSoPremium Max. It\'s the same subscription with the same perks.'},
       {kind: 'improved', text: 'Servers with a NotSoPremium Max slot get a 2,000 song music queue instead of 1,000, up to 10 cloned voices instead of 5, and up to 50 saved fonts instead of 25. Servers with only a Plus slot keep nsb.gg files up to 21 days instead of 28, Max slots keep them up to 28.'},
@@ -55,6 +56,7 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'fixed', text: '`/ai` (`.ai`) works for anyone who can use NotSoAI (NotSoPremium Plus, Max or NotSoCredits), instead of only Plus AI members.'},
       {kind: 'fixed', text: 'Searches like `.yt` and `.google` with a blocked query say it was blocked, instead of failing with an HTTP 500 error.'},
       {kind: 'fixed', text: 'On the dashboard, server command rules list custom commands as `tag commands show` instead of an empty option, a rule can\'t be saved with no command picked, and command history shows custom command uses as `.<custom command>` instead of a blank name.'},
+      {kind: 'fixed', text: '`.veg` projects using NewBlue\'s Wave effect with stretched edges (like its Fun House, Dream, Indigestion and Melting presets) bend the picture like Vegas does, instead of sliding the whole picture.'},
     ],
   },
   {

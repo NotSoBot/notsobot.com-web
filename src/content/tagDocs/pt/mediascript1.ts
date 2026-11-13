@@ -268,6 +268,36 @@ export const MEDIASCRIPT_PORTUGUESE_1: TagDocsTranslation['mediaScriptCommands']
       'Os dois lados são comparados como números decimais.',
     ],
   },
+  function: {
+    summary: 'Salva código de MediaScript com um nome para que `call` possa executá-lo depois, com argumentos.',
+    args: {
+      NAME: 'o nome da função (a-z, 0-9 e `_`, até 32 caracteres)',
+      MEDIASCRIPTCODE: 'o código a salvar, codificado em JSON com `{jsonify:}` se tiver mais de uma linha. `$1`, `$2`... são preenchidos com os argumentos do `call`',
+    },
+    results: [
+      'Define `gm4` uma vez e a executa em `m`.',
+    ],
+    notes: [
+      'O código só é verificado quando é chamado, já que `$1` pode ser qualquer coisa, até o comando.',
+      'Usar um nome de novo substitui essa função. Um script pode ter até 50 funções.',
+      'Escreva `$$` para um `$` literal. `$(EQUATION)` e `$$(` funcionam como sempre.',
+    ],
+  },
+  call: {
+    summary: 'Executa uma função criada com `function`, preenchendo `$1`, `$2`... com os argumentos.',
+    args: {
+      NAME: 'a função a executar',
+      ARGUMENTS: 'um para cada `$N` que a função usa, separados por espaços (um `"texto entre aspas"` conta como um)',
+    },
+    results: [
+      'Executa as mesmas duas linhas em duas chaves de mídia com quantidades diferentes.',
+    ],
+    notes: [
+      'Precisa de exatamente tantos argumentos quanto o maior `$N` da função.',
+      'As chaves de mídia que ela cria ou muda continuam depois. As variáveis que ela define com `set` são dela e somem quando termina.',
+      'Funções podem chamar outras funções (e a si mesmas), até 8 níveis. Cada linha que elas executam conta para o limite de ações.',
+    ],
+  },
   set: {
     summary: 'Guarda um número numa variável que você pode usar em equações seguintes.',
     args: {

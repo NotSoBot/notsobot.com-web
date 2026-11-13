@@ -148,7 +148,7 @@ export const MEDIASCRIPT_GUIDE_SPANISH: TagDocsTranslation['mediaScriptGuide'] =
   },
 
   'ms-functions': {
-    title: 'Funciones',
+    title: 'Funciones matemáticas',
     body: [
       'Las funciones se pueden usar en cualquier sitio donde se admita una ecuación. Como el resto de una ecuación, no pueden tener espacios.',
       'Dentro de MediaScript, mejor `rand()` que el `{range:}` de TagScript: `rand()` se elige de nuevo cada vez que se ejecuta la línea, así que dentro de un `foreachframe` cada fotograma tiene su propio número aleatorio, mientras que `{range:}` se sustituye una sola vez antes incluso de que empiece el script.',
@@ -190,6 +190,7 @@ export const MEDIASCRIPT_GUIDE_SPANISH: TagDocsTranslation['mediaScriptGuide'] =
       '`if LEFT OPERATOR RIGHT CODE` compara dos ecuaciones. A diferencia de la función `if()`, los dos lados y el operador tienen que ir separados por espacios: `if imgw > 500 ...`.',
       'Las claves de multimedia y las variables creadas dentro de un bucle desaparecen cuando termina; los cambios en claves que ya existían se conservan. No puedes usar `render` desde dentro de un bucle.',
       'Dentro de `foreachframe`, `dobetween` y `reexport`, la propia clave padre está prohibida: usar `pfp` dentro de `foreachframe pfp ...` es un error, solo funciona `pfpx`. Sus variables de tamaño (`pfpw`, `pfpd`...) se pueden seguir leyendo.',
+      'Para reutilizar código, `function NAME CODE` lo guarda y `call NAME ARGUMENTS` lo ejecuta, con `$1`, `$2`... del código reemplazados por los argumentos: `function glow huecurvergba $1 all 0 1 0` y luego `call glow img`. A diferencia de los bucles, la multimedia que una función crea o cambia se queda después; solo sus variables desaparecen.',
     ].join('\n\n'),
     results: [
       'Crea un GIF del avatar con al menos 10 fotogramas que va pasando por todos los colores.',

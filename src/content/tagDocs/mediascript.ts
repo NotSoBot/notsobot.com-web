@@ -312,7 +312,7 @@ export const MEDIASCRIPT_GUIDE: Array<TagDocGuideSection> = [
 
   {
     id: 'ms-functions',
-    title: 'Functions',
+    title: 'Math functions',
     body: [
       'Functions can be used anywhere an equation is allowed. Like the rest of an equation, they cannot contain spaces.',
       'Prefer `rand()` over TagScript\'s `{range:}` inside MediaScript: `rand()` is picked fresh every time the line runs, so inside a `foreachframe` each frame gets its own random number, while `{range:}` is filled in once before the script even starts.',
@@ -359,6 +359,7 @@ export const MEDIASCRIPT_GUIDE: Array<TagDocGuideSection> = [
       '`if LEFT OPERATOR RIGHT CODE` compares two equations. Unlike the `if()` function, the two sides and the operator must be separated by spaces: `if imgw > 500 ...`.',
       'Media keys and variables created inside a loop disappear when it ends; changes to keys that already existed are kept. You cannot `render` from inside a loop.',
       'Inside `foreachframe`, `dobetween` and `reexport`, the parent key itself is off limits: using `pfp` inside `foreachframe pfp ...` is an error, only `pfpx` works. Its size variables (`pfpw`, `pfpd`...) can still be read.',
+      'To reuse code, `function NAME CODE` saves it and `call NAME ARGUMENTS` runs it, with `$1`, `$2`... in the code replaced by the arguments: `function glow huecurvergba $1 all 0 1 0` then `call glow img`. Unlike loops, media a function makes or changes stays afterwards; only its variables go away.',
     ].join('\n\n'),
     examples: [
       {
@@ -1035,6 +1036,48 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     notes: [
       'The two expressions and the operator must be separated by spaces, e.g. `if 2 == 2`.',
       'Both sides are compared as decimal numbers.',
+    ],
+  },
+  {
+    name: 'function',
+    category: 'flow',
+    summary: 'Saves MediaScript code under a name so `call` can run it later, with arguments.',
+    syntax: 'function NAME ...MEDIASCRIPTCODE',
+    args: [
+      {name: 'NAME', description: 'the function\'s name (a-z, 0-9 and `_`, up to 32 characters)'},
+      {name: 'MEDIASCRIPTCODE', rest: true, description: 'the code to save, JSON-encoded with `{jsonify:}` if it has more than one line. `$1`, `$2`... are filled in with `call`\'s arguments'},
+    ],
+    examples: [
+      {
+        code: '{mediascript:load {iv} m\nfunction gm4 {jsonify:\nhuecurvergba $1 all 0 1 0\ncopy $1 a\nconvert a audio/flac\nmultipitch a 0,5\naudioputreplace $1 a\n}\ncall gm4 m\nrender m}',
+        result: 'Defines `gm4` once and runs it on `m`.',
+      },
+    ],
+    notes: [
+      'The code is only checked when it is called, since `$1` can stand for anything, even the command.',
+      'Using a name again replaces that function. A script can have up to 50 functions.',
+      'Write `$$` for a literal `$`. `$(EQUATION)` and `$$(` work as usual.',
+    ],
+  },
+  {
+    name: 'call',
+    category: 'flow',
+    summary: 'Runs a function made with `function`, filling `$1`, `$2`... with the arguments.',
+    syntax: 'call NAME ...ARGUMENTS',
+    args: [
+      {name: 'NAME', description: 'the function to run'},
+      {name: 'ARGUMENTS', rest: true, description: 'one per `$N` the function uses, separated by spaces (a `"quoted string"` counts as one)'},
+    ],
+    examples: [
+      {
+        code: '{mediascript:load {iv} a\nload {avatar} b\nfunction shrink {jsonify:\nscale $1 $2\nflip $1\n}\ncall shrink a 0.5\ncall shrink b 2\nrender a}',
+        result: 'Runs the same two lines on two media keys with different amounts.',
+      },
+    ],
+    notes: [
+      'It needs exactly as many arguments as the highest `$N` in the function.',
+      'Media keys it makes or changes stay afterwards. Variables it `set`s are its own and go away when it ends.',
+      'Functions can call other functions (and themselves), up to 8 deep. Every line they run counts toward the action limit.',
     ],
   },
   {

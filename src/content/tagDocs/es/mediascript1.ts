@@ -266,6 +266,36 @@ export const MEDIASCRIPT_SPANISH_1: TagDocsTranslation['mediaScriptCommands'] = 
       'Los dos lados se comparan como números decimales.',
     ],
   },
+  function: {
+    summary: 'Guarda código de MediaScript con un nombre para que `call` pueda ejecutarlo después, con argumentos.',
+    args: {
+      NAME: 'el nombre de la función (a-z, 0-9 y `_`, hasta 32 caracteres)',
+      MEDIASCRIPTCODE: 'el código que guardar, codificado en JSON con `{jsonify:}` si tiene más de una línea. `$1`, `$2`... se rellenan con los argumentos de `call`',
+    },
+    results: [
+      'Define `gm4` una vez y la ejecuta sobre `m`.',
+    ],
+    notes: [
+      'El código solo se comprueba cuando se llama, porque `$1` puede ser cualquier cosa, incluso el comando.',
+      'Usar un nombre otra vez reemplaza esa función. Un script puede tener hasta 50 funciones.',
+      'Escribe `$$` para un `$` literal. `$(EQUATION)` y `$$(` funcionan como siempre.',
+    ],
+  },
+  call: {
+    summary: 'Ejecuta una función creada con `function`, rellenando `$1`, `$2`... con los argumentos.',
+    args: {
+      NAME: 'la función que ejecutar',
+      ARGUMENTS: 'uno por cada `$N` que usa la función, separados por espacios (un `"texto entre comillas"` cuenta como uno)',
+    },
+    results: [
+      'Ejecuta las mismas dos líneas sobre dos claves de multimedia con cantidades distintas.',
+    ],
+    notes: [
+      'Necesita exactamente tantos argumentos como el `$N` más alto de la función.',
+      'Las claves de multimedia que crea o cambia se quedan después. Las variables que define con `set` son suyas y desaparecen cuando termina.',
+      'Las funciones pueden llamar a otras funciones (y a sí mismas), hasta 8 niveles. Cada línea que ejecutan cuenta para el límite de acciones.',
+    ],
+  },
   set: {
     summary: 'Guarda un número en una variable que puedes usar en ecuaciones posteriores.',
     args: {
