@@ -420,7 +420,7 @@ export const MEDIASCRIPT_GUIDE_SPANISH: TagDocsTranslation['mediaScriptGuide'] =
   'ms-avs': {
     title: 'Proyectos de AVS Video Editor (.vep)',
     body: [
-      '`loadvep URL VEP_KEY` lee un proyecto de AVS Video Editor, y `veprender MEDIA_KEY VEP_KEY` lo reproduce con cada vídeo, imagen y sonido del proyecto sustituido por tu multimedia. Un `.vep` es el archivo de proyecto que guarda AVS Video Editor (no un vídeo terminado): sus clips suenan en su sitio de la línea de tiempo, cada uno desde el mismo punto de tu multimedia desde el que se reproducía en su propio archivo. AVS Video Editor en sí nunca se ejecuta: los efectos de la tabla se redibujan con ffmpeg, ajustados a la vista previa que AVS guarda dentro del proyecto, y los efectos que no están en la tabla se omiten.',
+      '`loadvep URL VEP_KEY` lee un proyecto de AVS Video Editor, y `veprender MEDIA_KEY VEP_KEY` lo reproduce con cada vídeo, imagen y sonido del proyecto sustituido por tu multimedia. Un `.vep` es el archivo de proyecto que guarda AVS Video Editor (no un vídeo terminado): sus clips suenan en su sitio de la línea de tiempo, cada uno desde el mismo punto de tu multimedia desde el que se reproducía en su propio archivo. AVS Video Editor en sí nunca se ejecuta: los efectos de la tabla se redibujan con ffmpeg, ajustados fotograma a fotograma a una exportación de AVS, y los efectos que no están en la tabla se omiten.',
       'Cada fuente del proyecto pasa a ser tu multimedia: los clips de vídeo se reproducen a partir de ella, las imágenes la muestran congelada en su primer fotograma, y las líneas de audio reproducen su sonido. Con una imagen como multimedia, todos los clips la muestran y no hay sonido; con un archivo de audio, solo suena el sonido. El render mantiene el tamaño del propio proyecto, reducido para caber en 1280x720.',
       'Límites: proyectos de hasta 8mb (y dentro del límite de descarga del script), 4 por script, 20000 clips. El render dura como mucho 10 minutos y cuenta como una ejecución de `ffmpeg`, compartiendo su límite de tiempo.',
     ].join('\n\n'),
@@ -430,10 +430,10 @@ export const MEDIASCRIPT_GUIDE_SPANISH: TagDocsTranslation['mediaScriptGuide'] =
         ['Clips de la línea de vídeo principal', 'Sí', 'En su momento de la línea de tiempo, desde su punto de inicio, con velocidad (0.01x a 100x) y silencio'],
         ['Líneas de audio', 'Sí', 'Suenan bajo el vídeo, con el volumen de cada línea'],
         ['Envolvente de volumen', 'En parte', 'Sus puntos suenan como cambios de volumen, cuánto suena cada nivel es una suposición'],
-        ['', 'Sí', 'Cada color gira por la rueda de color, ajustado a la vista previa que guarda AVS'],
-        ['', 'Sí', 'Ajustado a la vista previa que guarda AVS, en negro donde trae la imagen desde fuera del borde'],
-        ['', 'En parte', 'Filas o columnas dobladas siguiendo una onda, ajustadas a la vista previa; la velocidad de una que se mueve es una suposición'],
-        ['', 'En parte', 'Suena como un cambio de tono que mantiene la duración del clip'],
+        ['', 'Sí', 'Cada color gira por la rueda de color, ajustado a una exportación de AVS'],
+        ['', 'Sí', 'Ajustado a una exportación de AVS, en negro donde trae la imagen desde fuera del borde'],
+        ['', 'Sí', 'Filas o columnas dobladas siguiendo una onda, las que se mueven a su velocidad, ajustadas a una exportación de AVS'],
+        ['', 'Sí', 'Cambia el tono (75 son unos 5 semitonos más agudo) manteniendo la duración del clip, como AVS'],
         ['Superposiciones (PiP), texto y transiciones', 'No', 'Se omiten'],
         ['Otros efectos, y efectos en parte de un clip', 'No', 'Los otros efectos se omiten, los que van en parte de un clip se aplican a todo el clip'],
       ],

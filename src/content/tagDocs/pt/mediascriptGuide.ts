@@ -420,7 +420,7 @@ export const MEDIASCRIPT_GUIDE_PORTUGUESE: TagDocsTranslation['mediaScriptGuide'
   'ms-avs': {
     title: 'Projetos do AVS Video Editor (.vep)',
     body: [
-      '`loadvep URL VEP_KEY` lê um projeto do AVS Video Editor, e `veprender MEDIA_KEY VEP_KEY` o reproduz com cada vídeo, imagem e som dele substituído pela sua mídia. Um `.vep` é o arquivo de projeto que o AVS Video Editor salva (não um vídeo pronto): os clipes tocam no lugar deles na linha do tempo, cada um a partir do mesmo ponto da sua mídia de onde tocava no próprio arquivo. O AVS Video Editor em si nunca roda: os efeitos da tabela são redesenhados com ffmpeg, ajustados à prévia que o AVS salva dentro do projeto, e os efeitos que não estão na tabela são pulados.',
+      '`loadvep URL VEP_KEY` lê um projeto do AVS Video Editor, e `veprender MEDIA_KEY VEP_KEY` o reproduz com cada vídeo, imagem e som dele substituído pela sua mídia. Um `.vep` é o arquivo de projeto que o AVS Video Editor salva (não um vídeo pronto): os clipes tocam no lugar deles na linha do tempo, cada um a partir do mesmo ponto da sua mídia de onde tocava no próprio arquivo. O AVS Video Editor em si nunca roda: os efeitos da tabela são redesenhados com ffmpeg, ajustados quadro a quadro a uma exportação do AVS, e os efeitos que não estão na tabela são pulados.',
       'Cada fonte do projeto vira a sua mídia: clipes de vídeo tocam a partir dela, imagens a mostram parada no primeiro quadro, e as linhas de áudio tocam o som dela. Com uma imagem como mídia, todos os clipes a mostram e não há som; com um arquivo de áudio, só o som toca. O render mantém o tamanho do próprio projeto, reduzido para caber em 1280x720.',
       'Limites: projetos de até 8mb (e dentro do limite de download do script), 4 por script, 20000 clipes. O render tem no máximo 10 minutos e conta como uma execução de `ffmpeg`, compartilhando o limite de tempo dela.',
     ].join('\n\n'),
@@ -430,10 +430,10 @@ export const MEDIASCRIPT_GUIDE_PORTUGUESE: TagDocsTranslation['mediaScriptGuide'
         ['Clipes da linha de vídeo principal', 'Sim', 'No momento deles na linha do tempo, a partir do ponto de início, com velocidade (0.01x a 100x) e mudo'],
         ['Linhas de áudio', 'Sim', 'Tocam por baixo do vídeo, com o volume de cada linha'],
         ['Envelope de volume', 'Em parte', 'Os pontos dele tocam como mudanças de volume, o quanto cada nível soa é um palpite'],
-        ['', 'Sim', 'Cada cor girada pela roda de cores, ajustada à prévia que o AVS salva'],
-        ['', 'Sim', 'Ajustado à prévia que o AVS salva, preto onde puxa a imagem de fora da borda'],
-        ['', 'Em parte', 'Linhas ou colunas dobradas ao longo de uma onda, ajustadas à prévia; a velocidade de uma que se move é um palpite'],
-        ['', 'Em parte', 'Toca como uma mudança de tom que mantém a duração do clipe'],
+        ['', 'Sim', 'Cada cor girada pela roda de cores, ajustada a uma exportação do AVS'],
+        ['', 'Sim', 'Ajustado a uma exportação do AVS, preto onde puxa a imagem de fora da borda'],
+        ['', 'Sim', 'Linhas ou colunas dobradas ao longo de uma onda, as que se movem na velocidade delas, ajustadas a uma exportação do AVS'],
+        ['', 'Sim', 'Muda o tom (75 são uns 5 semitons mais agudo) mantendo a duração do clipe, como o AVS'],
         ['Sobreposições (PiP), texto e transições', 'Não', 'Pulados'],
         ['Outros efeitos, e efeitos em parte de um clipe', 'Não', 'Os outros efeitos são pulados, os que ficam em parte de um clipe valem para o clipe todo'],
       ],
