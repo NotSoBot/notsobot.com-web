@@ -28,6 +28,26 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 
 export const CHANGELOG: Array<ChangelogDay> = [
   {
+    date: '2026-11-13',
+    title: 'A17 and élastique pitch shifting, Wolfram Alpha back',
+    items: [
+      {kind: 'new', text: '`.audio multipitch -engine a17` (and `engine` on `/media-av-pitch multipitch`) pitch shifts with the old "A17 Drums (minimum echo)" sound: tight timing with that metallic buzz on held notes. **MediaScript:** `multipitch KEY SEMITONES engine=a17`.'},
+      {kind: 'new', text: '`.audio multipitch -engine elastique` (and `engine` on `/media-av-pitch multipitch`) pitch shifts with Vegas\'s élastique Pro: a clean shift that keeps drum hits sharp. **MediaScript:** `multipitch KEY SEMITONES engine=elastique`.'},
+      {kind: 'improved', text: '`/4chan` suggests boards as you type, and `.4chan` and `/4chan` take a board\'s name too (like `.4chan technology`). A board that doesn\'t exist gets a list of close ones instead of an error.'},
+      {kind: 'fixed', text: '`.wolframalpha` (`.wa`) failing on every search since November 9.'},
+      {kind: 'fixed', text: 'Translating long text, like `.ocrtranslate` on a picture full of words, failing.'},
+      {kind: 'fixed', text: '`.qr create` failing on text with emoji, and `.qr scan` failing on some PNGs (16-bit ones).'},
+      {kind: 'fixed', text: '`.background remove` failing on black and white pictures and 16-bit PNGs.'},
+      {kind: 'fixed', text: '`.neon` sometimes failing when several ran at the same time.'},
+      {kind: 'fixed', text: '`.crop`, `.offset` and overlay sizes NotSoBot can\'t work out (like `720x1280` or `9:16`), and `.distort` arguments ImageMagick refuses, say what\'s wrong instead of failing with an error.'},
+      {kind: 'fixed', text: '`.youtube` failing on videos with an unusual view count, and Google recipe results without ingredients failing.'},
+      {kind: 'fixed', text: 'Reminders set past the year 9999 failing, they get a clear error now.'},
+      {kind: 'fixed', text: 'Making the same tag twice at once (like a double click) failing, the second one says the tag was just made.'},
+      {kind: 'fixed', text: '`.pipe` showing a raw "Job Failed" error when a step fails, it shows that step\'s own error like the command would.'},
+      {kind: 'fixed', text: 'NotSoBot staying offline in some servers until it was restarted after Discord briefly refused its login, it reconnects by itself now.'},
+    ],
+  },
+  {
     date: '2026-11-12',
     title: 'NotSoPremium Max, voice clones with credits, laser eyes and .xyt text',
     items: [

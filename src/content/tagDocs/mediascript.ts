@@ -4429,15 +4429,16 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
       media(),
       {name: 'SEMITONES', range: '-48..48 each, up to 12', description: 'one number to shift, or several split by commas to mix a copy at each pitch (`0` is the original)'},
       {name: 'NORMALIZE', default: 'false', description: 'turn the mix down so the copies don\'t add up to clipping'},
-      {name: 'ENGINE', default: 'bungee', description: '`bungee`, `rubberband` or `signalsmith`, the pitch shifter each copy is made with (the multipitch program\'s `--backend`)'},
+      {name: 'ENGINE', default: 'bungee', description: '`bungee`, `rubberband`, `signalsmith`, `a17` or `elastique`, the pitch shifter each copy is made with (the first three are the multipitch program\'s `--backend`)'},
     ],
     examples: [
       {code: '{mediascript:load {video} clip\nmultipitch clip 7\nrender clip}', result: 'Raises the audio a fifth, the video stays the same.'},
       {code: '{mediascript:load {video} clip\nmultipitch clip 0,7,12\nrender clip}', result: 'A chord: the original audio, a fifth up and an octave up, mixed together.'},
       {code: '{mediascript:load {video} clip\nmultipitch clip 0,7,12 engine=rubberband\nrender clip}', result: 'The same chord made with rubberband, sounding like `rubberband=pitch=` in an `ffmpeg` line.'},
+      {code: '{mediascript:load {video} clip\nmultipitch clip -5 engine=a17\nrender clip}', result: 'Lowers the audio 5 semitones with A17\'s metallic, buzzy splices.'},
     ],
     notes: [
-      'Uses Bungee by default, the multipitch program\'s default backend. ENGINE=rubberband and ENGINE=signalsmith match its `--backend rubberband` and `--backend signalsmith`. Every pitch is made at the same time.',
+      'Uses Bungee by default, the multipitch program\'s default backend. ENGINE=rubberband and ENGINE=signalsmith match its `--backend rubberband` and `--backend signalsmith`. ENGINE=a17 is the old "A17 Drums (minimum echo)" pitch shift: the sound is cut into 25 ms pieces that are each sped up or slowed down and joined with short fades, so the timing stays tight and held notes get a metallic buzz. ENGINE=elastique is Vegas\'s élastique Pro, a clean shift that keeps drum hits sharp. Every pitch is made at the same time.',
       'Without NORMALIZE the copies add up, like `--no-normalize` in tags, so big chords get loud. Counts toward the `ffmpeg` limit.',
     ],
   },

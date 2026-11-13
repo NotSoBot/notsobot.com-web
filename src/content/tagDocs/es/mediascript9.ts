@@ -70,15 +70,16 @@ export const MEDIASCRIPT_SPANISH_9: TagDocsTranslation['mediaScriptCommands'] = 
       MEDIA_KEY: MEDIA,
       SEMITONES: 'un número para cambiar el tono, o varios separados por comas para mezclar una copia en cada tono (`0` es el original)',
       NORMALIZE: 'bajar el volumen de la mezcla para que las copias no se sumen hasta saturar',
-      ENGINE: '`bungee`, `rubberband` o `signalsmith`, el cambiador de tono con el que se hace cada copia (el `--backend` del programa multipitch)',
+      ENGINE: '`bungee`, `rubberband`, `signalsmith`, `a17` o `elastique`, el cambiador de tono con el que se hace cada copia (los tres primeros son el `--backend` del programa multipitch)',
     },
     results: [
       'Sube el audio una quinta; el vídeo se queda igual.',
       'Un acorde: el audio original, una quinta por encima y una octava por encima, mezclados.',
       'El mismo acorde hecho con rubberband, que suena como `rubberband=pitch=` en una línea de `ffmpeg`.',
+      'Baja el audio 5 semitonos con los cortes metálicos y zumbantes de A17.',
     ],
     notes: [
-      'Usa Bungee por defecto, el backend por defecto del programa multipitch. ENGINE=rubberband y ENGINE=signalsmith equivalen a su `--backend rubberband` y `--backend signalsmith`. Todos los tonos se hacen a la vez.',
+      'Usa Bungee por defecto, el backend por defecto del programa multipitch. ENGINE=rubberband y ENGINE=signalsmith equivalen a su `--backend rubberband` y `--backend signalsmith`. ENGINE=a17 es el antiguo cambio de tono "A17 Drums (minimum echo)": el sonido se corta en trozos de 25 ms que se aceleran o ralentizan y se unen con fundidos cortos, así el ritmo se mantiene firme y las notas largas suenan con un zumbido metálico. ENGINE=elastique es élastique Pro de Vegas, un cambio limpio que mantiene nítidos los golpes de batería. Todos los tonos se hacen a la vez.',
       'Sin NORMALIZE las copias se suman, como `--no-normalize` en los tags, así que los acordes grandes suenan fuerte. Cuenta para el límite de `ffmpeg`.',
     ],
   },

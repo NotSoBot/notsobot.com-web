@@ -70,15 +70,16 @@ export const MEDIASCRIPT_PORTUGUESE_9: TagDocsTranslation['mediaScriptCommands']
       MEDIA_KEY: MEDIA,
       SEMITONES: 'um número para mudar o tom, ou vários separados por vírgulas para mixar uma cópia em cada tom (`0` é o original)',
       NORMALIZE: 'abaixar a mixagem para que as cópias não somem até distorcer',
-      ENGINE: '`bungee`, `rubberband` ou `signalsmith`, o mudador de tom com que cada cópia é feita (o `--backend` do programa multipitch)',
+      ENGINE: '`bungee`, `rubberband`, `signalsmith`, `a17` ou `elastique`, o mudador de tom com que cada cópia é feita (os três primeiros são o `--backend` do programa multipitch)',
     },
     results: [
       'Sobe o áudio uma quinta; o vídeo fica igual.',
       'Um acorde: o áudio original, uma quinta acima e uma oitava acima, mixados juntos.',
       'O mesmo acorde feito com rubberband, soando como `rubberband=pitch=` numa linha de `ffmpeg`.',
+      'Abaixa o áudio 5 semitons com os cortes metálicos e zumbidos do A17.',
     ],
     notes: [
-      'Usa o Bungee por padrão, o backend padrão do programa multipitch. ENGINE=rubberband e ENGINE=signalsmith equivalem ao `--backend rubberband` e ao `--backend signalsmith` dele. Todos os tons são feitos ao mesmo tempo.',
+      'Usa o Bungee por padrão, o backend padrão do programa multipitch. ENGINE=rubberband e ENGINE=signalsmith equivalem ao `--backend rubberband` e ao `--backend signalsmith` dele. ENGINE=a17 é o antigo pitch shift "A17 Drums (minimum echo)": o som é cortado em pedaços de 25 ms que são acelerados ou desacelerados e unidos com fades curtos, então o ritmo fica firme e as notas longas ganham um zumbido metálico. ENGINE=elastique é o élastique Pro do Vegas, um pitch shift limpo que mantém as batidas da bateria nítidas. Todos os tons são feitos ao mesmo tempo.',
       'Sem NORMALIZE as cópias se somam, como `--no-normalize` nas tags, então acordes grandes ficam altos. Conta para o limite de `ffmpeg`.',
     ],
   },
