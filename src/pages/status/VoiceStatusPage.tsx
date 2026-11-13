@@ -32,11 +32,13 @@ export function VoiceStatusPage() {
   const nodes = data?.nodes ?? [];
 
   const totals = (data) ? nodes.reduce((total, node) => ({
-    effects: total.effects + (node.stats?.effects ?? 0),
+    effects_paused: total.effects_paused + (node.stats?.effects_paused ?? 0),
+    effects_playing: total.effects_playing + (node.stats?.effects_playing ?? 0),
     online: total.online + ((node.stats) ? 1 : 0),
+    paused: total.paused + (node.stats?.paused ?? 0),
     players: total.players + (node.stats?.players ?? 0),
     playing: total.playing + (node.stats?.playing ?? 0),
-  }), {effects: 0, online: 0, players: 0, playing: 0}) : null;
+  }), {effects_paused: 0, effects_playing: 0, online: 0, paused: 0, players: 0, playing: 0}) : null;
 
   return (
     <div className='container-page py-8'>
@@ -51,15 +53,13 @@ export function VoiceStatusPage() {
 
       <section aria-labelledby='voice-stats-heading' className='card mb-8 p-6'>
         <h2 id='voice-stats-heading' className='mb-6 text-center text-2xl text-white'>{t('voice_status.music_stats')}</h2>
-        <div className='grid grid-cols-2 gap-4 lg:grid-cols-4'>
+        <div className='grid gap-4 sm:grid-cols-2'>
           <StatTile
             label={t('voice_status.nodes_online')}
             className={(totals && totals.online < nodes.length) ? 'text-warning' : 'text-success-text'}
             value={(totals) ? `${formatNumber(totals.online)}/${formatNumber(nodes.length)}` : null}
           />
-          <StatTile label={t('voice_status.playing')} value={(totals) ? formatNumber(totals.playing) : null}/>
-          <StatTile label={t('voice_status.players')} value={(totals) ? formatNumber(totals.players) : null}/>
-          <StatTile label={t('voice_status.with_effects')} value={(totals) ? formatNumber(totals.effects) : null}/>
+          <PlayerCounts counts={totals} large/>
         </div>
       </section>
 
@@ -113,11 +113,7 @@ function NodeCard({ node }: {node: InfoVoiceNode}) {
 
       {(stats) ? (
         <>
-          <dl className='mt-4 grid grid-cols-3 gap-2 text-center'>
-            <NodeCount label={t('voice_status.playing')} value={stats.playing} highlight/>
-            <NodeCount label={t('voice_status.paused')} value={stats.paused}/>
-            <NodeCount label={t('voice_status.effects')} value={stats.effects}/>
-          </dl>
+          <PlayerCounts className='mt-4' counts={stats}/>
 
           <div className='mt-4'>
             <div className='mb-1 flex justify-between text-xs text-muted tabular-nums'>
@@ -147,12 +143,64 @@ function NodeCard({ node }: {node: InfoVoiceNode}) {
 }
 
 
-function NodeCount({ label, value, highlight = false }: {label: string, value: number, highlight?: boolean}) {
+type Counts = Pick<NonNullable<InfoVoiceNode['stats']>, 'effects_paused' | 'effects_playing' | 'paused' | 'players' | 'playing'>;
+
+// the total players and what they're doing under it, `large` for the page's totals (null while they load)
+function PlayerCounts({ counts, large = false, className }: {counts: Counts | null, large?: boolean, className?: string}) {
+  const { t } = useI18n();
   return (
-    // the number shows above its label
-    <div className='flex flex-col-reverse rounded-md bg-surface px-2 py-2'>
-      <dt className='text-xs text-muted'>{label}</dt>
-      <dd className={cn('text-lg font-semibold tabular-nums', (highlight) ? 'text-brand-text' : 'text-white')}>{formatNumber(value)}</dd>
+    <div className={cn('text-center', (large) ? 'rounded-lg bg-deep px-4 pt-4 pb-3' : 'rounded-md bg-surface px-2 pt-2.5 pb-2', className)}>
+      <dl className='flex flex-col-reverse items-center'>
+        <dt className={cn('text-muted', (large) ? 'text-sm' : 'text-xs')}>{t('voice_status.players')}</dt>
+        {(counts) ? (
+          <dd className={cn('font-semibold tabular-nums', (large) ? 'mb-1 text-xl font-bold text-brand-text sm:text-2xl lg:text-3xl' : 'text-2xl text-white')}>
+            {formatNumber(counts.players)}
+          </dd>
+        ) : (
+          <dd className='mb-2 h-8 w-24 animate-pulse rounded bg-surface-3'/>
+        )}
+      </dl>
+      <dl className={cn('grid grid-cols-3 divide-x divide-line-strong border-t border-line-strong', (large) ? 'mt-3 pt-1.5' : 'mt-2.5 pt-1')}>
+        <Count large={large} label={t('voice_status.playing')} value={counts?.playing} effects={counts?.effects_playing} highlight/>
+        <Count large={large} label={t('voice_status.paused')} value={counts?.paused} effects={counts?.effects_paused}/>
+        {/* in a voice channel with nothing playing or paused */}
+        <Count large={large} label={t('voice_status.idle')} value={(counts) ? counts.players - counts.playing - counts.paused : undefined}/>
+      </dl>
+    </div>
+  );
+}
+
+
+function Count({ label, value, effects = 0, highlight = false, large }: {
+  label: string,
+  value: number | undefined,
+  effects?: number,
+  highlight?: boolean,
+  large: boolean,
+}) {
+  const { t } = useI18n();
+  return (
+    // top to bottom: how many of them have live effects (right aligned on a line of its own that's always there, so it
+    // can't run into a long number and showing up never moves anything), the number and its label
+    <div className='flex flex-col-reverse items-center px-1'>
+      <dt className={cn('text-muted', (large) ? 'text-xs' : 'text-[11px]')}>{label}</dt>
+      {(value !== undefined) ? (
+        <dd className={cn('font-semibold tabular-nums', (large) && 'text-lg', (highlight) ? 'text-brand-text' : 'text-white')}>{formatNumber(value)}</dd>
+      ) : (
+        <dd className='mb-1 h-5 w-8 animate-pulse rounded bg-surface-3'/>
+      )}
+      <dd
+        className={cn('self-end truncate text-subtle tabular-nums', (large) ? 'h-4 pr-1 text-xs leading-4 sm:pr-2' : 'h-3.5 pr-0.5 text-[11px] leading-3.5')}
+        title={(effects) ? t('voice_status.effects_count', {count: formatNumber(effects)}) : undefined}
+        aria-hidden={(!effects) || undefined}
+      >
+        {(effects) ? (
+          <>
+            <span aria-hidden>{t('voice_status.effects_short', {count: formatNumber(effects)})}</span>
+            <span className='sr-only'>{t('voice_status.effects_count', {count: formatNumber(effects)})}</span>
+          </>
+        ) : null}
+      </dd>
     </div>
   );
 }

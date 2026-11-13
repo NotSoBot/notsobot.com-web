@@ -40,9 +40,10 @@ export function StatusSwitcher() {
 }
 
 
+// fills its grid row's height with the value and label centered, next to a taller tile
 export function StatTile({ label, value, className = 'text-brand-text' }: {label: string, value: string | null, className?: string}) {
   return (
-    <div className='rounded-lg bg-deep p-4 text-center'>
+    <div className='flex flex-col justify-center rounded-lg bg-deep p-4 text-center'>
       {(value !== null) ? (
         <div className={cn('mb-1 text-xl font-bold whitespace-nowrap tabular-nums sm:text-2xl lg:text-3xl', className)}>{value}</div>
       ) : (

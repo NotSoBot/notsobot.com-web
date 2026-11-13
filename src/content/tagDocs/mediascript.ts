@@ -453,7 +453,7 @@ export const MEDIASCRIPT_GUIDE: Array<TagDocGuideSection> = [
       '`ffmpeg KEY ...OPTIONS` takes FFmpeg\'s own output options: `-vf`, `-af`, `-filter_complex`, `-map`, `-c:v`, `-c:a`, `-crf`, `-qp`, `-preset` and more. KEY is input `0`, and `-i OTHERKEY` adds another media key as input `1`, `2`... (up to 4). The result keeps KEY\'s format and goes back into KEY. Most FFmpeg filters work, including `geq`, `displace`, `haldclut`, `curves`, `rubberband` and `frei0r` (with its built-in plugins like `mirr0r` and `gateweave`). Filters that read or write files on their own, like `movie`, `amovie` and `sendcmd`, are blocked, so load files with `load` or `loadcube` and pass them in.',
       '`reexport KEY AMOUNT LENGTH CODE` takes the first LENGTH seconds, runs CODE on it as `KEYx`, then runs CODE again on that result, AMOUNT times, and joins every export in order (backwards if AMOUNT is negative). Exports that come out longer than LENGTH are cut back unless you add `NO_TRIM=true`. Every export\'s audio is matched to its video before joining, so the result stays in sync. `idx` is the export number, for commands that take equations.',
       'Pitch shifting is `multipitch KEY SEMITONES`: `multipitch clip 7` is up a fifth, and `multipitch clip 0,7,12` mixes a chord the same way the multipitch program does (with `--no-normalize`). When the pitch has to be part of one `ffmpeg` filter graph, for example chained with other audio filters, use `rubberband=pitch=2^(SEMITONES/12)` there instead, and for a chord split the audio with `asplit`, shift each copy and mix them back with `amix=N:normalize=0` (see the examples). A hue shift is `hue=h=DEGREES`. ImageMagick\'s `-modulate 100,100,X` turns the hue by about `(X-100)*1.8` degrees; if the colors come out mirrored, flip the sign.',
-      'Downloaded programs (4orm) and shell commands can\'t run in MediaScript; `.veg` projects play back with `loadveg` and `vegrender`, Movie Maker `.wlmp` projects with `loadwlmp` and `wlmprender`. The table shows what to use instead. Limits: up to 100 `ffmpeg` runs per script, each output at most 10 minutes and 2048x2048, and every `ffmpeg` inside `reexport` counts once per export.',
+      'Downloaded programs (4orm) and shell commands can\'t run in MediaScript; `.veg` projects play back with `loadveg` and `vegrender`, Movie Maker `.wlmp` projects with `loadwlmp` and `wlmprender`, AVS Video Editor `.vep` projects with `loadvep` and `veprender`. The table shows what to use instead. Limits: up to 100 `ffmpeg` runs per script, each output at most 10 minutes and 2048x2048, and every `ffmpeg` inside `reexport` counts once per export.',
     ].join('\n\n'),
     table: {
       columns: ['In a {sh:} tag', 'In MediaScript'],
@@ -649,6 +649,36 @@ export const MEDIASCRIPT_GUIDE: Array<TagDocGuideSection> = [
   },
 
   {
+    id: 'ms-avs',
+    title: 'AVS Video Editor projects (.vep)',
+    body: [
+      '`loadvep URL VEP_KEY` reads an AVS Video Editor project, and `veprender MEDIA_KEY VEP_KEY` plays it back with every video, picture and sound in it replaced by your media. A `.vep` is the project file AVS Video Editor saves (not a finished video): its clips play at their places on the timeline, each from the same spot of your media it played from in its own file. AVS Video Editor itself never runs: the effects in the table are redrawn with ffmpeg, matched to the preview AVS saves inside the project, and effects not in the table are skipped.',
+      'Every source in the project becomes your media: video clips play from it, pictures show it held on its first frame, and the audio lines play its sound. With an image as your media, every clip shows it and there is no sound; with an audio file, only the sound plays. The render keeps the project\'s own size, scaled down to fit 1280x720.',
+      'Limits: projects up to 8mb (and within the script\'s download limit), 4 per script, 20000 clips. The render is at most 10 minutes long and counts as one `ffmpeg` run, sharing its time limit.',
+    ].join('\n\n'),
+    table: {
+      columns: ['AVS Video Editor feature', 'Played back', 'How'],
+      rows: [
+        ['Clips on the main video line', 'Yes', 'At their times on the timeline, from their start points, with speed (0.01x to 100x) and mute'],
+        ['Audio lines', 'Yes', 'Played under the video, with each line\'s volume'],
+        ['Volume envelope', 'Partly', 'Its points play as volume changes, how loud each level is is a guess'],
+        ['Hue', 'Yes', 'Every color turned round the color wheel, matched to the preview AVS saves'],
+        ['Twirl', 'Yes', 'Matched to the preview AVS saves, black where it pulls the picture in from past the edge'],
+        ['Wave', 'Partly', 'Rows or columns bent along a wave, matched to the preview; how fast a moving one moves is a guess'],
+        ['Audio Rate', 'Partly', 'Played as a pitch change that keeps the clip\'s length'],
+        ['Overlays (PiP), text and transitions', 'No', 'Skipped'],
+        ['Other effects, and effects on part of a clip', 'No', 'Other effects are skipped, ones on part of a clip play on all of it'],
+      ],
+    },
+    examples: [
+      {
+        code: '{mediascript:load {iv} logo\nloadvep FILE_1 a\nveprender logo a\nrender logo}',
+        result: 'The attached AVS Video Editor project rebuilt with the last image or video in every clip.',
+      },
+    ],
+  },
+
+  {
     id: 'ms-examples',
     title: 'Worked examples',
     body: 'A few complete tags that combine several commands. Copy one into `.tag create` and tweak it.',
@@ -791,6 +821,42 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
       'Rebuilt: the clips in order (start and end points, gaps, speed), the rotate buttons, volume and mute, the music and narration, and the Black and White (with its Orange, Red and Yellow filters), Cyan, Sepia, Threshold, Posterize, Blur, Brightness, Hue and Spin 360 effects. Edge Detection, Warp, Ripple, Cinematic, transitions and captions are skipped. The full list is in the Movie Maker projects section.',
       'A 4:3 project comes out 640x480 and a 16:9 one 1280x720, at most 10 minutes. Counts toward the `ffmpeg` limit and has to finish within the script\'s time limit.',
       'Outside of tags, the bot has the same thing as the `.wlmp` command (the .wlmp attached or its url first, then the media) and `/media-aiv wlmp`.',
+    ],
+  },
+  {
+    name: 'loadvep',
+    category: 'io',
+    summary: 'Loads an AVS Video Editor project (.vep) for `veprender`.',
+    syntax: 'loadvep URL VEP_KEY',
+    args: [
+      {name: 'URL', description: 'link to the `.vep` file, or `FILE_1`, `FILE_2`... for files attached to the tag'},
+      {name: 'VEP_KEY', description: 'name to use it by, any name like a media key'},
+    ],
+    examples: [
+      {code: '{mediascript:loadvep FILE_1 a\nload {iv} logo\nveprender logo a\nrender logo}', result: 'Plays back the attached project with the last image or video.'},
+    ],
+    notes: [
+      'Files up to 8mb (or the script\'s download limit, if that\'s smaller), at most 4 per script, and they count toward the script\'s download limit. Projects with more than 20000 clips are refused.',
+      'Vep keys are separate from media keys. Loading the same link into the same key again (like inside `reexport`) is skipped.',
+      'Only the project is read, not the media it used. See the AVS Video Editor projects section for what is rebuilt.',
+    ],
+  },
+  {
+    name: 'veprender',
+    category: 'compose',
+    summary: 'Plays back an AVS Video Editor project with every one of its videos, pictures and sounds replaced by your media.',
+    syntax: 'veprender MEDIA_KEY VEP_KEY',
+    args: [
+      media(),
+      {name: 'VEP_KEY', description: 'a project from `loadvep`'},
+    ],
+    examples: [
+      {code: '{mediascript:load {iv} logo\nloadvep FILE_1 a\nveprender logo a\nrender logo}', result: 'The project rebuilt with the last image or video in every clip.'},
+    ],
+    notes: [
+      'Rebuilt: the main video line\'s clips at their times (start points, speed, mute), the audio lines, volume envelopes, and the Hue, Twirl and Wave effects and the audio Rate. Overlays (PiP), text, transitions and other effects are skipped. The full list is in the AVS Video Editor projects section.',
+      'Keeps the project\'s own size, scaled down to fit 1280x720, at most 10 minutes. Counts toward the `ffmpeg` limit and has to finish within the script\'s time limit.',
+      'Outside of tags, the bot has the same thing as the `.vep` command (the .vep attached or its url first, then the media) and `/media-aiv vep`.',
     ],
   },
   {

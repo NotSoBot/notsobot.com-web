@@ -31,6 +31,7 @@ export const CHANGELOG: Array<ChangelogDay> = [
     date: '2026-11-12',
     title: 'NotSoPremium Max, voice clones with credits, laser eyes and .xyt text',
     items: [
+      {kind: 'new', text: '`.vep` (`.avs`) and `/media-aiv vep`: attach an AVS Video Editor project (`.vep`, or give its link) with your media and NotSoBot plays it back with your media in every clip: the clips at their times with speed and mute, the audio lines and volume envelopes, and the Hue, Twirl and Wave effects and the audio Rate. Other effects, overlays, text and transitions are skipped for now. **MediaScript:** `loadvep` and `veprender` do the same with a media key (the project from a link or `FILE_n`).'},
       {kind: 'new', text: 'Member logs show when Discord flags a member for unusual DM activity (messaging a lot of people they don\'t know), when it\'s cleared, and on joins from a flagged member.'},
       {kind: 'new', text: '`.xyt` renders VivaVideo sticker, text bubble and animated text templates you send as a file (like Disaster, speech bubbles, Typewriter and Raining Characters), and a new `text` option (`-text` on `.xyt`) puts your own words in the text ones. **MediaScript:** `xytrender` renders them too, with their own words.'},
       {kind: 'new', text: '`.eyes cutout` cuts people\'s eyes and mouth out and pastes them back bigger, over a second image you give it (like a logo) or a `-color`, for the talking object meme. On videos the eyes and mouth follow the face, so it still talks and blinks. `/media-iv-eyes cutout` does the same. **MediaScript:** `facecutout`.'},
@@ -38,6 +39,7 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'new', text: 'Anyone with NotSoCredits can clone voices for text to speech: up to 2 with bought credits, without NotSoPremium (Plus still gets 5 and Max 10). A server that was given credits can have 2 voices of its own too.'},
       {kind: 'new', text: 'NotSoPremium Plus\'s 30,000 weekly NotSoCredits pay for NotSoAI too, about 400 messages a week, shared with your cloned voices.'},
       {kind: 'new', text: '**MediaScript:** functions. `function NAME CODE` saves code under a name and `call NAME ARGUMENTS` runs it, with `$1`, `$2`... replaced by the arguments, so the same steps can run on different media keys without copying them.'},
+      {kind: 'improved', text: 'The status page\'s Voice Nodes tab splits players into playing, paused and idle, and shows how many playing and paused ones have effects on, in total and for each node.'},
       {kind: 'improved', text: '`.eyes` without a `-type` lets you pick the eye effect from a menu, and every `.eyes` result has menus under it to switch to another effect on the same picture.'},
       {kind: 'improved', text: 'NotSoPremium Plus AI is now called NotSoPremium Max. It\'s the same subscription with the same perks.'},
       {kind: 'improved', text: 'Servers with a NotSoPremium Max slot get a 2,000 song music queue instead of 1,000, up to 10 cloned voices instead of 5, and up to 50 saved fonts instead of 25. Servers with only a Plus slot keep nsb.gg files up to 21 days instead of 28, Max slots keep them up to 28.'},

@@ -90,6 +90,36 @@ export const MEDIASCRIPT_PORTUGUESE_1: TagDocsTranslation['mediaScriptCommands']
       'Fora das tags, o bot tem a mesma coisa no comando `.wlmp` (primeiro o .wlmp anexado ou a URL dele, depois a mídia) e no `/media-aiv wlmp`.',
     ],
   },
+  loadvep: {
+    summary: 'Carrega um projeto do AVS Video Editor (.vep) para o `veprender`.',
+    args: {
+      URL: ATTACHED_FILES('.vep'),
+      VEP_KEY: KEY_NAME,
+    },
+    results: [
+      'Reproduz o projeto anexado com a última imagem ou vídeo.',
+    ],
+    notes: [
+      'Arquivos de até 8mb (ou o limite de download do script, se for menor), no máximo 4 por script, e eles contam para o limite de download do script. Projetos com mais de 20000 clipes são recusados.',
+      'Chaves de vep são separadas das chaves de mídia. Carregar o mesmo link na mesma chave de novo (como dentro de `reexport`) é pulado.',
+      'Só o projeto é lido, não a mídia que ele usava. Veja a seção de projetos do AVS Video Editor para saber o que é reconstruído.',
+    ],
+  },
+  veprender: {
+    summary: 'Reproduz um projeto do AVS Video Editor com cada um dos vídeos, imagens e sons dele substituído pela sua mídia.',
+    args: {
+      MEDIA_KEY: MEDIA,
+      VEP_KEY: 'um projeto do `loadvep`',
+    },
+    results: [
+      'O projeto reconstruído com a última imagem ou vídeo em cada clipe.',
+    ],
+    notes: [
+      'Reconstruído: os clipes da linha de vídeo principal no momento deles (pontos de início, velocidade, mudo), as linhas de áudio, os envelopes de volume, os efeitos Hue, Twirl e Wave e o Rate de áudio. Sobreposições (PiP), texto, transições e os outros efeitos são pulados. A lista completa está na seção de projetos do AVS Video Editor.',
+      'Mantém o tamanho do próprio projeto, reduzido para caber em 1280x720, no máximo 10 minutos. Conta para o limite de `ffmpeg` e precisa terminar dentro do limite de tempo do script.',
+      'Fora das tags, o bot tem a mesma coisa no comando `.vep` (primeiro o .vep anexado ou a URL dele, depois a mídia) e no `/media-aiv vep`.',
+    ],
+  },
   loadxyt: {
     summary: 'Carrega um modelo de filtro, fx, moldura, sticker ou texto do VivaVideo (.xyt) para o `xytrender`.',
     args: {

@@ -194,6 +194,9 @@ export interface InfoVoiceNode {
     cpu: number,
     // players decoding for live effects
     effects: number,
+    // of `paused` and `playing`, the ones with live effects
+    effects_paused: number,
+    effects_playing: number,
     // bytes (rss)
     memory: number,
     paused: number,

@@ -257,7 +257,7 @@ export const MEDIASCRIPT_GUIDE_SPANISH: TagDocsTranslation['mediaScriptGuide'] =
       '`ffmpeg KEY ...OPTIONS` recibe las propias opciones de salida de FFmpeg: `-vf`, `-af`, `-filter_complex`, `-map`, `-c:v`, `-c:a`, `-crf`, `-qp`, `-preset` y más. KEY es la entrada `0`, y `-i OTHERKEY` añade otra clave de multimedia como entrada `1`, `2`... (hasta 4). El resultado mantiene el formato de KEY y vuelve a KEY. Funcionan la mayoría de filtros de FFmpeg, incluidos `geq`, `displace`, `haldclut`, `curves`, `rubberband` y `frei0r` (con sus plugins integrados como `mirr0r` y `gateweave`). Los filtros que leen o escriben archivos por su cuenta, como `movie`, `amovie` y `sendcmd`, están bloqueados, así que carga los archivos con `load` o `loadcube` y pásalos como entrada.',
       '`reexport KEY AMOUNT LENGTH CODE` coge los primeros LENGTH segundos, ejecuta CODE sobre ellos como `KEYx`, luego vuelve a ejecutar CODE sobre ese resultado, AMOUNT veces, y une todas las exportaciones en orden (al revés si AMOUNT es negativo). Las exportaciones que salen más largas que LENGTH se recortan, salvo que añadas `NO_TRIM=true`. El audio de cada exportación se ajusta a su vídeo antes de unirlas, así que el resultado sigue sincronizado. `idx` es el número de exportación, para los comandos que reciben ecuaciones.',
       'Para cambiar el tono se usa `multipitch KEY SEMITONES`: `multipitch clip 7` sube una quinta, y `multipitch clip 0,7,12` mezcla un acorde igual que lo hace el programa multipitch (con `--no-normalize`). Cuando el tono tiene que ser parte de un único grafo de filtros de `ffmpeg`, por ejemplo encadenado con otros filtros de audio, usa ahí `rubberband=pitch=2^(SEMITONES/12)`, y para un acorde divide el audio con `asplit`, cambia el tono de cada copia y vuelve a mezclarlas con `amix=N:normalize=0` (mira los ejemplos). Un cambio de tono de color es `hue=h=DEGREES`. El `-modulate 100,100,X` de ImageMagick gira el tono de color unos `(X-100)*1.8` grados; si los colores salen al revés, cambia el signo.',
-      'Los programas descargados (4orm) y los comandos de shell no se pueden ejecutar en MediaScript; los proyectos `.veg` se reproducen con `loadveg` y `vegrender`, y los proyectos `.wlmp` de Movie Maker con `loadwlmp` y `wlmprender`. La tabla muestra qué usar en su lugar. Límites: hasta 100 ejecuciones de `ffmpeg` por script, cada salida de como mucho 10 minutos y 2048x2048, y cada `ffmpeg` dentro de `reexport` cuenta una vez por exportación.',
+      'Los programas descargados (4orm) y los comandos de shell no se pueden ejecutar en MediaScript; los proyectos `.veg` se reproducen con `loadveg` y `vegrender`, los proyectos `.wlmp` de Movie Maker con `loadwlmp` y `wlmprender`, y los proyectos `.vep` de AVS Video Editor con `loadvep` y `veprender`. La tabla muestra qué usar en su lugar. Límites: hasta 100 ejecuciones de `ffmpeg` por script, cada salida de como mucho 10 minutos y 2048x2048, y cada `ffmpeg` dentro de `reexport` cuenta una vez por exportación.',
     ].join('\n\n'),
     table: {
       columns: ['En un tag con {sh:}', 'En MediaScript'],
@@ -414,6 +414,32 @@ export const MEDIASCRIPT_GUIDE_SPANISH: TagDocsTranslation['mediaScriptGuide'] =
     },
     results: [
       'El proyecto de Movie Maker adjunto reconstruido con la última imagen o vídeo en cada clip.',
+    ],
+  },
+
+  'ms-avs': {
+    title: 'Proyectos de AVS Video Editor (.vep)',
+    body: [
+      '`loadvep URL VEP_KEY` lee un proyecto de AVS Video Editor, y `veprender MEDIA_KEY VEP_KEY` lo reproduce con cada vídeo, imagen y sonido del proyecto sustituido por tu multimedia. Un `.vep` es el archivo de proyecto que guarda AVS Video Editor (no un vídeo terminado): sus clips suenan en su sitio de la línea de tiempo, cada uno desde el mismo punto de tu multimedia desde el que se reproducía en su propio archivo. AVS Video Editor en sí nunca se ejecuta: los efectos de la tabla se redibujan con ffmpeg, ajustados a la vista previa que AVS guarda dentro del proyecto, y los efectos que no están en la tabla se omiten.',
+      'Cada fuente del proyecto pasa a ser tu multimedia: los clips de vídeo se reproducen a partir de ella, las imágenes la muestran congelada en su primer fotograma, y las líneas de audio reproducen su sonido. Con una imagen como multimedia, todos los clips la muestran y no hay sonido; con un archivo de audio, solo suena el sonido. El render mantiene el tamaño del propio proyecto, reducido para caber en 1280x720.',
+      'Límites: proyectos de hasta 8mb (y dentro del límite de descarga del script), 4 por script, 20000 clips. El render dura como mucho 10 minutos y cuenta como una ejecución de `ffmpeg`, compartiendo su límite de tiempo.',
+    ].join('\n\n'),
+    table: {
+      columns: ['Función de AVS Video Editor', 'Se reproduce', 'Cómo'],
+      rows: [
+        ['Clips de la línea de vídeo principal', 'Sí', 'En su momento de la línea de tiempo, desde su punto de inicio, con velocidad (0.01x a 100x) y silencio'],
+        ['Líneas de audio', 'Sí', 'Suenan bajo el vídeo, con el volumen de cada línea'],
+        ['Envolvente de volumen', 'En parte', 'Sus puntos suenan como cambios de volumen, cuánto suena cada nivel es una suposición'],
+        ['', 'Sí', 'Cada color gira por la rueda de color, ajustado a la vista previa que guarda AVS'],
+        ['', 'Sí', 'Ajustado a la vista previa que guarda AVS, en negro donde trae la imagen desde fuera del borde'],
+        ['', 'En parte', 'Filas o columnas dobladas siguiendo una onda, ajustadas a la vista previa; la velocidad de una que se mueve es una suposición'],
+        ['', 'En parte', 'Suena como un cambio de tono que mantiene la duración del clip'],
+        ['Superposiciones (PiP), texto y transiciones', 'No', 'Se omiten'],
+        ['Otros efectos, y efectos en parte de un clip', 'No', 'Los otros efectos se omiten, los que van en parte de un clip se aplican a todo el clip'],
+      ],
+    },
+    results: [
+      'El proyecto de AVS Video Editor adjunto reconstruido con la última imagen o vídeo en cada clip.',
     ],
   },
 

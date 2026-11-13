@@ -4884,6 +4884,8 @@ route('GET', '/info/voice', () => {
     cpu: stats.cpu.load,
     // a few of them with live effects on
     effects: Math.floor(stats.players / 8),
+    effects_paused: Math.floor(stats.paused / 3),
+    effects_playing: Math.floor(stats.playing / 8),
     memory: stats.memory.rss,
     paused: stats.paused,
     players: stats.players,

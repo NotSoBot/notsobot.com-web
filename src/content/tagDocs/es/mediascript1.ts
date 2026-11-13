@@ -88,6 +88,36 @@ export const MEDIASCRIPT_SPANISH_1: TagDocsTranslation['mediaScriptCommands'] = 
       'Fuera de los tags, el bot tiene lo mismo con el comando `.wlmp` (primero el .wlmp adjunto o su URL, y luego la multimedia) y con `/media-aiv wlmp`.',
     ],
   },
+  loadvep: {
+    summary: 'Carga un proyecto de AVS Video Editor (.vep) para `veprender`.',
+    args: {
+      URL: 'enlace al archivo `.vep`, o `FILE_1`, `FILE_2`... para archivos adjuntos al tag',
+      VEP_KEY: 'el nombre con el que usarlo, cualquier nombre como el de una clave de multimedia',
+    },
+    results: [
+      'Reproduce el proyecto adjunto con la última imagen o vídeo.',
+    ],
+    notes: [
+      'Archivos de hasta 8mb (o el límite de descarga del script, si es menor), como mucho 4 por script, y cuentan para el límite de descarga del script. Se rechazan los proyectos con más de 20000 clips.',
+      'Las claves de vep son independientes de las claves de multimedia. Volver a cargar el mismo enlace en la misma clave (como dentro de `reexport`) se omite.',
+      'Solo se lee el proyecto, no la multimedia que usaba. Mira la sección de proyectos de AVS Video Editor para saber qué se reconstruye.',
+    ],
+  },
+  veprender: {
+    summary: 'Reproduce un proyecto de AVS Video Editor con cada uno de sus vídeos, imágenes y sonidos sustituido por tu multimedia.',
+    args: {
+      MEDIA_KEY: MEDIA,
+      VEP_KEY: 'un proyecto de `loadvep`',
+    },
+    results: [
+      'El proyecto reconstruido con la última imagen o vídeo en cada clip.',
+    ],
+    notes: [
+      'Se reconstruye: los clips de la línea de vídeo principal en su momento (puntos de inicio, velocidad, silencio), las líneas de audio, las envolventes de volumen, los efectos Hue, Twirl y Wave y el Rate de audio. Las superposiciones (PiP), el texto, las transiciones y los demás efectos se omiten. La lista completa está en la sección de proyectos de AVS Video Editor.',
+      'Mantiene el tamaño del propio proyecto, reducido para caber en 1280x720, como mucho 10 minutos. Cuenta para el límite de `ffmpeg` y tiene que terminar dentro del límite de tiempo del script.',
+      'Fuera de los tags, el bot tiene lo mismo con el comando `.vep` (primero el .vep adjunto o su URL, y luego la multimedia) y con `/media-aiv vep`.',
+    ],
+  },
   loadxyt: {
     summary: 'Carga una plantilla de filtro, fx, marco, sticker o texto de VivaVideo (.xyt) para `xytrender`.',
     args: {
