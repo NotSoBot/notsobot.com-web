@@ -37,6 +37,7 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'improved', text: '`.xyt` plays more VivaVideo templates: ones whose effects switch on and off over time with a picture behind the clip, animated frames that reuse their pictures, and frames with a layout for square, 4:3 and 16:9 clips (the closest one is picked). The Butterfly template and 11 stickers (Omg, Cool, Yippee, Awesome and more) are in the library now too.'},
       {kind: 'improved', text: '`.vep` draws AVS Video Editor\'s Ripple effect, though how strong it is is a guess until it\'s matched to an AVS export. **MediaScript:** `veprender`.'},
       {kind: 'improved', text: '`.url` finds text files too, and its examples show `.url ^2` for the second attachment or an older one.'},
+      {kind: 'improved', text: 'A prefixed command that a server\'s rules block (with no message set) or that the server\'s Discord command permissions block for its slash version gets a stop sign reaction instead of being ignored, at most once every 5 minutes per person and command in a channel. `/help permissions-check`, `.rules` and `.rules check` use the same stop sign for a blocking rule.'},
       {kind: 'improved', text: 'A ban from the auto-warn ladder lists how long it lasts in the audit log, like `/ban` does.'},
       {kind: 'fixed', text: '`.m4a` files that Discord labels as video being used as a video instead of audio (like the music for `.a put mix`), and results with only sound coming back as an empty video instead of Discord\'s audio player.'},
     ],
