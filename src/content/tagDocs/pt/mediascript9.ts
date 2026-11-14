@@ -68,18 +68,22 @@ export const MEDIASCRIPT_PORTUGUESE_9: TagDocsTranslation['mediaScriptCommands']
     summary: 'Muda o tom do áudio em semitons sem mudar a velocidade, ou mixa várias cópias com tons diferentes num acorde (como o programa multipitch das tags de efeito).',
     args: {
       MEDIA_KEY: MEDIA,
-      SEMITONES: 'um número para mudar o tom, ou vários separados por vírgulas para mixar uma cópia em cada tom (`0` é o original)',
+      SEMITONES: 'um número para mudar o tom, ou vários separados por vírgulas (ou por espaços entre aspas) para mixar uma cópia em cada tom (`0` é o original). Um nome de acorde equivale às suas notas, e `@VOLUME` depois de um valor define o volume dessa cópia (de 0 a 4, como `7@0.5`)',
       NORMALIZE: 'abaixar a mixagem para que as cópias não somem até distorcer',
       ENGINE: '`bungee`, `rubberband`, `signalsmith`, `a17` ou `elastique`, o mudador de tom com que cada cópia é feita (os três primeiros são o `--backend` do programa multipitch)',
+      FORMANTS: 'manter uma voz soando como a mesma pessoa em vez de um esquilo ou um gigante, só com `elastique` e `rubberband`',
     },
     results: [
       'Sobe o áudio uma quinta; o vídeo fica igual.',
       'Um acorde: o áudio original, uma quinta acima e uma oitava acima, mixados juntos.',
       'O mesmo acorde feito com rubberband, soando como `rubberband=pitch=` numa linha de `ffmpeg`.',
       'Abaixa o áudio 5 semitons com os cortes metálicos e zumbidos do A17.',
+      'Um acorde de quatro vozes com élastique em que cada cópia ainda soa como a mesma pessoa.',
+      'Um acorde maior (0, 4 e 7) mais uma oitava mais suave em cima.',
     ],
     notes: [
       'Usa o Bungee por padrão, o backend padrão do programa multipitch. ENGINE=rubberband e ENGINE=signalsmith equivalem ao `--backend rubberband` e ao `--backend signalsmith` dele. ENGINE=a17 é o antigo pitch shift "A17 Drums (minimum echo)": o som é cortado em pedaços de 25 ms que são acelerados ou desacelerados e unidos com fades curtos, então o ritmo fica firme e as notas longas ganham um zumbido metálico. ENGINE=elastique é o élastique Pro do Vegas, um pitch shift limpo que mantém as batidas da bateria nítidas. Todos os tons são feitos ao mesmo tempo.',
+      'Nomes de acorde: `major`, `minor`, `power`, `octave`, `sus2`, `sus4`, `dim`, `aug`, `maj7`, `min7`, `dom7` (também `maj`, `min` e `octaves`). Cada nota conta para os 12 tons, e um tom repetido só é feito uma vez.',
       'Sem NORMALIZE as cópias se somam, como `--no-normalize` nas tags, então acordes grandes ficam altos. Conta para o limite de `ffmpeg`.',
     ],
   },

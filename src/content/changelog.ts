@@ -33,6 +33,7 @@ export const CHANGELOG: Array<ChangelogDay> = [
     items: [
       {kind: 'new', text: '`.audio multipitch -engine a17` (and `engine` on `/media-av-pitch multipitch`) pitch shifts with the old "A17 Drums (minimum echo)" sound: tight timing with that metallic buzz on held notes. **MediaScript:** `multipitch KEY SEMITONES engine=a17`.'},
       {kind: 'new', text: '`.audio multipitch -engine elastique` (and `engine` on `/media-av-pitch multipitch`) pitch shifts with Vegas\'s élastique Pro: a clean shift that keeps drum hits sharp. **MediaScript:** `multipitch KEY SEMITONES engine=elastique`.'},
+      {kind: 'new', text: '`.audio multipitch` (and `/media-av-pitch multipitch`) takes chord names (`major`, `minor`, `power`, `sus4`, `maj7` and more), a volume per pitch with `@` (`major 12@0.5`) and pitches split by spaces (`-12 -5 0 7`). `-formants` (`formants` on the slash command) keeps a voice sounding like the same person when pitched with `elastique` or `rubberband`. **MediaScript:** `multipitch KEY "major 12@0.5" engine=elastique formants=true`.'},
       {kind: 'improved', text: '`/4chan` suggests boards as you type, and `.4chan` and `/4chan` take a board\'s name too (like `.4chan technology`). A board that doesn\'t exist gets a list of close ones instead of an error.'},
       {kind: 'fixed', text: '`.wolframalpha` (`.wa`) failing on every search since November 9.'},
       {kind: 'fixed', text: 'Translating long text, like `.ocrtranslate` on a picture full of words, failing.'},
