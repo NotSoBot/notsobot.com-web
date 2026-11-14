@@ -183,6 +183,8 @@ const SERVER_COMPARISON: Array<ComparisonGroup> = [
     icon: Server,
     rows: [
       {label: 'premium.server_perk.custom_commands', values: [false, true, true]},
+      // `server set auto-embed`, the api's `GuildAutoEmbedSites`
+      {label: 'premium.server_perk.auto_embed', values: [false, true, true]},
       // `server fonts add`, members with Manage Server
       {label: 'premium.row.saved_fonts', values: [false, String(MAX_SAVED_FONTS_SERVER), String(MAX_SAVED_FONTS_SERVER_MAX)]},
     ],

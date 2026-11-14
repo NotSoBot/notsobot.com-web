@@ -192,11 +192,13 @@ const BAN_MEMBERS = 1n << 2n;
 
 export interface MockGuild {
   summary: UserGuildSummary,
-  detail: Omit<UserGuild, 'editable' | 'owner' | 'permissions'>,
+  detail: Omit<UserGuild, 'editable' | 'owner' | 'permissions' | 'premium_server'>,
 }
 
 export function createGuildSettings(): UserGuild['settings'] {
   return {
+    auto_embed: [],
+    auto_embed_text: false,
     ban_clean: 24 * 60 * 60,
     media_font: null,
     ml_diffusion_model: null,

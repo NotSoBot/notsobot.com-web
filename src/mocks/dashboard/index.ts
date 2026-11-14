@@ -1253,7 +1253,13 @@ function throwGuildsError() {
 
 function guildDetail(guildId: string) {
   const entry = findGuild(guildId);
-  return {...entry.detail, owner: entry.summary.owner, permissions: entry.summary.permissions, editable: guildEditable(entry.summary)};
+  return {
+    ...entry.detail,
+    owner: entry.summary.owner,
+    permissions: entry.summary.permissions,
+    editable: guildEditable(entry.summary),
+    premium_server: guildPremiumServer(guildId),
+  };
 }
 
 function requireOwner(guildId: string) {
@@ -1395,6 +1401,7 @@ route('PATCH', '/users/@me/guilds/(\\d+)', ([ , guildId ], { body }) => {
     detail.settings.warnings_actions = [...((body.warnings_actions as UserGuild['settings']['warnings_actions'] | null) || [])].sort((x, y) => x.threshold - y.threshold);
   }
   applyWarningsAuto(detail, body);
+  applyAutoEmbed(detail, body);
   for (const key of settingsKeys) {
     if (key in body) {
       (detail.settings as unknown as Record<string, unknown>)[key] = body[key];
@@ -2781,6 +2788,7 @@ function adminGuildDetail(guildId: string) {
     editable: {loggers: state.owner, moderation: state.owner, music: state.owner, prefixes: state.owner, reminders: state.owner, rules: state.owner, rules_admin: state.owner, settings: state.owner, tags: state.owner},
     owner: false,
     permissions: '0',
+    premium_server: guildPremiumServer(guildId),
   };
 }
 
@@ -2844,6 +2852,7 @@ route('PATCH', '/admin/guilds/(\\d+)', ([ , guildId ], { body }) => {
     detail.settings.warnings_actions = [...((body.warnings_actions as UserGuild['settings']['warnings_actions'] | null) || [])].sort((x, y) => x.threshold - y.threshold);
   }
   applyWarningsAuto(detail, body);
+  applyAutoEmbed(detail, body);
   for (const key of settingsKeys) {
     if (key in body) {
       (detail.settings as unknown as Record<string, unknown>)[key] = body[key];
@@ -4049,6 +4058,21 @@ function mockMusicItem(guildId: string, id: string, position: number, track: Par
     url,
     user_id: '1000000000000000001',
   };
+}
+
+// `auto_embed` like the api: sorted, no repeats, null turns it off
+function applyAutoEmbed(detail: {settings: UserGuild['settings']}, body: Record<string, unknown>) {
+  if ('auto_embed' in body) {
+    detail.settings.auto_embed = [...new Set((body.auto_embed as UserGuild['settings']['auto_embed'] | null) || [])].sort();
+  }
+  if ('auto_embed_text' in body) {
+    detail.settings.auto_embed_text = !!body.auto_embed_text;
+  }
+}
+
+// someone gave it a premium server slot (the second server has one), for `premium_server`
+function guildPremiumServer(guildId: string): boolean {
+  return state.premiumServers.some((server) => server.server_id === guildId);
 }
 
 // a premium server slot (the second server has one) or `MUSIC_ACCESS`, checked every time like the API so taking the

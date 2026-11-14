@@ -3,7 +3,7 @@ import type { LegalDocument } from './legal';
 export const PRIVACY_POLICY: LegalDocument = {
   title: "Privacy Policy",
   effective: "October 13, 2026",
-  lastUpdated: "November 12, 2026",
+  lastUpdated: "November 14, 2026",
   intro: "This Privacy Policy explains what information NotSoBot collects, why, who it's shared with, how long it's kept, and how You can get a copy of it or have it deleted.",
   sections: [
     {
@@ -49,7 +49,7 @@ export const PRIVACY_POLICY: LegalDocument = {
       title: "Section 3 - Information We Don't Collect",
       blocks: [
         {type: 'list', items: [
-          "Messages that aren't directed at NotSoBot. NotSoBot only reads other messages when a command You run needs them. Recent messages read to find an image or build a word cloud are only used to complete that command and are not saved. Messages You reply to with the ai command are stored as part of that AI request.",
+          "Messages that aren't directed at NotSoBot. NotSoBot only reads other messages when a command You run needs them, or in a server that turned on auto-embed, where a message that's only a link to a post on one of the sites the server picked is handled like the download command (the link is downloaded and posted, and the message's text isn't saved). Recent messages read to find an image or build a word cloud are only used to complete that command and are not saved. Messages You reply to with the ai command are stored as part of that AI request.",
           "The text of your command messages. Only the IDs listed above are kept.",
           "Your Discord password, email address or phone number.",
           "Payment details. Purchases are handled by Discord, and We never see your card or billing information.",

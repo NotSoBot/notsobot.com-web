@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useToast } from '@/components/ui/Toast';
 import { useI18n } from '@/i18n';
-import { GuildModerationDmFlags, type UserGuild, type UserGuildPatch } from '@/lib/api';
+import { GUILD_AUTO_EMBED_SITES, GuildModerationDmFlags, type GuildAutoEmbedSite, type UserGuild, type UserGuildPatch } from '@/lib/api';
 import { errorMessage, useGuildMutation } from '@/lib/api/dashboardQueries';
 
 import { ChoiceSelect } from '../settings/ChoiceSelect';
@@ -20,6 +20,7 @@ import { PersonalityHint } from '../settings/PersonalityHint';
 import { useDraft } from '../settings/useDraft';
 import { CharCounter, Field, InlineError, Panel, SaveBar, Toggle } from '../ui';
 import { banCleanChoices, useReadOnlyMessage, warningsExpireChoices, warningsWindowChoices } from './guildMeta';
+import { PremiumNote } from './MusicSection';
 import { WarningActionsEditor, warningActionsError } from './WarningActionsEditor';
 import { WarningAutoEditor, warningAutoError } from './WarningAutoEditor';
 
@@ -45,6 +46,8 @@ const GROUP_ACCENTS: Record<SettingsGroup, string> = {
 // only ever has those
 function savedValues(guild: UserGuild): Values {
   return {
+    auto_embed: guild.settings.auto_embed ?? [],
+    auto_embed_text: guild.settings.auto_embed_text ?? false,
     locale: guild.locale,
     timezone: guild.timezone,
     ml_llm_personality: guild.settings.ml_llm_personality,
@@ -73,6 +76,21 @@ const MODERATION_DMS = [
   {flag: GuildModerationDmFlags.WARN, key: 'warn'},
   {flag: GuildModerationDmFlags.AUTOWARN, key: 'autowarn'},
 ] as const;
+
+
+// brand names, not translated, in `GUILD_AUTO_EMBED_SITES`' order
+const AUTO_EMBED_SITE_NAMES: Record<GuildAutoEmbedSite, string> = {
+  tiktok: 'TikTok',
+  instagram: 'Instagram',
+  x: 'X (Twitter)',
+  reddit: 'Reddit',
+  bluesky: 'Bluesky',
+  threads: 'Threads',
+  facebook: 'Facebook',
+  pinterest: 'Pinterest',
+  tumblr: 'Tumblr',
+  streamable: 'Streamable',
+};
 
 
 // which of a modal's forms have unsaved edits, for the tabs' dots and asking before closing
@@ -110,6 +128,7 @@ export function ServerSettingsForm({ guild, group, onDirtyChange }: {guild: User
   const actionsError = (group === 'warnings') ? warningActionsError(warningActions) : null;
   const warningAuto = values.warnings_auto ?? [];
   const autoError = (group === 'warnings') ? warningAutoError(warningAuto) : null;
+  const autoEmbed = values.auto_embed ?? [];
   const banClean = values.ban_clean ?? 0;
   const dmDisabled = values.moderation_dm_disabled ?? 0;
 
@@ -163,6 +182,36 @@ export function ServerSettingsForm({ guild, group, onDirtyChange }: {guild: User
               <Field label={t('settings.search.images')} hint={t('ssettings.member_wins')}>
                 {(props) => <ChoiceSelect {...props} noneLabel={t('ssettings.default_google')} choices={SEARCH_PROVIDER_CHOICES} value={values.search_provider_images} onChange={(value) => draft.set('search_provider_images', value)}/>}
               </Field>
+              <div className='space-y-3 md:col-span-2'>
+                <div>
+                  <p className='text-sm font-medium text-fg'>{t('ssettings.autoembed.label')}</p>
+                  <p className='mt-0.5 text-xs text-subtle'>{t('ssettings.autoembed.hint')}</p>
+                </div>
+                <div className='grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2'>
+                  {GUILD_AUTO_EMBED_SITES.map((site) => (
+                    <Toggle
+                      key={site}
+                      label={AUTO_EMBED_SITE_NAMES[site]}
+                      checked={autoEmbed.includes(site)}
+                      disabled={!editable}
+                      // sorted like the api stores them, so turning one off and on again isn't an unsaved change
+                      onChange={(value) => draft.set('auto_embed', [...autoEmbed.filter((x) => x !== site), ...(value) ? [site] : []].sort())}
+                    />
+                  ))}
+                </div>
+                <div className='border-t border-border pt-3'>
+                  <Toggle
+                    label={t('ssettings.autoembed.text')}
+                    description={t('ssettings.autoembed.text_hint')}
+                    checked={!!values.auto_embed_text}
+                    disabled={!editable}
+                    onChange={(value) => draft.set('auto_embed_text', value)}
+                  />
+                </div>
+                {(!guild.premium_server) ? (
+                  <PremiumNote staffText={null}>{t('ssettings.autoembed.premium')}</PremiumNote>
+                ) : null}
+              </div>
             </>
           ) : null}
           {(group === 'ai') ? (

@@ -112,6 +112,7 @@ export const Premium = {
   'premium.servers.owning': 'Owning a server doesn’t give it premium on its own.',
   'premium.servers.compare_link': 'See everything a premium server gets',
   'premium.server_perk.custom_commands': 'Custom commands for the server',
+  'premium.server_perk.auto_embed': 'Auto-embed links from TikTok, Instagram, X and more',
   'premium.server_perk.music_queue': 'Music queue',
   'premium.server_perk.music_247': 'Music stays in voice 24/7',
   'premium.server_perk.music_playlists': 'Album and playlist links in music',

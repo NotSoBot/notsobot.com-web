@@ -828,9 +828,10 @@ function SoundSlider({ label, value, min, max, format, editable, resettable, bus
   );
 }
 
-// a music setting that's kept without premium but only does anything with it. Staff (the admin server modal) can't use
-// their own premium slots on someone's server, the Music access feature counts instead
-function PremiumNote({ children }: {children: ReactNode}) {
+// a setting that's kept without premium but only does anything with it (music's, auto-embed). Staff (the admin server
+// modal) can't use their own premium slots on someone's server, `staffText` says what counts instead (music: the Music
+// access feature)
+export function PremiumNote({ children, staffText }: {children: ReactNode, staffText?: ReactNode}) {
   const { t } = useI18n();
   const staff = useGuildScope() === 'admin';
   return (
@@ -839,7 +840,7 @@ function PremiumNote({ children }: {children: ReactNode}) {
       <span>
         {children}{' '}
         {(staff) ? (
-          t('music.premium_feature')
+          (staffText === undefined) ? t('music.premium_feature') : staffText
         ) : (
           <Link to={Routes.DASHBOARD_PREMIUM} className='text-brand-text hover:underline'>{t('music.give_slot')}</Link>
         )}

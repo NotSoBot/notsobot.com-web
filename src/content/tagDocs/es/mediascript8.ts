@@ -181,19 +181,31 @@ export const MEDIASCRIPT_SPANISH_8: TagDocsTranslation['mediaScriptCommands'] = 
   },
   mirrorbottom: {
     summary: 'Refleja la mitad de abajo sobre la mitad de arriba (hooh).',
-    args: ONLY_MEDIA,
+    args: {
+      MEDIA_KEY: MEDIA,
+      PERCENTAGE: 'cuánto de la multimedia ocupa el reflejo; la parte conservada se comprime o estira para llenarlo (50 es un espejo normal por la mitad)',
+    },
   },
   mirrorleft: {
     summary: 'Refleja la mitad izquierda sobre la mitad derecha (haah).',
-    args: ONLY_MEDIA,
+    args: {
+      MEDIA_KEY: MEDIA,
+      PERCENTAGE: 'cuánto de la multimedia ocupa el reflejo; la parte conservada se comprime o estira para llenarlo (50 es un espejo normal por la mitad)',
+    },
   },
   mirrorright: {
     summary: 'Refleja la mitad derecha sobre la mitad izquierda (waaw).',
-    args: ONLY_MEDIA,
+    args: {
+      MEDIA_KEY: MEDIA,
+      PERCENTAGE: 'cuánto de la multimedia ocupa el reflejo; la parte conservada se comprime o estira para llenarlo (50 es un espejo normal por la mitad)',
+    },
   },
   mirrortop: {
     summary: 'Refleja la mitad de arriba sobre la mitad de abajo (woow).',
-    args: ONLY_MEDIA,
+    args: {
+      MEDIA_KEY: MEDIA,
+      PERCENTAGE: 'cuánto de la multimedia ocupa el reflejo; la parte conservada se comprime o estira para llenarlo (50 es un espejo normal por la mitad)',
+    },
   },
   mandalascope: {
     summary: 'Convierte la multimedia en un caleidoscopio con aspecto de mandala.',

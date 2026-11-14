@@ -114,6 +114,7 @@ export const Premium: Record<keyof typeof English, string> = {
   'premium.servers.owning': 'Ser dueño de un servidor no le da premium por sí solo.',
   'premium.servers.compare_link': 'Mira todo lo que recibe un servidor premium',
   'premium.server_perk.custom_commands': 'Comandos personalizados para el servidor',
+  'premium.server_perk.auto_embed': 'Auto-incrustar enlaces de TikTok, Instagram, X y más',
   'premium.server_perk.music_queue': 'Cola de música',
   'premium.server_perk.music_247': 'La música se queda en el canal de voz 24/7',
   'premium.server_perk.music_playlists': 'Enlaces de álbumes y listas de reproducción en la música',

@@ -28,6 +28,20 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 
 export const CHANGELOG: Array<ChangelogDay> = [
   {
+    date: '2026-11-14',
+    title: 'Auto-embed links, /embed and mirror percentage',
+    items: [
+      {kind: 'new', text: 'Auto-embed for premium servers: pick sites with `/server set auto-embed` (or `.set autoembed`, or the dashboard\'s server settings) and a message that\'s only a link to a post on TikTok, Instagram, X, Reddit, Bluesky, Threads, Facebook, Pinterest, Tumblr or Streamable gets its video or images posted, like `.dl`. Turn on `text` to post the author, caption and likes/comments/views too. A link that can\'t be downloaded gets a reaction instead of a reply.'},
+      {kind: 'new', text: '`.embed` and `/embed` post a link\'s video or images with who posted it, what they wrote and its likes, comments and views above, like a link preview that plays.'},
+      {kind: 'new', text: '`percentage` on `.mirror left`, `right`, `top` and `bottom` (and `/media-iv-tools mirror`): how much of the picture the reflection covers, with the kept side squeezed or stretched into it, so `.mirror left -percentage 15` keeps most of the picture and 50 is the plain half mirror. **MediaScript:** `mirrorleft KEY 15`.'},
+      {kind: 'improved', text: '`.xyt` plays more VivaVideo templates: ones whose effects switch on and off over time with a picture behind the clip, animated frames that reuse their pictures, and frames with a layout for square, 4:3 and 16:9 clips (the closest one is picked). The Butterfly template and 11 stickers (Omg, Cool, Yippee, Awesome and more) are in the library now too.'},
+      {kind: 'improved', text: '`.vep` draws AVS Video Editor\'s Ripple effect, though how strong it is is a guess until it\'s matched to an AVS export. **MediaScript:** `veprender`.'},
+      {kind: 'improved', text: '`.url` finds text files too, and its examples show `.url ^2` for the second attachment or an older one.'},
+      {kind: 'improved', text: 'A ban from the auto-warn ladder lists how long it lasts in the audit log, like `/ban` does.'},
+      {kind: 'fixed', text: '`.m4a` files that Discord labels as video being used as a video instead of audio (like the music for `.a put mix`), and results with only sound coming back as an empty video instead of Discord\'s audio player.'},
+    ],
+  },
+  {
     date: '2026-11-13',
     title: 'A17 and élastique pitch shifting, Wolfram Alpha back',
     items: [

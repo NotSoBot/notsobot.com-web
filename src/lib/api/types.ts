@@ -1352,7 +1352,18 @@ export const GuildModerationDmFlags = {
   AUTOWARN: 1 << 4,
 } as const;
 
+// the sites a server can have the bot auto-embed (`GuildSettings.auto_embed`), the api's `GuildAutoEmbedSites`
+export const GUILD_AUTO_EMBED_SITES = [
+  'tiktok', 'instagram', 'x', 'reddit', 'bluesky', 'threads', 'facebook', 'pinterest', 'tumblr', 'streamable',
+] as const;
+export type GuildAutoEmbedSite = typeof GUILD_AUTO_EMBED_SITES[number];
+
 export interface GuildSettings {
+  // the sites whose links the bot auto-embeds (a message that's only a link to a post gets its media, like `.dl`),
+  // sorted, empty: off. A premium server perk, kept without one but only working with it (`UserGuild.premium_server`)
+  auto_embed: Array<GuildAutoEmbedSite>,
+  // auto-embeds post the post's text and author above the media too
+  auto_embed_text: boolean,
   // seconds of a member's messages the bot's `ban` deletes when the moderator doesn't pick, 0: none
   ban_clean: number,
   // `MediaMemeFonts` key caption/meme/recaption fall back to after a member's own
@@ -1442,6 +1453,8 @@ export interface UserGuild {
   owner: boolean,
   permissions: string,
   prefixes: Array<GuildPrefix>,
+  // someone gave it a premium server slot (premium server perks like auto-embed work)
+  premium_server: boolean,
   rules: Array<GuildRule>,
   settings: GuildSettings,
   timezone: string | null,
@@ -1450,7 +1463,7 @@ export interface UserGuild {
 // owner only: the server's settings and its tags. Logger webhook URLs, tag variables/blobs and the content of
 // directory tags (including what aliases here point to outside the server) are left out, `notes` says so inside the file
 export interface UserGuildDataExport {
-  guild: Omit<UserGuild, 'editable' | 'owner' | 'permissions'>,
+  guild: Omit<UserGuild, 'editable' | 'owner' | 'permissions' | 'premium_server'>,
   llm_knowledge: Array<GuildLLMKnowledge>,
   notes: Array<string>,
   tags: Array<Tag>,
@@ -1520,6 +1533,10 @@ export interface UserDataExport {
 
 // `rules_admin_bypass` needs the `rules_admin` area, null resets it to true
 export interface UserGuildPatch {
+  // replaces the auto-embed sites, null or empty turns it off
+  auto_embed?: Array<GuildAutoEmbedSite> | null,
+  // null resets it to off
+  auto_embed_text?: boolean | null,
   // seconds (0 to 7 days), null resets it to 1 day
   ban_clean?: number | null,
   // null resets it to 0 (every dm)
