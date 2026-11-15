@@ -150,7 +150,11 @@ export function decodeHash(hash: string): string {
 
 // saves `data` as a pretty-printed .json file (the dashboard's data exports)
 export function downloadJson(filename: string, data: unknown) {
-  const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+  downloadBlob(filename, new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'}));
+}
+
+// saves a blob the dashboard fetched with the token (files the api doesn't serve to plain links)
+export function downloadBlob(filename: string, blob: Blob) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;

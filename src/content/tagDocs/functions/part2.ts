@@ -469,6 +469,22 @@ export const TAG_DOC_FUNCTIONS_PART2: Array<TagDocFunction> = [
     ],
   },
   {
+    id: 'LIMITS',
+    names: ['limits'],
+    category: 'tags',
+    summary: 'Outputs the time limits this run is under as JSON, which depend on premium.',
+    description: 'The limits come from the tier of whoever ran the tag, or the server\'s premium when they have none. All times are in milliseconds. `tag_ms` is how long the whole tag can run and `tag_left_ms` how much of that is left. `mediascript_ms` is how long one `{mediascript}` can take, links it downloads included, and is the most its `timeleft` variable starts at.',
+    syntax: '{limits}',
+    examples: [
+      {code: '{limits}', result: '{"tier":"premium","tag_ms":70000,"tag_left_ms":69987,"mediascript_ms":60000}'},
+      {code: '{traversejson:{limits}|mediascript_ms}', result: '60000'},
+    ],
+    notes: [
+      '`tier` is one of `free`, `premium_server`, `premium`, `premium_plus` or `premium_max`.',
+      'Verified directory tags get more tag time than a free user, that only shows in `tag_ms`.',
+    ],
+  },
+  {
     id: 'LOGICAL_AND',
     names: ['and'],
     category: 'logic',

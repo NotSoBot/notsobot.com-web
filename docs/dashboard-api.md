@@ -96,8 +96,8 @@ the dashboard, and a voice can be deleted there; cloning one stays with the bot'
 can be moved to another one. New voices are made with ZONOS3 on our own servers (fish.audio before 2026-11-15, still
 used when asked for), ElevenLabs can't make new ones (its existing voices keep working). A fish.audio model's audio can't be changed, so every clip change there makes a new model from the
 stored clips and swaps it in. ZONOS3 voices (`platform_type` 2, our own `api-tts-voice-zonos3`) work the same way: the
-voice is a speaker embedding made from the first minute of its clips, kept in the database and remade on every clip
-change. Voices cloned before that get their ElevenLabs samples copied over by the api's
+voice is a speaker embedding made from all its clips (a minute split evenly between them), kept in the database and
+remade on every clip change. Voices cloned before that get their ElevenLabs samples copied over by the api's
 `scripts/backfill_voice_clips.py`, until then they have no clips.
 
 Changes to one voice's clips (adding, replacing or deleting one, moving it, deleting the voice) go one at a time: another
@@ -124,7 +124,7 @@ one while the last is still going is `429` code `30016` (`RATELIMITED`), try aga
 | POST | `/users/@me/voices/<voice_id>/clips` | Multipart `file` (or a `url` param), audio or video. Converted to mp3, only the first minute is kept, at least `MIN_VOICE_CLONE_DURATION` (2s, `MEDIA_TOO_SHORT` otherwise). Stored, then added to the voice on its cloning service. Needs premium plus (`PREMIUM_REQUIRED`, like the bot's `tts voice sample`), at most `MAX_VOICE_CLIPS` (10) per voice (`30026` `MAX_VOICE_CLIPS` with `limit`). Rate limited to 1 per 2 seconds. Returns the voice with its clips. |
 | PUT | `/users/@me/voices/<voice_id>/clips/<clip_id>` | Replaces a clip: same body and rules as the `POST` (minus the limit). The new audio is added first, then the old clip is removed from the cloning service and storage, so the voice never has none; the new clip gets a new id. Unknown clip is `404` code `10028` (`UNKNOWN_VOICE_CLIP`). Returns the voice with its clips. |
 | DELETE | `/users/@me/voices/<voice_id>/clips/<clip_id>` | Removes the clip from the voice on its cloning service, then from storage. No premium needed. A voice's last clip can't be deleted: `400` code `50042` (`VOICE_CLIP_LAST`), delete the voice instead. Returns the voice with its clips. |
-| GET | `/users/@me/voices/<voice_id>/clips/<clip_id>/audio` | The clip's mp3 (`audio/mpeg`), only with the owner's token (the dashboard fetches it as a blob). |
+| GET | `/users/@me/voices/<voice_id>/clips/<clip_id>/audio` | The clip's mp3 (`audio/mpeg`), only with the owner's token (the dashboard fetches it as a blob, to play it or save it as `<name>.mp3`). |
 | GET | `/users/@me/guilds/<guild_id>/voices` | A server's own cloned voices (`/tts voice-server`), any member: `{count, items, limit, premium}`, newest first. Items are the `Voice` shape plus `created_by` (`{avatar, bot, discriminator, id, username}` of who cloned it, `null` when they're gone or it's from before that was kept). `limit` is `MAX_SERVER_VOICE_CLONE_AMOUNT_PREMIUM_MAX` (10) with a Max member's slot or `VOICE_CLONE_ACCESS`, `MAX_SERVER_VOICE_CLONE_AMOUNT` (5) with a Plus one, `MAX_VOICE_CLONE_AMOUNT_CREDITS` (2) with only NotSoCredits members gave it. `premium` is whether the server can clone and add audio (any of those). Cloning one stays with the bot. |
 | PATCH | `/users/@me/guilds/<guild_id>/voices/<voice_id>` | Body `{name}`, settings area (Manage Server). `404` code `10003` (`UNKNOWN_VOICE`) for a voice that isn't this server's. Returns the voice. |
 | DELETE | `/users/@me/guilds/<guild_id>/voices/<voice_id>` | Settings area, also deletes it from the cloning service with its clips. `204`. |

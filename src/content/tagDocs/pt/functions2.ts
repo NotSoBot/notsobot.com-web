@@ -369,6 +369,18 @@ export const FUNCTIONS_PORTUGUESE_2: TagDocsTranslation['functions'] = {
       'Se ninguém corresponder, nada é retornado.',
     ],
   },
+  LIMITS: {
+    summary: 'Retorna como JSON os limites de tempo desta execução, que dependem do premium.',
+    description: 'Os limites vêm do nível de quem executou a tag, ou do premium do servidor se a pessoa não tiver. Todos os tempos estão em milissegundos. `tag_ms` é quanto a tag inteira pode durar e `tag_left_ms` quanto ainda resta. `mediascript_ms` é quanto um `{mediascript}` pode levar, contando os links que ele baixa, e é o máximo de onde a variável `timeleft` dele começa.',
+    results: [
+      '',
+      '',
+    ],
+    notes: [
+      '`tier` é `free`, `premium_server`, `premium`, `premium_plus` ou `premium_max`.',
+      'Tags verificadas do diretório têm mais tempo de tag que um usuário gratuito, isso só aparece em `tag_ms`.',
+    ],
+  },
   LOGICAL_AND: {
     summary: 'Retorna o último valor só se nenhum valor estiver vazio.',
     description: 'Cada valor é avaliado em ordem. Assim que um sair vazio, para e não retorna nada. Se nenhum estiver vazio, o último é retornado.',

@@ -134,11 +134,25 @@ export const MEDIASCRIPT_PORTUGUESE_9: TagDocsTranslation['mediaScriptCommands']
     args: ONLY_MEDIA,
   },
   audiovibrato: {
-    summary: 'Adiciona vibrato (um tom oscilante).',
+    summary: 'Adiciona vibrato (um tom oscilante): um senoidal simples, ou um cujo tom segue uma curva que você desenha, no estilo do plugin Vibrato do VEGAS.',
     args: {
       MEDIA_KEY: MEDIA,
-      FREQUENCY: 'oscilações por segundo',
+      FREQUENCY: 'oscilações por segundo, ou vezes por segundo que a curva dá a volta (então de 0,001 a 1000)',
+      DEPTH: 'o quanto o vibrato simples move o tom',
+      SEMITONES: 'quantos semitons é uma profundidade de 1 na curva (12 se só POINTS ou BLEND for dado); defini-lo (ou POINTS ou BLEND) muda para o vibrato de curva',
+      POINTS: 'a curva, pares fase (0 a 1),profundidade (-1 a 1) separados por espaços (entre aspas) ou `;`, até 64. Vai em linha reta entre os pontos e do último de volta ao primeiro',
+      BLEND: 'suavizar o salto para trás no início de cada ciclo em vez de pular',
     },
+    results: [
+      'O vibrato senoidal simples.',
+      'Um vibrato de cantor, 2 semitons para cima e para baixo seis vezes por segundo.',
+      'O tom sobe duas oitavas e volta 3,3 vezes por segundo, picotado.',
+      'Uma oitava para cada lado, em triângulo, com os saltos suavizados.',
+    ],
+    notes: [
+      'O vibrato de curva lê o som mais rápido ou mais devagar para mover o tom, e começa cada ciclo de novo no ritmo do vídeo. Uma curva que desce tanto quanto sobe toca contínua; uma que fica quase sempre em cima (ou embaixo) precisa pular para trás (ou para frente) uma vez por ciclo, o picotado típico dos vibratos do Vegas, e BLEND suaviza isso. A mídia mantém a duração.',
+      'Ainda não foi ajustado a um render do Vegas, então pode não soar exatamente como o plugin.',
+    ],
   },
   audionormalize: {
     summary: 'Normaliza o volume para um nível alto com o loudnorm do ffmpeg.',

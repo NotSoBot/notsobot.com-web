@@ -1,4 +1,4 @@
-import { AudioLines, ChevronDown, Fish, Pause, Pencil, Play, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { AudioLines, ChevronDown, Download, Pause, Pencil, Play, Plus, RefreshCw, Server, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 
@@ -19,7 +19,7 @@ import {
   useTransferVoiceMutation,
   useUploadVoiceClipMutation,
 } from '@/lib/api/dashboardQueries';
-import { cn, formatDate, formatMemory } from '@/lib/utils';
+import { cn, downloadBlob, formatDate, formatMemory } from '@/lib/utils';
 
 import { Chip } from '../admin/adminUi';
 import { Owner } from '../servers/GuildTagsSection';
@@ -254,7 +254,7 @@ function VoiceCard({ guildId, voice, creator, editable, canUpload, onRename, onT
                 title={t((voice.clips.length) ? 'voices.move_hint' : 'voices.move_needs_clips')}
                 onClick={onTransfer}
               >
-                <Fish className='size-4'/>
+                <Server className='size-4'/>
                 <span className='hidden sm:inline'>{t('voices.move_button')}</span>
               </button>
             ) : null}
@@ -366,6 +366,7 @@ function ClipRow({ guildId, voiceId, clip, editable, canUpload, canDelete, busy,
           {formatDuration(clip.duration)} • {formatMemory(clip.size, (clip.size < 1024 * 1024) ? 0 : 1)} • {t('voices.clip_added_on', {date: formatDate(clip.created)})}
         </div>
       </div>
+      <ClipDownload guildId={guildId} voiceId={voiceId} clip={clip}/>
       {(editable) ? (
         <div className='flex shrink-0 gap-2'>
           {(canUpload) ? (
@@ -387,6 +388,42 @@ function ClipRow({ guildId, voiceId, clip, editable, canUpload, canDelete, busy,
         </div>
       ) : null}
     </li>
+  );
+}
+
+
+// the clip's stored mp3, fetched with the token like the player's, for anyone who can play it
+function ClipDownload({ guildId, voiceId, clip }: {guildId: string | null, voiceId: string, clip: VoiceClip}) {
+  const { t } = useI18n();
+  const scope = useGuildScope();
+  const [ loading, setLoading ] = useState(false);
+  const [ failed, setFailed ] = useState(false);
+
+  const download = async () => {
+    setLoading(true);
+    setFailed(false);
+    try {
+      const blob = await api.fetchVoiceClipAudio(scope, guildId, voiceId, clip.id);
+      // it's stored as an mp3 whatever it was uploaded as
+      downloadBlob(`${clip.name.replace(/\.[^./\\]{1,8}$/, '') || clip.id}.mp3`, blob);
+    } catch {
+      setFailed(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <button
+      type='button'
+      className='btn btn-sm btn-secondary shrink-0'
+      aria-label={t('voices.download_label', {name: clip.name})}
+      title={t((failed) ? 'voices.download_error' : 'voices.download')}
+      disabled={loading}
+      onClick={download}
+    >
+      {(loading) ? <Spinner className='size-4 border-white/40 border-t-white'/> : <Download className={(failed) ? 'size-4 text-danger-text' : 'size-4'}/>}
+    </button>
   );
 }
 
