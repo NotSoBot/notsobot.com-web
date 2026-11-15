@@ -90,14 +90,17 @@ export const MEDIASCRIPT_SPANISH_6: TagDocsTranslation['mediaScriptCommands'] = 
     notes: ['Bajar la saturación lleva los colores hacia el gris; subir la luminosidad los mezcla hacia el blanco. Si solo cambias el tono, se ve igual que `hueshifthsv`.'],
   },
   hueshifthsvffmpeg: {
-    summary: 'Como `hueshifthsv`, pero hecho con FFmpeg en lugar de ImageMagick (a menudo más rápido en vídeo).',
+    summary: 'El filtro `hue` de FFmpeg. A pesar del nombre no es HSV: el tono gira alrededor del brillo, así que los colores mantienen lo claros que son (con `hueshifthsv`, el amarillo que pasa a azul se oscurece mucho).',
     args: {
       MEDIA_KEY: MEDIA,
       HUE: HUE_DEGREES,
       SATURATION: 'multiplicador de saturación (1 la deja igual)',
-      BRIGHTNESS: 'cambio de brillo',
+      BRIGHTNESS: 'brillo añadido (10 es casi blanco, -10 negro)',
     },
-    notes: ['Aquí la saturación es un multiplicador, así que si la omites se mantiene la saturación original.'],
+    notes: [
+      'Aquí la saturación es un multiplicador, así que si la omites se mantiene la saturación original. A partir de 2 más o menos los colores se saturan hasta el neón, 0 es escala de grises y por debajo de 0 los colores pasan a sus opuestos.',
+      'Los colores salen parecidos al giro de tono de Vegas, que `hueshiftccs` copia exactamente.',
+    ],
   },
   applylut: {
     summary: 'Etalona el color de la multimedia con una LUT `.cube` cargada con `loadcube`, opcionalmente mezclada con la original.',

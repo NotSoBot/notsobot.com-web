@@ -2972,15 +2972,18 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
   {
     name: 'hueshifthsvffmpeg',
     category: 'color',
-    summary: 'Like `hueshifthsv`, but done with FFmpeg instead of ImageMagick (often faster on video).',
+    summary: 'FFmpeg\'s `hue` filter. Despite the name it isn\'t HSV: the hue turns around the brightness, so colors keep how light they are (with `hueshifthsv`, yellow turned blue gets much darker).',
     syntax: 'hueshifthsvffmpeg MEDIA_KEY HUE=90 SATURATION=1 BRIGHTNESS=0',
     args: [
       media(),
       {name: 'HUE', default: '90', range: '-360..360', description: 'degrees to rotate the hue'},
-      {name: 'SATURATION', default: '1', range: '0..3', description: 'saturation multiplier (1 is unchanged)'},
-      {name: 'BRIGHTNESS', default: '0', range: '-1..1', description: 'brightness change'},
+      {name: 'SATURATION', default: '1', range: '-10..10', description: 'saturation multiplier (1 is unchanged)'},
+      {name: 'BRIGHTNESS', default: '0', range: '-10..10', description: 'brightness added (10 is about white, -10 black)'},
     ],
-    notes: ['Saturation here is a multiplier, so leaving it out keeps the original saturation.'],
+    notes: [
+      'Saturation here is a multiplier, so leaving it out keeps the original saturation. Past about 2 the colors clip into neon, 0 is grayscale and below 0 the colors flip to their opposites.',
+      'The colors come out close to Vegas\'s hue turn, which `hueshiftccs` copies exactly.',
+    ],
   },
   {
     name: 'applylut',

@@ -90,14 +90,17 @@ export const MEDIASCRIPT_PORTUGUESE_6: TagDocsTranslation['mediaScriptCommands']
     notes: ['Diminuir a saturação leva as cores para o cinza; aumentar a luminosidade as mistura com branco. Mudando só o matiz, fica igual ao `hueshifthsv`.'],
   },
   hueshifthsvffmpeg: {
-    summary: 'Como o `hueshifthsv`, mas feito com FFmpeg em vez de ImageMagick (muitas vezes mais rápido em vídeo).',
+    summary: 'O filtro `hue` do FFmpeg. Apesar do nome, não é HSV: o matiz gira em torno do brilho, então as cores mantêm o quanto são claras (com `hueshifthsv`, o amarelo que vira azul fica bem mais escuro).',
     args: {
       MEDIA_KEY: MEDIA,
       HUE: HUE_DEGREES,
       SATURATION: 'multiplicador de saturação (1 deixa igual)',
-      BRIGHTNESS: 'mudança de brilho',
+      BRIGHTNESS: 'brilho somado (10 é quase branco, -10 preto)',
     },
-    notes: ['Aqui a saturação é um multiplicador, então omiti-la mantém a saturação original.'],
+    notes: [
+      'Aqui a saturação é um multiplicador, então se você a omitir a saturação original é mantida. A partir de 2 mais ou menos as cores estouram em neon, 0 é tons de cinza e abaixo de 0 as cores viram suas opostas.',
+      'As cores ficam parecidas com o giro de matiz do Vegas, que o `hueshiftccs` copia exatamente.',
+    ],
   },
   applylut: {
     summary: 'Faz a correção de cor da mídia com uma LUT `.cube` carregada pelo `loadcube`, opcionalmente misturada com a original.',
