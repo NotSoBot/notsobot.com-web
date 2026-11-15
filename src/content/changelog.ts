@@ -29,12 +29,19 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: Array<ChangelogDay> = [
   {
     date: '2026-11-15',
-    title: 'African and home nation flags, faster TV simulator',
+    title: 'African and home nation flags, pipe scripts, faster TV simulator',
     items: [
       {kind: 'new', text: 'African flag overlays: `.overlay algeria`, `angola`, `benin`, `botswana`, `burkinafaso`, `burundi`, `cameroon`, `capeverde`, `centralafricanrepublic`, `chad`, `comoros`, `congo`, `djibouti`, `drcongo`, `equatorialguinea`, `eritrea`, `eswatini`, `ethiopia`, `gabon`, `gambia`, `ghana`, `guinea`, `guineabissau`, `ivorycoast`, `kenya`, `lesotho`, `liberia`, `libya`, `madagascar`, `malawi`, `mali`, `mauritania`, `mauritius`, `morocco`, `mozambique`, `namibia`, `niger`, `nigeria`, `rwanda`, `saotome`, `senegal`, `seychelles`, `sierraleone`, `somalia`, `southafrica`, `southsudan`, `sudan`, `tanzania`, `togo`, `tunisia`, `uganda`, `zambia` and `zimbabwe` (also `.kenya`, `.o kenya` and so on, except Chad, which is only `.overlay chad` and `.o chad` since `.chad` is the Gigachad face swap). A few take other names too: `cotedivoire` for `ivorycoast`, `drc` for `drcongo`, `car` for `centralafricanrepublic`, `swaziland` for `eswatini`. Their slash versions are under the new `/media-iv-flag-africa` (`north`, `west`, `central`, `east` and `south`), Egypt stays under `/media-iv-flag-asia middleeast`. **MediaScript:** `overlaypreset KEY flag-kenya` and so on.'},
       {kind: 'new', text: 'Home nation flag overlays: `.overlay england`, `scotland` and `wales` (also `.wales`, `.o wales`), with slash versions under `/media-iv-flag-europe west`. **MediaScript:** `overlaypreset KEY flag-wales`.'},
+      {kind: 'new', text: '`.pipe -script` (and `script` on `/media-aiv pipe`) shows the MediaScript a pipe runs as instead of running it, ready to copy into a tag (swap the media link for `{iv}` or similar, Discord links expire). If a command in it has no MediaScript version, it says which one.'},
       {kind: 'improved', text: '`.tvsimulator` (and `/media-iv-glitch tv-simulator`) is about 2.5 times faster on videos, with the same tearing as before. **MediaScript:** `tvsimulator`.'},
       {kind: 'improved', text: 'Flag overlays like `.overlay israel` use sharper flag pictures (2560 pixels wide), so they stay crisp on big images instead of getting blurry.'},
+      {kind: 'improved', text: '`.pipe` takes up to 10 commands instead of 5 (still 5 when one of them has no MediaScript version), and says so when there are too many instead of quietly dropping the extra ones.'},
+      {kind: 'improved', text: '**MediaScript:** `scale` defaults to 2 and has no top limit (the result stops at the max size), `speed` has no top limit (audio and video still stay between 0.5 and 100) and `overlayface` takes a `FACE_SCALE` from 0.01 to 1000, like their commands.'},
+      {kind: 'fixed', text: '`.resize` (and **MediaScript** `scale`) on videos going past the max size with a big scale: a video now stops at it like a picture does.'},
+      {kind: 'fixed', text: '`.text demotivate` without a `|` using its text as both the title and the line under it.'},
+      {kind: 'fixed', text: '`.convert -noaudio` keeping the sound.'},
+      {kind: 'fixed', text: '**MediaScript:** `audioautotune clip KEY=C` taking `KEY=` as the media instead of the musical key.'},
     ],
   },
   {
