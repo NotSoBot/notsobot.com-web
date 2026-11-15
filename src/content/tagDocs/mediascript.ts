@@ -972,6 +972,12 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
       media(),
       {name: 'MIMETYPE', range: 'same as `render`', description: 'the format to convert to'},
     ],
+    notes: [
+      'An image converted to an audio type (like `audio/mp3`): a raw picture (one made from audio, below) becomes that audio again, an animation\'s frames are played as raw bytes, and any other still image becomes a 36 second Robot 36 SSTV signal. This counts toward the ffmpeg limit.',
+      'Audio converted to a video type (like `video/mp4`) keeps its audio, with its cover art as the picture, or an animated waveform when it has none.',
+      'A video converted to a still image type (like `image/png`) is a frame a bit in, past any black intro, not the very first one. A video without sound converted to an audio type plays its frames\' bytes, like an animated image.',
+      'Audio converted to an image type decodes an SSTV signal in it back into its picture (Martin, Scottie, Robot 36 or PD 120, found by its header in the first minute, recordings off the radio too). Otherwise it gives its cover art, or the audio\'s own bytes as a raw picture: noise-like, three 8-bit samples a pixel, row by row. Saved as a png, a raw picture converts back into the same audio. Use `waveform` for a waveform.',
+    ],
   },
   {
     name: 'clone',
@@ -4736,6 +4742,52 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     args: [
       media(),
       {name: 'AMOUNT', range: '0..1000', description: 'volume level'},
+    ],
+  },
+  {
+    name: 'imagetoaudio',
+    aliases: ['img2audio', 'sonify'],
+    category: 'audio',
+    summary: 'Turns an image into sound, drawn into its spectrogram or played as raw bytes.',
+    syntax: 'imagetoaudio MEDIA_KEY MODE=spectrogram DURATION=none LOW=100 HIGH=12000 SCALE=linear INVERT=false',
+    args: [
+      media('the image'),
+      {name: 'MODE', default: 'spectrogram', description: '`spectrogram` draws the image into the sound, `raw` plays its pixel bytes as samples'},
+      {name: 'DURATION', default: 'none', range: '0.5..30', description: 'seconds, a still is 5 and an animation its own length when none'},
+      {name: 'LOW', default: '100', range: '20..20000', description: 'the frequency (hz) at the bottom of the image'},
+      {name: 'HIGH', default: '12000', range: '20..20000', description: 'the frequency (hz) at the top of the image'},
+      {name: 'SCALE', default: 'linear', description: '`log` gives every octave the same height'},
+      {name: 'INVERT', default: 'false', description: 'dark pixels are loud instead of bright ones'},
+    ],
+    examples: [
+      {code: '{mediascript:load {image} img\nimagetoaudio img\nrender img}', result: 'An mp3 whose spectrogram shows the image.'},
+      {code: '{mediascript:load {image} img\nimagetoaudio img raw\nrender img}', result: 'The image\'s pixels played as raw 8-bit sound.'},
+    ],
+    notes: [
+      'Columns are time and rows are frequencies, brightness is how loud. Transparent pixels are silent.',
+      'An animation\'s frames play one after another, each for as long as it\'s shown.',
+      'In `raw` mode only DURATION applies: the image is resized to last that long, or kept at its own length (up to 30 seconds).',
+      'Counts toward the ffmpeg limit.',
+    ],
+  },
+  {
+    name: 'sstv',
+    category: 'audio',
+    summary: 'Turns an image into a slow-scan TV signal that SSTV decoder apps can read.',
+    syntax: 'sstv MEDIA_KEY MODE=martin1',
+    args: [
+      media('the image'),
+      {name: 'MODE', default: 'martin1', description: '`martin1`, `martin2`, `scottie1`, `scottie2`, `robot36` or `pd120`'},
+    ],
+    examples: [
+      {code: '{mediascript:load {image} img\nsstv img robot36\nrender img}', result: 'A 36 second Robot 36 signal of the image.'},
+    ],
+    notes: [
+      'Decoders like the Robot36 app, MMSSTV and QSSTV pick the mode from the signal\'s header.',
+      'Converting the audio back to an image (`convert MEDIA_KEY image/png`) decodes it into the picture again.',
+      'Only the first frame is sent, fitted on black to the mode\'s size (320x256 for Martin and Scottie, 320x240 for Robot 36, 640x496 for PD 120).',
+      'Lengths: Martin 1 114s, Martin 2 58s, Scottie 1 110s, Scottie 2 71s, Robot 36 36s, PD 120 126s.',
+      'Counts toward the ffmpeg limit.',
     ],
   },
   {
