@@ -1583,7 +1583,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     args: [
       media(),
       {name: 'TEXT', rest: true, description: 'the caption; separate top and bottom text with `|`'},
-      {name: 'FONT', default: 'futura', description: 'a bundled font (like `impact`) or a key from `loadfont`'},
+      {name: 'FONT', default: 'futura', description: 'a bundled font (like `impact`), a command font name (like `FUTURA_CONDENSED_EXTRA_BOLD`) or a key from `loadfont`; left out, your Default Font setting (then the server\'s) comes before `futura`'},
     ],
     examples: [
       {code: '{mediascript:load {iv} img\ncaption img {jsonify:me when the tag works}\nrender img}'},
@@ -1597,7 +1597,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     args: [
       media(),
       {name: 'TEXT', rest: true, description: 'the text; separate top and bottom text with `|`'},
-      {name: 'FONT', default: 'impact', description: 'a bundled font (like `rubik`) or a key from `loadfont`'},
+      {name: 'FONT', default: 'impact', description: 'a bundled font (like `rubik`), a command font name (like `IMPACT`) or a key from `loadfont`; left out, your Default Font setting (then the server\'s) comes before `impact`'},
     ],
     examples: [
       {code: '{mediascript:load {iv} img\nmeme img {jsonify:top text|bottom text}\nrender img}'},
@@ -2005,12 +2005,13 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     name: 'snip',
     category: 'time',
     summary: 'Keeps only part of the media\'s duration.',
-    syntax: 'snip MEDIA_KEY START END? LOOP=false',
+    syntax: 'snip MEDIA_KEY START END? LOOP=false AUDIO_ONLY=false',
     args: [
       media(),
       {name: 'START', description: 'start time in seconds; negative counts back from the end'},
       {name: 'END', description: 'end time in seconds; negative counts back from the end; leave out for the end'},
       {name: 'LOOP', default: 'false', description: 'loop the media instead of stopping at its end, so times past the end go back around'},
+      {name: 'AUDIO_ONLY', default: 'false', description: 'cut only the audio, the video keeps its length'},
     ],
     examples: [
       {code: '{mediascript:load {video} clip\nsnip clip -5\nrender clip}', result: 'Keeps the last 5 seconds.'},
@@ -2079,10 +2080,10 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     name: 'speed',
     category: 'time',
     summary: 'Speeds up or slows down playback.',
-    syntax: 'speed MEDIA_KEY SPEED=0 PITCH=false',
+    syntax: 'speed MEDIA_KEY SPEED=2 PITCH=false',
     args: [
       media(),
-      {name: 'SPEED', default: '0', range: 'more than 0', description: 'the speed multiplier, e.g. 2 for double speed or 0.5 for half; 0 leaves it as is'},
+      {name: 'SPEED', default: '2', range: 'more than 0, up to 100', description: 'the speed multiplier, e.g. 2 for double speed or 0.5 for half; 0 leaves it as is'},
       {name: 'PITCH', default: 'false', description: 'let the audio\'s pitch follow the speed like a sped up tape, higher when faster and lower when slower; otherwise the pitch stays the same'},
     ],
   },
@@ -2222,20 +2223,25 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     name: 'overlay',
     category: 'compose',
     summary: 'Places one media on top of another at a position.',
-    syntax: 'overlay MEDIA_KEY MEDIA_KEY_2 X=0 Y=0 COLOR=none SIMILARITY=0.1 BLEND=0 LOOP=TRUE OPACITY=100',
+    syntax: 'overlay MEDIA_KEY MEDIA_KEY_2 X=0 Y=0 COLOR=none SIMILARITY=0.1 BLEND=0 LOOP=TRUE OPACITY=100 RESIZE=none FADE=false FADE_START=0 FADE_DURATION=0',
     args: [
       media('the background media (gets changed)'),
       {name: 'MEDIA_KEY_2', description: 'the media to put on top'},
-      {name: 'X', default: '0', description: 'left position of the top media'},
+      {name: 'X', default: '0', description: 'left position of the top media; can use `mw`/`mh` (the media\'s size) and `ow`/`oh` (the top media\'s, after `RESIZE`)'},
       {name: 'Y', default: '0', description: 'top position of the top media'},
       {name: 'COLOR', default: 'none', description: 'a color to key out of the top media (like a green screen)'},
       {name: 'SIMILARITY', default: '0.1', range: '0.01..1', description: 'how close a color must be to be keyed out'},
       {name: 'BLEND', default: '0', range: '0.0..1.0', description: 'how softly keyed edges blend'},
       {name: 'LOOP', default: 'TRUE', description: 'loop the shorter media to match the longer one'},
       {name: 'OPACITY', default: '100', range: '0..100', description: 'opacity of the top media'},
+      {name: 'RESIZE', default: 'none', description: '`fit`, `contain`, `cover` or `force` with a size, like `fit(mw,mh)` (fits inside the media) or `cover(256,256)`; `none` keeps its own size'},
+      {name: 'FADE', default: 'false', description: 'fade the top media in, from invisible up to its opacity'},
+      {name: 'FADE_START', default: '0', range: '0..120', description: 'seconds in when the fade starts'},
+      {name: 'FADE_DURATION', default: '0', range: '0..120', description: 'seconds the fade takes; 0 is until the end'},
     ],
     examples: [
       {code: '{mediascript:load {iv} img\nload {avatar} pfp\noverlay img pfp (imgw/2)-(pfpw/2) (imgh/2)-(pfph/2)\nrender img}', result: 'Puts the avatar in the middle of the image.'},
+      {code: '{mediascript:load {iv} img\nload {avatar} pfp\noverlay img pfp x="(mw-ow)/2" y="(mh-oh)/2" resize="fit(mw,mh)" fade=true\nrender img}', result: 'Fits the avatar inside the image, centers it and fades it in (what the overlay command does).'},
       {code: '{mediascript:load {video} clip\nload https://cdn.nsb.gg/assets/samples/greenscreen.mp4 gs\noverlay clip gs color=lime similarity=0.3 blend=0.2\nrender clip}', result: 'Overlays a green-screen video with the green removed.'},
     ],
   },
@@ -2383,10 +2389,11 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     aliases: ['bgrm'],
     category: 'compose',
     summary: 'Removes the background with AI, leaving the subject on transparency.',
-    syntax: 'backgroundremove MEDIA_KEY MODEL=ISNET_GENERAL_USE',
+    syntax: 'backgroundremove MEDIA_KEY MODEL=ISNET_GENERAL_USE TRIM=false',
     args: [
       media(),
       {name: 'MODEL', default: 'ISNET_GENERAL_USE', range: 'BIREFNET_COD, BIREFNET_DIS, BIREFNET_GENERAL, BIREFNET_GENERAL_LITE, BIREFNET_HRSOD, BIREFNET_MASSIVE, BIREFNET_PORTRAIT, BRIA_RMBG, ISNET_ANIME, ISNET_GENERAL_USE, SILUETA, U2NET, U2NETP, U2NET_CLOTH_SEG, U2NET_HUMAN_SEG', description: 'which model to use, e.g. `ISNET_ANIME` for drawings or `BIREFNET_PORTRAIT` for people'},
+      {name: 'TRIM', default: 'false', description: 'cut away the transparent edges left around the subject'},
     ],
     notes: [
       'On GIFs and videos repeated frames only count once. The `BIREFNET_` models and `BRIA_RMBG` take one frame (still images), `ISNET_ANIME`, `ISNET_GENERAL_USE` and `U2NET_CLOTH_SEG` up to 128 different frames, the rest any amount within the usual frame limit.',
@@ -2495,7 +2502,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
       media('an audio or video with speech'),
       {name: 'HIGHLIGHT', default: 'false', description: 'show a few words at a time with the one being said in the other color'},
       {name: 'YELLOW', default: 'false', description: 'DVD style yellow subtitles instead of white'},
-      {name: 'FONT', default: 'arial', description: 'a bundled font\'s name or a `loadfont` key'},
+      {name: 'FONT', default: 'arial', description: 'a bundled font\'s name, a command font name (like `IMPACT`) or a `loadfont` key; left out, your Default Font setting (then the server\'s) comes before `arial`'},
     ],
     examples: [
       {code: '{mediascript:load {video} clip\nautosubtitle clip\nrender clip}', result: 'The clip with subtitles of what\'s said in it.'},
@@ -3175,10 +3182,11 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     name: 'ascii',
     category: 'filters',
     summary: 'Redraws an image or video as ASCII art.',
-    syntax: 'ascii MEDIA_KEY INVERT=false',
+    syntax: 'ascii MEDIA_KEY INVERT=false ZOOM=false',
     args: [
       media(),
       {name: 'INVERT', default: 'false', description: 'invert the brightness'},
+      {name: 'ZOOM', default: 'false', description: 'draw it from a smaller copy, so the characters are bigger'},
     ],
   },
   {
@@ -3227,10 +3235,11 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     name: 'deepfry',
     category: 'filters',
     summary: 'Deepfries the media: crushed colors, oversaturated and crunchy.',
-    syntax: 'deepfry MEDIA_KEY SCALE=10',
+    syntax: 'deepfry MEDIA_KEY SCALE=10 KEEP_TRANSPARENCY=true',
     args: [
       media(),
       {name: 'SCALE', default: '10', range: '0..100', description: 'how fried'},
+      {name: 'KEEP_TRANSPARENCY', default: 'true', description: 'false fries the transparent parts too'},
     ],
   },
   {
@@ -3238,10 +3247,11 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     aliases: ['jpg'],
     category: 'filters',
     summary: 'Adds JPEG compression artifacts ("needs more jpeg").',
-    syntax: 'jpeg MEDIA_KEY QUALITY=1',
+    syntax: 'jpeg MEDIA_KEY QUALITY=1 KEEP_TRANSPARENCY=true',
     args: [
       media(),
       {name: 'QUALITY', default: '1', range: '1..100', description: 'image quality; lower is crunchier'},
+      {name: 'KEEP_TRANSPARENCY', default: 'true', description: 'keeps transparent parts transparent; false flattens them like a real jpeg'},
     ],
   },
   {
@@ -3373,12 +3383,13 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     name: 'glitch',
     category: 'filters',
     summary: 'Applies a heavy glitch effect.',
-    syntax: 'glitch MEDIA_KEY AMOUNT=0 ITERATIONS=0 SEED=0',
+    syntax: 'glitch MEDIA_KEY AMOUNT=0 ITERATIONS=0 SEED=0 KEEP_TRANSPARENCY=true',
     args: [
       media(),
       {name: 'AMOUNT', default: '0', range: '0..99', description: '0 picks automatically'},
       {name: 'ITERATIONS', default: '0', range: '0..115', description: '0 picks automatically'},
       {name: 'SEED', default: '0', range: '0..99', description: 'use the same seed to get the same glitch; 0 is random'},
+      {name: 'KEEP_TRANSPARENCY', default: 'true', description: 'false glitches the transparent parts too'},
     ],
   },
   {
@@ -3442,10 +3453,12 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     name: 'phosimp',
     category: 'filters',
     summary: 'Applies PhoSimp filters, one after another.',
-    syntax: 'phosimp MEDIA_KEY ...FILTERS',
+    syntax: 'phosimp MEDIA_KEY ...FILTERS GRID_X=none GRID_Y=none',
     args: [
       media(),
       {name: 'FILTERS', rest: true, range: '0..1256', description: 'filter numbers separated by spaces, applied in order'},
+      {name: 'GRID_X', default: 'none', range: '1..16', description: 'only by name: with either grid option the filters only change a quarter-size box, starting at this column of a 16x16 grid'},
+      {name: 'GRID_Y', default: 'none', range: '1..16', description: 'only by name: the box\'s starting row of the 16x16 grid'},
     ],
     examples: [
       {code: '{mediascript:load {iv} img\nphosimp img 2 9 8\nrender img}', result: 'Brightens the colors, mirror-blends the image and rotates it clockwise.'},
@@ -3727,7 +3740,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
       {code: '{mediascript:load {iv} img\ndistort img arc 360\nrender img}', result: 'Bends the image into a full circle.'},
       {code: '{mediascript:load {iv} img\ndistort img barrel 0.2 0 0 1\nrender img}', result: 'A fisheye-style barrel bulge.'},
     ],
-    notes: ['At most 32 numbers are used.'],
+    notes: ['At most 32 numbers are used. With none the method uses its own defaults.'],
   },
   {
     name: 'implode',
@@ -4382,8 +4395,11 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     name: 'audiocompress',
     category: 'audio',
     summary: 'Lowers the audio quality on purpose.',
-    syntax: 'audiocompress MEDIA_KEY',
-    args: [media()],
+    syntax: 'audiocompress MEDIA_KEY NO_REVERT=false',
+    args: [
+      media(),
+      {name: 'NO_REVERT', default: 'false', description: 'keep the low 8k sample rate instead of converting back to the original\'s'},
+    ],
   },
   {
     name: 'audiodestroy',
@@ -4443,10 +4459,10 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     name: 'multipitch',
     category: 'audio',
     summary: 'Pitch shifts the audio by semitones without changing its speed, or mixes several pitched copies into a chord (like the multipitch program in effect tags).',
-    syntax: 'multipitch MEDIA_KEY SEMITONES NORMALIZE=false ENGINE=bungee FORMANTS=false',
+    syntax: 'multipitch MEDIA_KEY SEMITONES=0,7,12 NORMALIZE=false ENGINE=bungee FORMANTS=false',
     args: [
       media(),
-      {name: 'SEMITONES', range: '-48..48 each, up to 12', description: 'one number to shift, or several split by commas (or by spaces inside quotes) to mix a copy at each pitch (`0` is the original). A chord name stands for its notes, and `@VOLUME` after a value sets that copy\'s volume (0 to 4, like `7@0.5`)'},
+      {name: 'SEMITONES', default: '0,7,12', range: '-48..48 each, up to 12', description: 'one number to shift, or several split by commas (or by spaces inside quotes) to mix a copy at each pitch (`0` is the original). A chord name stands for its notes, and `@VOLUME` after a value sets that copy\'s volume (0 to 4, like `7@0.5`)'},
       {name: 'NORMALIZE', default: 'false', description: 'turn the mix down so the copies don\'t add up to clipping'},
       {name: 'ENGINE', default: 'bungee', description: '`bungee`, `rubberband`, `signalsmith`, `a17` or `elastique`, the pitch shifter each copy is made with (the first three are the multipitch program\'s `--backend`)'},
       {name: 'FORMANTS', default: 'false', description: 'keep a voice sounding like the same person instead of a chipmunk or a giant, `elastique` and `rubberband` only'},
@@ -4534,10 +4550,11 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     name: 'audiodelay',
     category: 'audio',
     summary: 'Shifts the audio later (or earlier with a negative number) compared to the video.',
-    syntax: 'audiodelay MEDIA_KEY DELAY=0.5',
+    syntax: 'audiodelay MEDIA_KEY DELAY=0.5 SNIP=true',
     args: [
       media(),
       {name: 'DELAY', default: '0.5', range: '-600..600', description: 'seconds; can be negative'},
+      {name: 'SNIP', default: 'true', description: 'cut audio pushed later at the media\'s length; false lets it run past the end'},
     ],
   },
   {

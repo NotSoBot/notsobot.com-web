@@ -263,8 +263,8 @@ Owners always pass.
 ### Server rules
 
 A rule says who (`target_type`: `guild` (its `target_id` is the server's id), `channel`, `role` or `user`) can use
-what (a `command` id, a `category` (`AI`, `AUDIO`, `CONVERSION`, `EFFECTS`, `FUN`, `INFO`, `MODERATION`,
-`MUSIC`, `PERSONAL`, `SEARCH`, `SERVER`, `TAGS`, `UTILITY`) or, with neither, every command). The only `action` is `access`,
+what (a `command` id, a `category` (`AI`, `AUDIO`, `CONVERSION`, `EFFECTS`, `FUN`, `GAMES`, `INFO`,
+`MODERATION`, `MUSIC`, `PERSONAL`, `SEARCH`, `SERVER`, `TAGS`, `UTILITY`) or, with neither, every command). The only `action` is `access`,
 its `value` is `{allow, message}` (`message`, max 200, is shown to whoever a block rule stops and is dropped on allow
 rules). The most specific rule that matches decides: a user beats a role, a role beats a channel (a channel rule
 covers its threads and the channels in a category), a channel beats the server, and on the same target a command beats

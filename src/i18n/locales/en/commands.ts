@@ -7,6 +7,7 @@ export const Commands = {
   'category.SEARCH': 'Search',
   'category.AUDIO': 'Audio',
   'category.FUN': 'Fun',
+  'category.GAMES': 'Games',
   'category.INFO': 'Info',
   'category.MODERATION': 'Moderation',
   'category.MUSIC': 'Music',

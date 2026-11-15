@@ -15,6 +15,7 @@ export const CommandCategories = {
   CONVERSION: 'CONVERSION',
   EFFECTS: 'EFFECTS',
   FUN: 'FUN',
+  GAMES: 'GAMES',
   INFO: 'INFO',
   MODERATION: 'MODERATION',
   MUSIC: 'MUSIC',
