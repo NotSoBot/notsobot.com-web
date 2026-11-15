@@ -53,6 +53,7 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'fixed', text: '**MediaScript:** `audioautotune clip KEY=C` taking `KEY=` as the media instead of the musical key.'},
       {kind: 'fixed', text: 'Auto-warn\'s kick, ban and mute steps writing a shorter audit log reason than `.kick`, `.ban` and `.mute` do. They now say the type (like a kick that deletes messages), the duration and how many messages were deleted.'},
       {kind: 'fixed', text: 'Server logs sometimes showing an unban that came right after a ban (like a kick that deletes messages) without who did it or why.'},
+      {kind: 'fixed', text: 'Slash commands with sound that take a moment, like `/tts generate`, sometimes deleting their result right after posting it.'},
     ],
   },
   {
