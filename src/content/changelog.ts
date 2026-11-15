@@ -46,6 +46,7 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'improved', text: 'A ban from the auto-warn ladder lists how long it lasts in the audit log, like `/ban` does.'},
       {kind: 'fixed', text: '`.convert` of a video to a picture giving a black frame when the video fades in (it picks a frame the way thumbnails do now), and of a video without sound to audio failing with a confusing error (it plays its frames as sound now).'},
       {kind: 'fixed', text: '`.dl`, `.embed` and auto-embed finding nothing in a Reddit post that\'s a single jpg or png picture.'},
+      {kind: 'fixed', text: '`.vocodermelody` (and `/media-av-pitch vocoder-melody`) not taking a MIDI file uploaded to Discord, which Discord labels as audio.'},
       {kind: 'fixed', text: '`.m4a` files that Discord labels as video being used as a video instead of audio (like the music for `.a put mix`), and results with only sound coming back as an empty video instead of Discord\'s audio player.'},
     ],
   },
