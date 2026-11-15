@@ -88,7 +88,7 @@ export function VoiceList({ guildId, editable = true }: {guildId: string | null,
                 editable={editable}
                 canUpload={canUpload}
                 onRename={() => setRenaming(voice)}
-                onTransfer={(voice.platform_type === VoiceCloneTypes.ELEVENLABS) ? () => {
+                onTransfer={(voice.platform_type !== VoiceCloneTypes.ZONOS3) ? () => {
                   transfer.reset();
                   setTransferring(voice);
                 } : undefined}
@@ -107,13 +107,13 @@ export function VoiceList({ guildId, editable = true }: {guildId: string | null,
       {(transferring) ? (
         <ConfirmDialog
           title={t('voices.move_title', {name: transferring.name})}
-          description={plural('voices.move_description', transferring.clips.length)}
+          description={plural('voices.move_description', transferring.clips.length, {platform: voicePlatformLabel(transferring.platform_type)})}
           confirmLabel={t('voices.move')}
           tone='primary'
           pending={transfer.isPending}
           error={(transfer.isError) ? errorMessage(transfer.error, t('voices.move_error')) : null}
           onConfirm={() => {
-            transfer.mutate({voiceId: transferring.id, platformType: VoiceCloneTypes.FISH_AUDIO}, {
+            transfer.mutate({voiceId: transferring.id, platformType: VoiceCloneTypes.ZONOS3}, {
               onSuccess: (voice) => {
                 toast(t('voices.moved', {name: voice.name}));
                 setTransferring(null);
@@ -153,7 +153,7 @@ export function VoiceList({ guildId, editable = true }: {guildId: string | null,
 }
 
 
-// `onTransfer` only for voices that can be moved to fish.audio. A server's voice shows who made it (`creator`), and sits
+// `onTransfer` only for voices that can be moved to ZONOS3 (the ElevenLabs and fish.audio ones). A server's voice shows who made it (`creator`), and sits
 // in the server page's panel instead of being a card of its own
 function VoiceCard({ guildId, voice, creator, editable, canUpload, onRename, onTransfer, onDelete }: {
   guildId: string | null,

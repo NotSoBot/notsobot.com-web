@@ -3,7 +3,7 @@ import type { LegalDocument } from './legal';
 export const PRIVACY_POLICY: LegalDocument = {
   title: "Privacy Policy",
   effective: "October 13, 2026",
-  lastUpdated: "November 14, 2026",
+  lastUpdated: "November 15, 2026",
   intro: "This Privacy Policy explains what information NotSoBot collects, why, who it's shared with, how long it's kept, and how You can get a copy of it or have it deleted.",
   sections: [
     {
@@ -34,7 +34,7 @@ export const PRIVACY_POLICY: LegalDocument = {
           "Uploaded files: files You ask NotSoBot to host, their file names, sizes, dimensions and a file hash (BLAKE2b), and a preview image made from each video or audio file (a frame, its cover art or its waveform).",
           "AI requests: the prompt, including any messages You replied to with the ai command, along with the model, generated response, any error and token counts.",
           "AI memory: short facts NotSoAI saves about You when You ask it to remember something, whether each one applies everywhere or only in one server, when it was saved, and whether You've turned memory off.",
-          "Cloned voices: the voice's name, the ID of the voice stored at the voice cloning service (fish.audio, or ElevenLabs for older voices), and the audio clips You cloned it from. A server's own cloned voices also keep the server and who cloned each one, which the server's members can see on the dashboard along with the voice's clips.",
+          "Cloned voices: the voice's name, what is needed to use the voice (for a voice made on Our own servers, a short list of numbers describing how it sounds; for an older one, the ID of the voice stored at fish.audio or ElevenLabs), and the audio clips You cloned it from. A server's own cloned voices also keep the server and who cloned each one, which the server's members can see on the dashboard along with the voice's clips.",
           "Saved fonts: fonts You (or a server's members) save to use by name, kept as the file that was uploaded, along with its name, the file's original name, size and a file hash (SHA-256), who saved it, when, and a preview image of a sample line in the font. They're only reachable through NotSoBot and the logged-in dashboard, not from a public link.",
           "Adding and removing NotSoBot: when You add NotSoBot to your account or to a server, log in to the website with Discord, or remove NotSoBot from your authorized apps, Discord tells Us your user ID, the server it was added to, the permissions (scopes) granted and when. We use it to count how many people add NotSoBot, and Our staff can see who added it to a server.",
           "Purchases: premium entitlements and subscription status received from Discord.",
@@ -134,9 +134,9 @@ export const PRIVACY_POLICY: LegalDocument = {
           "Xiaomi, for MiMo models",
           "Z.ai, for GLM models",
           "DeepInfra, which hosts openly available models from other developers, such as Gemma, Nemotron and gpt-oss",
-          "fish.audio and ElevenLabs, for voice cloning and text-to-speech with cloned voices",
+          "fish.audio and ElevenLabs, for voices cloned before November 15, 2026 and text-to-speech with those voices",
         ]},
-        {type: 'paragraph', text: "Image generation, audio transcription, image descriptions, object detection, scoring how toxic text is, safety scanning and Our other text-to-speech voices run on Our own servers and are not sent to any of these companies. Only the review of something that was already flagged goes to Anthropic."},
+        {type: 'paragraph', text: "Image generation, audio transcription, image descriptions, object detection, scoring how toxic text is, safety scanning, voice cloning (since November 15, 2026) and Our other text-to-speech voices run on Our own servers and are not sent to any of these companies. Only the review of something that was already flagged goes to Anthropic."},
         {type: 'paragraph', text: "Each company handles data under its own terms and privacy policy. Some of them are based outside the United States, including in China, and may process your data there. We'll update this list when We add or remove a provider."},
       ],
     },

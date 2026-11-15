@@ -5681,11 +5681,11 @@ route('DELETE', '/users/@me/voices/(\\d+)', ([ , voiceId ]) => {
 route('POST', '/users/@me/voices/(\\d+)/transfer', ([ , voiceId ], { body }) => {
   const voice = findOwnVoice(voiceId);
   const platformType = Number(body.platform_type);
-  if (platformType !== VoiceCloneTypes.FISH_AUDIO) {
-    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'Voices can only be moved to fish.audio');
+  if (platformType !== VoiceCloneTypes.ZONOS3) {
+    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'Voices can only be moved to ZONOS3');
   }
   if (voice.platform_type === platformType) {
-    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'This voice is already on fish.audio');
+    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'This voice is already on ZONOS3');
   }
   if (!state.voiceClips.get(voice.id)?.length) {
     throw new MockError(400, ApiErrorCodes.VOICE_HAS_NO_CLIPS, 'This voice was cloned before its audio was kept, so it can\'t be moved yet');
@@ -5858,13 +5858,13 @@ route('DELETE', '/(users/@me|admin)/guilds/(\\d+)/voices/(\\d+)', ([ , scope, gu
 route('POST', '/(users/@me|admin)/guilds/(\\d+)/voices/(\\d+)/transfer', ([ , scope, guildId, voiceId ], { body }) => {
   scopedGuild(scope, guildId, 'settings');
   const { voice, clips } = findGuildVoice(guildId, voiceId);
-  if (Number(body.platform_type) !== VoiceCloneTypes.FISH_AUDIO || voice.platform_type === VoiceCloneTypes.FISH_AUDIO) {
-    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'Voices can only be moved to fish.audio');
+  if (Number(body.platform_type) !== VoiceCloneTypes.ZONOS3 || voice.platform_type === VoiceCloneTypes.ZONOS3) {
+    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'Voices can only be moved to ZONOS3');
   }
   if (!clips.length) {
     throw new MockError(400, ApiErrorCodes.VOICE_HAS_NO_CLIPS, 'This voice was cloned before its audio was kept, so it can\'t be moved yet');
   }
-  voice.platform_type = VoiceCloneTypes.FISH_AUDIO;
+  voice.platform_type = VoiceCloneTypes.ZONOS3;
   return guildVoicePayload(voice);
 });
 

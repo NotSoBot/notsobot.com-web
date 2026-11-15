@@ -645,6 +645,8 @@ export interface TagPatch {
 export const VoiceCloneTypes = {
   ELEVENLABS: 0,
   FISH_AUDIO: 1,
+  // cloned on our own cpus (api-tts-voice-zonos3)
+  ZONOS3: 2,
 } as const;
 
 // a reminder made with the bot's `reminder` commands, read-only on the dashboard

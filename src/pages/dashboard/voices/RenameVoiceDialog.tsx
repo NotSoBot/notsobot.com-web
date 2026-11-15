@@ -101,6 +101,7 @@ export function voicePlatformLabel(platformType: number): string {
   switch (platformType) {
     case VoiceCloneTypes.ELEVENLABS: return 'ElevenLabs';
     case VoiceCloneTypes.FISH_AUDIO: return 'fish.audio';
+    case VoiceCloneTypes.ZONOS3: return 'ZONOS3';
   }
   return translate('voices.platform_unknown', {type: platformType});
 }
