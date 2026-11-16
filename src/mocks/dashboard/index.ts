@@ -33,6 +33,7 @@ import {
   type ContentFlag,
   type GuildLLMKnowledge,
   type SavedFont,
+  type LimitsSummary,
   type SavedFontsPage,
   type GuildContentUser,
   type GuildReport,
@@ -5660,7 +5661,7 @@ function mockVoiceClip(body: Record<string, unknown>): VoiceClip {
 
 route('GET', '/users/@me/voices', () => {
   const items = state.voices.filter((voice) => voice.user?.id === mockUser.id).map(meVoice);
-  return {count: items.length, items, premium: mockUser.premium_type !== 0};
+  return {count: items.length, items, limit: (mockUser.premium_type !== 0) ? 5 : 2, premium: mockUser.premium_type !== 0};
 });
 
 route('PATCH', '/users/@me/voices/(\\d+)', ([ , voiceId ], { body }) => {
@@ -5771,6 +5772,40 @@ route('GET', '/(users/@me|admin)/guilds/(\\d+)/credits', ([ , scope, guildId ]) 
   return mockGuildCredits(guildId);
 });
 
+// the api's `limits_summary`: the mock user's own (as Plus, `premium_type` 3) and a server's from its slots (all Plus
+// ones here, so voices and fonts stack 5 and 25 a slot)
+function mockLimits(own: boolean, guildId: string | null): LimitsSummary {
+  const slots = (guildId) ? state.premiumServers.filter((server) => server.server_id === guildId).length : 0;
+  const premium = own && mockUser.premium_type !== 0;
+  const fromServer = !premium && 0 < slots;
+  const premiumJob = premium || fromServer;
+  return {
+    code_seconds: (premium) ? 45 : (fromServer) ? 20 : 15,
+    download_quality: (premium) ? '1440p' : (fromServer) ? '1080p' : '720p',
+    file_days: (premium) ? 28 : (fromServer) ? 21 : 14,
+    file_size: (premium) ? 200 * 1024 * 1024 : (fromServer) ? 100 * 1024 * 1024 : null,
+    file_size_discord_max: 100 * 1024 * 1024,
+    fonts: (own) ? {available: premium, count: (state.savedFonts.get('me') ?? []).length, limit: SAVED_FONT_LIMITS.me} : null,
+    frames: (premiumJob) ? 2160 : 1080,
+    media_seconds: (premium) ? 90 : (fromServer) ? 45 : 30,
+    server_fonts: (guildId) ? {available: 0 < slots, count: (state.savedFonts.get(guildId) ?? []).length, limit: Math.min(Math.max(slots * 25, 25), 100)} : null,
+    server_tier: (slots) ? 'premium_plus' : null,
+    server_voices: (guildId) ? {count: (mockGuildVoices.get(guildId) ?? []).length, limit: (slots) ? Math.min(slots * 5, 50) : 2} : null,
+    source: (premium) ? 'user' : (fromServer) ? 'server' : null,
+    still_size: (premiumJob) ? 4096 : 2048,
+    tag_seconds: (premium) ? 100 : (fromServer) ? 60 : 40,
+    tier: (premium) ? 'premium_plus' : null,
+    voices: (own) ? {count: state.voices.filter((voice) => voice.user?.id === mockUser.id).length, limit: (premium) ? 5 : 2} : null,
+  };
+}
+
+route('GET', '/users/@me/limits', () => mockLimits(true, null));
+
+route('GET', '/(users/@me|admin)/guilds/(\\d+)/limits', ([ , scope, guildId ]) => {
+  scopedGuildRead(scope, guildId);
+  return mockLimits(false, guildId);
+});
+
 
 // mirrors the server half of `views/me_voices.py` (and `admin_guild_sections`): any member lists and plays them,
 // Manage Server (staff: owners) changes them, adding audio needs the server's premium (the second guild's slot here)
@@ -5837,7 +5872,9 @@ route('GET', '/(users/@me|admin)/guilds/(\\d+)/voices', ([ , scope, guildId ]) =
   scopedGuildRead(scope, guildId);
   const items = (mockGuildVoices.get(guildId) ?? []).map(guildVoicePayload).reverse();
   const premium = state.premiumServers.some((server) => server.server_id === guildId);
-  return {count: items.length, items, limit: (premium) ? 5 : 2, premium};
+  // every slot on it stacks like the api (the mock's slots are all Plus ones, 5 each), up to 50
+  const slots = state.premiumServers.filter((server) => server.server_id === guildId).length;
+  return {count: items.length, items, limit: (slots) ? Math.min(slots * 5, 50) : 2, premium};
 });
 
 route('PATCH', '/(users/@me|admin)/guilds/(\\d+)/voices/(\\d+)', ([ , scope, guildId, voiceId ], { body }) => {

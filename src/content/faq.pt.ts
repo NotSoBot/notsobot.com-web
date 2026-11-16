@@ -8,6 +8,7 @@ export const FAQ_PORTUGUESE: FaqTranslation = {
     start: {title: 'Primeiros passos', description: 'Adicionar o bot e usar seu primeiro comando.'},
     commands: {title: 'Comandos e mídia', description: 'Imagens, vídeos, downloads e limites de arquivos.'},
     server: {title: 'Configurar o servidor', description: 'Prefixos, permissões, restrições e registros.'},
+    limits: {title: 'Limites', description: 'Quantas tags, lembretes e configurações de servidor você pode ter.'},
     premium: {title: 'Premium e IA', description: 'Os planos do NotSoPremium e o NotSoAI.'},
     privacy: {title: 'Privacidade e suporte', description: 'Seus dados e onde pedir ajuda.'},
   },
@@ -76,6 +77,24 @@ export const FAQ_PORTUGUESE: FaqTranslation = {
     'language': {
       question: 'O NotSoBot pode responder no meu idioma?',
       answer: 'Sim, ele está disponível em 33 idiomas. Use `/settings set locale` para escolher o seu, ou `/settings-server set locale` para definir o idioma padrão do servidor.',
+    },
+
+    // limites
+    'limit-tags': {
+      question: 'Quantas tags posso criar?',
+      answer: 'Você pode ter até **100.000** tags no total, e até **10.000** delas em um mesmo servidor. Um servidor pode ter até **500.000** tags de todos os seus membros, e até **300** delas podem ser comandos personalizados.\n\nCada tag também pode guardar até **5** variáveis e **1** blob (de no máximo 256 KB) por escopo: global, servidor, canal e usuário.',
+    },
+    'limit-reminders': {
+      question: 'Quantos lembretes posso ter?',
+      answer: 'Até **300** ao mesmo tempo, e até **100** deles em um mesmo servidor.\n\nVocê só pode criar **10** lembretes para mais ou menos o mesmo horário (com menos de um minuto entre eles), e **5** em um mesmo servidor.',
+    },
+    'limit-server': {
+      question: 'Quais são os limites das configurações do servidor?',
+      answer: '- **Prefixos:** 10\n- **Regras:** 500\n- **Registros:** 10\n- **Comandos personalizados:** 300\n- **Advertências:** 100 ativas por membro, e até 10 membros em um só `warn`\n- **Ações de advertência:** 10 etapas\n- **Regras de advertência automática:** 20\n- **Banimentos temporários:** 200 esperando para serem removidos',
+    },
+    'limit-premium': {
+      question: 'O premium aumenta esses limites?',
+      answer: 'Não, os limites acima são iguais para todos. O NotSoPremium aumenta os de mídia e voz: tamanho de arquivo, tempo por comando, quadros animados, fontes salvas, vozes clonadas e a fila de música. A [página do Premium](/premium) mostra cada um por nível.',
     },
 
     // premium e ia

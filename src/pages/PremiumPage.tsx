@@ -22,6 +22,7 @@ import {
   CREDITS_WEEKLY_SERVER_AI_SLOT,
   CREDITS_WEEKLY_SERVER_TTS_SLOT,
   MAX_SERVER_VOICE_CLONES,
+  MAX_SERVER_VOICE_CLONES_CAP,
   MAX_SERVER_VOICE_CLONES_FREE,
   MAX_SERVER_VOICE_CLONES_MAX,
   MAX_VOICE_CLONES_FREE,
@@ -54,6 +55,8 @@ const MAX_SAVED_FONTS_USER = 10;
 const MAX_SAVED_FONTS_SERVER = 25;
 // the api's `MAX_SAVED_FONTS_GUILD_PREMIUM_MAX`, a server with a Max member's slot
 const MAX_SAVED_FONTS_SERVER_MAX = 50;
+// the api's `MAX_SAVED_FONTS_GUILD_CAP`, every slot on a server stacks (25 a Plus one, 50 a Max one) up to it
+const MAX_SAVED_FONTS_SERVER_CAP = 100;
 
 // the tagline is `premium.<id>.tagline`
 const TIERS: Array<Tier> = [
@@ -213,7 +216,7 @@ const SERVER_COMPARISON: Array<ComparisonGroup> = [
     rows: [
       // only Max slots give NotSoAI weekly credits, otherwise it's the credits members give it
       {label: 'premium.row.notsoai', values: ['premium.value.credit_packs', 'premium.value.credit_packs', 'premium.value.weekly_credits']},
-      // any server can have the api's `MAX_SERVER_VOICE_CLONE_AMOUNT_FREE`
+      // any server can have the api's `MAX_SERVER_VOICE_CLONE_AMOUNT_FREE`, a slot's is what it adds (they stack, `compare_servers_note`)
       {label: 'premium.row.server_voices', values: [String(MAX_SERVER_VOICE_CLONES_FREE), String(MAX_SERVER_VOICE_CLONES), String(MAX_SERVER_VOICE_CLONES_MAX)]},
       // `CREDITS_WEEKLY_SERVER_AI_SLOT` (Max only) and `CREDITS_WEEKLY_SERVER_TTS_SLOT` (every slot), each its own
       // week that only buys its own thing, so what they buy adds up (`+`) instead of the tiers' `or`
@@ -248,6 +251,8 @@ function creditVariables() {
     slot_credits_label: creditsLabel(CREDITS_WEEKLY_SERVER_AI_SLOT),
     server_voice_minutes: formatNumber(Math.round(creditsToSpeechHours(CREDITS_WEEKLY_SERVER_TTS_SLOT) * 60)),
     server_voices: formatNumber(MAX_SERVER_VOICE_CLONES),
+    server_voices_cap: formatNumber(MAX_SERVER_VOICE_CLONES_CAP),
+    saved_fonts_server_cap: formatNumber(MAX_SAVED_FONTS_SERVER_CAP),
     voices_plus: formatNumber(MAX_VOICE_CLONES_PLUS),
     voices_max: formatNumber(MAX_VOICE_CLONES_MAX),
     slot_messages: formatNumber(SERVER_AI_MESSAGES_PER_SLOT),

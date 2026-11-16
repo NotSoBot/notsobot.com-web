@@ -26,8 +26,10 @@ export const MAX_VOICE_CLONES_PLUS = 5;
 export const MAX_VOICE_CLONES_MAX = 10;
 export const MAX_SERVER_VOICE_CLONES_FREE = 2;
 export const MAX_SERVER_VOICE_CLONES = 5;
-// the api's `MAX_SERVER_VOICE_CLONE_AMOUNT_PREMIUM_MAX`, a server with a Max member's slot
+// the api's `MAX_SERVER_VOICE_CLONE_AMOUNT_PREMIUM_MAX`, what a Max member's slot adds (Plus ones add
+// `MAX_SERVER_VOICE_CLONES`), every slot on a server stacks up to `MAX_SERVER_VOICE_CLONE_AMOUNT_CAP`
 export const MAX_SERVER_VOICE_CLONES_MAX = 10;
+export const MAX_SERVER_VOICE_CLONES_CAP = 50;
 
 // NotSoAI messages a Max premium server slot gives a server each week
 export const SERVER_AI_MESSAGES_PER_SLOT = Math.floor(CREDITS_WEEKLY_SERVER_AI_SLOT / CREDITS_AI_MESSAGE);

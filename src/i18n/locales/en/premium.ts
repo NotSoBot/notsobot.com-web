@@ -5,7 +5,7 @@ export const Premium = {
   'premium.compare': 'Compare tiers',
   'premium.compare_note': 'Limits are per command, and media processing includes downloading any links you give it. Without premium, the largest file follows your Discord upload limit, so Nitro and server boosts raise it, up to 100 MB. Perks may change over time, see the <terms>Terms of Service</terms>.',
   'premium.compare_servers': 'Compare premium servers',
-  'premium.compare_servers_note': 'What one slot gives a server, and slots stack. A slot’s weekly credits come in two amounts of their own: the NotSoAI credits only buy messages and the voice credits only buy fish.audio speech. Without a slot, credits members give the server unlock NotSoAI.',
+  'premium.compare_servers_note': 'What one slot gives a server, and slots stack. A slot’s weekly credits come in two amounts of their own: the NotSoAI credits only buy messages and the voice credits only buy fish.audio speech. Server voices and saved fonts add up the same way, up to {server_voices_cap} voices and {saved_fonts_server_cap} fonts. Without a slot, credits members give the server unlock NotSoAI.',
   'premium.compare_credits_note': 'The ≈ line is what the weekly credits buy, not extra: every NotSoAI message and every second of fish.audio speech spends from them. Voices cloned on our own servers are free.',
 
   'premium.how.store': 'In Discord, open NotSoBot’s profile and pick <b>Store</b>.',

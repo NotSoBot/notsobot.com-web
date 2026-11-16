@@ -22,6 +22,7 @@ import { GuildTagsSection } from '../servers/GuildTagsSection';
 import { SERVER_TAB_GROUPS, useReadOnlyMessage, type ServerTab as ServerPageTab } from '../servers/guildMeta';
 import { MusicSection } from '../servers/MusicSection';
 import { MusicStatsSection } from '../servers/MusicStatsSection';
+import { ServerLimitsSection } from '../LimitsSummary';
 import { ServerCreditsSection } from '../servers/ServerCreditsSection';
 import { ServerDataSection } from '../servers/ServerDataSection';
 import { ServerHome } from '../servers/ServerHome';
@@ -373,6 +374,7 @@ function ServerDetails({ guild, navigation, onDirtyChange }: {guild: AdminGuild,
           </TabPanel>
           <TabPanel tabsId={tabsId} id='credits' tab={tab} opened={opened}>
             <ServerCreditsSection guild={guild}/>
+            <ServerLimitsSection guild={guild}/>
           </TabPanel>
           <TabPanel tabsId={tabsId} id='settings' tab={tab} opened={opened}>
             <PrefixesSection guild={guild}/>

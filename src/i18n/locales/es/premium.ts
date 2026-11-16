@@ -7,7 +7,7 @@ export const Premium: Record<keyof typeof English, string> = {
   'premium.compare': 'Comparar niveles',
   'premium.compare_note': 'Los límites son por comando, y el procesamiento de multimedia incluye descargar los enlaces que le des. Sin premium, el archivo más grande sigue tu límite de subida de Discord, así que Nitro y las mejoras del servidor lo suben, hasta 100 MB. Las ventajas pueden cambiar con el tiempo, consulta los <terms>Términos del servicio</terms>.',
   'premium.compare_servers': 'Comparar servidores premium',
-  'premium.compare_servers_note': 'Lo que un espacio le da a un servidor, y los espacios se suman. Los créditos semanales de un espacio vienen en dos cantidades propias: los de NotSoAI solo compran mensajes y los de voces solo compran voz de fish.audio. Sin espacio, los créditos que los miembros le den al servidor activan NotSoAI.',
+  'premium.compare_servers_note': 'Lo que un espacio le da a un servidor, y los espacios se suman. Los créditos semanales de un espacio vienen en dos cantidades propias: los de NotSoAI solo compran mensajes y los de voces solo compran voz de fish.audio. Las voces y las fuentes guardadas del servidor también se suman, hasta {server_voices_cap} voces y {saved_fonts_server_cap} fuentes. Sin espacio, los créditos que los miembros le den al servidor activan NotSoAI.',
   'premium.compare_credits_note': 'La línea ≈ es lo que compran los créditos semanales, no algo extra: cada mensaje de NotSoAI y cada segundo de voz de fish.audio gasta de ellos. Las voces clonadas en nuestros propios servidores son gratis.',
 
   'premium.how.store': 'En Discord, abre el perfil de NotSoBot y elige <b>Tienda</b>.',

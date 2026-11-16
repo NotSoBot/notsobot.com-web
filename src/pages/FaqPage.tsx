@@ -1,4 +1,4 @@
-import { Check, ChevronDown, Crown, LifeBuoy, Link2, MessageCircleQuestion, Rocket, Shield, Terminal, type LucideIcon } from 'lucide-react';
+import { Check, ChevronDown, Crown, Gauge, LifeBuoy, Link2, MessageCircleQuestion, Rocket, Shield, Terminal, type LucideIcon } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router';
@@ -15,6 +15,7 @@ const SECTION_ICONS: Record<FaqSectionId, LucideIcon> = {
   start: Rocket,
   commands: Terminal,
   server: Shield,
+  limits: Gauge,
   premium: Crown,
   privacy: LifeBuoy,
 };

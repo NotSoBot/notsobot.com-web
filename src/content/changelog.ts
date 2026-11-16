@@ -28,6 +28,16 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 
 export const CHANGELOG: Array<ChangelogDay> = [
   {
+    date: '2026-11-16',
+    title: 'See your limits, server slots stack',
+    items: [
+      {kind: 'new', text: '`.premium` (and `/premium`) shows your limits where you use it: largest file, download quality, frames, image size, how long media, tags and code can run, how long nsb.gg keeps files, and how many voices and fonts you and the server have of how many. It says whether they come from your own premium or the server\'s slot. Your dashboard\'s **Premium** page shows yours, and each server\'s **Credits** page what its slots give everyone there.'},
+      {kind: 'new', text: 'The website\'s **FAQ** has a **Limits** section: how many tags, reminders, prefixes, rules, loggers, warnings and other server settings you can have. Premium doesn\'t change these.'},
+      {kind: 'improved', text: 'Premium server slots stack for a server\'s cloned voices and saved fonts: every Plus slot on it adds 5 voices and 25 fonts, every Max slot 10 voices and 50 fonts, up to 50 voices and 100 fonts. One slot gives the same as before.'},
+      {kind: 'improved', text: '`tts voice list` and your dashboard\'s **Voices** page show how many voices you have of how many you can clone.'},
+    ],
+  },
+  {
     date: '2026-11-15',
     title: 'Voice cloning for everyone, African and home nation flags, pipe scripts',
     items: [

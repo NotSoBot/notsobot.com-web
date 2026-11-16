@@ -14,6 +14,7 @@ import { cn, formatDate, formatExactDateTime, formatNumber, toDate } from '@/lib
 
 import { Chip } from './admin/adminUi';
 import { entitlementStatus, entitlementTierLabel, premiumLabel } from './premium';
+import { MyLimitsCard } from './LimitsSummary';
 import { PremiumServers } from './PremiumServers';
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from './ui';
 
@@ -42,6 +43,8 @@ export function PremiumPage() {
       <CurrentTier premiumType={user.premium_type} items={(data) ? items : null}/>
 
       <CreditsCard/>
+
+      <MyLimitsCard/>
 
       <PremiumServers/>
 

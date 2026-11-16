@@ -8,6 +8,7 @@ export const FAQ_SPANISH: FaqTranslation = {
     start: {title: 'Primeros pasos', description: 'Añadir el bot y usar tu primer comando.'},
     commands: {title: 'Comandos y multimedia', description: 'Imágenes, vídeos, descargas y límites de archivos.'},
     server: {title: 'Configurar el servidor', description: 'Prefijos, permisos, restricciones y registros.'},
+    limits: {title: 'Límites', description: 'Cuántos tags, recordatorios y ajustes de servidor puedes tener.'},
     premium: {title: 'Premium e IA', description: 'Los niveles de NotSoPremium y NotSoAI.'},
     privacy: {title: 'Privacidad y soporte', description: 'Tus datos y dónde pedir ayuda.'},
   },
@@ -76,6 +77,24 @@ export const FAQ_SPANISH: FaqTranslation = {
     'language': {
       question: '¿Puede NotSoBot responder en mi idioma?',
       answer: 'Sí, está disponible en 33 idiomas. Usa `/settings set locale` para elegir el tuyo, o `/settings-server set locale` para poner el idioma por defecto del servidor.',
+    },
+
+    // límites
+    'limit-tags': {
+      question: '¿Cuántos tags puedo crear?',
+      answer: 'Puedes tener hasta **100.000** tags en total, y hasta **10.000** de ellos en un mismo servidor. Un servidor puede tener hasta **500.000** tags de todos sus miembros, y hasta **300** de ellos pueden ser comandos personalizados.\n\nCada tag también puede guardar hasta **5** variables y **1** blob (de 256 KB como máximo) por ámbito: global, servidor, canal y usuario.',
+    },
+    'limit-reminders': {
+      question: '¿Cuántos recordatorios puedo tener?',
+      answer: 'Hasta **300** a la vez, y hasta **100** de ellos en un mismo servidor.\n\nSolo puedes poner **10** recordatorios para más o menos la misma hora (a menos de un minuto entre sí), y **5** en un mismo servidor.',
+    },
+    'limit-server': {
+      question: '¿Qué límites tienen los ajustes del servidor?',
+      answer: '- **Prefijos:** 10\n- **Reglas:** 500\n- **Registros:** 10\n- **Comandos personalizados:** 300\n- **Advertencias:** 100 activas por miembro, y hasta 10 miembros en un solo `warn`\n- **Acciones de advertencia:** 10 pasos\n- **Reglas de advertencia automática:** 20\n- **Baneos temporales:** 200 pendientes de levantarse',
+    },
+    'limit-premium': {
+      question: '¿Premium sube estos límites?',
+      answer: 'No, los límites de arriba son iguales para todos. NotSoPremium sube los de multimedia y voz: tamaño de archivo, tiempo por comando, fotogramas animados, fuentes guardadas, voces clonadas y la cola de música. La [página de Premium](/premium) los muestra para cada nivel.',
     },
 
     // premium e ia

@@ -1150,6 +1150,8 @@ export interface MeVoice extends Voice {
 export interface VoicesPage {
   count: number,
   items: Array<MeVoice>,
+  // how many they can have (2, 5 with Plus, 10 with Max), missing from an api from before it was sent
+  limit?: number,
   // premium plus or bought NotSoCredits, needed to add audio to their fish.audio and ElevenLabs voices (ZONOS3 ones never)
   premium: boolean,
 }
@@ -1163,7 +1165,8 @@ export interface GuildVoice extends MeVoice {
 export interface GuildVoicesPage {
   count: number,
   items: Array<GuildVoice>,
-  // the api's `server_voice_limit` (2 for any server, 5 with a plus slot, 10 with a max one), bot owners aren't held to it
+  // the api's `server_voice_limit`: 2 for any server, every slot on it stacks (5 a Plus one, 10 a Max one) up to 50. Bot
+  // owners aren't held to it
   limit: number,
   // a member's premium plus slot, NotSoCredits given to it (or the staff-given `VOICE_CLONE_ACCESS`), needed to add
   // audio to its fish.audio and ElevenLabs voices (ZONOS3 ones never)
@@ -2641,6 +2644,37 @@ export interface CreditBalance {
   rollover_max: number,
   weekly: number,
   weekly_left: number,
+}
+
+export interface LimitCount {
+  count: number,
+  limit: number,
+}
+
+// `/users/@me/limits` (the caller's own, where no premium slot applies) and `/users/@me/guilds/<id>/limits` (staff:
+// `/admin/guilds/<id>/limits`, what the server's slots give everyone there). The api's `limits_summary`, picked the way
+// jobs pick them. `source` is whose premium applies: `user`, `server` (a slot) or null (free)
+export interface LimitsSummary {
+  code_seconds: number,
+  download_quality: string,
+  file_days: number,
+  // null is the user's Discord upload limit, up to `file_size_discord_max`
+  file_size: number | null,
+  file_size_discord_max: number,
+  // the user's own, null for a server's. `available` is whether any can be saved (premium for a user's, a slot for a server's)
+  fonts: (LimitCount & {available: boolean}) | null,
+  frames: number,
+  media_seconds: number,
+  server_fonts: (LimitCount & {available: boolean}) | null,
+  // the best slot's tier on the server (`premium_plus` or `premium_max`)
+  server_tier: string | null,
+  server_voices: LimitCount | null,
+  source: 'server' | 'user' | null,
+  still_size: number,
+  tag_seconds: number,
+  // `premium`, `premium_plus` or `premium_max`, null without any
+  tier: string | null,
+  voices: LimitCount | null,
 }
 
 // `/users/@me/credits`, `balance` is null for owners (they don't use any)

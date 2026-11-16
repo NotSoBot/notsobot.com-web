@@ -763,6 +763,28 @@ export function useGuildCreditsQuery(guildId: string, enabled = true) {
 }
 
 
+export function useMeLimitsQuery() {
+  const { token } = useAuth();
+  return useQuery({
+    queryKey: queryKeys.meLimits(token),
+    queryFn: ({ signal }) => api.fetchMeLimits(signal),
+  });
+}
+
+
+// what a server's slots give (through `GuildScopeContext`)
+export function useGuildLimitsQuery(guildId: string, enabled = true) {
+  const { token } = useAuth();
+  const scope = useGuildScope();
+  return useQuery({
+    queryKey: queryKeys.guildLimits(token, scope, guildId),
+    queryFn: ({ signal }) => api.fetchGuildLimits(scope, guildId, signal),
+    enabled: !!token && enabled,
+    retry: retryDiscordRefresh,
+  });
+}
+
+
 export function useMeEntitlementsQuery() {
   const { token } = useAuth();
   return useQuery({

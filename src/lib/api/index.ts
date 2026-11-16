@@ -79,6 +79,7 @@ import type {
   GuildMusicSettings,
   GuildCommandStats,
   GuildCredits,
+  LimitsSummary,
   GuildReminder,
   GuildReminderSort,
   GuildRemindersPage,
@@ -576,6 +577,15 @@ export const api = {
   // a server's, any member (staff any server's through `/admin/guilds`)
   fetchGuildCredits: (scope: GuildScope, guildId: string, signal?: AbortSignal) => {
     return apiRequest<GuildCredits>(guildEndpoints(scope, guildId).CREDITS, {signal});
+  },
+
+  fetchMeLimits: (signal?: AbortSignal) => {
+    return apiRequest<LimitsSummary>(ApiEndpoints.USER_ME_LIMITS, {signal});
+  },
+
+  // what a server's premium slots give everyone in it, with its voices and fonts
+  fetchGuildLimits: (scope: GuildScope, guildId: string, signal?: AbortSignal) => {
+    return apiRequest<LimitsSummary>(guildEndpoints(scope, guildId).LIMITS, {signal});
   },
 
   fetchMeEntitlements: (signal?: AbortSignal) => {

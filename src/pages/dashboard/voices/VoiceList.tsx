@@ -19,7 +19,7 @@ import {
   useTransferVoiceMutation,
   useUploadVoiceClipMutation,
 } from '@/lib/api/dashboardQueries';
-import { cn, downloadBlob, formatDate, formatMemory } from '@/lib/utils';
+import { cn, downloadBlob, formatDate, formatMemory, formatNumber } from '@/lib/utils';
 
 import { Chip } from '../admin/adminUi';
 import { Owner } from '../servers/GuildTagsSection';
@@ -78,6 +78,9 @@ export function VoiceList({ guildId, editable = true }: {guildId: string | null,
         </EmptyState>
       ) : (
         <>
+          {(data?.limit !== undefined) ? (
+            <p className='mb-3 text-xs text-subtle'>{t('voices.count', {count: formatNumber(data.count), max: formatNumber(data.limit)})}</p>
+          ) : null}
           {(lockedPaid) ? (
             <p className='mb-3 text-sm text-muted'>
               {rich((guildId) ? 'voices.server_needs_plus' : 'voices.needs_plus', {link: premiumLink})}

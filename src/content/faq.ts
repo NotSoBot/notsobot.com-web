@@ -1,6 +1,7 @@
 // FAQ content. Answers use a tiny markup that FaqPage renders:
 //   `code`, [label](url or /path), blank line = new paragraph, lines starting with "- " = list.
 // Facts here are checked against notsobot.ts (prefixes, permissions, settings) as of the category rework.
+// The limits section mirrors notsobot.api's `utilities/constants/limits.py` (where they're enforced), keep them in sync.
 // Other languages are faq.<language>.ts, keyed by these ids; keep them in step when an answer changes.
 
 import { queryOptions } from '@tanstack/react-query';
@@ -8,7 +9,7 @@ import { queryOptions } from '@tanstack/react-query';
 import { Languages, type Language } from '@/i18n/languages';
 
 
-export type FaqSectionId = 'start' | 'commands' | 'server' | 'premium' | 'privacy';
+export type FaqSectionId = 'start' | 'commands' | 'server' | 'limits' | 'premium' | 'privacy';
 
 export interface FaqSection {
   id: FaqSectionId,
@@ -28,6 +29,7 @@ export const FAQ_SECTIONS: Array<FaqSection> = [
   {id: 'start', title: 'Getting Started', description: 'Adding the bot and running your first command.'},
   {id: 'commands', title: 'Commands & Media', description: 'Images, videos, downloads and file limits.'},
   {id: 'server', title: 'Server Setup', description: 'Prefixes, permissions, restrictions and logging.'},
+  {id: 'limits', title: 'Limits', description: 'How many tags, reminders and server settings you can have.'},
   {id: 'premium', title: 'Premium & AI', description: 'NotSoPremium tiers and NotSoAI.'},
   {id: 'privacy', title: 'Privacy & Support', description: 'Your data and where to get help.'},
 ];
@@ -128,6 +130,32 @@ export const FAQ_QUESTIONS: Array<FaqQuestion> = [
     section: 'server',
     question: 'Can NotSoBot reply in my language?',
     answer: 'Yes, it\'s available in 33 languages. Use `/settings set locale` to pick yours, or `/settings-server set locale` to set the server\'s default.',
+  },
+
+  // limits
+  {
+    id: 'limit-tags',
+    section: 'limits',
+    question: 'How many tags can I make?',
+    answer: 'You can own up to **100,000** tags in total, and up to **10,000** of them in one server. A server can hold up to **500,000** tags from all of its members, and up to **300** of them can be custom commands.\n\nEach tag can also store up to **5** variables and **1** blob (256 KB at most) per scope: global, server, channel and user.',
+  },
+  {
+    id: 'limit-reminders',
+    section: 'limits',
+    question: 'How many reminders can I have?',
+    answer: 'Up to **300** at once, and up to **100** of those in one server.\n\nYou can only set **10** reminders for about the same time (within a minute of each other), and **5** in one server.',
+  },
+  {
+    id: 'limit-server',
+    section: 'limits',
+    question: 'What are the limits for server settings?',
+    answer: '- **Prefixes:** 10\n- **Rules:** 500\n- **Loggers:** 10\n- **Custom commands:** 300\n- **Warnings:** 100 active ones per member, and up to 10 members in one `warn`\n- **Warning actions:** 10 steps\n- **Auto-warn rules:** 20\n- **Timed bans:** 200 waiting to be lifted',
+  },
+  {
+    id: 'limit-premium',
+    section: 'limits',
+    question: 'Does premium raise these limits?',
+    answer: 'No, the limits above are the same for everyone. NotSoPremium raises the media and voice ones instead: file size, time per command, animated frames, saved fonts, cloned voices and the music queue. The [Premium page](/premium) lists them for every tier.',
   },
 
   // premium & ai
