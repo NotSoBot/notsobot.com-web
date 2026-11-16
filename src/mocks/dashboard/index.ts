@@ -5681,11 +5681,15 @@ route('DELETE', '/users/@me/voices/(\\d+)', ([ , voiceId ]) => {
 route('POST', '/users/@me/voices/(\\d+)/transfer', ([ , voiceId ], { body }) => {
   const voice = findOwnVoice(voiceId);
   const platformType = Number(body.platform_type);
-  if (platformType !== VoiceCloneTypes.ZONOS3) {
-    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'Voices can only be moved to ZONOS3');
+  if (platformType !== VoiceCloneTypes.ZONOS3 && platformType !== VoiceCloneTypes.FISH_AUDIO) {
+    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'Voices can\'t be moved to ElevenLabs right now');
   }
   if (voice.platform_type === platformType) {
-    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'This voice is already on ZONOS3');
+    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'This voice is already on that platform');
+  }
+  // only moving to fish.audio needs plus or credits, like the api
+  if (platformType === VoiceCloneTypes.FISH_AUDIO && mockUser.premium_type === 0) {
+    throw new MockError(403, ApiErrorCodes.PREMIUM_REQUIRED, 'You need NotSoPremium Plus or NotSoCredits to move voices on fish.audio', {credits: true, platform_type: platformType, tier: 'premium_plus'});
   }
   if (!state.voiceClips.get(voice.id)?.length) {
     throw new MockError(400, ApiErrorCodes.VOICE_HAS_NO_CLIPS, 'This voice was cloned before its audio was kept, so it can\'t be moved yet');
@@ -5822,16 +5826,18 @@ function findGuildVoiceClip(guildId: string, voiceId: string, clipId: string) {
   return {voice, clips, clip};
 }
 
-function requireGuildVoicePremium(guildId: string) {
-  if (!state.premiumServers.some((server) => server.server_id === guildId)) {
-    throw new MockError(403, ApiErrorCodes.PREMIUM_REQUIRED, 'This server needs NotSoPremium Plus from a member, or NotSoCredits given to it, to add audio to its voices', {credits: true, tier: 'premium_server'});
+// only a paid platform's voice (fish.audio, ElevenLabs) needs the server's credits, ZONOS3 ones are free like the api
+function requireGuildVoicePremium(guildId: string, platformType: number) {
+  if (platformType !== VoiceCloneTypes.ZONOS3 && !state.premiumServers.some((server) => server.server_id === guildId)) {
+    throw new MockError(403, ApiErrorCodes.PREMIUM_REQUIRED, 'This server needs NotSoPremium Plus from a member, or NotSoCredits given to it, to add audio to voices on fish.audio', {credits: true, platform_type: platformType, tier: 'premium_server'});
   }
 }
 
 route('GET', '/(users/@me|admin)/guilds/(\\d+)/voices', ([ , scope, guildId ]) => {
   scopedGuildRead(scope, guildId);
   const items = (mockGuildVoices.get(guildId) ?? []).map(guildVoicePayload).reverse();
-  return {count: items.length, items, limit: 5, premium: state.premiumServers.some((server) => server.server_id === guildId)};
+  const premium = state.premiumServers.some((server) => server.server_id === guildId);
+  return {count: items.length, items, limit: (premium) ? 5 : 2, premium};
 });
 
 route('PATCH', '/(users/@me|admin)/guilds/(\\d+)/voices/(\\d+)', ([ , scope, guildId, voiceId ], { body }) => {
@@ -5858,20 +5864,25 @@ route('DELETE', '/(users/@me|admin)/guilds/(\\d+)/voices/(\\d+)', ([ , scope, gu
 route('POST', '/(users/@me|admin)/guilds/(\\d+)/voices/(\\d+)/transfer', ([ , scope, guildId, voiceId ], { body }) => {
   scopedGuild(scope, guildId, 'settings');
   const { voice, clips } = findGuildVoice(guildId, voiceId);
-  if (Number(body.platform_type) !== VoiceCloneTypes.ZONOS3 || voice.platform_type === VoiceCloneTypes.ZONOS3) {
-    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'Voices can only be moved to ZONOS3');
+  const platformType = Number(body.platform_type);
+  if (platformType !== VoiceCloneTypes.ZONOS3 && platformType !== VoiceCloneTypes.FISH_AUDIO) {
+    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'Voices can\'t be moved to ElevenLabs right now');
   }
+  if (voice.platform_type === platformType) {
+    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'This voice is already on that platform');
+  }
+  requireGuildVoicePremium(guildId, platformType);
   if (!clips.length) {
     throw new MockError(400, ApiErrorCodes.VOICE_HAS_NO_CLIPS, 'This voice was cloned before its audio was kept, so it can\'t be moved yet');
   }
-  voice.platform_type = VoiceCloneTypes.ZONOS3;
+  voice.platform_type = platformType;
   return guildVoicePayload(voice);
 });
 
 route('POST', '/(users/@me|admin)/guilds/(\\d+)/voices/(\\d+)/clips', ([ , scope, guildId, voiceId ], { body }) => {
   scopedGuild(scope, guildId, 'settings');
-  requireGuildVoicePremium(guildId);
   const { voice, clips } = findGuildVoice(guildId, voiceId);
+  requireGuildVoicePremium(guildId, voice.platform_type);
   if (10 <= clips.length) {
     throw new MockError(400, ApiErrorCodes.MAX_VOICE_CLIPS, 'Voices can have up to 10 audio clips', {limit: 10});
   }
@@ -5881,8 +5892,8 @@ route('POST', '/(users/@me|admin)/guilds/(\\d+)/voices/(\\d+)/clips', ([ , scope
 
 route('PUT', '/(users/@me|admin)/guilds/(\\d+)/voices/(\\d+)/clips/(\\d+)', ([ , scope, guildId, voiceId, clipId ], { body }) => {
   scopedGuild(scope, guildId, 'settings');
-  requireGuildVoicePremium(guildId);
   const { voice, clips, clip } = findGuildVoiceClip(guildId, voiceId, clipId);
+  requireGuildVoicePremium(guildId, voice.platform_type);
   const added = mockVoiceClip(body);
   voiceClipAudio.delete(clip.id);
   state.voiceClips.set(voice.id, [...clips.filter((other) => other.id !== clip.id), added]);
@@ -6051,7 +6062,7 @@ const mockCommands = [
   mockCommand('music.skip', 'music skip', 'MUSIC', 'Skip to the next track in the music queue', 'premium_server', [0, 1]),
   mockCommand('music.queue', 'music queue', 'MUSIC', 'Show what the music is playing and what is queued after it', 'premium_server'),
   mockCommand('ai', 'ai', 'AI', 'Talk to NotSoAI', 'premium_server', [0, 1]),
-  mockCommand('voice.clone', 'tts voice create', 'AUDIO', 'Clone a voice for Text-to-Speech', 'premium_plus'),
+  mockCommand('voice.clone', 'tts voice create', 'AUDIO', 'Clone a voice for Text-to-Speech', null),
   mockCommand('tag.show', 'tag', 'TAGS', 'Show a tag', null, [0, 1]),
   // the custom command fallback (`.<tagname>`): its prefixed variant has no name, the slash one does
   {

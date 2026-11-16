@@ -68,7 +68,7 @@ export const FUNCTIONS_SPANISH_4: TagDocsTranslation['functions'] = {
   },
   MUSIC_CONTROL: {
     summary: 'Pausa, reanuda, salta o cambia el volumen de la música que suena en el servidor. Solo NotSoAI puede usar esto.',
-    description: 'Sigue las mismas reglas que los comandos de música: la persona tiene que estar en el canal de voz donde suena la música, con el modo DJ activado necesita Gestionar servidor o el rol de DJ, y si el servidor tiene activada la votación para saltar, pausar o reanudar, cuenta como su voto. Devuelve `true` cuando se hizo, `false` si ya estaba en pausa o sonando, o `voted 1/3` cuando hacen falta más votos.',
+    description: 'Sigue las mismas reglas que los comandos de música: la persona tiene que estar en el canal de voz donde suena la música, y con el modo DJ activado (o la votación del servidor para saltar, pausar o reanudar) cuenta como su voto salvo que sea DJ (Gestionar servidor, el rol de DJ o Gestionar canal en ese canal de voz). Devuelve `true` cuando se hizo, `false` si ya estaba en pausa o sonando, o `voted 1/3` cuando hacen falta más votos.',
     args: {
       action: '`pause`, `resume`, `skip` o `volume`.',
       value: 'Para `volume`, de 0 a 200 (`150` o `150%`), o `reset` para 100. Cualquier valor que no sea 100 necesita un servidor premium.',

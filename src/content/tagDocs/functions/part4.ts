@@ -81,7 +81,7 @@ export const TAG_DOC_FUNCTIONS_PART4: Array<TagDocFunction> = [
     names: ['music.control'],
     category: 'network',
     summary: 'Pauses, resumes, skips or sets the volume of the music playing in the server. Only NotSoAI can use this.',
-    description: 'Follows the same rules as the music commands: the person has to be in the voice channel the music is playing in, with DJ mode on it needs Manage Server or the DJ role, and with the server\'s vote skip, pause or resume on, it counts as their vote. Outputs `true` when it happened, `false` when it was already paused or playing, or `voted 1/3` when more votes are needed.',
+    description: 'Follows the same rules as the music commands: the person has to be in the voice channel the music is playing in, and with DJ mode on (or the server\'s vote skip, pause or resume on) it counts as their vote unless they\'re a DJ (Manage Server, the DJ role, or Manage Channel on that voice channel). Outputs `true` when it happened, `false` when it was already paused or playing, or `voted 1/3` when more votes are needed.',
     syntax: '{music.control:action|value?}',
     args: [
       {name: 'action', description: '`pause`, `resume`, `skip` or `volume`.'},

@@ -162,8 +162,8 @@ export const MEDIASCRIPT_SPANISH_2: TagDocsTranslation['mediaScriptCommands'] = 
     ],
     notes: [
       'El texto de más de 4096 caracteres se corta. Mira la sección de Klattsch para la voz de fonemas `KLATTSCH`.',
-      'Con NotSoPremium puedes usar tus propias voces clonadas (de `tts voice create` o `/tts voice create`): `VOICE="my voice"` por nombre (sin importar mayúsculas) o ID, o `VOICE=CLONED` para la más reciente. Siempre son las voces de quien ejecuta el script, y una voz integrada tiene prioridad sobre una voz clonada con el mismo nombre.',
-      'Sin `VOICE`, usa la voz de TTS por defecto de quien ejecuta el script (`/settings set tts-voice`, o la sección de texto a voz de los ajustes de tu panel), o `TIKTOK_EN_US_FEMALE_01` si no ha elegido ninguna. Una voz clonada por defecto necesita NotSoPremium; sin él se usa la alternativa.',
+      'Puedes usar tus propias voces clonadas (de `tts voice create` o `/tts voice create`): `VOICE="my voice"` por nombre (sin importar mayúsculas) o ID, o `VOICE=CLONED` para la más reciente. Siempre son las voces de quien ejecuta el script, y una voz integrada tiene prioridad sobre una voz clonada con el mismo nombre.',
+      'Sin `VOICE`, usa la voz de TTS por defecto de quien ejecuta el script (`/settings set tts-voice`, o la sección de texto a voz de los ajustes de tu panel), o `TIKTOK_EN_US_FEMALE_01` si no ha elegido ninguna. Una voz clonada por defecto que se borró usa la alternativa igual. Las voces clonadas en nuestros propios servidores son gratis, las de fish.audio y ElevenLabs gastan NotSoCredits.',
     ],
   },
   createaudionoise: {

@@ -22,8 +22,9 @@ import {
   CREDITS_WEEKLY_SERVER_AI_SLOT,
   CREDITS_WEEKLY_SERVER_TTS_SLOT,
   MAX_SERVER_VOICE_CLONES,
+  MAX_SERVER_VOICE_CLONES_FREE,
   MAX_SERVER_VOICE_CLONES_MAX,
-  MAX_VOICE_CLONES_CREDITS,
+  MAX_VOICE_CLONES_FREE,
   MAX_VOICE_CLONES_PLUS,
   MAX_VOICE_CLONES_MAX,
   SERVER_AI_MESSAGES_PER_SLOT,
@@ -119,8 +120,8 @@ const COMPARISON: Array<ComparisonGroup> = [
       {label: 'premium.row.custom_commands', values: [false, true, true, true]},
       {label: 'premium.row.saved_fonts', values: [false, String(MAX_SAVED_FONTS_USER), String(MAX_SAVED_FONTS_USER), String(MAX_SAVED_FONTS_USER)]},
       {label: 'premium.row.server_slots', values: [false, false, '2', '2']},
-      // without plus, bought credits clone a few
-      {label: 'premium.row.voice_clones', values: ['premium.value.voices_with_credits', 'premium.value.voices_with_credits', String(MAX_VOICE_CLONES_PLUS), String(MAX_VOICE_CLONES_MAX)]},
+      // anyone can clone a few, plus and max more
+      {label: 'premium.row.voice_clones', values: [String(MAX_VOICE_CLONES_FREE), String(MAX_VOICE_CLONES_FREE), String(MAX_VOICE_CLONES_PLUS), String(MAX_VOICE_CLONES_MAX)]},
     ],
   },
   {
@@ -212,8 +213,8 @@ const SERVER_COMPARISON: Array<ComparisonGroup> = [
     rows: [
       // only Max slots give NotSoAI weekly credits, otherwise it's the credits members give it
       {label: 'premium.row.notsoai', values: ['premium.value.credit_packs', 'premium.value.credit_packs', 'premium.value.weekly_credits']},
-      // without a slot, credits given to it let it have the api's `MAX_VOICE_CLONE_AMOUNT_CREDITS`
-      {label: 'premium.row.server_voices', values: ['premium.value.voices_with_credits', String(MAX_SERVER_VOICE_CLONES), String(MAX_SERVER_VOICE_CLONES_MAX)]},
+      // any server can have the api's `MAX_SERVER_VOICE_CLONE_AMOUNT_FREE`
+      {label: 'premium.row.server_voices', values: [String(MAX_SERVER_VOICE_CLONES_FREE), String(MAX_SERVER_VOICE_CLONES), String(MAX_SERVER_VOICE_CLONES_MAX)]},
       // `CREDITS_WEEKLY_SERVER_AI_SLOT` (Max only) and `CREDITS_WEEKLY_SERVER_TTS_SLOT` (every slot), each its own
       // week that only buys its own thing, so what they buy adds up (`+`) instead of the tiers' `or`
       {label: 'premium.row.weekly_credits', values: [
@@ -247,7 +248,6 @@ function creditVariables() {
     slot_credits_label: creditsLabel(CREDITS_WEEKLY_SERVER_AI_SLOT),
     server_voice_minutes: formatNumber(Math.round(creditsToSpeechHours(CREDITS_WEEKLY_SERVER_TTS_SLOT) * 60)),
     server_voices: formatNumber(MAX_SERVER_VOICE_CLONES),
-    voices_credits: formatNumber(MAX_VOICE_CLONES_CREDITS),
     voices_plus: formatNumber(MAX_VOICE_CLONES_PLUS),
     voices_max: formatNumber(MAX_VOICE_CLONES_MAX),
     slot_messages: formatNumber(SERVER_AI_MESSAGES_PER_SLOT),

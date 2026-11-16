@@ -19,11 +19,12 @@ export const CREDITS_WEEKLY_SERVER_AI_SLOT = 25_000;
 // what every Plus (or Max) slot adds for the server's own cloned voices only
 export const CREDITS_WEEKLY_SERVER_TTS_SLOT = 7_500;
 
-// the api's `MAX_VOICE_CLONE_AMOUNT`, `MAX_VOICE_CLONE_AMOUNT_PREMIUM_MAX` and `MAX_SERVER_VOICE_CLONE_AMOUNT`, and
-// `MAX_VOICE_CLONE_AMOUNT_CREDITS` for anyone (or any server) without plus that has bought credits
-export const MAX_VOICE_CLONES_CREDITS = 2;
+// the api's `MAX_VOICE_CLONE_AMOUNT_FREE`, `MAX_VOICE_CLONE_AMOUNT`, `MAX_VOICE_CLONE_AMOUNT_PREMIUM_MAX` and
+// `MAX_SERVER_VOICE_CLONE_AMOUNT(_FREE)`. Anyone can clone (ZONOS3, free), premium gets more
+export const MAX_VOICE_CLONES_FREE = 2;
 export const MAX_VOICE_CLONES_PLUS = 5;
 export const MAX_VOICE_CLONES_MAX = 10;
+export const MAX_SERVER_VOICE_CLONES_FREE = 2;
 export const MAX_SERVER_VOICE_CLONES = 5;
 // the api's `MAX_SERVER_VOICE_CLONE_AMOUNT_PREMIUM_MAX`, a server with a Max member's slot
 export const MAX_SERVER_VOICE_CLONES_MAX = 10;

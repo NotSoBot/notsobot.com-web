@@ -206,7 +206,7 @@ export const Dashboard: Record<keyof typeof English, string> = {
   'dcredits.bought': 'Comprados',
   'dcredits.bought_hint': 'Se usan cuando se acaban los de esta semana, nunca caducan',
   'dcredits.bought_hint_no_weekly': 'Nunca caducan. Plus y Max también reciben créditos cada semana.',
-  'dcredits.costs': 'Un mensaje de NotSoAI cuesta {ai} créditos y una voz clonada alrededor de {tts} por letra.',
+  'dcredits.costs': 'Un mensaje de NotSoAI cuesta {ai} créditos y una voz de fish.audio alrededor de {tts} por letra. Las voces clonadas en nuestros propios servidores son gratis.',
   'dcredits.recent': 'Recientes',
   'dcredits.type.refill': 'Compraste {amount}',
   'dcredits.type.give': 'Diste {amount} al servidor {server}',

@@ -204,7 +204,7 @@ export const Dashboard = {
   'dcredits.bought': 'Bought',
   'dcredits.bought_hint': 'Used once this week’s run out, they never expire',
   'dcredits.bought_hint_no_weekly': 'They never expire. Plus and Max also get credits every week.',
-  'dcredits.costs': 'A NotSoAI message costs {ai} credits and a cloned voice about {tts} per letter.',
+  'dcredits.costs': 'A NotSoAI message costs {ai} credits and a fish.audio voice about {tts} per letter. Voices cloned on our own servers are free.',
   'dcredits.recent': 'Recent',
   'dcredits.type.refill': 'Bought {amount}',
   'dcredits.type.give': 'Gave {amount} to server {server}',

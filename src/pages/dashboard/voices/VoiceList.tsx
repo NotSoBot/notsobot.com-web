@@ -37,9 +37,10 @@ function formatDuration(ms: number): string {
 }
 
 
-// Cloned voices and the clips they're made from: the caller's own (`guildId` null, their premium plus or bought credits
-// add audio) or a server's (through `GuildScopeContext`): anyone in it listens to them, `editable` renames, moves and
-// deletes them, and adding audio also needs the server's premium plus (or credits given to it)
+// Cloned voices and the clips they're made from: the caller's own (`guildId` null) or a server's (through
+// `GuildScopeContext`): anyone in it listens to them, `editable` renames, moves, deletes and adds audio to them. Adding
+// audio to a paid platform's voice (fish.audio, ElevenLabs) also needs `premium` (plus or bought credits, a server's plus
+// slot or credits given to it), ZONOS3 ones anyone can change
 export function VoiceList({ guildId, editable = true }: {guildId: string | null, editable?: boolean}) {
   const { t, rich, plural } = useI18n();
   const toast = useToast();
@@ -53,7 +54,11 @@ export function VoiceList({ guildId, editable = true }: {guildId: string | null,
   const [ deleting, setDeleting ] = useState<MeVoice | null>(null);
   const [ transferring, setTransferring ] = useState<MeVoice | null>(null);
   const items: Array<MeVoice & {created_by?: GuildContentUser | null}> = data?.items ?? [];
-  const canUpload = editable && !!data?.premium;
+  // only voices on a paid platform need credits to change, ZONOS3 ones (on our own servers) are free
+  const canUploadTo = (voice: MeVoice) => editable && (voice.platform_type === VoiceCloneTypes.ZONOS3 || !!data?.premium);
+  const lockedPaid = editable && !data?.premium && items.some((voice) => voice.platform_type !== VoiceCloneTypes.ZONOS3);
+  // a ZONOS3 voice moves to fish.audio (needs `premium`), a fish.audio or ElevenLabs one back to ZONOS3 (always free)
+  const moveTarget = (voice: MeVoice) => (voice.platform_type === VoiceCloneTypes.ZONOS3) ? VoiceCloneTypes.FISH_AUDIO : VoiceCloneTypes.ZONOS3;
   const code = (chunk: ReactNode) => <code className='text-fg'>{chunk}</code>;
   const premiumLink = (chunk: ReactNode) => <Link to={Routes.DASHBOARD_PREMIUM} className='text-code hover:underline'>{chunk}</Link>;
 
@@ -73,7 +78,7 @@ export function VoiceList({ guildId, editable = true }: {guildId: string | null,
         </EmptyState>
       ) : (
         <>
-          {(editable && !canUpload) ? (
+          {(lockedPaid) ? (
             <p className='mb-3 text-sm text-muted'>
               {rich((guildId) ? 'voices.server_needs_plus' : 'voices.needs_plus', {link: premiumLink})}
             </p>
@@ -86,12 +91,14 @@ export function VoiceList({ guildId, editable = true }: {guildId: string | null,
                 voice={voice}
                 creator={voice.created_by}
                 editable={editable}
-                canUpload={canUpload}
+                canUpload={canUploadTo(voice)}
                 onRename={() => setRenaming(voice)}
-                onTransfer={(voice.platform_type !== VoiceCloneTypes.ZONOS3) ? () => {
+                moveTarget={moveTarget(voice)}
+                canMove={moveTarget(voice) === VoiceCloneTypes.ZONOS3 || !!data?.premium}
+                onTransfer={() => {
                   transfer.reset();
                   setTransferring(voice);
-                } : undefined}
+                }}
                 onDelete={() => {
                   remove.reset();
                   setDeleting(voice);
@@ -106,16 +113,17 @@ export function VoiceList({ guildId, editable = true }: {guildId: string | null,
 
       {(transferring) ? (
         <ConfirmDialog
-          title={t('voices.move_title', {name: transferring.name})}
-          description={plural('voices.move_description', transferring.clips.length, {platform: voicePlatformLabel(transferring.platform_type)})}
+          title={t('voices.move_title', {name: transferring.name, target: voicePlatformLabel(moveTarget(transferring))})}
+          description={plural((moveTarget(transferring) === VoiceCloneTypes.FISH_AUDIO) ? 'voices.move_fish_description' : 'voices.move_description', transferring.clips.length, {platform: voicePlatformLabel(transferring.platform_type)})}
           confirmLabel={t('voices.move')}
           tone='primary'
           pending={transfer.isPending}
           error={(transfer.isError) ? errorMessage(transfer.error, t('voices.move_error')) : null}
           onConfirm={() => {
-            transfer.mutate({voiceId: transferring.id, platformType: VoiceCloneTypes.ZONOS3}, {
+            const target = moveTarget(transferring);
+            transfer.mutate({voiceId: transferring.id, platformType: target}, {
               onSuccess: (voice) => {
-                toast(t('voices.moved', {name: voice.name}));
+                toast(t('voices.moved', {name: voice.name, target: voicePlatformLabel(target)}));
                 setTransferring(null);
               },
             });
@@ -153,14 +161,17 @@ export function VoiceList({ guildId, editable = true }: {guildId: string | null,
 }
 
 
-// `onTransfer` only for voices that can be moved to ZONOS3 (the ElevenLabs and fish.audio ones). A server's voice shows who made it (`creator`), and sits
-// in the server page's panel instead of being a card of its own
-function VoiceCard({ guildId, voice, creator, editable, canUpload, onRename, onTransfer, onDelete }: {
+// `onTransfer` moves it to `moveTarget` (fish.audio for a ZONOS3 voice, ZONOS3 for the rest), disabled without `canMove`
+// (fish.audio needs credits). A server's voice shows who made it (`creator`), and sits in the server page's panel instead
+// of being a card of its own
+function VoiceCard({ guildId, voice, creator, editable, canUpload, canMove, moveTarget, onRename, onTransfer, onDelete }: {
   guildId: string | null,
   voice: MeVoice,
   creator?: GuildContentUser | null,
   editable: boolean,
   canUpload: boolean,
+  canMove: boolean,
+  moveTarget: number,
   onRename: () => void,
   onTransfer?: () => void,
   onDelete: () => void,
@@ -249,13 +260,13 @@ function VoiceCard({ guildId, voice, creator, editable, canUpload, onRename, onT
               <button
                 type='button'
                 className='btn btn-sm btn-secondary'
-                disabled={upload.isPending || !voice.clips.length}
-                aria-label={t('voices.move_label', {name: voice.name})}
-                title={t((voice.clips.length) ? 'voices.move_hint' : 'voices.move_needs_clips')}
+                disabled={upload.isPending || !voice.clips.length || !canMove}
+                aria-label={t('voices.move_label', {name: voice.name, target: voicePlatformLabel(moveTarget)})}
+                title={(!voice.clips.length) ? t('voices.move_needs_clips') : (!canMove) ? t('voices.move_needs_credits') : t('voices.move_hint', {target: voicePlatformLabel(moveTarget)})}
                 onClick={onTransfer}
               >
                 <Server className='size-4'/>
-                <span className='hidden sm:inline'>{t('voices.move_button')}</span>
+                <span className='hidden sm:inline'>{t('voices.move_button', {target: voicePlatformLabel(moveTarget)})}</span>
               </button>
             ) : null}
             <button type='button' className='btn btn-sm btn-danger' disabled={upload.isPending} aria-label={t('voices.delete_label', {name: voice.name})} onClick={onDelete}>

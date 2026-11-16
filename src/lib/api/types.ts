@@ -929,7 +929,8 @@ export interface GuildMusic {
   // seconds the end of a song fades into the next (0 off, up to 12), only with `premium` (kept without it)
   crossfade: number,
   current: GuildMusicQueueItem | null,
-  // DJ mode (on by default): controlling the music in Discord needs Manage Server or the DJ role, with no votes;
+  // DJ mode (on by default): controlling the music in Discord needs a DJ (Manage Server, the DJ role, or Manage
+  // Channel on the bot's voice channel), everyone else votes to skip, pause or resume (the vote_* settings are ignored);
   // anyone can still add songs
   dj_only: boolean,
   // the role that makes people DJs, null for roles with "NotSoMusic" in their name
@@ -991,7 +992,8 @@ export interface GuildMusic {
   // 24/7 (on by default): the bot stays in voice when the queue runs out or it's paused. Only does anything with
   // `premium`, kept for when it comes back
   stay: boolean,
-  // without DJ mode, skipping/pausing/resuming someone else's song in Discord is a vote (half of who's listening)
+  // without DJ mode, skipping/pausing/resuming someone else's song in Discord is a vote (half of who's listening). With
+  // DJ mode on it's always a vote for everyone but DJs, their own songs too
   vote_pause: boolean,
   vote_resume: boolean,
   vote_skip: boolean,
@@ -1148,7 +1150,7 @@ export interface MeVoice extends Voice {
 export interface VoicesPage {
   count: number,
   items: Array<MeVoice>,
-  // premium plus or bought NotSoCredits, needed to add audio to them
+  // premium plus or bought NotSoCredits, needed to add audio to their fish.audio and ElevenLabs voices (ZONOS3 ones never)
   premium: boolean,
 }
 
@@ -1161,11 +1163,10 @@ export interface GuildVoice extends MeVoice {
 export interface GuildVoicesPage {
   count: number,
   items: Array<GuildVoice>,
-  // the api's `MAX_SERVER_VOICE_CLONE_AMOUNT` (`MAX_VOICE_CLONE_AMOUNT_CREDITS` with only given credits), bot owners
-  // aren't held to it
+  // the api's `server_voice_limit` (2 for any server, 5 with a plus slot, 10 with a max one), bot owners aren't held to it
   limit: number,
   // a member's premium plus slot, NotSoCredits given to it (or the staff-given `VOICE_CLONE_ACCESS`), needed to add
-  // audio to them
+  // audio to its fish.audio and ElevenLabs voices (ZONOS3 ones never)
   premium: boolean,
 }
 
