@@ -5748,6 +5748,17 @@ function mockGuildCredits(guildId: string) {
     {amount: 50_000, created: new Date(Date.now() - 9 * 86400000).toISOString(), entitlement_id: null, id: '1320000000000000801', server_id: guildId, type: CreditTransactionTypes.GIVE, user: member(mockUser), user_id: mockUser.id},
   ] : [];
   const slots = (state.premiumServers.some((server) => server.server_id === guildId)) ? {ai: 1, plus: 1} : {ai: 0, plus: 0};
+  // the mock user's own slots on it, plus a lapsed giver's on the first guild (kept, gives nothing)
+  const premiumSlots = state.premiumServers.filter((server) => server.server_id === guildId).map((server) => ({
+    created: server.created,
+    removable_at: new Date(new Date(server.created).getTime() + 24 * 60 * 60 * 1000).toISOString(),
+    slots: server.slots,
+    tier: 'premium_plus',
+    user: member(mockUser),
+  }));
+  if (guildId === guilds[0].summary.id) {
+    premiumSlots.unshift({created: new Date(Date.now() - 40 * 86400000).toISOString(), removable_at: new Date(Date.now() - 39 * 86400000).toISOString(), slots: 1, tier: null as unknown as string, user: member(giver)});
+  }
   return {
     ai_message: 75,
     balance: {
@@ -5760,6 +5771,7 @@ function mockGuildCredits(guildId: string) {
       weekly_left: (slots.ai) ? 4_650 : 0,
     },
     free: {ai: false, voices: false},
+    premium_slots: premiumSlots,
     slots,
     transactions,
     tts_byte: 4,

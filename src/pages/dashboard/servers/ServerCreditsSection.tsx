@@ -9,6 +9,7 @@ import { CREDITS_WEEKLY_SERVER_AI_SLOT, CREDITS_WEEKLY_SERVER_TTS_SLOT } from '@
 import { cn, formatDate, formatExactDateTime, formatNumber } from '@/lib/utils';
 
 import { StatTile } from '../admin/adminUi';
+import { premiumTierLabel } from '../premium';
 import { EmptyState, Panel, Skeleton } from '../ui';
 import { Owner } from './GuildTagsSection';
 
@@ -80,6 +81,8 @@ function CreditsDetails({ credits }: {credits: GuildCredits}) {
 
       <p className='text-xs text-subtle'>{t('dcredits.costs', {ai: formatNumber(credits.ai_message), tts: formatNumber(credits.tts_byte)})}</p>
 
+      <PremiumSlots credits={credits}/>
+
       <div>
         <h3 className='section-label mb-2'>{t('scredits.gifts')}</h3>
         {(credits.transactions.length) ? (
@@ -103,6 +106,41 @@ function CreditsDetails({ credits }: {credits: GuildCredits}) {
           <EmptyState title={t('scredits.gifts_empty')}>{rich('scredits.gifts_empty_description', {code: (chunk) => <code className='text-fg'>{chunk}</code>})}</EmptyState>
         )}
       </div>
+    </div>
+  );
+}
+
+
+// who gave the server their premium server slots, any member sees them like the credits people gave it
+function PremiumSlots({ credits }: {credits: GuildCredits}) {
+  const { t, rich, plural } = useI18n();
+  const now = Date.now();
+  return (
+    <div>
+      <h3 className='section-label mb-2'>{t('scredits.premium_slots')}</h3>
+      {(credits.premium_slots.length) ? (
+        <ul className='divide-y divide-line rounded-md border border-line'>
+          {credits.premium_slots.map((slot) => {
+            const locked = now < new Date(slot.removable_at).getTime();
+            return (
+              <li key={slot.user.id} className='flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-3 py-2 text-sm'>
+                <span className='flex min-w-0 items-center gap-1.5'>
+                  <Owner user={slot.user}/>
+                  <span className={(slot.tier) ? 'text-fg' : 'text-subtle'}>
+                    {(slot.tier) ? plural('scredits.slot_count', slot.slots, {tier: premiumTierLabel(slot.tier)}) : t('scredits.slot_inactive')}
+                  </span>
+                </span>
+                <span className='shrink-0 text-xs text-subtle'>
+                  <span title={formatExactDateTime(slot.created)}>{t('scredits.slot_added', {date: formatDate(slot.created)})}</span>
+                  {(locked) ? <span title={formatExactDateTime(slot.removable_at)}> • {t('scredits.slot_locked', {date: formatDate(slot.removable_at)})}</span> : null}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <EmptyState title={t('scredits.slots_empty')}>{rich('scredits.slots_empty_description', {code: (chunk) => <code className='text-fg'>{chunk}</code>})}</EmptyState>
+      )}
     </div>
   );
 }

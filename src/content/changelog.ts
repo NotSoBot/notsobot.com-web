@@ -35,6 +35,7 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'new', text: 'The website\'s **FAQ** has a **Limits** section: how many tags, reminders, prefixes, rules, loggers, warnings and other server settings you can have. Premium doesn\'t change these.'},
       {kind: 'improved', text: 'Premium server slots stack for a server\'s cloned voices and saved fonts: every Plus slot on it adds 5 voices and 25 fonts, every Max slot 10 voices and 50 fonts, up to 50 voices and 100 fonts. One slot gives the same as before.'},
       {kind: 'improved', text: '`tts voice list` and your dashboard\'s **Voices** page show how many voices you have of how many you can clone.'},
+      {kind: 'new', text: 'A server\'s **Credits** page on the dashboard shows who gave it their premium server slots, their tier and when the slot can be moved, for anyone in the server.'},
     ],
   },
   {

@@ -2697,6 +2697,9 @@ export interface GuildCredits {
   },
   // staff-given features that make NotSoAI (`AI_ACCESS`) or its own voices (`VOICE_CLONE_ACCESS`) free there
   free: {ai: boolean, voices: boolean},
+  // who gave it their premium server slots, oldest first. `tier` is null once their Plus or Max ran out (the slot stays
+  // but gives nothing until it's back), `removable_at` is when they can move it
+  premium_slots: Array<{created: string, removable_at: string, slots: number, tier: string | null, user: GuildContentUser}>,
   // premium server slots on it from members with Max (25k a week each for NotSoAI), and with Plus or Max
   // (7.5k a week each for its voices)
   slots: {ai: number, plus: number},

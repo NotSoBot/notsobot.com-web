@@ -36,6 +36,17 @@ export function premiumLabel(premiumType: number): string {
   return translate(LABELS[premiumType] ?? 'premium_type.free');
 }
 
+// the api names tiers `premium`, `premium_plus` and `premium_max` (limits, premium slots), anything else is free
+const TIER_TYPES: Record<string, number> = {
+  premium: UserPremiumTypes.PREMIUM,
+  premium_plus: UserPremiumTypes.PREMIUM_PLUS,
+  premium_max: UserPremiumTypes.PREMIUM_MAX,
+};
+
+export function premiumTierLabel(tier: string | null): string {
+  return premiumLabel((tier && TIER_TYPES[tier]) || UserPremiumTypes.NONE);
+}
+
 
 // the tiers an entitlement can give (PREMIUM_FREE has no sku, it's only ever set by hand)
 export const ENTITLEMENT_TIERS: ReadonlyArray<{value: number, label: string}> = [

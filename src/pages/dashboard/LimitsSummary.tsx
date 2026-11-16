@@ -5,24 +5,14 @@
 import { Gauge } from 'lucide-react';
 
 import { useI18n } from '@/i18n';
-import { UserPremiumTypes, type LimitCount, type LimitsSummary as Limits, type UserGuild } from '@/lib/api';
+import { type LimitCount, type LimitsSummary as Limits, type UserGuild } from '@/lib/api';
 import { errorMessage, useGuildLimitsQuery, useMeLimitsQuery } from '@/lib/api/dashboardQueries';
 import { formatMemory, formatNumber } from '@/lib/utils';
 
 import { StatTile } from './admin/adminUi';
-import { premiumLabel } from './premium';
+import { premiumTierLabel as tierLabel } from './premium';
 import { ErrorPanel, Panel, Skeleton } from './ui';
 
-
-const TIER_TYPES: Record<string, number> = {
-  premium: UserPremiumTypes.PREMIUM,
-  premium_plus: UserPremiumTypes.PREMIUM_PLUS,
-  premium_max: UserPremiumTypes.PREMIUM_MAX,
-};
-
-function tierLabel(tier: string | null): string {
-  return premiumLabel((tier && TIER_TYPES[tier]) || UserPremiumTypes.NONE);
-}
 
 function LimitsGrid({ limits }: {limits: Limits}) {
   const { t } = useI18n();
