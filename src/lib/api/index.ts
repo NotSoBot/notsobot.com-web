@@ -61,8 +61,10 @@ import type {
   ProxyReveal,
   ContentFlag,
   ContentFlagAutoReviewFilter,
+  ContentFlagKeptFrames,
   ContentFlagMatches,
   ContentFlagPatch,
+  ContentFlagSuggestionsAccepted,
   ContentFlagType,
   ContentFlagsPage,
   CommandStat,
@@ -1271,6 +1273,10 @@ export const api = {
     return apiRequest<JobResponse>(ApiEndpoints.ADMIN_CONTENT_FLAG_MEDIA(flagId), {method: 'POST', signal});
   },
 
+  fetchAdminContentFlagFrames: (flagId: string, signal?: AbortSignal) => {
+    return apiRequest<ContentFlagKeptFrames>(ApiEndpoints.ADMIN_CONTENT_FLAG_FRAMES(flagId), {signal});
+  },
+
   fetchJob: (jobId: string, signal?: AbortSignal) => {
     return apiRequest<JobResponse>(ApiEndpoints.JOB(jobId), {signal});
   },
@@ -1296,6 +1302,11 @@ export const api = {
 
   translateAdminContentFlag: (flagId: string) => {
     return apiRequest<ContentFlag>(ApiEndpoints.ADMIN_CONTENT_FLAG_TRANSLATE(flagId), {method: 'POST'});
+  },
+
+  // accepts the model's confirm/dismiss suggestions on these pending flags (and their same-content copies)
+  acceptAdminContentFlagSuggestions: (flagIds: Array<string>) => {
+    return apiRequest<ContentFlagSuggestionsAccepted>(ApiEndpoints.ADMIN_CONTENT_FLAGS_ACCEPT_SUGGESTIONS, {method: 'POST', body: {flag_ids: flagIds}});
   },
 
   fetchAdminReports: (params: {

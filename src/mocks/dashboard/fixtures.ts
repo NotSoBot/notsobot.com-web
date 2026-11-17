@@ -460,6 +460,8 @@ export function createContentFlags(users: Array<AdminUser>): Array<ContentFlag> 
       flagged_for_review: (category.startsWith('review')) ? flagged : [],
       frames,
       frames_flagged: (text) ? [] : (video) ? [2, 3, 7].filter((frame) => frame < frames) : [0],
+      // most pending media flags, never child safety or `needs_human_review` ones (the model review never sees those)
+      frames_kept: !text && status === 0 && !needsReview && !category.includes('child_safety') && i % 3 !== 2,
       // most from the support server, the rest spread over some of the admin list's servers
       guild_id: (i % 5) ? ((i % 3) ? '1100000000000000001' : adminGuildId([2, 5, 9, 14][(i % 5) - 1])) : null,
       id: String(9000 + 64 - i),

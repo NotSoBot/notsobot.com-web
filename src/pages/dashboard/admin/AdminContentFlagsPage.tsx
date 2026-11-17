@@ -32,8 +32,8 @@ import {
   type ContentFlagStatus,
   type ContentFlagType,
 } from '@/lib/api';
-import { ADMIN_CONTENT_FLAGS_PAGE_SIZE, errorMessage, useAdminContentFlagQuery, useAdminContentFlagsQuery, useFetchContentFlagMatches, useFlagAdminContentFlagPromptMutation, usePatchAdminContentFlagMutation, usePatchAdminUserMutation, useTranslateAdminContentFlagMutation } from '@/lib/api/dashboardQueries';
-import { cn, formatDateTime, formatMemory, NO_AUTOFILL } from '@/lib/utils';
+import { ADMIN_CONTENT_FLAGS_PAGE_SIZE, errorMessage, useAcceptContentFlagSuggestionsMutation, useAdminContentFlagQuery, useAdminContentFlagsQuery, useFetchContentFlagMatches, useFlagAdminContentFlagPromptMutation, usePatchAdminContentFlagMutation, usePatchAdminUserMutation, useTranslateAdminContentFlagMutation } from '@/lib/api/dashboardQueries';
+import { cn, formatDateTime, formatMemory, formatUptime, NO_AUTOFILL } from '@/lib/utils';
 
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton, Toggle } from '../ui';
 import { AdminModalFooter, AdminTagModal, LinkedItemModal, useOpenListItem } from './AdminTagModal';
@@ -83,8 +83,75 @@ function autoReviewChip(review: ContentFlagAutoReview | null | undefined, key?: 
   if (review.error) {
     return <Chip key={key} title={`Haiku couldn’t review this: ${review.error}`}>haiku: failed</Chip>;
   }
-  const label = `haiku: ${review.decision}${(review.applied) ? '' : ' (suggested)'}`;
-  return <Chip key={key} tone={AUTO_REVIEW_DECISION_TONES[review.decision ?? ''] ?? 'neutral'} title={review.reason}>{label}</Chip>;
+  const suffix = (review.overturned) ? ' (overturned)' : (review.applied) ? '' : ' (suggested)';
+  const title = (review.propagated_from) ? `${review.reason ?? ''} (copied from #${review.propagated_from}, same content)` : review.reason;
+  return <Chip key={key} tone={AUTO_REVIEW_DECISION_TONES[review.decision ?? ''] ?? 'neutral'} title={title}>{`haiku: ${review.decision}${suffix}`}</Chip>;
+}
+
+// a pending flag with a confirm/dismiss suggestion a person can accept as it is
+function hasAcceptableSuggestion(flag: ContentFlag): boolean {
+  const review = flag.auto_review;
+  return flag.status === ContentFlagStatuses.PENDING && !!review && !review.error && !review.applied &&
+    (review.decision === 'confirm' || review.decision === 'dismiss');
+}
+
+function countLabel(count: number, word: string): string {
+  return `${count.toLocaleString()} ${word}${(count === 1) ? '' : 's'}`;
+}
+
+// above the list on the "Haiku: suggestion only" filter: accepts every confirm/dismiss suggestion on the page at once
+function AcceptSuggestionsBar({ flags }: {flags: Array<ContentFlag>}) {
+  const titleId = useId();
+  const toast = useToast();
+  const accept = useAcceptContentFlagSuggestionsMutation();
+  const [ confirming, setConfirming ] = useState(false);
+  const acceptable = flags.filter(hasAcceptableSuggestion);
+  if (!acceptable.length) {
+    return null;
+  }
+  const dismissals = acceptable.filter((flag) => flag.auto_review?.decision === 'dismiss').length;
+  const summary = [
+    (dismissals) ? countLabel(dismissals, 'dismissal') : null,
+    (acceptable.length - dismissals) ? countLabel(acceptable.length - dismissals, 'confirmation') : null,
+  ].filter(Boolean).join(' • ');
+
+  return (
+    <>
+      <div className='card mb-4 flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm'>
+        <span className='text-muted'>Haiku suggests {summary} on this page</span>
+        <button type='button' className='btn btn-secondary' disabled={accept.isPending} onClick={() => setConfirming(true)}>
+          {(accept.isPending) ? <Spinner/> : null}
+          Accept suggestions
+        </button>
+      </div>
+      {(confirming) ? (
+        <Modal labelledBy={titleId} onClose={() => setConfirming(false)} className='max-w-lg'>
+          <div className='p-5 sm:p-6'>
+            <h2 id={titleId} className='pr-10 text-lg font-semibold text-white'>Accept Haiku’s suggestions?</h2>
+            <p className='mt-2 text-sm text-muted'>
+              {summary} on this page get the status Haiku suggested, reviewed by you. Pending flags with the same content get it too.
+              Escalations and failed reviews are left alone.
+            </p>
+            <div className='mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
+              <button type='button' className='btn btn-secondary' onClick={() => setConfirming(false)}>Cancel</button>
+              <button
+                type='button'
+                className='btn btn-primary'
+                disabled={accept.isPending}
+                onClick={() => accept.mutate({flagIds: acceptable.map((flag) => flag.id)}, {
+                  onSuccess: ({ count }) => toast(`Accepted ${countLabel(count, 'suggestion')}`),
+                  onError: (error) => toast(errorMessage(error), 'error'),
+                  onSettled: () => setConfirming(false),
+                })}
+              >
+                Accept {countLabel(acceptable.length, 'flag')}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      ) : null}
+    </>
+  );
 }
 
 // a media flag's query section heading, older flags without a `query_type` keep 'Query'
@@ -310,7 +377,7 @@ export function AdminContentFlagsPage() {
           className='min-w-0 flex-1'
           value={search}
           onValueChange={(value) => update({q: value})}
-          placeholder='Search by case #, message id, tag id, command, text, prompt, url or hash...'
+          placeholder='Search by case #, user, server, channel, message or tag id, command, text, url or hash...'
           aria-label='Search content flags'
         />
         <FiltersButton open={filtersOpen} onToggle={() => setFiltersOpen((value) => !value)} active={activeFilters} controls='admin-content-flag-filters'/>
@@ -408,6 +475,7 @@ export function AdminContentFlagsPage() {
         </EmptyState>
       ) : (
         <>
+          {(auto === 'suggested') ? <AcceptSuggestionsBar flags={items}/> : null}
           <Pagination {...pagination} className='mt-0 mb-4'/>
           <ul className={cn('card divide-y divide-line transition-opacity', isPlaceholderData && 'opacity-60')}>
             {items.map((flag) => <ContentFlagRow key={flag.id} flag={flag} onOpen={open}/>)}
@@ -615,6 +683,8 @@ function ContentFlagDetails({ flag, onReport, navigation }: {
   const [ flaggingPrompt, setFlaggingPrompt ] = useState(false);
   // set while the media viewer is open
   const [ viewingMedia, setViewingMedia ] = useState(false);
+  // set while the kept frames viewer is open
+  const [ viewingFrames, setViewingFrames ] = useState(false);
   const pendingStatus = (mutation.isPending) ? mutation.variables?.patch.status : checkingMatches ?? undefined;
   const savingNotes = mutation.isPending && mutation.variables?.patch.notes !== undefined;
 
@@ -869,6 +939,21 @@ function ContentFlagDetails({ flag, onReport, navigation }: {
           </div>
         ) : null}
 
+        {(flag.frames_kept && !isText && !isChildSafetyFlag(flag)) ? (
+          <div className='mt-4 flex min-h-8 items-center justify-between gap-2'>
+            <h3 className='section-label'>Flagged frames <span className='normal-case tracking-normal text-subtle'>(kept for review)</span></h3>
+            <button
+              type='button'
+              className='btn btn-ghost btn-sm'
+              title='The frames that were scanned, kept by the API when this was flagged. Shown here blurred, gone once it’s confirmed or dismissed.'
+              onClick={() => setViewingFrames(true)}
+            >
+              <Eye aria-hidden className='size-4'/>
+              Show frames
+            </button>
+          </div>
+        ) : null}
+
         {(scores.length) ? (
           <div className='mt-4'>
             <h3 className='section-label mb-1'>Worst scores</h3>
@@ -981,6 +1066,7 @@ function ContentFlagDetails({ flag, onReport, navigation }: {
       ) : null}
       {(flaggingPrompt) ? <FlagPromptDialog flag={flag} onClose={() => setFlaggingPrompt(false)}/> : null}
       {(viewingMedia) ? <MediaDialog flag={flag} onClose={() => setViewingMedia(false)}/> : null}
+      {(viewingFrames) ? <KeptFramesDialog flag={flag} onClose={() => setViewingFrames(false)}/> : null}
       {(blocking && user) ? (
         <BlockUserDialog
           user={user}
@@ -1348,6 +1434,109 @@ function MediaDialog({ flag, onClose }: {flag: ContentFlag, onClose: () => void}
                     ))}
                   </ul>
                 </section>
+              ) : null}
+            </div>
+          )}
+        </div>
+
+        <div className='mt-6 flex justify-end'>
+          <button type='button' className='btn btn-secondary' onClick={onClose}>Close</button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+
+type KeptFramesState =
+  {status: 'loading'} |
+  {status: 'error', message: string} |
+  {status: 'ready', exact: boolean, expiresIn: number | null, framesTotal: number, frames: Array<MediaFrame>};
+
+// The flag's flagged frames, kept by the api when it was flagged (`GET /admin/content-flags/<id>/frames`): what was
+// actually scanned, for flags whose source url is the command's input or that have none (mediascript). Object urls
+// only live in this dialog, blurred until revealed.
+function KeptFramesDialog({ flag, onClose }: {flag: ContentFlag, onClose: () => void}) {
+  const titleId = useId();
+  const [ state, setState ] = useState<KeptFramesState>({status: 'loading'});
+  const [ revealed, setRevealed ] = useState(false);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const urls: Array<string> = [];
+    api.fetchAdminContentFlagFrames(flag.id, controller.signal).then((kept) => {
+      const frames = kept.frames.map((frame) => {
+        const url = URL.createObjectURL(base64ToBlob(frame.value, frame.mimetype));
+        urls.push(url);
+        return {frame: frame.frame, timestamp: frame.timestamp, url};
+      });
+      setState({status: 'ready', exact: kept.exact, expiresIn: kept.expires_in, framesTotal: kept.frames_total, frames});
+    }).catch((error) => {
+      if (!controller.signal.aborted) {
+        setState({status: 'error', message: errorMessage(error, 'Couldn’t load the frames.')});
+      }
+    });
+    return () => {
+      controller.abort();
+      for (const url of urls) {
+        URL.revokeObjectURL(url);
+      }
+    };
+  }, [flag.id]);
+
+  const frames = (state.status === 'ready') ? state.frames : [];
+  return (
+    <Modal labelledBy={titleId} onClose={onClose} className={(frames.length > 1) ? 'max-w-5xl' : 'max-w-3xl'}>
+      <div className='p-5 sm:p-6'>
+        <h2 id={titleId} className='pr-10 text-lg font-semibold text-white'>Flagged frames of flag #{flag.id}</h2>
+        <p className='mt-1 text-sm text-muted'>
+          Kept by the API when it was flagged, never uploaded.
+          {(state.status === 'ready' && state.expiresIn !== null) ? ` Gone in ${formatUptime(state.expiresIn * 1000)}.` : null}
+        </p>
+
+        {(state.status === 'ready' && !state.exact) ? (
+          <p role='alert' className='mt-3 flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-fg'>
+            <AlertTriangle aria-hidden className='mt-0.5 size-4 shrink-0 text-warning'/>
+            <span>
+              The scores are from the command’s input, which was blocked through the output. These frames are spread over
+              the output, not the ones that were flagged; a filter like invert or a hue shift may hide what the scanner saw.
+            </span>
+          </p>
+        ) : null}
+
+        <div className='mt-4'>
+          {(state.status === 'loading') ? (
+            <div className='flex h-48 items-center justify-center gap-2 rounded-md bg-deep text-sm text-muted'>
+              <Spinner className='size-4'/> Loading frames...
+            </div>
+          ) : (state.status === 'error') ? (
+            <p role='alert' className='rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-fg'>{state.message}</p>
+          ) : (
+            <div className='relative'>
+              <ul className={cn('grid max-h-[65vh] gap-2 overflow-y-auto', (frames.length > 1) && 'sm:grid-cols-2')}>
+                {frames.map((frame) => (
+                  <li key={frame.frame} className='overflow-hidden rounded-md bg-deep'>
+                    <img
+                      src={frame.url}
+                      alt={`Frame ${frame.frame} of flag #${flag.id}`}
+                      className={cn('w-full object-contain transition-[filter]', !revealed && 'pointer-events-none blur-2xl')}
+                    />
+                    {(state.framesTotal > 1) ? (
+                      <p className='px-2 py-1 font-mono text-xs text-muted'>
+                        Frame {frame.frame} of {state.framesTotal}
+                        {(frame.timestamp === null) ? null : ` • ${formatTimestamp(frame.timestamp)}`}
+                      </p>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+              {(!revealed) ? (
+                <div className='absolute inset-0 flex items-center justify-center'>
+                  <button type='button' className='btn btn-secondary' onClick={() => setRevealed(true)}>
+                    <Eye aria-hidden className='size-4'/>
+                    Reveal
+                  </button>
+                </div>
               ) : null}
             </div>
           )}

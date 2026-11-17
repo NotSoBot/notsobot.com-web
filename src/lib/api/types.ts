@@ -1997,23 +1997,32 @@ export const ContentFlagActions = ['blocked', 'replaced', 'logged', 'not_hosted'
 // what a media flag's `query` is: an imagine/edit prompt, or the mediascript code that made the media
 export const ContentFlagQueryTypes = ['prompt', 'mediascript'] as const;
 export type ContentFlagQueryType = (typeof ContentFlagQueryTypes)[number];
-// `GET /admin/content-flags?auto_review=`: the daily model review `applied` the status, only `suggested` one, `failed`
+// `GET /admin/content-flags?auto_review=`: the hourly model review `applied` the status, only `suggested` one, `failed`
 // (no media, fetch failed, refused), or `none` hasn't reviewed it
 export const ContentFlagAutoReviewFilters = ['applied', 'suggested', 'failed', 'none'] as const;
 export type ContentFlagAutoReviewFilter = (typeof ContentFlagAutoReviewFilters)[number];
 
-// the daily model review's verdict, or `error` when it couldn't review the flag. `applied` means it set `status`
+// the hourly model review's verdict, or `error` when it couldn't review the flag. `applied` means it set `status`
 export interface ContentFlagAutoReview {
   applied: boolean,
   categories?: Array<string>,
   confidence?: 'low' | 'medium' | 'high',
   decision?: 'confirm' | 'dismiss' | 'escalate',
   error?: string,
+  // where the media it saw came from: `frames` kept in redis when it was flagged, or `source_url` fetched again. null
+  // for text flags or when it never got that far, missing on reviews from before 2026-11-16
+  media_source?: 'frames' | 'source_url' | null,
   model?: string,
   reason?: string,
   reviewed_at: ApiTimestamp,
-  // whether the media it fetched was the exact file that got flagged, null for text flags or when nothing was fetched
+  // set when a person changed the status the model applied
+  overturned?: {at: ApiTimestamp, by: string, status: ContentFlagStatus},
+  // the flag of the same content the verdict was made for, it was copied to this one
+  propagated_from?: string,
+  // whether the media it saw was the exact file that got flagged, null for text flags or when nothing was fetched
   sha256_match: boolean | null,
+  // the text was too long to send whole, so the verdict was only a suggestion
+  text_truncated?: boolean,
 }
 
 export interface ContentFlag {
@@ -2029,6 +2038,9 @@ export interface ContentFlag {
   flagged_for_review: Array<string> | null,
   frames: number | null,
   frames_flagged: Array<number> | null,
+  // its flagged frames are kept in redis for a while (`GET /admin/content-flags/<id>/frames`): from when it's flagged
+  // until the model review applies a verdict or a reviewer confirms/dismisses it, 7 days at most. Never for child safety
+  frames_kept?: boolean,
   guild_id: string | null,
   id: string,
   message_id: string | null,
@@ -2075,6 +2087,13 @@ export interface ContentFlagsPage {
   items: Array<ContentFlag>,
 }
 
+// `POST /admin/content-flags/accept-suggestions`: the changed flags of the ones sent, `count` includes the copies of
+// the same content accepted with them
+export interface ContentFlagSuggestionsAccepted {
+  count: number,
+  items: Array<ContentFlag>,
+}
+
 export interface ContentFlagPatch {
   status?: ContentFlagStatus,
   notes?: string | null,
@@ -2115,6 +2134,16 @@ export interface JobResponse {
       flagged_frames?: Array<{frame: number, mimetype: string, timestamp: number | null, value: string}>,
     } | null,
   },
+}
+
+// `GET /admin/content-flags/<id>/frames`: the frames kept when it was flagged, the output itself (mediascript flags have
+// no source url, other commands' is their input). `exact` is false when the scores were the input's and these are
+// spread over the output instead of being the flagged ones. `expires_in` is in seconds
+export interface ContentFlagKeptFrames {
+  exact: boolean,
+  expires_in: number | null,
+  frames: Array<{frame: number, mimetype: string, timestamp: number | null, value: string}>,
+  frames_total: number,
 }
 
 // what users send with the bot's `/bot report` command
@@ -2857,14 +2886,21 @@ export interface AdminPremiumStats extends AdminStatsWindow {
   users: Array<{premium_type: number, count: number}>,
   started: number,
   ended: number,
+  // distinct servers with at least one slot, and every slot given out (one server can hold several)
   premium_servers: number,
+  premium_slots: number,
   series: DailySeries<{started: number, ended: number}>,
 }
 
 // `/admin/stats/moderation`: what's waiting on staff (pending flags leave out blocked users', like the flags page),
 // with the oldest of each; `created`/`reviewed` are in the window
 export interface AdminModerationStats extends AdminStatsWindow {
-  content_flags: {pending: number, needs_human_review: number, oldest_pending_at: string | null, unsure: number, oldest_unsure_at: string | null, created: number, reviewed: number},
+  content_flags: {
+    pending: number, needs_human_review: number, oldest_pending_at: string | null, unsure: number, oldest_unsure_at: string | null, created: number, reviewed: number,
+    // the model review in the window: its confirms/dismisses still standing, the ones staff changed since (`overturned`,
+    // `overturned_dismissals` of them were dismissals), and its escalations to unsure
+    auto_review: {applied: number, escalated: number, overturned: number, overturned_dismissals: number},
+  },
   reports: {open: number, awaiting_reply: number, oldest_open_at: string | null, created: number},
   directory: {pending: number, oldest_pending_at: string | null, edit_requests: number, oldest_edit_request_at: string | null},
 }

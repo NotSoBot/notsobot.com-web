@@ -124,7 +124,11 @@ export function PremiumSection({ days }: {days: number}) {
             />
             <Metric label='Started' value={formatNumber(data.started)} detail={`in ${plural(data.days, 'day')}`} color={STAT_COLORS.secondary}/>
             <Metric label='Ended' value={formatNumber(data.ended)} detail={`in ${plural(data.days, 'day')}`} color={STAT_COLORS.bad}/>
-            <Metric label='Premium servers' value={formatNumber(data.premium_servers)} detail='given perks by Premium+ users'/>
+            <Metric
+              label='Server slots given'
+              value={formatNumber(data.premium_slots)}
+              detail={`on ${plural(data.premium_servers, 'server')}`}
+            />
           </MetricGrid>
 
           <div className='mt-4'>

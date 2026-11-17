@@ -31,6 +31,7 @@ import {
   type AdminUserRef,
   type AdminUserWarning,
   type ContentFlag,
+  type ContentFlagStatus,
   type GuildLLMKnowledge,
   type SavedFont,
   type LimitsSummary,
@@ -2379,7 +2380,8 @@ route('GET', '/admin/content-flags', (_match, { query }) => {
     if (search.startsWith('#') && /^\d+$/.test(caseId)) {
       return flag.id === caseId;
     }
-    if (/^\d+$/.test(caseId) && (flag.id === caseId || flag.message_id === caseId || flag.tag_id === caseId)) {
+    const ids = [flag.id, flag.user_id, flag.guild_id, flag.channel_id, flag.message_id, flag.tag_id];
+    if (/^\d+$/.test(caseId) && ids.includes(caseId)) {
       return true;
     }
     if ([flag.query, flag.source_url, flag.command_id].some((value) => value && value.toLowerCase().includes(search))) {
@@ -2518,6 +2520,36 @@ route('GET', '/jobs/([0-9a-f-]+)', ([ , jobId ]) => {
   return mockJobResponse(jobId, 'finished', {file: {value: btoa(svg), metadata: {mimetype: 'image/svg+xml'}}, flagged_frames: flaggedFrames});
 });
 
+// mirrors `admin_get_content_flag_frames`: every few flags the scores were the input's, so the frames aren't `exact`
+route('GET', '/admin/content-flags/(\\d+)/frames', ([ , flagId ]) => {
+  requireStaff();
+  const flag = state.contentFlags.find((other) => other.id === flagId);
+  if (!flag) {
+    throw new MockError(404, 10000, 'Unknown Content Flag');
+  }
+  if (['unsafe_child_safety', 'review_child_safety'].includes(flag.category ?? '') || (flag.flagged ?? []).includes('child_safety') || (flag.flagged_for_review ?? []).includes('child_safety')) {
+    throw new MockError(403, ApiErrorCodes.MISSING_ACCESS, 'Media flagged for child safety can\'t be viewed');
+  }
+  if (!flag.frames_kept) {
+    throw new MockError(404, 40008, 'Content flag has no kept frames');
+  }
+  const multiple = 1 < (flag.frames ?? 0);
+  const exact = Number(flag.id) % 5 !== 0;
+  const indexes = (exact && flag.frames_flagged?.length) ? flag.frames_flagged.slice(0, 8) : (multiple) ? [0, 2, 4, 6] : [0];
+  return {
+    exact,
+    expires_in: 5 * 86400 + 3 * 3600,
+    frames: indexes.map((frame) => ({
+      frame,
+      mimetype: 'image/svg+xml',
+      timestamp: (multiple) ? frame * 1.5 : null,
+      value: btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360"><rect width="640" height="360" fill="#57f287"/>` +
+        `<text x="320" y="190" font-family="sans-serif" font-size="32" fill="#000" text-anchor="middle">kept frame ${frame}</text></svg>`),
+    })),
+    frames_total: (multiple) ? (flag.frames ?? 1) : 1,
+  };
+});
+
 route('DELETE', '/jobs/([0-9a-f-]+)', ([ , jobId ]) => {
   if (!mediaJobs.delete(jobId)) {
     throw new MockError(404, ApiErrorCodes.UNKNOWN_JOB, 'Unknown Job');
@@ -2536,6 +2568,17 @@ route('PATCH', '/admin/content-flags/(\\d+)', ([ , flagId ], { body }) => {
       throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'status must be 0-4', {field: 'status'});
     }
     const others = contentFlagMatches(flag, !!body.match_sha256, !!body.match_pdq).filter((other) => other.status === 0);
+    // mirrors `_content_flag_model_decided`: a person changing the model's applied confirm/dismiss is counted, and the
+    // flags it copied that verdict to follow
+    const review = flag.auto_review;
+    const modelStatus = (review?.applied && !flag.reviewed_by && (review.decision === 'confirm' || review.decision === 'dismiss') &&
+      (flag.status === 1 || flag.status === 2)) ? flag.status : null;
+    if (review && modelStatus !== null && status !== modelStatus) {
+      flag.auto_review = {...review, overturned: {at: new Date().toISOString(), by: mockUser.id, status: status as ContentFlagStatus}};
+      const root = review.propagated_from ?? flag.id;
+      others.push(...state.contentFlags.filter((other) => other.id !== flag.id && (other.id === root || other.auto_review?.propagated_from === root) &&
+        !other.reviewed_by && other.status === modelStatus));
+    }
     // a reviewer set it, so it isn't an auto-confirm anymore
     flag.auto_confirmed_from = null;
     for (const target of [flag, ...others]) {
@@ -2543,11 +2586,36 @@ route('PATCH', '/admin/content-flags/(\\d+)', ([ , flagId ], { body }) => {
       target.reviewed_at = (status) ? new Date().toISOString() : null;
       target.reviewed_by = (status) ? mockUser.id : null;
     }
+    // decided, the api drops its kept frames (only this flag's, the matches keep theirs until they expire)
+    if (status === 1 || status === 2) {
+      flag.frames_kept = false;
+    }
   }
   if (body.notes !== undefined) {
     flag.notes = (typeof body.notes === 'string' && body.notes) ? body.notes : null;
   }
   return withUser(flag);
+});
+
+// mirrors `admin_post_content_flags_accept_suggestions`
+route('POST', '/admin/content-flags/accept-suggestions', (_match, { body }) => {
+  requireStaff();
+  const ids = new Set<string>((Array.isArray(body.flag_ids)) ? body.flag_ids.map(String) : []);
+  const statuses: Record<string, ContentFlagStatus> = {confirm: 1, dismiss: 2};
+  const accepted = state.contentFlags.filter((flag) => ids.has(flag.id) && flag.status === 0 && flag.auto_review &&
+    !flag.auto_review.error && !flag.auto_review.applied && statuses[flag.auto_review.decision ?? '']);
+  let count = 0;
+  for (const flag of accepted) {
+    const status = statuses[flag.auto_review?.decision ?? ''];
+    const copies = state.contentFlags.filter((other) => other.status === 0 && other.auto_review?.propagated_from === flag.id);
+    for (const target of [flag, ...copies]) {
+      target.status = status;
+      target.reviewed_at = new Date().toISOString();
+      target.reviewed_by = mockUser.id;
+      count += 1;
+    }
+  }
+  return {count, items: accepted.map(withUser)};
 });
 
 // mirrors `admin_post_content_flag_prompt`
@@ -2570,6 +2638,7 @@ route('POST', '/admin/content-flags/(\\d+)/prompt', ([ , flagId ]) => {
   flag.size = new TextEncoder().encode(flag.query).length;
   flag.frames = 0;
   flag.frames_flagged = [];
+  flag.frames_kept = false;
   flag.source_url = null;
   flag.query_type = null;
   return withUser(flag);
@@ -3212,6 +3281,7 @@ route('GET', '/admin/stats/premium', (_match, { query }) => {
     started: sumOf(series, (x) => x.started),
     ended: sumOf(series, (x) => x.ended),
     premium_servers: 604,
+    premium_slots: 731,
     series,
   };
 });
@@ -3242,6 +3312,13 @@ route('GET', '/admin/stats/moderation', (_match, { query }) => {
       oldest_unsure_at: oldest(unsureFlags.map((flag) => flag.created)),
       created: state.contentFlags.filter((flag) => since <= time(flag.created)).length,
       reviewed: state.contentFlags.filter((flag) => flag.status !== 0).length,
+      // mirrors the api's FILTERs, over every reviewed flag instead of the window's
+      auto_review: {
+        applied: state.contentFlags.filter((flag) => flag.auto_review?.applied && !flag.reviewed_by && (flag.status === 1 || flag.status === 2)).length,
+        escalated: state.contentFlags.filter((flag) => flag.auto_review?.applied && flag.auto_review.decision === 'escalate').length,
+        overturned: state.contentFlags.filter((flag) => flag.auto_review?.overturned).length,
+        overturned_dismissals: state.contentFlags.filter((flag) => flag.auto_review?.overturned && flag.auto_review.decision === 'dismiss').length,
+      },
     },
     reports: {
       open: openReports.length,

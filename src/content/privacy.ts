@@ -53,7 +53,7 @@ export const PRIVACY_POLICY: LegalDocument = {
           "The text of your command messages. Only the IDs listed above are kept.",
           "Your Discord password, email address or phone number.",
           "Payment details. Purchases are handled by Discord, and We never see your card or billing information.",
-          "Copies of media flagged by Our safety systems.",
+          "Copies of media flagged by Our safety systems, other than the flagged frames kept for review (Section 6).",
         ]},
       ],
     },
@@ -90,8 +90,8 @@ export const PRIVACY_POLICY: LegalDocument = {
     {
       title: "Section 6 - Content Safety",
       blocks: [
-        {type: 'paragraph', text: "Media and prompts processed by NotSoBot may be scanned by automated safety systems. If something is flagged, We keep a record containing the user, server, channel, message and command involved, the prompt, the URL the media came from, a cryptographic hash (SHA-256) and perceptual hash (PDQ) of the media, and the safety scores. We do not keep a copy of the media. Hashes can't be turned back into the original media, and We use them to block the same media if it's uploaded again."},
-        {type: 'paragraph', text: "Flags may be reviewed by Our team, who may view the flagged media by fetching it again from the URL it came from while reviewing. That copy is only shown to the reviewer and is not kept. Flags may also be reviewed first by an AI model, Anthropic's Claude: it's sent the flagged media (fetched again from its URL the same way) or the flagged text, along with the command, the prompt and the safety scores, but not who, which server or which message it came from. Its decision and a short reason are kept with the flag. Only decisions it's highly confident in are applied without a person looking, the rest wait for Our team. Flags about child safety are never sent to it, only Our team reviews those. Mistaken flags are dismissed. Confirmed content may be reported to Discord, and to law enforcement or other authorities when the law requires it or when We believe it's needed to protect someone's safety. Section 7 of Our Terms of Service has more detail."},
+        {type: 'paragraph', text: "Media and prompts processed by NotSoBot may be scanned by automated safety systems. If something is flagged, We keep a record containing the user, server, channel, message and command involved, the prompt, the URL the media came from, a cryptographic hash (SHA-256) and perceptual hash (PDQ) of the media, and the safety scores. We don't keep the media itself. So a flag can be reviewed, We keep up to 8 of its flagged frames as small images for up to 26 hours, or up to 7 days while it waits for Our team, and delete them once the flag is decided. Frames are never kept for flags about child safety. Hashes can't be turned back into the original media, and We use them to block the same media if it's uploaded again."},
+        {type: 'paragraph', text: "Flags may be reviewed by Our team, who may view the kept frames, or fetch the flagged media again from the URL it came from while reviewing. That copy is only shown to the reviewer and is not kept. Flags may also be reviewed first by an AI model, Anthropic's Claude: it's sent the kept frames (or the flagged media, fetched again from its URL the same way) or the flagged text, along with the command, the prompt and the safety scores, but not who, which server or which message it came from. Its decision and a short reason are kept with the flag. Only decisions it's highly confident in are applied without a person looking, the rest wait for Our team. Flags about child safety are never sent to it, only Our team reviews those. Mistaken flags are dismissed. Confirmed content may be reported to Discord, and to law enforcement or other authorities when the law requires it or when We believe it's needed to protect someone's safety. Section 7 of Our Terms of Service has more detail."},
       ],
     },
     {
@@ -146,6 +146,7 @@ export const PRIVACY_POLICY: LegalDocument = {
         {type: 'list', items: [
           "Links between your command messages and NotSoBot's replies are deleted after 14 days of inactivity.",
           "Temporary files are deleted automatically when they expire.",
+          "Frames kept from flagged media are deleted once the flag is decided, and after 26 hours, or 7 days if the flag is waiting for Our team.",
           "Transcriptions made for transcribing, sentence mixing and auto subtitles are kept for 24 hours under a hash of the audio, not linked to who asked, so running them again on the same media is faster.",
           "Songs queued from a link are converted and kept while they're in a server's music queue. They're deleted after they leave the queue, or once they're a week old if NotSoBot isn't playing music in that server.",
           "NotSoCredits' weekly spending is kept for 10 days. Bought credits and their records are kept so refunds and chargebacks can be handled, like other purchases.",

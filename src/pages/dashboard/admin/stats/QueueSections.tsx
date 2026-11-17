@@ -106,9 +106,31 @@ export function ModerationSection({ days }: {days: number}) {
             In the last {plural(windowDays, 'day')}: {plural(flags.created, 'content flag')} came in and {formatNumber(flags.reviewed)} were reviewed,
             {' '}{plural(reports.created, 'report')} sent.
           </p>
+          <AutoReviewLine review={flags.auto_review}/>
         </>
       )}
     </StatsSection>
+  );
+}
+
+
+// the model review in the window, and how often staff changed what it decided (the number that says whether its
+// `high` bar is safe)
+function AutoReviewLine({ review }: {review: AdminModerationStats['content_flags']['auto_review']}) {
+  const decided = review.applied + review.overturned;
+  if (!decided && !review.escalated) {
+    return null;
+  }
+  const rate = (decided) ? `${((review.overturned / decided) * 100).toFixed(1)}%` : null;
+  return (
+    <p className='mt-1 text-sm text-muted tabular-nums'>
+      {joinDetails(
+        `Haiku decided ${formatNumber(decided)}`,
+        (decided) ? `${formatNumber(review.overturned)} changed by staff (${rate})` : null,
+        (review.overturned_dismissals) ? `${formatNumber(review.overturned_dismissals)} of them wrong dismissals` : null,
+        (review.escalated) ? `${formatNumber(review.escalated)} escalated to unsure` : null,
+      )}
+    </p>
   );
 }
 

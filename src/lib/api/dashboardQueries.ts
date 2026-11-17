@@ -2493,6 +2493,26 @@ export function usePatchAdminContentFlagMutation() {
 }
 
 
+// the flags page's "Accept suggestions" on the Haiku suggestion filter, the accepted ones leave that list
+export function useAcceptContentFlagSuggestionsMutation() {
+  const { token } = useAuth();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ flagIds }: {flagIds: Array<string>}) => api.acceptAdminContentFlagSuggestions(flagIds),
+    onSuccess: ({ items }) => {
+      for (const flag of items) {
+        queryClient.setQueryData([...queryKeys.admin(token), 'content-flag', flag.id], flag);
+      }
+    },
+    onSettled: () => Promise.all([
+      queryClient.invalidateQueries({queryKey: [...queryKeys.admin(token), 'content-flags']}),
+      // the per-user counts change with the status
+      queryClient.invalidateQueries({queryKey: [...queryKeys.admin(token), 'users']}),
+    ]),
+  });
+}
+
+
 export function useFlagAdminContentFlagPromptMutation() {
   const { token } = useAuth();
   const queryClient = useQueryClient();
