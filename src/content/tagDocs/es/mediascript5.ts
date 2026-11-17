@@ -235,14 +235,16 @@ export const MEDIASCRIPT_SPANISH_5: TagDocsTranslation['mediaScriptCommands'] = 
       HIGHLIGHT: 'mostrar unas pocas palabras a la vez con la que se está diciendo en el otro color',
       YELLOW: 'subtítulos amarillos al estilo DVD en lugar de blancos',
       FONT: 'el nombre de una fuente incluida o una clave de `loadfont`',
+      TRANSLATE: 'un código de idioma (como `es`, `ja` o `zh-CN`) al que traducir los subtítulos; `HIGHLIGHT` se ignora entonces, una traducción no tiene tiempos por palabra. Si ya se habla en ese idioma se deja tal cual',
     },
     results: [
       'El clip con subtítulos de lo que se dice en él.',
       'Un vídeo negro con el audio, sus palabras resaltadas en Impact a medida que se dicen.',
+      'El clip con subtítulos en español de lo que se dice en él, sea cual sea su idioma.',
     ],
     notes: [
       'Un audio recibe un vídeo negro de 1280x720. Solo se escuchan los primeros 15 minutos. El resultado es un mp4. Cuenta para el límite de `ffmpeg`.',
-      'El mismo efecto es el comando `.autosubtitle` (`/media-av-tools auto-subtitle`), que también acepta tus fuentes guardadas.',
+      'El mismo efecto es el comando `.autosubtitle` (`/media-av-tools auto-subtitle`), que también acepta tus fuentes guardadas. `.autosubtitletranslate` (`/media-av-tools auto-subtitle-translate`) es la versión con `TRANSLATE`, en tu idioma salvo que elijas otro.',
     ],
   },
   news: {

@@ -28,6 +28,33 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 
 export const CHANGELOG: Array<ChangelogDay> = [
   {
+    date: '2026-11-17',
+    title: 'Translated auto subtitles, a round of fixes',
+    items: [
+      {kind: 'new', text: '`.autosubtitletranslate` (also `.autosubtr`, and `/media-av-tools auto-subtitle-translate`) burns in subtitles of what\'s said translated into your language, timed to when each line is said. `-to spanish` picks another language, and `-font`, `-highlight` and `-yellow` work like in `.autosubtitle`. Highlighting the word being said only works when the speech is already in that language, since a translation has no word timings; speech already in your language is left as heard. **MediaScript:** `autosubtitle KEY TRANSLATE=es`.'},
+      {kind: 'new', text: '`.transcribe -translate <language>` (and `translate` on `/tools transcribe`) attaches the subtitles or lyrics file translated into that language, keeping each line\'s timing: `.transcribe -file srt -translate japanese`. Without `-file` it\'s an srt, and speech already in that language is left as heard.'},
+      {kind: 'improved', text: 'Downloading an X post whose picture or video is from the tweet it quotes now adds a **Quoting** line with who posted it, a link and their text, so it\'s clear whose media it is.'},
+      {kind: 'improved', text: '`.xyt` has 495 more VivaVideo templates: every sticker in VivaVideo\'s catalog and 160 text bubbles and animated texts, including bubbles with moving backgrounds. The template list labels them Sticker and Text.'},
+      {kind: 'improved', text: '`.vep` plays three more AVS Video Editor effects: Saturation, Flip and Sphere. They\'re our best guess at what AVS does until we get an export to compare against.'},
+      {kind: 'improved', text: 'NotSoAI makes fewer mistakes writing MediaScript: every line is checked against the command\'s real arguments (colours, choices, `NAME=` arguments, number ranges and formats) and fixed before you get it.'},
+      {kind: 'improved', text: 'Times in `.urban`, emoji search, the prefix list, server loggers and Google image results are Discord timestamps, so they show in your own time zone. Reminder confirmations say when in your language.'},
+      {kind: 'fixed', text: 'Commands whose name starts with another command\'s never running, like `.warnings remove`, `.fonts remove`, `.emojify vertical`, `.tag report`, `.music dj role` and the `.server voice` commands.'},
+      {kind: 'fixed', text: 'About 25 slash command options refusing decimals like 0.5, like `pinch-punch`, `vegas-wave`, `light-rays`, `lut`, `eyes cutout` and `shake`. They work once the slash commands update.'},
+      {kind: 'fixed', text: 'Reminders and timed bans past the first 1,000 never going off, and server logs never being sent in busy servers.'},
+      {kind: 'fixed', text: 'Tags with huge `{range}`s, `{oneof}`s or long loops freezing NotSoBot for other servers. Busy tags now pause to let other commands run.'},
+      {kind: 'fixed', text: 'Stills from videos coming back as the whole video, `.magik @` using a random member\'s avatar, and two-image commands sometimes using the same image twice.'},
+      {kind: 'fixed', text: '`.pipe` dropping `trim` and `shake` options, and some steps failing in it.'},
+      {kind: 'fixed', text: '`.prune` failing or saying the wrong number was deleted, admins getting auto-warned, and members without admin removing a rule admins have to follow.'},
+      {kind: 'fixed', text: 'Tag replies, `/tag commands add`, nick mass and the `.commands usage` filter ignoring your settings or what you typed: replies now follow your private responses setting, and `.commands usage <command>` shows only that command.'},
+      {kind: 'fixed', text: '`.rules remove` and `.rules clear` erroring when the server\'s settings couldn\'t load.'},
+      {kind: 'fixed', text: '`.phosimp` filter 4 failing, filters 7 and 8 turning the wrong way, and size-changing filters failing on a grid.'},
+      {kind: 'fixed', text: 'Colours with transparency (`#rrggbbaa`) read wrong by `.rotate` and green screen keying, `.waveform` drawing very loud parts as quiet, `.mandalascope` failing on very short images, `.trim` leaving a corner on an image that\'s all background, and broken MIDI files crashing `.vocodermelody`.'},
+      {kind: 'fixed', text: '`.audiotoimage -mode sstv` putting a green line down the right edge of Robot 36, Scottie and Martin pictures.'},
+      {kind: 'fixed', text: 'IGN video links downloading again, up to 1440p, and IGN articles saying they can\'t be downloaded straight away instead of failing slowly.'},
+      {kind: 'fixed', text: 'X replies starting with the @names of who they reply to.'},
+    ],
+  },
+  {
     date: '2026-11-16',
     title: 'See your limits, server slots stack',
     items: [

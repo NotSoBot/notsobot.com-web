@@ -115,7 +115,7 @@ export const MEDIASCRIPT_PORTUGUESE_1: TagDocsTranslation['mediaScriptCommands']
       'O projeto reconstruído com a última imagem ou vídeo em cada clipe.',
     ],
     notes: [
-      'Reconstruído: os clipes da linha de vídeo principal no momento deles (pontos de início, velocidade, mudo), as linhas de áudio, os envelopes de volume, os efeitos Hue, Twirl, Wave e Ripple e o Rate de áudio. Sobreposições (PiP), texto, transições e os outros efeitos são pulados. A lista completa está na seção de projetos do AVS Video Editor.',
+      'Reconstruído: os clipes da linha de vídeo principal no momento deles (pontos de início, velocidade, mudo), as linhas de áudio, os envelopes de volume, os efeitos Hue, Twirl, Wave e Ripple, os efeitos por palpite Saturação, Espelhar e Esfera, e o Rate de áudio. Sobreposições (PiP), texto, transições e os outros efeitos são pulados. A lista completa está na seção de projetos do AVS Video Editor.',
       'Mantém o tamanho do próprio projeto, reduzido para caber em 1280x720, no máximo 10 minutos. Conta para o limite de `ffmpeg` e precisa terminar dentro do limite de tempo do script.',
       'Fora das tags, o bot tem a mesma coisa no comando `.vep` (primeiro o .vep anexado ou a URL dele, depois a mídia) e no `/media-aiv vep`.',
     ],

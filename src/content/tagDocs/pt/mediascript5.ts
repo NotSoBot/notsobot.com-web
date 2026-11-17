@@ -236,14 +236,16 @@ export const MEDIASCRIPT_PORTUGUESE_5: TagDocsTranslation['mediaScriptCommands']
       HIGHLIGHT: 'mostrar poucas palavras por vez com a que está sendo dita na outra cor',
       YELLOW: 'legendas amarelas estilo DVD em vez de brancas',
       FONT: 'o nome de uma fonte incluída ou uma chave de `loadfont`',
+      TRANSLATE: 'um código de idioma (como `es`, `ja` ou `zh-CN`) para traduzir as legendas; `HIGHLIGHT` é ignorado nesse caso, uma tradução não tem tempos por palavra. Se já for falado nesse idioma fica como foi ouvido',
     },
     results: [
       'O clipe com legendas do que é dito nele.',
       'Um vídeo preto com o áudio, as palavras destacadas em Impact conforme são ditas.',
+      'O clipe com legendas em espanhol do que é dito nele, seja qual for o idioma.',
     ],
     notes: [
       'Um áudio ganha um vídeo preto de 1280x720. Só os primeiros 15 minutos são ouvidos. O resultado é um mp4. Conta para o limite do `ffmpeg`.',
-      'O mesmo efeito é o comando `.autosubtitle` (`/media-av-tools auto-subtitle`), que também aceita suas fontes salvas.',
+      'O mesmo efeito é o comando `.autosubtitle` (`/media-av-tools auto-subtitle`), que também aceita suas fontes salvas. `.autosubtitletranslate` (`/media-av-tools auto-subtitle-translate`) é a versão com `TRANSLATE`, no seu idioma a menos que você escolha outro.',
     ],
   },
   news: {
