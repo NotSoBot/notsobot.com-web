@@ -319,10 +319,10 @@ export const MEDIASCRIPT_SPANISH_5: TagDocsTranslation['mediaScriptCommands'] = 
     ],
   },
   wrap: {
-    summary: 'Pone una imagen fija de una segunda multimedia sobre la superficie de la multimedia, curvada según su forma e iluminada como si estuviera impresa ahí.',
+    summary: 'Pone una segunda multimedia sobre la superficie de la multimedia, curvada según su forma e iluminada como si estuviera impresa ahí.',
     args: {
       MEDIA_KEY: MEDIA,
-      OVERLAY_MEDIA_KEY: 'lo que va sobre la superficie (su primer fotograma), funciona mejor con texto o un PNG transparente',
+      OVERLAY_MEDIA_KEY: 'lo que va sobre la superficie, funciona mejor con texto o un PNG transparente, un GIF o un video se reproduce sobre ella',
       X: 'dónde va su centro a lo ancho, 0 es el borde izquierdo',
       Y: 'dónde va su centro a lo alto, 0 es el borde de arriba',
       SIZE: 'su ancho mirando a la cámara, respecto al lado más corto',
@@ -339,7 +339,8 @@ export const MEDIASCRIPT_SPANISH_5: TagDocsTranslation['mediaScriptCommands'] = 
     notes: [
       'La forma sale de la profundidad estimada de la multimedia: se dobla con los pliegues de la tela, envuelve las cosas curvas y sigue en perspectiva sobre una pared en ángulo. Una superficie que se aleja la recibe más grande, así que cubre más o menos la misma área.',
       'Se detiene donde termina la superficie: el contorno de un objeto, el borde de una caja, el suelo debajo de algo.',
-      'Los GIF y los videos mantienen la colocación de su primer fotograma en todos los fotogramas, cada fotograma iluminándola a su manera (no sigue a una cámara en movimiento).',
+      'La superficie siempre es una imagen fija: el primer fotograma de un GIF, o un fotograma de un video.',
+      'Una superposición animada (un GIF o un video) se reproduce sobre la superficie, el resultado es un GIF con sus fotogramas.',
     ],
   },
   depthmap: {

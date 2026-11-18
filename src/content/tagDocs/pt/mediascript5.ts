@@ -320,10 +320,10 @@ export const MEDIASCRIPT_PORTUGUESE_5: TagDocsTranslation['mediaScriptCommands']
     ],
   },
   wrap: {
-    summary: 'Coloca uma imagem fixa de uma segunda mídia sobre a superfície da mídia, curvada pela forma dela e iluminada como se estivesse impressa ali.',
+    summary: 'Coloca uma segunda mídia sobre a superfície da mídia, curvada pela forma dela e iluminada como se estivesse impressa ali.',
     args: {
       MEDIA_KEY: MEDIA,
-      OVERLAY_MEDIA_KEY: 'o que vai sobre a superfície (o primeiro quadro), funciona melhor com texto ou um PNG transparente',
+      OVERLAY_MEDIA_KEY: 'o que vai sobre a superfície, funciona melhor com texto ou um PNG transparente, um GIF ou vídeo toca sobre ela',
       X: 'onde o centro fica na horizontal, 0 é a borda esquerda',
       Y: 'onde o centro fica na vertical, 0 é a borda de cima',
       SIZE: 'a largura dela de frente para a câmera, em relação ao lado menor',
@@ -340,7 +340,8 @@ export const MEDIASCRIPT_PORTUGUESE_5: TagDocsTranslation['mediaScriptCommands']
     notes: [
       'A forma vem da profundidade estimada da mídia: ela dobra com as dobras do tecido, envolve coisas curvas e segue em perspectiva numa parede inclinada. Uma superfície que se afasta recebe ela maior, então ela cobre mais ou menos a mesma área.',
       'Ela para onde a superfície acaba: o contorno de um objeto, a borda de uma caixa, o chão debaixo de algo.',
-      'GIFs e vídeos mantêm a posição do primeiro quadro em todos os quadros, cada quadro iluminando do seu jeito (uma câmera em movimento não é acompanhada).',
+      'A superfície é sempre uma imagem parada: o primeiro quadro de um GIF, ou um quadro de um vídeo.',
+      'Uma sobreposição animada (um GIF ou vídeo) toca sobre a superfície, o resultado é um GIF com os quadros dela.',
     ],
   },
   depthmap: {

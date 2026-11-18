@@ -177,6 +177,10 @@ export const MEDIASCRIPT_PORTUGUESE_3: TagDocsTranslation['mediaScriptCommands']
     summary: 'Diminui ou aumenta a mídia para caber dentro de uma caixa, mantendo a proporção.',
     args: BOX,
   },
+  pad: {
+    summary: 'Preenche com transparência até um tamanho exato, diminuindo a mídia só quando ela é maior que a caixa.',
+    args: BOX,
+  },
   scale: {
     summary: 'Redimensiona por um multiplicador, ex.: 0.5 para metade do tamanho ou 2 para o dobro.',
     args: {

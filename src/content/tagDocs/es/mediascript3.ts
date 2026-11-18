@@ -177,6 +177,10 @@ export const MEDIASCRIPT_SPANISH_3: TagDocsTranslation['mediaScriptCommands'] = 
     summary: 'Reduce o amplía la multimedia para que quepa dentro de un recuadro, manteniendo su forma.',
     args: BOX,
   },
+  pad: {
+    summary: 'Rellena con transparencia hasta un tamaño exacto, reduciendo la multimedia solo si es más grande que el recuadro.',
+    args: BOX,
+  },
   scale: {
     summary: 'Redimensiona por un multiplicador, p. ej. 0.5 para la mitad del tamaño o 2 para el doble.',
     args: {

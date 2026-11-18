@@ -1843,6 +1843,18 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     ],
   },
   {
+    name: 'pad',
+    category: 'size',
+    summary: 'Pads the media out to an exact size with transparency, shrinking it only when it\'s bigger than the box.',
+    syntax: 'pad MEDIA_KEY WIDTH HEIGHT KERNEL=none',
+    args: [
+      media(),
+      {name: 'WIDTH', description: 'box width in pixels'},
+      {name: 'HEIGHT', description: 'box height in pixels'},
+      {name: 'KERNEL', default: 'none', range: RESIZE_KERNELS},
+    ],
+  },
+  {
     name: 'scale',
     category: 'size',
     summary: 'Resizes by a multiplier, e.g. 0.5 for half size or 2 for double.',
@@ -2617,11 +2629,11 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
   {
     name: 'wrap',
     category: 'compose',
-    summary: 'Puts a still of a second media onto the media\'s surface, bent over its shape and lit like it\'s printed there.',
+    summary: 'Puts a second media onto the media\'s surface, bent over its shape and lit like it\'s printed there.',
     syntax: 'wrap MEDIA_KEY OVERLAY_MEDIA_KEY X=0.5 Y=0.5 SIZE=0.4 ROTATE=0 RELIEF=0.6 LIGHT=1 OPACITY=1 CLIP=true',
     args: [
       media(),
-      {name: 'OVERLAY_MEDIA_KEY', description: 'what goes onto the surface (its first frame), text or a transparent PNG works best'},
+      {name: 'OVERLAY_MEDIA_KEY', description: 'what goes onto the surface, text or a transparent PNG works best, a GIF or video plays on it'},
       {name: 'X', default: '0.5', range: '0..1', description: 'where its center goes across, 0 is the left edge'},
       {name: 'Y', default: '0.5', range: '0..1', description: 'where its center goes down, 0 is the top edge'},
       {name: 'SIZE', default: '0.4', range: '0.05..2', description: 'its width facing the camera, of the shorter side'},
@@ -2638,7 +2650,8 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     notes: [
       'The shape comes from the media\'s estimated depth: it bends over fabric folds, wraps around curved things and goes on in perspective on a wall at an angle. A surface leaning away gets it bigger, so it covers about the same area.',
       'It stops where the surface ends: an object\'s outline, a box\'s edge, the floor under something.',
-      'GIFs and videos keep the placement from their first frame on every frame, each frame lighting it its own way (a moving camera doesn\'t get followed).',
+      'The surface is always a still: a GIF\'s first frame, or a frame from a video.',
+      'An animated overlay (a GIF or video) plays on the surface, the result is a GIF of its frames.',
     ],
   },
   {
