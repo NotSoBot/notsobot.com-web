@@ -36,6 +36,7 @@ import {
   type SavedFont,
   type LimitsSummary,
   type SavedFontsPage,
+  type AdminVoice,
   type GuildContentUser,
   type GuildReport,
   type GuildReportMessage,
@@ -3189,7 +3190,7 @@ route('GET', '/admin/stats/commands', (_match, { query }) => {
     servers: Math.round(count / 58),
     series,
     top: top.map((command_id, i) => ({command_id, count: Math.round(count * 0.18 / (i + 1)), users: Math.round(count * 0.02 / (i + 1))})),
-    types: [{type: 0, count: Math.round(count * 0.71)}, {type: 1, count: Math.round(count * 0.26)}, {type: 2, count: Math.round(count * 0.01)}, {type: 3, count: Math.round(count * 0.02)}],
+    types: [{type: 0, count: Math.round(count * 0.63)}, {type: 1, count: Math.round(count * 0.26)}, {type: 2, count: Math.round(count * 0.01)}, {type: 3, count: Math.round(count * 0.02)}, {type: 4, count: Math.round(count * 0.08)}],
     results: results.map(([ result, share ]) => ({result, count: Math.round(count * share)})).sort((a, b) => b.count - a.count),
   };
 });
@@ -3754,6 +3755,7 @@ const MOCK_GUILD_TOP_COMMANDS: Array<[string, number, string]> = [
   ['fun.tag', 0, 'tag'],
   ['media.iv.manipulation.caption', 1, 'caption'],
   ['tools.ai', 1, 'ai'],
+  ['media.iv.manipulation.magik', 4, 'magik'],
   ['music.play', 0, 'play'],
   ['search.google', 0, 'google'],
   ['media.iv.manipulation.deepfry', 0, 'deepfry'],
@@ -6044,20 +6046,96 @@ route('GET', '/(users/@me|admin)/guilds/(\\d+)/voices/(\\d+)/clips/(\\d+)/audio'
   return new Response(audio, {status: 200, headers: {'content-type': audio.type || 'audio/mpeg'}});
 });
 
+// a few other users' voices have clips too, so the admin list has some to play
+for (const voice of state.voices.filter((other) => other.user?.id !== mockUser.id).slice(0, 4)) {
+  state.voiceClips.set(voice.id, Array.from({length: 1 + Number(BigInt(voice.id) % 3n)}, (_, j) => {
+    const id = (BigInt(voice.id) + BigInt(j + 1) * 4194304n).toString();
+    const audio = toneWav(300 + 40 * j, 2 + j);
+    voiceClipAudio.set(id, audio);
+    return {created: voice.created, duration: (2 + j) * 1000, id, name: `sample ${j + 1}.mp3`, size: audio.size};
+  }));
+}
+
+// mirrors `views/admin.py` `_voice_items`: users' voices and servers', newest first, with their clips
+function mockAdminVoices(): Array<AdminVoice> {
+  const userVoices = state.voices.map((voice) => ({...voice, clips: state.voiceClips.get(voice.id) ?? []}));
+  const serverVoices = [...mockGuildVoices.entries()].flatMap(([ guildId, voices ]) => {
+    const guild = guilds.find((entry) => entry.summary.id === guildId)?.summary;
+    return voices.map((voice): AdminVoice => ({
+      clips: state.voiceClips.get(voice.id) ?? [],
+      created: voice.created,
+      created_by: (voice.created_by) ? {avatar: voice.created_by.avatar, discriminator: voice.created_by.discriminator, id: voice.created_by.id, username: voice.created_by.username} : null,
+      // the second seeded one's maker left Discord
+      created_by_id: voice.created_by?.id ?? ((voice.id.endsWith('2')) ? '1290000000000000777' : null),
+      has_platform_data: voice.platform_type === VoiceCloneTypes.ZONOS3,
+      id: voice.id,
+      name: voice.name,
+      platform_id: `mockServer${voice.id.slice(-6)}`,
+      platform_type: voice.platform_type,
+      server: (guild) ? {icon: guild.icon, id: guild.id, name: guild.name} : null,
+      server_id: guildId,
+      user: null,
+    }));
+  });
+  // a group dm's voice, no guild row for it
+  const groupDm: AdminVoice = {
+    clips: [], created: new Date(Date.now() - 6 * 86400000).toISOString(), has_platform_data: true,
+    created_by: {avatar: mockUser.avatar, discriminator: mockUser.discriminator, id: mockUser.id, username: mockUser.username}, created_by_id: mockUser.id,
+    id: '1310000000000009004', name: 'group chat narrator', platform_id: 'a1b2c3d4e5f60718293a4b5c6d7e8f90', platform_type: VoiceCloneTypes.ZONOS3,
+    server: null, server_id: '1290000000000000555', user: null,
+  };
+  return [...userVoices, ...serverVoices, groupDm].sort((a, b) => (BigInt(b.id) > BigInt(a.id)) ? 1 : -1);
+}
+
 route('GET', '/admin/voices', (_match, { query }) => {
   requireStaff();
   const text = (query.get('query') || '').trim().toLowerCase();
   const userId = query.get('user_id');
-  const matching = state.voices
+  const serverId = query.get('server_id');
+  const owner = query.get('owner');
+  const platformType = query.get('platform_type');
+  const base = mockAdminVoices()
     .filter((voice) => !userId || voice.user?.id === userId)
+    .filter((voice) => !serverId || voice.server_id === serverId)
     .filter((voice) => !text || voice.name.toLowerCase().includes(text) || !!voice.user?.username.toLowerCase().includes(text)
-      || voice.id === text || voice.user?.id === text);
-  return pageOf(matching, query);
+      || [voice.id, voice.user?.id, voice.server_id, voice.created_by_id].includes(text));
+  const ownerMatches = (voice: AdminVoice) => !owner || (owner === 'server') === !!voice.server_id;
+  const platformMatches = (voice: AdminVoice) => platformType === null || String(voice.platform_type) === platformType;
+  const platforms: Record<string, number> = {};
+  for (const voice of base.filter(ownerMatches)) {
+    platforms[voice.platform_type] = (platforms[voice.platform_type] ?? 0) + 1;
+  }
+  const inPlatform = base.filter(platformMatches);
+  const owners = {server: inPlatform.filter((voice) => voice.server_id).length, user: inPlatform.filter((voice) => !voice.server_id).length};
+  return {...pageOf(base.filter(ownerMatches).filter(platformMatches), query), owners, platforms};
 });
 
 route('PATCH', '/admin/voices/(\\d+)', ([ , voiceId ], { body }) => {
   requireStaff();
-  return renameVoice(voiceId, body);
+  const guildVoice = [...mockGuildVoices.values()].flat().find((voice) => voice.id === voiceId);
+  if (guildVoice) {
+    const name = String(body.name ?? '').trim();
+    if (name) {
+      guildVoice.name = name;
+    }
+  } else {
+    renameVoice(voiceId, body);
+  }
+  const voice = mockAdminVoices().find((other) => other.id === voiceId);
+  if (!voice) {
+    throw new MockError(404, ApiErrorCodes.UNKNOWN_VOICE, 'Unknown Voice Clone');
+  }
+  return voice;
+});
+
+route('GET', '/admin/voices/(\\d+)/clips/(\\d+)/audio', ([ , voiceId, clipId ]) => {
+  requireStaff();
+  const clip = (state.voiceClips.get(voiceId) ?? []).find((other) => other.id === clipId);
+  if (!clip) {
+    throw new MockError(404, ApiErrorCodes.UNKNOWN_VOICE_CLIP, 'Unknown Voice Clip');
+  }
+  const audio = voiceClipAudio.get(clip.id) ?? toneWav(220, 2);
+  return new Response(audio, {status: 200, headers: {'content-type': audio.type || 'audio/mpeg'}});
 });
 
 

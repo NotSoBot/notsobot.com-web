@@ -11,6 +11,8 @@ const COMMAND_TYPE_SLUGS: Record<CommandType, string> = {
   [CommandTypes.APPLICATION_SLASH]: 'slash',
   [CommandTypes.APPLICATION_MENU_USER]: 'user',
   [CommandTypes.APPLICATION_MENU_MESSAGE]: 'message',
+  // usage only, no command has a mention variant
+  [CommandTypes.MENTION]: 'mention',
 };
 
 

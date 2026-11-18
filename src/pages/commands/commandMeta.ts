@@ -53,6 +53,7 @@ export const PREFIXES: Record<CommandType, string> = {
   [CommandTypes.APPLICATION_SLASH]: '/',
   [CommandTypes.APPLICATION_MENU_USER]: '',
   [CommandTypes.APPLICATION_MENU_MESSAGE]: '',
+  [CommandTypes.MENTION]: '@NotSoBot ',
 };
 
 // shared ratelimit buckets (the bot's `RatelimitKeys`), every command with the key counts toward the same limit
@@ -75,6 +76,7 @@ export const TYPE_LABELS: Record<CommandType, TranslationKey> = {
   [CommandTypes.APPLICATION_SLASH]: 'command_type.slash',
   [CommandTypes.APPLICATION_MENU_USER]: 'command_type.user_menu',
   [CommandTypes.APPLICATION_MENU_MESSAGE]: 'command_type.message_menu',
+  [CommandTypes.MENTION]: 'command_type.mention',
 };
 
 
@@ -215,7 +217,9 @@ export function buildEntries(
 ): Array<Entry> {
   const usage = new Map<string, number>();
   for (const stat of stats || []) {
-    const key = entryKey(stat.id, stat.type);
+    // `@NotSoBot cmd` runs the prefixed variant, its uses count toward it here (the dashboard's stats keep them apart)
+    const type = (stat.type === CommandTypes.MENTION) ? CommandTypes.PREFIXED : stat.type;
+    const key = entryKey(stat.id, type);
     usage.set(key, (usage.get(key) || 0) + stat.count);
   }
 

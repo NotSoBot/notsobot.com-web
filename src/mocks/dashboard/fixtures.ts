@@ -29,7 +29,7 @@ import type {
 } from '@/lib/api/types';
 import deepfryPreview from '@/assets/logos/effects/deepfry.webp';
 import magikPreview from '@/assets/logos/effects/magik-animated.webp';
-import { DiscordSkus, TagDirectoryCategories } from '@/lib/api/types';
+import { DiscordSkus, TagDirectoryCategories, VoiceCloneTypes } from '@/lib/api/types';
 import { toDate } from '@/lib/utils';
 
 
@@ -730,7 +730,7 @@ export function createCommandUses(): Array<MeCommandUse> {
   const commands: Array<[string, string | null, MeCommandUse['command_type']]> = [
     ['tag.show', 'tag', 0], ['tag.show', 'tag show', 1], ['tag.create', 'tag create', 0], ['ping', 'ping', 0],
     ['image.caption', 'caption', 0], ['image.caption', 'caption', 1], ['ai.chat', 'chat', 1], ['image.reverse', 'reverse', 3],
-    ['info.user', 'userinfo', 2], ['reminder.create', 'reminder create', 1], ['oldcommand', null, 0],
+    ['info.user', 'userinfo', 2], ['reminder.create', 'reminder create', 1], ['oldcommand', null, 0], ['ai.chat', 'chat', 4],
     // a custom command (`.<tagname>`), the fallback's prefixed variant has no name
     ['tag.show.custom.command', '', 0],
   ];
@@ -811,17 +811,26 @@ export function createLLMMemories(): Array<LLMMemory> {
 const VOICE_NAMES = ['narrator', 'gravelly old man', 'chipmunk', 'radio host', 'whisper', 'announcer', 'my cat (allegedly)', 'robot',
   'pirate captain', 'sports commentator', 'sleepy', 'news anchor'];
 
-// every cloned voice (`/admin/voices`); the mock user owns the first two, which `/users/@me/voices` returns
+// every user's cloned voice (`/admin/voices`, servers' are the guild voices in `index.ts`); the mock user owns the first
+// two, which `/users/@me/voices` returns. The newest are ZONOS3 (one lost its embedding), then fish.audio, then ElevenLabs
 export function createVoices(users: Array<AdminUser>): Array<AdminVoice> {
   const owners = [mockUser, mockUser, ...users];
   return Array.from({length: 31}, (_, i) => {
     const owner = owners[i % owners.length];
+    const platformType = (i < 10) ? VoiceCloneTypes.ZONOS3 : (i < 20) ? VoiceCloneTypes.FISH_AUDIO : VoiceCloneTypes.ELEVENLABS;
+    const hash = (i * 2654435761 % 0xffffffff).toString(36).padStart(14, 'x');
     return {
+      clips: [],
       created: new Date(Date.now() - i * 29 * 3600000).toISOString(),
+      created_by: null,
+      created_by_id: null,
+      has_platform_data: platformType === VoiceCloneTypes.ZONOS3 && i !== 7,
       id: (1310000000000000000n + BigInt(31 - i) * 4194304n).toString(),
       name: VOICE_NAMES[i % VOICE_NAMES.length],
-      platform_id: `mockEl${(i * 2654435761 % 0xffffffff).toString(36).padStart(14, 'x')}`,
-      platform_type: 0,
+      platform_id: (platformType === VoiceCloneTypes.ZONOS3) ? `${hash}${hash}`.slice(0, 32) : (platformType === VoiceCloneTypes.FISH_AUDIO) ? `mockFish${hash}` : `mockEl${hash}`,
+      platform_type: platformType,
+      server: null,
+      server_id: null,
       user: {avatar: owner.avatar, discriminator: owner.discriminator, id: owner.id, username: owner.username},
     };
   });

@@ -157,7 +157,7 @@ export const MEDIASCRIPT_SPANISH_5: TagDocsTranslation['mediaScriptCommands'] = 
       MODEL: 'qué modelo usar, p. ej. `ISNET_ANIME` para dibujos o `BIREFNET_PORTRAIT` para personas',
     },
     notes: [
-      'En GIFs y vídeos, los fotogramas repetidos solo cuentan una vez. Los modelos `BIREFNET_` y `BRIA_RMBG` admiten un fotograma (imágenes fijas), `ISNET_ANIME`, `ISNET_GENERAL_USE` y `U2NET_CLOTH_SEG` hasta 128 fotogramas distintos, y el resto cualquier cantidad dentro del límite habitual de fotogramas.',
+      'En GIFs y vídeos, los fotogramas repetidos solo cuentan una vez. Los modelos `BIREFNET_` admiten un fotograma (imágenes fijas), `ISNET_ANIME`, `ISNET_GENERAL_USE` y `U2NET_CLOTH_SEG` hasta 128 fotogramas distintos, y el resto cualquier cantidad dentro del límite habitual de fotogramas.',
     ],
   },
   overlaypreset: {
@@ -316,6 +316,100 @@ export const MEDIASCRIPT_SPANISH_5: TagDocsTranslation['mediaScriptCommands'] = 
     notes: [
       'Sin portada ni color, los ojos y la boca más grandes van sobre la propia cara.',
       'Los ojos y la boca siguen la cara por los fotogramas de un vídeo, así que sigue hablando y parpadeando.',
+    ],
+  },
+  wrap: {
+    summary: 'Pone una imagen fija de una segunda multimedia sobre la superficie de la multimedia, curvada según su forma e iluminada como si estuviera impresa ahí.',
+    args: {
+      MEDIA_KEY: MEDIA,
+      OVERLAY_MEDIA_KEY: 'lo que va sobre la superficie (su primer fotograma), funciona mejor con texto o un PNG transparente',
+      X: 'dónde va su centro a lo ancho, 0 es el borde izquierdo',
+      Y: 'dónde va su centro a lo alto, 0 es el borde de arriba',
+      SIZE: 'su ancho mirando a la cámara, respecto al lado más corto',
+      ROTATE: 'grados en el sentido de las agujas del reloj, sobre la superficie',
+      RELIEF: 'cuánto sigue la forma de la superficie, 0 es una pegatina plana',
+      LIGHT: 'cuánto toma de las sombras y los brillos de la superficie',
+      OPACITY: 'cuánto se transparenta',
+      CLIP: 'parar en el contorno y los bordes marcados de la superficie, false deja que pase por encima de todo',
+    },
+    results: [
+      'NotSoBot en rojo impreso sobre lo que haya en el centro de la imagen, siguiendo su forma y sus sombras.',
+      'Tu avatar sobre la camiseta (o lo que haya ahí), girado 10 grados hacia el otro lado y doblándose más con los pliegues.',
+    ],
+    notes: [
+      'La forma sale de la profundidad estimada de la multimedia: se dobla con los pliegues de la tela, envuelve las cosas curvas y sigue en perspectiva sobre una pared en ángulo. Una superficie que se aleja la recibe más grande, así que cubre más o menos la misma área.',
+      'Se detiene donde termina la superficie: el contorno de un objeto, el borde de una caja, el suelo debajo de algo.',
+      'Los GIF y los videos mantienen la colocación de su primer fotograma en todos los fotogramas, cada fotograma iluminándola a su manera (no sigue a una cámara en movimiento).',
+    ],
+  },
+  depthmap: {
+    summary: 'Reemplaza la multimedia por su profundidad estimada como imagen: lo cercano es claro y lo lejano oscuro.',
+    args: {
+      MEDIA_KEY: MEDIA,
+      COLORMAP: 'GRAY, INFERNO, MAGMA, PLASMA, TURBO o VIRIDIS, lo cercano es el extremo cálido',
+      INVERT: 'lo lejano claro en vez de lo cercano',
+    },
+    results: [
+      'La imagen como un mapa de profundidad arcoíris, rojo cerca y azul lejos.',
+    ],
+    notes: [
+      'Los GIF y los videos obtienen la profundidad de cada fotograma, coherente entre fotogramas.',
+    ],
+  },
+  depthblur: {
+    summary: 'Modo retrato: desenfoca lo que está delante y detrás del foco según la profundidad estimada de la multimedia.',
+    args: {
+      MEDIA_KEY: MEDIA,
+      AMOUNT: 'el desenfoque máximo, en porcentaje del lado más corto',
+      RANGE: 'cuánta profundidad alrededor del foco queda nítida',
+      X: 'un punto en el que enfocar a lo ancho, el sujeto del centro si se omite',
+      Y: 'un punto en el que enfocar a lo alto',
+      MINIATURE: 'tilt-shift: foco en el centro, una franja nítida más fina, más desenfoque y colores más intensos',
+    },
+    results: [
+      'El sujeto queda nítido y el fondo se difumina, con los puntos brillantes floreciendo.',
+      'La escena parece una maqueta diminuta.',
+    ],
+    notes: [
+      'El desenfoque se hace en luz lineal, así que los puntos brillantes florecen como reflejos desenfocados reales, y el sujeto nítido no se mancha sobre el fondo.',
+      'En un video el foco sigue los fotogramas con suavidad.',
+    ],
+  },
+  parallax: {
+    summary: 'Una foto 3D: la cámara se mueve un poco para que lo que está delante y detrás del foco se deslice entre sí.',
+    args: {
+      MEDIA_KEY: MEDIA,
+      MOTION: 'CIRCLE da vueltas, SWAY va de lado a lado, ZOOM se acerca y vuelve',
+      AMOUNT: 'cuánto se mueven las cosas más cercanas, en porcentaje del lado más corto',
+      DURATION: 'segundos que dura un ciclo',
+      X: 'el punto que no se mueve a lo ancho, el sujeto si se omite',
+      Y: 'el punto que no se mueve a lo alto',
+    },
+    results: [
+      'Un GIF en bucle de la imagen con la cámara girando alrededor del sujeto.',
+      'La cámara se acerca y vuelve, y lo cercano crece más rápido que lo lejano.',
+    ],
+    notes: [
+      'Las imágenes fijas se convierten en un GIF en bucle (512px como máximo), los GIF y los videos recorren el ciclo mientras se reproducen.',
+      'El encuadre se amplía un poco para que no se vean los bordes que mostraría una cámara en movimiento.',
+    ],
+  },
+  stereo: {
+    summary: '3D estéreo a partir de la profundidad estimada de la multimedia: anaglifo, lado a lado, ojos cruzados, wigglegram u ojo mágico.',
+    args: {
+      MEDIA_KEY: MEDIA,
+      TYPE: 'ANAGLYPH (gafas rojo/cian), SIDEBYSIDE (visión paralela, visores VR de móvil), CROSSEYE (cruzando los ojos), WIGGLE (un wigglegram) o MAGICEYE (un autoestereograma de puntos)',
+      AMOUNT: 'cuánto 3D tiene, en porcentaje del ancho',
+      X: 'el punto que queda en la pantalla a lo ancho, el sujeto si se omite',
+      Y: 'el punto que queda en la pantalla a lo alto',
+    },
+    results: [
+      'Un anaglifo rojo/cian que sale de la pantalla con gafas 3D.',
+      'Una imagen de ojo mágico que esconde la forma de la imagen, con sus propios colores.',
+    ],
+    notes: [
+      'SIDEBYSIDE y CROSSEYE salen el doble de anchos, WIGGLE convierte una imagen fija en un GIF en bucle.',
+      'Lo que está más cerca que el foco sale de la pantalla y lo que está más lejos se hunde.',
     ],
   },
   drawfaces: {

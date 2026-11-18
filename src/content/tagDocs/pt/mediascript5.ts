@@ -158,7 +158,7 @@ export const MEDIASCRIPT_PORTUGUESE_5: TagDocsTranslation['mediaScriptCommands']
       MODEL: 'qual modelo usar, ex.: `ISNET_ANIME` para desenhos ou `BIREFNET_PORTRAIT` para pessoas',
     },
     notes: [
-      'Em GIFs e vídeos, quadros repetidos só contam uma vez. Os modelos `BIREFNET_` e `BRIA_RMBG` aceitam um quadro (imagens estáticas), `ISNET_ANIME`, `ISNET_GENERAL_USE` e `U2NET_CLOTH_SEG` até 128 quadros diferentes, e o resto qualquer quantidade dentro do limite normal de quadros.',
+      'Em GIFs e vídeos, quadros repetidos só contam uma vez. Os modelos `BIREFNET_` aceitam um quadro (imagens estáticas), `ISNET_ANIME`, `ISNET_GENERAL_USE` e `U2NET_CLOTH_SEG` até 128 quadros diferentes, e o resto qualquer quantidade dentro do limite normal de quadros.',
     ],
   },
   overlaypreset: {
@@ -317,6 +317,100 @@ export const MEDIASCRIPT_PORTUGUESE_5: TagDocsTranslation['mediaScriptCommands']
     notes: [
       'Sem capa nem cor, os olhos e a boca maiores vão sobre o próprio rosto.',
       'Os olhos e a boca seguem o rosto pelos quadros de um vídeo, então ele continua falando e piscando.',
+    ],
+  },
+  wrap: {
+    summary: 'Coloca uma imagem fixa de uma segunda mídia sobre a superfície da mídia, curvada pela forma dela e iluminada como se estivesse impressa ali.',
+    args: {
+      MEDIA_KEY: MEDIA,
+      OVERLAY_MEDIA_KEY: 'o que vai sobre a superfície (o primeiro quadro), funciona melhor com texto ou um PNG transparente',
+      X: 'onde o centro fica na horizontal, 0 é a borda esquerda',
+      Y: 'onde o centro fica na vertical, 0 é a borda de cima',
+      SIZE: 'a largura dela de frente para a câmera, em relação ao lado menor',
+      ROTATE: 'graus no sentido horário, sobre a superfície',
+      RELIEF: 'quanto ela segue a forma da superfície, 0 é um adesivo plano',
+      LIGHT: 'quanto ela pega das sombras e dos brilhos da superfície',
+      OPACITY: 'o quanto ela fica transparente',
+      CLIP: 'parar no contorno e nas bordas marcadas da superfície, false deixa passar por cima de tudo',
+    },
+    results: [
+      'NotSoBot em vermelho impresso sobre o que estiver no meio da imagem, seguindo a forma e as sombras.',
+      'Seu avatar na camiseta (ou no que estiver ali), girado 10 graus para o outro lado e dobrando mais com as dobras.',
+    ],
+    notes: [
+      'A forma vem da profundidade estimada da mídia: ela dobra com as dobras do tecido, envolve coisas curvas e segue em perspectiva numa parede inclinada. Uma superfície que se afasta recebe ela maior, então ela cobre mais ou menos a mesma área.',
+      'Ela para onde a superfície acaba: o contorno de um objeto, a borda de uma caixa, o chão debaixo de algo.',
+      'GIFs e vídeos mantêm a posição do primeiro quadro em todos os quadros, cada quadro iluminando do seu jeito (uma câmera em movimento não é acompanhada).',
+    ],
+  },
+  depthmap: {
+    summary: 'Troca a mídia pela profundidade estimada dela como imagem: o que está perto é claro e o que está longe é escuro.',
+    args: {
+      MEDIA_KEY: MEDIA,
+      COLORMAP: 'GRAY, INFERNO, MAGMA, PLASMA, TURBO ou VIRIDIS, o perto é a ponta quente',
+      INVERT: 'o longe claro em vez do perto',
+    },
+    results: [
+      'A imagem como um mapa de profundidade arco-íris, vermelho perto e azul longe.',
+    ],
+    notes: [
+      'GIFs e vídeos recebem a profundidade de cada quadro, consistente entre os quadros.',
+    ],
+  },
+  depthblur: {
+    summary: 'Modo retrato: desfoca o que está na frente e atrás do foco pela profundidade estimada da mídia.',
+    args: {
+      MEDIA_KEY: MEDIA,
+      AMOUNT: 'o desfoque máximo, em porcentagem do lado menor',
+      RANGE: 'quanta profundidade em volta do foco fica nítida',
+      X: 'um ponto para focar na horizontal, o assunto no meio se omitido',
+      Y: 'um ponto para focar na vertical',
+      MINIATURE: 'tilt-shift: foco no meio, uma faixa nítida mais fina, mais desfoque e cores mais fortes',
+    },
+    results: [
+      'O assunto fica nítido e o fundo derrete, com os pontos claros florescendo.',
+      'A cena parece uma maquete minúscula.',
+    ],
+    notes: [
+      'O desfoque é feito em luz linear, então os pontos claros florescem como reflexos desfocados de verdade, e o assunto nítido não borra no fundo atrás dele.',
+      'Num vídeo o foco acompanha os quadros suavemente.',
+    ],
+  },
+  parallax: {
+    summary: 'Uma foto 3D: a câmera se mexe um pouco e o que está na frente e atrás do foco desliza um pelo outro.',
+    args: {
+      MEDIA_KEY: MEDIA,
+      MOTION: 'CIRCLE dá a volta, SWAY vai de um lado pro outro, ZOOM se aproxima e volta',
+      AMOUNT: 'quanto as coisas mais próximas se movem, em porcentagem do lado menor',
+      DURATION: 'segundos que um ciclo leva',
+      X: 'o ponto que fica parado na horizontal, o assunto se omitido',
+      Y: 'o ponto que fica parado na vertical',
+    },
+    results: [
+      'Um GIF em loop da imagem com a câmera girando em volta do assunto.',
+      'A câmera se aproxima e volta, e o que está perto cresce mais rápido que o que está longe.',
+    ],
+    notes: [
+      'Imagens fixas viram um GIF em loop (até 512px), GIFs e vídeos percorrem o ciclo enquanto tocam.',
+      'O quadro é ampliado um pouco para esconder as bordas que uma câmera em movimento mostraria.',
+    ],
+  },
+  stereo: {
+    summary: '3D estéreo a partir da profundidade estimada da mídia: anáglifo, lado a lado, olhos cruzados, wigglegram ou olho mágico.',
+    args: {
+      MEDIA_KEY: MEDIA,
+      TYPE: 'ANAGLYPH (óculos vermelho/ciano), SIDEBYSIDE (visão paralela, óculos VR de celular), CROSSEYE (cruzando os olhos), WIGGLE (um wigglegram) ou MAGICEYE (um autoestereograma de pontos)',
+      AMOUNT: 'o quanto de 3D, em porcentagem da largura',
+      X: 'o ponto que fica na tela na horizontal, o assunto se omitido',
+      Y: 'o ponto que fica na tela na vertical',
+    },
+    results: [
+      'Um anáglifo vermelho/ciano que salta da tela com óculos 3D.',
+      'Uma imagem de olho mágico escondendo a forma da imagem, nas cores dela.',
+    ],
+    notes: [
+      'SIDEBYSIDE e CROSSEYE saem com o dobro da largura, WIGGLE transforma uma imagem fixa num GIF em loop.',
+      'O que está mais perto que o foco salta da tela, o que está mais longe afunda.',
     ],
   },
   drawfaces: {

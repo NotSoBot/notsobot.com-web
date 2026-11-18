@@ -311,7 +311,7 @@ export const TAG_DOC_FUNCTIONS_PART1: Array<TagDocFunction> = [
     names: ['api.fetch.music'],
     category: 'network',
     summary: 'Outputs what\'s playing in the server and the queue as JSON. Only NotSoAI can use this.',
-    description: 'Outputs an object with `playing`, `paused`, `channel_id` (the voice channel, `null` when not in one), `loop`, `dj_only`, `current` (what\'s playing, `null` if nothing), `queue` (the next 10) and `queue_count`. Each track has `title`, `artist`, `duration` (seconds), `url`, `queued_by` (a user ID) and `position` (the number `music queue` shows, 1 is what\'s playing).',
+    description: 'Outputs an object with `playing`, `paused`, `channel_id` (the voice channel, `null` when not in one), `loop`, `dj_only`, `current` (what\'s playing, `null` if nothing), `queue` (the next 10) and `queue_count`. Each track has `title`, `artist`, `duration` (milliseconds), `url`, `queued_by` (a user ID) and `position` (the number `music queue` shows, 1 is what\'s playing).',
     syntax: '{api.fetch.music}',
     examples: [
       {code: '{traversejson:current.title|{api.fetch.music}}', result: 'The title of the song that\'s playing.'},
@@ -980,6 +980,8 @@ export const TAG_DOC_FUNCTIONS_PART1: Array<TagDocFunction> = [
       '{newline} inside a JSON string becomes a real line break.',
       'Up to 5 action rows or 25 loose buttons per message, and you cannot mix action rows with loose buttons.',
       'Action rows hold 1–5 components; containers hold 1–40.',
+      'Buttons and select menu options take an `emoji`: one unicode emoji, or a custom emoji as `{"id": "...", "name": "..."}`. A button can have just an emoji.',
+      'NotSoAI\'s replies can use `ai` instead of `run`: pressing the button (or picking from the select menu, `{values}` is what was picked) sends that text to NotSoAI as your next message in the conversation. `ai_input` on a button opens a text box and sends what you type. Only the person who asked can press them, a press turns off the message\'s other components unless `"once": false`, and they work for ten minutes. Tags can\'t use them.',
     ],
   },
   {

@@ -149,6 +149,7 @@ export const ApiEndpoints = Object.freeze({
   ADMIN_REPORT_MESSAGE_TRANSLATE: (reportId: string, messageId: string) => `/admin/reports/${reportId}/messages/${messageId}/translate`,
   ADMIN_VOICES: '/admin/voices',
   ADMIN_VOICE: (voiceId: string) => `/admin/voices/${voiceId}`,
+  ADMIN_VOICE_CLIP_AUDIO: (voiceId: string, clipId: string) => `/admin/voices/${voiceId}/clips/${clipId}/audio`,
   ADMIN_GUILDS: '/admin/guilds',
   ADMIN_GUILD: (guildId: string) => `/admin/guilds/${guildId}`,
 });

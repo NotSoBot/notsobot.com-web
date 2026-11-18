@@ -35,7 +35,14 @@ export function GuildCommandsSection({ guild }: {guild: UserGuild}) {
   const data = query.data;
   // how a command is written here: with the server's prefix, `/` for slash commands, a right-click menu's name as is
   const prefix = displayPrefix(guild);
-  const prefixFor = (type: number) => (type === CommandTypes.PREFIXED) ? prefix : (type === CommandTypes.APPLICATION_SLASH) ? '/' : '';
+  const prefixFor = (type: number) => {
+    switch (type) {
+      case CommandTypes.PREFIXED: return prefix;
+      case CommandTypes.APPLICATION_SLASH: return '/';
+      case CommandTypes.MENTION: return '@NotSoBot ';
+    }
+    return '';
+  };
 
   return (
     <Panel

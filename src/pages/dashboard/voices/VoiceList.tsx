@@ -31,7 +31,7 @@ import { RenameVoiceDialog, voicePlatformLabel } from './RenameVoiceDialog';
 const VOICE_CLIPS_MAX = 10;
 
 
-function formatDuration(ms: number): string {
+export function formatDuration(ms: number): string {
   const seconds = Math.round(ms / 1000);
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 }
@@ -371,16 +371,18 @@ function ClipRow({ guildId, voiceId, clip, editable, canUpload, canDelete, busy,
   onDelete: () => void,
 }) {
   const { t } = useI18n();
+  const scope = useGuildScope();
+  const load = () => api.fetchVoiceClipAudio(scope, guildId, voiceId, clip.id);
   return (
     <li className='flex items-center gap-3 px-4 py-2.5'>
-      <ClipPlayer guildId={guildId} voiceId={voiceId} clip={clip}/>
+      <ClipPlayer clip={clip} load={load}/>
       <div className='min-w-0 flex-1'>
         <div className='truncate text-sm text-fg'>{clip.name}</div>
         <div className='mt-0.5 text-xs text-subtle'>
           {formatDuration(clip.duration)} • {formatMemory(clip.size, (clip.size < 1024 * 1024) ? 0 : 1)} • {t('voices.clip_added_on', {date: formatDate(clip.created)})}
         </div>
       </div>
-      <ClipDownload guildId={guildId} voiceId={voiceId} clip={clip}/>
+      <ClipDownload clip={clip} load={load}/>
       {(editable) ? (
         <div className='flex shrink-0 gap-2'>
           {(canUpload) ? (
@@ -406,10 +408,9 @@ function ClipRow({ guildId, voiceId, clip, editable, canUpload, canDelete, busy,
 }
 
 
-// the clip's stored mp3, fetched with the token like the player's, for anyone who can play it
-function ClipDownload({ guildId, voiceId, clip }: {guildId: string | null, voiceId: string, clip: VoiceClip}) {
+// the clip's stored mp3, fetched with the token like the player's (`load`), for anyone who can play it
+export function ClipDownload({ clip, load }: {clip: VoiceClip, load: () => Promise<Blob>}) {
   const { t } = useI18n();
-  const scope = useGuildScope();
   const [ loading, setLoading ] = useState(false);
   const [ failed, setFailed ] = useState(false);
 
@@ -417,7 +418,7 @@ function ClipDownload({ guildId, voiceId, clip }: {guildId: string | null, voice
     setLoading(true);
     setFailed(false);
     try {
-      const blob = await api.fetchVoiceClipAudio(scope, guildId, voiceId, clip.id);
+      const blob = await load();
       // it's stored as an mp3 whatever it was uploaded as
       downloadBlob(`${clip.name.replace(/\.[^./\\]{1,8}$/, '') || clip.id}.mp3`, blob);
     } catch {
@@ -442,10 +443,9 @@ function ClipDownload({ guildId, voiceId, clip }: {guildId: string | null, voice
 }
 
 
-// the audio is only fetched once it's played, with the token (the api doesn't serve it to links)
-function ClipPlayer({ guildId, voiceId, clip }: {guildId: string | null, voiceId: string, clip: VoiceClip}) {
+// the audio is only fetched once it's played (`load`), with the token (the api doesn't serve it to links)
+export function ClipPlayer({ clip, load }: {clip: VoiceClip, load: () => Promise<Blob>}) {
   const { t } = useI18n();
-  const scope = useGuildScope();
   const audio = useRef<HTMLAudioElement>(null);
   const [ url, setUrl ] = useState<string | null>(null);
   const [ loading, setLoading ] = useState(false);
@@ -473,7 +473,7 @@ function ClipPlayer({ guildId, voiceId, clip }: {guildId: string | null, voiceId
       setLoading(true);
       setFailed(false);
       try {
-        const blob = await api.fetchVoiceClipAudio(scope, guildId, voiceId, clip.id);
+        const blob = await load();
         const objectUrl = URL.createObjectURL(blob);
         element.src = objectUrl;
         setUrl(objectUrl);

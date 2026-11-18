@@ -24,6 +24,7 @@ export const Commands = {
 
   'command_type.prefixed': 'Prefix',
   'command_type.slash': 'Slash',
+  'command_type.mention': 'Mention',
   'command_type.context': 'Context menus',
   'command_type.user_menu': 'User menu',
   'command_type.message_menu': 'Message menu',

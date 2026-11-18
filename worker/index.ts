@@ -172,7 +172,7 @@ interface EmbedText {
   tagSiteName: string,
   commandTypes: Record<CommandType, string>,
   // the label before each way to run a command, then the context menu path to it
-  usage: {prefix: string, slash: string, userApp: string, messageApp: string, userMenu: string, messageMenu: string},
+  usage: {prefix: string, mention: string, slash: string, userApp: string, messageApp: string, userMenu: string, messageMenu: string},
   commandFallback: (type: string) => string,
   commandSiteName: string,
 }
@@ -226,9 +226,11 @@ const EMBED_TEXT: Readonly<Record<Language, EmbedText>> = {
       [CommandTypes.APPLICATION_SLASH]: 'Slash command',
       [CommandTypes.APPLICATION_MENU_USER]: 'User context menu',
       [CommandTypes.APPLICATION_MENU_MESSAGE]: 'Message context menu',
+      [CommandTypes.MENTION]: 'Mention command',
     },
     usage: {
       prefix: 'Prefix',
+      mention: 'Mention',
       slash: 'Slash',
       userApp: 'User app',
       messageApp: 'Message app',
@@ -251,9 +253,11 @@ const EMBED_TEXT: Readonly<Record<Language, EmbedText>> = {
       [CommandTypes.APPLICATION_SLASH]: 'Comando de barra',
       [CommandTypes.APPLICATION_MENU_USER]: 'Menú contextual de usuario',
       [CommandTypes.APPLICATION_MENU_MESSAGE]: 'Menú contextual de mensaje',
+      [CommandTypes.MENTION]: 'Comando con mención',
     },
     usage: {
       prefix: 'Prefijo',
+      mention: 'Mención',
       slash: 'Barra',
       userApp: 'App de usuario',
       messageApp: 'App de mensaje',
@@ -276,9 +280,11 @@ const EMBED_TEXT: Readonly<Record<Language, EmbedText>> = {
       [CommandTypes.APPLICATION_SLASH]: 'Comando de barra',
       [CommandTypes.APPLICATION_MENU_USER]: 'Menu de contexto de usuário',
       [CommandTypes.APPLICATION_MENU_MESSAGE]: 'Menu de contexto de mensagem',
+      [CommandTypes.MENTION]: 'Comando com menção',
     },
     usage: {
       prefix: 'Prefixo',
+      mention: 'Menção',
       slash: 'Barra',
       userApp: 'App de usuário',
       messageApp: 'App de mensagem',
@@ -413,6 +419,8 @@ const COMMAND_NAME_PREFIXES: Record<CommandType, string> = {
   [CommandTypes.APPLICATION_SLASH]: '/',
   [CommandTypes.APPLICATION_MENU_USER]: '',
   [CommandTypes.APPLICATION_MENU_MESSAGE]: '',
+  // stats only, never a variant of its own: the prefixed command run as `@NotSoBot cmd`
+  [CommandTypes.MENTION]: '@NotSoBot ',
 };
 
 
@@ -459,6 +467,7 @@ function commandUsage(language: Language, metadata: CommandMetadata): string {
   switch (metadata.type) {
     // with its arguments, like `.caption ?<emoji,user:id|mention,url> <...text>`. usage never has a backtick in it
     case CommandTypes.PREFIXED: return `**${usage.prefix}** \`${[ `.${metadata.name}`, metadata.usage.trim() ].filter(Boolean).join(' ')}\``;
+    case CommandTypes.MENTION: return `**${usage.mention}** \`${[ `@NotSoBot ${metadata.name}`, metadata.usage.trim() ].filter(Boolean).join(' ')}\``;
     case CommandTypes.APPLICATION_SLASH: return `**${usage.slash}** ${mentionFor(metadata) ?? `\`/${metadata.name}\``}`;
     case CommandTypes.APPLICATION_MENU_USER: return `**${usage.userApp}** ${usage.userMenu} ${name}`;
     case CommandTypes.APPLICATION_MENU_MESSAGE: return `**${usage.messageApp}** ${usage.messageMenu} ${name}`;

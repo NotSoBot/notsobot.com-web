@@ -2398,11 +2398,11 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     syntax: 'backgroundremove MEDIA_KEY MODEL=ISNET_GENERAL_USE TRIM=false',
     args: [
       media(),
-      {name: 'MODEL', default: 'ISNET_GENERAL_USE', range: 'BIREFNET_COD, BIREFNET_DIS, BIREFNET_GENERAL, BIREFNET_GENERAL_LITE, BIREFNET_HRSOD, BIREFNET_MASSIVE, BIREFNET_PORTRAIT, BRIA_RMBG, ISNET_ANIME, ISNET_GENERAL_USE, SILUETA, U2NET, U2NETP, U2NET_CLOTH_SEG, U2NET_HUMAN_SEG', description: 'which model to use, e.g. `ISNET_ANIME` for drawings or `BIREFNET_PORTRAIT` for people'},
+      {name: 'MODEL', default: 'ISNET_GENERAL_USE', range: 'BIREFNET_GENERAL, BIREFNET_GENERAL_LITE, BIREFNET_PORTRAIT, ISNET_ANIME, ISNET_GENERAL_USE, U2NET, U2NET_CLOTH_SEG, U2NET_HUMAN_SEG', description: 'which model to use, e.g. `ISNET_ANIME` for drawings or `BIREFNET_PORTRAIT` for people'},
       {name: 'TRIM', default: 'false', description: 'cut away the transparent edges left around the subject'},
     ],
     notes: [
-      'On GIFs and videos repeated frames only count once. The `BIREFNET_` models and `BRIA_RMBG` take one frame (still images), `ISNET_ANIME`, `ISNET_GENERAL_USE` and `U2NET_CLOTH_SEG` up to 128 different frames, the rest any amount within the usual frame limit.',
+      'On GIFs and videos repeated frames only count once. The `BIREFNET_` models take one frame (still images), `ISNET_ANIME`, `ISNET_GENERAL_USE` and `U2NET_CLOTH_SEG` up to 128 different frames, the rest any amount within the usual frame limit.',
     ],
   },
   {
@@ -2612,6 +2612,115 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     notes: [
       'With neither a cover nor a color, the bigger eyes and mouth go over the face itself.',
       'The eyes and mouth follow the face through a video\'s frames, so it still talks and blinks.',
+    ],
+  },
+  {
+    name: 'wrap',
+    category: 'compose',
+    summary: 'Puts a still of a second media onto the media\'s surface, bent over its shape and lit like it\'s printed there.',
+    syntax: 'wrap MEDIA_KEY OVERLAY_MEDIA_KEY X=0.5 Y=0.5 SIZE=0.4 ROTATE=0 RELIEF=0.6 LIGHT=1 OPACITY=1 CLIP=true',
+    args: [
+      media(),
+      {name: 'OVERLAY_MEDIA_KEY', description: 'what goes onto the surface (its first frame), text or a transparent PNG works best'},
+      {name: 'X', default: '0.5', range: '0..1', description: 'where its center goes across, 0 is the left edge'},
+      {name: 'Y', default: '0.5', range: '0..1', description: 'where its center goes down, 0 is the top edge'},
+      {name: 'SIZE', default: '0.4', range: '0.05..2', description: 'its width facing the camera, of the shorter side'},
+      {name: 'ROTATE', default: '0', range: '-360..360', description: 'degrees clockwise, on the surface'},
+      {name: 'RELIEF', default: '0.6', range: '0..3', description: 'how much it follows the surface\'s shape, 0 is a flat sticker'},
+      {name: 'LIGHT', default: '1', range: '0..2', description: 'how much of the surface\'s shadows and highlights it takes'},
+      {name: 'OPACITY', default: '1', range: '0..1', description: 'how see-through it is'},
+      {name: 'CLIP', default: 'true', description: 'stop at the surface\'s outline and sharp edges, false lets it go over everything'},
+    ],
+    examples: [
+      {code: '{mediascript:load {iv} img\ntext logo NotSoBot SIZE=96 COLOR=#d01818 FONT=impact\nwrap img logo\nrender img}', result: 'NotSoBot in red printed onto whatever is in the middle of the image, following its shape and shadows.'},
+      {code: '{mediascript:load {iv} shirt\nload {avatar} logo\nwrap shirt logo 0.5 0.6 0.3 -10 1.2\nrender shirt}', result: 'Your avatar on the shirt (or whatever is there), turned 10 degrees the other way and bending more with the folds.'},
+    ],
+    notes: [
+      'The shape comes from the media\'s estimated depth: it bends over fabric folds, wraps around curved things and goes on in perspective on a wall at an angle. A surface leaning away gets it bigger, so it covers about the same area.',
+      'It stops where the surface ends: an object\'s outline, a box\'s edge, the floor under something.',
+      'GIFs and videos keep the placement from their first frame on every frame, each frame lighting it its own way (a moving camera doesn\'t get followed).',
+    ],
+  },
+  {
+    name: 'depthmap',
+    category: 'filters',
+    summary: 'Replaces the media with its estimated depth as a picture: near is bright, far is dark.',
+    syntax: 'depthmap MEDIA_KEY COLORMAP=gray INVERT=false',
+    args: [
+      media(),
+      {name: 'COLORMAP', default: 'gray', description: 'GRAY, INFERNO, MAGMA, PLASMA, TURBO or VIRIDIS, near is the hot end'},
+      {name: 'INVERT', default: 'false', description: 'far bright instead of near'},
+    ],
+    examples: [
+      {code: '{mediascript:load {iv} img\ndepthmap img turbo\nrender img}', result: 'The image as a rainbow depth map, red up close and blue far away.'},
+    ],
+    notes: [
+      'GIFs and videos get every frame\'s depth, kept consistent across the frames.',
+    ],
+  },
+  {
+    name: 'depthblur',
+    category: 'filters',
+    summary: 'Portrait mode: blurs what\'s in front of and behind the focus by the media\'s estimated depth.',
+    syntax: 'depthblur MEDIA_KEY AMOUNT=2.5 RANGE=0.15 X=none Y=none MINIATURE=false',
+    args: [
+      media(),
+      {name: 'AMOUNT', default: '2.5', range: '0.1..10', description: 'the most blur, a percent of the shorter side'},
+      {name: 'RANGE', default: '0.15', range: '0..1', description: 'how much depth around the focus stays sharp'},
+      {name: 'X', default: 'none', range: '0..1', description: 'a point to focus on across, the subject in the middle when left out'},
+      {name: 'Y', default: 'none', range: '0..1', description: 'a point to focus on down'},
+      {name: 'MINIATURE', default: 'false', description: 'tilt-shift: focus in the middle, a thinner sharp band, more blur and stronger colors'},
+    ],
+    examples: [
+      {code: '{mediascript:load {iv} img\ndepthblur img\nrender img}', result: 'The subject stays sharp and the background melts away, bright spots blooming.'},
+      {code: '{mediascript:load {iv} img\ndepthblur img MINIATURE=true\nrender img}', result: 'The scene looks like a tiny model.'},
+    ],
+    notes: [
+      'The blur is done in linear light, so bright spots bloom like real out of focus highlights, and the sharp subject doesn\'t smear into the background behind it.',
+      'In a video the focus follows the frames smoothly.',
+    ],
+  },
+  {
+    name: 'parallax',
+    category: 'distort',
+    summary: 'A 3D photo: the camera moves a little so what\'s in front of and behind the focus slide past each other.',
+    syntax: 'parallax MEDIA_KEY MOTION=circle AMOUNT=3 DURATION=3 X=none Y=none',
+    args: [
+      media(),
+      {name: 'MOTION', default: 'circle', description: 'CIRCLE goes around, SWAY left and right, ZOOM dollies in and back out'},
+      {name: 'AMOUNT', default: '3', range: '0.5..10', description: 'how far the nearest things move, a percent of the shorter side'},
+      {name: 'DURATION', default: '3', range: '1..10', description: 'seconds a loop takes'},
+      {name: 'X', default: 'none', range: '0..1', description: 'the point that stays put across, the subject when left out'},
+      {name: 'Y', default: 'none', range: '0..1', description: 'the point that stays put down'},
+    ],
+    examples: [
+      {code: '{mediascript:load {iv} img\nparallax img\nrender img}', result: 'A looping GIF of the picture with the camera circling the subject.'},
+      {code: '{mediascript:load {iv} img\nparallax img zoom 5\nrender img}', result: 'The camera dollies in and back out, near things growing faster than far ones.'},
+    ],
+    notes: [
+      'Still images become a looping GIF (at most 512px), GIFs and videos move through the loop as they play.',
+      'The frame is zoomed in a little so the edges a moving camera would show stay hidden.',
+    ],
+  },
+  {
+    name: 'stereo',
+    category: 'filters',
+    summary: 'Stereo 3D from the media\'s estimated depth: anaglyph, side by side, cross-eye, wigglegram or magic eye.',
+    syntax: 'stereo MEDIA_KEY TYPE=anaglyph AMOUNT=3 X=none Y=none',
+    args: [
+      media(),
+      {name: 'TYPE', default: 'anaglyph', description: 'ANAGLYPH (red/cyan glasses), SIDEBYSIDE (parallel viewing, phone VR viewers), CROSSEYE (cross your eyes at it), WIGGLE (a wigglegram) or MAGICEYE (a random-dot autostereogram)'},
+      {name: 'AMOUNT', default: '3', range: '0.5..10', description: 'how strong the 3D is, a percent of the width'},
+      {name: 'X', default: 'none', range: '0..1', description: 'the point that sits at the screen across, the subject when left out'},
+      {name: 'Y', default: 'none', range: '0..1', description: 'the point that sits at the screen down'},
+    ],
+    examples: [
+      {code: '{mediascript:load {iv} img\nstereo img\nrender img}', result: 'A red/cyan anaglyph that pops out with 3D glasses.'},
+      {code: '{mediascript:load {iv} img\nstereo img magiceye\nrender img}', result: 'A magic eye picture hiding the image\'s shape, in its own colors.'},
+    ],
+    notes: [
+      'SIDEBYSIDE and CROSSEYE come out twice as wide, WIGGLE turns a still image into a looping GIF.',
+      'Anything nearer than the focus pops out of the screen, anything further sinks in.',
     ],
   },
   {
@@ -3412,7 +3521,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
       media(),
       {name: 'AMOUNT', default: '20', range: '1..60', description: 'how far it squashes and stretches, a percent of its height'},
       {name: 'BPM', default: '120', range: '30..300', description: 'beats per minute, it changes pose every beat'},
-      {name: 'MODEL', default: 'ISNET_GENERAL_USE', range: 'BIREFNET_COD, BIREFNET_DIS, BIREFNET_GENERAL, BIREFNET_GENERAL_LITE, BIREFNET_HRSOD, BIREFNET_MASSIVE, BIREFNET_PORTRAIT, BRIA_RMBG, ISNET_ANIME, ISNET_GENERAL_USE, SILUETA, U2NET, U2NETP, U2NET_CLOTH_SEG, U2NET_HUMAN_SEG', description: 'the background removal model that finds the subject'},
+      {name: 'MODEL', default: 'ISNET_GENERAL_USE', range: 'BIREFNET_GENERAL, BIREFNET_GENERAL_LITE, BIREFNET_PORTRAIT, ISNET_ANIME, ISNET_GENERAL_USE, U2NET, U2NET_CLOTH_SEG, U2NET_HUMAN_SEG', description: 'the background removal model that finds the subject'},
     ],
     notes: [
       'Always makes a looping GIF of one bounce from the first frame: GIFs and videos use their first frame, so the background is only removed once.',

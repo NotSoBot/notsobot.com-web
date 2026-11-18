@@ -11,6 +11,7 @@ export const COMMAND_TYPE_LABELS: Record<CommandType, string> = {
   get [CommandTypes.APPLICATION_SLASH]() { return translate('command_type.slash'); },
   get [CommandTypes.APPLICATION_MENU_USER]() { return translate('command_type.user_app'); },
   get [CommandTypes.APPLICATION_MENU_MESSAGE]() { return translate('command_type.message_app'); },
+  get [CommandTypes.MENTION]() { return translate('command_type.mention'); },
 };
 
 export type Tone = 'neutral' | 'danger' | 'warning' | 'success' | 'brand';

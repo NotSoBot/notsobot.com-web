@@ -284,7 +284,7 @@ export const FUNCTIONS_PORTUGUESE_1: TagDocsTranslation['functions'] = {
   },
   API_FETCH_MUSIC: {
     summary: 'Retorna em JSON o que está tocando no servidor e a fila. Só o NotSoAI pode usar isto.',
-    description: 'Retorna um objeto com `playing`, `paused`, `channel_id` (o canal de voz, `null` quando não está em nenhum), `loop`, `dj_only`, `current` (o que está tocando, `null` se nada estiver), `queue` (as próximas 10) e `queue_count`. Cada faixa tem `title`, `artist`, `duration` (em segundos), `url`, `queued_by` (um ID de usuário) e `position` (o número que o `music queue` mostra; 1 é o que está tocando).',
+    description: 'Retorna um objeto com `playing`, `paused`, `channel_id` (o canal de voz, `null` quando não está em nenhum), `loop`, `dj_only`, `current` (o que está tocando, `null` se nada estiver), `queue` (as próximas 10) e `queue_count`. Cada faixa tem `title`, `artist`, `duration` (em milissegundos), `url`, `queued_by` (um ID de usuário) e `position` (o número que o `music queue` mostra; 1 é o que está tocando).',
     results: [
       'O título da música que está tocando.',
     ],
@@ -810,6 +810,8 @@ export const FUNCTIONS_PORTUGUESE_1: TagDocsTranslation['functions'] = {
       '{newline} dentro de uma string JSON vira uma quebra de linha de verdade.',
       'Até 5 linhas de ação ou 25 botões soltos por mensagem, e não dá para misturar linhas de ação com botões soltos.',
       'Linhas de ação levam de 1 a 5 componentes; contêineres, de 1 a 40.',
+      'Os botões e as opções dos menus de seleção aceitam um `emoji`: um emoji unicode, ou um personalizado como `{"id": "...", "name": "..."}`. Um botão pode ter só um emoji.',
+      'As respostas da NotSoAI podem usar `ai` no lugar de `run`: ao apertar o botão (ou escolher no menu de seleção, `{values}` é o que foi escolhido) esse texto é enviado à NotSoAI como sua próxima mensagem na conversa. `ai_input` num botão abre uma caixa de texto e envia o que você digitar. Só quem perguntou pode apertá-los, um clique desativa os outros componentes da mensagem a menos que tenha `"once": false`, e eles funcionam por dez minutos. Tags não podem usá-los.',
     ],
   },
   COMPONENTS_ON_TIMEOUT: {

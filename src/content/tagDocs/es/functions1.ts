@@ -280,7 +280,7 @@ export const FUNCTIONS_SPANISH_1: TagDocsTranslation['functions'] = {
   },
   API_FETCH_MUSIC: {
     summary: 'Devuelve en JSON lo que suena en el servidor y la cola. Solo NotSoAI puede usar esto.',
-    description: 'Devuelve un objeto con `playing`, `paused`, `channel_id` (el canal de voz, `null` si no está en ninguno), `loop`, `dj_only`, `current` (lo que suena, `null` si no suena nada), `queue` (las 10 siguientes) y `queue_count`. Cada pista tiene `title`, `artist`, `duration` (en segundos), `url`, `queued_by` (un ID de usuario) y `position` (el número que muestra `music queue`; 1 es lo que suena).',
+    description: 'Devuelve un objeto con `playing`, `paused`, `channel_id` (el canal de voz, `null` si no está en ninguno), `loop`, `dj_only`, `current` (lo que suena, `null` si no suena nada), `queue` (las 10 siguientes) y `queue_count`. Cada pista tiene `title`, `artist`, `duration` (en milisegundos), `url`, `queued_by` (un ID de usuario) y `position` (el número que muestra `music queue`; 1 es lo que suena).',
     results: [
       'El título de la canción que suena.',
     ],
@@ -806,6 +806,8 @@ export const FUNCTIONS_SPANISH_1: TagDocsTranslation['functions'] = {
       '{newline} dentro de un string JSON se convierte en un salto de línea real.',
       'Hasta 5 filas de acción o 25 botones sueltos por mensaje, y no puedes mezclar filas de acción con botones sueltos.',
       'Las filas de acción llevan de 1 a 5 componentes; los contenedores, de 1 a 40.',
+      'Los botones y las opciones de los menús de selección admiten un `emoji`: un emoji unicode, o uno personalizado como `{"id": "...", "name": "..."}`. Un botón puede llevar solo un emoji.',
+      'Las respuestas de NotSoAI pueden usar `ai` en lugar de `run`: al pulsar el botón (o elegir en el menú de selección, `{values}` es lo elegido) ese texto se envía a NotSoAI como tu siguiente mensaje de la conversación. `ai_input` en un botón abre un cuadro de texto y envía lo que escribas. Solo quien preguntó puede pulsarlos, una pulsación desactiva los demás componentes del mensaje salvo con `"once": false`, y funcionan durante diez minutos. Los tags no pueden usarlos.',
     ],
   },
   COMPONENTS_ON_TIMEOUT: {

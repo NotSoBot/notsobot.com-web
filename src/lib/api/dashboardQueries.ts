@@ -2745,6 +2745,9 @@ export function useAdminStatsQuery<T>(area: Exclude<AdminStatsArea, 'files'>, da
 export interface AdminVoicesFilters {
   query: string,
   userId: string,
+  serverId: string,
+  owner: 'user' | 'server' | null,
+  platformType: number | null,
   page: number,
 }
 
@@ -2755,6 +2758,9 @@ export function useAdminVoicesQuery(filters: AdminVoicesFilters) {
     queryFn: ({ signal }) => api.fetchAdminVoices({
       query: filters.query,
       userId: filters.userId,
+      serverId: filters.serverId,
+      owner: filters.owner,
+      platformType: filters.platformType,
       offset: filters.page * ADMIN_PAGE_SIZE,
       limit: ADMIN_PAGE_SIZE,
     }, signal),

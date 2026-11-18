@@ -5,6 +5,8 @@ export const CommandTypes = {
   APPLICATION_SLASH: 1,
   APPLICATION_MENU_USER: 2,
   APPLICATION_MENU_MESSAGE: 3,
+  // a prefixed command run as `@NotSoBot cmd`: only in usage and stats, it's named by the prefixed command's metadata
+  MENTION: 4,
 } as const;
 export type CommandType = (typeof CommandTypes)[keyof typeof CommandTypes];
 
@@ -2313,15 +2315,29 @@ export interface ReportTranslation {
 }
 
 
-// `/admin/voices`: every cloned voice, with the platform's own id and the owner
+// `/admin/voices`: every cloned voice, a user's own (`user`) or a server's (`server_id`, `user` is null then), with the
+// platform's own id and the clips it's made from (oldest first)
 export interface AdminVoice extends Voice {
+  clips: Array<VoiceClip>,
+  // who made a server's voice (`created_by_id` stays when their account is gone, `created_by` is null then)
+  created_by: AdminUserRef | null,
+  created_by_id: string | null,
+  // the platform's data the voice needs to speak is there (a ZONOS3 voice's speaker embedding)
+  has_platform_data: boolean,
   platform_id: string,
+  // null for a group dm, or a server the api has no row for
+  server: {icon: string | null, id: string, name: string} | null,
+  server_id: string | null,
   user: AdminUserRef | null,
 }
 
 export interface AdminVoicesPage {
   count: number,
   items: Array<AdminVoice>,
+  // what the search/user/server filters match, users' own vs servers' within the chosen platform
+  owners: {server: number, user: number},
+  // by `platform_type` within the chosen owner kind
+  platforms: Record<string, number>,
 }
 
 

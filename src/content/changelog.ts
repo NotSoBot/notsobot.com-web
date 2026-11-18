@@ -28,10 +28,28 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 
 export const CHANGELOG: Array<ChangelogDay> = [
   {
-    date: '2026-11-17',
-    title: 'Translated auto subtitles, a round of fixes',
+    date: '2026-11-18',
+    title: 'Depth effects (portrait blur, 3D photos, stereo 3D) and pixel art',
     items: [
+      {kind: 'new', text: '`.portrait` (also `.bokeh`) blurs what\'s in front of and behind the subject by how far away it is, like a phone\'s portrait mode, with bright spots blooming like a real lens. `-amount` for how much, `-range` for how much stays sharp, `-x`/`-y` to pick what to focus on. Works on GIFs and videos too. **MediaScript:** `depthblur KEY`.'},
+      {kind: 'new', text: '`.miniature` (also `.tiltshift`) makes a picture or video look like a tiny model: blurred by depth around the middle with stronger colors. **MediaScript:** `depthblur KEY MINIATURE=true`.'},
+      {kind: 'new', text: '`.3dphoto` (also `.parallax`) turns a picture into a 3D photo: the camera moves a little so near and far things slide past each other. `-motion circle`, `sway` or `zoom`, `-amount`, `-duration`. Pictures become a looping GIF, videos move as they play. **MediaScript:** `parallax KEY`.'},
+      {kind: 'new', text: '`.stereo` makes stereo 3D: a red/cyan anaglyph by default, or `-type sidebyside`, `crosseye`, `wiggle` (a wigglegram) or `magiceye` (a magic eye picture of it). **MediaScript:** `stereo KEY TYPE=magiceye`.'},
+      {kind: 'new', text: '`.depth` shows the estimated depth itself, near bright and far dark, or in color with `-colormap turbo` (inferno, magma, plasma, viridis too). **MediaScript:** `depthmap KEY`.'},
+      {kind: 'new', text: 'All of these are also under `/media-iv-depth`.'},
+      {kind: 'new', text: '`.pixelart` (and `/tools ml pixelart`) makes four 16x16 pixel art sprites from a prompt, with see-through backgrounds. Press 1 to 4 under them to get that sprite on its own, bigger. `-seed` gets the same four again. Made with Tessera by Jagrat Patel (TheJagStudio).'},
+      {kind: 'improved', text: '`.wrap` now folds around outer corners, like a sticker going around the edge of a box or over the top of a wall, while still stopping where something meets the floor.'},
+      {kind: 'removed', text: 'Background removal no longer offers `BRIA_RMBG` (its license doesn\'t allow commercial use), `BIREFNET_COD`, `BIREFNET_DIS`, `BIREFNET_HRSOD`, `BIREFNET_MASSIVE`, `U2NETP` and `SILUETA`. Asking for one uses the closest model still there instead (`BIREFNET_GENERAL` or `U2NET`), so old tags keep working.'},
+    ],
+  },
+  {
+    date: '2026-11-17',
+    title: 'NotSoAI buttons, translated auto subtitles, a round of fixes',
+    items: [
+      {kind: 'new', text: '`.wrap` (and `/media-iv-scene wrap`) puts a second image, like a logo or some text, onto the first one\'s surface as if it was printed there: it bends over shirt folds, wraps around round things, goes on in perspective on a wall at an angle, stops at the edges and takes on the shadows and highlights. `-x`/`-y` place it, `-size`, `-rotate`, `-relief` for how much it bends (0 is flat), `-light` and `-noclip`. **MediaScript:** `wrap KEY OVERLAY_KEY`.'},
       {kind: 'new', text: '`.autosubtitletranslate` (also `.autosubtr`, and `/media-av-tools auto-subtitle-translate`) burns in subtitles of what\'s said translated into your language, timed to when each line is said. `-to spanish` picks another language, and `-font`, `-highlight` and `-yellow` work like in `.autosubtitle`. Highlighting the word being said only works when the speech is already in that language, since a translation has no word timings; speech already in your language is left as heard. **MediaScript:** `autosubtitle KEY TRANSLATE=es`.'},
+      {kind: 'new', text: 'NotSoAI can answer with buttons, select menus or a text box when it isn\'t sure what you mean, like which image or which song. Picking one carries the conversation on, like replying to it. Only you can press them, for 10 minutes.'},
+      {kind: 'new', text: 'Discord now requires bots to use slash commands, so prefix command replies say so, at most once a day, with the slash command or `@NotSoBot` version of what you ran. `@NotSoBot magik` now runs `magik` instead of asking NotSoAI, and keeps working after prefix commands end.'},
       {kind: 'improved', text: 'Downloading an X post whose picture or video is from the tweet it quotes now adds a **Quoting** line with who posted it, a link and their text, so it\'s clear whose media it is.'},
       {kind: 'improved', text: '`.xyt` has 495 more VivaVideo templates: every sticker in VivaVideo\'s catalog and 160 text bubbles and animated texts, including bubbles with moving backgrounds. The template list labels them Sticker and Text.'},
       {kind: 'improved', text: '`.vep` plays three more AVS Video Editor effects: Saturation, Flip and Sphere. They\'re our best guess at what AVS does until we get an export to compare against.'},
@@ -41,6 +59,10 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'improved', text: '`.kick -clean` lists anyone it banned but couldn\'t unban under **Still banned**, so you know to unban them.'},
       {kind: 'improved', text: '`.merge` and other commands that take several images accept links on separate lines.'},
       {kind: 'improved', text: '`.info guild` and `.guildicon` only show this server, servers you\'re in and discoverable servers.'},
+      {kind: 'improved', text: 'NotSoAI knows what NotSoBot\'s music is playing in your server, where you\'re asking from (a server, a DM or a server NotSoBot isn\'t in), how you asked, the server\'s prefixes, and whether you can manage the server or control the music, so its answers fit.'},
+      {kind: 'improved', text: 'Ask NotSoAI about a command by name, in any language, and it gets that command\'s real help: its arguments, examples and slash command.'},
+      {kind: 'improved', text: '`.embed` and auto-embed show posts with no picture or video as just their text, on X, Bluesky, Threads, Reddit, Tumblr and Facebook. A post linking somewhere else shows its own text when the link has nothing, and says it couldn\'t get the media when the link failed.'},
+      {kind: 'improved', text: 'The dashboard\'s command stats count `@NotSoBot` commands as Mention, apart from prefix commands.'},
       {kind: 'fixed', text: 'Commands whose name starts with another command\'s never running, like `.warnings remove`, `.fonts remove`, `.emojify vertical`, `.tag report`, `.music dj role` and the `.server voice` commands.'},
       {kind: 'fixed', text: 'About 25 slash command options refusing decimals like 0.5, like `pinch-punch`, `vegas-wave`, `light-rays`, `lut`, `eyes cutout` and `shake`. They work once the slash commands update.'},
       {kind: 'fixed', text: 'Reminders and timed bans past the first 1,000 never going off, and server logs never being sent in busy servers.'},
@@ -61,6 +83,7 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'fixed', text: 'Nick mass running again when Continue was pressed twice, and a Stop button on an old message stopping a newer run.'},
       {kind: 'fixed', text: 'The report form failing when making the report took more than 3 seconds.'},
       {kind: 'fixed', text: 'Reminders, tags or other things being made twice when NotSoBot\'s servers hiccuped.'},
+      {kind: 'fixed', text: 'The `{api.fetch.music}` docs saying a track\'s `duration` is in seconds (it\'s milliseconds) and `loop` is a number (it\'s `off`, `track` or `queue`).'},
     ],
   },
   {

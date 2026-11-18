@@ -26,6 +26,7 @@ export const Commands: Record<keyof typeof English, string> = {
 
   'command_type.prefixed': 'Prefixo',
   'command_type.slash': 'Barra',
+  'command_type.mention': 'Menção',
   'command_type.context': 'Menus de contexto',
   'command_type.user_menu': 'Menu de usuário',
   'command_type.message_menu': 'Menu de mensagem',

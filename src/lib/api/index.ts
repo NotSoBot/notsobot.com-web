@@ -1413,16 +1413,32 @@ export const api = {
     return apiRequest<T>(ApiEndpoints.ADMIN_STATS(area), {signal, query: {days}});
   },
 
-  fetchAdminVoices: (params: {query?: string, userId?: string, offset?: number, limit?: number}, signal?: AbortSignal) => {
+  fetchAdminVoices: (params: {
+    query?: string,
+    userId?: string,
+    serverId?: string,
+    owner?: 'user' | 'server' | null,
+    platformType?: number | null,
+    offset?: number,
+    limit?: number,
+  }, signal?: AbortSignal) => {
     return apiRequest<AdminVoicesPage>(ApiEndpoints.ADMIN_VOICES, {
       signal,
       query: {
         query: params.query || undefined,
         user_id: params.userId || undefined,
+        server_id: params.serverId || undefined,
+        owner: params.owner || undefined,
+        platform_type: params.platformType ?? undefined,
         offset: params.offset || undefined,
         limit: params.limit,
       },
     });
+  },
+
+  // any voice's stored clip, a user's or a server's
+  fetchAdminVoiceClipAudio: (voiceId: string, clipId: string, signal?: AbortSignal) => {
+    return apiRequest<Blob>(ApiEndpoints.ADMIN_VOICE_CLIP_AUDIO(voiceId, clipId), {signal, responseType: 'blob', timeout: 60_000});
   },
 
   patchAdminVoice: (voiceId: string, body: VoicePatch) => {
