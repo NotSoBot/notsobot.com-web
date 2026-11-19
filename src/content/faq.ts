@@ -41,7 +41,7 @@ export const FAQ_QUESTIONS: Array<FaqQuestion> = [
     id: 'add-to-server',
     section: 'start',
     question: 'How do I add NotSoBot to my server?',
-    answer: 'Use the [Add to Discord](/invite) button and pick your server. You need the **Manage Server** permission in that server to add bots.\n\nOnce it joins, try `.help` or type `/` in any channel to browse its slash commands.',
+    answer: 'Use the [Add to Discord](/invite) button and pick your server. You need the **Manage Server** permission in that server to add bots.\n\nOnce it joins, type `/` in any channel to browse its slash commands, or try `@NotSoBot help`.',
   },
   {
     id: 'use-without-server',
@@ -53,7 +53,7 @@ export const FAQ_QUESTIONS: Array<FaqQuestion> = [
     id: 'how-to-run-commands',
     section: 'start',
     question: 'How do I run a command?',
-    answer: 'There are three ways:\n\n- Type the prefix and the command name, like `.magik` (the default prefix is `.`)\n- Mention the bot instead of a prefix, like `@NotSoBot magik`\n- Use slash commands by typing `/` and picking one\n\nThe [command list](/commands) shows every command, its usage and examples.',
+    answer: 'There are three ways:\n\n- Use slash commands by typing `/` and picking one\n- Mention the bot, like `@NotSoBot magik`\n- Type the prefix and the command name, like `.magik` (the default prefix is `.`). Prefix commands end on January 1, 2027, since Discord requires bots to use slash commands; the other two ways keep working\n\nThe [command list](/commands) shows every command, its usage and examples.',
   },
   {
     id: 'not-responding',
@@ -105,7 +105,7 @@ export const FAQ_QUESTIONS: Array<FaqQuestion> = [
     id: 'change-prefix',
     section: 'server',
     question: 'How do I change the bot\'s prefix?',
-    answer: 'Use `.prefixes add <prefix>` to add one, `.prefixes replace <prefix>` to swap all of them for a single new one, and `.prefixes remove <prefix>` to remove one. These need the **Manage Server** permission.\n\nOnce a server has custom prefixes, the default `.` stops working there. Mentioning the bot always works, so `@NotSoBot prefixes` shows what\'s active.',
+    answer: 'Use `.prefixes add <prefix>` to add one, `.prefixes replace <prefix>` to swap all of them for a single new one, and `.prefixes remove <prefix>` to remove one. These need the **Manage Server** permission.\n\nOnce a server has custom prefixes, the default `.` stops working there. Mentioning the bot always works, so `@NotSoBot prefixes` shows what\'s active.\n\nPrefix commands end on January 1, 2027, since Discord requires bots to use slash commands. Slash commands and mentioning the bot keep working after that.',
   },
   {
     id: 'restrict-channels',

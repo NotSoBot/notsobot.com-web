@@ -28,6 +28,13 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 
 export const CHANGELOG: Array<ChangelogDay> = [
   {
+    date: '2026-11-19',
+    title: 'Cloned voices say the whole line',
+    items: [
+      {kind: 'fixed', text: 'Free cloned voices sometimes stopping a word or more early, like saying "test one two" for "test one two three four", mostly on lines with no ending punctuation.'},
+    ],
+  },
+  {
     date: '2026-11-18',
     title: 'Depth effects (portrait blur, 3D photos, stereo 3D) and pixel art',
     items: [
@@ -42,8 +49,11 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'improved', text: '`.wrap` now folds around outer corners, like a sticker going around the edge of a box or over the top of a wall, while still stopping where something meets the floor.'},
       {kind: 'improved', text: '`.wrap` plays animated overlays: a GIF (or video) put onto a picture makes a GIF of it moving on the surface. The surface is always a still now, a GIF\'s first frame or a frame from a video. **MediaScript:** `wrap` too.'},
       {kind: 'improved', text: '`.resize -type` (and `type` on `/media-iv-tools resize`): `fit` keeps the shape inside the size, `contain` keeps the shape and pads it to the exact size, `cover` fills the size and crops what\'s left over, `pad` pads it to the exact size without enlarging it. `force` (stretching) is still the default, and `-ratio` still means `contain`.'},
+      {kind: 'improved', text: 'The prefix command tip says when prefix commands end (January 1, 2027) instead of only suggesting the slash command. The website leads with slash commands too, with a notice at the top of the home and commands pages, and a command\'s Prefix tab points to its slash or `@NotSoBot` version.'},
+      {kind: 'improved', text: 'Running NotSoBot from your own install in a channel where the server turned NotSoBot off replies privately, and can\'t create or change server tags there. Games that everyone plays together are refused there instead. `/help permissions-check` says when this is happening.'},
       {kind: 'fixed', text: '`.resize -ratio` and the MediaScript `fit` and `contain` leaving pictures smaller than the size at their size instead of enlarging them. Videos already got enlarged.'},
       {kind: 'fixed', text: 'Pickers like the `.eyes` type buttons taking the picture away with them when they time out, on the Legacy (Embeds) and No Embeds displays.'},
+      {kind: 'fixed', text: 'Prefix commands ignoring a server turning NotSoBot off by channel in Server Settings → Integrations when it\'s set for all of NotSoBot rather than per command. They now follow it, prefix-only and custom commands included.'},
       {kind: 'removed', text: 'Background removal no longer offers `BRIA_RMBG` (its license doesn\'t allow commercial use), `BIREFNET_COD`, `BIREFNET_DIS`, `BIREFNET_HRSOD`, `BIREFNET_MASSIVE`, `U2NETP` and `SILUETA`. Asking for one uses the closest model still there instead (`BIREFNET_GENERAL` or `U2NET`), so old tags keep working.'},
     ],
   },

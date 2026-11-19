@@ -36,7 +36,7 @@ export const Home = {
   'home.steps.post.title': 'Post Some Media',
   'home.steps.post.description': 'Upload an image, gif or video, paste a link, or mention a user to use their avatar.',
   'home.steps.run.title': 'Run a Command',
-  'home.steps.run.description': 'Use a prefix or slash command, or right-click a message and pick an effect from the apps menu.',
+  'home.steps.run.description': 'Use a slash command or mention the bot, or right-click a message and pick an effect from the apps menu.',
   'home.steps.result.title': 'Get It Back',
   'home.steps.result.description': 'NotSoBot replies with the result in seconds, ready to post, save, or run through another effect.',
 

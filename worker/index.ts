@@ -17,7 +17,7 @@ import {
   type TagDirectoryPage,
 } from '../src/lib/api/types';
 import { enabledCommandVariants } from '../src/lib/commandAvailability';
-import { commandTypeFromPath } from '../src/lib/commandPaths';
+import { commandTypeFromPath, compareCommandTypes } from '../src/lib/commandPaths';
 import { renderApp, type RenderedPage } from '../src/entry-server';
 import { DEFAULT_LANGUAGE, LANGUAGE_PREFIXES, languagePath, Languages, splitLanguagePath, type Language } from '../src/i18n/languages';
 import { Layout as EnglishLayout } from '../src/i18n/locales/en/layout';
@@ -499,8 +499,8 @@ function commandEmbed(language: Language, command: Command, metadata: CommandMet
   if (description) {
     text.push({type: 10, content: truncate(description, EMBED_DESCRIPTION_MAX_LENGTH)});
   }
-  // every way to run it, whichever variant the link is for: prefix, then slash, then the context menus
-  const variants = enabledCommandVariants(command).sort((x, y) => x.type - y.type);
+  // every way to run it, whichever variant the link is for: slash, then prefix, then the context menus
+  const variants = enabledCommandVariants(command).sort((x, y) => compareCommandTypes(x.type, y.type));
   text.push({type: 10, content: variants.map((variant) => `-# ${commandUsage(language, variant)}`).join('\n')});
 
   return {

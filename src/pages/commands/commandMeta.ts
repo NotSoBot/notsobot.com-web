@@ -22,7 +22,7 @@ import {
 
 import type { TranslationKey } from '@/i18n';
 import { enabledCommandVariants } from '@/lib/commandAvailability';
-import { commandPath as commandPathFor, commandTypeFromPath } from '@/lib/commandPaths';
+import { commandPath as commandPathFor, commandTypeFromPath, compareCommandTypes } from '@/lib/commandPaths';
 import { CommandCategories, CommandTypes, LegacyCommandCategories, type Command, type CommandMetadata, type CommandPremium, type CommandStat, type CommandType } from '@/lib/api';
 
 
@@ -34,8 +34,8 @@ export interface TypeOption {
 
 export const TYPE_OPTIONS: Array<TypeOption> = [
   {param: 'all', label: 'common.all', types: null},
-  {param: 'prefixed', label: 'command_type.prefixed', types: [CommandTypes.PREFIXED]},
   {param: 'slash', label: 'command_type.slash', types: [CommandTypes.APPLICATION_SLASH]},
+  {param: 'prefixed', label: 'command_type.prefixed', types: [CommandTypes.PREFIXED]},
   {param: 'context', label: 'command_type.context', types: [CommandTypes.APPLICATION_MENU_USER, CommandTypes.APPLICATION_MENU_MESSAGE]},
 ];
 
@@ -166,9 +166,9 @@ export interface Variant {
 export interface Entry {
   key: string,
   command: Command,
-  // the variant the card shows, the prefix one when there is one
+  // the variant the card shows, the slash one when there is one (prefix commands are ending)
   metadata: CommandMetadata,
-  // sorted by type, so prefix before slash
+  // in `compareCommandTypes` order, so slash before prefix
   variants: Array<Variant>,
   // slash/context metadata has no category of its own; borrow it from a sibling
   category: string,
@@ -230,7 +230,7 @@ export function buildEntries(
     const fallbackCategory = command.metadata.find((x) => x.category)?.category || '';
     const variants = enabledCommandVariants(command)
       .filter((metadata) => metadata.name && (!include || include(metadata)))
-      .sort((x, y) => x.type - y.type);
+      .sort((x, y) => compareCommandTypes(x.type, y.type));
     const merged = variants.filter((metadata) => MERGED_TYPES.has(metadata.type));
     const groups = [ merged, ...variants.filter((metadata) => !MERGED_TYPES.has(metadata.type)).map((metadata) => [metadata]) ];
     for (const group of groups) {

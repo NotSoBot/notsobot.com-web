@@ -1,8 +1,9 @@
-import { Crown, X } from 'lucide-react';
+import { Crown, TriangleAlert, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router';
 
+import { formatPrefixCommandsEnd, prefixCommandsEnded } from '@/components/ui/PrefixSunsetNotice';
 import { Routes } from '@/config';
 import { useI18n } from '@/i18n';
 import { CommandTypes, type CommandArgChoice, type CommandType } from '@/lib/api';
@@ -104,6 +105,9 @@ export function CommandDrawer({ entry, type, siblings, entries, totalRanked, onS
               <CommandName type={metadata.type} name={metadata.name} className='text-2xl font-semibold text-white'/>
             </h2>
             <p className='mt-2 text-muted'>{metadata.description || t('commands.no_description')}</p>
+            {(metadata.type === CommandTypes.PREFIXED) ? (
+              <PrefixEndingNote entry={entry} name={metadata.name} onSelect={(value) => onSelect(entry, value)}/>
+            ) : null}
             {(metadata.premium) ? (
               <div className='mt-3 flex items-start gap-2.5 rounded-md border border-warning/30 bg-warning/10 px-3 py-2.5 text-sm'>
                 <Crown aria-hidden className='mt-0.5 size-4 shrink-0 text-warning'/>
@@ -138,10 +142,11 @@ export function CommandDrawer({ entry, type, siblings, entries, totalRanked, onS
 
             {(entry.command.media.length) ? (
               <Section title={t('commands.drawer.preview')}>
-                {/* the example is the prefixed command, whichever type this entry is */}
+                {/* the example is written for the prefixed command, whichever type this entry is. shown as a mention,
+                    which keeps working after prefix commands end */}
                 <CommandPreview
                   command={entry.command}
-                  example={(entry.command.preview_example) ? `${PREFIXES[CommandTypes.PREFIXED]}${entry.command.preview_example}` : null}
+                  example={(entry.command.preview_example) ? `${PREFIXES[CommandTypes.MENTION]}${entry.command.preview_example}` : null}
                 />
               </Section>
             ) : null}
@@ -272,6 +277,32 @@ export function CommandDrawer({ entry, type, siblings, entries, totalRanked, onS
       </div>
     </>,
     document.body,
+  );
+}
+
+
+// on the prefix tab: when prefix commands end, and the slash command (a button to its tab) or mention to use instead
+function PrefixEndingNote({ entry, name, onSelect }: {entry: Entry, name: string, onSelect: (type: CommandType) => void}) {
+  const { t, rich } = useI18n();
+  const date = formatPrefixCommandsEnd();
+  const slash = entry.variants.find((variant) => variant.metadata.type === CommandTypes.APPLICATION_SLASH)?.metadata;
+  const mention = `${PREFIXES[CommandTypes.MENTION]}${name}`;
+  const code = (chunk: string) => <code className='font-mono text-code'>{chunk}</code>;
+  return (
+    <div className='mt-3 flex items-start gap-2.5 rounded-md border border-warning/30 bg-warning/10 px-3 py-2.5 text-sm'>
+      <TriangleAlert aria-hidden className='mt-0.5 size-4 shrink-0 text-warning'/>
+      <p className='text-muted'>
+        <span className='font-medium text-white'>{t((prefixCommandsEnded()) ? 'ui.prefix_sunset.title_ended' : 'ui.prefix_sunset.title', {date})}.</span>{' '}
+        {(slash) ? rich('commands.drawer.prefix_instead', {
+          code,
+          slash: (chunk) => (
+            <button type='button' onClick={() => onSelect(CommandTypes.APPLICATION_SLASH)} className='cursor-pointer font-mono text-code hover:underline'>
+              {chunk}
+            </button>
+          ),
+        }, {mention, slash: `${PREFIXES[CommandTypes.APPLICATION_SLASH]}${slash.name}`}) : rich('commands.drawer.prefix_instead_mention', {code}, {mention})}
+      </p>
+    </div>
   );
 }
 

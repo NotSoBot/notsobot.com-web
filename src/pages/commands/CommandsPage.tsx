@@ -3,6 +3,7 @@ import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, use
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 
 import { FiltersButton } from '@/components/ui/FiltersButton';
+import { PrefixSunsetNotice } from '@/components/ui/PrefixSunsetNotice';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Routes } from '@/config';
 import { Segmented } from '@/components/ui/Segmented';
@@ -205,6 +206,7 @@ export function CommandsPage() {
       </div>
 
       <div className='container-page py-8'>
+        <PrefixSunsetNotice className='mb-8'/>
         {(entries.length) ? (
           <section aria-labelledby='trending-heading' className='mb-10'>
             <h2 id='trending-heading' className='mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-xl text-white'>

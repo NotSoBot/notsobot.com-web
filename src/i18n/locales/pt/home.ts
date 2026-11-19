@@ -39,7 +39,7 @@ export const Home: Record<keyof typeof English, string> = {
   'home.steps.post.title': 'Mande uma mídia',
   'home.steps.post.description': 'Envie uma imagem, gif ou vídeo, cole um link ou mencione um usuário para usar o avatar dele.',
   'home.steps.run.title': 'Use um comando',
-  'home.steps.run.description': 'Use um comando com prefixo ou de barra, ou clique com o botão direito numa mensagem e escolha um efeito no menu de apps.',
+  'home.steps.run.description': 'Use um comando de barra ou mencione o bot, ou clique com o botão direito numa mensagem e escolha um efeito no menu de apps.',
   'home.steps.result.title': 'Receba o resultado',
   'home.steps.result.description': 'O NotSoBot responde com o resultado em segundos, pronto para postar, salvar ou passar por outro efeito.',
 

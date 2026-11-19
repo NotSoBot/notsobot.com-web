@@ -16,9 +16,24 @@ const COMMAND_TYPE_SLUGS: Record<CommandType, string> = {
 };
 
 
-// a command's first variant (prefix, then slash, then context menus) is the plain /commands/:commandId
+// the order a command's ways to run it are listed in: slash first, since Discord requires bots to use slash commands
+// and prefix commands end on 2027-01-01 (a mention keeps working), then prefix, then the context menus
+const VARIANT_ORDER: Record<CommandType, number> = {
+  [CommandTypes.APPLICATION_SLASH]: 0,
+  [CommandTypes.PREFIXED]: 1,
+  [CommandTypes.APPLICATION_MENU_USER]: 2,
+  [CommandTypes.APPLICATION_MENU_MESSAGE]: 3,
+  [CommandTypes.MENTION]: 4,
+};
+
+export function compareCommandTypes(a: CommandType, b: CommandType): number {
+  return VARIANT_ORDER[a] - VARIANT_ORDER[b];
+}
+
+
+// a command's first variant (slash, then prefix, then context menus) is the plain /commands/:commandId
 export function defaultCommandType(types: Array<CommandType>): CommandType | undefined {
-  return (types.length) ? Math.min(...types) as CommandType : undefined;
+  return [ ...types ].sort(compareCommandTypes)[0];
 }
 
 

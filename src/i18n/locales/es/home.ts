@@ -39,7 +39,7 @@ export const Home: Record<keyof typeof English, string> = {
   'home.steps.post.title': 'Publica algo',
   'home.steps.post.description': 'Sube una imagen, un gif o un vídeo, pega un enlace o menciona a alguien para usar su avatar.',
   'home.steps.run.title': 'Usa un comando',
-  'home.steps.run.description': 'Usa un comando con prefijo o de barra, o haz clic derecho en un mensaje y elige un efecto del menú de aplicaciones.',
+  'home.steps.run.description': 'Usa un comando de barra o menciona al bot, o haz clic derecho en un mensaje y elige un efecto del menú de aplicaciones.',
   'home.steps.result.title': 'Recibe el resultado',
   'home.steps.result.description': 'NotSoBot responde con el resultado en segundos, listo para publicar, guardar o pasar por otro efecto.',
 

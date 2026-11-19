@@ -3,15 +3,17 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
 
 import { ImageComparison } from '@/components/ui/ImageComparison';
+import { PrefixSunsetNotice } from '@/components/ui/PrefixSunsetNotice';
 import { QuarantineNotice } from '@/components/ui/QuarantineNotice';
 import { ReportUpdatesNotice } from '@/components/ui/ReportUpdatesNotice';
 import { Segmented } from '@/components/ui/Segmented';
 import { Routes } from '@/config';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useI18n } from '@/i18n';
-import { ApiEndpoints, apiUrl, CommandMediaTypes, type Command, type CommandMedia } from '@/lib/api';
+import { ApiEndpoints, apiUrl, CommandMediaTypes, CommandTypes, type Command, type CommandMedia } from '@/lib/api';
 import { useCommandsQuery, useInfoDiscordQuery } from '@/lib/api/queries';
 import { enabledCommandVariants } from '@/lib/commandAvailability';
+import { compareCommandTypes } from '@/lib/commandPaths';
 import { cn, displayLocale, shuffle } from '@/lib/utils';
 
 import { commandPath, PREFIXES } from './commands/commandMeta';
@@ -50,7 +52,8 @@ interface Showcase {
 function buildShowcases(commands: Array<Command>): Array<Showcase> {
   return commands.flatMap((command) => {
     const after = command.media.find((media) => media.type === CommandMediaTypes.AFTER);
-    const [ variant ] = enabledCommandVariants(command).sort((a, b) => a.type - b.type);
+    // shown as its slash command when it has one, prefix commands are ending
+    const [ variant ] = enabledCommandVariants(command).sort((a, b) => compareCommandTypes(a.type, b.type));
     if (!after || !variant || after.mimetype.startsWith('audio/')) {
       return [];
     }
@@ -64,6 +67,11 @@ function buildShowcases(commands: Array<Command>): Array<Showcase> {
       path: commandPath(command, variant.type),
     }];
   });
+}
+
+// HERO_COMMANDS are picked by the prefix name, the slash one shown is often longer (`/media-iv magik`)
+function prefixName(command: Command): string | undefined {
+  return enabledCommandVariants(command).find((metadata) => metadata.type === CommandTypes.PREFIXED)?.name;
 }
 
 // an image result over an image input of about the same shape, like the commands page's slider
@@ -90,7 +98,7 @@ export function HomePage() {
   const { sliders, showcases } = useMemo(() => {
     const showcases = buildShowcases(commands.data ?? []);
     const sliders = HERO_COMMANDS
-      .map((name) => showcases.find((showcase) => showcase.name === `.${name}`))
+      .map((name) => showcases.find((showcase) => prefixName(showcase.command) === name))
       .filter((showcase): showcase is Showcase & {before: CommandMedia} => !!showcase && fitsSlider(showcase));
     // the ones the slider doesn't already show first, so the gallery adds something. shuffled once per load so a
     // refresh shows other commands
@@ -113,6 +121,7 @@ export function HomePage() {
       {/* Hero */}
       <section className='container-page py-12 sm:py-20'>
         <ReportUpdatesNotice className='mx-auto mb-4 max-w-3xl lg:max-w-5xl'/>
+        <PrefixSunsetNotice className='mx-auto mb-4 max-w-3xl lg:max-w-5xl'/>
         <QuarantineNotice className='mx-auto mb-6 max-w-3xl sm:mb-10 lg:max-w-5xl'/>
         {/* a real before/after under the buttons, or beside the text on large screens. kept to max-w-5xl so the two
             don't drift to opposite edges of a wide screen */}
@@ -262,7 +271,7 @@ function HeroComparison({ showcases }: {showcases: Array<Showcase & {before: Com
       ) : null}
       <p className='text-center text-xs text-subtle'>
         <Link to={showcase.path} className='transition-colors hover:text-white'>
-          {rich('commands.preview.made_with', {code: (chunk) => <code className='font-mono text-code'>{chunk}</code>}, {example: showcase.example || showcase.name.slice(1)})}
+          {rich('commands.preview.made_with', {code: (chunk) => <code className='font-mono text-code'>{chunk}</code>}, {example: (showcase.example) ? `${PREFIXES[CommandTypes.MENTION]}${showcase.example}` : showcase.name})}
         </Link>
       </p>
     </div>

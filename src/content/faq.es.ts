@@ -16,7 +16,7 @@ export const FAQ_SPANISH: FaqTranslation = {
     // primeros pasos
     'add-to-server': {
       question: '¿Cómo añado NotSoBot a mi servidor?',
-      answer: 'Usa el botón [Añadir a Discord](/invite) y elige tu servidor. Necesitas el permiso **Gestionar servidor** en ese servidor para añadir bots.\n\nCuando entre, prueba `.help` o escribe `/` en cualquier canal para ver sus comandos de barra.',
+      answer: 'Usa el botón [Añadir a Discord](/invite) y elige tu servidor. Necesitas el permiso **Gestionar servidor** en ese servidor para añadir bots.\n\nCuando entre, escribe `/` en cualquier canal para ver sus comandos de barra, o prueba `@NotSoBot help`.',
     },
     'use-without-server': {
       question: '¿Puedo usar NotSoBot sin añadirlo a un servidor?',
@@ -24,7 +24,7 @@ export const FAQ_SPANISH: FaqTranslation = {
     },
     'how-to-run-commands': {
       question: '¿Cómo uso un comando?',
-      answer: 'Hay tres formas:\n\n- Escribe el prefijo y el nombre del comando, como `.magik` (el prefijo por defecto es `.`)\n- Menciona al bot en lugar de usar un prefijo, como `@NotSoBot magik`\n- Usa los comandos de barra escribiendo `/` y eligiendo uno\n\nLa [lista de comandos](/commands) muestra todos los comandos, cómo se usan y ejemplos.',
+      answer: 'Hay tres formas:\n\n- Usa los comandos de barra escribiendo `/` y eligiendo uno\n- Menciona al bot, como `@NotSoBot magik`\n- Escribe el prefijo y el nombre del comando, como `.magik` (el prefijo por defecto es `.`). Los comandos con prefijo terminan el 1 de enero de 2027, porque Discord exige que los bots usen comandos de barra; las otras dos formas siguen funcionando\n\nLa [lista de comandos](/commands) muestra todos los comandos, cómo se usan y ejemplos.',
     },
     'not-responding': {
       question: 'El bot no responde a mis comandos. ¿Qué pasa?',
@@ -60,7 +60,7 @@ export const FAQ_SPANISH: FaqTranslation = {
     // configurar el servidor
     'change-prefix': {
       question: '¿Cómo cambio el prefijo del bot?',
-      answer: 'Usa `.prefixes add <prefijo>` para añadir uno, `.prefixes replace <prefijo>` para cambiarlos todos por uno nuevo y `.prefixes remove <prefijo>` para quitar uno. Necesitan el permiso **Gestionar servidor**.\n\nEn cuanto un servidor tiene prefijos personalizados, el `.` por defecto deja de funcionar allí. Mencionar al bot siempre funciona, así que `@NotSoBot prefixes` muestra cuáles están activos.',
+      answer: 'Usa `.prefixes add <prefijo>` para añadir uno, `.prefixes replace <prefijo>` para cambiarlos todos por uno nuevo y `.prefixes remove <prefijo>` para quitar uno. Necesitan el permiso **Gestionar servidor**.\n\nEn cuanto un servidor tiene prefijos personalizados, el `.` por defecto deja de funcionar allí. Mencionar al bot siempre funciona, así que `@NotSoBot prefixes` muestra cuáles están activos.\n\nLos comandos con prefijo terminan el 1 de enero de 2027, porque Discord exige que los bots usen comandos de barra. Los comandos de barra y mencionar al bot siguen funcionando después.',
     },
     'restrict-channels': {
       question: '¿Cómo limito NotSoBot a ciertos canales, roles o usuarios?',

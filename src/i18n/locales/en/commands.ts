@@ -73,6 +73,8 @@ export const Commands = {
   'commands.uses_this_week': 'uses this week',
 
   'commands.drawer.see_premium': 'See NotSoPremium',
+  'commands.drawer.prefix_instead': 'Run this one as <slash>{slash}</slash> or <code>{mention}</code> instead.',
+  'commands.drawer.prefix_instead_mention': 'Run this one as <code>{mention}</code> instead.',
   'commands.drawer.uses': 'Uses this week',
   'commands.drawer.popularity': 'Popularity',
   'commands.drawer.rank_of': 'of {total}',
