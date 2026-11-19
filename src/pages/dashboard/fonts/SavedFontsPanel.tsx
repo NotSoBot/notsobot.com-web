@@ -216,8 +216,9 @@ function AddForm({ full, limit, count, maxFileSize, busy, disabled, onAdd }: {
           return;
         }
         if (await onAdd(name, file!)) {
-          setName('');
-          setFile(null);
+          // only fields nothing else was picked or typed in while it was uploading
+          setName((current) => (current === name) ? '' : current);
+          setFile((current) => (current === file) ? null : current);
         }
       }}
     >

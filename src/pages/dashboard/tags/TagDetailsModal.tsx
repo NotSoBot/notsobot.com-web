@@ -1,12 +1,14 @@
 import { AlertTriangle, ArrowUpRight, ExternalLink, Lock, Pencil } from 'lucide-react';
-import { useEffect, useRef, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 
 import { useAuth } from '@/auth';
+import { CopyButton } from '@/components/ui/CopyButton';
 import { DetailModalHeader, DetailModalStrip, ModalFooter } from '@/components/ui/DetailModal';
 import { stripMarkdown } from '@/components/ui/Markdown';
 import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
+import { useArrowKeyNavigation } from '@/hooks/useArrowKeyNavigation';
 import { useI18n } from '@/i18n';
 import type { Tag } from '@/lib/api';
 import { errorMessage, useMeTagDirectoryQuery, useMeTagQuery } from '@/lib/api/dashboardQueries';
@@ -14,7 +16,7 @@ import { formatDateTime, formatNumber } from '@/lib/utils';
 import { tagDirectoryItemPath, VerificationBadge } from '@/pages/tags/tagDirectory';
 import { MediaSection } from '@/pages/tags/TagMedia';
 
-import { Chip, CopyableValue, CopyButton, DETAIL_LIST_STACKED, DetailList, ExactDate, selectAllScope } from '../admin/adminUi';
+import { Chip, CopyableValue, DETAIL_LIST_STACKED, DetailList, ExactDate, selectAllScope } from '../admin/adminUi';
 import { tagDiscordUrl, tagLocation, TagLocationChip, tagServerPath } from './tagMeta';
 
 
@@ -35,24 +37,7 @@ export function TagDetailsModal({ tagId, guildNames, previousId, nextId, onNavig
   const { t } = useI18n();
   const { data: tag, isPending, isError, error, refetch } = useMeTagQuery(tagId);
 
-  const navigation = useRef({previousId, nextId, onNavigate});
-  navigation.current = {previousId, nextId, onNavigate};
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      const target = event.target;
-      if (event.altKey || event.ctrlKey || event.metaKey || (target instanceof Element && target.closest('input, textarea, select, [contenteditable]'))) {
-        return;
-      }
-      const { previousId, nextId, onNavigate } = navigation.current;
-      if (event.key === 'ArrowLeft' && previousId) {
-        onNavigate(previousId);
-      } else if (event.key === 'ArrowRight' && nextId) {
-        onNavigate(nextId);
-      }
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, []);
+  useArrowKeyNavigation({previousId, nextId, onNavigate});
 
   const browsing = !!(previousId || nextId);
 

@@ -5,9 +5,9 @@
 import { Link, useLocation } from 'react-router';
 
 import { Segmented } from '@/components/ui/Segmented';
+import { useSearchParamState } from '@/hooks/useSearchParamState';
 
 import { DashboardHeader } from '../ui';
-import { useSearchParamState } from './adminUi';
 import { FilesSection } from './stats/FilesSection';
 import { ApiSection, CommandsSection } from './stats/UsageSections';
 import { GrowthSection, PremiumSection } from './stats/GrowthSections';

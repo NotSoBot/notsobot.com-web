@@ -61,9 +61,9 @@ export function canBlockUser(user: {flags: number}, viewerIsOwner: boolean): boo
 }
 
 
-// Blocks (with a reason) or unblocks someone from NotSoBot. `blocked` is the user's current state, so the
-// dialog does the opposite of it.
-export function BlockUserDialog({ user, blocked, blockedReason, blockedUntil = null, defaultReason = '', onClose }: {
+// Blocks (with a reason) or unblocks someone from NotSoBot. `blocked` is the user's current state when it opens, so
+// the dialog does the opposite of it.
+export function BlockUserDialog({ user, blocked: blockedNow, blockedReason: blockedReasonNow, blockedUntil: blockedUntilNow = null, defaultReason = '', onClose }: {
   user: AdminUserRef,
   blocked: boolean,
   blockedReason?: string | null,
@@ -75,6 +75,8 @@ export function BlockUserDialog({ user, blocked, blockedReason, blockedUntil = n
   const reasonId = useId();
   const toast = useToast();
   const mutation = usePatchAdminUserMutation();
+  // kept from when it opened: a save updates the user before the dialog closes, which would flip it to the opposite
+  const [ { blocked, blockedReason, blockedUntil } ] = useState({blocked: blockedNow, blockedReason: blockedReasonNow, blockedUntil: blockedUntilNow});
   const [ reason, setReason ] = useState(defaultReason);
   const [ duration, setDuration ] = useState(0);
 

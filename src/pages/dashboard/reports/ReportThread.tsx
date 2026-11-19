@@ -114,7 +114,9 @@ export function ReportThread({ viewer, reporter, messages, loading, error, onRet
     }
     // the reply comes back as a new message, which scrolls down to it (set before it lands, the list can update first)
     sentHere.current = true;
-    onSend(content).then(() => setDraft(''), () => {
+    const sent = draft;
+    // anything typed while it was sending stays
+    onSend(content).then(() => setDraft((current) => (current === sent) ? '' : current), () => {
       sentHere.current = false;
     });
   };

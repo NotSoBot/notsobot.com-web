@@ -22,17 +22,17 @@ const SCRIPT_SELECTOR = 'script[data-website-id]';
 
 // umami has no queue for calls made before its (deferred) script runs, so wait for it
 function whenLoaded(): Promise<Window['umami']> {
-  if (window.umami) {
-    return Promise.resolve(window.umami);
-  }
   const script = document.querySelector<HTMLScriptElement>(SCRIPT_SELECTOR);
-  if (!script) {
-    return Promise.resolve(undefined);
+  // once the page has loaded the script has too, or failed (blocked): its own events already fired and won't again
+  if (window.umami || !script || document.readyState === 'complete') {
+    return Promise.resolve(window.umami);
   }
   return new Promise((resolve) => {
     const done = () => resolve(window.umami);
     script.addEventListener('load', done, {once: true});
     script.addEventListener('error', done, {once: true});
+    // in case it finished before these were added: a deferred script always settles before the page's load
+    window.addEventListener('load', done, {once: true});
   });
 }
 

@@ -24,7 +24,11 @@ export function AuthProvider({ children }: {children: ReactNode}) {
   // the token yet, so both show the loading state rather than the server's guess of logged out
   const stored = useSyncExternalStore<string | null | undefined>(tokenStorage.subscribe, tokenStorage.get, () => undefined);
   const token = stored ?? null;
-  const [ loggedOut, setLoggedOut ] = useState(false);
+  const [ loggedOutHere, setLoggedOut ] = useState(false);
+  // a logout in another tab counts as one here too, so a protected page goes home instead of straight back to Discord
+  // (a login anywhere clears it, so an expired session after it still leads to logging in again)
+  const clearedByOtherTab = useSyncExternalStore(tokenStorage.subscribe, tokenStorage.clearedByOtherTab, () => false);
+  const loggedOut = loggedOutHere || clearedByOtherTab;
 
   const meQuery = useQuery({
     queryKey: queryKeys.me(token),

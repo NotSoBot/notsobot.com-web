@@ -242,7 +242,10 @@ function TagContentForm({ tag, readOnly, onDirtyChange }: {tag: Tag, readOnly: b
   }, [dirty, onDirtyChange]);
 
   const update = (changes: Partial<Draft>) => {
-    patch.reset();
+    // clears a failed save's error; resetting one that's still sending would drop its result (and allow a second save)
+    if (!patch.isPending) {
+      patch.reset();
+    }
     setDraft((previous) => ({...(previous ?? base), ...changes}));
   };
 
@@ -268,9 +271,11 @@ function TagContentForm({ tag, readOnly, onDirtyChange }: {tag: Tag, readOnly: b
     if (values.nsfw !== base.nsfw) {
       body.nsfw = values.nsfw;
     }
+    const sent = draft;
     patch.mutate(body, {
       onSuccess: () => {
-        setDraft(null);
+        // edits made while it was saving stay (every edit makes a new draft)
+        setDraft((current) => (current === sent) ? null : current);
         toast('Tag saved');
       },
       onError: (error) => {

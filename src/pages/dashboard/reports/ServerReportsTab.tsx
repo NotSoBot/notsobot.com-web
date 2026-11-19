@@ -7,11 +7,13 @@ import { BellOff, BellRing, ExternalLink, MessageSquareWarning, MessagesSquare, 
 import { useState } from 'react';
 
 import { useAuth } from '@/auth';
+import { CopyButton } from '@/components/ui/CopyButton';
 import { DetailModalHeader, DetailModalStrip } from '@/components/ui/DetailModal';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { useSearchParamState, useStepBackFromEmptyPage } from '@/hooks/useSearchParamState';
 import { translate, useI18n } from '@/i18n';
 import { GuildReportTypes, ReportStatuses, type ReportMessage, type ReportStatus, type SentGuildReport } from '@/lib/api';
 import {
@@ -25,7 +27,7 @@ import {
 import { cn, formatDate, formatDateTime } from '@/lib/utils';
 
 import { AdminModalFooter, AdminTagModal, useOpenListItem } from '../admin/AdminTagModal';
-import { Chip, CopyableValue, CopyButton, ExactDate, FiltersButton, Pagination, selectAllScope, useSearchParamState, useStepBackFromEmptyPage } from '../admin/adminUi';
+import { Chip, CopyableValue, ExactDate, FiltersButton, Pagination, selectAllScope } from '../admin/adminUi';
 import { GuildIcon } from '../servers/GuildIcon';
 import { EmptyState, ErrorPanel, Skeleton } from '../ui';
 import { REPORT_STATUSES, reportJumpUrl, reportStatusInfo, ROW_EDGE_BAR } from './reportLabels';

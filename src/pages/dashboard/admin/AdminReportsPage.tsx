@@ -6,12 +6,14 @@ import { ArrowUpRight, Check, ExternalLink, EyeOff, Inbox, Languages, type Lucid
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 
+import { CopyButton } from '@/components/ui/CopyButton';
 import { DetailModalHeader, DetailModalStrip } from '@/components/ui/DetailModal';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
 import { Routes } from '@/config';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { useSearchParamState, useStepBackFromEmptyPage } from '@/hooks/useSearchParamState';
 import { ReportStatuses, ReportTypes, type Report, type ReportPatch, type ReportStatus, type ReportTranslation } from '@/lib/api';
 import {
   ADMIN_PAGE_SIZE,
@@ -28,9 +30,9 @@ import { cn, formatDateTime } from '@/lib/utils';
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from '../ui';
 import { REPORT_TARGET_LABELS, REPORT_TONE_FILLS, REPORT_TYPES, ROW_EDGE_BAR, type ReportTone, reportJumpUrl, reportTypeInfo } from '../reports/reportLabels';
 import { ReportThread } from '../reports/ReportThread';
-import { AdminModalFooter, AdminTagModal, LinkedItemModal, useOpenListItem } from './AdminTagModal';
+import { AdminModalFooter, AdminTagModal, LinkedItemModal, useHoldModalNavigation, useOpenListItem } from './AdminTagModal';
 import { UserModerationButtons } from './UserModerationButtons';
-import { adminServerPath, adminUserPath, Chip, CopyableValue, CopyButton, DETAIL_LIST_STACKED, DetailList, ExactDate, FilterButton, FiltersButton, Pagination, selectAllScope, useSearchParamState, useStepBackFromEmptyPage, UserCell } from './adminUi';
+import { adminServerPath, adminUserPath, Chip, CopyableValue, DETAIL_LIST_STACKED, DetailList, ExactDate, FilterButton, FiltersButton, Pagination, selectAllScope, UserCell } from './adminUi';
 
 
 type Tone = ReportTone;
@@ -297,6 +299,8 @@ function ReportDetails({ report, onFilterReporter, onFilterTarget, navigation }:
   const type = typeInfo(report.type);
   const pendingStatus = (mutation.isPending) ? mutation.variables?.patch.status : undefined;
   const savingNotes = mutation.isPending && mutation.variables?.patch.status === undefined;
+  // stepping to another report would unmount this one and drop the change's toast
+  useHoldModalNavigation(mutation.isPending || translationMutation.isPending);
 
   // a status change carries unsaved notes along, so "write a note, click Resolve" is one step
   const setStatus = (value: ReportStatus) => {
@@ -305,7 +309,12 @@ function ReportDetails({ report, onFilterReporter, onFilterTarget, navigation }:
       patch.notes = notes.trim() || null;
     }
     mutation.mutate({reportId: report.id, patch}, {
-      onSuccess: () => toast(`Report ${report.id}: ${(value === ReportStatuses.OPEN) ? 'reopened' : statusInfo(value).label.toLowerCase()}`),
+      onSuccess: (updated) => {
+        if (patch.notes !== undefined) {
+          setNotes(updated.notes ?? '');
+        }
+        toast(`Report ${report.id}: ${(value === ReportStatuses.OPEN) ? 'reopened' : statusInfo(value).label.toLowerCase()}`);
+      },
       onError: (error) => toast(errorMessage(error), 'error'),
     });
   };
@@ -322,7 +331,11 @@ function ReportDetails({ report, onFilterReporter, onFilterTarget, navigation }:
   };
   const saveNotes = () => {
     mutation.mutate({reportId: report.id, patch: {notes: notes.trim() || null}}, {
-      onSuccess: () => toast(`Report ${report.id}: notes saved`),
+      onSuccess: (updated) => {
+        // saving trims, which leaves the notes as they were when that's all it changed (and the effect above quiet)
+        setNotes(updated.notes ?? '');
+        toast(`Report ${report.id}: notes saved`);
+      },
       onError: (error) => toast(errorMessage(error), 'error'),
     });
   };

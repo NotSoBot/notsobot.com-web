@@ -12,6 +12,7 @@ import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
 import { Routes } from '@/config';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { useSearchParamState, useStepBackFromEmptyPage } from '@/hooks/useSearchParamState';
 import type { ApplicationAccessItem } from '@/lib/api';
 import {
   ADMIN_PAGE_SIZE,
@@ -23,7 +24,7 @@ import {
 import { cn, NO_AUTOFILL } from '@/lib/utils';
 
 import { DashboardHeader, EmptyState, ErrorPanel, Field, Skeleton } from '../ui';
-import { adminUserPath, Pagination, useSearchParamState, useStepBackFromEmptyPage, UserCell } from './adminUi';
+import { adminUserPath, Pagination, UserCell } from './adminUi';
 
 
 export function OwnerApiAccessPage() {

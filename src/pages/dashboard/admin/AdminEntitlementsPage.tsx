@@ -5,13 +5,14 @@ import { Crown } from 'lucide-react';
 
 import { SearchInput } from '@/components/ui/SearchInput';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { useSearchParamState, useStepBackFromEmptyPage } from '@/hooks/useSearchParamState';
 import { EntitlementProviders } from '@/lib/api';
 import { ADMIN_PAGE_SIZE, errorMessage, useAdminEntitlementsQuery } from '@/lib/api/dashboardQueries';
 import { cn } from '@/lib/utils';
 
 import { ENTITLEMENT_PROVIDERS, ENTITLEMENT_TIERS, entitlementProviderLabel, entitlementStatus, entitlementTierLabel } from '../premium';
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from '../ui';
-import { Chip, CopyableValue, ExactDate, Pagination, useSearchParamState, useStepBackFromEmptyPage, UserCell } from './adminUi';
+import { Chip, CopyableValue, ExactDate, Pagination, UserCell } from './adminUi';
 
 
 function parseNumber(value: string | null): number | null {

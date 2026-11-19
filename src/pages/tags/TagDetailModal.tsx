@@ -1,12 +1,14 @@
 import { AlertTriangle, BarChart3, Calendar, ChevronLeft, ChevronRight, Hash, Server, Tag as TagIcon, type LucideIcon } from 'lucide-react';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 
 import { ReportButton } from '@/components/reports/ReportButton';
+import { CopyButton } from '@/components/ui/CopyButton';
 import { Markdown } from '@/components/ui/Markdown';
 import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
 import { UserAvatar } from '@/components/ui/UserAvatar';
+import { useArrowKeyNavigation } from '@/hooks/useArrowKeyNavigation';
 import { useI18n } from '@/i18n';
 import { TagDirectoryVerificationStates, type TagDirectoryItem } from '@/lib/api';
 import { useAdminTagDirectoryItemQuery, useMeTagDirectoryQuery } from '@/lib/api/dashboardQueries';
@@ -14,7 +16,7 @@ import { useTagDirectoryItemQuery } from '@/lib/api/queries';
 import { Routes } from '@/routes';
 import { userDisplayTag } from '@/lib/discord';
 import { cn, formatDate, formatDateTime, formatNumber } from '@/lib/utils';
-import { adminTagsPath, CopyButton } from '@/pages/dashboard/admin/adminUi';
+import { adminTagsPath } from '@/pages/dashboard/admin/adminUi';
 
 import { AddTagButton, categoryLabel, NsfwBadge, verificationInfo } from './tagDirectory';
 import { HiddenContentSection, ListingEditForm, ManageListingCard, TagServersSection, useListingAccess } from './TagListingManager';
@@ -39,28 +41,8 @@ export function TagDetailModal({ tagId, initialItem, previousId, nextId, onNavig
   const [ editingId, setEditingId ] = useState<string | null>(null);
   const editing = editingId === tagId;
 
-  // ← / → step through the tags loaded behind the modal (ignored while typing or editing the listing)
-  const navigation = useRef({previousId, nextId, onNavigate, editing});
-  navigation.current = {previousId, nextId, onNavigate, editing};
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      const target = event.target;
-      if (event.altKey || event.ctrlKey || event.metaKey || (target instanceof Element && target.closest('input, textarea, [contenteditable]'))) {
-        return;
-      }
-      const { previousId, nextId, onNavigate, editing } = navigation.current;
-      if (editing) {
-        return;
-      }
-      if (event.key === 'ArrowLeft' && previousId) {
-        onNavigate(previousId);
-      } else if (event.key === 'ArrowRight' && nextId) {
-        onNavigate(nextId);
-      }
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, []);
+  // ← / → step through the tags loaded behind the modal (ignored while typing, editing the listing, or with a dialog open over it)
+  useArrowKeyNavigation({previousId, nextId, onNavigate, disabled: editing});
 
   return (
     <Modal labelledBy={TITLE_ID} onClose={onClose}>
@@ -76,7 +58,8 @@ export function TagDetailModal({ tagId, initialItem, previousId, nextId, onNavig
       ) : (!item) ? (
         <TagMessage title={t('tags.detail.not_found_title')} description={t('tags.detail.not_found_description')}/>
       ) : (
-        <TagDetail item={item} editing={editing} onEditingChange={(value) => setEditingId((value) ? tagId : null)}/>
+        // keyed on the tag so a dialog opened from it (adding, reporting, ownership checks) never carries its state over to the next one
+        <TagDetail key={tagId} item={item} editing={editing} onEditingChange={(value) => setEditingId((value) ? tagId : null)}/>
       )}
 
       {(previousId || nextId) ? (

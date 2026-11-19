@@ -1,5 +1,5 @@
 import { Braces, FileQuestion, Trash2 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { useToast } from '@/components/ui/Toast';
 import { translate, useI18n } from '@/i18n';
@@ -78,10 +78,25 @@ function BlobsForm({ tag, scope, blobs, readOnly, onDirtyChange }: {
   const put = usePutMeTagBlobsMutation(tag.id, scope);
   const saved = useMemo(() => toSlots(blobs), [blobs]);
   const [ draft, setDraft ] = useState<Slots>(saved);
+  // the draft a save in flight sent, and the stored blobs the draft was last synced to
+  const sent = useRef<Slots | null>(null);
+  const lastSaved = useRef(saved);
 
-  // after a save the query data changes; start from what the API stored
+  // after a save the query data changes: slots never edited or still holding what was sent take what the API stored,
+  // anything typed while it was saving stays
   useEffect(() => {
-    setDraft(saved);
+    const previousSaved = lastSaved.current;
+    const sentSlots = sent.current;
+    lastSaved.current = saved;
+    sent.current = null;
+    setDraft((previous) => {
+      const next = {} as Slots;
+      for (const { type } of STORAGE_ORDER) {
+        const untouched = previous[type] === sentSlots?.[type] || sameSlot(previous[type], previousSaved[type]);
+        next[type] = (untouched) ? saved[type] : previous[type];
+      }
+      return next;
+    });
   }, [saved]);
 
   const dirty = STORAGE_ORDER.some(({ type }) => !sameSlot(draft[type], saved[type]));
@@ -110,9 +125,13 @@ function BlobsForm({ tag, scope, blobs, readOnly, onDirtyChange }: {
       }
       body.blobs.push({storage_id: storageId, storage_type: type, value: (slot.kind === 'text') ? encodeBlob(slot.text) : slot.base64});
     }
+    sent.current = draft;
     put.mutate(body, {
       onSuccess: () => toast(translate('dtags.blobs.saved')),
-      onError: (saveError) => toast(errorMessage(saveError, translate('dtags.blobs.save_error')), 'error'),
+      onError: (saveError) => {
+        sent.current = null;
+        toast(errorMessage(saveError, translate('dtags.blobs.save_error')), 'error');
+      },
     });
   };
 
@@ -173,7 +192,10 @@ function BlobsForm({ tag, scope, blobs, readOnly, onDirtyChange }: {
                     className='input resize-y font-mono text-xs leading-5'
                     value={slotText(slot)}
                     onChange={(event) => {
-                      put.reset();
+                      // clears a failed save's error; resetting one that's still sending would drop its toast
+                      if (!put.isPending) {
+                        put.reset();
+                      }
                       const text = event.target.value;
                       setDraft((previous) => ({...previous, [meta.type]: (text) ? {kind: 'text', text} : {kind: 'empty'}}));
                     }}

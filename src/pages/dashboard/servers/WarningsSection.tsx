@@ -2,10 +2,12 @@ import { ShieldAlert, Trash2 } from 'lucide-react';
 import { useRef, useState } from 'react';
 
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { CopyButton } from '@/components/ui/CopyButton';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { useToast } from '@/components/ui/Toast';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { useSearchParamState, useStepBackFromEmptyPage } from '@/hooks/useSearchParamState';
 import { translate, useI18n } from '@/i18n';
 import type { GuildContentUser, GuildWarning, UserGuild } from '@/lib/api';
 import {
@@ -19,7 +21,7 @@ import {
 import { userDisplayTag } from '@/lib/discord';
 import { cn, formatDateTime, formatNumber } from '@/lib/utils';
 
-import { Chip, CopyButton, ExactDate, Pagination, selectAllScope, useSearchParamState, useStepBackFromEmptyPage } from '../admin/adminUi';
+import { Chip, ExactDate, Pagination, selectAllScope } from '../admin/adminUi';
 import { EmptyState, Panel, Skeleton } from '../ui';
 import { formatSeconds, useReadOnlyMessage } from './guildMeta';
 

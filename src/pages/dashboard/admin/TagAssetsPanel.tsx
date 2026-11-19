@@ -2,6 +2,7 @@ import { Check, Copy, Link2, Pencil, Trash2, Upload } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 
 import { Spinner } from '@/components/ui/Spinner';
+import { useCopied } from '@/hooks/useCopied';
 import type { TagAsset } from '@/lib/api';
 import { errorMessage, useDeleteAdminTagAssetMutation, useUploadAdminTagAssetMutation } from '@/lib/api/dashboardQueries';
 import { cn, formatMemory, NO_AUTOFILL } from '@/lib/utils';
@@ -137,7 +138,7 @@ function TagAssetRow({ tagId, asset, ownerId, onArchived }: {
   onArchived?: (asset: TagAsset, sourceUrl: string | null) => void,
 }) {
   const remove = useDeleteAdminTagAssetMutation();
-  const [ copied, setCopied ] = useState(false);
+  const { copied, copy } = useCopied();
   const [ confirming, setConfirming ] = useState(false);
   const [ editing, setEditing ] = useState(false);
   const [ previewFailed, setPreviewFailed ] = useState(false);
@@ -184,12 +185,7 @@ function TagAssetRow({ tagId, asset, ownerId, onArchived }: {
           type='button'
           className='btn btn-sm btn-ghost'
           title='Copy URL'
-          onClick={() => {
-            void navigator.clipboard?.writeText(asset.urls.cdn).then(() => {
-              setCopied(true);
-              window.setTimeout(() => setCopied(false), 1500);
-            });
-          }}
+          onClick={() => void copy(asset.urls.cdn)}
         >
           {(copied) ? <Check className='size-4 text-success-text'/> : <Copy className='size-4'/>}
           <span className='sr-only sm:not-sr-only'>Copy</span>

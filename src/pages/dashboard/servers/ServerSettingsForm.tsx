@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useToast } from '@/components/ui/Toast';
 import { useI18n } from '@/i18n';
@@ -135,6 +135,11 @@ export function ServerSettingsForm({ guild, group, onDirtyChange }: {guild: User
   useEffect(() => {
     onDirtyChange(draft.dirty);
   }, [draft.dirty, onDirtyChange]);
+  // leaving the page (e.g. "Discard & leave") drops this form's edits, so it stops counting as dirty; callers pass a
+  // new callback every render, so the latest one is read through a ref instead of re-running on each change
+  const latestOnDirtyChange = useRef(onDirtyChange);
+  latestOnDirtyChange.current = onDirtyChange;
+  useEffect(() => () => latestOnDirtyChange.current(false), []);
 
   return (
     <form
@@ -143,9 +148,10 @@ export function ServerSettingsForm({ guild, group, onDirtyChange }: {guild: User
         if (!draft.dirty || mutation.isPending || PERSONALITY_MAX < personality.length || actionsError || autoError) {
           return;
         }
-        mutation.mutate({kind: 'settings', patch: draft.changes}, {
+        const sent = draft.changes;
+        mutation.mutate({kind: 'settings', patch: sent}, {
           onSuccess: () => {
-            draft.reset();
+            draft.commit(sent);
             toast(info.saved);
           },
           onError: (error) => toast(errorMessage(error, info.failed), 'error'),

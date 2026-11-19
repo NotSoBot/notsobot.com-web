@@ -9,11 +9,13 @@ import { useSearchParams } from 'react-router';
 
 import logo from '@/assets/logos/NotSoLogo.svg';
 import { useAuth } from '@/auth';
+import { CopyButton } from '@/components/ui/CopyButton';
 import { DetailModalHeader, DetailModalStrip } from '@/components/ui/DetailModal';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
 import { UserAvatar } from '@/components/ui/UserAvatar';
+import { useSearchParamState, useStepBackFromEmptyPage } from '@/hooks/useSearchParamState';
 import { translate, useI18n, type TranslationKey } from '@/i18n';
 import { ReportStatuses, ReportTypes, type MeReport, type MeReportsSortBy } from '@/lib/api';
 import { Routes } from '@/config';
@@ -30,7 +32,7 @@ import {
 import { cn, formatDateTime, formatNumber, toDate } from '@/lib/utils';
 
 import { AdminModalFooter, AdminTagModal, LinkedItemModal, useOpenListItem } from '../admin/AdminTagModal';
-import { Chip, CopyableValue, CopyButton, DETAIL_LIST_STACKED, DetailList, ExactDate, FiltersButton, Pagination, selectAllScope, useSearchParamState, useStepBackFromEmptyPage } from '../admin/adminUi';
+import { Chip, CopyableValue, DETAIL_LIST_STACKED, DetailList, ExactDate, FiltersButton, Pagination, selectAllScope } from '../admin/adminUi';
 import { Segmented } from '@/components/ui/Segmented';
 
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from '../ui';

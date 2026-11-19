@@ -19,6 +19,7 @@ import {
   type TagDocMediaScriptCommand,
 } from '@/content/tagDocs';
 import { localizeTagDocs, tagDocsTranslationQuery, type TagDocs } from '@/content/tagDocs/localize';
+import { useCopied } from '@/hooks/useCopied';
 import { Languages, useI18n } from '@/i18n';
 import { cn, decodeHash } from '@/lib/utils';
 
@@ -438,22 +439,14 @@ function Examples({ examples }: {examples: Array<TagDocExample>}) {
 
 function CodeBlock({ code, bare }: {code: string, bare?: boolean}) {
   const { t } = useI18n();
-  const [ copied, setCopied ] = useState(false);
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(code);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // clipboard blocked, nothing to do
-    }
-  };
+  // a blocked clipboard just doesn't show the check
+  const { copied, copy } = useCopied();
   return (
     <div className={cn('group relative bg-deep', !bare && 'rounded-md')}>
       <pre className='overflow-x-auto px-3 py-2.5 pr-10 font-mono text-sm leading-relaxed whitespace-pre-wrap break-words text-code'>{code}</pre>
       <button
         type='button'
-        onClick={copy}
+        onClick={() => copy(code)}
         aria-label={t('tag_docs.copy_code')}
         className='absolute top-1.5 right-1.5 cursor-pointer rounded p-1.5 text-subtle opacity-0 transition-opacity group-hover:opacity-100 hover:bg-surface-3 hover:text-white focus-visible:opacity-100'
       >

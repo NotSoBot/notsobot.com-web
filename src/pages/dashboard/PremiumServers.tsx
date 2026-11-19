@@ -141,6 +141,8 @@ export function PremiumServers() {
                     // the dashboard can only add guilds, a group dm's extra slot is added with the bot
                     onStack={(canStack && server.guild) ? () => addSlot(server) : null}
                     stacking={stack.isPending && stack.variables === server.server_id}
+                    // one at a time: a second add would take over the first's toast and spinner
+                    stackDisabled={stack.isPending}
                     onRemove={() => setRemoving(server)}
                   />
                 ))}
@@ -177,11 +179,12 @@ export function PremiumServers() {
 }
 
 
-function ServerRow({ server, active, onStack, stacking, onRemove }: {
+function ServerRow({ server, active, onStack, stacking, stackDisabled, onRemove }: {
   server: PremiumServer,
   active: boolean,
   onStack: (() => void) | null,
   stacking: boolean,
+  stackDisabled: boolean,
   onRemove: () => void,
 }) {
   const { t } = useI18n();
@@ -233,7 +236,7 @@ function ServerRow({ server, active, onStack, stacking, onRemove }: {
         <button
           type='button'
           className='btn btn-sm btn-secondary shrink-0'
-          disabled={stacking}
+          disabled={stackDisabled}
           title={t('pservers.stack_title', {messages: SERVER_AI_MESSAGES_PER_SLOT})}
           onClick={onStack}
           aria-label={t('pservers.stack_label', {name})}
@@ -267,7 +270,6 @@ function AddServerDialog({ taken, onClose }: {taken: Array<string>, onClose: () 
   const listing = useMeGuildListingQuery();
   const put = usePutMePremiumServerMutation();
   const [ query, setQuery ] = useState('');
-  const [ pendingId, setPendingId ] = useState<string | null>(null);
 
   const available = useMemo(() => {
     const search = query.trim().toLowerCase();
@@ -277,13 +279,11 @@ function AddServerDialog({ taken, onClose }: {taken: Array<string>, onClose: () 
   }, [guilds.data, taken, query]);
 
   const add = (guild: UserGuildSummary) => {
-    setPendingId(guild.id);
     put.mutate(guild.id, {
       onSuccess: () => {
         toast(t('pservers.given', {name: guild.name}));
         onClose();
       },
-      onSettled: () => setPendingId(null),
     });
   };
 
@@ -332,7 +332,7 @@ function AddServerDialog({ taken, onClose }: {taken: Array<string>, onClose: () 
                         disabled={put.isPending}
                         onClick={() => add(guild)}
                       >
-                        {(pendingId === guild.id) ? <Spinner className='size-4'/> : null}
+                        {(put.isPending && put.variables === guild.id) ? <Spinner className='size-4'/> : null}
                         {t('pservers.give')}
                       </button>
                     </li>

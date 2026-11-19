@@ -122,7 +122,8 @@ export function AIKnowledgeSection({ guild }: {guild: UserGuild}) {
               return;
             }
             if (await run('\u0000add', {kind: 'add', content: trimmed}, t('knowledge.added'))) {
-              setContent('');
+              // only if nothing else was typed while it was adding
+              setContent((current) => (current === content) ? '' : current);
             }
           }}
         >

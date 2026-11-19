@@ -532,6 +532,7 @@ function MediaManager({ assets, selected, selectedIndex, manage, onUploaded, chi
                     if (manage.staff && !manage.editRequest) {
                       setConfirmingRemove((confirmingRemove === selected.id) ? null : selected.id);
                     } else {
+                      setLocalError(null);
                       mutation.mutate({remove: selected.id});
                     }
                   }}
@@ -547,7 +548,10 @@ function MediaManager({ assets, selected, selectedIndex, manage, onUploaded, chi
           <RemovalConfirm
             label={t('tag_media.remove_media')}
             pending={busy}
-            onConfirm={(removal) => mutation.mutate({remove: selected.id, removal}, () => setConfirmingRemove(null))}
+            onConfirm={(removal) => {
+              setLocalError(null);
+              mutation.mutate({remove: selected.id, removal}, () => setConfirmingRemove(null));
+            }}
             onCancel={() => setConfirmingRemove(null)}
           />
         ) : null}
@@ -711,7 +715,10 @@ export function ThumbnailManager({ assets, thumbnail, manage }: {
                   type='button'
                   className='btn btn-ghost btn-sm'
                   disabled={busy}
-                  onClick={() => draft.mutate({patch: {thumbnail_mode: TagDirectoryEditRequestThumbnailModes.KEEP}})}
+                  onClick={() => {
+                    setLocalError(null);
+                    draft.mutate({patch: {thumbnail_mode: TagDirectoryEditRequestThumbnailModes.KEEP}});
+                  }}
                 >
                   <Undo2 className='size-3.5'/>
                   {t('tag_media.thumb.keep')}

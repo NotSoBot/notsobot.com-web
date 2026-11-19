@@ -9,6 +9,7 @@ import { SearchInput } from '@/components/ui/SearchInput';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { useSearchParamState, useStepBackFromEmptyPage } from '@/hooks/useSearchParamState';
 import type { AdminApplication } from '@/lib/api';
 import {
   ADMIN_PAGE_SIZE,
@@ -24,7 +25,7 @@ import { cn, formatDate } from '@/lib/utils';
 
 import { ApplicationChips, ApplicationNameDialog, isApplicationDisabled, isNotSoBotApplication } from '../applications/ApplicationDialogs';
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from '../ui';
-import { adminUserPath, Chip, CopyableValue, DateTile, ExactDate, FiltersButton, IdFilter, Pagination, StatTile, useSearchParamState, useStepBackFromEmptyPage, UserCell } from './adminUi';
+import { adminUserPath, Chip, CopyableValue, DateTile, ExactDate, FiltersButton, IdFilter, Pagination, StatTile, UserCell } from './adminUi';
 import { AdminModalFooter, AdminTagModal, useOpenListItem } from './AdminTagModal';
 
 

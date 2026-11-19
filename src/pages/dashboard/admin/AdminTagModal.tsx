@@ -1,10 +1,11 @@
 import { AlertTriangle } from 'lucide-react';
-import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 
 import { ModalFooter } from '@/components/ui/DetailModal';
 import { Modal, openModalCount } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
+import { isArrowNavigationTarget } from '@/hooks/useArrowKeyNavigation';
 import { useI18n } from '@/i18n';
 import { ApiRequestError } from '@/lib/api';
 import { errorMessage } from '@/lib/api/dashboardQueries';
@@ -151,8 +152,23 @@ function setSliding(element: HTMLElement, sliding: boolean) {
   }
 }
 
-// `AdminModalFooter`'s Previous / Next go through the modal so they slide too
-const SlideNavigation = createContext<((id: string) => void) | null>(null);
+// `AdminModalFooter`'s Previous / Next go through the modal so they slide too, and are off while it's held
+const SlideNavigation = createContext<{slide: (id: string) => void, held: boolean} | null>(null);
+// how many of the item's parts are holding the modal on it (`useHoldModalNavigation`)
+const NavigationHolds = createContext<Dispatch<SetStateAction<number>> | null>(null);
+
+// Keeps an `AdminTagModal` on its item while `held`: ← / →, swiping and the footer's arrows do nothing. For a change to
+// the item in flight (stepping away unmounts it, and `mutate`'s toasts and follow-ups with it) or unsaved edits.
+export function useHoldModalNavigation(held: boolean) {
+  const setHolds = useContext(NavigationHolds);
+  useEffect(() => {
+    if (!held || !setHolds) {
+      return;
+    }
+    setHolds((count) => count + 1);
+    return () => setHolds((count) => count - 1);
+  }, [held, setHolds]);
+}
 
 
 // One admin tag over the list, like the dashboard's own tag modal: the full card, with ← / → (or swiping on touch
@@ -169,14 +185,19 @@ export function AdminTagModal({ labelledBy, previousId, nextId, onNavigate, onCl
   stickyClose?: boolean,
   children: ReactNode,
 }) {
-  const navigation = useRef({previousId, nextId, onNavigate});
-  navigation.current = {previousId, nextId, onNavigate};
+  const [ holds, setHolds ] = useState(0);
+  const held = 0 < holds;
+  const navigation = useRef({previousId, nextId, onNavigate, held});
+  navigation.current = {previousId, nextId, onNavigate, held};
   const slideRef = useRef<HTMLDivElement>(null);
   // the direction to slide the next render in from, 1 for the next item and -1 for the previous one
   const slideIn = useRef<1 | -1 | null>(null);
 
   // `dragged`: a swipe left the content off to one side, it slides the rest of the way out first
   const step = useRef(async (id: string, dragged = false) => {
+    if (navigation.current.held) {
+      return;
+    }
     const direction = (id === navigation.current.previousId) ? -1 : 1;
     const element = slideRef.current;
     if (!element || prefersReducedMotion()) {
@@ -221,9 +242,8 @@ export function AdminTagModal({ labelledBy, previousId, nextId, onNavigate, onCl
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      const target = event.target;
-      // not while a dialog is open over this one (a confirm, the media viewer)
-      if (event.altKey || event.ctrlKey || event.metaKey || 1 < openModalCount() || (target instanceof Element && target.closest('input, textarea, select, [contenteditable]'))) {
+      // not from a field, or while a dialog is open over this one (a confirm, the media viewer)
+      if (event.altKey || event.ctrlKey || event.metaKey || !isArrowNavigationTarget(event.target)) {
         return;
       }
       const { previousId, nextId } = navigation.current;
@@ -253,8 +273,8 @@ export function AdminTagModal({ labelledBy, previousId, nextId, onNavigate, onCl
         .finished.then(() => setSliding(element, false), () => {});
     };
     const onTouchStart = (event: TouchEvent) => {
-      // not pinch zooms, or while a dialog is open over this one
-      swipe = (event.touches.length === 1 && openModalCount() <= 1 && !swipeHandledBy(event.target))
+      // not pinch zooms, while a dialog is open over this one, or while it's held on this item
+      swipe = (event.touches.length === 1 && openModalCount() <= 1 && !navigation.current.held && !swipeHandledBy(event.target))
         ? {x: event.touches[0].clientX, y: event.touches[0].clientY, time: event.timeStamp, dragging: false}
         : null;
     };
@@ -302,7 +322,8 @@ export function AdminTagModal({ labelledBy, previousId, nextId, onNavigate, onCl
       const sideways = Math.abs(dy) < Math.abs(dx);
       const flicked = SWIPE_MIN_DISTANCE <= Math.abs(dx) && event.timeStamp - start.time <= SWIPE_MAX_DURATION;
       const far = !!element && SWIPE_COMMIT_FRACTION * element.offsetWidth < Math.abs(dx);
-      if (target && sideways && (flicked || far) && !event.touches.length && document.getSelection()?.isCollapsed) {
+      // held since the swipe started (a save went out): springs back
+      if (target && sideways && (flicked || far) && !event.touches.length && document.getSelection()?.isCollapsed && !navigation.current.held) {
         step.current(target, start.dragging);
       } else if (start.dragging) {
         springBack();
@@ -331,12 +352,14 @@ export function AdminTagModal({ labelledBy, previousId, nextId, onNavigate, onCl
 
   return (
     <Modal labelledBy={labelledBy} onClose={onClose} stickyClose={stickyClose}>
-      <SlideNavigation.Provider value={(id) => step.current(id)}>
-        <div ref={slideRef}>
-          {children}
-          {(footer) ? <AdminModalFooter previousId={previousId} nextId={nextId} onNavigate={onNavigate}/> : null}
-        </div>
-      </SlideNavigation.Provider>
+      <NavigationHolds.Provider value={setHolds}>
+        <SlideNavigation.Provider value={{slide: (id) => step.current(id), held}}>
+          <div ref={slideRef}>
+            {children}
+            {(footer) ? <AdminModalFooter previousId={previousId} nextId={nextId} onNavigate={onNavigate}/> : null}
+          </div>
+        </SlideNavigation.Provider>
+      </NavigationHolds.Provider>
     </Modal>
   );
 }
@@ -350,6 +373,11 @@ export function AdminModalFooter({ previousId, nextId, onNavigate, children }: {
   onNavigate: (id: string) => void,
   children?: ReactNode,
 }) {
-  const slide = useContext(SlideNavigation);
-  return <ModalFooter previousId={previousId} nextId={nextId} onNavigate={slide ?? onNavigate}>{children}</ModalFooter>;
+  const navigation = useContext(SlideNavigation);
+  const held = !!navigation?.held;
+  return (
+    <ModalFooter previousId={(held) ? null : previousId} nextId={(held) ? null : nextId} onNavigate={navigation?.slide ?? onNavigate}>
+      {children}
+    </ModalFooter>
+  );
 }

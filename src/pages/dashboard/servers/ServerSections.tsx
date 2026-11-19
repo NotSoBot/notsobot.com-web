@@ -5,15 +5,15 @@ import { FiltersButton } from '@/components/ui/FiltersButton';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
+import { useSearchParamState } from '@/hooks/useSearchParamState';
 import { translate, useI18n } from '@/i18n';
 import { CommandCategories, type GuildLogger, type GuildRule, type GuildRuleTargetType, type UserGuild } from '@/lib/api';
-import { errorField, errorMessage, useGuildMutation, useGuildScope, type GuildAction } from '@/lib/api/dashboardQueries';
+import { errorMessage, useGuildMutation, useGuildScope, type GuildAction } from '@/lib/api/dashboardQueries';
 import { useCommandsQuery } from '@/lib/api/queries';
 import { enabledCommandVariants } from '@/lib/commandAvailability';
 import { cn, formatDate, formatNumber } from '@/lib/utils';
 import { categoryMeta } from '@/pages/commands/commandMeta';
 
-import { useSearchParamState } from '../admin/adminUi';
 import { isSnowflake } from '../tags/tagMeta';
 import { EmptyState, Field, Panel, Toggle } from '../ui';
 import {
@@ -35,29 +35,22 @@ function useGuildEdit(guildId: string) {
   const mutation = useGuildMutation(guildId);
   const [ busyKey, setBusyKey ] = useState<string | null>(null);
 
-  const [ failedField, setFailedField ] = useState<string | null>(null);
-
   const run = async (key: string, action: GuildAction, success: string): Promise<boolean> => {
     setBusyKey(key);
-    setFailedField(null);
     try {
       await mutation.mutateAsync(action);
       toast(success);
       return true;
     } catch (error) {
-      const field = errorField(error);
-      setFailedField(field);
-      // field errors show next to the field instead
-      if (!field) {
-        toast(errorMessage(error, t('sections.save_error')), 'error');
-      }
+      // these rows have no inline field errors, so field errors toast too
+      toast(errorMessage(error, t('sections.save_error')), 'error');
       return false;
     } finally {
       setBusyKey(null);
     }
   };
 
-  return {run, busyKey, pending: mutation.isPending, failedField, clearFailedField: () => setFailedField(null)};
+  return {run, busyKey, pending: mutation.isPending};
 }
 
 
@@ -231,7 +224,8 @@ export function PrefixesSection({ guild }: {guild: UserGuild}) {
           label={t('prefixes.add')}
           onSubmit={async () => {
             if (await edit.run('\u0000add', {kind: 'prefix', prefix: trimmed, present: true}, t('prefixes.added', {prefix: trimmed}))) {
-              setPrefix('');
+              // only if nothing else was typed while it was adding
+              setPrefix((current) => (current === prefix) ? '' : current);
             }
           }}
         >
@@ -606,8 +600,9 @@ export function RulesSection({ guild }: {guild: UserGuild}) {
               value: {allow, message: (allow) ? null : message.trim() || null},
             }]};
             if (await edit.run('\u0000add', action, t((allow) ? 'rules.added_allow' : 'rules.added_block'))) {
-              setId('');
-              setMessage('');
+              // only fields nothing else was typed in while it was adding
+              setId((current) => (current === id) ? '' : current);
+              setMessage((current) => (current === message) ? '' : current);
             }
           }}
         >
@@ -744,9 +739,10 @@ export function LoggersSection({ guild }: {guild: UserGuild}) {
                   {(editable) ? (
                     <RemoveButton
                       label={t('loggers.remove', {type, channel: logger.channel_id})}
-                      busy={edit.busyKey === key && editing !== key}
+                      // its own busy key, so removing while the ignore editor is open spins here and not on its Save
+                      busy={edit.busyKey === `remove:${key}`}
                       disabled={edit.pending}
-                      onClick={() => void edit.run(key, {kind: 'logger-remove', channelId: logger.channel_id, type: logger.type}, t('loggers.removed', {type}))}
+                      onClick={() => void edit.run(`remove:${key}`, {kind: 'logger-remove', channelId: logger.channel_id, type: logger.type}, t('loggers.removed', {type}))}
                     />
                   ) : null}
                 </div>

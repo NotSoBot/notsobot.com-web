@@ -5,12 +5,13 @@ import { EyeOff, KeyRound } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 import { useAuth } from '@/auth';
+import { CopyButton } from '@/components/ui/CopyButton';
 import { Spinner } from '@/components/ui/Spinner';
 import type { IdentityAuditEntry, IdentityProxy, IdentityProxyItem } from '@/lib/api';
 import { errorMessage, useRevealProxyMutation } from '@/lib/api/dashboardQueries';
 import { cn, NO_AUTOFILL } from '@/lib/utils';
 
-import { Chip, CopyButton, DetailList, ExactDate } from './adminUi';
+import { Chip, DetailList, ExactDate } from './adminUi';
 
 
 // re-renders every `interval` ms, for the countdowns

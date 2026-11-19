@@ -5,12 +5,13 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { useToast } from '@/components/ui/Toast';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { useSearchParamState, useStepBackFromEmptyPage } from '@/hooks/useSearchParamState';
 import { useI18n, type TranslationKey } from '@/i18n';
 import type { GuildReminder, GuildReminderSort, GuildReminderWithin, UserGuild } from '@/lib/api';
 import { GUILD_REMINDERS_PAGE_SIZE, errorMessage, useGuildReminderMoveMutation, useGuildRemindersQuery } from '@/lib/api/dashboardQueries';
 import { cn, formatDate, formatDateTime } from '@/lib/utils';
 
-import { Chip, ExactDate, FiltersButton, Pagination, useSearchParamState, useStepBackFromEmptyPage } from '../admin/adminUi';
+import { Chip, ExactDate, FiltersButton, Pagination } from '../admin/adminUi';
 import { EmptyState, Panel, Skeleton } from '../ui';
 import { EntryMention, useReadOnlyMessage } from './guildMeta';
 import { Owner } from './GuildTagsSection';

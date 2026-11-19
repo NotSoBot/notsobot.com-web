@@ -7,11 +7,13 @@
 import { Check, ExternalLink, Inbox, type LucideIcon, MessagesSquare, RotateCcw, Shield, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+import { CopyButton } from '@/components/ui/CopyButton';
 import { DetailModalHeader, DetailModalStrip } from '@/components/ui/DetailModal';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { useSearchParamState, useStepBackFromEmptyPage } from '@/hooks/useSearchParamState';
 import { translate, useI18n, type TranslationKey } from '@/i18n';
 import {
   GuildReportTypes,
@@ -37,17 +39,7 @@ import {
 import { cn, formatDate, formatDateTime } from '@/lib/utils';
 
 import { AdminModalFooter, AdminTagModal, LinkedItemModal, useOpenListItem } from '../admin/AdminTagModal';
-import {
-  Chip,
-  CopyButton,
-  ExactDate,
-  FiltersButton,
-  Pagination,
-  selectAllScope,
-  useSearchParamState,
-  useStepBackFromEmptyPage,
-  UserCell,
-} from '../admin/adminUi';
+import { Chip, ExactDate, FiltersButton, Pagination, selectAllScope, UserCell } from '../admin/adminUi';
 import { REPORT_TONE_FILLS, ROW_EDGE_BAR, reportJumpUrl, reportStatusInfo } from '../reports/reportLabels';
 import { ReportThread } from '../reports/ReportThread';
 import { EmptyState, Panel, Skeleton } from '../ui';

@@ -3,9 +3,10 @@
 // only shows here when a node is made, revealed or given a new one. One compact row per node with its live counts
 
 import { Activity, Check, KeyRound, Pencil, Plus, RadioTower, Trash2, X } from 'lucide-react';
-import { type ReactNode, useEffect, useId, useState } from 'react';
+import { type ReactNode, useEffect, useId, useRef, useState } from 'react';
 
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { CopyButton } from '@/components/ui/CopyButton';
 import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
@@ -24,7 +25,7 @@ import {
 import { cn, formatDate, formatUptime, NO_AUTOFILL } from '@/lib/utils';
 
 import { DashboardHeader, EmptyState, ErrorPanel, Field, Skeleton, Toggle } from '../ui';
-import { Chip, CopyButton, InfoTip } from './adminUi';
+import { Chip, InfoTip } from './adminUi';
 
 
 export function OwnerVoiceNodesPage() {
@@ -427,11 +428,13 @@ function PasswordDialog({ node, created, onClose }: {node: VoiceNode, created?: 
   const reset = useResetVoiceNodePasswordMutation();
   const [ confirmingReset, setConfirmingReset ] = useState(false);
 
+  // only once, when it opens: StrictMode runs the effect twice in development, and each reveal is written down
+  const revealed = useRef(false);
   useEffect(() => {
-    if (!created) {
+    if (!created && !revealed.current) {
+      revealed.current = true;
       reveal.mutate(node.id);
     }
-    // only once, when it opens
   }, []);
 
   const password = reset.data?.password ?? created?.password ?? reveal.data?.password;

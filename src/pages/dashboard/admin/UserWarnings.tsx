@@ -124,13 +124,16 @@ function WarningCard({ warning, users, userId, canDelete }: {
           confirmLabel='Delete'
           pending={mutation.isPending}
           error={(mutation.isError) ? errorMessage(mutation.error, 'Couldn’t delete the warning.') : null}
-          onConfirm={() => mutation.mutate(warning.id, {
-            onSuccess: () => {
-              toast('Deleted the warning');
+          // `mutateAsync`: the warning leaves the list (unmounting this card) before `mutate`'s callbacks would run, the
+          // error shows above while it's still here
+          onConfirm={() => mutation.mutateAsync(warning.id).then(() => toast('Deleted the warning'), () => {})}
+          onClose={() => {
+            if (!mutation.isPending) {
+              // so reopening it doesn't show the last try's error
+              mutation.reset();
               setDeleting(false);
-            },
-          })}
-          onClose={() => !mutation.isPending && setDeleting(false)}
+            }
+          }}
         />
       ) : null}
     </li>

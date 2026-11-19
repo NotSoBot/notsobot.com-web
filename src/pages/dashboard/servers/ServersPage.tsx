@@ -6,6 +6,7 @@ import { useAuth } from '@/auth';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { useToast } from '@/components/ui/Toast';
 import { readStored, writeStored } from '@/hooks/usePersistentState';
+import { useSearchParamState } from '@/hooks/useSearchParamState';
 import { translate, useI18n, type TranslationKey } from '@/i18n';
 import { botInviteUrl, type UserGuildSummary } from '@/lib/api';
 import {
@@ -18,7 +19,6 @@ import {
 } from '@/lib/api/dashboardQueries';
 import { cn } from '@/lib/utils';
 
-import { useSearchParamState } from '../admin/adminUi';
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from '../ui';
 import { GuildIcon } from './GuildIcon';
 import { dashboardServerPath } from './guildMeta';

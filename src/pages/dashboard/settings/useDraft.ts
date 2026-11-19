@@ -26,5 +26,20 @@ export function useDraft<T extends Record<string, unknown>>(saved: T) {
 
   const reset = useCallback(() => setEdits({}), []);
 
-  return {values, changes, dirty, set, reset, restore: setEdits};
+  // After `sent` (a snapshot of `changes` taken when saving) was saved: drop the edits that still hold the value that
+  // was sent, keeping anything changed while the save was in flight. Use this instead of `reset()` in a save's
+  // onSuccess, so typing during a save isn't wiped.
+  const commit = useCallback((sent: Partial<T>) => {
+    setEdits((previous) => {
+      const next: Partial<T> = {...previous};
+      for (const key of Object.keys(sent) as Array<keyof T>) {
+        if (Object.is(next[key], sent[key])) {
+          delete next[key];
+        }
+      }
+      return next;
+    });
+  }, []);
+
+  return {values, changes, dirty, set, reset, commit, restore: setEdits};
 }

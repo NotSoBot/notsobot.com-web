@@ -312,13 +312,15 @@ function ListingForm({ tag, directory, onDirtyChange }: {
     if (!dirty || patch.isPending) {
       return;
     }
-    patch.mutate({title, description, category, content_public: contentPublic}, {
+    const sent = {title, description, category, content_public: contentPublic};
+    patch.mutate(sent, {
+      // fields still holding what was sent take what the API stored, ones changed while it was saving stay (and keep it
+      // dirty, reported by the effect above once the saved listing comes in)
       onSuccess: (updated) => {
-        setTitle(updated.title);
-        setDescription(updated.description);
-        setCategory(updated.category);
-        setContentPublic(updated.content_public);
-        onDirtyChange(false);
+        setTitle((current) => (current === sent.title) ? updated.title : current);
+        setDescription((current) => (current === sent.description) ? updated.description : current);
+        setCategory((current) => (current === sent.category) ? updated.category : current);
+        setContentPublic((current) => (current === sent.content_public) ? updated.content_public : current);
         toast(translate('ddir.saved'));
       },
     });

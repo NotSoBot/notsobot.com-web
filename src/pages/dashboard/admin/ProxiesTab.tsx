@@ -13,6 +13,7 @@ import { SearchInput } from '@/components/ui/SearchInput';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
 import { Routes } from '@/config';
+import { useSearchParamState } from '@/hooks/useSearchParamState';
 import type { AdminIdentities, AdminProxiesBulkResult, IdentityProxy, IdentityProxyItem, IdentityService, ProxyScheme } from '@/lib/api';
 import {
   errorMessage,
@@ -28,7 +29,7 @@ import {
 import { cn, NO_AUTOFILL } from '@/lib/utils';
 
 import { EmptyState, Field } from '../ui';
-import { Chip, FiltersButton, Hint, useSearchParamState } from './adminUi';
+import { Chip, FiltersButton, Hint } from './adminUi';
 import { LabelChips, ProxyCredentials, SortSelect, descending, proxyAddress, proxyLabel, useNow } from './identitiesUi';
 
 
@@ -76,6 +77,8 @@ export function ProxiesTab({ data }: {data: AdminIdentities}) {
   const [ filtersOpen, setFiltersOpen ] = useState(false);
   const [ dialog, setDialog ] = useState<'add' | 'edit' | 'assign' | 'delete' | 'labels' | null>(null);
   const [ openId, setOpenId ] = useState<number | null>(null);
+  // the selection a bulk dialog acts on, kept from when it opened: the list refreshes (down, used by) under it
+  const [ dialogIds, setDialogIds ] = useState<Array<number>>([]);
 
   const query = searchParams.get('q') || '';
   const label = searchParams.get('label') || '';
@@ -108,6 +111,10 @@ export function ProxiesTab({ data }: {data: AdminIdentities}) {
     return next;
   });
   const open = data.proxies.find((proxy) => proxy.id === openId) ?? null;
+  const openBulkDialog = (value: 'edit' | 'assign' | 'delete') => {
+    setDialogIds(selectedIds);
+    setDialog(value);
+  };
 
   return (
     // the room the floating selection bar takes, so it never covers the last rows (and nothing moves when it shows)
@@ -166,15 +173,15 @@ export function ProxiesTab({ data }: {data: AdminIdentities}) {
             <div className='fixed inset-x-0 bottom-4 z-30 flex justify-center px-4'>
               <div className='flex max-w-full flex-wrap items-center gap-2 rounded-lg border border-brand/40 bg-surface-2 px-3 py-2 shadow-xl shadow-black/40'>
                 <span className='text-sm text-fg tabular-nums'>{selectedIds.length.toLocaleString()} selected</span>
-                <button type='button' className='btn btn-secondary btn-sm' onClick={() => setDialog('assign')}>
+                <button type='button' className='btn btn-secondary btn-sm' onClick={() => openBulkDialog('assign')}>
                   <Network className='size-4'/>
                   Assign to services
                 </button>
-                <button type='button' className='btn btn-secondary btn-sm' onClick={() => setDialog('edit')}>
+                <button type='button' className='btn btn-secondary btn-sm' onClick={() => openBulkDialog('edit')}>
                   <Pencil className='size-4'/>
                   Edit
                 </button>
-                <button type='button' className='btn btn-sm border border-danger/40 bg-danger/10 text-danger-text hover:bg-danger/20' onClick={() => setDialog('delete')}>
+                <button type='button' className='btn btn-sm border border-danger/40 bg-danger/10 text-danger-text hover:bg-danger/20' onClick={() => openBulkDialog('delete')}>
                   <Trash2 className='size-4'/>
                   Delete
                 </button>
@@ -248,10 +255,10 @@ export function ProxiesTab({ data }: {data: AdminIdentities}) {
           )}
 
       {(dialog === 'add') ? <AddProxiesDialog data={data} onClose={() => setDialog(null)}/> : null}
-      {(dialog === 'edit') ? <EditProxiesDialog data={data} proxyIds={selectedIds} onClose={() => setDialog(null)}/> : null}
-      {(dialog === 'assign') ? <AssignDialog data={data} proxyIds={selectedIds} onClose={() => setDialog(null)}/> : null}
+      {(dialog === 'edit') ? <EditProxiesDialog data={data} proxyIds={dialogIds} onClose={() => setDialog(null)}/> : null}
+      {(dialog === 'assign') ? <AssignDialog data={data} proxyIds={dialogIds} onClose={() => setDialog(null)}/> : null}
       {(dialog === 'delete') ? (
-        <DeleteProxiesDialog proxyIds={selectedIds} onClose={() => setDialog(null)} onDeleted={(ids) => setSelected((current) => new Set([...current].filter((id) => !ids.includes(id))))}/>
+        <DeleteProxiesDialog proxyIds={dialogIds} onClose={() => setDialog(null)} onDeleted={(ids) => setSelected((current) => new Set([...current].filter((id) => !ids.includes(id))))}/>
       ) : null}
       {(dialog === 'labels') ? <LabelsDialog data={data} onClose={() => setDialog(null)}/> : null}
       {(open) ? <ProxyModal key={open.id} proxy={open} onClose={() => setOpenId(null)}/> : null}
@@ -578,12 +585,16 @@ function AssignDialog({ data, proxyIds, onClose }: {data: AdminIdentities, proxy
             type='button'
             className='btn btn-sm border border-danger/40 bg-danger/10 text-danger-text hover:bg-danger/20 sm:btn'
             disabled={pending || !have}
-            onClick={() => unassign.mutate({service, proxyIds}, {
-              onSuccess: (result) => {
-                toast(`Took ${result.removed.length.toLocaleString()} off ${service}` + ((result.kept.length) ? `, kept ${result.kept.length} with cookies` : ''));
-                onClose();
-              },
-            })}
+            onClick={() => {
+              // only the last try's error shows
+              assign.reset();
+              unassign.mutate({service, proxyIds}, {
+                onSuccess: (result) => {
+                  toast(`Took ${result.removed.length.toLocaleString()} off ${service}` + ((result.kept.length) ? `, kept ${result.kept.length} with cookies` : ''));
+                  onClose();
+                },
+              });
+            }}
           >
             Remove from {service}
           </button>
@@ -591,12 +602,15 @@ function AssignDialog({ data, proxyIds, onClose }: {data: AdminIdentities, proxy
             type='button'
             className='btn btn-primary'
             disabled={pending || !service || have === chosen.length}
-            onClick={() => assign.mutate({service, proxyIds, status: (startDisabled) ? 'disabled' : 'active'}, {
-              onSuccess: (result) => {
-                toast(`Added ${result.added.length.toLocaleString()} to ${service}` + ((accounts) ? ', waiting for cookies' : '') + ((result.skipped.length) ? `, ${result.skipped.length} had one` : ''));
-                onClose();
-              },
-            })}
+            onClick={() => {
+              unassign.reset();
+              assign.mutate({service, proxyIds, status: (startDisabled) ? 'disabled' : 'active'}, {
+                onSuccess: (result) => {
+                  toast(`Added ${result.added.length.toLocaleString()} to ${service}` + ((accounts) ? ', waiting for cookies' : '') + ((result.skipped.length) ? `, ${result.skipped.length} had one` : ''));
+                  onClose();
+                },
+              });
+            }}
           >
             {(assign.isPending) ? <Spinner className='size-4 border-white/40 border-t-white'/> : null}
             Assign to {service}
@@ -664,12 +678,25 @@ function LabelsDialog({ data, onClose }: {data: AdminIdentities, onClose: () => 
                 <>
                   <Chip tone='brand'>{item.name}</Chip>
                   <span className='text-xs text-subtle'>{item.proxies.toLocaleString()} proxies</span>
-                  <button type='button' className='btn btn-ghost btn-sm ml-auto' onClick={() => setEditing({id: item.id, name: item.name})}>Rename</button>
+                  <button
+                    type='button'
+                    className='btn btn-ghost btn-sm ml-auto'
+                    onClick={() => {
+                      // an earlier rename's error is about that one
+                      rename.reset();
+                      setEditing({id: item.id, name: item.name});
+                    }}
+                  >
+                    Rename
+                  </button>
                   <button
                     type='button'
                     className='btn btn-ghost btn-sm text-danger-text'
                     disabled={remove.isPending}
-                    onClick={() => remove.mutate(item.id, {onSuccess: () => toast(`Deleted the ${item.name} label`)})}
+                    onClick={() => remove.mutate(item.id, {
+                      onSuccess: () => toast(`Deleted the ${item.name} label`),
+                      onError: (error) => toast(errorMessage(error, `Couldn’t delete the ${item.name} label.`), 'error'),
+                    })}
                   >
                     Delete
                   </button>
@@ -695,16 +722,23 @@ function ProxyModal({ proxy, onClose }: {proxy: IdentityProxyItem, onClose: () =
   const now = useNow();
   const patch = usePatchProxyMutation();
   const [ editing, setEditing ] = useState(false);
-  const [ form, setForm ] = useState(() => ({
-    scheme: proxy.scheme,
-    host: proxy.host,
-    port: String(proxy.port),
-    username: proxy.username,
+  const formFrom = (value: IdentityProxyItem) => ({
+    scheme: value.scheme,
+    host: value.host,
+    port: String(value.port),
+    username: value.username,
     password: '',
     clearPassword: false,
-    labels: proxy.labels.join(', '),
-    status: proxy.status,
-  }));
+    labels: value.labels.join(', '),
+    status: value.status,
+  });
+  const [ form, setForm ] = useState(() => formFrom(proxy));
+  // each edit starts from the proxy as it is now: a cancelled one's changes (or a typed password) aren't carried over
+  const startEditing = () => {
+    setForm(formFrom(proxy));
+    patch.reset();
+    setEditing(true);
+  };
   const set = (field: keyof typeof form) => (event: {target: {value: string}}) => setForm({...form, [field]: event.target.value});
   const port = Number(form.port);
   const valid = !!form.host.trim() && Number.isInteger(port) && 0 < port && port < 65536;
@@ -817,7 +851,7 @@ function ProxyModal({ proxy, onClose }: {proxy: IdentityProxyItem, onClose: () =
           </form>
         ) : (
           <div className='mt-6 flex gap-2'>
-            <button type='button' className='btn btn-secondary btn-sm' onClick={() => setEditing(true)}>
+            <button type='button' className='btn btn-secondary btn-sm' onClick={startEditing}>
               <Pencil className='size-4'/>
               Edit
             </button>

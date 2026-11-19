@@ -145,8 +145,9 @@ src/
   auth/          token storage, AuthProvider/useAuth, RequireAuth, returnTo
   components/
     layout/      SiteLayout, Navbar, AuthControls (login button / user menu), Footer
-    ui/          SearchInput, Spinner, PageHeader, FullPageMessage, DiscordLogo
+    ui/          SearchInput, Spinner, PageHeader, FullPageMessage, DiscordLogo, Modal, ConfirmDialog, CopyButton
   content/       legal text as typed data
+  hooks/         useSearchParamState, useArrowKeyNavigation, useDismiss, useCopied, usePersistentState, useDebouncedValue
   lib/
     api/         client, endpoints, response types, TanStack Query hooks
     analytics.ts Umami
@@ -156,3 +157,6 @@ src/
   config.ts      env config, route paths, external URLs
   router.tsx     route table (`handle.title` sets document.title)
 ```
+
+UI state (confirm dialogs, saves, drafts, dirty tracking, URL filters, browsing modals): read `docs/ui-state.md` first.
+It lists the shared primitives and the rules that keep those flows from drifting into impossible states.

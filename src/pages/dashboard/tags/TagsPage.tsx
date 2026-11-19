@@ -6,13 +6,14 @@ import { SearchInput } from '@/components/ui/SearchInput';
 import { Routes } from '@/config';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { isStaff, useAuth } from '@/auth';
+import { useStepBackFromEmptyPage } from '@/hooks/useSearchParamState';
 import { translate, useI18n, type TranslationKey } from '@/i18n';
 import { errorMessage, ME_TAGS_PAGE_SIZE, useMeGuildsQuery, useMeTagsQuery } from '@/lib/api/dashboardQueries';
 import { TagDirectoryVerificationStates, type MeTagsDirectoryFilter, type MeTagsSortBy, type Tag, type UserMe } from '@/lib/api';
 import { cn, formatDate } from '@/lib/utils';
 import { NsfwBadge, tagDirectoryItemPath } from '@/pages/tags/tagDirectory';
 
-import { FiltersButton, Pagination, useStepBackFromEmptyPage } from '../admin/adminUi';
+import { FiltersButton, Pagination } from '../admin/adminUi';
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from '../ui';
 import { ServerFilterChip } from '../servers/ServerFilterChip';
 import { DeleteMeTagDialog } from './DeleteMeTagDialog';

@@ -87,9 +87,10 @@ export function SettingsPage() {
 }
 
 
-// One independently saved group of settings. Saving is optimistic (the cache updates right away);
-// if the API refuses, the cache rolls back and the edits come back so nothing typed is lost. `name` is the section's
-// title key, which also tells the sections apart for the unsaved changes guard
+// One independently saved group of settings. Saving is optimistic (the cache updates right away) and the edits stay
+// layered on top until it's saved, so anything typed meanwhile is kept; if the API refuses, the cache rolls back and the
+// edits show as unsaved again. `name` is the section's title key, which also tells the sections apart for the unsaved
+// changes guard
 function useSettingsSection<K extends keyof Values>(name: TranslationKey, settings: UserSettings, keys: ReadonlyArray<K>, onDirtyChange: SectionProps['onDirtyChange']) {
   const toast = useToast();
   const mutation = usePatchMeSettingsMutation();
@@ -110,13 +111,12 @@ function useSettingsSection<K extends keyof Values>(name: TranslationKey, settin
     }
     const changes = draft.changes;
     mutation.mutate(changes as UserSettingsPatch, {
-      onSuccess: () => toast(translate('settings.saved_toast', {section: translate(name)})),
-      onError: (error) => {
-        draft.restore(changes);
-        toast(errorMessage(error, translate('settings.save_error')), 'error');
+      onSuccess: () => {
+        draft.commit(changes);
+        toast(translate('settings.saved_toast', {section: translate(name)}));
       },
+      onError: (error) => toast(errorMessage(error, translate('settings.save_error')), 'error'),
     });
-    draft.reset();
   };
 
   const set = <F extends K>(key: F, value: Values[F]) => {

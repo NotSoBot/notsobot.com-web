@@ -6,12 +6,13 @@ import { Link } from 'react-router';
 
 import { Segmented } from '@/components/ui/Segmented';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { useSearchParamState } from '@/hooks/useSearchParamState';
 import type { AdminFileStats, AdminUploadStats, CountAndSize } from '@/lib/api';
 import { errorMessage, useAdminFileStatsQuery, useAdminStatsQuery } from '@/lib/api/dashboardQueries';
 import { cn, formatDate, formatDateTime, formatNumber, NO_AUTOFILL, toDate } from '@/lib/utils';
 
 import { InlineError, Skeleton } from '../../ui';
-import { adminUserPath, ExactDate, Hint, InfoTip, useSearchParamState } from '../adminUi';
+import { adminUserPath, ExactDate, Hint, InfoTip } from '../adminUi';
 import { bytes, DailyBars, dayLabel, Metric, MetricGrid, plural, RankedList, STAT_COLORS, StatsSection, SubHeading } from './statsUi';
 
 

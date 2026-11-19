@@ -56,7 +56,8 @@ export function ApplicationsPage() {
 
   const showToken = (application: Application) => {
     reveal.mutate(application.id, {
-      onSuccess: (withToken) => setDialog({kind: 'token', application: withToken, heading: t('apps.token_title')}),
+      // a dialog opened while it loaded (rename, reset, delete, new) isn't replaced by the token
+      onSuccess: (withToken) => setDialog((current) => current ?? {kind: 'token', application: withToken, heading: t('apps.token_title')}),
       onError: (revealError) => toast(errorMessage(revealError, t('apps.token_error')), 'error'),
     });
   };

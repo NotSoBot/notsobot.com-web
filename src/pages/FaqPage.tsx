@@ -7,6 +7,7 @@ import { SearchInput } from '@/components/ui/SearchInput';
 import { Spinner } from '@/components/ui/Spinner';
 import { Routes } from '@/config';
 import { faqSearchText, faqTranslationQuery, localizedFaq, type FaqQuestion, type FaqSectionId } from '@/content/faq';
+import { useCopied } from '@/hooks/useCopied';
 import { languagePath, Languages, useI18n } from '@/i18n';
 import { cn, decodeHash } from '@/lib/utils';
 
@@ -248,19 +249,15 @@ function QuestionItem({ question, open, highlight, divider, onToggle }: {
 
 function CopyLinkButton({ id }: {id: string}) {
   const { language, t } = useI18n();
-  const [ copied, setCopied ] = useState(false);
-  const copy = async () => {
-    const url = `${window.location.origin}${languagePath(language, Routes.FAQ)}#${id}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1500);
-    } catch {
+  const { copied, copy } = useCopied();
+  const copyLink = async () => {
+    // clipboard blocked: the link ends up in the address bar instead
+    if (!await copy(`${window.location.origin}${languagePath(language, Routes.FAQ)}#${id}`)) {
       window.location.hash = id;
     }
   };
   return (
-    <button type='button' onClick={copy} className='mt-3 flex cursor-pointer items-center gap-1.5 text-xs text-subtle transition-colors hover:text-white'>
+    <button type='button' onClick={copyLink} className='mt-3 flex cursor-pointer items-center gap-1.5 text-xs text-subtle transition-colors hover:text-white'>
       {(copied) ? <Check className='size-3.5 text-success-text'/> : <Link2 className='size-3.5'/>}
       {t((copied) ? 'faq.link_copied' : 'faq.copy_link')}
     </button>

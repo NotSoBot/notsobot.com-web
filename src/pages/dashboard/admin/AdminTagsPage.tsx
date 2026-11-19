@@ -1,6 +1,7 @@
 import { Check, Clock, Music, Pencil, ShieldCheck, ShieldX, Trash2, X } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 
+import { CopyButton } from '@/components/ui/CopyButton';
 import { DetailModalHeader } from '@/components/ui/DetailModal';
 import { Markdown, stripMarkdown } from '@/components/ui/Markdown';
 import { SearchInput } from '@/components/ui/SearchInput';
@@ -29,13 +30,14 @@ import {
   useAdminTagDirectoryQuery,
   usePatchAdminTagDirectoryMutation,
 } from '@/lib/api/dashboardQueries';
+import { useSearchParamState, useStepBackFromEmptyPage } from '@/hooks/useSearchParamState';
 import { cn, formatDate, formatDateTime, formatMemory, NO_AUTOFILL } from '@/lib/utils';
 import { TAG_NAME_MAX } from '@/pages/dashboard/tags/tagMeta';
 import { CategoryBadge, categoryLabel, categoryOptionFromParam, CategorySelect, DescriptionEditor, NsfwBadge, TAG_DIRECTORY_CATEGORY_OPTIONS, VerificationBadge, verificationRequirement } from '@/pages/tags/tagDirectory';
 
 import { CharCounter, DashboardHeader, EmptyState, ErrorPanel, Field, Skeleton, Toggle } from '../ui';
-import { AdminModalFooter, AdminTagModal, LinkedItemModal, useOpenListItem } from './AdminTagModal';
-import { adminUserPath, Chip, CopyableValue, CopyButton, DETAIL_LIST_STACKED, DetailList, ExactDate, FiltersButton, Pagination, selectAllScope, useSearchParamState, useStepBackFromEmptyPage, UserCell } from './adminUi';
+import { AdminModalFooter, AdminTagModal, LinkedItemModal, useHoldModalNavigation, useOpenListItem } from './AdminTagModal';
+import { adminUserPath, Chip, CopyableValue, DETAIL_LIST_STACKED, DetailList, ExactDate, FiltersButton, Pagination, selectAllScope, UserCell } from './adminUi';
 import { DeleteDirectoryTagFlow } from './DeleteDirectoryTagFlow';
 import { TagOwnerStrip } from './DeleteUserTagsDialog';
 import { AssetProvenanceLine } from './AssetProvenance';
@@ -345,6 +347,9 @@ function DirectoryTagDetails({ item, navigation, onDelete }: {
   };
   const pendingTarget = (mutation.isPending) ? mutation.variables?.verified : undefined;
   const missing = verificationRequirement(item);
+  const saving = mutation.isPending || contentMutation.isPending || listingMutation.isPending;
+  // stepping to another tag would unmount this one: a save's toast and reset are dropped, unsaved edits lost
+  useHoldModalNavigation(saving || (draft !== null && draft !== content) || listingChanged);
 
   return (
     <>
@@ -595,7 +600,7 @@ function DirectoryTagDetails({ item, navigation, onDelete }: {
           short='Delete'
           icon={Trash2}
           className='border border-danger/50 bg-transparent text-danger-text hover:bg-danger/15'
-          disabled={mutation.isPending}
+          disabled={saving}
           pending={false}
           onClick={onDelete}
         />
@@ -642,6 +647,7 @@ function EditRequestReview({ item, request }: {item: AdminTagDirectoryItem, requ
   const mediaChanged = liveIds.join() !== proposedIds.join();
   const removed = item.assets.filter((asset) => !proposedIds.includes(asset.id));
   const contentChanged = request.content !== null && request.content !== item.tag.content;
+  useHoldModalNavigation(mutation.isPending);
 
   const approve = () => mutation.mutate({tagId: item.id, approve: true}, {
     onSuccess: () => toast(`${name}: change request approved`),

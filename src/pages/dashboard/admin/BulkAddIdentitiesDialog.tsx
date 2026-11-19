@@ -134,6 +134,8 @@ export function BulkAddIdentitiesDialog({ data, onClose }: {data: AdminIdentitie
     setSending(true);
     const errors: Record<string, string> = {};
     let added = 0;
+    // how many of `ready` got an answer, a request failing leaves the rest of them unsent
+    let sent = 0;
     try {
       for (let start = 0; start < ready.length; start += CHUNK) {
         const chunk = ready.slice(start, start + CHUNK);
@@ -148,23 +150,28 @@ export function BulkAddIdentitiesDialog({ data, onClose }: {data: AdminIdentitie
             added += 1;
           }
         });
+        sent = start + chunk.length;
       }
     } catch (error) {
       toast(errorMessage(error, 'Couldn’t add the identities.'));
     } finally {
-      setSending(false);
+      // still sending until the list has the new ones, or Add would offer the added rows (and their proxies) again
       await create.invalidate();
+      setSending(false);
     }
+    const unsent = ready.slice(sent).map((row) => row.key);
     if (!added && !Object.keys(errors).length) {
       return;
     }
-    toast(`Added ${added.toLocaleString()} identit${(added === 1) ? 'y' : 'ies'}` + ((Object.keys(errors).length) ? `, ${Object.keys(errors).length} couldn’t be` : ''));
-    if (!Object.keys(errors).length) {
+    toast(`Added ${added.toLocaleString()} identit${(added === 1) ? 'y' : 'ies'}` +
+      ((Object.keys(errors).length) ? `, ${Object.keys(errors).length} couldn’t be` : '') +
+      ((unsent.length) ? `, ${unsent.length.toLocaleString()} not sent` : ''));
+    if (!Object.keys(errors).length && !unsent.length) {
       onClose();
       return;
     }
-    // only the lines that weren't added stay, with why
-    const keep = new Set(Object.keys(errors));
+    // only the lines that weren't added stay, with why (the unsent ones without a reason, ready to try again)
+    const keep = new Set([...Object.keys(errors), ...unsent]);
     setText(text.split(/\r?\n/).filter((raw) => {
       const login = parseLoginLine(raw.trim(), fields);
       return login && keep.has(login.username.toLowerCase());

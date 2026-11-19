@@ -8,6 +8,7 @@ import { SearchInput } from '@/components/ui/SearchInput';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { Routes } from '@/config';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { useSearchParamState, useStepBackFromEmptyPage } from '@/hooks/useSearchParamState';
 import { UserFlags, UserPremiumTypes, type AdminCopyrightStrike, type AdminCopyrightStrikes, type AdminUserEntry, type AdminUsersSortBy } from '@/lib/api';
 import { ADMIN_PAGE_SIZE, errorMessage, useAdminUserCopyrightStrikesQuery, useAdminUserEntryQuery, useAdminUsersQuery } from '@/lib/api/dashboardQueries';
 import { userDisplayTag } from '@/lib/discord';
@@ -15,7 +16,7 @@ import { cn, formatCompact, formatDateTime, formatMemory, snowflakeTimestamp } f
 
 import { premiumLabel } from '../premium';
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from '../ui';
-import { adminTagsPath, adminUserPath, BLOCKED_FILTERS, Chip, ContentFlagTiles, CopyableValue, DateTile, ExactDate, FiltersButton, FLAGGED_WITHIN, Hint, Pagination, StatTile, useSearchParamState, useStepBackFromEmptyPage } from './adminUi';
+import { adminTagsPath, adminUserPath, BLOCKED_FILTERS, Chip, ContentFlagTiles, CopyableValue, DateTile, ExactDate, FiltersButton, FLAGGED_WITHIN, Hint, Pagination, StatTile } from './adminUi';
 import { AdminModalFooter, AdminTagModal, LinkedItemModal, useOpenListItem } from './AdminTagModal';
 import { BlockUserDialog, BlockedUntilLine, canBlockUser } from './BlockUserDialog';
 import { DeleteUserTagsDialog } from './DeleteUserTagsDialog';

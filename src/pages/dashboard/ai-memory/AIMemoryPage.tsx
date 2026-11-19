@@ -41,7 +41,7 @@ export function AIMemoryPage() {
   const setEnabled = (value: boolean) => {
     patchSettings.mutate({ml_llm_memory_disabled: !value}, {
       onSuccess: () => toast(t((value) ? 'memory.on' : 'memory.off')),
-      onError: (mutationError) => toast(errorMessage(mutationError, t('memory.setting_error'))),
+      onError: (mutationError) => toast(errorMessage(mutationError, t('memory.setting_error')), 'error'),
     });
   };
 

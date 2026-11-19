@@ -67,7 +67,7 @@ export function MusicSection({ guild }: {guild: UserGuild}) {
   // dragging a song to a new spot, the same move the arrows make. It's shown where it was dropped until the api answers
   const [ droppedOrder, setDroppedOrder ] = useState<Array<string> | null>(null);
   const shown = (droppedOrder) ? orderedBy(queued, droppedOrder) : queued;
-  const drag = useDragReorder(shown.length, editable && !mutation.isPending, (from, to) => {
+  const drag = useDragReorder(shown.map((item) => item.id), editable && !mutation.isPending, (from, to) => {
     const item = shown[from];
     const order = shown.map((x) => x.id);
     order.splice(to, 0, ...order.splice(from, 1));
@@ -226,8 +226,10 @@ export function MusicSection({ guild }: {guild: UserGuild}) {
           confirmLabel={t('music.clear')}
           pending={busyKey === 'clear'}
           onConfirm={async () => {
-            await run('clear', {kind: 'clear'}, t('music.cleared'));
-            setConfirming(null);
+            // a failure is toasted, the dialog stays open to try again
+            if (await run('clear', {kind: 'clear'}, t('music.cleared'))) {
+              setConfirming(null);
+            }
           }}
           onClose={() => setConfirming(null)}
         />
@@ -238,8 +240,10 @@ export function MusicSection({ guild }: {guild: UserGuild}) {
           confirmLabel={t('music.stop')}
           pending={busyKey === 'leave'}
           onConfirm={async () => {
-            await run('leave', {kind: 'control', action: 'leave'}, t('music.stopped'));
-            setConfirming(null);
+            // a failure is toasted, the dialog stays open to try again
+            if (await run('leave', {kind: 'control', action: 'leave'}, t('music.stopped'))) {
+              setConfirming(null);
+            }
           }}
           onClose={() => setConfirming(null)}
         />
@@ -362,8 +366,8 @@ function MusicSettings({ guildId, music, editable, busyKey, disabled, run }: {
             <PremiumNote>{t('music.pause_alone_premium')}</PremiumNote>
           ) : null}
         </div>
-        <PauseTimeoutSetting music={music} editable={editable} busy={busyKey === 'pause_timeout'} run={run}/>
-        <CrossfadeSetting music={music} editable={editable} busy={busyKey === 'crossfade'} run={run}/>
+        <PauseTimeoutSetting music={music} editable={editable} busy={busyKey === 'pause_timeout'} disabled={disabled} run={run}/>
+        <CrossfadeSetting music={music} editable={editable} busy={busyKey === 'crossfade'} disabled={disabled} run={run}/>
         <p className='flex items-center gap-2 px-3 py-2.5 text-xs text-subtle'>
           <ListMusic aria-hidden className='size-3.5 shrink-0'/>
           <span>{t((music.premium) ? 'music.queue_limit' : 'music.queue_limit_free', {count: formatNumber(music.queue_limit)})}</span>
@@ -447,37 +451,20 @@ function DjRoleSetting({ guildId, music, editable, busyKey, disabled, run }: {
 
 // how many seconds the end of a song fades into the next, saved a moment after the slider stops moving. It stays usable
 // while that's sent so a few arrow key presses in a row all count
-function CrossfadeSetting({ music, editable, busy, run }: {
+function CrossfadeSetting({ music, editable, busy, disabled, run }: {
   music: GuildMusic,
   editable: boolean,
   busy: boolean,
+  disabled: boolean,
   run: (key: string, action: GuildMusicAction, success?: string) => Promise<boolean>,
 }) {
   const { t } = useI18n();
   const id = useId();
-  const [ draft, setDraft ] = useState(music.crossfade);
-  // it's fetched again every few seconds, only a change from somewhere else moves the slider
-  useEffect(() => setDraft(music.crossfade), [music.crossfade]);
-
-  // back to the saved one if it fails. `run` is made again every render, only a new value schedules a save
-  useEffect(() => {
-    if (draft === music.crossfade) {
-      return;
-    }
-    const saved = music.crossfade;
-    const timeout = setTimeout(() => {
-      void run(
-        'crossfade',
-        {kind: 'settings', settings: {crossfade: draft}},
-        (draft) ? translate('music.crossfade_on', {seconds: draft}) : translate('music.crossfade_off'),
-      ).then((ok) => {
-        if (!ok) {
-          setDraft(saved);
-        }
-      });
-    }, CROSSFADE_SAVE_DELAY);
-    return () => clearTimeout(timeout);
-  }, [draft, music.crossfade]);
+  const [ draft, setDraft ] = useSliderAutosave(music.crossfade, disabled, (value) => run(
+    'crossfade',
+    {kind: 'settings', settings: {crossfade: value}},
+    (value) ? translate('music.crossfade_on', {seconds: value}) : translate('music.crossfade_off'),
+  ));
 
   return (
     <div className='px-3 py-2.5'>
@@ -515,37 +502,20 @@ function CrossfadeSetting({ music, editable, busy, run }: {
 
 // how long the bot stays paused before it leaves with the song held, right away up to 5 minutes. 24/7 (with premium)
 // stays paused for good, it's kept for when 24/7 is off
-function PauseTimeoutSetting({ music, editable, busy, run }: {
+function PauseTimeoutSetting({ music, editable, busy, disabled, run }: {
   music: GuildMusic,
   editable: boolean,
   busy: boolean,
+  disabled: boolean,
   run: (key: string, action: GuildMusicAction, success?: string) => Promise<boolean>,
 }) {
   const { t } = useI18n();
   const id = useId();
-  const [ draft, setDraft ] = useState(music.pause_timeout);
-  // it's fetched again every few seconds, only a change from somewhere else moves the slider
-  useEffect(() => setDraft(music.pause_timeout), [music.pause_timeout]);
-
-  // back to the saved one if it fails. `run` is made again every render, only a new value schedules a save
-  useEffect(() => {
-    if (draft === music.pause_timeout) {
-      return;
-    }
-    const saved = music.pause_timeout;
-    const timeout = setTimeout(() => {
-      void run(
-        'pause_timeout',
-        {kind: 'settings', settings: {pause_timeout: draft}},
-        (draft) ? translate('music.pause_timeout_on', {length: formatTime(draft * 1000)}) : translate('music.pause_timeout_instant_on'),
-      ).then((ok) => {
-        if (!ok) {
-          setDraft(saved);
-        }
-      });
-    }, CROSSFADE_SAVE_DELAY);
-    return () => clearTimeout(timeout);
-  }, [draft, music.pause_timeout]);
+  const [ draft, setDraft ] = useSliderAutosave(music.pause_timeout, disabled, (value) => run(
+    'pause_timeout',
+    {kind: 'settings', settings: {pause_timeout: value}},
+    (value) ? translate('music.pause_timeout_on', {length: formatTime(value * 1000)}) : translate('music.pause_timeout_instant_on'),
+  ));
 
   const stays = music.stay && music.premium;
   return (
@@ -579,6 +549,44 @@ function PauseTimeoutSetting({ music, editable, busy, run }: {
       ) : null}
     </div>
   );
+}
+
+
+// A slider's value, saved a moment after it stops moving. Music edits go one at a time (one busy spinner, one pending
+// state), so while any is being sent (`disabled`) the save waits and goes out after with the latest value. It's fetched
+// again every few seconds and only a change from somewhere else moves the slider, not its own save coming back while
+// it was moved further. A failed save goes back to the saved value unless it was moved since
+function useSliderAutosave(saved: number, disabled: boolean, save: (value: number) => Promise<boolean>) {
+  const [ draft, setDraft ] = useState(saved);
+  const sent = useRef<number | null>(null);
+  const latestSave = useRef(save);
+  latestSave.current = save;
+
+  useEffect(() => {
+    if (saved === sent.current) {
+      sent.current = null;
+      return;
+    }
+    setDraft(saved);
+  }, [saved]);
+
+  useEffect(() => {
+    if (draft === saved || disabled) {
+      return;
+    }
+    const timeout = setTimeout(() => {
+      sent.current = draft;
+      void latestSave.current(draft).then((ok) => {
+        if (!ok) {
+          sent.current = null;
+          setDraft((current) => (current === draft) ? saved : current);
+        }
+      });
+    }, CROSSFADE_SAVE_DELAY);
+    return () => clearTimeout(timeout);
+  }, [draft, saved, disabled]);
+
+  return [ draft, setDraft ] as const;
 }
 
 
@@ -669,7 +677,8 @@ function LiveEffects({ music, effects, editable, busyKey, disabled, run }: {
               t('music.effect_added', {effect: musicEffectName(picked)}),
             ).then((ok) => {
               if (ok) {
-                setPicked('');
+                // only if nothing else was picked while it was adding
+                setPicked((current) => (current === picked) ? '' : current);
               }
             });
           }}
@@ -1018,10 +1027,13 @@ interface DragState {
 
 // a list's rows dragged to a new spot with the pointer: the row follows it and the others make room, `onDrop(from, to)`
 // on letting go somewhere new. A mouse drags from anywhere on a row but its buttons and links, touch and pens only from
-// its `data-drag-handle` (anywhere else scrolls the list). The list scrolls itself near its top and bottom
-function useDragReorder(count: number, enabled: boolean, onDrop: (from: number, to: number) => void) {
+// its `data-drag-handle` (anywhere else scrolls the list). The list scrolls itself near its top and bottom. `keys` are the
+// rows' ids: if they change mid-drag (it's fetched again every few seconds) the indices are stale, so nothing is dropped
+function useDragReorder(keys: Array<string>, enabled: boolean, onDrop: (from: number, to: number) => void) {
   const listRef = useRef<HTMLOListElement>(null);
   const [ state, setState ] = useState<DragState | null>(null);
+  const keysRef = useRef(keys);
+  keysRef.current = keys;
   // the room the dragged row takes (its height and the gap after it), measured when it's picked up
   const roomRef = useRef(0);
   const dropRef = useRef(onDrop);
@@ -1048,6 +1060,7 @@ function useDragReorder(count: number, enabled: boolean, onDrop: (from: number, 
     const step = (rows.length > 1) ? middles[1] - middles[0] : 0;
     const room = rows[index].getBoundingClientRect().height + ((rows.length > 1) ? step - (rows[0].getBoundingClientRect().height + rows[1].getBoundingClientRect().height) / 2 : 0);
     const startY = event.clientY, startScroll = list.scrollTop;
+    const startKeys = keysRef.current.join('\n');
     let active = false, current: DragState = {from: index, offset: 0, over: index};
 
     const update = (clientY: number) => {
@@ -1086,7 +1099,7 @@ function useDragReorder(count: number, enabled: boolean, onDrop: (from: number, 
       window.removeEventListener('pointerup', end);
       window.removeEventListener('pointercancel', end);
       setState(null);
-      if (active && ended.type === 'pointerup' && current.over !== current.from) {
+      if (active && ended.type === 'pointerup' && current.over !== current.from && keysRef.current.join('\n') === startKeys) {
         dropRef.current(current.from, current.over);
       }
     };
@@ -1115,7 +1128,7 @@ function useDragReorder(count: number, enabled: boolean, onDrop: (from: number, 
     return {onPointerDown, style: {transform: `translateY(${shift}px)`, transition: 'transform 150ms ease'}};
   };
 
-  return {dragging: (state && state.from < count) ? state.from : null, listRef, rowProps};
+  return {dragging: (state && state.from < keys.length) ? state.from : null, listRef, rowProps};
 }
 
 

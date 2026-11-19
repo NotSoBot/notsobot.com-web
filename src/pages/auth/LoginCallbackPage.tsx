@@ -55,11 +55,15 @@ export function LoginCallbackPage() {
     return <LoginDisabledMessage/>;
   }
 
+  // logging in again still comes back to the page the first attempt was for. without its language prefix, the login
+  // page adds the one this page is in
+  const loginAgain = `${Routes.AUTH_LOGIN}?next=${encodeURIComponent(splitLanguagePath(returnTo).path)}`;
+
   if (token && !started) {
     return (
       <FullPageMessage title={t('login.not_started_title')} description={t('login.not_started_description')}>
         <div className='flex gap-2'>
-          <Link to={Routes.AUTH_LOGIN} className='btn btn-discord'>{t('common.log_in')}</Link>
+          <Link to={loginAgain} className='btn btn-discord'>{t('common.log_in')}</Link>
           <Link to={Routes.HOME} className='btn btn-secondary'>{t('common.go_home')}</Link>
         </div>
       </FullPageMessage>
@@ -70,7 +74,7 @@ export function LoginCallbackPage() {
     return (
       <FullPageMessage title={t('login.failed_title')} description={t('login.failed_description')}>
         <div className='flex gap-2'>
-          <Link to={Routes.AUTH_LOGIN} className='btn btn-discord'>{t('common.try_again')}</Link>
+          <Link to={loginAgain} className='btn btn-discord'>{t('common.try_again')}</Link>
           <Link to={Routes.HOME} className='btn btn-secondary'>{t('common.go_home')}</Link>
         </div>
       </FullPageMessage>

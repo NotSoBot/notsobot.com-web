@@ -9,6 +9,7 @@ import { Fragment, type ReactNode, useEffect, useId, useRef, useState } from 're
 import { Link } from 'react-router';
 
 import { isOwner, useAuth } from '@/auth';
+import { CopyButton } from '@/components/ui/CopyButton';
 import { DetailModalHeader, DetailModalStrip } from '@/components/ui/DetailModal';
 import { Modal } from '@/components/ui/Modal';
 import { SearchInput } from '@/components/ui/SearchInput';
@@ -32,12 +33,13 @@ import {
   type ContentFlagStatus,
   type ContentFlagType,
 } from '@/lib/api';
+import { useSearchParamState, useStepBackFromEmptyPage } from '@/hooks/useSearchParamState';
 import { ADMIN_CONTENT_FLAGS_PAGE_SIZE, errorMessage, useAcceptContentFlagSuggestionsMutation, useAdminContentFlagQuery, useAdminContentFlagsQuery, useFetchContentFlagMatches, useFlagAdminContentFlagPromptMutation, usePatchAdminContentFlagMutation, usePatchAdminUserMutation, useTranslateAdminContentFlagMutation } from '@/lib/api/dashboardQueries';
 import { cn, formatDateTime, formatMemory, formatUptime, NO_AUTOFILL } from '@/lib/utils';
 
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton, Toggle } from '../ui';
-import { AdminModalFooter, AdminTagModal, LinkedItemModal, useOpenListItem } from './AdminTagModal';
-import { adminServerPath, Chip, CopyableValue, CopyButton, DETAIL_LIST_STACKED, DetailList, ExactDate, FiltersButton, Pagination, selectAllScope, useSearchParamState, useStepBackFromEmptyPage, UserCell } from './adminUi';
+import { AdminModalFooter, AdminTagModal, LinkedItemModal, useHoldModalNavigation, useOpenListItem } from './AdminTagModal';
+import { adminServerPath, Chip, CopyableValue, DETAIL_LIST_STACKED, DetailList, ExactDate, FiltersButton, Pagination, selectAllScope, UserCell } from './adminUi';
 import { BLOCK_REASON_MAX, BlockUserDialog, canBlockUser } from './BlockUserDialog';
 
 
@@ -740,7 +742,11 @@ function ContentFlagDetails({ flag, onReport, navigation }: {
   };
   const saveNotes = () => {
     mutation.mutate({flagId: flag.id, patch: {notes: notes.trim() || null}}, {
-      onSuccess: () => toast(`Flag ${flag.id}: notes saved`),
+      onSuccess: (updated) => {
+        // saving trims, which leaves the notes as they were when that's all it changed (and the effect above quiet)
+        setNotes(updated.notes ?? '');
+        toast(`Flag ${flag.id}: notes saved`);
+      },
       onError: (error) => toast(errorMessage(error), 'error'),
     });
   };
@@ -754,6 +760,8 @@ function ContentFlagDetails({ flag, onReport, navigation }: {
   });
 
   const changingStatus = mutation.isPending || checkingMatches !== null;
+  // stepping to another flag would unmount this one, dropping the change's toast (and undo) or the matches dialog
+  useHoldModalNavigation(changingStatus || translation.isPending);
   // reporting goes through a dialog so the uploader can be blocked in the same step
   const changeStatus = (value: ContentFlagStatus) => (value === ContentFlagStatuses.REPORTED) ? onReport() :
     (MATCHABLE_STATUSES.includes(value)) ? setStatusWithMatches(value) : setStatus(value);

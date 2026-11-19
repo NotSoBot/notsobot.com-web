@@ -3,11 +3,13 @@ import { useEffect, useId, useState, type KeyboardEvent, type ReactNode } from '
 
 import { isOwner, useAuth } from '@/auth';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { CopyButton } from '@/components/ui/CopyButton';
 import { DetailModalHeader } from '@/components/ui/DetailModal';
 import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
 import { Routes } from '@/config';
+import { LocalSearchParamsContext } from '@/hooks/useSearchParamState';
 import { useI18n, type TranslationKey } from '@/i18n';
 import { ApiErrorCodes, ApiRequestError, type AdminGuild, type AdminGuildSummary, type GuildFeature } from '@/lib/api';
 import { errorMessage, GuildScopeContext, useAdminGuildQuery, usePatchAdminGuildMutation } from '@/lib/api/dashboardQueries';
@@ -32,7 +34,7 @@ import { ServerVoicesSection } from '../servers/ServerVoicesSection';
 import { WarningsSection } from '../servers/WarningsSection';
 import { PanelSkeleton, Skeleton, UnsavedChangesGuard } from '../ui';
 import { BLOCK_REASON_MAX, BlockDurationSelect, BlockedUntilLine, blockedUntilFromSeconds } from './BlockUserDialog';
-import { adminUserPath, Chip, ContentFlagTiles, CopyableValue, CopyButton, DateTile, ExactDate, LocalSearchParamsContext, StatTile, UserCell } from './adminUi';
+import { adminUserPath, Chip, ContentFlagTiles, CopyableValue, DateTile, ExactDate, StatTile, UserCell } from './adminUi';
 import { AdminModalFooter, AdminTagModal } from './AdminTagModal';
 import { EditGuildFeaturesDialog, GUILD_FEATURE_INFO } from './EditGuildFeaturesDialog';
 
@@ -64,15 +66,24 @@ export function AdminServerModal({ guildId, previousId, nextId, onNavigate, onCl
   const [ settingsDirty, setSettingsDirty ] = useState(false);
   // what to do once unsaved settings are discarded: close, or go to another server
   const [ confirming, setConfirming ] = useState<{close: true} | {navigate: string} | null>(null);
+  // A discarded leave waits for the render that clears `settingsDirty`: the page guard below only sees the new value once
+  // it's committed, and would otherwise ask a second time (cancelling that left the forms dirty with the flag cleared).
+  const [ discarded, setDiscarded ] = useState<{close: true} | {navigate: string} | null>(null);
 
   const leave = (action: {close: true} | {navigate: string}) => {
     if ('close' in action) {
       onClose();
     } else {
-      setSettingsDirty(false);
       onNavigate(action.navigate);
     }
   };
+  // the guard's effect (a child's) has run by now
+  useEffect(() => {
+    if (discarded) {
+      setDiscarded(null);
+      leave(discarded);
+    }
+  }, [discarded]);
   const request = (action: {close: true} | {navigate: string}) => {
     if (settingsDirty) {
       setConfirming(action);
@@ -122,7 +133,8 @@ export function AdminServerModal({ guildId, previousId, nextId, onNavigate, onCl
           confirmLabel={('close' in confirming) ? 'Discard and close' : 'Discard and continue'}
           onConfirm={() => {
             setConfirming(null);
-            leave(confirming);
+            setSettingsDirty(false);
+            setDiscarded(confirming);
           }}
           onClose={() => setConfirming(null)}
         />
@@ -452,7 +464,8 @@ function BlockServerDialog({ guild, onClose }: {guild: AdminGuild, onClose: () =
   const mutation = usePatchAdminGuildMutation(guild.id);
   const [ reason, setReason ] = useState('');
   const [ duration, setDuration ] = useState(0);
-  const { blocked } = guild;
+  // kept from when it opened: a save updates the server before the dialog closes, which would flip it to the opposite
+  const [ { blocked, blocked_reason: blockedReason, blocked_until: blockedUntil } ] = useState(guild);
   const name = guild.name || guild.id;
 
   const submit = () => {
@@ -495,10 +508,10 @@ function BlockServerDialog({ guild, onClose }: {guild: AdminGuild, onClose: () =
               <span className='block truncate font-mono text-xs text-subtle'>{guild.id}</span>
             </span>
           </div>
-          {(blocked && guild.blocked_reason) ? (
-            <p className='mt-2 text-sm break-words text-muted'><span className='text-subtle'>Blocked for: </span>{guild.blocked_reason}</p>
+          {(blocked && blockedReason) ? (
+            <p className='mt-2 text-sm break-words text-muted'><span className='text-subtle'>Blocked for: </span>{blockedReason}</p>
           ) : null}
-          {(blocked) ? <BlockedUntilLine until={guild.blocked_until} className='mt-1'/> : null}
+          {(blocked) ? <BlockedUntilLine until={blockedUntil} className='mt-1'/> : null}
         </div>
 
         {(!blocked) ? (

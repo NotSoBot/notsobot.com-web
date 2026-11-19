@@ -215,7 +215,7 @@ export const api = {
   },
 
   fetchInfoDiscord: (signal?: AbortSignal) => {
-    // polled every 2s, so give up quickly and let the next poll try again
+    // polled every 5s, so give up quickly and let the next poll try again
     return apiRequest<InfoDiscord>(ApiEndpoints.INFO_DISCORD, {auth: false, signal, timeout: 5000});
   },
 

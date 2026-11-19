@@ -7,17 +7,20 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { Link } from 'react-router';
 
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { CopyButton } from '@/components/ui/CopyButton';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { useToast } from '@/components/ui/Toast';
 import { Routes } from '@/config';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { useDismiss } from '@/hooks/useDismiss';
 import { usePersistentState } from '@/hooks/usePersistentState';
+import { useSearchParamState, useStepBackFromEmptyPage } from '@/hooks/useSearchParamState';
 import { translate, useI18n, type TranslationKey } from '@/i18n';
 import type { UserFile, UserFilesSortBy } from '@/lib/api';
 import { ME_FILES_PAGE_SIZE, errorMessage, useDeleteMeFilesMutation, useMeFilesQuery } from '@/lib/api/dashboardQueries';
 import { cn, formatDate, formatDateTime, formatExactDateTime, formatMemory, formatNumber, toDate } from '@/lib/utils';
 
-import { Chip, CopyButton, FiltersButton, Pagination, useSearchParamState, useStepBackFromEmptyPage } from '../admin/adminUi';
+import { Chip, FiltersButton, Pagination } from '../admin/adminUi';
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from '../ui';
 
 
@@ -232,27 +235,7 @@ function ViewMenu({ value, onChange }: {value: FilesView, onChange: (value: File
   const menuId = useId();
   const current = VIEWS.find((option) => option.value === value) ?? VIEWS[0];
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    const onPointerDown = (event: PointerEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setOpen(false);
-      }
-    };
-    document.addEventListener('pointerdown', onPointerDown);
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown);
-      document.removeEventListener('keydown', onKeyDown);
-    };
-  }, [open]);
+  useDismiss(containerRef, open, () => setOpen(false));
 
   return (
     <div ref={containerRef} className='relative shrink-0'>

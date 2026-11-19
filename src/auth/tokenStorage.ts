@@ -46,6 +46,10 @@ function write(token: string | null): void {
 
 
 let current: string | null = read();
+// whether the token was last removed by another tab (a logout there), read alongside `current` so both change in
+// the same render: a separate React state set from the storage event would land a render later, after this tab
+// already saw itself logged out and headed for Discord
+let clearedByOtherTab = false;
 
 function emit(): void {
   for (const listener of listeners) {
@@ -64,6 +68,7 @@ export const tokenStorage = {
       return;
     }
     current = token;
+    clearedByOtherTab = false;
     write(token);
     emit();
   },
@@ -78,6 +83,10 @@ export const tokenStorage = {
       listeners.delete(listener);
     };
   },
+
+  clearedByOtherTab(): boolean {
+    return clearedByOtherTab;
+  },
 };
 
 
@@ -88,6 +97,7 @@ if (typeof window !== 'undefined') {
       const next = read();
       if (next !== current) {
         current = next;
+        clearedByOtherTab = (next === null);
         emit();
       }
     }

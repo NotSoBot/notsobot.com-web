@@ -124,7 +124,15 @@ function DeletePanel() {
         <li>{t('data.delete.item_4')}</li>
         <li>{t('data.delete.item_5')}</li>
       </ul>
-      <button type='button' className='btn btn-danger mt-4' onClick={() => setConfirming(true)}>
+      <button
+        type='button'
+        className='btn btn-danger mt-4'
+        onClick={() => {
+          // a new try starts without the last one's error (cleared here, not on close, so "not available yet" stays below)
+          remove.reset();
+          setConfirming(true);
+        }}
+      >
         <Trash2 aria-hidden className='size-4'/>
         {t('data.delete.button')}
       </button>

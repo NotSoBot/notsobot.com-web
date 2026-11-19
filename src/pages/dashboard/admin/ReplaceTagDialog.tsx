@@ -41,7 +41,8 @@ export function ReplaceTagDialog({ tag, onReplaced, onClose }: {
   const targetId = TARGET_ID.exec(debouncedInput)?.[1] ?? null;
   const preview = useAdminTagMergePreviewQuery(tag.id, targetId);
   const mutation = useMergeAdminTagMutation();
-  const summary = (targetId && preview.data && !preview.isFetching) ? preview.data : null;
+  // none while the input's still settling, Replace would otherwise confirm the tag typed before it
+  const summary = (targetId && debouncedInput === input && preview.data && !preview.isFetching) ? preview.data : null;
   const invalid = !!input.trim() && !TARGET_ID.test(input);
   const inputError = (invalid) ? 'Paste a tag id, or id:<tag id>' : (targetId && preview.isError) ? errorMessage(preview.error) : null;
 

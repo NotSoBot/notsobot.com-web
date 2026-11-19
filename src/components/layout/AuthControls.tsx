@@ -5,6 +5,7 @@ import { Link, useLocation } from 'react-router';
 import { useAuth } from '@/auth';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { Routes } from '@/config';
+import { useDismiss } from '@/hooks/useDismiss';
 import { useI18n } from '@/i18n';
 import { useMeCreditsMenuQuery, useReportsUnreadQuery } from '@/lib/api/queries';
 import { userDisplayTag } from '@/lib/discord';
@@ -60,27 +61,7 @@ function UserMenu({ compact }: {compact: boolean}) {
     setOpen(false);
   }, [location.pathname]);
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    const onPointerDown = (event: PointerEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setOpen(false);
-      }
-    };
-    document.addEventListener('pointerdown', onPointerDown);
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown);
-      document.removeEventListener('keydown', onKeyDown);
-    };
-  }, [open]);
+  useDismiss(containerRef, open, () => setOpen(false));
 
   if (!user) {
     return null;

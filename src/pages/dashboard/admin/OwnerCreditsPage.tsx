@@ -9,12 +9,13 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { useToast } from '@/components/ui/Toast';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { useSearchParamState, useStepBackFromEmptyPage } from '@/hooks/useSearchParamState';
 import { CreditTransactionTypes, type AdminCreditTransaction } from '@/lib/api';
 import { ADMIN_PAGE_SIZE, errorMessage, useAdminCreditTransactionsQuery, useGrantAdminUserCreditsMutation, useRevokeAdminEntitlementCreditsMutation } from '@/lib/api/dashboardQueries';
 import { cn } from '@/lib/utils';
 
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from '../ui';
-import { Chip, CopyableValue, ExactDate, Pagination, useSearchParamState, useStepBackFromEmptyPage, UserCell } from './adminUi';
+import { Chip, CopyableValue, ExactDate, Pagination, UserCell } from './adminUi';
 
 
 const TYPES: ReadonlyArray<{value: CreditTransactionTypes, label: string, tone: 'success' | 'brand' | 'danger'}> = [

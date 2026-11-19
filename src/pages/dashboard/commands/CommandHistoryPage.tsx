@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from
 import { Link } from 'react-router';
 
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { useSearchParamState, useStepBackFromEmptyPage } from '@/hooks/useSearchParamState';
 import { useI18n } from '@/i18n';
 import { CommandTypes, type Command, type CommandType, type MeCommandUse } from '@/lib/api';
 import { ME_COMMANDS_PAGE_SIZE, errorMessage, useMeCommandsQuery, useMeGuildsQuery } from '@/lib/api/dashboardQueries';
@@ -15,7 +16,7 @@ import { enabledCommandVariants } from '@/lib/commandAvailability';
 import { commandPath } from '@/lib/commandPaths';
 import { cn, formatDate, formatDateTime, formatExactDateTime, formatNumber, NO_AUTOFILL } from '@/lib/utils';
 
-import { Chip, FilterButton, FiltersButton, IdFilter, Pagination, useSearchParamState, useStepBackFromEmptyPage } from '../admin/adminUi';
+import { Chip, FilterButton, FiltersButton, IdFilter, Pagination } from '../admin/adminUi';
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from '../ui';
 import { COMMAND_TYPE_LABELS, RESULT_LABELS, resultInfo, TONE_FILLS } from './commandLabels';
 

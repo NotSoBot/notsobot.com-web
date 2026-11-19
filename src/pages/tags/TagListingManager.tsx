@@ -521,7 +521,6 @@ export function ListingEditForm({ item, access, media, onDone }: {item: TagDirec
     setSaving(true);
     setError(null);
     try {
-      let changes: Partial<Pick<TagDirectoryItem, 'title' | 'description' | 'category' | 'content_public' | 'verified'>> = {};
       // staff edits go through the admin route (it ignores the pending freeze); only the owner can flip content_public
       if (access.staff && (titleChanged || descriptionChanged || categoryChanged || contentChanged)) {
         const updated = await adminPatch.mutateAsync({
@@ -531,7 +530,12 @@ export function ListingEditForm({ item, access, media, onDone }: {item: TagDirec
           category: (categoryChanged) ? category : undefined,
           content: (contentChanged) ? content! : undefined,
         });
-        changes = {title: updated.title, description: updated.description, category: updated.category, verified: updated.verified};
+        // shown as saved right away, so when the owner's half below fails (staff who own the tag) only the switch is
+        // left unsaved instead of everything
+        merge({title: updated.title, description: updated.description, category: updated.category, verified: updated.verified}, content ?? undefined);
+        setTitle(updated.title);
+        setDescription(updated.description);
+        setCategory(updated.category);
       }
       const ownerBody: TagDirectoryListingInput = {};
       if (access.owner && !access.staff) {
@@ -550,15 +554,14 @@ export function ListingEditForm({ item, access, media, onDone }: {item: TagDirec
       }
       if (Object.keys(ownerBody).length) {
         const updated = await ownerPatch.mutateAsync(ownerBody);
-        changes = {
+        merge({
           title: updated.title,
           description: updated.description,
           category: updated.category,
           content_public: updated.content_public,
           verified: updated.verified,
-        };
+        }, (access.staff) ? (content ?? undefined) : full.content);
       }
-      merge(changes, (access.staff) ? (content ?? undefined) : full.content);
       onDone();
     } catch (caught) {
       setError(errorMessage(caught, t('tags.listing.save_error')));

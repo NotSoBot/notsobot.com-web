@@ -13,6 +13,7 @@ import { Modal } from '@/components/ui/Modal';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
+import { useSearchParamState } from '@/hooks/useSearchParamState';
 import type { AdminIdentities, Identity, IdentityLogin, IdentityService, IdentityStatus } from '@/lib/api';
 import {
   errorMessage,
@@ -31,7 +32,7 @@ import {
 import { cn, NO_AUTOFILL } from '@/lib/utils';
 
 import { DashboardHeader, EmptyState, ErrorPanel, Field, Skeleton } from '../ui';
-import { Chip, DetailList, ExactDate, FiltersButton, Hint, InfoTip, StatTile, useSearchParamState } from './adminUi';
+import { Chip, DetailList, ExactDate, FiltersButton, Hint, InfoTip, StatTile } from './adminUi';
 import { BulkAddIdentitiesDialog } from './BulkAddIdentitiesDialog';
 import { AuditHistory, LabelChips, ProxyCredentials, ProxyPicker, REVEAL_MS, SecretValue, SortSelect, TwoFactorValue, ago, descending, formatSpan, proxyLabel, serviceTitle, useNow } from './identitiesUi';
 import { LOGIN_LINE_FORMATS, LOGIN_LINE_LABELS, loginLineFormatLabel, nameFromUsername, parseLoginLine } from './loginLine';
@@ -533,13 +534,16 @@ function IdentitiesTab({ data, now, onShowProxies }: {data: AdminIdentities, now
 
 
 // deleting what has cookies or a login asks for the count typed, they're gone for good (the proxies stay)
-function DeleteIdentitiesDialog({ identities, onClose, onDeleted }: {
+function DeleteIdentitiesDialog({ identities: selectedNow, onClose, onDeleted }: {
   identities: Array<Identity>,
   onClose: () => void,
   onDeleted: (ids: Array<string>) => void,
 }) {
   const toast = useToast();
   const remove = useDeleteIdentitiesMutation();
+  // the selection when it opened: the state filter moves with the clock and the list refreshes, which would change the
+  // count (and the phrase to type) underneath
+  const [ identities ] = useState(selectedNow);
   const withCookies = identities.filter((identity) => identity.has_secret).length;
   const withLogin = identities.filter((identity) => identity.has_login).length;
   const lost = [
@@ -751,6 +755,11 @@ function IdentityModal({ identity, data, now, onClose }: {identity: Identity, da
   const setStatus = (status: IdentityStatus, message: string) => patch.mutate({identityId: identity.id, body: {status}}, {
     onSuccess: () => toast(message),
   });
+  // a failed status change's error is about that click, not what's opened next (it showed again once a panel closed)
+  const togglePanel = (value: 'cookies' | 'move') => {
+    patch.reset();
+    setPanel((panel === value) ? null : value);
+  };
 
   return (
     <Modal labelledBy={titleId} onClose={() => !busy && onClose()} className='max-w-xl'>
@@ -850,7 +859,7 @@ function IdentityModal({ identity, data, now, onClose }: {identity: Identity, da
 
         <div className='mt-6 flex flex-wrap gap-2'>
           {(identity.kind !== 'none') ? (
-            <button type='button' className='btn btn-secondary btn-sm' disabled={busy} onClick={() => setPanel((panel === 'cookies') ? null : 'cookies')}>
+            <button type='button' className='btn btn-secondary btn-sm' disabled={busy} onClick={() => togglePanel('cookies')}>
               <Upload className='size-4'/>
               {(identity.status === 'dead') ? 'New cookies (revive)' : 'Replace cookies'}
             </button>
@@ -866,7 +875,7 @@ function IdentityModal({ identity, data, now, onClose }: {identity: Identity, da
               Disable
             </button>
           ) : null}
-          <button type='button' className='btn btn-secondary btn-sm' disabled={busy} onClick={() => setPanel((panel === 'move') ? null : 'move')}>
+          <button type='button' className='btn btn-secondary btn-sm' disabled={busy} onClick={() => togglePanel('move')}>
             <ArrowRightLeft className='size-4'/>
             Move to another proxy
           </button>
@@ -890,13 +899,12 @@ function IdentityModal({ identity, data, now, onClose }: {identity: Identity, da
           confirmPhrase={identity.id}
           pending={remove.isPending}
           error={(remove.isError) ? errorMessage(remove.error, 'Couldn’t delete the identity.') : null}
-          onConfirm={() => remove.mutate(identity.id, {
-            onSuccess: () => {
-              toast(`Deleted ${identity.id}`);
-              setDeleting(false);
-              onClose();
-            },
-          })}
+          // `mutateAsync`: the identity leaves the list (unmounting this modal) before `mutate`'s callbacks would run, the
+          // error shows above while it's still here
+          onConfirm={() => remove.mutateAsync(identity.id).then(() => {
+            toast(`Deleted ${identity.id}`);
+            onClose();
+          }, () => {})}
           onClose={() => {
             remove.reset();
             setDeleting(false);
@@ -1470,9 +1478,13 @@ function UploadCookiesDialog({ data, onClose }: {data: AdminIdentities, onClose:
   const [ onlyPending, setOnlyPending ] = useState(true);
   const [ files, setFiles ] = useState<Array<{name: string, text: string}>>([]);
 
-  const targets = data.identities
-    .filter((identity) => identity.service === service && (!onlyPending || identity.status === 'pending'))
+  const listTargets = (forService: string, pendingOnly: boolean) => data.identities
+    .filter((identity) => identity.service === forService && (!pendingOnly || identity.status === 'pending'))
     .sort((a, b) => a.id.localeCompare(b.id));
+  // the identities the files go to, kept from when they were chosen (or the filters changed): saving moves them out of
+  // pending, and the list refreshing every few seconds would otherwise pair the files and results with the next ones
+  const [ chosenTargets, setChosenTargets ] = useState<Array<Identity> | null>(null);
+  const targets = (files.length && chosenTargets) ? chosenTargets : listTargets(service, onlyPending);
   const pairs = files.slice(0, targets.length).map((file, index) => ({file, identity: targets[index]}));
   const results = new Map((upload.data ?? []).map((result) => [result.identity_id, result]));
 
@@ -1488,13 +1500,21 @@ function UploadCookiesDialog({ data, onClose }: {data: AdminIdentities, onClose:
         <div className='mt-4 flex flex-wrap items-end gap-3'>
           <Field label='Service'>
             {(props) => (
-              <select {...props} className='input w-36' value={service} onChange={(event) => { setService(event.target.value); upload.reset(); }} disabled={upload.isPending}>
+              <select {...props} className='input w-36' value={service} onChange={(event) => {
+                setService(event.target.value);
+                setChosenTargets(listTargets(event.target.value, onlyPending));
+                upload.reset();
+              }} disabled={upload.isPending}>
                 {services.map((item) => <option key={item.service} value={item.service}>{item.service}</option>)}
               </select>
             )}
           </Field>
           <label className='mb-2 flex items-center gap-2 text-sm text-muted'>
-            <input type='checkbox' checked={onlyPending} onChange={(event) => { setOnlyPending(event.target.checked); upload.reset(); }} disabled={upload.isPending}/>
+            <input type='checkbox' checked={onlyPending} onChange={(event) => {
+              setOnlyPending(event.target.checked);
+              setChosenTargets(listTargets(service, event.target.checked));
+              upload.reset();
+            }} disabled={upload.isPending}/>
             Only the ones waiting for cookies ({data.identities.filter((identity) => identity.service === service && identity.status === 'pending').length})
           </label>
           <button type='button' className='btn btn-secondary ml-auto' onClick={() => input.current?.click()} disabled={upload.isPending}>
@@ -1510,7 +1530,9 @@ function UploadCookiesDialog({ data, onClose }: {data: AdminIdentities, onClose:
             onChange={async (event) => {
               const picked = [...(event.target.files ?? [])].sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true}));
               event.target.value = '';
+              const targetsNow = listTargets(service, onlyPending);
               setFiles(await Promise.all(picked.map(async (file) => ({name: file.name, text: await file.text()}))));
+              setChosenTargets(targetsNow);
               upload.reset();
             }}
           />

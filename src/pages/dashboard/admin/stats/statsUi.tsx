@@ -3,10 +3,11 @@
 
 import type { UseQueryResult } from '@tanstack/react-query';
 import { Check, Link2, RefreshCw } from 'lucide-react';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router';
 
 import { Spinner } from '@/components/ui/Spinner';
+import { useCopied } from '@/hooks/useCopied';
 import { errorMessage } from '@/lib/api/dashboardQueries';
 import { cn, decodeHash, displayLocale, formatDate, formatMemory, formatNumber } from '@/lib/utils';
 
@@ -110,14 +111,9 @@ export function StatsSection<T>({ id, title, accent, description, query, childre
 // the page as it is now (window included) plus the section's hash, like the FAQ's links. Without clipboard access it
 // puts the hash in the address bar instead, to copy from there
 function CopySectionLink({ id, title }: {id: string, title: string}) {
-  const [ copied, setCopied ] = useState(false);
-  const copy = async () => {
-    const url = `${window.location.origin}${window.location.pathname}${window.location.search}#${id}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1500);
-    } catch {
+  const { copied, copy } = useCopied();
+  const copyLink = async () => {
+    if (!(await copy(`${window.location.origin}${window.location.pathname}${window.location.search}#${id}`))) {
       window.location.hash = id;
     }
   };
@@ -130,7 +126,7 @@ function CopySectionLink({ id, title }: {id: string, title: string}) {
       )}
       title={(copied) ? 'Copied' : `Copy a link to ${title}`}
       aria-label={(copied) ? 'Link copied' : `Copy a link to ${title}`}
-      onClick={copy}
+      onClick={copyLink}
     >
       {(copied) ? <Check aria-hidden className='size-4 text-success-text'/> : <Link2 aria-hidden className='size-4'/>}
     </button>
