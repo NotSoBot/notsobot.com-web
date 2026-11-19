@@ -50,6 +50,7 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'fixed', text: 'Music staying in a voice channel for good when restarting after being idle failed, rejoining after losing the voice connection sometimes getting stuck, and a move racing a pause or disconnect.'},
       {kind: 'fixed', text: 'Music skipping or losing the current track when it had to be converted again, and long conversions expiring before they were used.'},
       {kind: 'fixed', text: 'Music skips in the last seconds of a song playing the song you skipped, a skip right after a song ended on its own skipping the next one, and a skipped song still playing for a moment.'},
+      {kind: 'fixed', text: 'Music sometimes cutting off the start of the first song after joining a voice channel, while the call\'s encryption was still being set up.'},
       {kind: 'fixed', text: 'Music leaving with a song still queued when it was added just as the queue was ending, songs on queue loop sometimes going missing, and crossfading into a slow-loading song sometimes garbling the sound.'},
       {kind: 'fixed', text: '`.code` sometimes failing with an error right after the code service restarted (it asks you to try again in a minute now), and runs near the time limit sometimes failing instead of giving their output.'},
       {kind: 'fixed', text: 'nsb.gg: GIFs whose download stopped partway freezing on one frame, GIFs with a set number of loops stopping early, and the player giving up on a file after a brief network drop.'},
