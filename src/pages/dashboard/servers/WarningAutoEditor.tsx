@@ -33,6 +33,7 @@ const TRIGGER_CHOICES: ReadonlyArray<Choice<GuildWarningAuto['trigger']>> = [
   {value: 'mentions', get label() { return translate('wauto.mentions'); }},
   {value: 'blocked_command', get label() { return translate('wauto.blocked_command'); }},
   {value: 'automod', get label() { return translate('wauto.automod'); }},
+  {value: 'decoy', get label() { return translate('wauto.decoy'); }},
 ];
 
 // the dashboard api doesn't list a server's AutoMod rules, so one is picked by its id
@@ -80,6 +81,8 @@ function withTrigger(rule: GuildWarningAuto, trigger: GuildWarningAuto['trigger'
     automod_rule_id: (trigger === 'automod') ? rule.automod_rule_id ?? null : null,
     delete_message: (trigger === 'blocked_command') ? rule.delete_message ?? true : null,
     limit: (trigger === 'mentions') ? rule.limit ?? DEFAULT_MENTIONS_LIMIT : null,
+    // there's only the one decoy channel, its rule is always server-wide
+    channel_id: (trigger === 'decoy') ? null : rule.channel_id,
     trigger,
   };
 }
@@ -219,13 +222,17 @@ export function WarningAutoEditor({ value, onChange, exempt, onExemptChange, gui
                   ) : null}
                   {/* always its own line under what the rule is for: where it applies, then what it counts as */}
                   <div className='flex basis-full flex-wrap items-center gap-x-2 gap-y-1.5'>
-                    <ChoiceSelect
-                      className={COMPACT_SELECT}
-                      aria-label={t('wauto.where')}
-                      choices={SCOPE_CHOICES}
-                      value={(rule.channel_id === null) ? 'guild' : 'channel'}
-                      onChange={(scope) => update(index, {...rule, channel_id: (scope === 'channel') ? rule.channel_id ?? '' : null})}
-                    />
+                    {(rule.trigger === 'decoy') ? (
+                      <span className='text-sm text-muted'>{t('wauto.decoy_where')}</span>
+                    ) : (
+                      <ChoiceSelect
+                        className={COMPACT_SELECT}
+                        aria-label={t('wauto.where')}
+                        choices={SCOPE_CHOICES}
+                        value={(rule.channel_id === null) ? 'guild' : 'channel'}
+                        onChange={(scope) => update(index, {...rule, channel_id: (scope === 'channel') ? rule.channel_id ?? '' : null})}
+                      />
+                    )}
                     {(rule.channel_id !== null) ? (
                       <input
                         className={cn('input w-40 px-2 font-mono text-xs', COMPACT)}
@@ -301,6 +308,7 @@ export function WarningAutoEditor({ value, onChange, exempt, onExemptChange, gui
           {t('wauto.hint')}
           {(value.some((rule) => rule.trigger === 'automod')) ? ` ${t('wauto.automod_hint')}` : null}
           {(value.some((rule) => rule.trigger === 'blocked_command')) ? ` ${t('wauto.delete_hint')}` : null}
+          {(value.some((rule) => rule.trigger === 'decoy')) ? ` ${t('wauto.decoy_hint')}` : null}
         </p>
       )}
       <div className='mt-4'>

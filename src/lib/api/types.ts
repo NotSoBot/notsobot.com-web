@@ -1359,6 +1359,8 @@ export const GuildModerationDmFlags = {
   MUTE: 1 << 2,
   WARN: 1 << 3,
   AUTOWARN: 1 << 4,
+  // removed for posting in the server's decoy channel
+  DECOY: 1 << 5,
 } as const;
 
 // the sites a server can have the bot auto-embed (`GuildSettings.auto_embed`), the api's `GuildAutoEmbedSites`
@@ -1414,7 +1416,7 @@ export interface GuildWarningAction {
 
 // when the bot warns a member itself: `mentions` for a message mentioning more than `limit` users and roles,
 // `blocked_command` for running a command the server's rules block for them, `automod` for setting off one of the
-// server's Discord AutoMod rules
+// server's Discord AutoMod rules, `decoy` for posting in the server's decoy channel (always server-wide)
 export interface GuildWarningAuto {
   // `automod` only (null for the others): one AutoMod rule's id, null: any of them. Where both are set, the one for that
   // AutoMod rule goes first. Missing on older rules
@@ -1430,7 +1432,7 @@ export interface GuildWarningAuto {
   exempt?: GuildWarningAutoExempt | null,
   // 1-50 for `mentions`, null for the others
   limit: number | null,
-  trigger: 'automod' | 'blocked_command' | 'mentions',
+  trigger: 'automod' | 'blocked_command' | 'decoy' | 'mentions',
   // 1-10, how many warnings it counts as
   warnings: number,
 }

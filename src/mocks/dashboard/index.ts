@@ -1364,7 +1364,7 @@ function applyWarningsAuto(detail: {settings: UserGuild['settings']}, body: Reco
   const keys = new Set<string>();
   for (const rule of rules) {
     const integer = (value: unknown, max: number) => Number.isInteger(value) && 1 <= (value as number) && (value as number) <= max;
-    if (!['automod', 'blocked_command', 'mentions'].includes(rule.trigger) || !integer(rule.warnings, 10) || [rule.channel_id, rule.automod_rule_id].some((id) => id != null && !/^\d{15,21}$/.test(id))) {
+    if (!['automod', 'blocked_command', 'decoy', 'mentions'].includes(rule.trigger) || !integer(rule.warnings, 10) || [rule.channel_id, rule.automod_rule_id].some((id) => id != null && !/^\d{15,21}$/.test(id))) {
       throw invalid('Invalid rule');
     }
     if (rule.trigger === 'mentions' && !integer(rule.limit, 50)) {
@@ -1379,7 +1379,7 @@ function applyWarningsAuto(detail: {settings: UserGuild['settings']}, body: Reco
   detail.settings.warnings_auto = rules
     .map((rule) => ({
       automod_rule_id: (rule.trigger === 'automod') ? rule.automod_rule_id ?? null : null,
-      channel_id: rule.channel_id,
+      channel_id: (rule.trigger === 'decoy') ? null : rule.channel_id,
       delete_message: (rule.trigger === 'blocked_command') ? rule.delete_message !== false : null,
       exempt: warningsAutoExempt('warnings_auto', rule.exempt),
       limit: (rule.trigger === 'mentions') ? rule.limit : null,

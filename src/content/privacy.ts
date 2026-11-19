@@ -3,7 +3,7 @@ import type { LegalDocument } from './legal';
 export const PRIVACY_POLICY: LegalDocument = {
   title: "Privacy Policy",
   effective: "October 13, 2026",
-  lastUpdated: "November 17, 2026",
+  lastUpdated: "November 19, 2026",
   intro: "This Privacy Policy explains what information NotSoBot collects, why, who it's shared with, how long it's kept, and how You can get a copy of it or have it deleted.",
   sections: [
     {
@@ -25,6 +25,7 @@ export const PRIVACY_POLICY: LegalDocument = {
           "Warnings from NotSoBot's staff: your user ID, the staff member's user ID, the reason, when it was given, whether it reached You in a DM, and when You saw it. You're sent it in a DM, shown it before your next command, and can see and dismiss it on the dashboard. Being blocked from the Service gives You one too, and a block can be set to end on its own at a set time.",
           "Reports members send to a server's moderators with /report, the report command or Report to Mods: the server, who sent it, who was reported, the reason, when it was sent, its status and the moderator who last resolved or dismissed it. A report of a member also keeps an image of them from when it was sent (their avatar, nickname and username), and a report of a message keeps the message's channel and message IDs, its text and an image of the message (showing its author's name and avatar, its text, and its images and embed), so moderators can still see them if they change or the message is deleted. If an image may contain NSFW content, it's kept with every picture in it (avatars, attachments, embeds and emojis) replaced by a plain block. The text and images are deleted 30 days after the report. Replies between the member who sent it and the moderators are kept with the report too (what was written, who wrote it and when), along with each time it was resolved, dismissed or reopened. The member gets the moderators' replies in a DM from \"the moderators\", without the moderator's name.",
           "Logging settings: if a server enables logging, the channel and webhook used to post logs, including the webhook token. Log events are sent to that webhook and are not kept by Us.",
+          "Decoy channel settings: if a server sets up a decoy channel, the channel, who set it up, the webhook that posts and deletes its bait messages (including the webhook token), its notice (NotSoBot's text, or the IDs of the member and message whose own message is the notice), how many members it has removed and when it last did. We don't keep the messages people post in it.",
           "Command replies: the IDs of your command message, its channel, the command used, and NotSoBot's reply, so that editing or deleting your command can update or remove the reply.",
           "Command usage statistics: which command was used, when, and the server, channel and user IDs involved.",
           "Tags: names, content, variables, attached media, usage counts and directory listings for tags You create, and each time a tag is used (the tag, who used it, the server and when).",

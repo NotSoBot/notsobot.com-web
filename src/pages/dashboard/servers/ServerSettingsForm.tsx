@@ -75,6 +75,7 @@ const MODERATION_DMS = [
   {flag: GuildModerationDmFlags.MUTE, key: 'mute'},
   {flag: GuildModerationDmFlags.WARN, key: 'warn'},
   {flag: GuildModerationDmFlags.AUTOWARN, key: 'autowarn'},
+  {flag: GuildModerationDmFlags.DECOY, key: 'decoy'},
 ] as const;
 
 

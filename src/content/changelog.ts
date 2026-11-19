@@ -29,8 +29,13 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: Array<ChangelogDay> = [
   {
     date: '2026-11-19',
-    title: 'Brightness, contrast, text, ffmpeg and other MediaScript-only effects as commands',
+    title: 'Decoy channels, page buttons on downloads, and MediaScript-only effects as commands',
     items: [
+      {kind: 'new', text: 'Decoy channels: `/server-decoy create` (or `.decoy create`) makes a channel that removes anyone who posts in it, since spam accounts post in every channel they can. They\'re softbanned, so their recent messages are deleted too. The channel keeps one notice telling people not to post there, and a notice you post from your own account, in your own words, is harder for spam tools to spot than NotSoBot\'s. Moderators, admins and other bots only have their message deleted.'},
+      {kind: 'new', text: 'A decoy channel gets a name that fits your server\'s other channels, and now and then a message is posted and deleted in it so it looks used. `/server-decoy notice`, `rename`, `settings`, `status` and `remove` manage it.'},
+      {kind: 'new', text: '`/server-autowarn decoy` (or `.autowarn decoy`, or on the dashboard) warns whoever the decoy channel catches. If their warnings reach a ban step they\'re banned instead of softbanned. `/server set dms` has a Decoy channel removals choice for the DM they get.'},
+      {kind: 'new', text: '`.download`, `.embed` and auto-embed show page buttons on posts with more than one picture or video (X, Instagram, Threads, Bluesky, Tumblr, Reddit galleries, TikTok photo posts and Amazon), opening on the one you picked with `-position`. Only you can press them, for 10 minutes.'},
+      {kind: 'new', text: 'Medal clip links and TikTok sound links download. A TikTok sound comes out as audio.'},
       {kind: 'new', text: '`.brightness` (also `.lighten`) and `.darken`, `.contrast` and `.contrast multiply`, all on pictures, GIFs and videos. They\'re also under the new `/media-iv-adjust`, where a negative brightness darkens.'},
       {kind: 'new', text: '`.opacity` (also `.alpha`) makes a picture see-through, and `.crop transparency` cuts a picture or video to the shape of a second image\'s transparency, like an emoji or a logo. Both are under `/media-iv-adjust` too.'},
       {kind: 'new', text: '`.skew` slants a picture or video sideways by some degrees, `-vertical` for up and down. Also `/media-iv-distort skew`.'},
@@ -44,6 +49,7 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'improved', text: 'Deleting the thinking message of a slow slash command cancels the command.'},
       {kind: 'improved', text: 'Skipping a song whose link is still being converted skips it now (the skip command, the button and `{music.control:skip}`). It used to say nothing was playing, then play the song anyway once it was ready.'},
       {kind: 'improved', text: 'nsb.gg says a file couldn\'t load, with a Retry button, when nsb.gg or its storage is having trouble, instead of calling it an unknown file. `www.nsb.gg` links go to nsb.gg.'},
+      {kind: 'improved', text: 'Downloads from sites that protect their media with DRM, or that downloading isn\'t supported for, say so instead of failing like a temporary error. Instagram story links say straight away that stories can only be seen when logged in.'},
       {kind: 'improved', text: '**MediaScript:** `brightness`/`darken` default to 25, `contrast` to 30, `contrastmultiply` to 1.5, `opacity` to 50 and `skew` to 30 degrees, the same as the commands. Leaving the amount out used to do next to nothing, or make `opacity` invisible.'},
       {kind: 'fixed', text: '**MediaScript:** `opacity`, `skew` and `croptransparency` on a JPEG losing their new transparency (the result is a PNG now).'},
       {kind: 'fixed', text: 'Free cloned voices sometimes stopping a word or more early, like saying "test one two" for "test one two three four", mostly on lines with no ending punctuation.'},
