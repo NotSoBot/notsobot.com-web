@@ -54,7 +54,7 @@ function buildShowcases(commands: Array<Command>): Array<Showcase> {
     const after = command.media.find((media) => media.type === CommandMediaTypes.AFTER);
     // shown as its slash command when it has one, prefix commands are ending
     const [ variant ] = enabledCommandVariants(command).sort((a, b) => compareCommandTypes(a.type, b.type));
-    if (!after || !variant || after.mimetype.startsWith('audio/')) {
+    if (!after || !variant || after.mimetype.startsWith('audio/') || isFlagOverlay(command)) {
       return [];
     }
     const inputs = command.media.filter((media) => media.type === CommandMediaTypes.BEFORE);
@@ -69,9 +69,21 @@ function buildShowcases(commands: Array<Command>): Array<Showcase> {
   });
 }
 
+// the ~200 country flag overlays (`/media-iv-flag-asia east japan`, `.overlay japan`) are a quarter of all commands and
+// would fill the gallery with near-identical tiles. matched on the english slash name, `name` is translated
+function isFlagOverlay(command: Command): boolean {
+  return command.metadata.some((metadata) => (metadata.default_name ?? metadata.name).startsWith('media-iv-flag-'));
+}
+
 // HERO_COMMANDS are picked by the prefix name, the slash one shown is often longer (`/media-iv magik`)
 function prefixName(command: Command): string | undefined {
   return enabledCommandVariants(command).find((metadata) => metadata.type === CommandTypes.PREFIXED)?.name;
+}
+
+// the slider's tabs only name the effect (`/media-iv-distort magik` → `magik`), the "made with" line under it has the
+// full command, so the six tabs stay narrow enough for the hero's side column
+function effectName(name: string): string {
+  return name.split(' ').pop() ?? name;
 }
 
 // an image result over an image input of about the same shape, like the commands page's slider
@@ -258,12 +270,12 @@ function HeroComparison({ showcases }: {showcases: Array<Showcase & {before: Com
         className='mx-auto rounded-lg'
       />
       {(showcases.length > 1) ? (
-        <div className='-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0 lg:overflow-visible'>
+        <div className='-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0'>
           <div className='mx-auto w-max'>
             <Segmented
               label={t('home.compare.label')}
               value={showcase.command.id}
-              options={showcases.map((item) => ({value: item.command.id, label: item.name}))}
+              options={showcases.map((item) => ({value: item.command.id, label: effectName(item.name)}))}
               onChange={setSelected}
             />
           </div>

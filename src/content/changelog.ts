@@ -29,9 +29,11 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: Array<ChangelogDay> = [
   {
     date: '2026-11-20',
-    title: 'More server loggers',
+    title: 'More server loggers and an Undo button on auto-embeds',
     items: [
+      {kind: 'new', text: 'Auto-embeds have an **Undo** button that deletes NotSoBot\'s reply and brings back the link\'s own preview. Whoever posted the link or anyone who can manage messages there can press it.'},
       {kind: 'improved', text: 'Servers can have up to 25 loggers instead of 10, with up to 3 of each type, so one type can log to more than one channel. Message and user loggers get 2 each, since those post the most. Servers that already have more of a type keep them, they just can\'t add another.'},
+      {kind: 'fixed', text: '`.embed` and auto-embed timing out on TikTok photo posts with a song. The 10 pictures of a gallery now come from one request, and the song is downloaded once for all of them.'},
     ],
   },
   {
@@ -58,7 +60,7 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'new', text: '`.setloop` sets how many times a GIF plays (0 is forever), and `.setframedelay` sets how long each frame of a GIF or video is shown. Also `/media-iv-tools set loop` and `set frame-delay`.'},
       {kind: 'new', text: '`.audio noise` mixes white, pink, brown, blue, violet or velvet noise into a media\'s audio (a picture becomes a video with it), and `.noise` makes an audio file of just noise, 10 seconds unless you give a length. Also `/media-aiv-tools audio-noise` and `/media-av-tools noise`.'},
       {kind: 'new', text: '`/music listen` (or `.music listen`) finds the song you\'re playing near your mic in voice, like a song finder app on your phone. It listens for up to 2 minutes and answers as soon as it recognizes the song, while the music keeps playing. Nothing is kept, and it joins your voice channel for it if it isn\'t there already. If nothing\'s found, turn off Noise Suppression in Discord\'s Voice & Video settings, it filters music out.'},
-      {kind: 'new', text: '`/music listen` listens to everyone in your voice channel at once, their audio mixed together. `target` picks one person instead (you, or another bot playing music). You can start one every minute.'},
+      {kind: 'new', text: '`/music listen` listens to everyone in your voice channel at once, their audio mixed together. `target` picks one person instead (you, or another bot playing music). You can run one at a time.'},
       {kind: 'new', text: 'Picking NotSoBot itself as the `target` shows what it\'s playing. For a file or link it\'s playing, like a mix, it identifies the song at the point it\'s playing now.'},
       {kind: 'improved', text: '`.color remove` also answers to `.chromakey`.'},
       {kind: 'improved', text: 'Deleting the thinking message of a slow slash command cancels the command.'},
