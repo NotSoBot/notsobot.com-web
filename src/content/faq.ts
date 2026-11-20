@@ -149,7 +149,7 @@ export const FAQ_QUESTIONS: Array<FaqQuestion> = [
     id: 'limit-server',
     section: 'limits',
     question: 'What are the limits for server settings?',
-    answer: '- **Prefixes:** 10\n- **Rules:** 500\n- **Loggers:** 10\n- **Custom commands:** 300\n- **Warnings:** 100 active ones per member, and up to 10 members in one `warn`\n- **Warning actions:** 10 steps\n- **Auto-warn rules:** 20\n- **Timed bans:** 200 waiting to be lifted',
+    answer: '- **Prefixes:** 10\n- **Rules:** 500\n- **Loggers:** 3 of each type (2 message loggers and 2 user loggers), 25 in all\n- **Custom commands:** 300\n- **Warnings:** 100 active ones per member, and up to 10 members in one `warn`\n- **Warning actions:** 10 steps\n- **Auto-warn rules:** 20\n- **Timed bans:** 200 waiting to be lifted',
   },
   {
     id: 'limit-premium',

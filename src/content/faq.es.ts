@@ -90,7 +90,7 @@ export const FAQ_SPANISH: FaqTranslation = {
     },
     'limit-server': {
       question: '¿Qué límites tienen los ajustes del servidor?',
-      answer: '- **Prefijos:** 10\n- **Reglas:** 500\n- **Registros:** 10\n- **Comandos personalizados:** 300\n- **Advertencias:** 100 activas por miembro, y hasta 10 miembros en un solo `warn`\n- **Acciones de advertencia:** 10 pasos\n- **Reglas de advertencia automática:** 20\n- **Baneos temporales:** 200 pendientes de levantarse',
+      answer: '- **Prefijos:** 10\n- **Reglas:** 500\n- **Registros:** 3 de cada tipo (2 de mensajes y 2 de usuarios), 25 en total\n- **Comandos personalizados:** 300\n- **Advertencias:** 100 activas por miembro, y hasta 10 miembros en un solo `warn`\n- **Acciones de advertencia:** 10 pasos\n- **Reglas de advertencia automática:** 20\n- **Baneos temporales:** 200 pendientes de levantarse',
     },
     'limit-premium': {
       question: '¿Premium sube estos límites?',

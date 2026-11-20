@@ -28,6 +28,13 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 
 export const CHANGELOG: Array<ChangelogDay> = [
   {
+    date: '2026-11-20',
+    title: 'More server loggers',
+    items: [
+      {kind: 'improved', text: 'Servers can have up to 25 loggers instead of 10, with up to 3 of each type, so one type can log to more than one channel. Message and user loggers get 2 each, since those post the most. Servers that already have more of a type keep them, they just can\'t add another.'},
+    ],
+  },
+  {
     date: '2026-11-19',
     title: 'Decoy channels, galleries on downloads, and MediaScript-only effects as commands',
     items: [
