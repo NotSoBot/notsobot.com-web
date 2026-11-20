@@ -33,6 +33,9 @@ export const CHANGELOG: Array<ChangelogDay> = [
     items: [
       {kind: 'new', text: 'Auto-embeds have an **Undo** button that deletes NotSoBot\'s reply and brings back the link\'s own preview. Whoever posted the link or anyone who can manage messages there can press it.'},
       {kind: 'improved', text: 'Servers can have up to 25 loggers instead of 10, with up to 3 of each type, so one type can log to more than one channel. Message and user loggers get 2 each, since those post the most. Servers that already have more of a type keep them, they just can\'t add another.'},
+      {kind: 'improved', text: '`.embed` and `.download` with `-position` show just that one picture or video instead of the gallery around it. Add `-view gallery` to get the gallery.'},
+      {kind: 'improved', text: 'X links to one photo or video of a post (`/photo/3`, `/video/2`) start on that one instead of the first.'},
+      {kind: 'improved', text: '**TagScript:** a Discord message link in `{medialist}` starts the list at that message: all of its media, then the media sent before it in its channel until there are `max`. Before, a link only added that message\'s first media.'},
       {kind: 'fixed', text: '`.embed` and auto-embed timing out on TikTok photo posts with a song. The 10 pictures of a gallery now come from one request, and the song is downloaded once for all of them.'},
     ],
   },

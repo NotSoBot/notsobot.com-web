@@ -364,7 +364,7 @@ export const FUNCTIONS_PORTUGUESE_3: TagDocsTranslation['functions'] = {
   },
   MEDIA_LIST: {
     summary: 'Pega as URLs de várias mídias como um array JSON.',
-    description: 'Junta mídia nesta ordem: anexos de um comando de barra, a mensagem que executou a tag (anexos, figurinhas), a mensagem que ela responde e, por fim, o argumento de texto. Para quando tiver `max` URLs.\n\nAo contrário do `{media}`, não procura nas mensagens mais antigas do canal, então a lista é só o que foi enviado ou indicado. Coloque `^` no texto para adicionar a última mídia do canal, ou `^2` para a anterior.\n\nO texto é lido como o argumento do `{media}`: URLs, links de mensagens do Discord, menções de usuário, IDs, `@name` (o avatar), emojis e buscas por nome de membro. Use com `{foreach}` para passar por cada URL, ou com `{traversejson}` para escolher ou contar.',
+    description: 'Junta mídia nesta ordem: anexos de um comando de barra, a mensagem que executou a tag (anexos, figurinhas), a mensagem que ela responde e, por fim, o argumento de texto. Para quando tiver `max` URLs.\n\nAo contrário do `{media}`, não procura nas mensagens mais antigas do canal, então a lista é só o que foi enviado ou indicado. Coloque `^` no texto para adicionar a última mídia do canal, ou `^2` para a anterior.\n\nUm link de mensagem do Discord no texto faz a lista começar nessa mensagem em vez da que executou a tag e a resposta dela: toda a mídia dela e, depois, a enviada antes no canal até ter `max` URLs. Assim, `{medialist:video|10|LINK}` dá os vídeos da mensagem do link e depois os anteriores, até 10.\n\nO texto é lido como o argumento do `{media}`: URLs, links de mensagens do Discord, menções de usuário, IDs, `@name` (o avatar), emojis e buscas por nome de membro. Use com `{foreach}` para passar por cada URL, ou com `{traversejson}` para escolher ou contar.',
     args: {
       type: '`media` (o padrão), `image`, `video`, `audio`, `av` (áudio ou vídeo) ou `iv` (imagem ou vídeo).',
       max: 'O máximo de URLs a retornar, de 1 a 10. O padrão é 10.',
@@ -373,6 +373,7 @@ export const FUNCTIONS_PORTUGUESE_3: TagDocsTranslation['functions'] = {
     results: [
       '',
       'Até duas imagens da mensagem, da resposta e dos argumentos',
+      'Os vídeos da mensagem do link e depois os enviados antes, até 10',
       'Envia de novo cada imagem da mensagem',
       '',
     ],

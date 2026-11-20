@@ -364,7 +364,7 @@ export const FUNCTIONS_SPANISH_3: TagDocsTranslation['functions'] = {
   },
   MEDIA_LIST: {
     summary: 'Obtiene las URLs de varios elementos multimedia como un array JSON.',
-    description: 'Reúne multimedia en este orden: archivos adjuntos de un comando de barra, el mensaje que ejecutó el tag (archivos adjuntos, stickers), el mensaje al que responde y, por último, el argumento de texto. Se detiene cuando tiene `max` URLs.\n\nA diferencia de `{media}`, no busca en los mensajes anteriores del canal, así que la lista es solo lo que se envió o se indicó. Pon `^` en el texto para añadir la última multimedia del canal, o `^2` para la anterior.\n\nEl texto se lee como el argumento de `{media}`: URLs, enlaces a mensajes de Discord, menciones de usuario, IDs, `@name` (su avatar), emojis y búsquedas por nombre de miembro. Úsalo con `{foreach}` para recorrer cada URL, o con `{traversejson}` para elegirlas o contarlas.',
+    description: 'Reúne multimedia en este orden: archivos adjuntos de un comando de barra, el mensaje que ejecutó el tag (archivos adjuntos, stickers), el mensaje al que responde y, por último, el argumento de texto. Se detiene cuando tiene `max` URLs.\n\nA diferencia de `{media}`, no busca en los mensajes anteriores del canal, así que la lista es solo lo que se envió o se indicó. Pon `^` en el texto para añadir la última multimedia del canal, o `^2` para la anterior.\n\nUn enlace a un mensaje de Discord en el texto hace que la lista empiece en ese mensaje en lugar del que ejecutó el tag y su respuesta: toda su multimedia y, después, la enviada antes en su canal hasta tener `max` URLs. Así, `{medialist:video|10|LINK}` da los vídeos del mensaje enlazado y luego los anteriores, hasta 10.\n\nEl texto se lee como el argumento de `{media}`: URLs, enlaces a mensajes de Discord, menciones de usuario, IDs, `@name` (su avatar), emojis y búsquedas por nombre de miembro. Úsalo con `{foreach}` para recorrer cada URL, o con `{traversejson}` para elegirlas o contarlas.',
     args: {
       type: '`media` (por defecto), `image`, `video`, `audio`, `av` (audio o vídeo) o `iv` (imagen o vídeo).',
       max: 'El máximo de URLs que devolver, de 1 a 10. Por defecto, 10.',
@@ -373,6 +373,7 @@ export const FUNCTIONS_SPANISH_3: TagDocsTranslation['functions'] = {
     results: [
       '',
       'Hasta dos imágenes del mensaje, de la respuesta y de los argumentos',
+      'Los vídeos del mensaje enlazado y luego los enviados antes, hasta 10',
       'Vuelve a subir cada imagen del mensaje',
       '',
     ],

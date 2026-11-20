@@ -460,7 +460,7 @@ export const TAG_DOC_FUNCTIONS_PART3: Array<TagDocFunction> = [
     names: ['medialist', 'media.list'],
     category: 'media',
     summary: 'Get the URLs of several pieces of media as a JSON array.',
-    description: 'Collects media in this order: attachments on a slash command, the message that ran the tag (attachments, stickers), the message it replies to, then the text argument. It stops once it has `max` URLs.\n\nUnlike `{media}`, it does not look through the channel\'s older messages, so a list is only what was sent or pointed at. Put `^` in the text to add the last media in the channel, or `^2` for the one before it.\n\nThe text is read like `{media}`\'s argument: URLs, Discord message links, user mentions, IDs, `@name` (their avatar), emojis and member name searches. Use it with `{foreach}` to go through each URL, or `{traversejson}` to pick or count them.',
+    description: 'Collects media in this order: attachments on a slash command, the message that ran the tag (attachments, stickers), the message it replies to, then the text argument. It stops once it has `max` URLs.\n\nUnlike `{media}`, it does not look through the channel\'s older messages, so a list is only what was sent or pointed at. Put `^` in the text to add the last media in the channel, or `^2` for the one before it.\n\nA Discord message link in the text starts the list at that message instead of the one that ran the tag and its reply: every media in it, then the media sent before it in its channel until there are `max` URLs. So `{medialist:video|10|LINK}` is the linked message\'s videos, then older ones up to 10.\n\nThe text is read like `{media}`\'s argument: URLs, Discord message links, user mentions, IDs, `@name` (their avatar), emojis and member name searches. Use it with `{foreach}` to go through each URL, or `{traversejson}` to pick or count them.',
     syntax: '{medialist:type?|max?|text?}',
     args: [
       {name: 'type', description: '`media` (the default), `image`, `video`, `audio`, `av` (audio or video) or `iv` (image or video).', optional: true},
@@ -470,6 +470,7 @@ export const TAG_DOC_FUNCTIONS_PART3: Array<TagDocFunction> = [
     examples: [
       {code: '{medialist}', result: '["https://cdn.discordapp.com/attachments/.../a.png","https://cdn.discordapp.com/attachments/.../b.mp4"]'},
       {code: '{medialist:image|2|{args}}', result: 'Up to two images from the message, the reply and the arguments'},
+      {code: '{medialist:video|10|https://discord.com/channels/.../.../...}', result: 'The linked message\'s videos, then the ones sent before it, up to 10'},
       {code: '{foreach:{medialist:image}|{attach:{get:valuex}}}', result: 'Re-uploads every image on the message'},
       {code: '{traversejson:length|{medialist}}', result: '2'},
     ],
