@@ -587,6 +587,9 @@ export interface UserSettings {
   ml_llm_memory_disabled: boolean,
   ml_llm_model: string | null,
   ml_llm_personality: string | null,
+  // `PostGalleryTypes`, how a post with more than one media shows (0 a gallery of up to ten, 1 one per page), null
+  // follows the server's setting, then a gallery
+  post_gallery: number | null,
   response_display: number | null,
   // `UserSettingsSearchProviders`, null follows the server's setting
   search_provider_images: number | null,
@@ -1373,6 +1376,8 @@ export interface GuildSettings {
   // the sites whose links the bot auto-embeds (a message that's only a link to a post gets its media, like `.dl`),
   // sorted, empty: off. A premium server perk, kept without one but only working with it (`UserGuild.premium_server`)
   auto_embed: Array<GuildAutoEmbedSite>,
+  // `PostGalleryTypes` for auto-embeds, null: each poster's own setting (then `post_gallery`)
+  auto_embed_gallery: number | null,
   // auto-embeds post the post's text and author above the media too
   auto_embed_text: boolean,
   // seconds of a member's messages the bot's `ban` deletes when the moderator doesn't pick, 0: none
@@ -1384,6 +1389,8 @@ export interface GuildSettings {
   ml_llm_personality: string | null,
   // the `GuildModerationDmFlags` members don't get dm'd about, 0: every one
   moderation_dm_disabled: number,
+  // `PostGalleryTypes` for members without their own, null: a gallery
+  post_gallery: number | null,
   response_display: number | null,
   // if the server owner and admins skip the rules (rules can override it)
   rules_admin_bypass: boolean,
@@ -1546,6 +1553,8 @@ export interface UserDataExport {
 export interface UserGuildPatch {
   // replaces the auto-embed sites, null or empty turns it off
   auto_embed?: Array<GuildAutoEmbedSite> | null,
+  // null: each poster's own setting
+  auto_embed_gallery?: number | null,
   // null resets it to off
   auto_embed_text?: boolean | null,
   // seconds (0 to 7 days), null resets it to 1 day
@@ -1558,6 +1567,7 @@ export interface UserGuildPatch {
   ml_llm_model?: string | null,
   ml_diffusion_model?: string | null,
   media_font?: string | null,
+  post_gallery?: number | null,
   response_display?: number | null,
   search_provider_images?: number | null,
   search_provider_web?: number | null,

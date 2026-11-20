@@ -47,6 +47,12 @@ export const RESPONSE_DISPLAY_CHOICES: ReadonlyArray<Choice<number>> = [
   {value: 2, get label() { return translate('choice.display.legacy'); }},
 ];
 
+// `PostGalleryTypes`, how a post with more than one media shows (`.embed`, `.download`, auto-embed)
+export const POST_GALLERY_CHOICES: ReadonlyArray<Choice<number>> = [
+  {value: 0, get label() { return translate('choice.post_gallery.gallery'); }},
+  {value: 1, get label() { return translate('choice.post_gallery.pages'); }},
+];
+
 // `UserSettingsSearchProviders`, null follows the server's setting, then DuckDuckGo for web and Google for images
 export const SEARCH_PROVIDER_CHOICES: ReadonlyArray<Choice<number>> = [
   {value: 2, label: 'Bing'},

@@ -112,6 +112,8 @@ export const Dashboard: Record<keyof typeof English, string> = {
   'logger.7.description': 'Advertências dadas, removidas e apagadas',
   'logger.8': 'Denúncias',
   'logger.8.description': 'Denúncias dos membros para os moderadores do servidor',
+  'logger.9': 'Isca',
+  'logger.9.description': 'Quem posta no canal isca e o que aconteceu com a pessoa',
   'logger.unknown': 'Tipo {type}',
   'report_status.open': 'Aberta',
   'report_status.resolved': 'Resolvida',

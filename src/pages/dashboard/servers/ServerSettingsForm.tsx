@@ -11,6 +11,7 @@ import {
   LLM_MODEL_CHOICES,
   LOCALE_CHOICES,
   PERSONALITY_MAX,
+  POST_GALLERY_CHOICES,
   RESPONSE_DISPLAY_CHOICES,
   SEARCH_PROVIDER_CHOICES,
   TIMEZONE_CHOICES,
@@ -47,6 +48,7 @@ const GROUP_ACCENTS: Record<SettingsGroup, string> = {
 function savedValues(guild: UserGuild): Values {
   return {
     auto_embed: guild.settings.auto_embed ?? [],
+    auto_embed_gallery: guild.settings.auto_embed_gallery ?? null,
     auto_embed_text: guild.settings.auto_embed_text ?? false,
     locale: guild.locale,
     timezone: guild.timezone,
@@ -54,6 +56,7 @@ function savedValues(guild: UserGuild): Values {
     ml_llm_model: guild.settings.ml_llm_model,
     ml_diffusion_model: guild.settings.ml_diffusion_model,
     media_font: guild.settings.media_font,
+    post_gallery: guild.settings.post_gallery ?? null,
     response_display: guild.settings.response_display,
     search_provider_images: guild.settings.search_provider_images,
     search_provider_web: guild.settings.search_provider_web,
@@ -183,6 +186,9 @@ export function ServerSettingsForm({ guild, group, onDirtyChange }: {guild: User
               <Field label={t('settings.display.response')}>
                 {(props) => <ChoiceSelect {...props} noneLabel={t('settings.default')} choices={RESPONSE_DISPLAY_CHOICES} value={values.response_display} onChange={(value) => draft.set('response_display', value)}/>}
               </Field>
+              <Field label={t('settings.display.post_gallery')} hint={t('ssettings.member_wins')}>
+                {(props) => <ChoiceSelect {...props} noneLabel={t('ssettings.post_gallery_default')} choices={POST_GALLERY_CHOICES} value={values.post_gallery} onChange={(value) => draft.set('post_gallery', value)}/>}
+              </Field>
               <Field label={t('settings.search.web')} hint={t('ssettings.member_wins')}>
                 {(props) => <ChoiceSelect {...props} noneLabel={t('ssettings.default_ddg')} choices={SEARCH_PROVIDER_CHOICES} value={values.search_provider_web} onChange={(value) => draft.set('search_provider_web', value)}/>}
               </Field>
@@ -215,6 +221,9 @@ export function ServerSettingsForm({ guild, group, onDirtyChange }: {guild: User
                     onChange={(value) => draft.set('auto_embed_text', value)}
                   />
                 </div>
+                <Field label={t('ssettings.autoembed.gallery')} hint={t('ssettings.autoembed.gallery_hint')}>
+                  {(props) => <ChoiceSelect {...props} noneLabel={t('ssettings.autoembed.gallery_poster')} choices={POST_GALLERY_CHOICES} value={values.auto_embed_gallery} onChange={(value) => draft.set('auto_embed_gallery', value)}/>}
+                </Field>
                 {(!guild.premium_server) ? (
                   <PremiumNote staffText={null}>{t('ssettings.autoembed.premium')}</PremiumNote>
                 ) : null}

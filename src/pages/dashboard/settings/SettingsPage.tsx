@@ -18,6 +18,7 @@ import {
   LLM_MODEL_CHOICES,
   LOCALE_CHOICES,
   PERSONALITY_MAX,
+  POST_GALLERY_CHOICES,
   RESPONSE_DISPLAY_CHOICES,
   SEARCH_PROVIDER_CHOICES,
   TIMEZONE_CHOICES,
@@ -282,7 +283,7 @@ function MediaSection({ settings, onDirtyChange }: SectionProps) {
 
 function DisplaySection({ settings, onDirtyChange }: SectionProps) {
   const { t } = useI18n();
-  const section = useSettingsSection('settings.display.title', settings, ['response_display', 'application_command_response_type'], onDirtyChange);
+  const section = useSettingsSection('settings.display.title', settings, ['response_display', 'application_command_response_type', 'post_gallery'], onDirtyChange);
   return (
     <SectionForm title={t('settings.display.title')} accent='#00b0f4' description={t('settings.display.description')} section={section}>
       <Field label={t('settings.display.response')}>
@@ -290,6 +291,9 @@ function DisplaySection({ settings, onDirtyChange }: SectionProps) {
       </Field>
       <Field label={t('settings.display.slash')} hint={t('settings.display.slash_hint')}>
         {(props) => <ChoiceSelect {...props} choices={APPLICATION_COMMAND_RESPONSE_CHOICES} value={section.values.application_command_response_type} onChange={(value) => section.set('application_command_response_type', value ?? 0)}/>}
+      </Field>
+      <Field label={t('settings.display.post_gallery')} hint={t('settings.display.post_gallery_hint')}>
+        {(props) => <ChoiceSelect {...props} noneLabel={t('settings.server_default')} choices={POST_GALLERY_CHOICES} value={section.values.post_gallery} onChange={(value) => section.set('post_gallery', value)}/>}
       </Field>
     </SectionForm>
   );

@@ -112,6 +112,8 @@ export const Dashboard: Record<keyof typeof English, string> = {
   'logger.7.description': 'Advertencias dadas, quitadas y borradas',
   'logger.8': 'Reportes',
   'logger.8.description': 'Reportes de los miembros a los moderadores del servidor',
+  'logger.9': 'Señuelo',
+  'logger.9.description': 'Quién publica en el canal señuelo y qué le pasó',
   'logger.unknown': 'Tipo {type}',
   'report_status.open': 'Abierto',
   'report_status.resolved': 'Resuelto',

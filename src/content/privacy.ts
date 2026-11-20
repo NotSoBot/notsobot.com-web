@@ -3,7 +3,7 @@ import type { LegalDocument } from './legal';
 export const PRIVACY_POLICY: LegalDocument = {
   title: "Privacy Policy",
   effective: "October 13, 2026",
-  lastUpdated: "November 19, 2026",
+  lastUpdated: "November 20, 2026",
   intro: "This Privacy Policy explains what information NotSoBot collects, why, who it's shared with, how long it's kept, and how You can get a copy of it or have it deleted.",
   sections: [
     {
@@ -30,6 +30,7 @@ export const PRIVACY_POLICY: LegalDocument = {
           "Command usage statistics: which command was used, when, and the server, channel and user IDs involved.",
           "Tags: names, content, variables, attached media, usage counts and directory listings for tags You create, and each time a tag is used (the tag, who used it, the server and when).",
           "Music stats: each song that plays in a server (its title, artist and link), who queued it, how long it played and when, so the server can see what it played the most.",
+          "Voice audio, only while someone uses the music listen command: NotSoBot hears its voice channel (everyone in it mixed together, or the one person picked) for up to 2 minutes, to find the song being played there. It's only held in memory while it listens and is never saved. Only a fingerprint of it is sent to ACRCloud (see Section 7).",
           "Reminders: reminder text, times, and the channel and message they belong to.",
           "Reports You send to Us with /bot report (or the bot report command), Report to NotSoBot, by asking NotSoAI, or from the website, including the text, the server, channel and message IDs involved, and Our review notes. Bug and tag reports sent from the website without logging in aren't linked to any account. Instead We keep a one-way hash of the IP address they came from, to limit how many can be sent and to spot abuse. The IP address itself isn't stored with the report.",
           "Uploaded files: files You ask NotSoBot to host, their file names, sizes, dimensions and a file hash (BLAKE2b), and a preview image made from each video or audio file (a frame, its cover art or its waveform).",
@@ -104,6 +105,7 @@ export const PRIVACY_POLICY: LegalDocument = {
           "AI providers, listed in Section 8, which receive the prompt and any media You give an AI command in order to generate your result.",
           "Search, information and media sources, such as Google, DuckDuckGo, Bing, Yandex, Wolfram Alpha, YouTube and Reddit, which receive the search terms, links or images You give a command that looks something up (a reverse image search sends Google the image).",
           "Google Cloud, for translation and reading text in images: commands that translate send Google the text, including what was said in your media when You ask for translated subtitles or a translated transcription, and commands that read or translate text in an image send Google the image.",
+          "ACRCloud, which identifies songs. Identifying a song in a file, or with the music listen command, sends it a fingerprint made from up to a minute of the audio, not the audio itself.",
           "Backblaze, which stores files You ask NotSoBot to host.",
           "Cloudflare, which hosts and protects the website. When You send a report from the website without logging in, Cloudflare Turnstile checks that You're not a bot. It receives your IP address and information about your browser to do this.",
           "Sentry, which receives error reports when something breaks. These can include the IDs and command details involved in the error.",

@@ -110,6 +110,8 @@ export const Dashboard = {
   'logger.7.description': 'Warnings given, removed and cleared',
   'logger.8': 'Reports',
   'logger.8.description': 'Members’ reports to the server’s moderators',
+  'logger.9': 'Decoy',
+  'logger.9.description': 'Who posts in the decoy channel and what happened to them',
   'logger.unknown': 'Type {type}',
   'report_status.open': 'Open',
   'report_status.resolved': 'Resolved',
