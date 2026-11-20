@@ -1268,7 +1268,7 @@ export const api = {
 
   // starts fetching a flag's source media (by the api, never the browser) like `.download` does, it waits a couple
   // seconds for it; poll `fetchJob` if it's still going. The file comes back once, base64 in
-  // `result.response.file.value`, and nothing is kept or uploaded
+  // `result.response.items[0].file.value`, and nothing is kept or uploaded
   startAdminContentFlagMedia: (flagId: string, signal?: AbortSignal) => {
     return apiRequest<JobResponse>(ApiEndpoints.ADMIN_CONTENT_FLAG_MEDIA(flagId), {method: 'POST', signal});
   },

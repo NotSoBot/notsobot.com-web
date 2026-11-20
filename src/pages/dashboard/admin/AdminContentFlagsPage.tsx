@@ -1314,18 +1314,18 @@ function MediaDialog({ flag, onClose }: {flag: ContentFlag, onClose: () => void}
       if (job.result.error) {
         throw new Error(job.result.error);
       }
-      const file = job.result.response?.file;
-      if (!file?.value) {
+      const item = job.result.response?.items[0];
+      if (!item?.file.value) {
         throw new Error('The job finished without the media.');
       }
-      const blob = base64ToBlob(file.value, file.metadata.mimetype);
+      const blob = base64ToBlob(item.file.value, item.file.metadata.mimetype);
       const sameFile = (flag.sha256) ? (await sha256Hex(blob)) === flag.sha256 : null;
       if (signal.aborted) {
         return;
       }
       const url = URL.createObjectURL(blob);
       urls.push(url);
-      const frames = (job.result.response?.flagged_frames ?? []).map((frame) => {
+      const frames = (item.flagged_frames ?? []).map((frame) => {
         const frameUrl = URL.createObjectURL(base64ToBlob(frame.value, frame.mimetype));
         urls.push(frameUrl);
         return {frame: frame.frame, timestamp: frame.timestamp, url: frameUrl};

@@ -2141,11 +2141,14 @@ export interface JobResponse {
   result: {
     error: string | null,
     error_code: number | null,
+    // never empty, `items[0]` is the main file (a job that makes several, like pixel art sprites, has them all)
     response: {
-      file: {value: string | null, metadata: {mimetype: string}},
-      // content flag media jobs only: the flag's `frames_flagged` (at most 8) as base64 jpegs, extracted like the
-      // scanner did, with where each one is in the media (seconds, null if unknown). Empty for single frame media
-      flagged_frames?: Array<{frame: number, mimetype: string, timestamp: number | null, value: string}>,
+      items: Array<{
+        file: {value: string | null, metadata: {mimetype: string}},
+        // content flag media jobs only: the flag's `frames_flagged` (at most 8) as base64 jpegs, extracted like the
+        // scanner did, with where each one is in the media (seconds, null if unknown). Empty for single frame media
+        flagged_frames?: Array<{frame: number, mimetype: string, timestamp: number | null, value: string}>,
+      }>,
     } | null,
   },
 }

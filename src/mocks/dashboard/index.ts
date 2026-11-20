@@ -2518,7 +2518,7 @@ route('GET', '/jobs/([0-9a-f-]+)', ([ , jobId ]) => {
     value: btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360"><rect width="640" height="360" fill="#eb459e"/>` +
       `<text x="320" y="190" font-family="sans-serif" font-size="32" fill="#fff" text-anchor="middle">frame ${frame}</text></svg>`),
   }));
-  return mockJobResponse(jobId, 'finished', {file: {value: btoa(svg), metadata: {mimetype: 'image/svg+xml'}}, flagged_frames: flaggedFrames});
+  return mockJobResponse(jobId, 'finished', {items: [{file: {value: btoa(svg), metadata: {mimetype: 'image/svg+xml'}}, source: null, storage: null, flagged_frames: flaggedFrames}]});
 });
 
 // mirrors `admin_get_content_flag_frames`: every few flags the scores were the input's, so the frames aren't `exact`
