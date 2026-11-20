@@ -115,6 +115,25 @@ export const TAG_DOC_FUNCTIONS_PART2: Array<TagDocFunction> = [
     ],
   },
   {
+    id: 'ERROR',
+    names: ['error'],
+    category: 'logic',
+    summary: 'Stops the tag with a message as its error.',
+    description: 'The tag stops and responds with the message as an error, the same way `{js:console.error(`message`)}` does, without starting any code. Good for bans, usage checks and wrong arguments.',
+    syntax: '{error:message}',
+    args: [
+      {name: 'message', description: 'The error to respond with.'},
+    ],
+    examples: [
+      {code: '{if:{args}|=||then:{error:You need to give me some text!}}You said {args}', result: 'Error: You need to give me some text! (when no arguments are given)'},
+      {code: '{iferror:{error:nope}|Caught: {get:error}}', result: 'Caught: nope'},
+    ],
+    notes: [
+      'Unlike `{exit}`, it is caught by `{iferror}` and `{evalsilent}`.',
+      'Also stops the main tag when used inside a tag called with `{tag}`.',
+    ],
+  },
+  {
     id: 'EVAL',
     names: ['eval'],
     category: 'meta',

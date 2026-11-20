@@ -95,6 +95,21 @@ export const FUNCTIONS_SPANISH_2: TagDocsTranslation['functions'] = {
       'Un tag puede tener como mucho 10 embeds; pasarse da un error.',
     ],
   },
+  ERROR: {
+    summary: 'Detiene el tag con un mensaje como su error.',
+    description: 'El tag se detiene y responde con el mensaje como un error, igual que `{js:console.error(`mensaje`)}`, pero sin ejecutar ningún código. Útil para baneos, comprobaciones de uso y argumentos incorrectos.',
+    args: {
+      message: 'El error con el que responder.',
+    },
+    results: [
+      'Error: You need to give me some text! (cuando no se dan argumentos)',
+      '',
+    ],
+    notes: [
+      'A diferencia de `{exit}`, `{iferror}` y `{evalsilent}` sí lo capturan.',
+      'También detiene el tag principal cuando se usa dentro de un tag llamado con `{tag}`.',
+    ],
+  },
   EVAL: {
     summary: 'Evalúa su argumento una segunda vez.',
     description: 'El argumento se evalúa como cualquier otro argumento de función, y luego el resultado se vuelve a evaluar como TagScript. Así puedes construir código a partir de texto, por ejemplo con `{bracketleft}` y `{bracketright}`.',
