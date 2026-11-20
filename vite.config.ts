@@ -58,7 +58,7 @@ export default defineConfig(({ command, mode }) => {
       sourcemap: false,
       // the smallest font subsets would be inlined as data: urls, which the worker's `font-src 'self'` doesn't allow
       assetsInlineLimit: (file) => (file.endsWith('.woff2')) ? false : undefined,
-      rollupOptions: {
+      rolldownOptions: {
         output: {
           // the hover logo effects ship as `effect.<hash>.webp` so their filenames don't give away the command names
           assetFileNames: (asset) => {

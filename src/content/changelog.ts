@@ -29,13 +29,19 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: Array<ChangelogDay> = [
   {
     date: '2026-11-20',
-    title: 'More server loggers and an Undo button on auto-embeds',
+    title: 'Mitosis, an Undo button on auto-embeds, and more server loggers',
     items: [
+      {kind: 'new', text: '`.mitosis` (`/media-iv-animate mitosis`): a picture or video stretches into an empty half next to it, pinches in the middle and splits in two. `-direction vertical` splits downwards instead, so running it once each way makes a 2x2 of four. `-style absorb` has one copy swallow the other back up so it loops.'},
+      {kind: 'new', text: '**MediaScript:** `mitosis MEDIA_KEY DIRECTION=horizontal STYLE=split DURATION=3.0`.'},
       {kind: 'new', text: 'Auto-embeds have an **Undo** button that deletes NotSoBot\'s reply and brings back the link\'s own preview. Whoever posted the link or anyone who can manage messages there can press it.'},
+      {kind: 'new', text: '**TagScript:** Python 3.15 (`{python-3.15.2:...}`) and C++26 (`{cpp-26.0.0:...}`) for code tags. Node.js runs 26 by default now, `{node-24.22.3:...}` still picks 24.'},
+      {kind: 'new', text: '**TagScript:** libvips is installed for every code language (`vips` and `vipsthumbnail` on the command line), and Python tags can use it through `pyvips`.'},
       {kind: 'improved', text: 'Servers can have up to 25 loggers instead of 10, with up to 3 of each type, so one type can log to more than one channel. Message and user loggers get 2 each, since those post the most. Servers that already have more of a type keep them, they just can\'t add another.'},
       {kind: 'improved', text: '`.embed` and `.download` with `-position` show just that one picture or video instead of the gallery around it. Add `-view gallery` to get the gallery.'},
       {kind: 'improved', text: 'X links to one photo or video of a post (`/photo/3`, `/video/2`) start on that one instead of the first.'},
       {kind: 'improved', text: '**TagScript:** a Discord message link in `{medialist}` starts the list at that message: all of its media, then the media sent before it in its channel until there are `max`. Before, a link only added that message\'s first media.'},
+      {kind: 'improved', text: '**TagScript:** code languages are on their latest security releases: Node.js, Python, Java, Go, Ruby, PHP, C# and Dart, and the image tools behind them (ImageMagick, GraphicsMagick, HEIF). Tags that ask for an older version, like `{python-3.12.15:...}`, keep working and run its replacement.'},
+      {kind: 'improved', text: '`/server-decoy status` says who the decoy channel only deletes the message of: the owner, admins, members with Manage Messages, bots and anyone auto-warn skips.'},
       {kind: 'fixed', text: '`.embed` and auto-embed timing out on TikTok photo posts with a song. The 10 pictures of a gallery now come from one request, and the song is downloaded once for all of them.'},
     ],
   },

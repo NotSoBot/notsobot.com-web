@@ -1,8 +1,9 @@
-import { Github, MessageSquare } from 'lucide-react';
+import { MessageSquare } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 
 import { ReportButton } from '@/components/reports/ReportButton';
+import { GitHubLogo } from '@/components/ui/GitHubLogo';
 import { Routes, Urls } from '@/config';
 import { useI18n } from '@/i18n';
 import { ApiEndpoints, apiUrl } from '@/lib/api';
@@ -40,7 +41,7 @@ export function Footer() {
               <MessageSquare className='size-5'/>
             </a>
             <a href={Urls.GITHUB} target='_blank' rel='noreferrer' aria-label='GitHub' className='text-muted transition-colors hover:text-white'>
-              <Github className='size-5'/>
+              <GitHubLogo className='size-5'/>
             </a>
           </div>
           <p className='mb-4 text-xs text-subtle'>{t('footer.rights', {year: new Date().getFullYear()})}</p>

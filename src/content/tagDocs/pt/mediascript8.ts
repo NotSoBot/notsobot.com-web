@@ -168,6 +168,19 @@ export const MEDIASCRIPT_PORTUGUESE_8: TagDocsTranslation['mediaScriptCommands']
       'GIFs animados e vídeos tremem o tempo todo e voltam ao original no último quadro.',
     ],
   },
+  mitosis: {
+    summary: 'Divisão celular: a mídia se estica para uma metade vazia ao lado, se estreita no meio e se divide em duas.',
+    args: {
+      MEDIA_KEY: MEDIA,
+      DIRECTION: 'horizontal deixa duas vezes mais larga, vertical duas vezes mais alta',
+      STYLE: 'split termina em duas cópias, absorb faz uma engolir a outra de volta para fazer loop',
+      DURATION: 'segundos que a divisão leva',
+    },
+    notes: [
+      'Faça uma vez em cada direção para uma grade 2x2 com quatro: `mitosis m` e depois `mitosis m direction=vertical`.',
+      'Uma imagem estática (ou um GIF ou vídeo de um só quadro) vira DURATION segundos a 25 quadros por segundo; uma imagem estática, um GIF. GIFs animados e vídeos continuam tocando enquanto se dividem; um GIF curto se repete até DURATION.',
+    ],
+  },
   skew: {
     summary: 'Inclina a mídia para o lado (ou para cima e para baixo).',
     args: {

@@ -4074,6 +4074,22 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     ],
   },
   {
+    name: 'mitosis',
+    category: 'distort',
+    summary: 'Cell division: the media stretches into an empty half next to it, pinches in the middle and splits into two.',
+    syntax: 'mitosis MEDIA_KEY DIRECTION=HORIZONTAL STYLE=SPLIT DURATION=3.0',
+    args: [
+      media(),
+      {name: 'DIRECTION', default: 'HORIZONTAL', range: 'horizontal, vertical', description: 'horizontal makes it twice as wide, vertical twice as tall'},
+      {name: 'STYLE', default: 'SPLIT', range: 'absorb, split', description: 'split ends as two copies, absorb has one swallow the other back up so it loops'},
+      {name: 'DURATION', default: '3.0', range: '0.5..30.0', description: 'seconds the division takes'},
+    ],
+    notes: [
+      'Do it once each way for a 2x2 grid of four: `mitosis m` then `mitosis m direction=vertical`.',
+      'A still image (or a single-frame GIF or video) becomes DURATION seconds at 25 frames a second, a still image as a GIF. Animated GIFs and videos keep playing while they divide, a short GIF repeats until DURATION.',
+    ],
+  },
+  {
     name: 'skew',
     category: 'distort',
     summary: 'Slants the media sideways (or up and down).',

@@ -168,6 +168,19 @@ export const MEDIASCRIPT_SPANISH_8: TagDocsTranslation['mediaScriptCommands'] = 
       'Los GIF animados y los videos se tambalean todo el tiempo y vuelven a la original en el último fotograma.',
     ],
   },
+  mitosis: {
+    summary: 'División celular: la multimedia se estira hacia una mitad vacía a su lado, se estrecha por el medio y se divide en dos.',
+    args: {
+      MEDIA_KEY: MEDIA,
+      DIRECTION: 'horizontal la hace el doble de ancha, vertical el doble de alta',
+      STYLE: 'split termina en dos copias, absorb hace que una se trague a la otra para que haga bucle',
+      DURATION: 'segundos que tarda la división',
+    },
+    notes: [
+      'Hazlo una vez en cada dirección para una cuadrícula de 2x2 con cuatro: `mitosis m` y luego `mitosis m direction=vertical`.',
+      'Una imagen fija (o un GIF o video de un solo fotograma) se convierte en DURATION segundos a 25 fotogramas por segundo; una imagen fija, en un GIF. Los GIF animados y los videos se siguen reproduciendo mientras se dividen; un GIF corto se repite hasta DURATION.',
+    ],
+  },
   skew: {
     summary: 'Inclina la multimedia hacia un lado (o arriba y abajo).',
     args: {

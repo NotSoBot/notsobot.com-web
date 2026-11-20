@@ -4,15 +4,15 @@ The `notsobot.com` website. It was rewritten from the earlier webpack/SCSS versi
 
 | | Before the rewrite | Now |
 |---|---|---|
-| Build | webpack 5, babel, ts-loader, node-sass | **Vite 6** |
+| Build | webpack 5, babel, ts-loader, node-sass | **Vite 8** |
 | UI | React 18, SCSS modules, MUI icons | **React 19**, **Tailwind CSS 4**, lucide icons |
-| Routing | react-router-dom 6 (`BrowserRouter`) | **React Router 7** data router |
+| Routing | react-router-dom 6 (`BrowserRouter`) | **React Router 8** data router |
 | Data | react-query 3, zustand | **TanStack Query 5** |
 | Auth | token in localStorage, half-finished | `AuthProvider`, `useAuth()`, `RequireAuth`, typed API client |
 
 ## Getting started
 
-Requires Node 20.19+.
+Requires Node 22.22+.
 
 ```bash
 npm install
