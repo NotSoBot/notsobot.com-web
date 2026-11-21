@@ -50,7 +50,7 @@ export const Settings = {
   'settings.display.post_gallery': 'Posts with several images or videos',
   'settings.display.post_gallery_hint': 'For .embed, .download and auto-embeds of your links. Server default, then a gallery.',
   'settings.autoembed.title': 'Auto-embed',
-  'settings.autoembed.description': 'A message of yours whose only link is to a post gets its video or images posted, like .dl. Only in servers NotSoBot is in that allow it, the server’s own auto-embed sites go first.',
+  'settings.autoembed.description': 'A message of yours whose only link is to a post gets its video or images posted, like .dl. In your DMs with NotSoBot and in servers NotSoBot is in that allow it, the server’s own auto-embed sites go first.',
   'settings.autoembed.text': 'Include the post’s text',
   'settings.autoembed.text_hint': 'Posts the author and caption above the video or images, when the site gives them.',
   'settings.autoembed.premium': 'Auto-embed for your own links needs NotSoPremium.',

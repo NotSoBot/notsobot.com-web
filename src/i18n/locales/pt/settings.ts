@@ -52,7 +52,7 @@ export const Settings: Record<keyof typeof English, string> = {
   'settings.display.post_gallery': 'Posts com várias imagens ou vídeos',
   'settings.display.post_gallery_hint': 'Para .embed, .download e os auto-embeds dos seus links. Padrão do servidor, depois galeria.',
   'settings.autoembed.title': 'Auto-embed',
-  'settings.autoembed.description': 'Uma mensagem sua cujo único link é para uma publicação recebe o vídeo ou as imagens dela, como .dl. Só em servidores onde o NotSoBot está e que permitem, os sites de auto-embed do próprio servidor vêm primeiro.',
+  'settings.autoembed.description': 'Uma mensagem sua cujo único link é para uma publicação recebe o vídeo ou as imagens dela, como .dl. Nas suas DMs com o NotSoBot e em servidores onde o NotSoBot está e que permitem, os sites de auto-embed do próprio servidor vêm primeiro.',
   'settings.autoembed.text': 'Incluir o texto da publicação',
   'settings.autoembed.text_hint': 'Posta o autor e a legenda acima do vídeo ou das imagens, quando o site os fornece.',
   'settings.autoembed.premium': 'O auto-embed dos seus próprios links precisa do NotSoPremium.',
