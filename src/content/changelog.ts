@@ -34,6 +34,8 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'new', text: '`.lucia` (`/media-i-text lucia`): a "Play with Lucia" prompt asking for whatever you write, in caps like the game. Longer text makes the card taller, following the photo\'s angle.'},
       {kind: 'new', text: '**MediaScript:** `lucia MEDIA_KEY ...TEXT`.'},
       {kind: 'improved', text: 'Voice cloning keeps only the speech from your clips: silence, intro music and noise are cut out first, so all of a clip\'s share of the minute goes to your voice. A clip needs at least 2 seconds of actual speech now, and singing or talking under loud music doesn\'t count as speech.'},
+      {kind: 'improved', text: '`.tts play` (`/tts play`) says it right away over the music, which gets quieter underneath while it talks, instead of waiting in the queue. Add `-queue` (the `queue` option) to queue it like a song like before. A minute at most when said over the music.'},
+      {kind: 'fixed', text: 'Names and titles with `_`, `*` or `~` in links showing stray backslashes, like `@creatine\\_cycle` on auto-embeds and in search results.'},
     ],
   },
   {
