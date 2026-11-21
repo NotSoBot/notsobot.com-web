@@ -27,8 +27,8 @@ import { WarningActionsEditor, warningActionsError } from './WarningActionsEdito
 import { WarningAutoEditor, warningAutoError } from './WarningAutoEditor';
 
 
-// the owner/admin bypass is changed from the rules panel
-type SettingsPatch = Omit<UserGuildPatch, 'rules_admin_bypass'>;
+// the owner/admin bypass and if prefix commands follow discord's command permissions are changed from the rules panel
+type SettingsPatch = Omit<UserGuildPatch, 'prefix_command_permissions' | 'rules_admin_bypass'>;
 type Values = Required<{[K in keyof SettingsPatch]: Exclude<SettingsPatch[K], undefined>}>;
 
 // the settings are split into groups that each sit on their own server page, with their own save bar.

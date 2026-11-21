@@ -1323,14 +1323,16 @@ route('GET', '/users/@me/guilds/(\\d+)', ([ , guildId ]) => {
   return guildDetail(guildId);
 });
 
-const ADMIN_BYPASS_SETTINGS = ['rules_admin_bypass'] as const;
+// with the default null resets one to
+const ADMIN_BYPASS_SETTINGS = ['prefix_command_permissions', 'rules_admin_bypass'] as const;
 
-// null resets one to true
 function applyAdminBypassSettings(detail: {settings: UserGuild['settings']}, body: Record<string, unknown>) {
-  for (const key of ADMIN_BYPASS_SETTINGS) {
-    if (key in body) {
-      detail.settings[key] = (body[key] === null) ? true : !!body[key];
-    }
+  if ('rules_admin_bypass' in body) {
+    detail.settings.rules_admin_bypass = (body.rules_admin_bypass === null) ? true : !!body.rules_admin_bypass;
+  }
+  if ('prefix_command_permissions' in body) {
+    const value = body.prefix_command_permissions;
+    detail.settings.prefix_command_permissions = (value === 0 || value === 2) ? value : 1;
   }
 }
 

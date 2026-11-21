@@ -211,6 +211,7 @@ export function createGuildSettings(): UserGuild['settings'] {
     ml_llm_personality: null,
     moderation_dm_disabled: 0,
     post_gallery: null,
+    prefix_command_permissions: 1,
     response_display: null,
     rules_admin_bypass: true,
     search_provider_images: null,

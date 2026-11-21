@@ -7,7 +7,7 @@ import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
 import { useSearchParamState } from '@/hooks/useSearchParamState';
 import { translate, useI18n } from '@/i18n';
-import { CommandCategories, type GuildLogger, type GuildRule, type GuildRuleTargetType, type UserGuild } from '@/lib/api';
+import { CommandCategories, GuildPrefixCommandPermissions, type GuildLogger, type GuildRule, type GuildRuleTargetType, type UserGuild } from '@/lib/api';
 import { errorMessage, useGuildMutation, useGuildScope, type GuildAction } from '@/lib/api/dashboardQueries';
 import { useCommandsQuery } from '@/lib/api/queries';
 import { enabledCommandVariants } from '@/lib/commandAvailability';
@@ -15,6 +15,7 @@ import { cn, formatDate, formatNumber } from '@/lib/utils';
 import { categoryMeta } from '@/pages/commands/commandMeta';
 
 import { isSnowflake } from '../tags/tagMeta';
+import { ChoiceSelect } from '../settings/ChoiceSelect';
 import { EmptyState, Field, Panel, Toggle } from '../ui';
 import {
   ENTRY_TYPE_LABELS,
@@ -135,6 +136,42 @@ function AdminBypassToggle({ guild, edit }: {guild: UserGuild, edit: ReturnType<
           t((value) ? 'bypass.on' : 'bypass.off'),
         )}
       />
+    </div>
+  );
+}
+
+
+// discord's command permissions (Server Settings > Integrations) only stop slash commands, the server picks which of
+// them prefix commands follow too (`GuildPrefixCommandPermissions`)
+function PrefixPermissionsSelect({ guild, edit }: {guild: UserGuild, edit: ReturnType<typeof useGuildEdit>}) {
+  const { t } = useI18n();
+  const editable = guild.editable.rules_admin;
+  const staff = useGuildScope() === 'admin';
+  const choices = useMemo(() => [
+    {value: GuildPrefixCommandPermissions.OFF, label: t('prefix_permissions.off')},
+    {value: GuildPrefixCommandPermissions.COMMANDS, label: t('prefix_permissions.commands')},
+    {value: GuildPrefixCommandPermissions.ALL, label: t('prefix_permissions.all')},
+  ], [t]);
+  return (
+    <div className='mb-4 rounded-md border border-line bg-deep px-3 py-2.5'>
+      <Field
+        label={t('prefix_permissions.label')}
+        hint={t((editable) ? 'prefix_permissions.description' : (staff) ? 'bypass.staff' : 'bypass.owner_only')}
+      >
+        {(props) => (
+          <ChoiceSelect
+            {...props}
+            disabled={!editable || edit.pending}
+            choices={choices}
+            value={guild.settings.prefix_command_permissions}
+            onChange={(value) => {
+              if (value !== null) {
+                void edit.run('\u0000prefix_permissions', {kind: 'settings', patch: {prefix_command_permissions: value}}, t('prefix_permissions.saved'));
+              }
+            }}
+          />
+        )}
+      </Field>
     </div>
   );
 }
@@ -465,6 +502,7 @@ export function RulesSection({ guild }: {guild: UserGuild}) {
       readOnly={(editable) ? undefined : readOnlyMessage('rules')}
     >
       <AdminBypassToggle guild={guild} edit={edit}/>
+      <PrefixPermissionsSelect guild={guild} edit={edit}/>
       {(sortedRules.length) ? (
         <div className='mb-3 space-y-3'>
           <div className='flex gap-2'>

@@ -2,7 +2,7 @@
 
 import type { TagDocsTranslation } from '../localize';
 
-import { NETWORK, ONLY_NOTSOAI } from './common';
+import { EMPTY_ARGUMENT, NETWORK, ONLY_NOTSOAI } from './common';
 
 
 const MARKUP_MENTION = 'Los signos `@` se escapan con un carácter invisible para que las menciones, `@everyone` y `@here` no notifiquen a nadie.';
@@ -67,20 +67,52 @@ export const FUNCTIONS_SPANISH_4: TagDocsTranslation['functions'] = {
     ],
   },
   MUSIC_CONTROL: {
-    summary: 'Pausa, reanuda, salta o cambia el volumen de la música que suena en el servidor. Solo NotSoAI puede usar esto.',
-    description: 'Sigue las mismas reglas que los comandos de música: la persona tiene que estar en el canal de voz donde suena la música, y con el modo DJ activado (o la votación del servidor para saltar, pausar o reanudar) cuenta como su voto salvo que sea DJ (Gestionar servidor, el rol de DJ o Gestionar canal en ese canal de voz). Devuelve `true` cuando se hizo, `false` si ya estaba en pausa o sonando, o `voted 1/3` cuando hacen falta más votos.',
+    summary: 'Pausa, reanuda, salta, busca un momento, repite o sale, o cambia el volumen, la velocidad o los efectos de la música que suena en el servidor. Solo NotSoAI puede usar esto.',
+    description: 'Sigue las mismas reglas que los comandos de música: la persona tiene que estar en el canal de voz donde suena la música. Con `pause`, `resume` y `skip`, con el modo DJ activado (o la votación del servidor para saltar, pausar o reanudar) cuenta como su voto salvo que sea DJ (Gestionar servidor, el rol de DJ o Gestionar canal en ese canal de voz). Todo lo demás necesita un DJ cuando el modo DJ está activado.\n\n`leave` guarda la cola y el punto de la canción, como pulsar Mantener en `music leave`, así que `music play` o `music resume` sigue después. Sin nada en cola solo sale.\n\nDevuelve `true` cuando se hizo, `false` cuando no había nada que cambiar (ya estaba en pausa o sonando, ya tenía esa repetición, o el efecto no estaba puesto), o `voted 1/3` cuando hacen falta más votos.',
     args: {
-      action: '`pause`, `resume`, `skip` o `volume`.',
-      value: 'Para `volume`, de 0 a 200 (`150` o `150%`), o `reset` para 100. Cualquier valor que no sea 100 necesita un servidor premium.',
+      action: '`pause`, `resume`, `skip`, `volume`, `speed`, `effect_add`, `effect_remove`, `effect_clear`, `seek`, `loop` o `leave`.',
+      value: 'Para `volume`, de 0 a 200 (`150` o `150%`), o `reset` para 100. Para `speed`, de `0.5x` a `2x` (`1.25`, `125%`), sin cambiar el tono. Un volumen que no sea 100% o una velocidad que no sea 1x necesitan un servidor premium. Para `effect_add` y `effect_remove`, un efecto: `8d`, `8dvertical`, `bassboost`, `chipmunk`, `concerthall`, `crossfeed`, `daycore`, `deep`, `distortion`, `dreamy`, `echo`, `filtersweep`, `karaoke`, `lofi`, `mono`, `nextroom`, `nightcore`, `normalizer`, `oldrecord`, `phaser`, `radio`, `robot`, `slowed`, `trebleboost`, `tremolo`, `underwater`, `vaporwave`, `vibrato`, `wide` (poner uno necesita un servidor premium). Para `seek`, un momento como `1:30` o `90`. Para `loop`, `off`, `track` o `queue`.',
     },
     results: [
+      '',
+      '',
       '',
       '',
     ],
     notes: [
       ONLY_NOTSOAI,
-      'No puede reproducir, poner en cola ni quitar pistas, ni hacer que el bot entre o salga. Para reanudar después de que el bot se fue hace falta `music resume`.',
+      'Se pueden apilar hasta 5 efectos y siguen puestos en las siguientes pistas. Algunos no van juntos, como nightcore con slowed, y da un error diciendo cuál estorba.',
+      'No puede quitar pistas ni hacer que el bot entre, `{music.play}` las pone en cola. Para reanudar después de que el bot se fue hace falta `music resume`.',
       'NotSoAI puede controlar la música como mucho 3 veces por mensaje.',
+      NETWORK,
+    ],
+  },
+  MUSIC_IDENTIFY: {
+    summary: 'La canción en la que está la música del servidor ahora mismo. Solo NotSoAI puede usar esto.',
+    description: 'Una canción puesta por nombre o por un enlace de un servicio ya se conoce, así que `songs` es `null` y `track` tiene su título y artista. Un enlace o archivo (un mix, un video largo, un mp3) se identifica desde donde está sonando, como `{api.audio.identify}`.\n\nDevuelve JSON: `{position: number, songs: Array<Song> | null, track: Item}`. `position` es dónde está sonando en milisegundos, `Song` tiene la forma del de `{api.audio.identify}` (el mejor primero, `[]` si no se reconoció) e `Item` la del de `{api.fetch.music}`.',
+    results: [
+      'El título de la canción en la que va un mix.',
+    ],
+    notes: [
+      ONLY_NOTSOAI,
+      'Solo conoce la música del propio NotSoBot. Para una canción que suena de otra persona hace falta `music listen`.',
+      NETWORK,
+    ],
+  },
+  MUSIC_PLAY: {
+    summary: 'Pone en cola una canción en el canal de voz de la persona, como `music play`. Solo NotSoAI puede usar esto.',
+    description: 'Busca la canción (o toma un enlace de pista de Spotify, Deezer, TIDAL, Apple Music o YouTube Music, o un enlace a un archivo) y la pone en cola en el canal de voz donde está la persona, entrando en él si el bot aún no está sonando. Una búsqueda toma el mejor resultado que permiten las reglas de la cola del servidor en vez de pedir que se elija uno. Los enlaces de álbumes y listas necesitan un servidor premium.\n\nDevuelve JSON: `{added: number, collection: string | null, joined: boolean, not_added: number, track: Item}`, donde `Item` tiene la forma del de `{api.fetch.music}` y `track.position` 1 significa que está sonando ya. `added` y `not_added` cuentan las pistas de un álbum o lista.',
+    args: {
+      query: 'Qué buscar, o un enlace de pista, álbum, lista o archivo.',
+    },
+    results: [
+      '',
+    ],
+    notes: [
+      ONLY_NOTSOAI,
+      'Las reglas de la cola del servidor, su límite y la cola justa se aplican igual que con `music play`.',
+      'NotSoAI puede poner música en cola como mucho 3 veces por mensaje.',
+      EMPTY_ARGUMENT,
       NETWORK,
     ],
   },

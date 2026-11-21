@@ -64,7 +64,7 @@ export const FAQ_SPANISH: FaqTranslation = {
     },
     'restrict-channels': {
       question: '¿Cómo limito NotSoBot a ciertos canales, roles o usuarios?',
-      answer: 'Usa reglas (`.rules` o `/server rules`). Las reglas que cubren todos los comandos necesitan **Administrador**:\n\n- `.rules block everything` y luego `.rules allow everything -channels bot-commands`: el bot solo responde en #bot-commands\n- `.rules block everything -channels general -roles Muted`: el bot ignora #general y el rol Muted\n\nGana la regla más específica: un usuario gana a un rol, un rol gana a un canal y un canal gana a todo el servidor. Usa `.rules` para verlas todas, o `.rules check <comando>` para ver qué regla decide.',
+      answer: 'Usa reglas (`.rules` o `/server-rules`). Las reglas que cubren todos los comandos necesitan **Administrador**:\n\n- `.rules block everything` y luego `.rules allow everything -channels bot-commands`: el bot solo responde en #bot-commands\n- `.rules block everything -channels general -roles Muted`: el bot ignora #general y el rol Muted\n\nGana la regla más específica: un usuario gana a un rol, un rol gana a un canal y un canal gana a todo el servidor. Usa `.rules` para verlas todas, o `.rules check <comando>` para ver qué regla decide.',
     },
     'disable-command': {
       question: '¿Cómo desactivo un comando o una categoría concreta?',

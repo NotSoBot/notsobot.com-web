@@ -39,6 +39,18 @@ export const LegacyCommandCategories = {
 } as const;
 export type CommandCategory = (typeof CommandCategories)[keyof typeof CommandCategories];
 
+// Mirrors `GuildPrefixCommandPermissions` in notsobot.ts: which of the server's discord command permissions
+// (Integrations) prefix commands follow, discord only applies them to slash commands
+export const GuildPrefixCommandPermissions = {
+  // none, only the rules decide
+  OFF: 0,
+  // the ones on a command's own slash command (the default)
+  COMMANDS: 1,
+  // like slash commands, the bot-wide ones too
+  ALL: 2,
+} as const;
+export type GuildPrefixCommandPermission = (typeof GuildPrefixCommandPermissions)[keyof typeof GuildPrefixCommandPermissions];
+
 export const ShardStatuses = {
   CLOSED: 'CLOSED',
   CONNECTING: 'CONNECTING',
@@ -1399,6 +1411,8 @@ export interface GuildSettings {
   moderation_dm_disabled: number,
   // `PostGalleryTypes` for members without their own, null: a gallery
   post_gallery: number | null,
+  // `GuildPrefixCommandPermissions`, which of the server's discord command permissions (Integrations) prefix commands follow
+  prefix_command_permissions: GuildPrefixCommandPermission,
   response_display: number | null,
   // if the server owner and admins skip the rules (rules can override it)
   rules_admin_bypass: boolean,
@@ -1557,7 +1571,8 @@ export interface UserDataExport {
   voices: Array<MeVoice>,
 }
 
-// `rules_admin_bypass` needs the `rules_admin` area, null resets it to true
+// `rules_admin_bypass` and `prefix_command_permissions` need the `rules_admin` area, null resets them to their
+// defaults (true and COMMANDS)
 export interface UserGuildPatch {
   // replaces the auto-embed sites, null or empty turns it off
   auto_embed?: Array<GuildAutoEmbedSite> | null,
@@ -1582,6 +1597,7 @@ export interface UserGuildPatch {
   search_provider_images?: number | null,
   search_provider_web?: number | null,
   rules_admin_bypass?: boolean | null,
+  prefix_command_permissions?: GuildPrefixCommandPermission | null,
   // replaces the whole ladder (up to 10 steps), null or empty turns it off
   warnings_actions?: Array<GuildWarningAction> | null,
   // replaces every auto-warn rule (up to 20), null or empty turns them off

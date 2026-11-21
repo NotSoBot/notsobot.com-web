@@ -111,7 +111,7 @@ export const FAQ_QUESTIONS: Array<FaqQuestion> = [
     id: 'restrict-channels',
     section: 'server',
     question: 'How do I limit NotSoBot to certain channels, roles or users?',
-    answer: 'Use rules (`.rules` or `/server rules`). Rules covering every command need **Administrator**:\n\n- `.rules block everything` then `.rules allow everything -channels bot-commands`: the bot only responds in #bot-commands\n- `.rules block everything -channels general -roles Muted`: the bot ignores #general and the Muted role\n\nThe most specific rule wins: a user beats a role, a role beats a channel, and a channel beats the whole server. Run `.rules` to see them all, or `.rules check <command>` to see which rule decides.',
+    answer: 'Use rules (`.rules` or `/server-rules`). Rules covering every command need **Administrator**:\n\n- `.rules block everything` then `.rules allow everything -channels bot-commands`: the bot only responds in #bot-commands\n- `.rules block everything -channels general -roles Muted`: the bot ignores #general and the Muted role\n\nThe most specific rule wins: a user beats a role, a role beats a channel, and a channel beats the whole server. Run `.rules` to see them all, or `.rules check <command>` to see which rule decides.',
   },
   {
     id: 'disable-command',
