@@ -202,6 +202,13 @@ export const MEDIASCRIPT_SPANISH_2: TagDocsTranslation['mediaScriptCommands'] = 
       TEMPLATE: 'qué hacker; solo por nombre',
     },
   },
+  lucia: {
+    summary: 'Crea un aviso de "Play with Lucia" pidiendo el texto, en mayúsculas como en el juego.',
+    args: {
+      MEDIA_KEY: NEW_IMAGE,
+      TEXT: 'hasta 200 caracteres',
+    },
+  },
   neon: {
     summary: 'Escribe un texto como un cartel de neón.',
     args: {

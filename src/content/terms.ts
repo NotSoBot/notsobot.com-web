@@ -3,7 +3,7 @@ import type { LegalDocument } from './legal';
 export const TERMS_OF_SERVICE: LegalDocument = {
   title: "Terms of Service",
   effective: "November 12, 2026",
-  lastUpdated: "November 16, 2026",
+  lastUpdated: "November 21, 2026",
   intro: "Please read these Terms of Service carefully before using NotSoBot. They explain what you can and can't do with the Service, what we store when you use it, and how to reach us.",
   sections: [
     {
@@ -80,7 +80,7 @@ export const TERMS_OF_SERVICE: LegalDocument = {
           "Reports You send with the report command, including the text, the server, channel and message IDs involved, and Our review notes.",
           "Uploaded files: files You ask NotSoBot to host, their file names, sizes, dimensions and a file hash (BLAKE2b).",
           "AI requests: the prompt, including any messages You replied to with the ai command, along with the instructions, model, generated response, any error and token counts.",
-          "Cloned voices: the voice's name, the ID of the voice stored at the voice cloning service, and the audio clips it was made from.",
+          "Cloned voices: the voice's name, what is needed to use the voice (a short list of numbers describing how it sounds, or for an older voice the ID of the voice stored at fish.audio or ElevenLabs), and the speech from the audio clips it was made from.",
           "Saved fonts: the font files You (or a server's members) save to use by name, with their names, original file names, sizes, a file hash (SHA-256), who saved them and a preview image.",
           "Purchases: premium entitlements and subscription status received from Discord. Payments are processed by Discord, and We never see your payment details.",
           "Website and API use: if You log in to notsobot.com, a Discord OAuth2 access and refresh token with the scopes You approved, your login sessions and their browser user agent, and request logs including the IP address, user agent, path and response time.",

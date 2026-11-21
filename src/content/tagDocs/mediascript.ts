@@ -1453,6 +1453,16 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     ],
   },
   {
+    name: 'lucia',
+    category: 'generate',
+    summary: 'Makes a "Play with Lucia" prompt asking for the text, in caps like the game.',
+    syntax: 'lucia MEDIA_KEY ...TEXT',
+    args: [
+      media('the name for the new image'),
+      {name: 'TEXT', rest: true, description: 'up to 200 characters'},
+    ],
+  },
+  {
     name: 'neon',
     category: 'generate',
     summary: 'Writes text as a neon sign.',

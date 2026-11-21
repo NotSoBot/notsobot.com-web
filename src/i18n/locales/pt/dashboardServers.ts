@@ -246,7 +246,7 @@ export const DashboardServers: Record<keyof typeof English, string> = {
   'ssettings.dm.autowarn': 'Advertências automáticas',
   'ssettings.dm.decoy': 'Remoções do canal isca',
   'ssettings.autoembed.label': 'Auto-incorporar links de',
-  'ssettings.autoembed.hint': 'Uma mensagem cujo único link é para uma publicação recebe o vídeo ou as imagens, como o .dl. Pode ter texto em volta, um link entre <sinais de menor e maior> é ignorado. Se falhar, recebe uma reação.',
+  'ssettings.autoembed.hint': 'Uma mensagem cujo único link é para uma publicação recebe o vídeo ou as imagens, como o .dl. Pode ter texto em volta, um link entre <sinais de menor e maior> é ignorado. Regras que bloqueiam download ou embed também o impedem. Se falhar, recebe uma reação.',
   'ssettings.autoembed.premium': 'Auto-incorporar só funciona em servidores premium.',
   'ssettings.autoembed.text': 'Incluir o texto da publicação',
   'ssettings.autoembed.text_hint': 'Posta o autor e a legenda acima do vídeo ou das imagens, quando o site os fornece.',

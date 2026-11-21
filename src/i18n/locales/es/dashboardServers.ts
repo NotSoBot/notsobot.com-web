@@ -246,7 +246,7 @@ export const DashboardServers: Record<keyof typeof English, string> = {
   'ssettings.dm.autowarn': 'Advertencias automáticas',
   'ssettings.dm.decoy': 'Expulsiones del canal señuelo',
   'ssettings.autoembed.label': 'Auto-incrustar enlaces de',
-  'ssettings.autoembed.hint': 'Un mensaje cuyo único enlace es a una publicación recibe su video o imágenes, como .dl. Puede tener texto alrededor, un enlace entre <corchetes angulares> se omite. Si falla, recibe una reacción.',
+  'ssettings.autoembed.hint': 'Un mensaje cuyo único enlace es a una publicación recibe su video o imágenes, como .dl. Puede tener texto alrededor, un enlace entre <corchetes angulares> se omite. Las reglas que bloquean download o embed también lo detienen. Si falla, recibe una reacción.',
   'ssettings.autoembed.premium': 'Auto-incrustar solo funciona en servidores premium.',
   'ssettings.autoembed.text': 'Incluir el texto de la publicación',
   'ssettings.autoembed.text_hint': 'Publica el autor y la descripción encima del video o las imágenes, cuando el sitio los da.',

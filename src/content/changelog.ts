@@ -28,6 +28,15 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 
 export const CHANGELOG: Array<ChangelogDay> = [
   {
+    date: '2026-11-21',
+    title: 'Play with Lucia',
+    items: [
+      {kind: 'new', text: '`.lucia` (`/media-i-text lucia`): a "Play with Lucia" prompt asking for whatever you write, in caps like the game. Longer text makes the card taller, following the photo\'s angle.'},
+      {kind: 'new', text: '**MediaScript:** `lucia MEDIA_KEY ...TEXT`.'},
+      {kind: 'improved', text: 'Voice cloning keeps only the speech from your clips: silence, intro music and noise are cut out first, so all of a clip\'s share of the minute goes to your voice. A clip needs at least 2 seconds of actual speech now, and singing or talking under loud music doesn\'t count as speech.'},
+    ],
+  },
+  {
     date: '2026-11-20',
     title: 'Mitosis, auto-embed for your own links, and more server loggers',
     items: [
@@ -40,6 +49,7 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'new', text: '**TagScript:** libvips is installed for every code language (`vips` and `vipsthumbnail` on the command line), and Python tags can use it through `pyvips`.'},
       {kind: 'improved', text: '**MediaScript:** `overlay` takes `POSITION=` like the overlay command\'s `-position`: `topright`, `center`, `bottomleft`... or a grid cell like `3x3:2`. The top media is shrunk to fit that cell and centred, and an `X`, `Y` or `RESIZE` you give still wins.'},
       {kind: 'improved', text: 'Auto-embed works on messages with text around the link now, like "look at this https://x.com/…", not just a link on its own. It still has to be the message\'s only link, and one in `<angle brackets>` or in code is left alone. A link in spoiler bars is posted as a spoiler.'},
+      {kind: 'improved', text: 'A rule blocking `embed` (or `/embed` turned off in Discord\'s Integrations settings) stops auto-embeds there too, not just one blocking `download`. `.embed` and `.download` still follow their own rules.'},
       {kind: 'improved', text: 'Auto-embeds post the post\'s text and author with the media by default now, servers that had it off included. `/server set auto-embed text:false` (or `.set autoembed -text off`) turns it back off.'},
       {kind: 'improved', text: 'Servers can have up to 25 loggers instead of 10, with up to 3 of each type, so one type can log to more than one channel. Message and user loggers get 2 each, since those post the most. Servers that already have more of a type keep them, they just can\'t add another.'},
       {kind: 'improved', text: '`.embed` and `.download` with `-position` show just that one picture or video instead of the gallery around it. Add `-view gallery` to get the gallery.'},

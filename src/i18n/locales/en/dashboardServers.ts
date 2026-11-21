@@ -244,7 +244,7 @@ export const DashboardServers = {
   'ssettings.dm.autowarn': 'Auto-warnings',
   'ssettings.dm.decoy': 'Decoy channel removals',
   'ssettings.autoembed.label': 'Auto-embed links from',
-  'ssettings.autoembed.hint': 'A message whose only link is to a post gets its video or images posted, like .dl. Text around the link is fine, a link in <angle brackets> is skipped. Failed ones get a reaction instead.',
+  'ssettings.autoembed.hint': 'A message whose only link is to a post gets its video or images posted, like .dl. Text around the link is fine, a link in <angle brackets> is skipped. Rules blocking download or embed stop it too. Failed ones get a reaction instead.',
   'ssettings.autoembed.premium': 'Auto-embed only works on premium servers.',
   'ssettings.autoembed.text': 'Include the post’s text',
   'ssettings.autoembed.text_hint': 'Posts the author and caption above the video or images, when the site gives them.',
