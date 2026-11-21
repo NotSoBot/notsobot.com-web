@@ -51,7 +51,7 @@ export const PRIVACY_POLICY: LegalDocument = {
       title: "Section 3 - Information We Don't Collect",
       blocks: [
         {type: 'list', items: [
-          "Messages that aren't directed at NotSoBot. NotSoBot only reads other messages when a command You run needs them, or in a server that turned on auto-embed, where a message that's only a link to a post on one of the sites the server picked is handled like the download command (the link is downloaded and posted, and the message's text isn't saved). Recent messages read to find an image or build a word cloud are only used to complete that command and are not saved. Messages You reply to with the ai command are stored as part of that AI request.",
+          "Messages that aren't directed at NotSoBot. NotSoBot only reads other messages when a command You run needs them, or where auto-embed is on (a server turned it on, or a member with premium turned it on for their own links), where a message whose only link is to a post on one of the sites picked is handled like the download command (the link is downloaded and posted, and the message's text isn't saved). Recent messages read to find an image or build a word cloud are only used to complete that command and are not saved. Messages You reply to with the ai command are stored as part of that AI request.",
           "The text of your command messages. Only the IDs listed above are kept.",
           "Your Discord password, email address or phone number.",
           "Payment details. Purchases are handled by Discord, and We never see your card or billing information.",

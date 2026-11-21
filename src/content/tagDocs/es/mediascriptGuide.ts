@@ -439,7 +439,7 @@ export const MEDIASCRIPT_GUIDE_SPANISH: TagDocsTranslation['mediaScriptGuide'] =
         ['', 'En parte', 'Anillos alrededor del centro según su omega, velocidad y desfase. Aún sin ajustar a una exportación de AVS, su fuerza es una suposición'],
         ['Saturación (supuesto: efecto 110)', 'En parte', 'Colores más o menos intensos según su nivel. Supuesto a partir de un proyecto, aún sin ajustar a una exportación de AVS'],
         ['Volteo (supuesto: efecto 300)', 'En parte', 'Izquierda y derecha intercambiadas, o boca abajo. Supuesto a partir de un proyecto, aún sin ajustar a una exportación de AVS'],
-        ['Esfera (supuesto: efecto 307)', 'En parte', 'El centro abombado hacia fuera según su nivel. Supuesto a partir de un proyecto, aún sin ajustar a una exportación de AVS'],
+        ['Espejo', 'En parte', 'Una mitad reflejada sobre la otra. Conservar la mitad derecha coincide con una exportación de AVS; las de la izquierda, arriba y abajo son suposiciones'],
         ['', 'Sí', 'Cambia el tono (75 son unos 5 semitonos más agudo) manteniendo la duración del clip, como AVS'],
         ['Superposiciones (PiP), texto y transiciones', 'No', 'Se omiten'],
         ['Otros efectos, y efectos en parte de un clip', 'No', 'Los otros efectos se omiten, los que van en parte de un clip se aplican a todo el clip'],

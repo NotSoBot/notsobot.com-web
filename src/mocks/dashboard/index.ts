@@ -4145,8 +4145,11 @@ function applyAutoEmbed(detail: {settings: UserGuild['settings']}, body: Record<
   if ('auto_embed' in body) {
     detail.settings.auto_embed = [...new Set((body.auto_embed as UserGuild['settings']['auto_embed'] | null) || [])].sort();
   }
+  if ('auto_embed_members' in body) {
+    detail.settings.auto_embed_members = body.auto_embed_members !== false;
+  }
   if ('auto_embed_text' in body) {
-    detail.settings.auto_embed_text = !!body.auto_embed_text;
+    detail.settings.auto_embed_text = body.auto_embed_text !== false;
   }
 }
 

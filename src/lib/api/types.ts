@@ -570,6 +570,11 @@ export const DiscordSkus = {
 
 // `UserSettings.to_dict()`
 export interface UserSettings {
+  // the sites their own links get auto-embedded for (a premium perk, any tier), sorted, empty: off. only in servers that
+  // allow it (`GuildSettings.auto_embed_members`), a server's own auto-embed sites go first
+  auto_embed: Array<GuildAutoEmbedSite>,
+  // their auto-embeds post the post's text and author above the media too (on by default)
+  auto_embed_text: boolean,
   application_command_response_type: number,
   // the servers pinned to the top of the Servers page, in the order they were pinned (the dashboard's own, up to 100)
   dashboard_pinned_guilds: Array<string>,
@@ -1373,12 +1378,15 @@ export const GUILD_AUTO_EMBED_SITES = [
 export type GuildAutoEmbedSite = typeof GUILD_AUTO_EMBED_SITES[number];
 
 export interface GuildSettings {
-  // the sites whose links the bot auto-embeds (a message that's only a link to a post gets its media, like `.dl`),
+  // the sites whose links the bot auto-embeds (a message whose only link is to a post gets its media, like `.dl`),
   // sorted, empty: off. A premium server perk, kept without one but only working with it (`UserGuild.premium_server`)
   auto_embed: Array<GuildAutoEmbedSite>,
   // `PostGalleryTypes` for auto-embeds, null: each poster's own setting (then `post_gallery`)
   auto_embed_gallery: number | null,
-  // auto-embeds post the post's text and author above the media too
+  // members with premium can auto-embed their own links (`UserSettings.auto_embed`) for the sites the server doesn't,
+  // on unless the server turned it off, no premium slot needed
+  auto_embed_members: boolean,
+  // auto-embeds post the post's text and author above the media too (on by default)
   auto_embed_text: boolean,
   // seconds of a member's messages the bot's `ban` deletes when the moderator doesn't pick, 0: none
   ban_clean: number,
@@ -1555,7 +1563,9 @@ export interface UserGuildPatch {
   auto_embed?: Array<GuildAutoEmbedSite> | null,
   // null: each poster's own setting
   auto_embed_gallery?: number | null,
-  // null resets it to off
+  // null resets it to on
+  auto_embed_members?: boolean | null,
+  // null resets it to on
   auto_embed_text?: boolean | null,
   // seconds (0 to 7 days), null resets it to 1 day
   ban_clean?: number | null,

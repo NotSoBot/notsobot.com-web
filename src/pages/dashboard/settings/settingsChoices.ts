@@ -2,6 +2,7 @@
 // (and notsobot.api's validators, which accept the same values). Translated labels are getters, read in the language on screen.
 
 import { translate } from '@/i18n';
+import type { GuildAutoEmbedSite } from '@/lib/api';
 
 import type { Choice } from './botChoices';
 
@@ -88,3 +89,17 @@ export const UPLOAD_TYPE_CHOICES: ReadonlyArray<Choice<number>> = [
 ];
 
 export const PERSONALITY_MAX = 1024;
+
+// brand names, not translated, in `GUILD_AUTO_EMBED_SITES`' order
+export const AUTO_EMBED_SITE_NAMES: Record<GuildAutoEmbedSite, string> = {
+  tiktok: 'TikTok',
+  instagram: 'Instagram',
+  x: 'X (Twitter)',
+  reddit: 'Reddit',
+  bluesky: 'Bluesky',
+  threads: 'Threads',
+  facebook: 'Facebook',
+  pinterest: 'Pinterest',
+  tumblr: 'Tumblr',
+  streamable: 'Streamable',
+};

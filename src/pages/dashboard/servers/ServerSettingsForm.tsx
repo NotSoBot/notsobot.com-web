@@ -2,11 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useToast } from '@/components/ui/Toast';
 import { useI18n } from '@/i18n';
-import { GUILD_AUTO_EMBED_SITES, GuildModerationDmFlags, type GuildAutoEmbedSite, type UserGuild, type UserGuildPatch } from '@/lib/api';
+import { GUILD_AUTO_EMBED_SITES, GuildModerationDmFlags, type UserGuild, type UserGuildPatch } from '@/lib/api';
 import { errorMessage, useGuildMutation } from '@/lib/api/dashboardQueries';
 
 import { ChoiceSelect } from '../settings/ChoiceSelect';
 import {
+  AUTO_EMBED_SITE_NAMES,
   DIFFUSION_MODEL_CHOICES,
   LLM_MODEL_CHOICES,
   LOCALE_CHOICES,
@@ -49,7 +50,8 @@ function savedValues(guild: UserGuild): Values {
   return {
     auto_embed: guild.settings.auto_embed ?? [],
     auto_embed_gallery: guild.settings.auto_embed_gallery ?? null,
-    auto_embed_text: guild.settings.auto_embed_text ?? false,
+    auto_embed_members: guild.settings.auto_embed_members ?? true,
+    auto_embed_text: guild.settings.auto_embed_text ?? true,
     locale: guild.locale,
     timezone: guild.timezone,
     ml_llm_personality: guild.settings.ml_llm_personality,
@@ -80,21 +82,6 @@ const MODERATION_DMS = [
   {flag: GuildModerationDmFlags.AUTOWARN, key: 'autowarn'},
   {flag: GuildModerationDmFlags.DECOY, key: 'decoy'},
 ] as const;
-
-
-// brand names, not translated, in `GUILD_AUTO_EMBED_SITES`' order
-const AUTO_EMBED_SITE_NAMES: Record<GuildAutoEmbedSite, string> = {
-  tiktok: 'TikTok',
-  instagram: 'Instagram',
-  x: 'X (Twitter)',
-  reddit: 'Reddit',
-  bluesky: 'Bluesky',
-  threads: 'Threads',
-  facebook: 'Facebook',
-  pinterest: 'Pinterest',
-  tumblr: 'Tumblr',
-  streamable: 'Streamable',
-};
 
 
 // which of a modal's forms have unsaved edits, for the tabs' dots and asking before closing
@@ -227,6 +214,15 @@ export function ServerSettingsForm({ guild, group, onDirtyChange }: {guild: User
                 {(!guild.premium_server) ? (
                   <PremiumNote staffText={null}>{t('ssettings.autoembed.premium')}</PremiumNote>
                 ) : null}
+                <div className='border-t border-border pt-3'>
+                  <Toggle
+                    label={t('ssettings.autoembed.members')}
+                    description={t('ssettings.autoembed.members_hint')}
+                    checked={values.auto_embed_members !== false}
+                    disabled={!editable}
+                    onChange={(value) => draft.set('auto_embed_members', value)}
+                  />
+                </div>
               </div>
             </>
           ) : null}

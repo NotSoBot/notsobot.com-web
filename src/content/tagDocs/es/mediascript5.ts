@@ -35,10 +35,17 @@ export const MEDIASCRIPT_SPANISH_5: TagDocsTranslation['mediaScriptCommands'] = 
       BLEND: 'lo suave que es la mezcla de los bordes quitados',
       LOOP: LOOP_SHORTER,
       OPACITY: OPACITY_TOP,
+      RESIZE: '`fit`, `contain`, `cover` o `force` con un tamaño, como `fit(mw,mh)` (cabe dentro de la multimedia) o `cover(256,256)`; `none` mantiene su propio tamaño',
+      FADE: 'hace aparecer la multimedia de encima, de invisible hasta su opacidad',
+      FADE_START: 'segundos en los que empieza la aparición',
+      FADE_DURATION: 'segundos que dura la aparición; 0 es hasta el final',
+      POSITION: 'un sitio de la cuadrícula: `topleft`, `top`, `topright`, `left`, `center`, `right`, `bottomleft`, `bottom`, `bottomright`, o una celda como `3x3:2` (`COLUMNASxFILAS:CELDA`, contadas desde 1 de izquierda a derecha y luego hacia abajo). Encoge la multimedia de encima para que quepa en esa celda (nunca la agranda) y la centra ahí; un `X`, `Y` o `RESIZE` que pongas sigue mandando',
     },
     results: [
       'Pone el avatar en el centro de la imagen.',
+      'Ajusta el avatar dentro de la imagen, lo centra y lo hace aparecer (lo que hace el comando overlay).',
       'Superpone un vídeo con croma verde, quitando el verde.',
+      'Pone el avatar en el noveno de abajo a la derecha de la imagen, encogido para que quepa si es más grande.',
     ],
   },
   blend: {

@@ -439,7 +439,7 @@ export const MEDIASCRIPT_GUIDE_PORTUGUESE: TagDocsTranslation['mediaScriptGuide'
         ['', 'Em parte', 'Anéis em volta do centro conforme o omega, a velocidade e o deslocamento dele. Ainda não ajustado a uma exportação do AVS, a força dele é um palpite'],
         ['Saturação (palpite: efeito 110)', 'Em parte', 'Cores mais ou menos fortes conforme o nível dele. Palpite a partir de um projeto, ainda não ajustado a uma exportação do AVS'],
         ['Espelhar (palpite: efeito 300)', 'Em parte', 'Esquerda e direita trocadas, ou de cabeça para baixo. Palpite a partir de um projeto, ainda não ajustado a uma exportação do AVS'],
-        ['Esfera (palpite: efeito 307)', 'Em parte', 'O centro inflado para fora conforme o nível dele. Palpite a partir de um projeto, ainda não ajustado a uma exportação do AVS'],
+        ['Espelho', 'Em parte', 'Uma metade refletida sobre a outra. Manter a metade direita bate com uma exportação do AVS; as da esquerda, de cima e de baixo são palpites'],
         ['', 'Sim', 'Muda o tom (75 são uns 5 semitons mais agudo) mantendo a duração do clipe, como o AVS'],
         ['Sobreposições (PiP), texto e transições', 'Não', 'Pulados'],
         ['Outros efeitos, e efeitos em parte de um clipe', 'Não', 'Os outros efeitos são pulados, os que ficam em parte de um clipe valem para o clipe todo'],

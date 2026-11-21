@@ -671,7 +671,7 @@ export const MEDIASCRIPT_GUIDE: Array<TagDocGuideSection> = [
         ['Ripple', 'Partly', 'Rings around the middle at its omega, speed and offset. Not matched to an AVS export yet, how strong it is is a guess'],
         ['Saturation (guessed: effect 110)', 'Partly', 'Colors made stronger or weaker by its level. Guessed from a project, not matched to an AVS export yet'],
         ['Flip (guessed: effect 300)', 'Partly', 'Left and right swapped, or upside down. Guessed from a project, not matched to an AVS export yet'],
-        ['Sphere (guessed: effect 307)', 'Partly', 'The middle bulged out by its level. Guessed from a project, not matched to an AVS export yet'],
+        ['Mirror', 'Partly', 'One half reflected onto the other. Keeping the right half matches an AVS export; the left, top and bottom ones are guessed'],
         ['Audio Rate', 'Yes', 'The pitch moved (75 is about 5 semitones up) keeping the clip\'s length, like AVS'],
         ['Overlays (PiP), text and transitions', 'No', 'Skipped'],
         ['Other effects, and effects on part of a clip', 'No', 'Other effects are skipped, ones on part of a clip play on all of it'],
@@ -861,7 +861,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
       {code: '{mediascript:load {iv} logo\nloadvep FILE_1 a\nveprender logo a\nrender logo}', result: 'The project rebuilt with the last image or video in every clip.'},
     ],
     notes: [
-      'Rebuilt: the main video line\'s clips at their times (start points, speed, mute), the audio lines, volume envelopes, the Hue, Twirl, Wave and Ripple effects, guessed Saturation, Flip and Sphere effects, and the audio Rate. Overlays (PiP), text, transitions and other effects are skipped. The full list is in the AVS Video Editor projects section.',
+      'Rebuilt: the main video line\'s clips at their times (start points, speed, mute), the audio lines, volume envelopes, the Hue, Twirl, Wave, Ripple and Mirror effects, guessed Saturation and Flip effects, and the audio Rate. Overlays (PiP), text, transitions and other effects are skipped. The full list is in the AVS Video Editor projects section.',
       'Keeps the project\'s own size, scaled down to fit 1280x720, at most 10 minutes. Counts toward the `ffmpeg` limit and has to finish within the script\'s time limit.',
       'Outside of tags, the bot has the same thing as the `.vep` command (the .vep attached or its url first, then the media) and `/media-aiv vep`.',
     ],
@@ -2241,7 +2241,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     name: 'overlay',
     category: 'compose',
     summary: 'Places one media on top of another at a position.',
-    syntax: 'overlay MEDIA_KEY MEDIA_KEY_2 X=0 Y=0 COLOR=none SIMILARITY=0.1 BLEND=0 LOOP=TRUE OPACITY=100 RESIZE=none FADE=false FADE_START=0 FADE_DURATION=0',
+    syntax: 'overlay MEDIA_KEY MEDIA_KEY_2 X=0 Y=0 COLOR=none SIMILARITY=0.1 BLEND=0 LOOP=TRUE OPACITY=100 RESIZE=none FADE=false FADE_START=0 FADE_DURATION=0 POSITION=none',
     args: [
       media('the background media (gets changed)'),
       {name: 'MEDIA_KEY_2', description: 'the media to put on top'},
@@ -2256,11 +2256,13 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
       {name: 'FADE', default: 'false', description: 'fade the top media in, from invisible up to its opacity'},
       {name: 'FADE_START', default: '0', range: '0..120', description: 'seconds in when the fade starts'},
       {name: 'FADE_DURATION', default: '0', range: '0..120', description: 'seconds the fade takes; 0 is until the end'},
+      {name: 'POSITION', default: 'none', description: 'a grid spot: `topleft`, `top`, `topright`, `left`, `center`, `right`, `bottomleft`, `bottom`, `bottomright`, or a cell like `3x3:2` (`COLUMNSxROWS:CELL`, counted from 1 left to right then down). Shrinks the top media to fit that cell (never enlarges it) and centers it there; an `X`, `Y` or `RESIZE` you give still wins'},
     ],
     examples: [
       {code: '{mediascript:load {iv} img\nload {avatar} pfp\noverlay img pfp (imgw/2)-(pfpw/2) (imgh/2)-(pfph/2)\nrender img}', result: 'Puts the avatar in the middle of the image.'},
       {code: '{mediascript:load {iv} img\nload {avatar} pfp\noverlay img pfp x="(mw-ow)/2" y="(mh-oh)/2" resize="fit(mw,mh)" fade=true\nrender img}', result: 'Fits the avatar inside the image, centers it and fades it in (what the overlay command does).'},
       {code: '{mediascript:load {video} clip\nload https://cdn.nsb.gg/assets/samples/greenscreen.mp4 gs\noverlay clip gs color=lime similarity=0.3 blend=0.2\nrender clip}', result: 'Overlays a green-screen video with the green removed.'},
+      {code: '{mediascript:load {iv} img\nload {avatar} pfp\noverlay img pfp position=bottomright\nrender img}', result: 'Puts the avatar in the bottom right ninth of the image, shrunk to fit if it is bigger.'},
     ],
   },
   {

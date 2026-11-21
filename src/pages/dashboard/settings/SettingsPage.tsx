@@ -1,17 +1,22 @@
+import { Crown } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { Link } from 'react-router';
 
+import { isOwner, useAuth } from '@/auth';
 import { useToast } from '@/components/ui/Toast';
+import { Routes } from '@/config';
 import { translate, useI18n, type TranslationKey } from '@/i18n';
-import type { UserSettings, UserSettingsPatch } from '@/lib/api';
+import { GUILD_AUTO_EMBED_SITES, UserPremiumTypes, type UserSettings, type UserSettingsPatch } from '@/lib/api';
 import { errorMessage, useMeSettingsQuery, usePatchMeSettingsMutation } from '@/lib/api/dashboardQueries';
 import { formatNumber } from '@/lib/utils';
 
 import { useMediaFontChoices } from '../fonts/SavedFontsPanel';
-import { CharCounter, DashboardHeader, ErrorPanel, Field, InlineError, Panel, PanelSkeleton, SaveBar, UnsavedChangesGuard } from '../ui';
+import { CharCounter, DashboardHeader, ErrorPanel, Field, InlineError, Panel, PanelSkeleton, SaveBar, Toggle, UnsavedChangesGuard } from '../ui';
 import { ChoiceSelect } from './ChoiceSelect';
 import { PersonalityHint } from './PersonalityHint';
 import {
   APPLICATION_COMMAND_RESPONSE_CHOICES,
+  AUTO_EMBED_SITE_NAMES,
   DIFFUSION_MODEL_CHOICES,
   DOWNLOAD_QUALITY_CHOICES,
   FALLBACK_IMAGE_CHOICES,
@@ -77,6 +82,7 @@ export function SettingsPage() {
           <RegionSection settings={settings} onDirtyChange={onDirtyChange}/>
           <MediaSection settings={settings} onDirtyChange={onDirtyChange}/>
           <DisplaySection settings={settings} onDirtyChange={onDirtyChange}/>
+          <AutoEmbedSection settings={settings} onDirtyChange={onDirtyChange}/>
           <SearchSection settings={settings} onDirtyChange={onDirtyChange}/>
           <VoiceSection settings={settings} onDirtyChange={onDirtyChange}/>
         </div>
@@ -295,6 +301,51 @@ function DisplaySection({ settings, onDirtyChange }: SectionProps) {
       <Field label={t('settings.display.post_gallery')} hint={t('settings.display.post_gallery_hint')}>
         {(props) => <ChoiceSelect {...props} noneLabel={t('settings.server_default')} choices={POST_GALLERY_CHOICES} value={section.values.post_gallery} onChange={(value) => section.set('post_gallery', value)}/>}
       </Field>
+    </SectionForm>
+  );
+}
+
+
+// auto-embed for their own links, a premium perk (any tier). saved without premium too, it just doesn't do anything
+// until they have it, like the bot's command
+function AutoEmbedSection({ settings, onDirtyChange }: SectionProps) {
+  const { t } = useI18n();
+  const { user } = useAuth();
+  const section = useSettingsSection('settings.autoembed.title', settings, ['auto_embed', 'auto_embed_text'], onDirtyChange);
+  const sites = section.values.auto_embed ?? [];
+  const premium = !!user && (isOwner(user) || user.premium_type !== UserPremiumTypes.NONE);
+  return (
+    <SectionForm title={t('settings.autoembed.title')} accent='#f0b232' description={t('settings.autoembed.description')} section={section}>
+      <div className='space-y-3 md:col-span-2'>
+        <div className='grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2'>
+          {GUILD_AUTO_EMBED_SITES.map((site) => (
+            <Toggle
+              key={site}
+              label={AUTO_EMBED_SITE_NAMES[site]}
+              checked={sites.includes(site)}
+              // sorted like the api stores them, so turning one off and on again isn't an unsaved change
+              onChange={(value) => section.set('auto_embed', [...sites.filter((x) => x !== site), ...(value) ? [site] : []].sort())}
+            />
+          ))}
+        </div>
+        <div className='border-t border-border pt-3'>
+          <Toggle
+            label={t('settings.autoembed.text')}
+            description={t('settings.autoembed.text_hint')}
+            checked={section.values.auto_embed_text !== false}
+            onChange={(value) => section.set('auto_embed_text', value)}
+          />
+        </div>
+        {(!premium) ? (
+          <p className='flex items-start gap-2 rounded-md border border-[#f0b232]/30 bg-[#f0b232]/10 px-3 py-2 text-xs text-fg'>
+            <Crown aria-hidden className='mt-px size-3.5 shrink-0 text-[#f0b232]'/>
+            <span>
+              {t('settings.autoembed.premium')}{' '}
+              <Link to={Routes.DASHBOARD_PREMIUM} className='text-brand-text hover:underline'>{t('settings.autoembed.premium_link')}</Link>
+            </span>
+          </p>
+        ) : null}
+      </div>
     </SectionForm>
   );
 }

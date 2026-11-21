@@ -36,10 +36,17 @@ export const MEDIASCRIPT_PORTUGUESE_5: TagDocsTranslation['mediaScriptCommands']
       BLEND: 'o quanto as bordas removidas se misturam suavemente',
       LOOP: LOOP_SHORTER,
       OPACITY: OPACITY_TOP,
+      RESIZE: '`fit`, `contain`, `cover` ou `force` com um tamanho, como `fit(mw,mh)` (cabe dentro da mídia) ou `cover(256,256)`; `none` mantém o próprio tamanho',
+      FADE: 'faz a mídia de cima aparecer, de invisível até a opacidade dela',
+      FADE_START: 'segundos em que o aparecimento começa',
+      FADE_DURATION: 'segundos que o aparecimento leva; 0 é até o fim',
+      POSITION: 'um lugar da grade: `topleft`, `top`, `topright`, `left`, `center`, `right`, `bottomleft`, `bottom`, `bottomright`, ou uma célula como `3x3:2` (`COLUNASxLINHAS:CÉLULA`, contadas a partir de 1 da esquerda para a direita e depois para baixo). Encolhe a mídia de cima para caber nessa célula (nunca aumenta) e a centraliza ali; um `X`, `Y` ou `RESIZE` que você der continua valendo',
     },
     results: [
       'Coloca o avatar no meio da imagem.',
+      'Encaixa o avatar dentro da imagem, centraliza e faz ele aparecer (o que o comando overlay faz).',
       'Sobrepõe um vídeo de tela verde com o verde removido.',
+      'Coloca o avatar no nono de baixo à direita da imagem, encolhido para caber se for maior.',
     ],
   },
   blend: {

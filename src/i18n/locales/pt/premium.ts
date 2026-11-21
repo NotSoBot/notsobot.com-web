@@ -70,6 +70,7 @@ export const Premium: Record<keyof typeof English, string> = {
   'premium.row.tag': 'Rodar uma tag',
   'premium.row.code': 'Executar código',
   'premium.row.custom_commands': 'Comandos personalizados próprios',
+  'premium.row.auto_embed': 'Auto-embed dos seus próprios links do TikTok, Instagram, X e mais',
   'premium.row.saved_fonts': 'Fontes salvas',
   'premium.row.server_slots': 'Vagas de servidor premium',
   'premium.row.voice_clones': 'Clones de voz',

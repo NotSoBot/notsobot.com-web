@@ -68,6 +68,7 @@ export const Premium = {
   'premium.row.tag': 'Running a tag',
   'premium.row.code': 'Running code',
   'premium.row.custom_commands': 'Personal custom commands',
+  'premium.row.auto_embed': 'Auto-embed your own TikTok, Instagram, X and more links',
   'premium.row.saved_fonts': 'Saved fonts',
   'premium.row.server_slots': 'Premium server slots',
   'premium.row.voice_clones': 'Voice clones',

@@ -72,6 +72,8 @@ export function createSettings(): UserSettings {
     application_command_response_type: 0,
     dashboard_pinned_guilds: [],
     download_quality: '720p',
+    auto_embed: [],
+    auto_embed_text: true,
     fallbacks_media_image: 0,
     file_upload_name: null,
     file_upload_threshold: 0,
@@ -200,7 +202,8 @@ export function createGuildSettings(): UserGuild['settings'] {
   return {
     auto_embed: [],
     auto_embed_gallery: null,
-    auto_embed_text: false,
+    auto_embed_members: true,
+    auto_embed_text: true,
     ban_clean: 24 * 60 * 60,
     media_font: null,
     ml_diffusion_model: null,

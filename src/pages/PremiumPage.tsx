@@ -121,6 +121,8 @@ const COMPARISON: Array<ComparisonGroup> = [
     icon: Server,
     rows: [
       {label: 'premium.row.custom_commands', values: [false, true, true, true]},
+      // `/settings set auto-embed`, their own links in servers that allow it (`UserSettings.auto_embed`)
+      {label: 'premium.row.auto_embed', values: [false, true, true, true]},
       {label: 'premium.row.saved_fonts', values: [false, String(MAX_SAVED_FONTS_USER), String(MAX_SAVED_FONTS_USER), String(MAX_SAVED_FONTS_USER)]},
       {label: 'premium.row.server_slots', values: [false, false, '2', '2']},
       // anyone can clone a few, plus and max more
