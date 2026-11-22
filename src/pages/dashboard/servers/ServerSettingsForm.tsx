@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react';
 
+import { isOwner, useAuth } from '@/auth';
 import { useToast } from '@/components/ui/Toast';
 import { useI18n } from '@/i18n';
 import { GUILD_AUTO_EMBED_SITES, GuildModerationDmFlags, type UserGuild, type UserGuildPatch } from '@/lib/api';
@@ -92,6 +93,7 @@ const RESPONSE_DISPLAY_SET_CHOICES = RESPONSE_DISPLAY_CHOICES.filter((choice) =>
 
 export function ServerSettingsForm({ guild, group, onDirtyChange }: {guild: UserGuild, group: SettingsGroup, onDirtyChange: (dirty: boolean) => void}) {
   const { t, rich } = useI18n();
+  const { user } = useAuth();
   const toast = useToast();
   const editable = guild.editable.settings;
   const readOnlyMessage = useReadOnlyMessage();
@@ -240,9 +242,12 @@ export function ServerSettingsForm({ guild, group, onDirtyChange }: {guild: User
                   />
                 )}
               </Field>
-              <Field label={t('settings.ai.model')}>
-                {(props) => <ChoiceSelect {...props} noneLabel={t('settings.default')} choices={LLM_MODEL_CHOICES} value={values.ml_llm_model} onChange={(value) => draft.set('ml_llm_model', value)}/>}
-              </Field>
+              {/* the api answers everyone else with the default model for now (`generate_tag_content`), the setting does nothing for them */}
+              {(isOwner(user)) ? (
+                <Field label={t('settings.ai.model')}>
+                  {(props) => <ChoiceSelect {...props} noneLabel={t('settings.default')} choices={LLM_MODEL_CHOICES} value={values.ml_llm_model} onChange={(value) => draft.set('ml_llm_model', value)}/>}
+                </Field>
+              ) : null}
             </>
           ) : null}
           {(group === 'moderation') ? (

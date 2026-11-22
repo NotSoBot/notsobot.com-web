@@ -1,6 +1,7 @@
 import type { UseMutationResult } from '@tanstack/react-query';
 import { useEffect, useId, useState } from 'react';
 
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
@@ -24,6 +25,9 @@ export function EditMemoryDialog({ memory, mutation, onClose }: {
   const { t } = useI18n();
   const titleId = useId();
   const toast = useToast();
+  // asked when the dialog is closed from outside (Escape, a click on the dimming, the X) with the text edited. Cancel
+  // is a deliberate no and closes right away
+  const [ confirmingDiscard, setConfirmingDiscard ] = useState(false);
   const [ content, setContent ] = useState(memory.content);
 
   // the mutation belongs to the page, so drop an error left over from the last memory edited
@@ -46,7 +50,20 @@ export function EditMemoryDialog({ memory, mutation, onClose }: {
   };
 
   return (
-    <Modal labelledBy={titleId} onClose={() => !mutation.isPending && onClose()} className='max-w-lg'>
+    <Modal
+      labelledBy={titleId}
+      className='max-w-lg'
+      onClose={() => {
+        if (mutation.isPending) {
+          return;
+        }
+        if (content !== memory.content) {
+          setConfirmingDiscard(true);
+        } else {
+          onClose();
+        }
+      }}
+    >
       <form
         className='p-5 sm:p-6'
         onSubmit={(event) => {
@@ -92,6 +109,16 @@ export function EditMemoryDialog({ memory, mutation, onClose }: {
           </button>
         </div>
       </form>
+      {/* next to the form, not inside it: its own form's submit would bubble up to this one and save */}
+      {(confirmingDiscard) ? (
+        <ConfirmDialog
+          title={t('dash.discard_title')}
+          description={t('dash.discard_description')}
+          confirmLabel={t('common.discard')}
+          onConfirm={onClose}
+          onClose={() => setConfirmingDiscard(false)}
+        />
+      ) : null}
     </Modal>
   );
 }

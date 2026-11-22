@@ -32,6 +32,7 @@ export const CHANGELOG: Array<ChangelogDay> = [
     title: 'Fixes everywhere and a friendlier dashboard',
     items: [
       {kind: 'new', text: '`/tools ocr` reads the text in an image, like `.ocr` and the OCR message menu.'},
+      {kind: 'new', text: '`.pat` (`/media-iv-meme format pat`) has a hand pat your image, squashing it with every pat, like the gif from The Summer Hikaru Died. Also the **MediaScript:** `overlaypreset` name `pat`.'},
       {kind: 'improved', text: '`tts play` tells you when the text is too long to say over the music, and that `-queue` plays it as a song instead.'},
       {kind: 'improved', text: 'Clearer errors for media that isn\'t supported, is corrupted or has no audio, for an empty `snip` range, and for sites that fail to answer.'},
       {kind: 'improved', text: 'Transcribing says NotSoBot is busy when too much is waiting, instead of timing out.'},
@@ -46,6 +47,8 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'improved', text: '`invite` and `help` show short notsobot.com links instead of the full addresses.'},
       {kind: 'improved', text: 'The website\'s status page, its changelog, docs and FAQ searches, and the premium page respond faster, and phones no longer download the home page\'s hidden videos.'},
       {kind: 'improved', text: 'Dialogs on the website keep keyboard focus, and Undo messages shown over a dialog can be reached with Tab.'},
+      {kind: 'improved', text: 'Deleting a server\'s data on the dashboard also removes its warning actions, auto-warn rules, decoy channel and cloned voices. Pending timed bans still lift on schedule.'},
+      {kind: 'improved', text: '`/help-permissions-check` also checks Embed Links, Attach Files and Read Message History, the permissions media replies need.'},
       {kind: 'fixed', text: 'Translate, OCR translate and transcribe translate failing when the translation came back empty.'},
       {kind: 'fixed', text: '`.audio noise` always failing.'},
       {kind: 'fixed', text: 'Steam profile lookups failing instead of saying the profile doesn\'t exist.'},
@@ -76,7 +79,10 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'fixed', text: 'NotSoAI losing your question from the conversation after a long message, transcript or memory in a non-Latin script.'},
       {kind: 'fixed', text: 'The website\'s premium page listing `{ai}` in tags as a NotSoPremium Max extra, when Plus already has it.'},
       {kind: 'fixed', text: 'The website\'s Response display labels being the wrong way round, and the FAQ naming a slash command that doesn\'t exist and the wrong pipe limit.'},
+      {kind: 'fixed', text: 'Forwarding one of NotSoAI\'s messages counting as a reply to it, which ran `ai` and could get the forwarder auto-warned in channels that block commands.'},
+      {kind: 'fixed', text: '`.code` ignoring the code you typed when a text file was attached. Typed code runs and attachments go into `./input`, and a file is only used as the code when you type just the language.'},
       {kind: 'removed', text: 'MD4, Whirlpool and SHA from `.hash`.'},
+      {kind: 'removed', text: '`/settings set ai-model` and the AI model picker on the dashboard, since NotSoAI answers everyone with the same model for now.'},
     ],
   },
   {

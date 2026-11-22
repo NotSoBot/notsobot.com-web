@@ -22,6 +22,10 @@ const SOURCE_CODE_SEED = 0x6b;
 const UTM_SOURCE_PARAM = 'utm_source';
 const UTM_CAMPAIGN_PARAM = 'utm_campaign';
 
+// what someone typed into a page's search box (`?q=` everywhere, the status page's server lookup): which page they're
+// on is the point, not what they looked for, and a lookup is a server's id
+const SEARCH_TEXT_PARAMS = ['q', 'lookup'];
+
 // an id the dashboard's routes don't know about (a path that 404s), still not something to keep
 const ID_SEGMENT_PATTERN = /^\d{5,}$/;
 const ID_PLACEHOLDER = ':id';
@@ -167,8 +171,13 @@ export function cleanUrl(raw: string, origin: string, arrival: boolean): {langua
   if (isUnder(path, AUTH_PREFIX)) {
     url.search = '';
     url.hash = '';
-  } else if (arrival) {
-    addSource(url.searchParams);
+  } else {
+    for (const name of SEARCH_TEXT_PARAMS) {
+      url.searchParams.delete(name);
+    }
+    if (arrival) {
+      addSource(url.searchParams);
+    }
   }
   url.pathname = path;
   return {language, url};

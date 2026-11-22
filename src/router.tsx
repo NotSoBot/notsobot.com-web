@@ -4,7 +4,9 @@ import { RequireAuth, RequireStaff } from '@/auth';
 import { BotInviteRedirect, ExternalRedirect } from '@/components/ExternalRedirect';
 import { SiteLayout } from '@/components/layout/SiteLayout';
 import { Routes, Urls } from '@/config';
-import { loadDashboardText } from '@/i18n';
+import { loadTagDocs } from '@/content/tagDocs/load';
+import type { TagDocsView } from '@/content/tagDocs/localize';
+import { activeLanguage, loadDashboardText } from '@/i18n';
 import { ApiEndpoints, apiUrl } from '@/lib/api';
 import { BotAddedRedirectPage } from '@/pages/auth/BotAddedRedirectPage';
 import { LoginCallbackPage } from '@/pages/auth/LoginCallbackPage';
@@ -17,6 +19,34 @@ import { NOT_FOUND_PAGE, PAGES, type PageMeta } from '@/seo';
 
 // `handle.title` is rendered into <title> by SiteLayout. the same metadata is what the worker serves to crawlers
 export type RouteHandle = PageMeta;
+
+
+// the browser's router (`createRouter` below), and whether it took over from another one: a language switch
+let active: ReturnType<typeof createBrowserRouter> | null = null;
+let swapped = false;
+
+// A docs view's content is its own chunk per language (src/content/tagDocs/load.ts). Its route loads it, so a
+// navigation waits for it like it does for a page's code: switching views keeps the one on screen up until the other
+// has arrived, and opening the docs from another page doesn't show their spinner first. The exception is a router made
+// for a language switch, which shows nothing until its first load is done: that one doesn't wait, the page mounts
+// and shows its own spinner while the docs load (TagDocsPage). Nothing is loaded here in the worker (the routes
+// load before it sets the language it renders in) or for a page it rendered (the router takes its state as loaded):
+// src/lib/pagePreload.ts loads the view for both
+function tagDocsLoader(view: TagDocsView) {
+  return async (): Promise<null> => {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+    const docs = loadTagDocs(view, activeLanguage());
+    if (swapped && !active?.state.initialized) {
+      // the page's query asks again and reports it
+      docs.catch(() => undefined);
+    } else {
+      await docs;
+    }
+    return null;
+  };
+}
 
 
 // the worker renders some pages from these same routes (src/entry-server.tsx)
@@ -51,14 +81,15 @@ export const routes: Array<RouteObject> = [
         // the tag is a modal over the directory, so the directory stays mounted underneath
         children: [{index: true}, {path: ':tagId', handle: PAGES.TAG_DIRECTORY_ITEM}],
       },
-      // the docs content is large, so it's only fetched when someone opens it. both languages share one page, so
-      // switching between them keeps the search
+      // the docs content is large, so it's only fetched when someone opens it, and only for the language opened
+      // (TagScript or MediaScript, see `tagDocsLoader`). both share one page, so switching between them keeps the search
       {
         lazy: async () => ({Component: (await import('@/pages/docs/TagDocsPage')).TagDocsPage}),
         children: [
-          // the page reads which one matched, they render nothing themselves (null keeps the router from warning)
-          {path: Routes.TAG_DOCS, element: null, handle: PAGES.TAG_DOCS},
-          {path: Routes.TAG_DOCS_MEDIASCRIPT, element: null, handle: PAGES.TAG_DOCS_MEDIASCRIPT},
+          // the page reads which one matched, they render nothing themselves (null keeps the router from warning).
+          // a view's content never changes while it stays matched, so typing in the search doesn't run its loader
+          {path: Routes.TAG_DOCS, element: null, handle: PAGES.TAG_DOCS, loader: tagDocsLoader('tagscript'), shouldRevalidate: () => false},
+          {path: Routes.TAG_DOCS_MEDIASCRIPT, element: null, handle: PAGES.TAG_DOCS_MEDIASCRIPT, loader: tagDocsLoader('mediascript'), shouldRevalidate: () => false},
         ],
       },
       {path: '/docs', element: <Navigate to={Routes.TAG_DOCS} replace/>},
@@ -183,7 +214,11 @@ export const HYDRATION_DATA_ID = 'router-hydration';
 // one per language, `basename` is its url prefix ('' for English). src/i18n/I18nProvider.tsx swaps them.
 // `hydrationData` is the worker's, for the router that takes over a page it rendered
 export function createRouter(basename: string, hydrationData?: HydrationState) {
-  return createBrowserRouter(routes, {basename: basename || undefined, hydrationData});
+  swapped = Boolean(active);
+  // cleared first, the new router's first load can start (and reach `tagDocsLoader`) before it's returned
+  active = null;
+  active = createBrowserRouter(routes, {basename: basename || undefined, hydrationData});
+  return active;
 }
 
 

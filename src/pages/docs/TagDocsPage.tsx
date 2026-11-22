@@ -1,30 +1,23 @@
 import { useQuery } from '@tanstack/react-query';
 import { BookOpen, Check, ChevronDown, Copy, Link2 } from 'lucide-react';
 import { Fragment, memo, useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Link, NavigationType, useLocation, useMatch, useNavigate, useNavigationType, useSearchParams } from 'react-router';
+import { Link, NavigationType, useLocation, useMatch, useNavigate, useNavigation, useNavigationType, useSearchParams } from 'react-router';
 
 import { Segmented } from '@/components/ui/Segmented';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Spinner } from '@/components/ui/Spinner';
 import { QuarantineNotice, useQuarantineNoticeDismissed } from '@/components/ui/QuarantineNotice';
 import { Routes } from '@/config';
-import {
-  mediaScriptCommandAnchor,
-  mediaScriptCommandSearchText,
-  tagFunctionAnchor,
-  tagFunctionSearchText,
-  type TagDocExample,
-  type TagDocFunction,
-  type TagDocGuideSection,
-  type TagDocMediaScriptCommand,
-} from '@/content/tagDocs';
-import { localizeTagDocs, tagDocsTranslationQuery, type TagDocs } from '@/content/tagDocs/localize';
+// the docs themselves aren't imported: each view's are a chunk of their own, loaded by `tagDocsQuery`. these have no
+// content in them (importing from '@/content/tagDocs' would bring all of it into the page)
+import { loadedTagDocs, tagDocsQuery } from '@/content/tagDocs/load';
+import type { TagDocs, TagDocsView as DocsView } from '@/content/tagDocs/localize';
+import { mediaScriptCommandAnchor, mediaScriptCommandSearchText, tagFunctionAnchor, tagFunctionSearchText } from '@/content/tagDocs/lookup';
+import type { TagDocExample, TagDocFunction, TagDocGuideSection, TagDocMediaScriptCommand } from '@/content/tagDocs/types';
 import { useCopied } from '@/hooks/useCopied';
-import { Languages, useI18n } from '@/i18n';
+import { Languages, splitLanguagePath, useI18n } from '@/i18n';
 import { cn, decodeHash } from '@/lib/utils';
 
-
-type DocsView = 'tagscript' | 'mediascript';
 
 const VIEW_OPTIONS: Array<{value: DocsView, label: string}> = [
   {value: 'tagscript', label: 'TagScript'},
@@ -64,23 +57,62 @@ function search<T>(items: ReadonlyArray<T>, needle: string, text: (item: T) => s
 }
 
 
-// The docs in the site's language: the translation overlay is its own chunk, only fetched for that language.
-// Until it arrives (`ready` is false) the page shows a spinner instead of flashing the English text; if it
-// fails to load, the English docs are shown.
-function useTagDocs(): {docs: TagDocs, ready: boolean} {
+// the view a url is for (a navigation's location still has the language prefix), null for any other page
+function pathView(pathname: string): DocsView | null {
+  const { path } = splitLanguagePath(pathname);
+  return VIEW_OPTIONS.find((option) => VIEW_PATHS[option.value] === path)?.value ?? null;
+}
+
+// `?q=` set to the search text, the other params kept
+function withQuery(params: URLSearchParams, value: string): URLSearchParams {
+  const next = new URLSearchParams(params);
+  if (value) {
+    next.set('q', value);
+  } else {
+    next.delete('q');
+  }
+  return next;
+}
+
+
+// A view's docs in the site's language. Each view is its own chunk per language (src/content/tagDocs/load.ts), which
+// is already in whenever the router brought the page here or the worker rendered it. After a language switch it's
+// fetched here: until it arrives (`ready` is false) the page shows a spinner instead of flashing the English text,
+// with the view's English docs standing in for what the header counts. If the overlay fails to load, the English
+// docs are shown.
+function useTagDocs(view: DocsView): {docs: TagDocs | undefined, ready: boolean} {
   const { language } = useI18n();
-  const translated = (language !== Languages.ENGLISH);
-  const translation = useQuery({...tagDocsTranslationQuery(language), enabled: translated});
-  const docs = useMemo(() => localizeTagDocs((translated) ? translation.data : null), [translated, translation.data]);
-  return {docs, ready: !translated || !translation.isPending};
+  // without the English docs there's no page to show, the same as when the page's own code fails to load
+  const { data } = useQuery({...tagDocsQuery(view, language), throwOnError: true});
+  return {docs: data ?? loadedTagDocs(view, Languages.ENGLISH), ready: Boolean(data)};
 }
 
 
 export function TagDocsPage() {
+  const { t } = useI18n();
+  const view: DocsView = (useMatch(Routes.TAG_DOCS_MEDIASCRIPT)) ? 'mediascript' : 'tagscript';
+  const { docs, ready } = useTagDocs(view);
+  // nothing of the view has loaded, not even in English (the router and the worker load it before they render this)
+  if (!docs) {
+    return (
+      <div className='container-page flex min-h-[70vh] justify-center py-24'>
+        <Spinner className='size-8' label={t('tag_docs.loading')}/>
+      </div>
+    );
+  }
+  return <TagDocsContent docs={docs} ready={ready}/>;
+}
+
+
+// one view of the docs. which one comes with the docs, so what's shown always goes with its content
+function TagDocsContent({ docs, ready }: {docs: TagDocs, ready: boolean}) {
   const location = useLocation();
   const navigate = useNavigate();
   const { t, plural, rich } = useI18n();
-  const { docs, ready } = useTagDocs();
+  const view = docs.view;
+  // the view picked in the switch while its docs load, so the switch shows it at once
+  const navigation = useNavigation();
+  const pendingView = (navigation.state === 'loading') ? pathView(navigation.location.pathname) : null;
   // the search is in `?q=` like the tag directory's, so a reload or a shared link keeps it. The input's text is its own
   // state: the router changes the url in a transition, and an input driven by one drops keystrokes on a page this long
   const [ searchParams, setSearchParams ] = useSearchParams();
@@ -88,15 +120,13 @@ export function TagDocsPage() {
   const [ query, setQueryText ] = useState(urlQuery);
   const setQuery = (value: string) => {
     setQueryText(value);
-    setSearchParams((previous) => {
-      const next = new URLSearchParams(previous);
-      if (value) {
-        next.set('q', value);
-      } else {
-        next.delete('q');
-      }
-      return next;
-    }, {replace: true, preventScrollReset: true});
+    if (pendingView) {
+      // typed while the other view is still loading: changing this url would call the switch off, so the search goes
+      // into the url that's on its way in
+      void navigate({pathname: VIEW_PATHS[pendingView], search: withQuery(searchParams, value).toString()}, {replace: true});
+      return;
+    }
+    setSearchParams((previous) => withQuery(previous, value), {replace: true, preventScrollReset: true});
   };
   // typing replaces the entry, so any other kind of navigation (a link to the docs, back/forward) is the url's search
   // changing under the input
@@ -108,11 +138,11 @@ export function TagDocsPage() {
   }, [location.key, navigationType, urlQuery]);
 
   const hash = decodeHash(location.hash);
-  const view: DocsView = (useMatch(Routes.TAG_DOCS_MEDIASCRIPT)) ? 'mediascript' : 'tagscript';
   const setView = (value: string) => {
-    // the search carries over to the other one
-    navigate({pathname: VIEW_PATHS[value as DocsView], search: location.search}, {replace: true});
-    window.scrollTo({top: 0});
+    // the search carries over to the other one (the input's text, the url can be a keystroke behind it). The other
+    // view's docs may still have to be fetched: the router keeps this view up until they're in (its loader, see
+    // src/router.tsx), then scrolls to the top like it does for any new page
+    void navigate({pathname: VIEW_PATHS[value as DocsView], search: withQuery(searchParams, query).toString()}, {replace: true});
   };
   // the "On this page" menu below lg
   const mobileNav = useRef<HTMLDetailsElement>(null);
@@ -125,14 +155,13 @@ export function TagDocsPage() {
   const shownQuery = useDeferredValue(query).trim();
   const needle = shownQuery.toLowerCase();
   const guide = useMemo(() => {
-    const sections = (view === 'mediascript') ? docs.mediaScriptGuide : docs.guide;
-    return (needle) ? sections.filter((section) => guideSearchText(section).includes(needle)) : sections;
-  }, [docs, view, needle]);
+    return (needle) ? docs.guide.filter((section) => guideSearchText(section).includes(needle)) : docs.guide;
+  }, [docs, needle]);
 
   const categories = useMemo(() => {
-    if (view === 'mediascript') {
-      const commands = search(docs.mediaScriptCommands, needle, mediaScriptCommandSearchText, (command) => [command.name, ...(command.aliases ?? [])]);
-      return docs.mediaScriptCategories.map((category) => {
+    if (docs.view === 'mediascript') {
+      const commands = search(docs.commands, needle, mediaScriptCommandSearchText, (command) => [command.name, ...(command.aliases ?? [])]);
+      return docs.categories.map((category) => {
         const items = commands.filter((command) => command.category === category.id);
         return {...category, count: items.length, items: items.map((command) => <MediaScriptCard key={command.name} command={command} highlight={needle}/>)};
       }).filter((category) => category.count);
@@ -142,7 +171,7 @@ export function TagDocsPage() {
       const items = functions.filter((fn) => fn.category === category.id);
       return {...category, count: items.length, items: items.map((fn) => <FunctionCard key={fn.id} fn={fn} highlight={needle}/>)};
     }).filter((category) => category.count);
-  }, [docs, view, needle]);
+  }, [docs, needle]);
   const total = categories.reduce((sum, category) => sum + category.count, 0);
   const code = (chunk: ReactNode) => <code className='font-mono text-code'>{chunk}</code>;
 
@@ -176,8 +205,8 @@ export function TagDocsPage() {
           </div>
           <h1 className='mb-2 text-3xl font-bold text-white sm:text-4xl'>{t('tag_docs.title')}</h1>
           <p className={cn('max-w-2xl text-muted', (quarantineDismissed) ? 'mb-2' : 'mb-6')}>
-            {(view === 'mediascript') ? (
-              rich('tag_docs.description_mediascript', {code}, {count: docs.mediaScriptCommands.length})
+            {(docs.view === 'mediascript') ? (
+              rich('tag_docs.description_mediascript', {code}, {count: docs.commands.length})
             ) : (
               t('tag_docs.description_tagscript', {count: docs.functions.length})
             )}
@@ -195,7 +224,7 @@ export function TagDocsPage() {
             </button>
           ) : null}
           <div className='flex max-w-3xl flex-col gap-3 sm:flex-row sm:items-center'>
-            <Segmented label={t('tag_docs.view_label')} value={view} options={VIEW_OPTIONS} onChange={setView}/>
+            <Segmented label={t('tag_docs.view_label')} value={pendingView ?? view} options={VIEW_OPTIONS} onChange={setView}/>
             <SearchInput
               className='min-w-0 flex-1'
               value={query}

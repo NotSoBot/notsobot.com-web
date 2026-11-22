@@ -52,8 +52,22 @@ function whenLoaded(): Promise<Window['umami']> {
 // calls it before anything else: the tracker looks the function up when it sends, and its first page view is at the
 // page's load
 export function installAnalyticsHook(): void {
+  // the last page view sent. a search box rewrites its page's url on every key, and with the search text taken off
+  // they're all the same url: one view of that page, not one per letter. the tracker drops a payload that comes back null
+  let lastPageView: string | undefined;
   (window as unknown as Record<string, unknown>)[ANALYTICS_BEFORE_SEND] = (_type: string, payload: AnalyticsPayload | null) => {
-    return (payload) ? cleanPayload(payload, window.location.origin) : payload;
+    if (!payload) {
+      return payload;
+    }
+    const cleaned = cleanPayload(payload, window.location.origin);
+    // events carry a `name`, page views don't
+    if (cleaned.name === undefined && typeof cleaned.url === 'string') {
+      if (cleaned.url === lastPageView) {
+        return null;
+      }
+      lastPageView = cleaned.url;
+    }
+    return cleaned;
   };
 }
 

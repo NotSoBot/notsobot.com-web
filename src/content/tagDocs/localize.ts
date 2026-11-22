@@ -1,20 +1,11 @@
 // Translated tag docs. Each language is an overlay over the English docs (tagDocs/<language>/), keyed by function id,
-// MediaScript command name, guide section id and category id, and loaded with a dynamic import only when that
-// language is picked. Anything missing from an overlay (a new function, a new note) falls back to English, per field.
+// MediaScript command name, guide section id and category id. Anything missing from an overlay (a new function, a new
+// note) falls back to English, per field.
 // Only prose is translated: names, syntax, example code, argument names, defaults and ranges always come from English.
+// The docs are two views, TagScript and MediaScript, and each is loaded on its own in every language (./load.ts). This
+// file has no content: it's the types, and how a view's half of an overlay is laid over that view's English docs
+// (done once by tagDocs/<language>/tagscript.ts and mediascript.ts, the chunk that holds the half).
 
-import { queryOptions } from '@tanstack/react-query';
-
-import { Languages, type Language } from '@/i18n/languages';
-
-import {
-  MEDIASCRIPT_CATEGORIES,
-  MEDIASCRIPT_COMMANDS_SORTED,
-  MEDIASCRIPT_GUIDE,
-  TAG_DOC_CATEGORIES,
-  TAG_DOC_FUNCTIONS,
-  TAG_DOC_GUIDE,
-} from './index';
 import type {
   TagDocCategoryId,
   TagDocExample,
@@ -77,45 +68,29 @@ export interface TagDocsTranslation {
 }
 
 
-export interface TagDocs {
+// each view's half of an overlay
+export type TagScriptTranslation = Pick<TagDocsTranslation, 'categories' | 'guide' | 'functions'>;
+export type MediaScriptTranslation = Pick<TagDocsTranslation, 'mediaScriptCategories' | 'mediaScriptGuide' | 'mediaScriptCommands'>;
+
+
+export type TagDocsView = 'tagscript' | 'mediascript';
+
+export interface TagScriptDocs {
+  view: 'tagscript',
   categories: ReadonlyArray<TagDocCategory>,
   guide: ReadonlyArray<TagDocGuideSection>,
   functions: ReadonlyArray<TagDocFunction>,
-  mediaScriptCategories: ReadonlyArray<TagDocCategory<TagDocMediaScriptCategoryId>>,
-  mediaScriptGuide: ReadonlyArray<TagDocGuideSection>,
-  mediaScriptCommands: ReadonlyArray<TagDocMediaScriptCommand>,
 }
 
-export const ENGLISH_TAG_DOCS: TagDocs = Object.freeze({
-  categories: TAG_DOC_CATEGORIES,
-  guide: TAG_DOC_GUIDE,
-  functions: TAG_DOC_FUNCTIONS,
-  mediaScriptCategories: MEDIASCRIPT_CATEGORIES,
-  mediaScriptGuide: MEDIASCRIPT_GUIDE,
-  mediaScriptCommands: MEDIASCRIPT_COMMANDS_SORTED,
-});
-
-
-// English ships with the page, every other language is its own chunk (a language without an overlay is a type error)
-const LOADERS: Readonly<Record<Exclude<Language, typeof Languages.ENGLISH>, () => Promise<TagDocsTranslation>>> = Object.freeze({
-  [Languages.SPANISH]: async () => (await import('./es')).TAG_DOCS_SPANISH,
-  [Languages.PORTUGUESE]: async () => (await import('./pt')).TAG_DOCS_PORTUGUESE,
-});
-
-export async function loadTagDocsTranslation(language: Language): Promise<TagDocsTranslation | null> {
-  return (language === Languages.ENGLISH) ? null : LOADERS[language]();
+export interface MediaScriptDocs {
+  view: 'mediascript',
+  categories: ReadonlyArray<TagDocCategory<TagDocMediaScriptCategoryId>>,
+  guide: ReadonlyArray<TagDocGuideSection>,
+  commands: ReadonlyArray<TagDocMediaScriptCommand>,
 }
 
-// TagDocsPage's query, also loaded before a page the worker rendered is hydrated (src/lib/pagePreload.ts)
-export function tagDocsTranslationQuery(language: Language) {
-  return queryOptions({
-    queryKey: ['tag-docs-translation', language],
-    queryFn: () => loadTagDocsTranslation(language),
-    staleTime: Infinity,
-    gcTime: Infinity,
-    retry: 1,
-  });
-}
+// what one view shows, in one language
+export type TagDocs = TagScriptDocs | MediaScriptDocs;
 
 
 function pick(translated: string | undefined, english: string): string {
@@ -178,20 +153,12 @@ function localizeArgs<Arg extends {name: string, description?: string}>(args: Ar
 }
 
 
-const cache = new WeakMap<TagDocsTranslation, TagDocs>();
-
-export function localizeTagDocs(translation: TagDocsTranslation | null | undefined): TagDocs {
-  if (!translation) {
-    return ENGLISH_TAG_DOCS;
-  }
-  const cached = cache.get(translation);
-  if (cached) {
-    return cached;
-  }
-  const docs: TagDocs = {
-    categories: localizeCategories(TAG_DOC_CATEGORIES, translation.categories),
-    guide: localizeGuide(TAG_DOC_GUIDE, translation.guide),
-    functions: TAG_DOC_FUNCTIONS.map((fn) => {
+export function localizeTagScript(english: TagScriptDocs, translation: TagScriptTranslation): TagScriptDocs {
+  return {
+    view: english.view,
+    categories: localizeCategories(english.categories, translation.categories),
+    guide: localizeGuide(english.guide, translation.guide),
+    functions: english.functions.map((fn) => {
       const entry = translation.functions[fn.id];
       if (!entry) {
         return fn;
@@ -205,9 +172,15 @@ export function localizeTagDocs(translation: TagDocsTranslation | null | undefin
         notes: localizeNotes(fn.notes, entry.notes),
       };
     }),
-    mediaScriptCategories: localizeCategories(MEDIASCRIPT_CATEGORIES, translation.mediaScriptCategories),
-    mediaScriptGuide: localizeGuide(MEDIASCRIPT_GUIDE, translation.mediaScriptGuide),
-    mediaScriptCommands: MEDIASCRIPT_COMMANDS_SORTED.map((command) => {
+  };
+}
+
+export function localizeMediaScript(english: MediaScriptDocs, translation: MediaScriptTranslation): MediaScriptDocs {
+  return {
+    view: english.view,
+    categories: localizeCategories(english.categories, translation.mediaScriptCategories),
+    guide: localizeGuide(english.guide, translation.mediaScriptGuide),
+    commands: english.commands.map((command) => {
       const entry = translation.mediaScriptCommands[command.name];
       if (!entry) {
         return command;
@@ -221,6 +194,4 @@ export function localizeTagDocs(translation: TagDocsTranslation | null | undefin
       };
     }),
   };
-  cache.set(translation, docs);
-  return docs;
 }

@@ -1,5 +1,5 @@
 import { ArrowLeft, ArrowRight, Eye, EyeOff, ImagePlus, Lock, Music, Play, Star, Trash2, Undo2, Upload } from 'lucide-react';
-import { lazy, Suspense, useEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
+import { lazy, Suspense, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 
 import { InlineError } from '@/components/ui/form';
 import { Spinner } from '@/components/ui/Spinner';
@@ -25,30 +25,18 @@ import {
 } from '@/lib/api/dashboardQueries';
 import { cn } from '@/lib/utils';
 
+import { assetKind, AssetThumbnail } from './AssetThumbnail';
 import { useConfirmPress } from './tagDirectory';
 
 
-// staff's "why is this removed" step, only fetched once staff remove something: the directory's cards use this file too,
-// and nobody else ever sees it
+// staff's "why is this removed" step, only fetched once staff remove something: everyone who opens a tag gets this file
+// too, and nobody else ever sees it
 const RemovalConfirm = lazy(async () => ({default: (await import('@/pages/dashboard/admin/removalReason')).RemovalConfirm}));
 
 
 // A listing's assets (`TagDirectoryAssets`): images, videos and audio, in order, the first is the cover on the directory.
 // The owner can only change them while verification is pending, so staff review them with the listing; the public
-// directory only gets them once it's verified.
-
-type AssetKind = 'image' | 'video' | 'audio';
-
-export function assetKind(asset: TagDirectoryAsset): AssetKind {
-  const { mimetype } = asset.metadata;
-  if (mimetype.startsWith('video/')) {
-    return 'video';
-  }
-  if (mimetype.startsWith('audio/')) {
-    return 'audio';
-  }
-  return 'image';
-}
+// directory only gets them once it's verified. (The cards' own thumbnail is in AssetThumbnail.tsx.)
 
 function formatSize(bytes: number): string {
   return (bytes < 1024 * 1024) ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -56,93 +44,6 @@ function formatSize(bytes: number): string {
 
 function assetLabel(index: number, count: number, tagName: string): string {
   return translate('tag_media.example', {number: index + 1, count, name: tagName});
-}
-
-
-// The card's thumbnail: the listing's own `thumbnail` when it has one, otherwise the first asset, cropped to a small
-// square next to the name so cards with media stay the same height as the ones without (a full-width band made its
-// whole grid row stretch). Audio gets a note icon and NSFW tags a plain tile instead of the media. Video covers play
-// (muted) while `playing`, the card tracks the hover.
-export function AssetThumbnail({ assets, thumbnail, nsfw, playing }: {
-  assets: Array<TagDirectoryAsset>,
-  thumbnail: TagDirectoryThumbnail | null,
-  nsfw: boolean,
-  playing: boolean,
-}) {
-  const { t } = useI18n();
-  if (thumbnail) {
-    return (
-      <div className='relative size-16 shrink-0 overflow-hidden rounded-md border border-line bg-deep'>
-        {(nsfw) ? (
-          <div className='flex size-full items-center justify-center text-subtle' title={t('tag_media.nsfw_title')}>
-            <EyeOff aria-hidden className='size-5'/>
-          </div>
-        ) : (
-          <img src={thumbnail.urls.cdn} alt='' loading='lazy' decoding='async' className='size-full object-cover'/>
-        )}
-        {(assets.length) ? (
-          <span className='pointer-events-none absolute right-1 bottom-1 rounded bg-black/70 px-1 text-[10px] leading-4 font-medium text-white tabular-nums'>
-            +{assets.length}
-          </span>
-        ) : null}
-      </div>
-    );
-  }
-
-  const cover = assets[0];
-  if (!cover) {
-    return null;
-  }
-  const kind = assetKind(cover);
-  return (
-    <div className='relative size-16 shrink-0 overflow-hidden rounded-md border border-line bg-deep'>
-      {(nsfw || kind === 'audio') ? (
-        <div className='flex size-full items-center justify-center text-subtle' title={(nsfw) ? t('tag_media.nsfw_title') : undefined}>
-          {(nsfw) ? <EyeOff aria-hidden className='size-5'/> : <Music aria-hidden className='size-5'/>}
-        </div>
-      ) : (kind === 'video') ? (
-        <CoverVideo src={cover.urls.cdn} playing={playing}/>
-      ) : (
-        <img
-          src={cover.urls.cdn}
-          alt=''
-          loading='lazy'
-          decoding='async'
-          width={cover.metadata.width || undefined}
-          height={cover.metadata.height || undefined}
-          className='size-full object-cover'
-        />
-      )}
-      {(kind === 'video' && !nsfw) ? (
-        <span className='pointer-events-none absolute bottom-1 left-1 grid size-4 place-items-center rounded-full bg-black/70 text-white'>
-          <Play aria-hidden className='size-2.5 fill-current'/>
-        </span>
-      ) : null}
-      {(1 < assets.length) ? (
-        <span className='pointer-events-none absolute right-1 bottom-1 rounded bg-black/70 px-1 text-[10px] leading-4 font-medium text-white tabular-nums'>
-          +{assets.length - 1}
-        </span>
-      ) : null}
-    </div>
-  );
-}
-
-function CoverVideo({ src, playing }: {src: string, playing: boolean}) {
-  const ref = useRef<HTMLVideoElement>(null);
-  useEffect(() => {
-    const video = ref.current;
-    if (!video) {
-      return;
-    }
-    if (playing) {
-      // autoplay can still be refused (data saver, etc), the first frame stays up
-      video.play().catch(() => undefined);
-    } else {
-      video.pause();
-    }
-  }, [playing]);
-  // `preload='metadata'` shows the first frame without downloading the whole thing
-  return <video ref={ref} src={src} muted loop playsInline preload='metadata' aria-hidden className='size-full object-cover'/>;
 }
 
 

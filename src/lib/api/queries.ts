@@ -141,13 +141,14 @@ export function useCommandStatsQuery(days = 7) {
 }
 
 
-// the status page polls every 5s (clusters report about every 15s); other pages (home stats) just read it once: the
+// the status page polls every 15s, which is about how often a cluster reports (the response is 86 KB, at 5s that was
+// ~1 MB a minute for the same data three times); other pages (home stats) just read it once: the
 // response is 86 KB for two rounded totals there, so coming back to the tab doesn't fetch it again
 export function useInfoDiscordQuery({ poll = true }: {poll?: boolean} = {}) {
   return useQuery({
     queryKey: queryKeys.infoDiscord,
     queryFn: ({ signal }) => api.fetchInfoDiscord(signal),
-    refetchInterval: (poll) ? 5000 : false,
+    refetchInterval: (poll) ? 15_000 : false,
     staleTime: (poll) ? 0 : 10 * 60 * 1000,
     refetchOnWindowFocus: poll,
     refetchIntervalInBackground: false,

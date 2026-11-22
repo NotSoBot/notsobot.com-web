@@ -141,10 +141,28 @@ function HomeLink() {
   const [ effect, setEffect ] = useState<string | null>(null);
   const lastEffect = useRef<string | undefined>(undefined);
 
+  // whether a mouse (or pen) has moved on the page yet. touch devices never hover the logo, and most visits never reach
+  // it, so nothing is fetched for them
+  const [ pointerSeen, setPointerSeen ] = useState(false);
+  useEffect(() => {
+    if (pointerSeen) {
+      return;
+    }
+    const onPointerMove = (event: PointerEvent) => {
+      if (event.pointerType !== 'touch') {
+        setPointerSeen(true);
+      }
+    };
+    window.addEventListener('pointermove', onPointerMove, {passive: true});
+    return () => window.removeEventListener('pointermove', onPointerMove);
+  }, [pointerSeen]);
+
   // load the upcoming effect ahead of time so the hover swap doesn't flash empty
   useEffect(() => {
-    new Image().src = peekLogoEffect(lastEffect.current);
-  }, [effect]);
+    if (pointerSeen) {
+      new Image().src = peekLogoEffect(lastEffect.current);
+    }
+  }, [effect, pointerSeen]);
 
   return (
     <Link

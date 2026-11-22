@@ -1,5 +1,5 @@
 import { Search, TriangleAlert } from 'lucide-react';
-import { useCallback, useId, useMemo, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 
 import { stripMarkdown } from '@/components/ui/Markdown';
@@ -20,8 +20,8 @@ import {
 import { useTagDirectoryQuery } from '@/lib/api/queries';
 import { cn, formatDate } from '@/lib/utils';
 
-import { TagDetailModal } from './TagDetailModal';
-import { AssetThumbnail } from './TagMedia';
+import { AssetThumbnail } from './AssetThumbnail';
+import { preloadTagDetail, TagDetailModal } from './TagDetailModal';
 import { AddTagButton, CategoryBadge, categoryOptionFromParam, NsfwBadge, TAG_DIRECTORY_CATEGORY_OPTIONS, tagDirectoryItemPath, VerificationBadge } from './tagDirectory';
 
 
@@ -113,6 +113,22 @@ export function TagDirectoryPage() {
   }, [navigate, openedHere, location.search]);
 
   const tagIndex = (tagId) ? items.findIndex((item) => item.id === tagId) : -1;
+
+  // What a tag's modal shows isn't part of this page's code (see TagDetailModal.tsx). It's fetched once the list is up
+  // and the browser has a moment, so it's there before anyone opens a tag; the cards ask for it too, for whoever is
+  // quicker than that. Safari has no `requestIdleCallback`
+  const listed = !!items.length;
+  useEffect(() => {
+    if (!listed) {
+      return;
+    }
+    if (typeof window.requestIdleCallback === 'function') {
+      const handle = window.requestIdleCallback(() => preloadTagDetail(), {timeout: 3000});
+      return () => window.cancelIdleCallback(handle);
+    }
+    const timer = window.setTimeout(preloadTagDetail, 1000);
+    return () => window.clearTimeout(timer);
+  }, [listed]);
 
   const updateParams = (updates: Record<string, string | null>) => {
     setSearchParams((previous) => {
@@ -274,8 +290,16 @@ function TagCard({ item, search, period }: {item: TagDirectoryItem, search: stri
   return (
     <li
       className='group relative flex flex-col rounded-lg border border-line bg-surface transition-colors hover:border-brand'
-      onPointerEnter={(event) => event.pointerType === 'mouse' && setHovered(true)}
+      onPointerEnter={(event) => {
+        preloadTagDetail();
+        if (event.pointerType === 'mouse') {
+          setHovered(true);
+        }
+      }}
       onPointerLeave={() => setHovered(false)}
+      // about to be opened: a pointer over the card, the keyboard on its link or button, a finger on it
+      onFocus={preloadTagDetail}
+      onTouchStart={preloadTagDetail}
     >
       <div className='flex flex-1 flex-col p-4'>
         <div className='mb-3 flex items-start gap-3'>

@@ -1,33 +1,55 @@
-import { AlertTriangle, BarChart3, Calendar, Server, Tag as TagIcon, type LucideIcon } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
-import { Link } from 'react-router';
+import { AlertTriangle } from 'lucide-react';
+import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 
 import { useAuth } from '@/auth';
-import { ReportButton } from '@/components/reports/ReportButton';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { CopyButton } from '@/components/ui/CopyButton';
 import { ModalFooter } from '@/components/ui/DetailModal';
-import { Markdown } from '@/components/ui/Markdown';
 import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
-import { UserAvatar } from '@/components/ui/UserAvatar';
 import { config } from '@/config';
 import { useArrowKeyNavigation } from '@/hooks/useArrowKeyNavigation';
 import { useI18n } from '@/i18n';
-import { TagDirectoryVerificationStates, type TagDirectoryItem } from '@/lib/api';
-import { useAdminTagDirectoryItemQuery, useMeTagDirectoryQuery } from '@/lib/api/dashboardQueries';
+import type { TagDirectoryItem } from '@/lib/api';
 import { useTagDirectoryItemQuery } from '@/lib/api/queries';
-import { Routes } from '@/routes';
-import { adminTagsPath } from '@/lib/adminPaths';
-import { userDisplayTag } from '@/lib/discord';
-import { cn, formatDate, formatDateTime, formatNumber } from '@/lib/utils';
 
-import { AddTagButton, categoryLabel, NsfwBadge, verificationInfo } from './tagDirectory';
-import { HiddenContentSection, ListingEditForm, ManageListingCard, TagServersSection, useListingAccess } from './TagListingManager';
-import { MediaSection, ThumbnailManager, type MediaManage } from './TagMedia';
+import { AddTagButton, preloadAddTagDialog } from './tagDirectory';
 
 
 const TITLE_ID = 'tag-modal-title';
+
+// The tag itself (TagDetail.tsx: its media, the owner's and staff's tools, and the dashboard's queries with them) is
+// most of the directory's code and the list needs none of it, so it's a file of its own, fetched when a tag is about to
+// be opened. This frame stays with the list: the modal opens, closes and asks for the tag exactly as it always did, and
+// shows its loading state until that file is in as well.
+type TagDetailComponent = typeof import('./TagDetail')['TagDetail'];
+
+let tagDetailLoad: Promise<{default: TagDetailComponent}> | null = null;
+// set once the file is in. A modal opened after that renders it directly: `lazy` shows its fallback for a moment the
+// first time it's rendered, even when the file is already here
+let loadedTagDetail: TagDetailComponent | null = null;
+
+function loadTagDetail(): Promise<{default: TagDetailComponent}> {
+  tagDetailLoad ??= import('./TagDetail').then(({ TagDetail }) => {
+    loadedTagDetail = TagDetail;
+    return {default: TagDetail};
+  }, (error: unknown) => {
+    // a failed fetch isn't kept, the next call tries again
+    tagDetailLoad = null;
+    throw error;
+  });
+  return tagDetailLoad;
+}
+
+const LazyTagDetail = lazy(loadTagDetail);
+
+// Fetches the tag's code (and the add dialog's, its footer has the button) ahead of the click. The directory calls it
+// when a card is pointed at, focused or touched and once the list is up and the browser is idle; the modal calls it as
+// it opens, so a shared link fetches the code alongside the tag. Does nothing once it's been asked for. Only called from
+// events and effects: this file is in the worker's bundle too, and nothing here may run while it renders
+export function preloadTagDetail(): void {
+  preloadAddTagDialog();
+  loadTagDetail().catch(() => undefined);
+}
 
 
 export function TagDetailModal({ tagId, initialItem, previousId, nextId, onNavigate, onClose }: {
@@ -52,6 +74,12 @@ export function TagDetailModal({ tagId, initialItem, previousId, nextId, onNavig
   // a save in flight holds closing and stepping: leaving would unmount the form, and a failed save's error with it
   const [ saving, setSaving ] = useState(false);
   const held = editing && saving;
+
+  // picked as the modal opens and kept while it's up: swapping one for the other under an open tag would remount it
+  const [ TagDetail ] = useState<TagDetailComponent | typeof LazyTagDetail>(() => loadedTagDetail ?? LazyTagDetail);
+  // on a shared link there's no tag to render yet, so nothing has asked for the file: asked for here, it loads alongside
+  // the tag instead of after it
+  useEffect(preloadTagDetail, []);
 
   // ← / → step through the tags loaded behind the modal (ignored while typing, editing the listing, or with a dialog open over it)
   useArrowKeyNavigation({previousId, nextId, onNavigate, disabled: editing});
@@ -84,10 +112,7 @@ export function TagDetailModal({ tagId, initialItem, previousId, nextId, onNavig
   return (
     <Modal labelledBy={TITLE_ID} onClose={() => requestLeave(null)} stickyClose>
       {(isPending) ? (
-        <div className='flex h-80 items-center justify-center'>
-          <h2 id={TITLE_ID} className='sr-only'>{t('tags.detail.loading')}</h2>
-          <Spinner/>
-        </div>
+        <TagLoading/>
       ) : (isError && !item) ? (
         // only when there's nothing to show: a failed background refetch keeps the tag (and an open edit form) up
         <TagMessage title={t('tags.detail.load_error_title')} description={t('tags.detail.load_error_description')}>
@@ -96,16 +121,20 @@ export function TagDetailModal({ tagId, initialItem, previousId, nextId, onNavig
       ) : (!item) ? (
         <TagMessage title={t('tags.detail.not_found_title')} description={t('tags.detail.not_found_description')}/>
       ) : (
-        // keyed on the tag so a dialog opened from it (adding, reporting, ownership checks) never carries its state over to the next one.
-        // a save that finishes after another tag was stepped to only closes its own form, not the one open by then
-        <TagDetail
-          key={tagId}
-          item={item}
-          editing={editing}
-          onEditingChange={(value) => setEditingId((current) => (value) ? tagId : (current === tagId) ? null : current)}
-          onDirtyChange={setDirty}
-          onSavingChange={setSaving}
-        />
+        // the same loading state while its code is on the way (a shared link, someone quicker than the preload)
+        <Suspense fallback={<TagLoading/>}>
+          {/* keyed on the tag so a dialog opened from it (adding, reporting, ownership checks) never carries its state over to the next one.
+              a save that finishes after another tag was stepped to only closes its own form, not the one open by then */}
+          <TagDetail
+            key={tagId}
+            titleId={TITLE_ID}
+            item={item}
+            editing={editing}
+            onEditingChange={(value) => setEditingId((current) => (value) ? tagId : (current === tagId) ? null : current)}
+            onDirtyChange={setDirty}
+            onSavingChange={setSaving}
+          />
+        </Suspense>
       )}
 
       {/* stays at the bottom of the window, so adding the tag and the next one are always a tap away. Without a tag
@@ -131,225 +160,14 @@ export function TagDetailModal({ tagId, initialItem, previousId, nextId, onNavig
 }
 
 
-function TagDetail({ item, editing, onEditingChange, onDirtyChange, onSavingChange }: {
-  item: TagDirectoryItem,
-  editing: boolean,
-  onEditingChange: (editing: boolean) => void,
-  // whether the listing form has unsaved edits
-  onDirtyChange: (dirty: boolean) => void,
-  // whether it's saving them right now
-  onSavingChange: (saving: boolean) => void,
-}) {
-  const { t, rich } = useI18n();
-  const { tag } = item;
-  const verification = verificationInfo(item.verified);
-  const access = useListingAccess(item);
-  const canManage = access.owner || access.staff;
-  // the public listing only has its media once it's verified, the owner and staff see it before that
-  const own = useMeTagDirectoryQuery(item.id, {enabled: access.owner && !access.staff});
-  const admin = useAdminTagDirectoryItemQuery(item.id, {enabled: access.staff});
-  const privateItem = (access.staff) ? admin.data : (access.owner) ? own.data : undefined;
-  const assets = privateItem?.assets ?? item.assets;
-  // staff change the media through the admin routes, whatever the verification state; owners only while it's pending
-  const staffManage: MediaManage | undefined = (access.staff && admin.data) ? {tagId: item.id, verified: admin.data.verified, staff: true} : undefined;
-
+// until there's a tag to show: its request is still out, or the code that draws it is
+function TagLoading() {
+  const { t } = useI18n();
   return (
-    <>
-      <header className='rounded-t-xl border-b border-line bg-surface px-6 pt-6 pb-5 sm:pr-14'>
-        {/* clear of the close button; on wider screens the whole header is */}
-        <div className='flex flex-wrap items-center gap-2 pr-8 sm:pr-0'>
-          <h2 id={TITLE_ID} className='text-2xl font-bold break-words text-white sm:text-3xl'>{tag.name}</h2>
-          {(tag.nsfw) ? <NsfwBadge/> : null}
-        </div>
-        {(item.title) ? <p className='mt-1 text-muted'>{item.title}</p> : null}
-        {/* one quiet line instead of a row of pills */}
-        <p className='mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm'>
-          {/* verified stands out as a solid pill, the other states stay plain text */}
-          <span
-            title={verification.description}
-            className={cn(
-              'inline-flex items-center gap-1.5 font-medium',
-              (item.verified === TagDirectoryVerificationStates.VERIFIED) ?
-                'rounded-full bg-success px-2.5 py-0.5 text-white shadow-sm' :
-                verification.textClassName,
-            )}
-          >
-            <verification.icon aria-hidden className='size-4'/>
-            {verification.label}
-          </span>
-          <span aria-hidden className='text-subtle'>•</span>
-          <span className='inline-flex items-center gap-1.5 text-muted'>
-            <TagIcon aria-hidden className='size-4 text-subtle'/>
-            {categoryLabel(item.category)}
-          </span>
-        </p>
-      </header>
-
-      <div className='grid gap-6 p-6 md:grid-cols-[minmax(0,1fr)_280px]'>
-        <div className='min-w-0 space-y-5'>
-          <div className='rounded-lg bg-deep p-4'>
-            <p className='text-sm text-muted'>{verification.description}</p>
-          </div>
-
-          {(editing && canManage) ? (
-            <>
-              {/* the media saves as it goes (it isn't part of the form's save). Staff can always change it, and get it above
-                  the content they're editing; the owner only while it's pending: a verified listing's media changes through
-                  a change request, which lives in the dashboard */}
-              <ListingEditForm
-                item={item}
-                access={access}
-                media={(staffManage && admin.data) ? (
-                  <div className='space-y-5 rounded-md border border-line bg-deep p-4'>
-                    <section>
-                      <h3 className='mb-1 font-semibold text-white'>{t('tags.detail.thumbnail')}</h3>
-                      <p className='mb-3 text-sm text-muted'>{t('tags.detail.thumbnail_description')}</p>
-                      <ThumbnailManager assets={admin.data.assets} thumbnail={admin.data.thumbnail ?? null} manage={staffManage}/>
-                    </section>
-                    <div className='border-t border-line pt-5'>
-                      <MediaSection
-                        key={item.id}
-                        assets={admin.data.assets}
-                        nsfw={false}
-                        tagName={tag.name}
-                        manage={staffManage}
-                        headingClassName='font-semibold text-white'
-                      />
-                    </div>
-                  </div>
-                ) : undefined}
-                onDone={() => onEditingChange(false)}
-                onDirtyChange={onDirtyChange}
-                onSavingChange={onSavingChange}
-              />
-              {(staffManage) ? null : (access.owner && own.data && own.data.verified === TagDirectoryVerificationStates.VERIFIED) ? (
-                <p className='rounded-lg border border-line bg-surface p-4 text-sm text-muted'>
-                  {rich('tags.detail.locked', {link: (chunk) => (
-                    <Link to={`${Routes.DASHBOARD_TAG_EDIT.replace(':tagId', item.id)}?tab=directory`} className='text-brand-text hover:underline'>{chunk}</Link>
-                  )})}
-                </p>
-              ) : (access.owner && own.data) ? (
-                <div className='space-y-5 rounded-lg border border-line bg-surface p-4'>
-                  <section>
-                    <h3 className='mb-1 font-semibold text-white'>{t('tags.detail.thumbnail')}</h3>
-                    <p className='mb-3 text-sm text-muted'>{t('tags.detail.thumbnail_description')}</p>
-                    <ThumbnailManager
-                      assets={own.data.assets}
-                      thumbnail={own.data.thumbnail}
-                      manage={{tagId: item.id, verified: own.data.verified}}
-                    />
-                  </section>
-                  <div className='border-t border-line pt-5'>
-                    <MediaSection
-                      key={item.id}
-                      assets={own.data.assets}
-                      nsfw={false}
-                      tagName={tag.name}
-                      manage={{tagId: item.id, verified: own.data.verified}}
-                      headingClassName='font-semibold text-white'
-                    />
-                  </div>
-                </div>
-              ) : null}
-            </>
-          ) : (
-            <>
-              {(item.description) ? (
-                <section>
-                  <h3 className='section-label mb-2'>{t('tags.detail.description')}</h3>
-                  <Markdown text={item.description} className='text-white'/>
-                </section>
-              ) : null}
-
-              <MediaSection
-                key={item.id}
-                assets={assets}
-                nsfw={tag.nsfw}
-                tagName={tag.name}
-                manage={(!access.owner) ? undefined : (access.staff) ? staffManage : {tagId: item.id, verified: own.data?.verified ?? item.verified}}
-              />
-
-              {/* only filled in when the owner chose to show it */}
-              {(item.content_public && tag.content) ? (
-                <section>
-                  <div className='mb-1 flex min-h-8 items-center justify-between gap-2'>
-                    <h3 className='section-label'>{t('tags.detail.content')}</h3>
-                    <CopyButton value={tag.content} label={t('common.copy')}/>
-                  </div>
-                  <pre className='max-h-96 overflow-auto rounded-md border border-line bg-deep p-3 font-mono text-sm whitespace-pre-wrap break-words text-fg'>{tag.content}</pre>
-                </section>
-              ) : null}
-
-              {/* the owner and staff still see hidden content, with a note that nobody else can */}
-              <HiddenContentSection item={item} access={access}/>
-            </>
-          )}
-
-          {/* the date gets the full width under the two counts on phones, three across doesn't fit it there */}
-          <div className='grid grid-cols-2 gap-3 sm:grid-cols-3'>
-            <StatTile icon={BarChart3} label={t('tags.detail.uses')}><span className='text-2xl font-bold'>{formatNumber(tag.uses)}</span></StatTile>
-            <StatTile icon={Server} label={t('tags.detail.servers')}><span className='text-2xl font-bold'>{formatNumber(item.server_count)}</span></StatTile>
-            <StatTile icon={Calendar} label={t('tags.detail.listed')} className='col-span-2 sm:col-span-1'>
-              <span className='text-sm font-medium'>{formatDate(item.created)}</span>
-            </StatTile>
-          </div>
-
-          {/* who added it, the owner and staff only */}
-          <TagServersSection item={item} access={access}/>
-
-          <section>
-            <h3 className='section-label mb-1'>{t('tags.detail.information')}</h3>
-            <dl className='divide-y divide-line'>
-              <InfoRow label={t('tags.detail.created')}>{formatDateTime(tag.created)}</InfoRow>
-              {(tag.edited) ? <InfoRow label={t('tags.detail.last_edited')}>{formatDateTime(tag.edited)}</InfoRow> : null}
-              {(tag.last_used) ? <InfoRow label={t('tags.detail.last_used')}>{formatDateTime(tag.last_used)}</InfoRow> : null}
-              {/* only worth a row when they apply */}
-              {(tag.locked) ? <InfoRow label={t('tags.detail.is_locked')}>{t('common.yes')}</InfoRow> : null}
-              {(tag.is_command) ? <InfoRow label={t('tags.detail.command_tag')}>{t('common.yes')}</InfoRow> : null}
-              {(tag.reference_tag) ? <InfoRow label={t('tags.detail.alias_of')}>{tag.reference_tag.name}</InfoRow> : null}
-              <InfoRow label={t('tags.detail.tag_id')}>
-                <span className='flex items-center justify-end gap-1'>
-                  {/* staff jump straight to the tag in the admin panel */}
-                  {(access.staff) ? (
-                    <Link
-                      to={adminTagsPath(`id:${item.id}`)}
-                      title={t('tags.detail.open_admin')}
-                      className='font-mono underline-offset-2 hover:text-brand-text hover:underline'
-                    >
-                      {item.id}
-                    </Link>
-                  ) : (
-                    <span className='font-mono select-all'>{item.id}</span>
-                  )}
-                  <CopyButton value={item.id}/>
-                </span>
-              </InfoRow>
-            </dl>
-          </section>
-        </div>
-
-        <aside className='space-y-4'>
-          <ManageListingCard item={item} access={access} editing={editing} onEdit={() => onEditingChange(true)}/>
-          <section className='card p-5'>
-            <h3 className='section-label mb-4'>{t('tags.detail.created_by')}</h3>
-            <div className='flex items-center gap-3'>
-              <UserAvatar user={tag.user} size={128} className='size-14 shrink-0 rounded-full bg-surface-3'/>
-              <div className='min-w-0'>
-                <div className='flex items-center gap-2'>
-                  <span className='truncate font-medium text-white'>{userDisplayTag(tag.user)}</span>
-                  {(tag.user.bot) ? <span className='rounded bg-brand px-1.5 py-0.5 text-[10px] font-medium text-white'>{t('tags.detail.bot')}</span> : null}
-                </div>
-                <p className='truncate font-mono text-xs text-subtle'>{tag.user.id}</p>
-              </div>
-            </div>
-          </section>
-          {/* the owner can't report their own tag */}
-          {(access.owner) ? null : (
-            <ReportButton subject={{type: 'tag', tag}} className='btn btn-ghost w-full justify-center text-sm hover:text-danger-text'/>
-          )}
-        </aside>
-      </div>
-    </>
+    <div className='flex h-80 items-center justify-center'>
+      <h2 id={TITLE_ID} className='sr-only'>{t('tags.detail.loading')}</h2>
+      <Spinner/>
+    </div>
   );
 }
 
@@ -361,29 +179,6 @@ function TagMessage({ title, description, children }: {title: string, descriptio
       <h2 id={TITLE_ID} className='mb-3 text-2xl font-bold text-white'>{title}</h2>
       <p className='mb-6 text-muted'>{description}</p>
       {children}
-    </div>
-  );
-}
-
-
-function StatTile({ icon: Icon, label, className, children }: {icon: LucideIcon, label: string, className?: string, children: ReactNode}) {
-  return (
-    <div className={cn('min-w-0 rounded-lg bg-deep p-4', className)}>
-      <div className='mb-2 flex items-center gap-2 text-muted'>
-        <Icon className='size-4'/>
-        <span className='text-xs'>{label}</span>
-      </div>
-      <div className='text-white tabular-nums'>{children}</div>
-    </div>
-  );
-}
-
-
-function InfoRow({ label, children }: {label: string, children: ReactNode}) {
-  return (
-    <div className='flex items-start justify-between gap-4 py-2.5 text-sm'>
-      <dt className='text-muted'>{label}</dt>
-      <dd className='text-right text-white'>{children}</dd>
     </div>
   );
 }

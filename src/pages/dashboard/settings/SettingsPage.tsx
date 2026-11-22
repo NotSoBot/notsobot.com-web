@@ -197,6 +197,7 @@ function SectionForm({ id, title, description, accent, section, children }: {
 
 function AiSection({ settings, onDirtyChange }: SectionProps) {
   const { t, rich } = useI18n();
+  const { user } = useAuth();
   const section = useSettingsSection('settings.ai.title', settings, ['ml_llm_personality', 'ml_llm_model', 'ml_diffusion_model'], onDirtyChange);
   const personality = section.values.ml_llm_personality ?? '';
   return (
@@ -220,9 +221,12 @@ function AiSection({ settings, onDirtyChange }: SectionProps) {
           />
         )}
       </Field>
-      <Field label={t('settings.ai.model')}>
-        {(props) => <ChoiceSelect {...props} noneLabel={t('settings.default')} choices={LLM_MODEL_CHOICES} value={section.values.ml_llm_model} onChange={(value) => section.set('ml_llm_model', value)}/>}
-      </Field>
+      {/* the api answers everyone else with the default model for now (`generate_tag_content`), the setting does nothing for them */}
+      {(isOwner(user)) ? (
+        <Field label={t('settings.ai.model')}>
+          {(props) => <ChoiceSelect {...props} noneLabel={t('settings.default')} choices={LLM_MODEL_CHOICES} value={section.values.ml_llm_model} onChange={(value) => section.set('ml_llm_model', value)}/>}
+        </Field>
+      ) : null}
       <Field label={t('settings.ai.image_model')} hint={t('settings.ai.image_model_hint')}>
         {(props) => <ChoiceSelect {...props} noneLabel={t('settings.default')} choices={DIFFUSION_MODEL_CHOICES} value={section.values.ml_diffusion_model} onChange={(value) => section.set('ml_diffusion_model', value)}/>}
       </Field>

@@ -1,5 +1,5 @@
 import { AlertTriangle, Check, Eye, PencilLine, Plus, Shield, type LucideIcon } from 'lucide-react';
-import { useEffect, useRef, useState, type ComponentProps } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type ComponentProps } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router';
 
@@ -10,7 +10,29 @@ import { translate, useI18n, type TranslationKey } from '@/i18n';
 import { TagDirectoryCategories, TagDirectoryVerificationStates, type Tag, type TagDirectoryCategory } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
-import { AddTagDialog } from './AddTagDialog';
+
+// the dialog brings the dashboard's queries with it, and every card on the directory has its button: it's only fetched
+// when someone is about to add a tag (`preloadAddTagDialog`), not with the list
+type AddTagDialogComponent = typeof import('./AddTagDialog')['AddTagDialog'];
+
+let addTagDialogLoad: Promise<{default: AddTagDialogComponent}> | null = null;
+
+function loadAddTagDialog(): Promise<{default: AddTagDialogComponent}> {
+  addTagDialogLoad ??= import('./AddTagDialog').then(({ AddTagDialog }) => ({default: AddTagDialog}), (error: unknown) => {
+    // a failed fetch isn't kept, the next call tries again
+    addTagDialogLoad = null;
+    throw error;
+  });
+  return addTagDialogLoad;
+}
+
+const AddTagDialog = lazy(loadAddTagDialog);
+
+// fetches the dialog's code ahead of the click (the button asks when it's pointed at, focused or touched, the directory
+// once it's idle); does nothing once it's been asked for. Only called from events and effects, never while rendering
+export function preloadAddTagDialog(): void {
+  loadAddTagDialog().catch(() => undefined);
+}
 
 
 export function tagDirectoryItemPath(id: string): string {
@@ -308,6 +330,9 @@ export function AddTagButton({ tag, verified, size = 'sm', openFromUrl = false }
       <button
         type='button'
         onClick={onClick}
+        onPointerEnter={preloadAddTagDialog}
+        onFocus={preloadAddTagDialog}
+        onTouchStart={preloadAddTagDialog}
         // not `disabled`: it keeps the focus for the moment the check takes, and looks the part
         aria-disabled={checking || undefined}
         title={t((isAuthenticated) ? 'tags.add_title' : 'tags.add_login')}
@@ -320,7 +345,13 @@ export function AddTagButton({ tag, verified, size = 'sm', openFromUrl = false }
         <Plus className='size-4'/>
         {t((size === 'sm') ? 'common.add' : (status === 'anonymous') ? 'tags.login_to_add' : 'tags.add_tag')}
       </button>
-      {(open) ? createPortal(<AddTagDialog tag={tag} verified={verified} onClose={() => setOpen(false)}/>, document.body) : null}
+      {/* nothing while its code loads, like the report dialog: it's normally in before the click */}
+      {(open) ? createPortal(
+        <Suspense fallback={null}>
+          <AddTagDialog tag={tag} verified={verified} onClose={() => setOpen(false)}/>
+        </Suspense>,
+        document.body,
+      ) : null}
     </>
   );
 }

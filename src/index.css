@@ -132,8 +132,9 @@
   .btn-danger {
     @apply bg-danger text-white hover:bg-[#c03537];
   }
+  /* 36px tall on phones, where it's pressed with a finger */
   .btn-sm {
-    @apply px-3 py-1.5 text-xs;
+    @apply px-3 py-1.5 text-xs max-sm:min-h-9;
   }
 
   /* form controls (dashboard) */
