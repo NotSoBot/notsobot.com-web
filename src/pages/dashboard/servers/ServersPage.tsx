@@ -3,12 +3,13 @@ import { useEffect, useMemo } from 'react';
 import { Link } from 'react-router';
 
 import { useAuth } from '@/auth';
+import { BotInviteLink } from '@/components/BotInviteLink';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { useToast } from '@/components/ui/Toast';
 import { readStored, writeStored } from '@/hooks/usePersistentState';
 import { useSearchParamState } from '@/hooks/useSearchParamState';
 import { translate, useI18n, type TranslationKey } from '@/i18n';
-import { botInviteUrl, type UserGuildSummary } from '@/lib/api';
+import type { UserGuildSummary } from '@/lib/api';
 import {
   errorMessage,
   isDiscordGrantError,
@@ -130,7 +131,7 @@ export function ServersPage() {
         <ErrorPanel title={t('servers.load_error')} message={errorMessage(error)} onRetry={() => refetch()} retrying={isRefetching}/>
       ) : (!guilds.length && !addable.length) ? (
         <EmptyState icon={<Server className='size-10'/>} title={t('servers.empty')}>
-          <a href={botInviteUrl(null, 'dash-servers')} className='mt-3 inline-flex btn btn-discord'>{t('servers.add')}</a>
+          <BotInviteLink source='dash-servers' className='mt-3 inline-flex btn btn-discord'>{t('servers.add')}</BotInviteLink>
         </EmptyState>
       ) : (
         <>
@@ -223,8 +224,9 @@ function AddServerCard({ guild }: {guild: UserGuildSummary}) {
   const { t } = useI18n();
   return (
     <li>
-      <a
-        href={botInviteUrl(guild.id, 'dash-server')}
+      <BotInviteLink
+        guildId={guild.id}
+        source='dash-server'
         className='group card card-hover flex h-full items-center gap-3 p-4 hover:border-line-strong'
         aria-label={t('servers.add_to_label', {name: guild.name})}
       >
@@ -240,7 +242,7 @@ function AddServerCard({ guild }: {guild: UserGuildSummary}) {
           <Plus aria-hidden className='size-3.5'/>
           {t('servers.add_to')}
         </span>
-      </a>
+      </BotInviteLink>
     </li>
   );
 }

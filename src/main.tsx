@@ -11,10 +11,14 @@ import type { HydrationState } from 'react-router';
 
 import { AuthProvider } from '@/auth';
 import { activeLanguage, I18nProvider, initI18n, splitLanguagePath } from '@/i18n';
+import { installAnalyticsHook } from '@/lib/analytics';
 import { ApiRequestError } from '@/lib/api';
 import { reloadForNewBuild } from '@/lib/chunkReload';
 import { preloadPage } from '@/lib/pagePreload';
 import { createRouter, HYDRATION_DATA_ID, loadRouteModules } from '@/router';
+
+
+installAnalyticsHook();
 
 
 // a lazy chunk from an older deploy failed to load (see chunkReload.ts)

@@ -2,6 +2,7 @@ import { ArrowRight, RefreshCw, Sparkles, Upload, Wand2, type LucideIcon } from 
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
 
+import { BotInviteLink } from '@/components/BotInviteLink';
 import { ImageComparison } from '@/components/ui/ImageComparison';
 import { PrefixSunsetNotice } from '@/components/ui/PrefixSunsetNotice';
 import { QuarantineNotice, useQuarantineNoticeDismissed } from '@/components/ui/QuarantineNotice';
@@ -10,7 +11,7 @@ import { Segmented } from '@/components/ui/Segmented';
 import { Routes } from '@/config';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useI18n } from '@/i18n';
-import { botInviteUrl, CommandMediaTypes, CommandTypes, type Command, type CommandMedia } from '@/lib/api';
+import { CommandMediaTypes, CommandTypes, type Command, type CommandMedia } from '@/lib/api';
 import { useCommandsQuery, useInfoDiscordQuery } from '@/lib/api/queries';
 import { enabledCommandVariants } from '@/lib/commandAvailability';
 import { compareCommandTypes } from '@/lib/commandPaths';
@@ -149,10 +150,10 @@ export function HomePage() {
             </p>
             <p className='mb-8 text-sm text-muted italic'>{t('home.hero.quote')}</p>
             <div className={cn('flex flex-col items-center justify-center gap-4 sm:flex-row', (hasSlider) && 'lg:justify-start')}>
-              <a href={botInviteUrl(null, 'hero')} className='btn btn-discord btn-lg'>
+              <BotInviteLink source='hero' className='btn btn-discord btn-lg'>
                 {t('common.add_to_discord')}
                 <ArrowRight className='size-5'/>
-              </a>
+              </BotInviteLink>
               <Link to={Routes.COMMANDS} className='btn btn-secondary btn-lg'>
                 {t('home.view_commands')}
               </Link>
@@ -238,10 +239,10 @@ export function HomePage() {
           <p className='mx-auto mb-8 max-w-2xl text-xl text-muted'>
             {t('home.cta.description')}
           </p>
-          <a href={botInviteUrl(null, 'home-bottom')} className='btn btn-discord btn-lg'>
+          <BotInviteLink source='home-bottom' className='btn btn-discord btn-lg'>
             {t('common.add_to_discord')}
             <ArrowRight className='size-5'/>
-          </a>
+          </BotInviteLink>
         </div>
       </section>
     </>

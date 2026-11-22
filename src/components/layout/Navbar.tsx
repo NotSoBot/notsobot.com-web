@@ -3,9 +3,9 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, matchPath, NavLink, useLocation } from 'react-router';
 
 import logo from '@/assets/logos/NotSoLogo.svg';
+import { BotInviteLink } from '@/components/BotInviteLink';
 import { config, Routes } from '@/config';
 import { useI18n } from '@/i18n';
-import { botInviteUrl } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
 import { AuthControls } from './AuthControls';
@@ -125,7 +125,7 @@ export function Navbar() {
               </li>
             ))}
             <li className='pt-2'>
-              <a href={botInviteUrl(null, 'navbar')} className='btn btn-discord w-full'>{t('common.add_to_discord')}</a>
+              <BotInviteLink source='navbar' className='btn btn-discord w-full'>{t('common.add_to_discord')}</BotInviteLink>
             </li>
           </ul>
         </div>

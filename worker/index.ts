@@ -16,6 +16,7 @@ import {
   type TagDirectoryItem,
   type TagDirectoryPage,
 } from '../src/lib/api/types';
+import { ANALYTICS_BEFORE_SEND, SOURCE_PARAM } from '../src/lib/analyticsUrl';
 import { enabledCommandVariants } from '../src/lib/commandAvailability';
 import { commandTypeFromPath, compareCommandTypes } from '../src/lib/commandPaths';
 import { renderApp, type RenderedPage } from '../src/entry-server';
@@ -390,6 +391,8 @@ function tagEmbed(
 
   const addUrl = new URL(languagePath(language, Routes.TAG_DIRECTORY_ITEM.replace(':tagId', item.id)), `https://${env.SITE_DOMAIN}`);
   addUrl.searchParams.set(TAG_ADD_PARAM, TAG_ADD_VALUE);
+  // where the click came from, for analytics (src/lib/analyticsUrl.ts)
+  addUrl.searchParams.set(SOURCE_PARAM, 'embed-tag');
 
   const components: DiscordContainer = {
     type: 17,
@@ -716,7 +719,8 @@ async function renderPage(request: Request, env: Env): Promise<Response> {
   }
   if (env.UMAMI_WEBSITE_ID) {
     // the only place the script is added, src/lib/analytics.ts waits for it (data-website-id) to send its events
-    head += `<script defer data-website-id="${escapeHtml(env.UMAMI_WEBSITE_ID)}" src="${UMAMI_SCRIPT_URL}"></script>`;
+    // `data-before-send` names the function every payload goes through first (src/lib/analyticsUrl.ts)
+    head += `<script defer data-website-id="${escapeHtml(env.UMAMI_WEBSITE_ID)}" data-before-send="${ANALYTICS_BEFORE_SEND}" src="${UMAMI_SCRIPT_URL}"></script>`;
   }
 
   // a page that fails to render still gets the static body, the browser renders it like any other

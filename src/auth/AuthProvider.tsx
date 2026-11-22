@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState, useSyncExternalStore, type R
 
 import { config } from '@/config';
 import { splitLanguagePath } from '@/i18n/languages';
+import { AnalyticsEvents, trackEvent } from '@/lib/analytics';
 import { api, ApiEndpoints, ApiRequestError, apiUrl } from '@/lib/api';
 import { removeStored } from '@/hooks/usePersistentState';
 import { SAVED_GUILDS_KEY, queryKeys } from '@/lib/api/queries';
@@ -68,6 +69,8 @@ export function AuthProvider({ children }: {children: ReactNode}) {
     markLoginPending();
     const scopes = Array.from(new Set([...grantedScopes(), ...(options?.scopes ?? [])]));
     markScopesPending(scopes);
+    // with `LoginDone` (the callback page) it's how many of the people sent to discord come back logged in
+    trackEvent(AnalyticsEvents.LOGIN_START);
     window.location.assign(apiUrl(ApiEndpoints.AUTH_LOGIN, (scopes.length) ? {scopes: scopes.join(',')} : undefined));
   }, []);
 

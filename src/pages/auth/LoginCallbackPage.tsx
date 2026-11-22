@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 
 import { clearReturnTo, consumeLoginPending, peekReturnTo, useAuth } from '@/auth';
@@ -6,6 +6,7 @@ import { FullPageMessage } from '@/components/ui/FullPageMessage';
 import { Spinner } from '@/components/ui/Spinner';
 import { config, Routes } from '@/config';
 import { splitLanguagePath, useI18n } from '@/i18n';
+import { AnalyticsEvents, trackEvent } from '@/lib/analytics';
 
 import { LoginDisabledMessage } from './LoginPage';
 
@@ -30,6 +31,8 @@ export function LoginCallbackPage() {
   const [ returnTo ] = useState(peekReturnTo);
   // only accept a token for a login this tab started (read once, StrictMode renders twice)
   const [ started ] = useState(consumeLoginPending);
+  // the effect below can run again before the page it goes to is up, the login still only happened once
+  const tracked = useRef(false);
 
   useEffect(() => {
     // never leave the token in the address bar / history
@@ -40,6 +43,10 @@ export function LoginCallbackPage() {
       return;
     }
     completeLogin(token);
+    if (!tracked.current) {
+      tracked.current = true;
+      trackEvent(AnalyticsEvents.LOGIN_DONE);
+    }
     clearReturnTo();
     // the page to go back to keeps its language prefix. one without a prefix stays in whatever language this page
     // opened in (picked automatically, like any url without one)
