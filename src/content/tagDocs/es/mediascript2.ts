@@ -203,7 +203,7 @@ export const MEDIASCRIPT_SPANISH_2: TagDocsTranslation['mediaScriptCommands'] = 
     },
   },
   lucia: {
-    summary: 'Crea un aviso de "Play with Lucia" pidiendo el texto, en mayúsculas como en el juego.',
+    summary: 'Crea un aviso de "Play with Lucia" de GTA 6 pidiendo el texto, en mayúsculas como en el juego.',
     args: {
       MEDIA_KEY: NEW_IMAGE,
       TEXT: 'hasta 200 caracteres',

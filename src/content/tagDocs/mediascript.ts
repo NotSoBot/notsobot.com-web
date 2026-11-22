@@ -1455,7 +1455,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
   {
     name: 'lucia',
     category: 'generate',
-    summary: 'Makes a "Play with Lucia" prompt asking for the text, in caps like the game.',
+    summary: 'Makes a "Play with Lucia" prompt from GTA 6 asking for the text, in caps like the game.',
     syntax: 'lucia MEDIA_KEY ...TEXT',
     args: [
       media('the name for the new image'),
@@ -2636,6 +2636,27 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     notes: [
       'With neither a cover nor a color, the bigger eyes and mouth go over the face itself.',
       'The eyes and mouth follow the face through a video\'s frames, so it still talks and blinks.',
+    ],
+  },
+  {
+    name: 'abovehead',
+    aliases: ['faceabove'],
+    category: 'compose',
+    summary: 'Puts an image above people\'s heads, every head or the ones you pick.',
+    syntax: 'abovehead MEDIA_KEY IMAGE_MEDIA_KEY FACES=none SIZE=1',
+    args: [
+      media(),
+      {name: 'IMAGE_MEDIA_KEY', description: 'what floats above the heads (its first frame)'},
+      {name: 'FACES', default: 'none', description: 'the numbers `drawfaces` puts on the faces whose heads get it, split by commas, like `1,0` (every head when left out)'},
+      {name: 'SIZE', default: '1', range: '0.25..3', description: 'how big the image is, in heads'},
+    ],
+    examples: [
+      {code: '{mediascript:load {iv} img\nload {avatar} me\nabovehead img me\nrender img}', result: 'Your avatar above everyone\'s head.'},
+      {code: '{mediascript:load {iv} img\nload {avatar} me\nabovehead img me 1 1.5\nrender img}', result: 'Only face 1 (from `drawfaces`) gets your avatar, a bit bigger.'},
+    ],
+    notes: [
+      'Run it again with another image and other faces to give different people different images.',
+      'When a head is too close to the top the media grows upwards to fit the image, and on GIFs and videos it follows each head.',
     ],
   },
   {

@@ -112,6 +112,19 @@ export const FUNCTIONS_SPANISH_1: TagDocsTranslation['functions'] = {
       'Da un error si la posición no es un número positivo, si no hay ningún dato en esa posición o si los datos juntos pasarían de 1000 caracteres.',
     ],
   },
+  AI_LISTEN_STOP: {
+    summary: 'Termina la conversación de voz de `ai listen` en el servidor actual. Solo NotSoAI puede usar esto.',
+    description: 'NotSoAI lo usa cuando la persona a la que escucha se despide o le pide que deje de escuchar. Deja de escuchar al momento, pero lo que ya está diciendo sigue sonando, así que una despedida hablada termina. Devuelve `true` cuando se detuvo, o `false` cuando no estaba escuchando en este servidor.',
+    results: [
+      '',
+    ],
+    notes: [
+      ONLY_NOTSOAI,
+      'Solo la persona a la que NotSoAI escucha, o un DJ (Gestionar servidor, el rol de DJ o Gestionar canal en el canal de voz del bot), puede detenerlo. Da un error para cualquier otra persona.',
+      'Fuera de un servidor devuelve `false`.',
+      'Escribir `ai listen stop` también lo termina, y además corta lo que NotSoAI está diciendo.',
+    ],
+  },
   AI_MEMORY_ADD: {
     summary: 'Guarda en su memoria un dato sobre la persona que usa NotSoAI. Solo NotSoAI puede usar esto.',
     description: 'El dato se le muestra a NotSoAI en todos los prompts futuros de esa persona. Por defecto se recuerda en todas partes; pasa `server` para recordarlo solo en el servidor actual. Devuelve `true` cuando se guarda, o `false` si NotSoAI ya recordaba ese dato (se compara sin distinguir mayúsculas).',

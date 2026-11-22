@@ -101,6 +101,23 @@ export const TAG_DOC_FUNCTIONS_PART1: Array<TagDocFunction> = [
     ],
   },
   {
+    id: 'AI_LISTEN_STOP',
+    names: ['ai.listen.stop'],
+    category: 'ai',
+    summary: 'Ends the `ai listen` voice conversation in the current server. Only NotSoAI can use this.',
+    description: 'NotSoAI uses it when the person it\'s listening to says goodbye or asks it to stop listening. It stops listening straight away, but what it\'s already saying still plays, so a spoken goodbye finishes. Outputs `true` when it stopped, or `false` when it wasn\'t listening in this server.',
+    syntax: '{ai.listen.stop}',
+    examples: [
+      {code: '{ai.listen.stop}', result: 'true'},
+    ],
+    notes: [
+      'Only NotSoAI can use this. In a user\'s tag (or a tag NotSoAI calls with {tag}) the function is left as plain text. It is also left as plain text when run from a button or menu NotSoAI made, since someone else could press it. When NotSoAI\'s prompt had someone else\'s text in it (another person\'s message it replied to, a link, a file that isn\'t the user\'s own upload, or the `url` option, earlier in the conversation too), or in code that only exists while running, like an `{ai}` reply or what `{eval}` and `{evalsilent}` run, it first asks the person with Allow and Cancel buttons (up to 3 times per message) and is left as plain text if they cancel or don\'t answer within a minute.',
+      'Only the person NotSoAI is listening to, or a DJ (Manage Server, the DJ role, or Manage Channel on the bot\'s voice channel), can stop it. Throws an error for anyone else.',
+      'Outputs `false` outside a server.',
+      'Typing `ai listen stop` ends it too, and also cuts off what NotSoAI is saying.',
+    ],
+  },
+  {
     id: 'AI_MEMORY_ADD',
     names: ['ai.memory.add'],
     category: 'ai',

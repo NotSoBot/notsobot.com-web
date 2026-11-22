@@ -308,6 +308,23 @@ export const MEDIASCRIPT_PORTUGUESE_5: TagDocsTranslation['mediaScriptCommands']
       'Os tipos LASER_ disparam feixes dos olhos para onde a cabeça está virada, e os LIGHTNING_ fazem os olhos brilharem com raios saindo deles (FLIPPED não faz nada em nenhum dos dois).',
     ],
   },
+  abovehead: {
+    summary: 'Coloca uma imagem acima da cabeça das pessoas, todas ou as que você escolher.',
+    args: {
+      MEDIA_KEY: MEDIA,
+      IMAGE_MEDIA_KEY: 'o que flutua acima das cabeças (o primeiro quadro)',
+      FACES: 'os números que o `drawfaces` coloca nos rostos cujas cabeças a recebem, separados por vírgulas, como `1,0` (todas as cabeças quando não é dado)',
+      SIZE: 'o tamanho da imagem, em cabeças',
+    },
+    results: [
+      'Seu avatar acima da cabeça de todo mundo.',
+      'Só o rosto 1 (do `drawfaces`) recebe seu avatar, um pouco maior.',
+    ],
+    notes: [
+      'Use de novo com outra imagem e outros rostos para dar imagens diferentes para cada pessoa.',
+      'Quando uma cabeça está perto demais da borda de cima a mídia cresce para cima para a imagem caber, e em GIFs e vídeos ela segue cada cabeça.',
+    ],
+  },
   facecutout: {
     summary: 'Recorta os olhos e a boca do maior rosto e cola de volta maiores, como um objeto que fala.',
     args: {

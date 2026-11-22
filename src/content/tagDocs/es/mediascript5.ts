@@ -307,6 +307,23 @@ export const MEDIASCRIPT_SPANISH_5: TagDocsTranslation['mediaScriptCommands'] = 
       'Los tipos LASER_ disparan rayos desde los ojos hacia donde mira la cabeza, y los LIGHTNING_ hacen brillar los ojos con rayos saliendo de ellos (FLIPPED no hace nada en ninguno de los dos).',
     ],
   },
+  abovehead: {
+    summary: 'Pone una imagen sobre las cabezas de la gente, todas o las que elijas.',
+    args: {
+      MEDIA_KEY: MEDIA,
+      IMAGE_MEDIA_KEY: 'lo que flota sobre las cabezas (su primer fotograma)',
+      FACES: 'los números que `drawfaces` pone en las caras cuyas cabezas la llevan, separados por comas, como `1,0` (todas las cabezas si no se da)',
+      SIZE: 'qué tan grande es la imagen, en cabezas',
+    },
+    results: [
+      'Tu avatar sobre la cabeza de todos.',
+      'Solo la cara 1 (de `drawfaces`) recibe tu avatar, un poco más grande.',
+    ],
+    notes: [
+      'Úsalo otra vez con otra imagen y otras caras para darle imágenes distintas a cada persona.',
+      'Cuando una cabeza está muy cerca del borde de arriba la multimedia crece hacia arriba para que quepa la imagen, y en GIFs y videos sigue a cada cabeza.',
+    ],
+  },
   facecutout: {
     summary: 'Recorta los ojos y la boca de la cara más grande y los vuelve a pegar más grandes, como un objeto que habla.',
     args: {
