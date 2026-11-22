@@ -57,7 +57,7 @@ export function useToastClearance(ref: RefObject<HTMLElement | null>): void {
 
 // Small stack of transient messages in the bottom corner. Announced politely to screen readers
 // (errors assertively); each one dismisses itself after a few seconds (longer with an action, so there's time to
-// reach it) or on click.
+// reach it) or on click. The countdown waits while the pointer is on a toast or something in it has focus.
 export function ToastProvider({ children }: {children: ReactNode}) {
   const [ toasts, setToasts ] = useState<Array<ToastItem>>([]);
   const [ lift, setLift ] = useState(0);
@@ -92,15 +92,27 @@ export function ToastProvider({ children }: {children: ReactNode}) {
 
 function Toast({ toast, onDismiss }: {toast: ToastItem, onDismiss: (id: number) => void}) {
   const { t } = useI18n();
+  // an Undo shouldn't vanish as the pointer gets to it, or while it's the focused button. the countdown starts over
+  // once both are gone
+  const [ hovered, setHovered ] = useState(false);
+  const [ focused, setFocused ] = useState(false);
+  const paused = hovered || focused;
   useEffect(() => {
+    if (paused) {
+      return;
+    }
     const timer = window.setTimeout(() => onDismiss(toast.id), (toast.tone === 'error' || toast.action) ? 7000 : 3500);
     return () => window.clearTimeout(timer);
-  }, [toast, onDismiss]);
+  }, [toast, onDismiss, paused]);
 
   const Icon = (toast.tone === 'error') ? CircleAlert : CheckCircle2;
   return (
     <div
       role={(toast.tone === 'error') ? 'alert' : 'status'}
+      onPointerEnter={() => setHovered(true)}
+      onPointerLeave={() => setHovered(false)}
+      onFocus={() => setFocused(true)}
+      onBlur={(event) => !event.currentTarget.contains(event.relatedTarget) && setFocused(false)}
       className={cn(
         'pointer-events-auto flex w-full max-w-sm animate-fade-in items-start gap-3 rounded-lg border bg-surface px-4 py-3 text-sm shadow-2xl shadow-black/50',
         (toast.tone === 'error') ? 'border-danger/60' : 'border-success/60',

@@ -1,10 +1,12 @@
-import { Pencil, Plus, X } from 'lucide-react';
+import { Lock, Pencil, Plus, X } from 'lucide-react';
 import { useId, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { FiltersButton } from '@/components/ui/FiltersButton';
+import { formatPrefixCommandsEnd, prefixCommandsEnded } from '@/components/ui/PrefixSunsetNotice';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Spinner } from '@/components/ui/Spinner';
-import { useToast } from '@/components/ui/Toast';
+import { useToast, type ToastAction } from '@/components/ui/Toast';
 import { useSearchParamState } from '@/hooks/useSearchParamState';
 import { translate, useI18n } from '@/i18n';
 import { CommandCategories, GuildPrefixCommandPermissions, type GuildLogger, type GuildRule, type GuildRuleTargetType, type UserGuild } from '@/lib/api';
@@ -36,11 +38,12 @@ function useGuildEdit(guildId: string) {
   const mutation = useGuildMutation(guildId);
   const [ busyKey, setBusyKey ] = useState<string | null>(null);
 
-  const run = async (key: string, action: GuildAction, success: string): Promise<boolean> => {
+  // `undo` is a button on the success toast, for removals that don't ask first
+  const run = async (key: string, action: GuildAction, success: string, undo?: ToastAction): Promise<boolean> => {
     setBusyKey(key);
     try {
       await mutation.mutateAsync(action);
-      toast(success);
+      toast(success, 'success', undo);
       return true;
     } catch (error) {
       // these rows have no inline field errors, so field errors toast too
@@ -51,7 +54,11 @@ function useGuildEdit(guildId: string) {
     }
   };
 
-  return {run, busyKey, pending: mutation.isPending};
+  // the settings patch being sent, so a toggle or select shows what was picked until the server's copy catches up (and
+  // falls back to the saved value by itself if it fails)
+  const pendingPatch = (mutation.isPending && mutation.variables?.kind === 'settings') ? mutation.variables.patch : null;
+
+  return {run, busyKey, pending: mutation.isPending, pendingPatch};
 }
 
 
@@ -63,7 +70,8 @@ export function RemoveButton({ label, busy, disabled, onClick }: {label: string,
       title={label}
       disabled={disabled}
       onClick={onClick}
-      className='flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-subtle transition-colors hover:bg-surface-3 hover:text-danger-text disabled:cursor-not-allowed disabled:opacity-50'
+      // a bigger target on phones
+      className='flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-md text-subtle transition-colors hover:bg-surface-3 hover:text-danger-text disabled:cursor-not-allowed disabled:opacity-50 sm:size-7'
     >
       {(busy) ? <Spinner className='size-3.5'/> : <X aria-hidden className='size-4'/>}
     </button>
@@ -79,7 +87,7 @@ export function EditButton({ label, disabled, onClick }: {label: string, disable
       title={label}
       disabled={disabled}
       onClick={onClick}
-      className='flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-subtle transition-colors hover:bg-surface-3 hover:text-white disabled:cursor-not-allowed disabled:opacity-50'
+      className='flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-md text-subtle transition-colors hover:bg-surface-3 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:size-7'
     >
       <Pencil aria-hidden className='size-3.5'/>
     </button>
@@ -116,6 +124,28 @@ function AddRow({ onSubmit, children, pending, disabled, label }: {
 }
 
 
+// why a setting can't be changed, under what it does (so it still says what it means)
+function LockNote({ children }: {children: ReactNode}) {
+  return (
+    <span className='mt-1 flex items-start gap-1.5'>
+      <Lock aria-hidden className='mt-0.5 size-3 shrink-0 text-warning'/>
+      <span>{children}</span>
+    </span>
+  );
+}
+
+
+// prefix commands stop on a set day (mentions and slash commands don't), said wherever prefixes are set up
+function PrefixSunsetLine({ className }: {className?: string}) {
+  const { t } = useI18n();
+  return (
+    <p className={cn('text-xs text-warning', className)}>
+      {t((prefixCommandsEnded()) ? 'prefixes.sunset_ended' : 'prefixes.sunset', {date: formatPrefixCommandsEnd()})}
+    </p>
+  );
+}
+
+
 /* owner/admin bypass */
 
 // the server owner and admins skip every rule unless it (or a rule) says otherwise
@@ -123,18 +153,26 @@ function AdminBypassToggle({ guild, edit }: {guild: UserGuild, edit: ReturnType<
   const { t } = useI18n();
   const editable = guild.editable.rules_admin;
   const staff = useGuildScope() === 'admin';
+  // only this switch dims while it saves, another edit being sent just makes it wait
+  const busy = edit.busyKey === '\u0000bypass';
   return (
     <div className='mb-4 rounded-md border border-line bg-deep px-3 py-2.5'>
       <Toggle
-        checked={guild.settings.rules_admin_bypass}
-        disabled={!editable || edit.pending}
+        checked={edit.pendingPatch?.rules_admin_bypass ?? guild.settings.rules_admin_bypass}
+        disabled={!editable || busy}
+        busy={busy}
         label={t('bypass.label')}
-        description={t((editable) ? 'bypass.description' : (staff) ? 'bypass.staff' : 'bypass.owner_only')}
-        onChange={(value) => void edit.run(
-          '\u0000bypass',
-          {kind: 'settings', patch: {rules_admin_bypass: value}},
-          t((value) ? 'bypass.on' : 'bypass.off'),
+        description={(
+          <>
+            {t('bypass.description')}
+            {(editable) ? null : <LockNote>{t((staff) ? 'bypass.staff' : 'bypass.owner_only')}</LockNote>}
+          </>
         )}
+        onChange={(value) => {
+          if (!edit.pending) {
+            void edit.run('\u0000bypass', {kind: 'settings', patch: {rules_admin_bypass: value}}, t((value) ? 'bypass.on' : 'bypass.off'));
+          }
+        }}
       />
     </div>
   );
@@ -147,31 +185,42 @@ function PrefixPermissionsSelect({ guild, edit }: {guild: UserGuild, edit: Retur
   const { t } = useI18n();
   const editable = guild.editable.rules_admin;
   const staff = useGuildScope() === 'admin';
+  // named like the bot's `/server-rules integrations` choices, what the picked one means goes under the select
   const choices = useMemo(() => [
-    {value: GuildPrefixCommandPermissions.OFF, label: t('prefix_permissions.off')},
-    {value: GuildPrefixCommandPermissions.COMMANDS, label: t('prefix_permissions.commands')},
-    {value: GuildPrefixCommandPermissions.ALL, label: t('prefix_permissions.all')},
+    {value: GuildPrefixCommandPermissions.OFF, label: t('prefix_permissions.off'), hint: t('prefix_permissions.off_hint')},
+    {value: GuildPrefixCommandPermissions.COMMANDS, label: t('prefix_permissions.commands'), hint: t('prefix_permissions.commands_hint')},
+    {value: GuildPrefixCommandPermissions.ALL, label: t('prefix_permissions.all'), hint: t('prefix_permissions.all_hint')},
   ], [t]);
+  const current = edit.pendingPatch?.prefix_command_permissions ?? guild.settings.prefix_command_permissions;
+  const picked = choices.find((choice) => choice.value === current);
   return (
     <div className='mb-4 rounded-md border border-line bg-deep px-3 py-2.5'>
       <Field
         label={t('prefix_permissions.label')}
-        hint={t((editable) ? 'prefix_permissions.description' : (staff) ? 'bypass.staff' : 'bypass.owner_only')}
+        hint={(
+          <>
+            {t('prefix_permissions.description')}
+            {(picked) ? <span className='mt-1 block'>{picked.hint}</span> : null}
+            {(editable) ? null : <LockNote>{t((staff) ? 'bypass.staff' : 'bypass.owner_only')}</LockNote>}
+          </>
+        )}
       >
         {(props) => (
           <ChoiceSelect
             {...props}
-            disabled={!editable || edit.pending}
+            // only its own save dims it, another edit being sent just makes it wait
+            disabled={!editable || edit.busyKey === '\u0000prefix_permissions'}
             choices={choices}
-            value={guild.settings.prefix_command_permissions}
+            value={current}
             onChange={(value) => {
-              if (value !== null) {
+              if (value !== null && !edit.pending) {
                 void edit.run('\u0000prefix_permissions', {kind: 'settings', patch: {prefix_command_permissions: value}}, t('prefix_permissions.saved'));
               }
             }}
           />
         )}
       </Field>
+      <PrefixSunsetLine className='mt-1.5'/>
     </div>
   );
 }
@@ -218,7 +267,7 @@ function RuleAdminBypass({ rule, serverValue, editable, busy, disabled, onChange
 /* prefixes */
 
 export function PrefixesSection({ guild }: {guild: UserGuild}) {
-  const { t } = useI18n();
+  const { t, rich } = useI18n();
   const editable = guild.editable.prefixes;
   const readOnlyMessage = useReadOnlyMessage();
   const edit = useGuildEdit(guild.id);
@@ -234,6 +283,7 @@ export function PrefixesSection({ guild }: {guild: UserGuild}) {
       description={t('prefixes.description')}
       readOnly={(editable) ? undefined : readOnlyMessage('prefixes')}
     >
+      <PrefixSunsetLine className='mb-3'/>
       {(guild.prefixes.length) ? (
         <ul className='flex flex-wrap gap-2'>
           {guild.prefixes.map((item) => (
@@ -252,7 +302,7 @@ export function PrefixesSection({ guild }: {guild: UserGuild}) {
           ))}
         </ul>
       ) : (
-        <p className='text-sm text-muted'>{t('prefixes.none')}</p>
+        <p className='text-sm text-muted'>{rich('prefixes.none', {code: (chunk) => <code className='font-mono text-code'>{chunk}</code>})}</p>
       )}
       {(editable) ? (
         <AddRow
@@ -399,7 +449,7 @@ function RuleMessageEditor({ initial, busy, disabled, onSave, onCancel }: {
         autoComplete='off'
         autoFocus
       />
-      <span className='text-xs text-subtle tabular-nums'>{message.length}/200</span>
+      <span className='text-xs text-subtle tabular-nums'>{t('sections.count_of', {count: message.length, max: 200})}</span>
       <button type='submit' className='btn btn-sm btn-secondary' disabled={disabled}>
         {(busy) ? <Spinner className='size-3.5'/> : null}
         {t('common.save')}
@@ -491,6 +541,17 @@ export function RulesSection({ guild }: {guild: UserGuild}) {
   const valid = isSnowflake(targetId) && (covers !== 'command' || !!commandId) && !exists && (!needsAdmin || adminEditable);
 
   const canChange = (rule: GuildRule) => editable && (!coversEverything(rule) || adminEditable);
+  // removing doesn't ask first, its toast's Undo adds the same rule again. Its own owner/admin bypass only comes back
+  // for admins (the api only takes one from them), otherwise the rule follows the server's
+  const restore = (rule: GuildRule) => void edit.run('\u0000restore', {kind: 'rules-add', rules: [{
+    action: 'access',
+    category: rule.category,
+    command: rule.command,
+    target_id: rule.target_id,
+    target_type: rule.target_type,
+    value: rule.value,
+    ...(adminEditable && rule.admin_bypass !== null) ? {admin_bypass: rule.admin_bypass} : {},
+  }]}, t('rules.restored'));
   // the rule whose message is being edited
   const [ editingId, setEditingId ] = useState<string | null>(null);
 
@@ -608,7 +669,7 @@ export function RulesSection({ guild }: {guild: UserGuild}) {
                     label={t('rules.remove')}
                     busy={edit.busyKey === rule.id}
                     disabled={edit.pending}
-                    onClick={() => void edit.run(rule.id, {kind: 'rules-remove', ids: [rule.id]}, t('rules.removed'))}
+                    onClick={() => void edit.run(rule.id, {kind: 'rules-remove', ids: [rule.id]}, t('rules.removed'), {label: t('sections.undo'), onClick: () => restore(rule)})}
                   />
                 ) : null}
               </li>
@@ -682,7 +743,7 @@ export function RulesSection({ guild }: {guild: UserGuild}) {
             <IdInput type={type} value={id} onChange={setId} exists={exists}/>
           )}
           {(!allow) ? (
-            <Field label={t('rules.message')} className='w-full' hint={t('rules.message_hint')} counter={`${message.length}/200`}>
+            <Field label={t('rules.message')} className='w-full' hint={t('rules.message_hint')} counter={t('sections.count_of', {count: message.length, max: 200})}>
               {(props) => <input {...props} className='input' value={message} maxLength={200} onChange={(event) => setMessage(event.target.value)} autoComplete='off'/>}
             </Field>
           ) : null}
@@ -714,6 +775,7 @@ function IdInput({ type, value, onChange, exists }: {type: string, value: string
     <Field
       className='flex-1'
       label={label}
+      hint={t('rules.id_hint')}
       error={(value && !isSnowflake(value)) ? t('rules.bad_id') : (exists) ? t('rules.exists') : null}
     >
       {(props) => (
@@ -735,11 +797,15 @@ function IdInput({ type, value, onChange, exists }: {type: string, value: string
 /* loggers */
 
 export function LoggersSection({ guild }: {guild: UserGuild}) {
-  const { t } = useI18n();
+  const { t, rich } = useI18n();
+  const code = (chunk: string) => <code className='text-code'>{chunk}</code>;
   const editable = guild.editable.loggers;
   const readOnlyMessage = useReadOnlyMessage();
   const edit = useGuildEdit(guild.id);
   const [ editing, setEditing ] = useState<string | null>(null);
+  // the logger whose Remove was clicked, as it was then. It's asked first: its webhook goes with it and it can only be
+  // added back from Discord
+  const [ removing, setRemoving ] = useState<GuildLogger | null>(null);
   // by type name (in the dashboard's language), then oldest first within a type
   const loggers = guild.loggers.slice().sort((a, b) => {
     return loggerTypeLabel(a.type).localeCompare(loggerTypeLabel(b.type)) || Date.parse(a.added) - Date.parse(b.added);
@@ -780,7 +846,7 @@ export function LoggersSection({ guild }: {guild: UserGuild}) {
                       // its own busy key, so removing while the ignore editor is open spins here and not on its Save
                       busy={edit.busyKey === `remove:${key}`}
                       disabled={edit.pending}
-                      onClick={() => void edit.run(`remove:${key}`, {kind: 'logger-remove', channelId: logger.channel_id, type: logger.type}, t('loggers.removed', {type}))}
+                      onClick={() => setRemoving(logger)}
                     />
                   ) : null}
                 </div>
@@ -813,8 +879,27 @@ export function LoggersSection({ guild }: {guild: UserGuild}) {
           })}
         </ul>
       ) : (
-        <EmptyState title={t('loggers.empty')}>{t('loggers.empty_description')}</EmptyState>
+        <EmptyState title={t('loggers.empty')}>{rich('loggers.empty_description', {code})}</EmptyState>
       )}
+      {/* loggers are only added from Discord, said under the list too (the empty state already does) */}
+      {(loggers.length) ? <p className='mt-3 text-xs text-subtle'>{rich('loggers.add_hint', {code})}</p> : null}
+
+      {(removing) ? (
+        <ConfirmDialog
+          title={t('loggers.remove_title')}
+          description={rich('loggers.remove_description', {code}, {type: loggerTypeLabel(removing.type).toLowerCase(), channel: removing.channel_id})}
+          confirmLabel={t('loggers.remove_confirm')}
+          pending={edit.busyKey === `remove:${removing.type}:${removing.channel_id}`}
+          onConfirm={async () => {
+            // a failure is toasted, the dialog stays open to try again
+            const action: GuildAction = {kind: 'logger-remove', channelId: removing.channel_id, type: removing.type};
+            if (await edit.run(`remove:${removing.type}:${removing.channel_id}`, action, t('loggers.removed', {type: loggerTypeLabel(removing.type).toLowerCase()}))) {
+              setRemoving(null);
+            }
+          }}
+          onClose={() => setRemoving(null)}
+        />
+      ) : null}
     </Panel>
   );
 }
@@ -896,7 +981,7 @@ function LoggerIgnoreEditor({ logger, guildId, busy, disabled, onCancel, onSave 
           {t('loggers.ignore_add')}
         </button>
       </div>
-      {(error) ? <p className='text-xs text-danger-text'>{error}</p> : (full) ? <p className='text-xs text-subtle'>{t('loggers.ignore_full', {max: MAX_LOGGER_IGNORED})}</p> : null}
+      {(error) ? <p className='text-xs text-danger-text'>{error}</p> : <p className='text-xs text-subtle'>{(full) ? t('loggers.ignore_full', {max: MAX_LOGGER_IGNORED}) : t('rules.id_hint')}</p>}
       <div className='flex items-center gap-2'>
         <button type='button' className='btn btn-sm btn-secondary' disabled={disabled || unchanged} onClick={() => onSave(ids)}>
           {(busy) ? <Spinner className='size-3.5'/> : null}

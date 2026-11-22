@@ -11,6 +11,7 @@ import { useAuth } from '@/auth';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Routes, Urls } from '@/config';
 import { hasTranslation, useI18n, type TranslationKey } from '@/i18n';
+import { AnalyticsEvents, trackEvent } from '@/lib/analytics';
 import { DiscordSkus, UserPremiumTypes } from '@/lib/api';
 import {
   CREDIT_PACKS,
@@ -377,6 +378,13 @@ function AnchorHeading({ id, sectionId, children }: {id: string, sectionId: stri
 }
 
 
+// the store links open discord, where the checkout is, so a click on one is the last thing this site sees. `item` is
+// what it was for (`store`, `premium`, `premium_plus`, `premium_max`, `credits_50k`) and `place` the part of the page
+function trackStoreClick(item: string, place: string): void {
+  trackEvent(AnalyticsEvents.STORE_CLICK, {item, place});
+}
+
+
 function HowToSubscribe({ signedIn }: {signedIn: boolean}) {
   const { t, rich } = useI18n();
   return (
@@ -388,7 +396,15 @@ function HowToSubscribe({ signedIn }: {signedIn: boolean}) {
           {rich('premium.how.store', {b: (chunk) => <span className='font-semibold text-white'>{chunk}</span>})}
         </span>
       </div>
-      <a href={Urls.DISCORD_STORE} target='_blank' rel='noreferrer' className='btn btn-primary shrink-0 whitespace-nowrap'>{t('premium.how.open_store')}</a>
+      <a
+        href={Urls.DISCORD_STORE}
+        target='_blank'
+        rel='noreferrer'
+        className='btn btn-primary shrink-0 whitespace-nowrap'
+        onClick={() => trackStoreClick('store', 'premium-header')}
+      >
+        {t('premium.how.open_store')}
+      </a>
       {(signedIn) ? (
         <Link to={Routes.DASHBOARD_PREMIUM} className='btn btn-secondary shrink-0 whitespace-nowrap'>{t('premium.how.manage')}</Link>
       ) : (
@@ -430,6 +446,7 @@ function TierCard({ tier, current }: {tier: Tier, current: boolean}) {
         target='_blank'
         rel='noreferrer'
         className={cn('btn mt-auto w-full', (ai) ? 'btn-primary' : 'btn-secondary')}
+        onClick={() => trackStoreClick((tier.id === 'premium') ? tier.id : `premium_${tier.id}`, 'premium-tiers')}
       >
         {(current) ? t('premium.tier.view_store') : t('premium.tier.get', {tier: tier.name})}
       </a>
@@ -489,6 +506,7 @@ function CreditPackCard({ pack }: {pack: CreditPack}) {
         target='_blank'
         rel='noreferrer'
         className='btn btn-secondary btn-sm mt-auto w-full'
+        onClick={() => trackStoreClick(`credits_${creditsLabel(pack.credits).toLowerCase()}`, 'premium-credits')}
       >
         {t('premium.credits.get')}
       </a>
@@ -507,7 +525,9 @@ function Perk({ children }: {children: ReactNode}) {
 }
 
 
-// `current` highlights the reader's own column (the tiers' table)
+// `current` highlights the reader's own column (the tiers' table). On phones the table scrolls sideways under its
+// first column: the perk names stay put (on the card's own background, so the values pass behind them) and are kept
+// narrow there, or they'd leave no room to see a value next to them
 function ComparisonTable({ columns, groups, current }: {columns: Array<ComparisonColumn>, groups: Array<ComparisonGroup>, current: string | null}) {
   const { t } = useI18n();
   return (
@@ -515,7 +535,7 @@ function ComparisonTable({ columns, groups, current }: {columns: Array<Compariso
       <table className='w-full min-w-[36rem] text-sm'>
         <thead>
           <tr className='border-b border-line text-left'>
-            <th scope='col' className='px-4 py-3 font-medium text-muted'><span className='sr-only'>{t('premium.perk')}</span></th>
+            <th scope='col' className='sticky left-0 bg-surface px-4 py-3 font-medium text-muted max-sm:w-40'><span className='sr-only'>{t('premium.perk')}</span></th>
             {columns.map((column) => (
               <th
                 key={column.id}
@@ -532,7 +552,7 @@ function ComparisonTable({ columns, groups, current }: {columns: Array<Compariso
           <tbody key={group} className='border-b border-line last:border-b-0'>
             <tr>
               <th scope='colgroup' colSpan={columns.length + 1} className='bg-surface-2 px-4 py-2 text-left'>
-                <span className='section-label flex items-center gap-2'>
+                <span className='section-label sticky left-4 flex w-fit items-center gap-2'>
                   <Icon className='size-3.5' aria-hidden/>
                   {t(group)}
                 </span>
@@ -540,7 +560,7 @@ function ComparisonTable({ columns, groups, current }: {columns: Array<Compariso
             </tr>
             {rows.map((row) => (
               <tr key={row.label} className='border-t border-line/60'>
-                <th scope='row' className='px-4 py-2.5 text-left font-normal text-fg'>{t(row.label)}</th>
+                <th scope='row' className='sticky left-0 bg-surface px-4 py-2.5 text-left font-normal text-fg max-sm:w-40'>{t(row.label)}</th>
                 {row.values.map((value, index) => (
                   <td key={columns[index].id} className={cn('px-4 py-2.5 text-center whitespace-nowrap tabular-nums', (current === columns[index].id) && 'bg-warning/5')}>
                     <CellValue value={value}/>

@@ -12,13 +12,16 @@ export function RouteErrorPage() {
   const error = useRouteError();
   // production builds swallow this otherwise, so there'd be nothing to go on
   useEffect(() => console.error('Route error:', error), [error]);
-  // a stale chunk after a deploy: reload straight away instead of flashing the error (unless that already failed)
-  const [ reloading, setReloading ] = useState(() => isChunkLoadError(error));
+  // a stale chunk after a deploy: reload straight away instead of flashing the error (unless that already failed).
+  // Derived per error, since this page stays mounted when the next navigation fails too: a chunk error after some other
+  // error still reloads, and only the error whose reload was refused shows the page
+  const [ reloadRefused, setReloadRefused ] = useState<unknown>(null);
+  const reloading = isChunkLoadError(error) && reloadRefused !== error;
   useEffect(() => {
     if (reloading && !reloadForNewBuild()) {
-      setReloading(false);
+      setReloadRefused(error);
     }
-  }, [reloading]);
+  }, [error, reloading]);
 
   if (reloading) {
     return null;

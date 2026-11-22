@@ -4,7 +4,7 @@
 // Status changes are in the thread too, so it reads as the report's history. Messages are only ever rendered as plain text.
 
 import { ArrowDown, Languages, MessagesSquare, Send } from 'lucide-react';
-import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 
 import logo from '@/assets/logos/NotSoLogo.svg';
 import { Spinner } from '@/components/ui/Spinner';
@@ -31,7 +31,7 @@ const STATUS_VERBS: Record<number, 'reopened' | 'resolved' | 'dismissed'> = {
 };
 
 
-export function ReportThread({ viewer, reporter, messages, loading, error, onRetry, onSend, sending, notice, actions, onTranslate, staff, emptyText, placeholder: placeholderText, maxLength = MAX_LENGTH }: {
+export function ReportThread({ viewer, reporter, messages, loading, error, onRetry, onSend, sending, notice, actions, onTranslate, staff, emptyText, placeholder: placeholderText, maxLength = MAX_LENGTH, onDraftChange }: {
   // who's looking: the reporter sees themself as "You", staff see the reporter's name and which staff member replied
   viewer: 'staff' | 'reporter',
   reporter: Pick<User, 'id' | 'avatar' | 'discriminator' | 'username'> | null,
@@ -54,10 +54,24 @@ export function ReportThread({ viewer, reporter, messages, loading, error, onRet
   emptyText?: string,
   placeholder?: string,
   maxLength?: number,
+  // told whether there's a reply typed but not sent (false again once it's sent, cleared or the thread goes away), so
+  // whatever closes the thread can ask before dropping it
+  onDraftChange?: (unsent: boolean) => void,
 }) {
   const { t, plural } = useI18n();
   const [ draft, setDraft ] = useState('');
   const content = draft.trim();
+  const unsent = !!content;
+  const onDraftChangeRef = useRef(onDraftChange);
+  onDraftChangeRef.current = onDraftChange;
+  useEffect(() => {
+    onDraftChangeRef.current?.(unsent);
+    return () => {
+      if (unsent) {
+        onDraftChangeRef.current?.(false);
+      }
+    };
+  }, [unsent]);
   // the conversation scrolls inside itself past `max-h-96` instead of making the modal taller. It opens at the newest
   // message; after that new ones never move you: scrolled up, a "new messages" button takes you down when you want, at
   // the bottom it just stays there. Your own replies always scroll down to them

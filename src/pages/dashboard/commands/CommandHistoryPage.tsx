@@ -6,6 +6,7 @@ import { ExternalLink, SquareTerminal, X } from 'lucide-react';
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link } from 'react-router';
 
+import { PrefixSunsetNotice } from '@/components/ui/PrefixSunsetNotice';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useSearchParamState, useStepBackFromEmptyPage } from '@/hooks/useSearchParamState';
 import { useI18n } from '@/i18n';
@@ -92,6 +93,9 @@ export function CommandHistoryPage() {
       >
         <FiltersButton open={filtersOpen} onToggle={() => setFiltersOpen((value) => !value)} active={activeFilters} controls='command-history-filters'/>
       </DashboardHeader>
+
+      {/* the prefix commands in this list stop working then, like on the commands page */}
+      <PrefixSunsetNotice className='mb-6'/>
 
       <div className='mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2'>
         <SummaryCard
@@ -342,14 +346,14 @@ function CommandRow({ use, serverName, commandTypes, onFilter }: {
             {(serverName) ? <span className='truncate'>{serverName}</span> : <span className='font-mono'>{t('history.server_id', {id: use.guild_id})}</span>}
             <FilterButton label={t('history.only_server')} onClick={() => onFilter({server: use.guild_id ?? DMS})}/>
           </span>
-          <span className='inline-flex items-center font-mono'>
-            #{use.channel_id}
+          {/* a channel's id says nothing on its own (and names aren't known here), so it's the link and its filter */}
+          <span className='inline-flex items-center'>
+            <a href={channelUrl(use)} target='_blank' rel='noopener noreferrer' className='inline-flex items-center gap-1 whitespace-nowrap text-code hover:underline'>
+              {t('history.open_channel')}
+              <ExternalLink aria-hidden className='size-3'/>
+            </a>
             <FilterButton label={t('history.only_channel')} onClick={() => onFilter({channel: use.channel_id})}/>
           </span>
-          <a href={channelUrl(use)} target='_blank' rel='noopener noreferrer' className='inline-flex items-center gap-1 whitespace-nowrap text-code hover:underline'>
-            {t('history.open_channel')}
-            <ExternalLink aria-hidden className='size-3'/>
-          </a>
         </div>
       </div>
       <time dateTime={use.timestamp} title={formatExactDateTime(use.timestamp)} className='hidden shrink-0 text-right text-xs text-subtle sm:block'>

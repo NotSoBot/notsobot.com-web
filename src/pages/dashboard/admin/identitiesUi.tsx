@@ -203,7 +203,7 @@ export function AuditHistory({ history, now }: {history: Array<IdentityAuditEntr
       {history.map((entry, index) => (
         <li key={index}>
           {AUDIT_ACTIONS[entry.action] ?? entry.action} by {who(entry.user_id)}
-          {(entry.created) ? <> · <ExactDate value={entry.created} format={() => ago(entry.created, now)}/></> : null}
+          {(entry.created) ? <> • <ExactDate value={entry.created} format={() => ago(entry.created, now)}/></> : null}
         </li>
       ))}
     </ul>
@@ -321,7 +321,7 @@ export function ProxyPicker({ proxies, service, value, onChange, ignoreIdentityI
           <option key={proxy.id} value={proxy.id} disabled={!!holder || proxy.status !== 'active'}>
             {proxyLabel(proxy)}
             {(proxy.labels.length) ? `  [${proxy.labels.join(', ')}]` : ''}
-            {(holder) ? `  · has ${holder.id}` : (proxy.status !== 'active') ? '  · disabled' : ''}
+            {(holder) ? `  • has ${holder.id}` : (proxy.status !== 'active') ? '  • disabled' : ''}
           </option>
         ))}
       </select>

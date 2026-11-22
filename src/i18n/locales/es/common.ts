@@ -26,7 +26,7 @@ export const Common: Record<keyof typeof English, string> = {
   'common.go_home': 'Ir al inicio',
   'common.load_more': 'Cargar más',
   'common.loading': 'Cargando…',
-  'common.log_in': 'Iniciar sesión',
+  'common.log_in': 'Entrar',
   'common.never': 'Nunca',
   'common.next': 'Siguiente',
   'common.no': 'No',

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState, type Keyboard
 import { Link, useNavigate, useSearchParams } from 'react-router';
 
 import { isStaff, useAuth } from '@/auth';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { ModalFooter } from '@/components/ui/DetailModal';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
@@ -106,13 +107,22 @@ function TagEditor({ tag, onBack }: {tag: Tag, onBack: (id: string) => void}) {
   // staff can still edit their own tags while they're locked (pending/verified in the directory)
   const readOnly = tag.locked && !isStaff(user);
 
-  // which storage ids variables/blobs are read for; global needs none, user defaults to you
-  const [ scope, setScope ] = useState<TagStorageScope>(() => ({user_id: user?.id ?? ''}));
+  // which storage ids variables/blobs are read for; global needs none, user defaults to you and server to the tag's own
+  const [ scope, setScope ] = useState<TagStorageScope>(() => ({user_id: user?.id ?? '', guild_id: tag.guild_id ?? undefined}));
 
   const [ contentDirty, setContentDirty ] = useState(false);
   const [ variablesDirty, setVariablesDirty ] = useState(false);
   const [ blobsDirty, setBlobsDirty ] = useState(false);
   const [ directoryDirty, setDirectoryDirty ] = useState(false);
+  // loading other storage ids remounts the variables/blobs editors, so unsaved edits there would be dropped: ask first
+  const [ pendingScope, setPendingScope ] = useState<TagStorageScope | null>(null);
+  const changeScope = (next: TagStorageScope) => {
+    if (variablesDirty || blobsDirty) {
+      setPendingScope(next);
+    } else {
+      setScope(next);
+    }
+  };
   const { data: directory } = useMeTagDirectoryQuery(tag.id);
   const { data: guilds } = useMeGuildsQuery();
   const guildNames = useMemo(() => new Map((guilds ?? []).map((guild) => [guild.id, guild.name])), [guilds]);
@@ -170,7 +180,7 @@ function TagEditor({ tag, onBack }: {tag: Tag, onBack: (id: string) => void}) {
         <div id={`${tabsId}-variables-panel`} role='tabpanel' aria-labelledby={`${tabsId}-variables`} hidden={tab !== 'variables'} className='space-y-4'>
           {(tag.reference_tag) ? <AliasStorageNote tag={tag} kind='variables'/> : (
             <>
-              <StorageScopeForm scope={scope} onChange={setScope}/>
+              <StorageScopeForm scope={scope} onChange={changeScope}/>
               {(tab === 'variables' || variablesDirty) ? (
                 <TagVariablesEditor tag={tag} scope={scope} readOnly={readOnly} onDirtyChange={setVariablesDirty}/>
               ) : null}
@@ -180,7 +190,7 @@ function TagEditor({ tag, onBack }: {tag: Tag, onBack: (id: string) => void}) {
         <div id={`${tabsId}-blobs-panel`} role='tabpanel' aria-labelledby={`${tabsId}-blobs`} hidden={tab !== 'blobs'} className='space-y-4'>
           {(tag.reference_tag) ? <AliasStorageNote tag={tag} kind='blobs'/> : (
             <>
-              <StorageScopeForm scope={scope} onChange={setScope}/>
+              <StorageScopeForm scope={scope} onChange={changeScope}/>
               {(tab === 'blobs' || blobsDirty) ? (
                 <TagBlobsEditor tag={tag} scope={scope} readOnly={readOnly} onDirtyChange={setBlobsDirty}/>
               ) : null}
@@ -192,6 +202,19 @@ function TagEditor({ tag, onBack }: {tag: Tag, onBack: (id: string) => void}) {
           {(tab === 'directory' || directoryDirty) ? <TagDirectoryPanel tag={tag} onDirtyChange={setDirectoryDirty}/> : null}
         </div>
       </div>
+
+      {(pendingScope) ? (
+        <ConfirmDialog
+          title={t('dash.discard_title')}
+          description={t('dtags.scope.discard_description')}
+          confirmLabel={t('dtags.scope.discard_load')}
+          onConfirm={() => {
+            setScope(pendingScope);
+            setPendingScope(null);
+          }}
+          onClose={() => setPendingScope(null)}
+        />
+      ) : null}
 
       {/* back to the details where the admin modals' Previous is, and the tag's own actions in the middle: the directory
           listing, and deleting set apart after a divider. Saving stays with each tab's form (their save bars) */}
@@ -273,7 +296,7 @@ interface Draft {
 
 
 function TagContentForm({ tag, readOnly, onDirtyChange }: {tag: Tag, readOnly: boolean, onDirtyChange: (dirty: boolean) => void}) {
-  const { t } = useI18n();
+  const { t, rich } = useI18n();
   const toast = useToast();
   const patch = usePatchMeTagMutation(tag.id);
 
@@ -324,11 +347,7 @@ function TagContentForm({ tag, readOnly, onDirtyChange }: {tag: Tag, readOnly: b
         setDraft((current) => (current === sent) ? null : current);
         toast(translate('dtags.editor.saved'));
       },
-      onError: (error) => {
-        if (!(error instanceof ApiRequestError && error.code === ApiErrorCodes.TAG_NAME_TAKEN)) {
-          toast(errorMessage(error, translate('dtags.editor.save_error')), 'error');
-        }
-      },
+      // no toast for a failure: it shows above the save bar (or under the name, when it's taken)
     });
   };
 
@@ -374,7 +393,9 @@ function TagContentForm({ tag, readOnly, onDirtyChange }: {tag: Tag, readOnly: b
             label={t('dtags.editor.content')}
             counter={<CharCounter length={values.content.length} max={TAG_CONTENT_MAX}/>}
             error={contentError}
-            hint={(tag.reference_tag) ? t('dtags.editor.alias_hint', {name: tag.reference_tag.name}) : t('dtags.editor.content_hint')}
+            hint={(tag.reference_tag) ? t('dtags.editor.alias_hint', {name: tag.reference_tag.name}) : rich('dtags.editor.content_hint', {
+              docs: (chunk) => <Link to={Routes.TAG_DOCS} className='text-brand-text hover:underline'>{chunk}</Link>,
+            })}
           >
             {(props) => (
               <CodeEditor
@@ -383,7 +404,6 @@ function TagContentForm({ tag, readOnly, onDirtyChange }: {tag: Tag, readOnly: b
                 onChange={(content) => update({content})}
                 onSave={onEditorSave}
                 readOnly={readOnly}
-                maxLength={TAG_CONTENT_MAX}
               />
             )}
           </Field>

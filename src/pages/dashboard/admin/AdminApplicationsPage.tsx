@@ -1,5 +1,5 @@
 import { ArrowUpRight, Ban, Blocks, ChevronRight, CircleCheck, Pencil, RefreshCw, Search, Trash2 } from 'lucide-react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { useState } from 'react';
 
 import { isOwner, useAuth } from '@/auth';
@@ -8,6 +8,7 @@ import { DetailModalHeader, DetailModalStrip } from '@/components/ui/DetailModal
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
+import { Routes } from '@/config';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useSearchParamState, useStepBackFromEmptyPage } from '@/hooks/useSearchParamState';
 import type { AdminApplication } from '@/lib/api';
@@ -26,7 +27,7 @@ import { cn, formatDate } from '@/lib/utils';
 import { ApplicationChips, ApplicationNameDialog, isApplicationDisabled, isNotSoBotApplication } from '../applications/ApplicationDialogs';
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from '../ui';
 import { adminUserPath, Chip, CopyableValue, DateTile, ExactDate, FiltersButton, IdFilter, Pagination, StatTile, UserCell } from './adminUi';
-import { AdminModalFooter, AdminTagModal, useOpenListItem } from './AdminTagModal';
+import { AdminModalFooter, AdminTagModal, LinkedItemModal, useOpenListItem } from './AdminTagModal';
 
 
 const STATUSES = [
@@ -58,6 +59,7 @@ const TITLE_ID = 'admin-application-modal-title';
 
 function ApplicationsTab({ state }: {state: SearchParamState}) {
   const { searchParams, page, update, setPage } = state;
+  const navigate = useNavigate();
   const query = searchParams.get('q') || '';
   const userId = searchParams.get('user_id') || '';
   const status = STATUSES.find((item) => item.value === searchParams.get('status'))?.value ?? '';
@@ -74,8 +76,11 @@ function ApplicationsTab({ state }: {state: SearchParamState}) {
   });
 
   const items = data?.items ?? [];
-  // ← / → step through this page's applications
-  const { openItem, previousId, nextId, open, close } = useOpenListItem(items, (application) => application.id);
+  // `/dashboard/admin/applications/<id>` opens the application over the list, ← / → step through this page's
+  const { openId, openItem: listedItem, previousId, nextId, open, close } = useOpenListItem(items, (application) => application.id, Routes.DASHBOARD_ADMIN_APPLICATIONS);
+  // a link to one that isn't on this page is fetched on its own, with the query its modal reads its usage from
+  const linked = useAdminApplicationQuery((listedItem) ? null : openId);
+  const openItem = listedItem ?? linked.data ?? null;
   const steppingBack = useStepBackFromEmptyPage({page, setPage, data, isPlaceholderData, pageSize: ADMIN_PAGE_SIZE});
   const pagination = {
     page,
@@ -133,13 +138,20 @@ function ApplicationsTab({ state }: {state: SearchParamState}) {
             key={openItem.id}
             application={openItem}
             navigation={{previousId, nextId, onNavigate: open}}
+            // closes the application too (in the same navigation, closing and then changing the filter would be two
+            // that undo each other)
             onFilterOwner={(ownerId) => {
-              close();
-              update({user_id: ownerId, q: null});
+              const next = new URLSearchParams(searchParams);
+              next.set('user_id', ownerId);
+              next.delete('q');
+              next.delete('page');
+              navigate({pathname: Routes.DASHBOARD_ADMIN_APPLICATIONS, search: next.toString()}, {replace: true, preventScrollReset: true});
             }}
             onDeleted={close}
           />
         </AdminTagModal>
+      ) : (openId) ? (
+        <LinkedItemModal noun='application' notFoundMessage='There’s no application with this id. It may have been deleted.' query={linked} onClose={close}/>
       ) : null}
     </>
   );
@@ -225,17 +237,17 @@ function ApplicationDetails({ application, navigation, onFilterOwner, onDeleted 
     remove.reset();
     setDialog(null);
   };
+  // `mutateAsync` for the changes that can take it off the list (deleting it, enabling or disabling it under `?status=`,
+  // renaming it out of the search): the list refetches before `mutate`'s callbacks would run, unmounting this, and the
+  // toast was lost. A failure shows in its dialog while it's still here
   const setDisabled = (value: boolean) => {
-    patch.mutate({applicationId: application.id, patch: {disabled: value}}, {
-      onSuccess: () => {
-        toast((value) ? `Disabled ${application.name}` : `Enabled ${application.name}`);
-        closeDialog();
-      },
-      onError: (patchError) => {
-        if (!value) {
-          toast(errorMessage(patchError, 'Couldn’t enable the application.'), 'error');
-        }
-      },
+    patch.mutateAsync({applicationId: application.id, patch: {disabled: value}}).then(() => {
+      toast((value) ? `Disabled ${application.name}` : `Enabled ${application.name}`);
+      closeDialog();
+    }, (patchError: unknown) => {
+      if (!value) {
+        toast(errorMessage(patchError, 'Couldn’t enable the application.'), 'error');
+      }
     });
   };
 
@@ -379,12 +391,10 @@ function ApplicationDetails({ application, navigation, onFilterOwner, onDeleted 
           submitLabel='Save'
           pending={rename.isPending}
           error={(rename.isError) ? errorMessage(rename.error, 'Couldn’t rename the application.') : null}
-          onSubmit={(name) => rename.mutate({applicationId: application.id, name}, {
-            onSuccess: (updated) => {
-              toast(`Renamed to ${updated.name}`);
-              closeDialog();
-            },
-          })}
+          onSubmit={(name) => rename.mutateAsync({applicationId: application.id, name}).then((updated) => {
+            toast(`Renamed to ${updated.name}`);
+            closeDialog();
+          }, () => {})}
           onClose={closeDialog}
         />
       ) : (dialog === 'disable') ? (
@@ -419,13 +429,11 @@ function ApplicationDetails({ application, navigation, onFilterOwner, onDeleted 
           confirmLabel='Delete application'
           pending={remove.isPending}
           error={(remove.isError) ? errorMessage(remove.error, 'Couldn’t delete the application.') : null}
-          onConfirm={() => remove.mutate(application.id, {
-            onSuccess: () => {
-              toast(`Deleted ${application.name}`);
-              closeDialog();
-              onDeleted();
-            },
-          })}
+          onConfirm={() => remove.mutateAsync(application.id).then(() => {
+            toast(`Deleted ${application.name}`);
+            closeDialog();
+            onDeleted();
+          }, () => {})}
           onClose={closeDialog}
         />
       ) : null}

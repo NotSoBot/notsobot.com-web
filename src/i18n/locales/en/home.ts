@@ -19,7 +19,7 @@ export const Home = {
   'home.features.tags.title': 'Custom Tags',
   'home.features.tags.description': 'Chain commands into your own tags, or grab community-made ones from the tag directory.',
   'home.features.music.title': 'Music',
-  'home.features.music.description': 'Play songs and links in voice with a shared queue, live effects, DJ mode and vote skips. Free on every server.',
+  'home.features.music.description': 'Play songs and links in voice with a shared queue, DJ mode and vote skips. Free on every server, with 24/7, a bigger queue and live effects on premium servers.',
   'home.features.moderation.title': 'Moderation',
   'home.features.moderation.description': 'Warn, mute, kick and ban, clean up chat, log what happens, take reports from members and decide who can use which commands.',
   'home.features.ai.title': 'AI',
@@ -28,9 +28,6 @@ export const Home = {
   'home.features.tts.description': 'Have NotSoBot read text out in your voice channel, in whichever voice you pick.',
   'home.features.voices.title': 'Voice Cloning',
   'home.features.voices.description': 'Clone a voice from an audio or video clip and have NotSoBot speak with it in text to speech.',
-  // tier names, same as the dashboard's `premium_type.*` (not loaded on this page)
-  'home.features.premium_plus': 'Premium+',
-  'home.features.premium_max': 'Premium Max',
 
   'home.steps.title': 'How It Works',
   'home.steps.post.title': 'Post Some Media',

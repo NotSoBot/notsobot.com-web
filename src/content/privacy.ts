@@ -3,7 +3,7 @@ import type { LegalDocument } from './legal';
 export const PRIVACY_POLICY: LegalDocument = {
   title: "Privacy Policy",
   effective: "October 13, 2026",
-  lastUpdated: "November 21, 2026",
+  lastUpdated: "November 22, 2026",
   intro: "This Privacy Policy explains what information NotSoBot collects, why, who it's shared with, how long it's kept, and how You can get a copy of it or have it deleted.",
   sections: [
     {
@@ -27,7 +27,7 @@ export const PRIVACY_POLICY: LegalDocument = {
           "Logging settings: if a server enables logging, the channel and webhook used to post logs, including the webhook token. Log events are sent to that webhook and are not kept by Us.",
           "Decoy channel settings: if a server sets up a decoy channel, the channel, who set it up, the webhook that posts and deletes its bait messages (including the webhook token), its notice (NotSoBot's text, or the IDs of the member and message whose own message is the notice), how many members it has removed and when it last did. We don't keep the messages people post in it.",
           "Command replies: the IDs of your command message, its channel, the command used, and NotSoBot's reply, so that editing or deleting your command can update or remove the reply.",
-          "Command usage statistics: which command was used, when, and the server, channel and user IDs involved.",
+          "Command usage statistics: which command was used, when, how it was started, how it ended and how long it took, the language of the reply, and the server, channel and user IDs involved.",
           "Tags: names, content, variables, attached media, usage counts and directory listings for tags You create, and each time a tag is used (the tag, who used it, the server and when).",
           "Music stats: each song that plays in a server (its title, artist and link), who queued it, how long it played and when, so the server can see what it played the most.",
           "Voice audio, only while someone uses the music listen command: NotSoBot hears its voice channel (everyone in it mixed together, or the one person picked) for up to 2 minutes, to find the song being played there. It's only held in memory while it listens and is never saved. Only a fingerprint of it is sent to ACRCloud (see Section 7).",
@@ -38,7 +38,7 @@ export const PRIVACY_POLICY: LegalDocument = {
           "AI memory: short facts NotSoAI saves about You when You ask it to remember something, whether each one applies everywhere or only in one server, when it was saved, and whether You've turned memory off.",
           "Cloned voices: the voice's name, what is needed to use the voice (for a voice made on Our own servers, a short list of numbers describing how it sounds; for an older one, the ID of the voice stored at fish.audio or ElevenLabs), and the speech from the audio clips You cloned it from (silence, music and noise around the speech are cut out before a clip is stored). A server's own cloned voices also keep the server and who cloned each one, which the server's members can see on the dashboard along with the voice's clips.",
           "Saved fonts: fonts You (or a server's members) save to use by name, kept as the file that was uploaded, along with its name, the file's original name, size and a file hash (SHA-256), who saved it, when, and a preview image of a sample line in the font. They're only reachable through NotSoBot and the logged-in dashboard, not from a public link.",
-          "Adding and removing NotSoBot: when You add NotSoBot to your account or to a server, log in to the website with Discord, or remove NotSoBot from your authorized apps, Discord tells Us your user ID, the server it was added to, the permissions (scopes) granted and when. We use it to count how many people add NotSoBot, and Our staff can see who added it to a server.",
+          "Adding and removing NotSoBot: when You add NotSoBot to your account or to a server, log in to the website with Discord, or remove NotSoBot from your authorized apps, Discord tells Us your user ID, the server it was added to, the permissions (scopes) granted and when. We use it to count how many people add NotSoBot, and Our staff can see who added it to a server. Deleting your information removes this record.",
           "Purchases: premium entitlements and subscription status received from Discord.",
           "NotSoCredits: how many credits You and each server have spent this week, the ones You rolled over with Max, your bought credits, and a record of every pack bought, credits given to a server (who gave how many to which server) and credits taken back after a refund or chargeback. A server's members can see who gave it credits and how many, with the bot's credits command or on the dashboard.",
           "Website login: if You log in to notsobot.com with Discord, an OAuth2 access and refresh token with the \"identify\" scope (and the \"guilds\" scope if You let the website see your server list), and your login sessions with their browser user agent. With the \"guilds\" scope, your list of servers is fetched from Discord when the dashboard needs it. Without it, the dashboard lists the servers NotSoBot already sees You in, and your permissions in a server come from NotSoBot or Discord. Either way the list is cached for about a minute.",
@@ -149,11 +149,13 @@ export const PRIVACY_POLICY: LegalDocument = {
       blocks: [
         {type: 'list', items: [
           "Links between your command messages and NotSoBot's replies are deleted after 14 days of inactivity.",
+          "Website and API request logs keep the IP address and user agent for 90 days, then those two are removed. The rest of a log entry (the path, response status and response time) is kept, and the entries with your user ID are deleted when You delete your information.",
           "Temporary files are deleted automatically when they expire.",
           "Frames kept from flagged media are deleted once the flag is decided, and after 26 hours, or 7 days if the flag is waiting for Our team.",
           "Transcriptions made for transcribing, sentence mixing and auto subtitles are kept for 24 hours under a hash of the audio, not linked to who asked, so running them again on the same media is faster.",
           "Songs queued from a link are converted and kept while they're in a server's music queue. They're deleted after they leave the queue, or once they're a week old if NotSoBot isn't playing music in that server.",
           "NotSoCredits' weekly spending is kept for 10 days. Bought credits and their records are kept so refunds and chargebacks can be handled, like other purchases.",
+          "Records of your premium starting, renewing, changing and ending are kept when You delete your information, for the same reason.",
           "Music stats are kept until the server's data is deleted. Deleting your information removes the songs You queued from every server's stats.",
           "AI requests, including any messages You replied to, are deleted after 30 days.",
           "Cached server lists for the dashboard expire after about a minute.",

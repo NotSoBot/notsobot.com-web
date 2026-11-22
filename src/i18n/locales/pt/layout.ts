@@ -14,7 +14,7 @@ export const Layout: Record<keyof typeof English, string> = {
   'nav.close_menu': 'Fechar menu',
 
   'footer.label': 'Rodapé',
-  'footer.company': 'Empresa',
+  'footer.links': 'Links',
   'footer.tag_docs': 'Docs de tags',
   'footer.report_bug': 'Reportar um bug',
   'footer.privacy': 'Política de privacidade',
@@ -75,7 +75,7 @@ export const Layout: Record<keyof typeof English, string> = {
 
   'not_found.title': 'Página não encontrada',
   'not_found.description': 'A página que você procura não existe ou foi movida. (404 kkk)',
-  'not_found.home': 'Voltar para o início',
+  'not_found.home': 'Ir para o início',
 
   'route_error.title': 'Bom, isso foi inesperado',
   'route_error.description': 'Algo quebrou ao mostrar esta página.',

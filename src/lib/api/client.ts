@@ -62,9 +62,16 @@ export function apiUrl(path: string, query?: ApiRequestOptions['query']): string
 
 
 
+// what the API takes as an invite's `src`
+export const INVITE_SOURCE_PATTERN = /^[a-z0-9_-]{1,32}$/;
+
 // the bot's invite (the API redirects to Discord), with `guildId` that server is already picked in Discord's server picker
-export function botInviteUrl(guildId?: string | null): string {
-  return apiUrl(ApiEndpoints.HELP_DISCORD_BOT, {guild_id: (guildId && /^\d+$/.test(guildId)) ? guildId : undefined});
+// `source` is the button it's on: the API puts it in the invite's `state`, which comes back on `/auth/redirect`
+export function botInviteUrl(guildId?: string | null, source?: string | null): string {
+  return apiUrl(ApiEndpoints.HELP_DISCORD_BOT, {
+    guild_id: (guildId && /^\d+$/.test(guildId)) ? guildId : undefined,
+    src: (source && INVITE_SOURCE_PATTERN.test(source)) ? source : undefined,
+  });
 }
 
 /**

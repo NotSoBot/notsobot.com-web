@@ -1,8 +1,7 @@
-import { ArrowUpRight, Ban, ShieldCheck } from 'lucide-react';
+import { ArrowUpRight } from 'lucide-react';
 import { useId, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 
-import { isOwner, useAuth } from '@/auth';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DetailModalStrip } from '@/components/ui/DetailModal';
 import { Modal } from '@/components/ui/Modal';
@@ -13,8 +12,8 @@ import { errorMessage, useAdminTagsQuery, useAdminUserEntryQuery, useDeleteAdmin
 import { cn } from '@/lib/utils';
 
 import { adminTagsPath, adminUserPath, Chip, UserCell } from './adminUi';
-import { BlockUserDialog, canBlockUser } from './BlockUserDialog';
 import { RemovalReasonFields, useRemovalReason } from './removalReason';
+import { UserModerationButtons } from './UserModerationButtons';
 
 
 // how many tags `userId` owns, from the same search the Tags tab's `user:<id>` uses
@@ -35,7 +34,8 @@ export function tagCountLabel(count: number | null): string {
 }
 
 
-// The last step before deleting every tag someone owns, on top of whichever dialog asked for it
+// The last step before deleting every tag someone owns, on top of whichever dialog asked for it. Typed, like deleting
+// an identity: "delete" and how many tags go, or their name while the count hasn't loaded
 export function ConfirmDeleteUserTags({ username, count, onConfirm, onClose }: {
   username: string,
   count: number | null,
@@ -52,6 +52,7 @@ export function ConfirmDeleteUserTags({ username, count, onConfirm, onClose }: {
         </>
       }
       confirmLabel={`Delete ${tagCountLabel(count)}`}
+      confirmPhrase={(count === null) ? username : `delete ${count}`}
       onConfirm={onConfirm}
       onClose={onClose}
     />
@@ -101,7 +102,19 @@ export function DeleteUserTagsDialog({ user, onClose }: {user: AdminUserRef, onC
 
           <div className='mt-3 flex flex-wrap items-center justify-between gap-3 rounded-md border border-line bg-deep p-3'>
             <UserCell user={user}/>
-            <Link to={adminTagsPath(`user:${user.id}`)} className='text-sm text-brand-text hover:underline' onClick={onClose}>
+            {/* inert while deleting: leaving mid-delete unmounted the dialog, so its result (or error) was never shown */}
+            <Link
+              to={adminTagsPath(`user:${user.id}`)}
+              className={cn('text-sm text-brand-text hover:underline', mutation.isPending && 'pointer-events-none opacity-60')}
+              aria-disabled={mutation.isPending || undefined}
+              onClick={(event) => {
+                if (mutation.isPending) {
+                  event.preventDefault();
+                } else {
+                  onClose();
+                }
+              }}
+            >
               {(count === null) ? 'Counting tags…' : `Review ${tagCountLabel(count)}`}
             </Link>
           </div>
@@ -140,22 +153,18 @@ export function DeleteUserTagsDialog({ user, onClose }: {user: AdminUserRef, onC
 
 
 // An admin tag modal's `DetailModalStrip`: the tag's owner (a link to their admin page), then `children` (e.g. "All their
-// tags") and blocking them at the end. The tag lists only send a name and avatar, so whether they're blocked comes from
-// their admin users entry, and the button shows up once that's loaded. `blockReason` is the block dialog's starting reason.
+// tags") and warning or blocking them at the end. The tag lists only send a name and avatar, so whether they're blocked
+// comes from their admin users entry, and the buttons show up once that's loaded. `blockReason` is the warn and block
+// dialogs' starting reason.
 export function TagOwnerStrip({ user, fallbackId, blockReason, children }: {
   user: AdminUserRef | null,
   fallbackId: string | null,
   blockReason: string,
   children?: ReactNode,
 }) {
-  const { user: me } = useAuth();
-  const viewerIsOwner = isOwner(me);
   const ownerId = user?.id ?? fallbackId;
   const entry = useAdminUserEntryQuery(ownerId);
   const owner = entry.data?.user ?? null;
-  const [ blocking, setBlocking ] = useState(false);
-  // only owners can unblock
-  const canToggleBlock = !!owner && ((owner.blocked) ? viewerIsOwner : canBlockUser(owner, viewerIsOwner));
 
   return (
     <DetailModalStrip>
@@ -173,33 +182,15 @@ export function TagOwnerStrip({ user, fallbackId, blockReason, children }: {
           <UserCell user={null}/>
         )}
         {(owner?.blocked) ? <Chip tone='danger' title={owner.blocked_reason || undefined}>Blocked</Chip> : null}
-        {(children || canToggleBlock) ? (
+        {(children || owner) ? (
           <div className='ml-auto flex shrink-0 items-center gap-1'>
             {children}
-            {(owner && canToggleBlock) ? (
-              <button
-                type='button'
-                className={cn('btn btn-sm shrink-0', (owner.blocked) ? 'btn-secondary' : 'btn-danger')}
-                onClick={() => setBlocking(true)}
-              >
-                {(owner.blocked) ? <ShieldCheck aria-hidden className='size-4'/> : <Ban aria-hidden className='size-4'/>}
-                {(owner.blocked) ? 'Unblock' : 'Block'}
-              </button>
-            ) : null}
+            {/* Warn and Block (or Unblock), like the reports modal's */}
+            {(owner) ? <UserModerationButtons user={owner} defaultReason={blockReason}/> : null}
           </div>
         ) : null}
       </div>
       {(owner?.blocked && owner.blocked_reason) ? <p className='mt-1 text-xs break-words text-subtle'>Blocked for: {owner.blocked_reason}</p> : null}
-      {(blocking && owner) ? (
-        <BlockUserDialog
-          user={owner}
-          blocked={owner.blocked}
-          blockedReason={owner.blocked_reason}
-          blockedUntil={owner.blocked_until}
-          defaultReason={blockReason}
-          onClose={() => setBlocking(false)}
-        />
-      ) : null}
     </DetailModalStrip>
   );
 }

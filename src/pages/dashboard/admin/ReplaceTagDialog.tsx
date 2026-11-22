@@ -82,7 +82,13 @@ export function ReplaceTagDialog({ tag, onReplaced, onClose }: {
               {...NO_AUTOFILL}
               className='input font-mono'
               value={input}
-              onChange={(event) => setInput(event.target.value)}
+              onChange={(event) => {
+                // a failed replace was about the tag typed before, it shouldn't sit under a new one
+                if (mutation.isError) {
+                  mutation.reset();
+                }
+                setInput(event.target.value);
+              }}
               placeholder='Tag id'
               inputMode='numeric'
               aria-invalid={(inputError) ? true : undefined}

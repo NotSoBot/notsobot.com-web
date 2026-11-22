@@ -140,7 +140,9 @@ export function AdminVoicesPage() {
       ) : (
         <>
           <Pagination {...pagination} className='mt-0 mb-4'/>
-          <div className={cn('card overflow-x-auto transition-opacity', isPlaceholderData && 'opacity-60')}>
+          {/* `relative`: the last column's sr-only heading is absolutely positioned, and without a positioned scroller it
+              escapes the clipping and makes the whole page scroll sideways */}
+          <div className={cn('card relative overflow-x-auto transition-opacity', isPlaceholderData && 'opacity-60')}>
             <table className='w-full min-w-[980px] text-left text-sm'>
               <thead className='border-b border-line text-xs text-subtle uppercase'>
                 <tr>

@@ -29,20 +29,33 @@ function normalizeName(value: string): string {
 
 const NAME_PATTERN = /^[a-z0-9_]{1,32}$/;
 
+// which row's button spins while an action is sending: the font's id, or the add form's
+const ADD_KEY = '\u0000add';
+function actionKey(action: SavedFontAction): string {
+  switch (action.kind) {
+    case 'add': return ADD_KEY;
+    case 'rename':
+    case 'remove': return action.fontId;
+  }
+}
+
 
 // Saved fonts, the caller's own (`guildId` null, their premium) or a server's (any member sees them, Manage Server
 // changes them, the server's premium). Used by name in caption, meme and recaption's font, as a Default Font and with
-// MediaScript's `loadfont`. Without premium they're kept and can still be renamed or deleted, but not added to
-export function SavedFontsPanel({ guildId, editable = true, readOnly }: {
+// MediaScript's `loadfont`. Without premium they're kept and can still be renamed or deleted, but not added to.
+// `hideDescription` for a page whose header already says what the panel's description does
+export function SavedFontsPanel({ guildId, editable = true, readOnly, hideDescription = false }: {
   guildId: string | null,
   editable?: boolean,
   readOnly?: string,
+  hideDescription?: boolean,
 }) {
   const { t, rich } = useI18n();
   const toast = useToast();
   const { data, isPending, error } = useSavedFontsQuery(guildId);
   const mutation = useSavedFontsMutation(guildId);
-  const [ busyKey, setBusyKey ] = useState<string | null>(null);
+  // from the mutation itself, so it can't outlive (or miss) the request
+  const busyKey = (mutation.isPending && mutation.variables) ? actionKey(mutation.variables) : null;
   const [ renamingId, setRenamingId ] = useState<string | null>(null);
   const [ deleting, setDeleting ] = useState<SavedFont | null>(null);
   // what every font shows itself with, their own words or a sentence with most letters
@@ -54,8 +67,7 @@ export function SavedFontsPanel({ guildId, editable = true, readOnly }: {
   const premium = data?.premium ?? true;
   const full = limit <= items.length;
 
-  const run = async (key: string, action: SavedFontAction, success: string): Promise<boolean> => {
-    setBusyKey(key);
+  const run = async (action: SavedFontAction, success: string): Promise<boolean> => {
     try {
       await mutation.mutateAsync(action);
       toast(success);
@@ -63,8 +75,6 @@ export function SavedFontsPanel({ guildId, editable = true, readOnly }: {
     } catch (error) {
       toast(errorMessage(error, translate('fonts.save_error')), 'error');
       return false;
-    } finally {
-      setBusyKey(null);
     }
   };
 
@@ -74,7 +84,7 @@ export function SavedFontsPanel({ guildId, editable = true, readOnly }: {
     <Panel
       title={t((guildId) ? 'fonts.server_title' : 'fonts.title')}
       accent='#3ba55d'
-      description={rich('fonts.panel_description', {code: (chunk) => <code className='text-fg'>{chunk}</code>})}
+      description={(hideDescription) ? undefined : rich('fonts.panel_description', {code: (chunk) => <code className='text-fg'>{chunk}</code>})}
       readOnly={(editable) ? undefined : readOnly}
     >
       {(!isPending && !error && !premium) ? (
@@ -114,7 +124,7 @@ export function SavedFontsPanel({ guildId, editable = true, readOnly }: {
                     disabled={mutation.isPending}
                     onCancel={() => setRenamingId(null)}
                     onSave={async (name) => {
-                      if (await run(font.id, {kind: 'rename', fontId: font.id, name}, t('fonts.renamed'))) {
+                      if (await run({kind: 'rename', fontId: font.id, name}, t('fonts.renamed'))) {
                         setRenamingId(null);
                       }
                     }}
@@ -164,9 +174,9 @@ export function SavedFontsPanel({ guildId, editable = true, readOnly }: {
           limit={limit}
           count={items.length}
           maxFileSize={data?.max_file_size ?? 24 * 1024 * 1024}
-          busy={busyKey === '\u0000add'}
+          busy={busyKey === ADD_KEY}
           disabled={mutation.isPending}
-          onAdd={(name, file) => run('\u0000add', {kind: 'add', name, file}, t('fonts.added', {name: normalizeName(name)}))}
+          onAdd={(name, file) => run({kind: 'add', name, file}, t('fonts.added', {name: normalizeName(name)}))}
         />
       ) : null}
 
@@ -174,14 +184,20 @@ export function SavedFontsPanel({ guildId, editable = true, readOnly }: {
         <ConfirmDialog
           title={t('fonts.delete_title', {name: deleting.name})}
           description={t((guildId) ? 'fonts.delete_description_server' : 'fonts.delete_description')}
-          confirmLabel={t('common.delete')}
+          confirmLabel={t('fonts.delete')}
           pending={mutation.isPending}
-          onConfirm={async () => {
-            if (await run(deleting.id, {kind: 'remove', fontId: deleting.id}, t('fonts.deleted'))) {
+          error={(mutation.isError) ? errorMessage(mutation.error, t('fonts.delete_error')) : null}
+          // not through `run`: a failure shows in the dialog instead of a toast
+          onConfirm={() => mutation.mutate({kind: 'remove', fontId: deleting.id}, {
+            onSuccess: () => {
+              toast(t('fonts.deleted'));
               setDeleting(null);
-            }
+            },
+          })}
+          onClose={() => {
+            mutation.reset();
+            setDeleting(null);
           }}
-          onClose={() => setDeleting(null)}
         />
       ) : null}
     </Panel>

@@ -2981,8 +2981,8 @@ route('GET', '/users/@me/credits', () => {
     ai_message: 75,
     balance: {refill_left: 40_000, resets_at: monday.toISOString(), rollover_left: 48_600, rollover_max: 120_000, weekly: 60_000, weekly_left: 2_350},
     transactions: [
-      {amount: 10_000, created: new Date(now - day).toISOString(), entitlement_id: null, id: '1380000000000000002', server_id: guilds[1].summary.id, type: 2, user_id: mockUser.id},
-      {amount: 50_000, created: new Date(now - 3 * day).toISOString(), entitlement_id: '1370000000000000099', id: '1380000000000000001', server_id: null, type: 1, user_id: mockUser.id},
+      {amount: 10_000, created: new Date(now - day).toISOString(), entitlement_id: null, id: '1380000000000000002', reverses_id: null, server_id: guilds[1].summary.id, type: 2, user_id: mockUser.id},
+      {amount: 50_000, created: new Date(now - 3 * day).toISOString(), entitlement_id: '1370000000000000099', id: '1380000000000000001', reverses_id: null, server_id: null, type: 1, user_id: mockUser.id},
     ],
   };
 });
@@ -3020,8 +3020,35 @@ route('GET', '/admin/credits/transactions', (_match, { query }) => {
     .filter((item) => !userId || item.user_id === userId)
     .filter((item) => !serverId || item.server_id === serverId)
     .filter((item) => !type || item.type === Number(type))
-    .sort((a, b) => (BigInt(b.id) > BigInt(a.id)) ? 1 : -1);
+    .sort((a, b) => (BigInt(b.id) > BigInt(a.id)) ? 1 : -1)
+    .map((item) => ({...item, reversed_by_id: state.creditTransactions.find((other) => other.reverses_id === item.id)?.id ?? null}));
   return pageOf(matching, query);
+});
+
+// a staff grant's Take back: only once per grant, like the api's unique `reverses_id`
+route('POST', '/admin/credits/transactions/(\\d+)/reverse', ([ , transactionId ]) => {
+  requireBotOwner();
+  const grant = state.creditTransactions.find((item) => item.id === transactionId);
+  if (!grant) {
+    throw new MockError(404, ApiErrorCodes.UNKNOWN_CREDIT_TRANSACTION, 'Unknown Credit Transaction');
+  }
+  if (grant.type !== 4 || grant.amount <= 0 || grant.reverses_id) {
+    throw new MockError(400, ApiErrorCodes.INVALID_FORM_BODY, 'Only a staff grant can be taken back');
+  }
+  const reversal = state.creditTransactions.find((item) => item.reverses_id === grant.id);
+  if (reversal) {
+    throw new MockError(409, ApiErrorCodes.CREDIT_GRANT_ALREADY_REVERSED, 'That grant was already taken back', {amount: reversal.amount, id: reversal.id});
+  }
+  const have = Math.max(0, state.creditTransactions
+    .filter((item) => item.user_id === grant.user_id && !(item.type === 3 && item.server_id))
+    .reduce((sum, item) => sum + ((item.type === 2) ? -item.amount : item.amount), 0));
+  const amount = Math.min(have, grant.amount);
+  if (!amount) {
+    throw new MockError(400, ApiErrorCodes.CREDITS_LIMIT, 'They have no refill credits to take');
+  }
+  const id = String(BigInt(state.creditTransactions.reduce((max, item) => (BigInt(item.id) > BigInt(max) ? item.id : max), '0')) + 1n);
+  state.creditTransactions.push({...grant, amount: -amount, created: new Date().toISOString(), id, reversed_by_id: null, reverses_id: grant.id});
+  return {amount: -amount, id, refill_left: have - amount, reverses_id: grant.id};
 });
 
 route('POST', '/admin/entitlements/(\\d+)/credits/revoke', ([ , entitlementId ]) => {
@@ -3044,8 +3071,16 @@ route('POST', '/admin/entitlements/(\\d+)/credits/revoke', ([ , entitlementId ])
 });
 
 // a staff grant: a negative amount only takes what the ledger says they still have
+// a grant's `request_id` answers again with what it got the first time, like the api
+const mockGrantRequests = new Map<string, {amount: number, refill_left: number}>();
+
 route('POST', '/admin/users/(\\d+)/credits/grant', ([ , userId ], { body }) => {
   requireBotOwner();
+  const requestKey = (body.request_id) ? `${userId}:${body.request_id}` : null;
+  const repeated = (requestKey) ? mockGrantRequests.get(requestKey) : undefined;
+  if (repeated) {
+    return repeated;
+  }
   const user = (userId === mockUser.id) ? mockUser : state.adminUsers.find((other) => other.id === userId);
   if (!user) {
     throw new MockError(404, 10008, 'Unknown User');
@@ -3068,12 +3103,18 @@ route('POST', '/admin/users/(\\d+)/credits/grant', ([ , userId ], { body }) => {
     created: new Date().toISOString(),
     entitlement_id: null,
     id: String(BigInt(state.creditTransactions.reduce((max, item) => (BigInt(item.id) > BigInt(max) ? item.id : max), '0')) + 1n),
+    reversed_by_id: null,
+    reverses_id: null,
     server_id: null,
     type: 4,
     user: {avatar: user.avatar, discriminator: user.discriminator, id: user.id, username: user.username},
     user_id: user.id,
   });
-  return {amount, refill_left: have + amount};
+  const result = {amount, refill_left: have + amount};
+  if (requestKey) {
+    mockGrantRequests.set(requestKey, result);
+  }
+  return result;
 });
 
 
@@ -3194,6 +3235,24 @@ route('GET', '/admin/stats/commands', (_match, { query }) => {
     top: top.map((command_id, i) => ({command_id, count: Math.round(count * 0.18 / (i + 1)), users: Math.round(count * 0.02 / (i + 1))})),
     types: [{type: 0, count: Math.round(count * 0.63)}, {type: 1, count: Math.round(count * 0.26)}, {type: 2, count: Math.round(count * 0.01)}, {type: 3, count: Math.round(count * 0.02)}, {type: 4, count: Math.round(count * 0.08)}],
     results: results.map(([ result, share ]) => ({result, count: Math.round(count * share)})).sort((a, b) => b.count - a.count),
+    reasons: [['no_media', 0.012], ['premium', 0.006], ['rule', 0.005], ['trigger_changed', 0.004], ['usage', 0.003], ['job_timed_out', 0.002], ['no_channel_history', 0.0015], ['nsfw', 0.001]]
+      .map(([ reason, share ]) => ({reason: reason as string, count: Math.round(count * (share as number)), users: Math.round(count * (share as number) / 3)})),
+    places: [
+      {install: 'guild', context: 'guild', count: Math.round(count * 0.84), users: Math.round(count / 26)},
+      {install: 'user', context: 'guild', count: Math.round(count * 0.07), users: Math.round(count / 300)},
+      {install: 'user', context: 'private_channel', count: Math.round(count * 0.05), users: Math.round(count / 420)},
+      {install: 'user', context: 'bot_dm', count: Math.round(count * 0.03), users: Math.round(count / 700)},
+      {install: '', context: 'bot_dm', count: Math.round(count * 0.01), users: Math.round(count / 2100)},
+    ],
+    triggers: [
+      {trigger: 'auto_embed', count: Math.round(count * 0.021), users: Math.round(count / 900)},
+      {trigger: 'ai_reply', count: Math.round(count * 0.009), users: Math.round(count / 2400)},
+    ],
+    locales: [['en', 0.71], ['pt-BR', 0.08], ['es', 0.07], ['ru', 0.04], ['de', 0.03], ['fr', 0.025], ['tr', 0.02], ['pl', 0.012], ['id', 0.008], ['ja', 0.005]]
+      .map(([ locale, share ]) => ({locale: locale as string, count: Math.round(count * (share as number)), users: Math.round(count * (share as number) / 21)})),
+    duration: {count: Math.round(count * 0.98), p50: 840, p95: 9_600},
+    edited: Math.round(count * 0.018),
+    tip: {shown: Math.round(count * 0.021), users: Math.round(count / 60), switched: Math.round(count / 410)},
   };
 });
 
@@ -3221,6 +3280,14 @@ route('GET', '/admin/stats/api', (_match, { query }) => {
       {application: null, requests: Math.round(requests * 0.6), server_errors: 41},
       ...state.applications.slice(0, 5).map((item, i) => ({application: {id: item.id, name: item.name}, requests: Math.round(requests * 0.1 / (i + 1)), server_errors: 3})),
       {application: {id: '1111111111111111111', name: null}, requests: 42, server_errors: 0},
+    ],
+    errors: [
+      {code: 20010, name: 'PREMIUM_REQUIRED', tier: 'premium_max', count: Math.round(requests * 0.006), users: Math.round(requests * 0.002)},
+      {code: 7, name: 'RATELIMITED', tier: null, count: Math.round(requests * 0.005), users: Math.round(requests * 0.0011)},
+      {code: 50035, name: 'INVALID_FORM_BODY', tier: null, count: Math.round(requests * 0.004), users: Math.round(requests * 0.0015)},
+      {code: 20010, name: 'PREMIUM_REQUIRED', tier: 'premium_plus', count: Math.round(requests * 0.002), users: Math.round(requests * 0.0009)},
+      {code: 20031, name: 'CREDITS_LIMIT', tier: null, count: Math.round(requests * 0.0012), users: Math.round(requests * 0.0004)},
+      {code: 99999, name: null, tier: null, count: 12, users: 0},
     ],
   };
 });
@@ -3259,6 +3326,7 @@ route('GET', '/admin/stats/growth', (_match, { query }) => {
       removed: sumOf(installsSeries, (x) => x.removed),
       series: installsSeries,
     },
+    deletions: {users: days * 3, users_kept: Math.round(days * 0.4), servers: Math.round(days * 0.6), servers_staff: Math.round(days / 30)},
   };
 });
 
@@ -3286,6 +3354,8 @@ route('GET', '/admin/stats/premium', (_match, { query }) => {
     premium_servers: 604,
     premium_slots: 731,
     series,
+    events: [['start', 11], ['upgrade', 2], ['downgrade', 1], ['end', 7], ['purchase', 13], ['cancel', 6], ['resume', 0], ['refund', 1]]
+      .map(([ kind, perDay ]) => ({kind: kind as string, count: Math.round((perDay as number) * days * 1.04), users: (perDay as number) * days})),
   };
 });
 
@@ -4376,6 +4446,9 @@ route('POST', '/(users/@me|admin)/guilds/(\\d+)/music/control', ([ , scope, guil
       music.session.paused_alone = false;
     }; break;
     case 'skip': {
+      if (body.item_id && music.current?.id !== body.item_id) {
+        throw new MockError(409, ApiErrorCodes.UNKNOWN_MUSIC_QUEUE_ITEM, 'That song already ended');
+      }
       const next = music.queue.shift();
       if (music.loop === 'queue' && music.current) {
         music.queue.push(music.current);
@@ -5827,9 +5900,9 @@ function mockGuildCredits(guildId: string) {
   week.setUTCDate(week.getUTCDate() + ((8 - week.getUTCDay()) % 7 || 7));
   week.setUTCHours(0, 0, 0, 0);
   const transactions = (guildId === guilds[0].summary.id) ? [
-    {amount: -10_000, created: new Date(Date.now() - 2 * 86400000).toISOString(), entitlement_id: '1320000000000000771', id: '1320000000000000803', server_id: guildId, type: CreditTransactionTypes.REVOKE, user: member(giver), user_id: giver.id},
-    {amount: 10_000, created: new Date(Date.now() - 5 * 86400000).toISOString(), entitlement_id: null, id: '1320000000000000802', server_id: guildId, type: CreditTransactionTypes.GIVE, user: member(giver), user_id: giver.id},
-    {amount: 50_000, created: new Date(Date.now() - 9 * 86400000).toISOString(), entitlement_id: null, id: '1320000000000000801', server_id: guildId, type: CreditTransactionTypes.GIVE, user: member(mockUser), user_id: mockUser.id},
+    {amount: -10_000, created: new Date(Date.now() - 2 * 86400000).toISOString(), entitlement_id: '1320000000000000771', id: '1320000000000000803', reverses_id: null, server_id: guildId, type: CreditTransactionTypes.REVOKE, user: member(giver), user_id: giver.id},
+    {amount: 10_000, created: new Date(Date.now() - 5 * 86400000).toISOString(), entitlement_id: null, id: '1320000000000000802', reverses_id: null, server_id: guildId, type: CreditTransactionTypes.GIVE, user: member(giver), user_id: giver.id},
+    {amount: 50_000, created: new Date(Date.now() - 9 * 86400000).toISOString(), entitlement_id: null, id: '1320000000000000801', reverses_id: null, server_id: guildId, type: CreditTransactionTypes.GIVE, user: member(mockUser), user_id: mockUser.id},
   ] : [];
   const slots = (state.premiumServers.some((server) => server.server_id === guildId)) ? {ai: 1, plus: 1} : {ai: 0, plus: 0};
   // the mock user's own slots on it, plus a lapsed giver's on the first guild (kept, gives nothing)

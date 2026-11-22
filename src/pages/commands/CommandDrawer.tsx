@@ -5,20 +5,21 @@ import { Link } from 'react-router';
 
 import { formatPrefixCommandsEnd, prefixCommandsEnded } from '@/components/ui/PrefixSunsetNotice';
 import { Routes } from '@/config';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { useI18n } from '@/i18n';
 import { CommandTypes, type CommandArgChoice, type CommandType } from '@/lib/api';
 import { cn, formatCompact, formatNumber } from '@/lib/utils';
 
 import { CategoryBadge, categoryStyle, CommandName, PremiumBadge } from './CommandCards';
 import { CommandPreview } from './CommandPreview';
-import { PREFIXES, premiumMeta, sharedRatelimitLabel, SHARED_RATELIMIT_PREFIX, TYPE_LABELS, type Entry } from './commandMeta';
+import { PREFIXES, premiumMeta, ratelimitScopeLabel, sharedRatelimitLabel, SHARED_RATELIMIT_PREFIX, TYPE_LABELS, type Entry, type StatsState } from './commandMeta';
 
 
 // how many of the other commands in a shared ratelimit are listed, the media one has hundreds
 const SHARED_RATELIMIT_SHOWN = 12;
 
 
-export function CommandDrawer({ entry, type, siblings, entries, totalRanked, onSelect, onClose }: {
+export function CommandDrawer({ entry, type, siblings, entries, totalRanked, stats = 'ready', onSelect, onClose }: {
   entry: Entry,
   // which of the entry's variants is shown (prefix or slash, from the path)
   type: CommandType,
@@ -27,11 +28,14 @@ export function CommandDrawer({ entry, type, siblings, entries, totalRanked, onS
   // all of them, to find the ones sharing this command's ratelimit
   entries: Array<Entry>,
   totalRanked: number,
+  // the usage request, its numbers are dashes until it's `ready` (never a 0 nobody counted)
+  stats?: StatsState,
   onSelect: (entry: Entry, type?: CommandType) => void,
   onClose: () => void,
 }) {
   const { t } = useI18n();
   const closeRef = useRef<HTMLButtonElement>(null);
+  const drawerRef = useRef<HTMLElement>(null);
   const { metadata } = entry.variants.find((variant) => variant.metadata.type === type) || entry.variants[0];
   const prefix = PREFIXES[metadata.type] ?? '';
 
@@ -47,6 +51,9 @@ export function CommandDrawer({ entry, type, siblings, entries, totalRanked, onS
       .filter((other) => other.variants.some((variant) => variant.metadata.ratelimits?.some((limit) => limit.key === sharedKey)))
       .sort((a, b) => b.uses - a.uses);
   }, [entries, entry, sharedKey]);
+
+  // Tab stays in the drawer, the page behind it is dimmed
+  useFocusTrap(drawerRef);
 
   // focus in, Escape out, page scroll locked, focus handed back on close
   useEffect(() => {
@@ -78,6 +85,7 @@ export function CommandDrawer({ entry, type, siblings, entries, totalRanked, onS
       <div className='fixed inset-0 z-50'>
         <div aria-hidden className='absolute inset-0' onClick={onClose}/>
         <aside
+          ref={drawerRef}
           role='dialog'
           aria-modal='true'
           aria-labelledby='command-drawer-title'
@@ -99,7 +107,7 @@ export function CommandDrawer({ entry, type, siblings, entries, totalRanked, onS
               </button>
             </div>
             {(entry.variants.length > 1) ? (
-              <VariantTabs entry={entry} type={metadata.type} onSelect={(value) => onSelect(entry, value)}/>
+              <VariantTabs entry={entry} type={metadata.type} showUses={stats === 'ready'} onSelect={(value) => onSelect(entry, value)}/>
             ) : null}
             <h2 id='command-drawer-title'>
               <CommandName type={metadata.type} name={metadata.name} className='text-2xl font-semibold text-white'/>
@@ -122,7 +130,7 @@ export function CommandDrawer({ entry, type, siblings, entries, totalRanked, onS
             <dl className='mt-4 grid grid-cols-2 gap-2'>
               <div className='rounded-md bg-deep px-3 py-2'>
                 <dt className='text-xs text-muted'>{t('commands.drawer.uses')}</dt>
-                <dd className='text-lg font-semibold text-white tabular-nums'>{formatNumber(entry.uses)}</dd>
+                <dd className='text-lg font-semibold text-white tabular-nums'>{(stats === 'ready') ? formatNumber(entry.uses) : '—'}</dd>
               </div>
               <div className='rounded-md bg-deep px-3 py-2'>
                 <dt className='text-xs text-muted'>{t('commands.drawer.popularity')}</dt>
@@ -206,11 +214,14 @@ export function CommandDrawer({ entry, type, siblings, entries, totalRanked, onS
             {(metadata.ratelimits?.length) ? (
               <Section title={t('commands.drawer.ratelimits')}>
                 <ul className='flex flex-wrap gap-2'>
-                  {metadata.ratelimits.map((limit, i) => (
-                    <li key={i} className='rounded bg-surface-3 px-2.5 py-1 text-sm text-fg'>
-                      {t('commands.drawer.ratelimit', {limit: limit.limit, seconds: limit.duration / 1000})} <span className='text-subtle'>/ {limit.type}</span>
-                    </li>
-                  ))}
+                  {metadata.ratelimits.map((limit, i) => {
+                    const scope = ratelimitScopeLabel(limit.type);
+                    return (
+                      <li key={i} className='rounded bg-surface-3 px-2.5 py-1 text-sm text-fg'>
+                        {t('commands.drawer.ratelimit', {limit: limit.limit, seconds: limit.duration / 1000})} <span className='text-subtle'>· {(scope) ? t(scope) : limit.type}</span>
+                      </li>
+                    );
+                  })}
                 </ul>
                 {(sharedKey) ? (
                   <div className='mt-2 rounded-md bg-deep px-3 py-2.5 text-sm'>
@@ -308,7 +319,7 @@ function PrefixEndingNote({ entry, name, onSelect }: {entry: Entry, name: string
 
 
 // prefix and slash share the drawer: one tab each with its own uses (the stats above add them up)
-function VariantTabs({ entry, type, onSelect }: {entry: Entry, type: CommandType, onSelect: (type: CommandType) => void}) {
+function VariantTabs({ entry, type, showUses, onSelect }: {entry: Entry, type: CommandType, showUses: boolean, onSelect: (type: CommandType) => void}) {
   const { t } = useI18n();
   return (
     <div role='tablist' aria-label={t('commands.type_label')} className='mb-3 flex w-fit rounded-lg border border-line bg-deep p-1'>
@@ -327,7 +338,7 @@ function VariantTabs({ entry, type, onSelect }: {entry: Entry, type: CommandType
             )}
           >
             {t(TYPE_LABELS[variant.metadata.type])}
-            <span className='text-xs text-subtle tabular-nums' title={t('commands.uses_this_week')}>{formatCompact(variant.uses)}</span>
+            {(showUses) ? <span className='text-xs text-subtle tabular-nums' title={t('commands.uses_this_week')}>{formatCompact(variant.uses)}</span> : null}
           </button>
         );
       })}

@@ -19,7 +19,7 @@ export function GrowthSection({ days }: {days: number}) {
   const query = useAdminStatsQuery<AdminGrowthStats>('growth', days);
   return (
     <StatsSection id='growth' title='Growth' accent={STAT_COLORS.secondary} query={query}>
-      {({ users, servers, installs, days: windowDays }) => {
+      {({ users, servers, installs, deletions, days: windowDays }) => {
         const net = servers.joins - servers.leaves;
         return (
           <>
@@ -100,6 +100,18 @@ export function GrowthSection({ days }: {days: number}) {
                 describe={(item) => `${dayLabel(item.date)}: ${plural(item.ghosts ?? 0, 'ghost leave')}`}
               />
             </section> : null}
+            {/* counts only, nothing is kept about whose data it was. an api from before they were counted has no
+                `deletions`, the section is left out then */}
+            {(deletions) ? <section className='mt-4'>
+              <SubHeading>Data deletions</SubHeading>
+              <p className='text-sm text-muted'>
+                {plural(deletions.users, 'user')} deleted their data
+                {(deletions.users_kept) ? ` (${formatNumber(deletions.users_kept)} kept a row for a purchase or staff)` : ''}
+                {' • '}
+                {plural(deletions.servers, 'server')} had theirs deleted
+                {(deletions.servers_staff) ? ` (${formatNumber(deletions.servers_staff)} by staff)` : ''}
+              </p>
+            </section> : null}
             {(users.blocked) ? <p className='mt-3 text-xs text-subtle'>{plural(users.blocked, 'user')} blocked.</p> : null}
           </>
         );
@@ -167,8 +179,51 @@ export function PremiumSection({ days }: {days: number}) {
               />
             </section>
           </div>
+
+          {/* an api from before they were recorded has no `events`, the section is left out then */}
+          {(data.events) ? <section className='mt-6'>
+            <SubHeading>What changed</SubHeading>
+            <p className='mb-3 text-sm text-muted'>
+              Users whose premium changed in this window, recorded since November 22, 2026. Started and Ended above count
+              entitlements by their dates instead.
+            </p>
+            <RankedList
+              empty='No changes recorded in this window.'
+              items={data.events.filter((item) => item.count).map((item) => ({
+                key: item.kind,
+                label: PREMIUM_EVENT_LABELS[item.kind] ?? item.kind,
+                value: item.users,
+                display: formatNumber(item.users),
+                detail: PREMIUM_EVENT_DETAILS[item.kind],
+              }))}
+            />
+          </section> : null}
         </>
       )}
     </StatsSection>
   );
 }
+
+
+// the api's `PremiumEvent.kind`: a user's tier changing, then one of discord's entitlements changing
+const PREMIUM_EVENT_LABELS: Record<string, string> = {
+  cancel: 'Cancelled',
+  downgrade: 'Downgraded',
+  end: 'Lost premium',
+  purchase: 'New entitlements',
+  refund: 'Refunded',
+  resume: 'Resumed',
+  start: 'Got premium',
+  upgrade: 'Upgraded',
+};
+
+const PREMIUM_EVENT_DETAILS: Record<string, string> = {
+  cancel: 'the subscription got an end date, it runs until then',
+  downgrade: 'to a lower tier',
+  end: 'from a tier to none',
+  purchase: 'first seen from Discord',
+  refund: 'Discord took the entitlement back',
+  resume: 'the end date was taken back',
+  start: 'from none to a tier',
+  upgrade: 'to a higher tier',
+};

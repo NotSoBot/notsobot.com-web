@@ -1,13 +1,17 @@
-import { AlertTriangle, BarChart3, Calendar, ChevronLeft, ChevronRight, Hash, Server, Tag as TagIcon, type LucideIcon } from 'lucide-react';
+import { AlertTriangle, BarChart3, Calendar, Server, Tag as TagIcon, type LucideIcon } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 
+import { useAuth } from '@/auth';
 import { ReportButton } from '@/components/reports/ReportButton';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { CopyButton } from '@/components/ui/CopyButton';
+import { ModalFooter } from '@/components/ui/DetailModal';
 import { Markdown } from '@/components/ui/Markdown';
 import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
 import { UserAvatar } from '@/components/ui/UserAvatar';
+import { config } from '@/config';
 import { useArrowKeyNavigation } from '@/hooks/useArrowKeyNavigation';
 import { useI18n } from '@/i18n';
 import { TagDirectoryVerificationStates, type TagDirectoryItem } from '@/lib/api';
@@ -36,22 +40,49 @@ export function TagDetailModal({ tagId, initialItem, previousId, nextId, onNavig
   onClose: () => void,
 }) {
   const { t } = useI18n();
+  const { isAuthenticated } = useAuth();
   const { data: item, isPending, isError, refetch } = useTagDirectoryItemQuery(tagId, initialItem);
   // keyed on the tag so stepping to another one leaves edit mode
   const [ editingId, setEditingId ] = useState<string | null>(null);
   const editing = editingId === tagId;
+  // whether the listing form has unsaved edits, and what's waiting on the discard prompt while it does: closing
+  // (`to` is null) or stepping to another tag
+  const [ dirty, setDirty ] = useState(false);
+  const [ leaving, setLeaving ] = useState<{to: string | null} | null>(null);
 
   // ← / → step through the tags loaded behind the modal (ignored while typing, editing the listing, or with a dialog open over it)
   useArrowKeyNavigation({previousId, nextId, onNavigate, disabled: editing});
 
+  const leave = (to: string | null) => {
+    if (to) {
+      onNavigate(to);
+    } else {
+      onClose();
+    }
+  };
+
+  // Escape, a click outside, the X and Previous / Next all come through here, so typed edits aren't thrown away unasked
+  const requestLeave = (to: string | null) => {
+    if (editing && dirty) {
+      setLeaving({to});
+    } else {
+      leave(to);
+    }
+  };
+
+  const browsing = !!(previousId || nextId);
+  // `AddTagButton` renders nothing when there's no way to log in, and an empty action would still make the footer stick
+  const canAdd = isAuthenticated || config.authEnabled;
+
   return (
-    <Modal labelledBy={TITLE_ID} onClose={onClose}>
+    <Modal labelledBy={TITLE_ID} onClose={() => requestLeave(null)} stickyClose>
       {(isPending) ? (
         <div className='flex h-80 items-center justify-center'>
           <h2 id={TITLE_ID} className='sr-only'>{t('tags.detail.loading')}</h2>
           <Spinner/>
         </div>
-      ) : (isError) ? (
+      ) : (isError && !item) ? (
+        // only when there's nothing to show: a failed background refetch keeps the tag (and an open edit form) up
         <TagMessage title={t('tags.detail.load_error_title')} description={t('tags.detail.load_error_description')}>
           <button type='button' className='btn btn-secondary' onClick={() => refetch()}>{t('common.retry')}</button>
         </TagMessage>
@@ -59,28 +90,45 @@ export function TagDetailModal({ tagId, initialItem, previousId, nextId, onNavig
         <TagMessage title={t('tags.detail.not_found_title')} description={t('tags.detail.not_found_description')}/>
       ) : (
         // keyed on the tag so a dialog opened from it (adding, reporting, ownership checks) never carries its state over to the next one
-        <TagDetail key={tagId} item={item} editing={editing} onEditingChange={(value) => setEditingId((value) ? tagId : null)}/>
+        <TagDetail
+          key={tagId}
+          item={item}
+          editing={editing}
+          onEditingChange={(value) => setEditingId((value) ? tagId : null)}
+          onDirtyChange={setDirty}
+        />
       )}
 
-      {(previousId || nextId) ? (
-        <footer className='flex items-center justify-between gap-3 border-t border-line px-6 py-3'>
-          <button type='button' className='btn btn-ghost px-2' disabled={!previousId || editing} onClick={() => previousId && onNavigate(previousId)}>
-            <ChevronLeft className='size-4'/>
-            {t('common.previous')}
-          </button>
-          <span className='hidden text-xs text-subtle sm:block'>{t('tags.detail.browse_hint')}</span>
-          <button type='button' className='btn btn-ghost px-2' disabled={!nextId || editing} onClick={() => nextId && onNavigate(nextId)}>
-            {t('common.next')}
-            <ChevronRight className='size-4'/>
-          </button>
-        </footer>
+      {/* stays at the bottom of the window, so adding the tag and the next one are always a tap away. Without a tag
+          (still loading, or it failed) only the browsing is left */}
+      <ModalFooter previousId={previousId} nextId={nextId} onNavigate={(browsing) ? requestLeave : undefined}>
+        {(item && canAdd) ? <AddTagButton key={tagId} tag={item.tag} verified={item.verified} size='md' openFromUrl/> : null}
+      </ModalFooter>
+
+      {(leaving) ? (
+        <ConfirmDialog
+          title={t('dash.discard_title')}
+          description={t('dash.discard_description')}
+          confirmLabel={t('common.discard')}
+          onConfirm={() => {
+            setLeaving(null);
+            leave(leaving.to);
+          }}
+          onClose={() => setLeaving(null)}
+        />
       ) : null}
     </Modal>
   );
 }
 
 
-function TagDetail({ item, editing, onEditingChange }: {item: TagDirectoryItem, editing: boolean, onEditingChange: (editing: boolean) => void}) {
+function TagDetail({ item, editing, onEditingChange, onDirtyChange }: {
+  item: TagDirectoryItem,
+  editing: boolean,
+  onEditingChange: (editing: boolean) => void,
+  // whether the listing form has unsaved edits
+  onDirtyChange: (dirty: boolean) => void,
+}) {
   const { t, rich } = useI18n();
   const { tag } = item;
   const verification = verificationInfo(item.verified);
@@ -127,7 +175,6 @@ function TagDetail({ item, editing, onEditingChange }: {item: TagDirectoryItem, 
               </span>
             </p>
           </div>
-          <AddTagButton tag={tag} verified={item.verified} size='lg' className='w-full justify-center sm:w-auto' openFromUrl/>
         </div>
       </header>
 
@@ -165,6 +212,7 @@ function TagDetail({ item, editing, onEditingChange }: {item: TagDirectoryItem, 
                   </div>
                 ) : undefined}
                 onDone={() => onEditingChange(false)}
+                onDirtyChange={onDirtyChange}
               />
               {(staffManage) ? null : (access.owner && own.data && own.data.verified === TagDirectoryVerificationStates.VERIFIED) ? (
                 <p className='rounded-lg border border-line bg-surface p-4 text-sm text-muted'>
@@ -216,7 +264,10 @@ function TagDetail({ item, editing, onEditingChange }: {item: TagDirectoryItem, 
               {/* only filled in when the owner chose to show it */}
               {(item.content_public && tag.content) ? (
                 <section>
-                  <h3 className='section-label mb-2'>{t('tags.detail.content')}</h3>
+                  <div className='mb-1 flex min-h-8 items-center justify-between gap-2'>
+                    <h3 className='section-label'>{t('tags.detail.content')}</h3>
+                    <CopyButton value={tag.content} label={t('common.copy')}/>
+                  </div>
                   <pre className='max-h-96 overflow-auto rounded-md border border-line bg-deep p-3 font-mono text-sm whitespace-pre-wrap break-words text-fg'>{tag.content}</pre>
                 </section>
               ) : null}
@@ -226,26 +277,12 @@ function TagDetail({ item, editing, onEditingChange }: {item: TagDirectoryItem, 
             </>
           )}
 
-          <div className='grid grid-cols-2 gap-3'>
+          {/* the date gets the full width under the two counts on phones, three across doesn't fit it there */}
+          <div className='grid grid-cols-2 gap-3 sm:grid-cols-3'>
             <StatTile icon={BarChart3} label={t('tags.detail.uses')}><span className='text-2xl font-bold'>{formatNumber(tag.uses)}</span></StatTile>
             <StatTile icon={Server} label={t('tags.detail.servers')}><span className='text-2xl font-bold'>{formatNumber(item.server_count)}</span></StatTile>
-            <StatTile icon={Calendar} label={t('tags.detail.listed')}><span className='text-sm font-medium'>{formatDate(item.created)}</span></StatTile>
-            <StatTile icon={Hash} label={t('tags.detail.tag_id')}>
-              <span className='flex min-w-0 items-center gap-1'>
-                {/* staff jump straight to the tag in the admin panel */}
-                {(access.staff) ? (
-                  <Link
-                    to={adminTagsPath(`id:${item.id}`)}
-                    title={t('tags.detail.open_admin')}
-                    className='truncate font-mono text-sm underline-offset-2 hover:text-brand-text hover:underline'
-                  >
-                    {item.id}
-                  </Link>
-                ) : (
-                  <span className='truncate font-mono text-sm select-all' title={item.id}>{item.id}</span>
-                )}
-                <CopyButton value={item.id}/>
-              </span>
+            <StatTile icon={Calendar} label={t('tags.detail.listed')} className='col-span-2 sm:col-span-1'>
+              <span className='text-sm font-medium'>{formatDate(item.created)}</span>
             </StatTile>
           </div>
 
@@ -258,9 +295,27 @@ function TagDetail({ item, editing, onEditingChange }: {item: TagDirectoryItem, 
               <InfoRow label={t('tags.detail.created')}>{formatDateTime(tag.created)}</InfoRow>
               {(tag.edited) ? <InfoRow label={t('tags.detail.last_edited')}>{formatDateTime(tag.edited)}</InfoRow> : null}
               {(tag.last_used) ? <InfoRow label={t('tags.detail.last_used')}>{formatDateTime(tag.last_used)}</InfoRow> : null}
-              <InfoRow label={t('tags.detail.is_locked')}>{t(tag.locked ? 'common.yes' : 'common.no')}</InfoRow>
-              <InfoRow label={t('tags.detail.command_tag')}>{t(tag.is_command ? 'common.yes' : 'common.no')}</InfoRow>
+              {/* only worth a row when they apply */}
+              {(tag.locked) ? <InfoRow label={t('tags.detail.is_locked')}>{t('common.yes')}</InfoRow> : null}
+              {(tag.is_command) ? <InfoRow label={t('tags.detail.command_tag')}>{t('common.yes')}</InfoRow> : null}
               {(tag.reference_tag) ? <InfoRow label={t('tags.detail.alias_of')}>{tag.reference_tag.name}</InfoRow> : null}
+              <InfoRow label={t('tags.detail.tag_id')}>
+                <span className='flex items-center justify-end gap-1'>
+                  {/* staff jump straight to the tag in the admin panel */}
+                  {(access.staff) ? (
+                    <Link
+                      to={adminTagsPath(`id:${item.id}`)}
+                      title={t('tags.detail.open_admin')}
+                      className='font-mono underline-offset-2 hover:text-brand-text hover:underline'
+                    >
+                      {item.id}
+                    </Link>
+                  ) : (
+                    <span className='font-mono select-all'>{item.id}</span>
+                  )}
+                  <CopyButton value={item.id}/>
+                </span>
+              </InfoRow>
             </dl>
           </section>
         </div>
@@ -303,9 +358,9 @@ function TagMessage({ title, description, children }: {title: string, descriptio
 }
 
 
-function StatTile({ icon: Icon, label, children }: {icon: LucideIcon, label: string, children: ReactNode}) {
+function StatTile({ icon: Icon, label, className, children }: {icon: LucideIcon, label: string, className?: string, children: ReactNode}) {
   return (
-    <div className='min-w-0 rounded-lg bg-deep p-4'>
+    <div className={cn('min-w-0 rounded-lg bg-deep p-4', className)}>
       <div className='mb-2 flex items-center gap-2 text-muted'>
         <Icon className='size-4'/>
         <span className='text-xs'>{label}</span>

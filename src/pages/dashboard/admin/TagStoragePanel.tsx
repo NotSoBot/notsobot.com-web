@@ -223,8 +223,8 @@ function BlobRow({ item }: {item: AdminTagBlob}) {
         <StorageLabel type={item.storage_type} id={item.storage_id}/>
         <span className='ml-auto text-xs text-subtle tabular-nums'>
           {formatMemory(item.size, (item.size < 1024) ? 0 : 1)}
-          {(text === null) ? ' · binary' : null}
-          {(item.truncated) ? ' · showing the first 16 KB' : null}
+          {(text === null) ? ' • binary' : null}
+          {(item.truncated) ? ' • showing the first 16 KB' : null}
         </span>
       </div>
       {(text === null) ? (

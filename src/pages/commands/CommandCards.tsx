@@ -1,11 +1,12 @@
 import { Crown, MessageSquare, TrendingUp, User } from 'lucide-react';
-import type { CSSProperties } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
+import { Link, useLocation } from 'react-router';
 
 import { useI18n } from '@/i18n';
 import { CommandTypes, type CommandPremium, type CommandType } from '@/lib/api';
 import { cn, formatCompact, formatNumber } from '@/lib/utils';
 
-import { categoryMeta, PREFIXES, premiumMeta, TYPE_LABELS, type Entry } from './commandMeta';
+import { categoryMeta, commandPath, OPENED_FROM_LIST, PREFIXES, premiumMeta, TYPE_LABELS, type Entry, type StatsState } from './commandMeta';
 
 
 // cards read their accent from `--cat`
@@ -19,7 +20,8 @@ export function CommandName({ type, name, className }: {type: CommandType, name:
   return (
     <span className={cn('inline-flex min-w-0 items-center gap-1.5 font-mono', className)}>
       {(Icon) ? <Icon aria-hidden className='size-4 shrink-0 text-muted'/> : null}
-      <span className='truncate'>{(Icon) ? null : <span className='text-subtle'>{PREFIXES[type]}</span>}{name}</span>
+      {/* the full name on hover, long ones are cut off */}
+      <span className='truncate' title={`${PREFIXES[type]}${name}`}>{(Icon) ? null : <span className='text-subtle'>{PREFIXES[type]}</span>}{name}</span>
     </span>
   );
 }
@@ -30,15 +32,15 @@ export function CommandName({ type, name, className }: {type: CommandType, name:
 function EntryName({ entry, className }: {entry: Entry, className?: string}) {
   const { t } = useI18n();
   const other = entry.variants.find((variant) => variant.metadata !== entry.metadata)?.metadata;
+  const otherLabel = (other) ? `${t(TYPE_LABELS[other.type])}: ${PREFIXES[other.type]}${other.name}` : '';
   return (
     <span className='flex min-w-0 items-center gap-2'>
       <CommandName type={entry.metadata.type} name={entry.metadata.name} className={className}/>
       {(other) ? (
-        <span
-          title={`${t(TYPE_LABELS[other.type])}: ${PREFIXES[other.type]}${other.name}`}
-          className='shrink-0 rounded bg-surface-3 px-1.5 py-0.5 font-mono text-xs text-muted'
-        >
-          {PREFIXES[other.type]}
+        <span title={otherLabel} className='shrink-0 rounded bg-surface-3 px-1.5 py-0.5 font-mono text-xs text-muted'>
+          {/* a lone `/` or `.` says nothing to a screen reader, it gets the tooltip's text */}
+          <span aria-hidden>{PREFIXES[other.type]}</span>
+          <span className='sr-only'>{otherLabel}</span>
         </span>
       ) : null}
     </span>
@@ -87,8 +89,16 @@ export function CategoryBadge({ category, className }: {category: string, classN
 }
 
 
-export function UsesLabel({ entry, className }: {entry: Entry, className?: string}) {
+// `stats` is the usage request: a placeholder while it loads and nothing when it failed, "no uses" is only said once
+// the numbers are in
+export function UsesLabel({ entry, stats = 'ready', className }: {entry: Entry, stats?: StatsState, className?: string}) {
   const { t } = useI18n();
+  if (stats === 'failed') {
+    return null;
+  }
+  if (stats === 'pending') {
+    return <span aria-hidden className={cn('h-3 w-12 animate-pulse rounded bg-surface-3', className)}/>;
+  }
   if (!entry.uses) {
     return <span className={cn('text-xs text-subtle', className)}>{t('commands.no_uses')}</span>;
   }
@@ -105,15 +115,32 @@ export function UsesLabel({ entry, className }: {entry: Entry, className?: strin
 }
 
 
-export function CommandCard({ entry, onOpen }: {entry: Entry, onOpen: () => void}) {
+// A card is a link to its command's page, so it can be opened in a new tab or copied. A plain click opens the drawer
+// in place: no scroll reset, filters kept in the query string, and a history entry of its own so the browser's Back
+// closes the drawer instead of leaving the page
+function CardLink({ entry, className, children }: {entry: Entry, className?: string, children: ReactNode}) {
+  const { search } = useLocation();
+  return (
+    <Link
+      to={{pathname: commandPath(entry.command, entry.metadata.type), search}}
+      state={OPENED_FROM_LIST}
+      preventScrollReset
+      style={categoryStyle(entry.category)}
+      className={className}
+    >
+      {children}
+    </Link>
+  );
+}
+
+
+export function CommandCard({ entry, stats }: {entry: Entry, stats?: StatsState}) {
   const { t } = useI18n();
   const { metadata } = entry;
   return (
     <li>
-      <button
-        type='button'
-        onClick={onOpen}
-        style={categoryStyle(entry.category)}
+      <CardLink
+        entry={entry}
         className={cn(
           'group flex h-full w-full cursor-pointer flex-col rounded-lg border border-line bg-surface p-4 text-left transition-colors',
           'hover:border-line-strong hover:bg-surface-2',
@@ -127,26 +154,29 @@ export function CommandCard({ entry, onOpen }: {entry: Entry, onOpen: () => void
         <div className='mt-auto flex items-center justify-between gap-2'>
           <div className='flex min-w-0 items-center gap-1.5'>
             <PremiumBadge premium={metadata.premium}/>
-            {(metadata.dmable) ? <span className='rounded bg-success/15 px-1.5 py-0.5 text-xs font-medium text-success-text'>{t('commands.dm_badge')}</span> : null}
+            {(metadata.dmable) ? (
+              <span title={t('commands.dms')} className='rounded bg-success/15 px-1.5 py-0.5 text-xs font-medium text-success-text'>
+                <span aria-hidden>{t('commands.dm_badge')}</span>
+                <span className='sr-only'>{t('commands.dms')}</span>
+              </span>
+            ) : null}
           </div>
-          <UsesLabel entry={entry}/>
+          <UsesLabel entry={entry} stats={stats}/>
         </div>
-      </button>
+      </CardLink>
     </li>
   );
 }
 
 
-export function TrendingCard({ entry, max, onOpen }: {entry: Entry, max: number, onOpen: () => void}) {
+export function TrendingCard({ entry, max }: {entry: Entry, max: number}) {
   const { t } = useI18n();
   const meta = categoryMeta(entry.category);
   const Icon = meta.icon;
   return (
     <li>
-      <button
-        type='button'
-        onClick={onOpen}
-        style={categoryStyle(entry.category)}
+      <CardLink
+        entry={entry}
         className='group relative flex h-full w-full cursor-pointer flex-col overflow-hidden rounded-lg border border-line bg-surface p-4 text-left transition-colors hover:border-[var(--cat)]'
       >
         <div className='mb-3 flex items-center justify-between'>
@@ -166,7 +196,7 @@ export function TrendingCard({ entry, max, onOpen }: {entry: Entry, max: number,
             <div className='h-full rounded-full bg-[var(--cat)]' style={{width: `${Math.max(4, (entry.uses / max) * 100)}%`}}/>
           </div>
         </div>
-      </button>
+      </CardLink>
     </li>
   );
 }

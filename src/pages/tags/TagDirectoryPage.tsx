@@ -52,7 +52,8 @@ const STATUS_OPTIONS: Array<{param: string, label: TranslationKey, value: number
 const DEFAULT_SORT = 'uses';
 const DEFAULT_STATUS = 'verified';
 
-const FILTER_PARAMS = ['q', 'category', 'sort', 'status', 'nsfw'];
+// what "Clear filters" resets. Not the sort: it isn't counted as a filter, so clearing leaves the chosen order alone
+const FILTER_PARAMS = ['q', 'category', 'status', 'nsfw'];
 
 function findOption<T extends {param: string}>(options: Array<T>, param: string | null, defaultParam: string): T {
   return options.find((option) => option.param === param) ?? options.find((option) => option.param === defaultParam)!;
@@ -61,6 +62,7 @@ function findOption<T extends {param: string}>(options: Array<T>, param: string 
 
 export function TagDirectoryPage() {
   const { t, plural } = useI18n();
+  const searchHintId = useId();
   const [ searchParams, setSearchParams ] = useSearchParams();
   const query = searchParams.get('q') || '';
   // the API does the searching, so don't hit it on every keystroke
@@ -74,7 +76,7 @@ export function TagDirectoryPage() {
   const [ nsfwNoticeOpen, setNsfwNoticeOpen ] = useState(false);
   const isFiltered = !!debouncedQuery || !!category || status.param !== DEFAULT_STATUS || showNsfw;
 
-  const { data, isPending, isError, isPlaceholderData, fetchNextPage, hasNextPage, isFetchingNextPage, refetch } = useTagDirectoryQuery({
+  const { data, isPending, isError, isPlaceholderData, fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError, refetch } = useTagDirectoryQuery({
     query: debouncedQuery,
     category: category?.value ?? null,
     sortBy: sort.value,
@@ -152,7 +154,10 @@ export function TagDirectoryPage() {
           onValueChange={(value) => updateParams({q: value})}
           placeholder={t('tags.directory.search_placeholder')}
           aria-label={t('tags.directory.search_label')}
+          aria-describedby={searchHintId}
         />
+        {/* what it searches, kept out of the placeholder: phones cut that off mid-word */}
+        <p id={searchHintId} className='mt-1.5 hidden text-xs text-subtle sm:block'>{t('tags.directory.search_hint')}</p>
 
         <CategoryFilter value={category?.param ?? null} onChange={(param) => updateParams({category: param})}/>
 
@@ -230,12 +235,15 @@ export function TagDirectoryPage() {
             {items.map((item) => <TagCard key={item.id} item={item} search={location.search} period={sort.period}/>)}
           </ul>
 
+          {/* a failed page keeps the ones already loaded and says so here, the button retries it. While the old
+              results stand in for new filters (`isPlaceholderData`) there's no next page of the new ones to load yet */}
           {(hasNextPage) ? (
-            <div className='mt-8 flex justify-center'>
-              <button type='button' className='btn btn-secondary' disabled={isFetchingNextPage} onClick={() => fetchNextPage()}>
+            <div className='mt-8 flex flex-col items-center gap-2' data-state={(isFetchingNextPage) ? 'loading' : (isFetchNextPageError) ? 'error' : 'idle'}>
+              <button type='button' className='btn btn-secondary' disabled={isFetchingNextPage || isPlaceholderData} onClick={() => fetchNextPage()}>
                 {isFetchingNextPage ? <Spinner className='size-4'/> : null}
-                {t(isFetchingNextPage ? 'common.loading' : 'common.load_more')}
+                {t(isFetchingNextPage ? 'common.loading' : (isFetchNextPageError) ? 'common.retry' : 'common.load_more')}
               </button>
+              {(isFetchNextPageError && !isFetchingNextPage) ? <p role='alert' className='text-sm text-danger-text'>{t('tags.directory.load_error')}</p> : null}
             </div>
           ) : null}
         </>
@@ -259,7 +267,7 @@ export function TagDirectoryPage() {
 
 
 function TagCard({ item, search, period }: {item: TagDirectoryItem, search: string, period?: RecentPeriod}) {
-  const { plural } = useI18n();
+  const { t, plural } = useI18n();
   const { tag } = item;
   // a video cover plays while a mouse is over the card (touch screens just show its first frame)
   const [ hovered, setHovered ] = useState(false);
@@ -282,7 +290,8 @@ function TagCard({ item, search, period }: {item: TagDirectoryItem, search: stri
                   preventScrollReset
                   className='after:absolute after:inset-0 after:rounded-lg'
                 >
-                  {tag.name}
+                  {/* above the stretched link's overlay, or the full name would show as a tooltip all over the card */}
+                  <span title={tag.name} className='relative z-10'>{tag.name}</span>
                 </Link>
               </h2>
               {(tag.nsfw) ? <NsfwBadge/> : null}
@@ -297,13 +306,14 @@ function TagCard({ item, search, period }: {item: TagDirectoryItem, search: stri
 
         {(item.description) ? <p className='mb-3 line-clamp-2 text-sm text-muted'>{stripMarkdown(item.description)}</p> : null}
 
-        <div className='mt-auto mb-3 flex items-center justify-between text-xs text-subtle'>
+        {/* wraps rather than squeezing: with a recent-uses count and the date's label the line can be too long for a narrow card */}
+        <div className='mt-auto mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-subtle'>
           <div className='flex items-center gap-3'>
             {(period && item.recent_uses !== undefined) ? <span className='text-fg'>{plural(`tags.directory.recent_${period}`, item.recent_uses)}</span> : null}
             <span>{plural('tags.directory.uses', tag.uses)}</span>
             <span>{plural('tags.directory.servers', item.server_count)}</span>
           </div>
-          <span>{formatDate(item.created)}</span>
+          <span>{t('tags.detail.listed')} {formatDate(item.created)}</span>
         </div>
 
         <div className='flex items-center justify-between border-t border-line pt-3'>

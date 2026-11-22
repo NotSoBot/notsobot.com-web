@@ -27,4 +27,4 @@ export const Urls = Object.freeze({
 
 
 // in its own module so the worker can import it (this file reads import.meta.env)
-export { Routes, TAG_ADD_PARAM, TAG_ADD_VALUE } from './routes';
+export { DASHBOARD_SERVER_TABS, Routes, TAG_ADD_PARAM, TAG_ADD_VALUE } from './routes';

@@ -1,4 +1,4 @@
-import { Plus, ShieldCheck, X } from 'lucide-react';
+import { Check, Plus, ShieldCheck, X } from 'lucide-react';
 import { useId, useState } from 'react';
 
 import { translate, useI18n } from '@/i18n';
@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { ChoiceSelect } from '../settings/ChoiceSelect';
 import type { Choice } from '../settings/botChoices';
 import { isSnowflake } from '../tags/tagMeta';
+import { HelpDisclosure } from '../ui';
 import { EntryMention } from './guildMeta';
 import { RemoveButton } from './ServerSections';
 
@@ -91,22 +92,37 @@ function inRange(value: number | null, max: number): boolean {
   return value !== null && Number.isInteger(value) && 1 <= value && value <= max;
 }
 
+// a rule's fields that are typed in, in the order they're checked
+type RuleField = 'limit' | 'warnings' | 'channel' | 'automod';
+const RULE_FIELDS: ReadonlyArray<RuleField> = ['limit', 'warnings', 'channel', 'automod'];
+
+// what the api won't take about one of a rule's fields, null when it's fine
+function ruleFieldError(rule: GuildWarningAuto, field: RuleField): string | null {
+  switch (field) {
+    case 'limit': return (rule.trigger === 'mentions' && !inRange(rule.limit, MAX_WARNING_AUTO_MENTIONS)) ? translate('wauto.bad_limit', {max: MAX_WARNING_AUTO_MENTIONS}) : null;
+    case 'warnings': return (!inRange(rule.warnings, MAX_WARNING_WEIGHT)) ? translate('wauto.bad_warnings', {max: MAX_WARNING_WEIGHT}) : null;
+    case 'channel': return (rule.channel_id !== null && !isSnowflake(rule.channel_id)) ? translate('wauto.bad_channel') : null;
+    case 'automod': return (rule.trigger === 'automod' && rule.automod_rule_id != null && !isSnowflake(rule.automod_rule_id)) ? translate('wauto.bad_automod') : null;
+  }
+}
+
+// two rules with the same one are for the same thing in the same place
+function ruleKey(rule: GuildWarningAuto): string {
+  return `${rule.trigger}:${rule.channel_id}:${(rule.trigger === 'automod') ? rule.automod_rule_id ?? null : null}`;
+}
+
 // a limit, count, channel or AutoMod rule the api won't take, or two rules for the same trigger, channel and AutoMod rule,
-// for the form to block saving
+// for the form to block saving (its save bar says it)
 export function warningAutoError(rules: Array<GuildWarningAuto>): string | null {
-  if (rules.some((rule) => rule.trigger === 'mentions' && !inRange(rule.limit, MAX_WARNING_AUTO_MENTIONS))) {
-    return translate('wauto.bad_limit', {max: MAX_WARNING_AUTO_MENTIONS});
+  for (const field of RULE_FIELDS) {
+    for (const rule of rules) {
+      const error = ruleFieldError(rule, field);
+      if (error) {
+        return error;
+      }
+    }
   }
-  if (rules.some((rule) => !inRange(rule.warnings, MAX_WARNING_WEIGHT))) {
-    return translate('wauto.bad_warnings', {max: MAX_WARNING_WEIGHT});
-  }
-  if (rules.some((rule) => rule.channel_id !== null && !isSnowflake(rule.channel_id))) {
-    return translate('wauto.bad_channel');
-  }
-  if (rules.some((rule) => rule.trigger === 'automod' && rule.automod_rule_id != null && !isSnowflake(rule.automod_rule_id))) {
-    return translate('wauto.bad_automod');
-  }
-  const keys = rules.map((rule) => `${rule.trigger}:${rule.channel_id}:${(rule.trigger === 'automod') ? rule.automod_rule_id ?? null : null}`);
+  const keys = rules.map(ruleKey);
   if (new Set(keys).size !== keys.length) {
     return translate('wauto.duplicate');
   }
@@ -117,29 +133,40 @@ export function warningAutoError(rules: Array<GuildWarningAuto>): string | null 
 // the auto-warn rules: rows of "for this, here, warn them as N warnings", the api sorts them once saved. Rules keep their
 // `exempt` and `automod_rule_id` through every edit (saving replaces the whole list), and who every rule skips is edited
 // below them
-export function WarningAutoEditor({ value, onChange, exempt, onExemptChange, guildId, disabled, error }: {
+export function WarningAutoEditor({ value, onChange, exempt, onExemptChange, guildId, disabled }: {
   value: Array<GuildWarningAuto>,
   onChange: (value: Array<GuildWarningAuto>) => void,
   exempt: GuildWarningAutoExempt | null,
   onExemptChange: (value: GuildWarningAutoExempt | null) => void,
   guildId: string,
   disabled?: boolean,
-  error?: string | null,
 }) {
   const { t, plural } = useI18n();
   const id = useId();
   // the rows whose exemptions are open, by index
   const [ open, setOpen ] = useState<ReadonlySet<number>>(new Set());
+  // the fields that were left (`<index>:<field>`): a new row's empty ID isn't marked as wrong until then
+  const [ touched, setTouched ] = useState<ReadonlySet<string>>(new Set());
+  const touch = (index: number, field: RuleField) => setTouched((previous) => new Set(previous).add(`${index}:${field}`));
+  const fieldError = (index: number, field: RuleField) => (touched.has(`${index}:${field}`)) ? ruleFieldError(value[index], field) : null;
+  // two rules for the same thing are marked right away, it takes picking the same again
+  const keys = value.map(ruleKey);
+  const duplicate = (index: number) => keys.indexOf(keys[index]) !== keys.lastIndexOf(keys[index]);
   const update = (index: number, rule: GuildWarningAuto) => onChange(value.map((x, i) => (i === index) ? rule : x));
   const add = () => {
     // a server-wide rule for whichever trigger doesn't have one yet, then a channel one to fill in
     const free = TRIGGER_CHOICES.find((choice) => !value.some((rule) => rule.trigger === choice.value && rule.channel_id === null && !rule.automod_rule_id));
     const trigger = free?.value ?? 'mentions';
     onChange([...value, withTrigger({automod_rule_id: null, channel_id: (free) ? null : '', exempt: null, limit: null, trigger, warnings: 1}, trigger)]);
+    setTouched((previous) => new Set([...previous].filter((key) => Number(key.split(':')[0]) < value.length)));
   };
   const remove = (index: number) => {
     onChange(value.filter((_, i) => i !== index));
     setOpen((previous) => new Set([...previous].filter((i) => i !== index).map((i) => (index < i) ? i - 1 : i)));
+    setTouched((previous) => new Set([...previous].flatMap((key) => {
+      const [ row, field ] = key.split(':');
+      return (Number(row) === index) ? [] : [`${(index < Number(row)) ? Number(row) - 1 : row}:${field}`];
+    })));
   };
   const toggle = (index: number) => setOpen((previous) => {
     const next = new Set(previous);
@@ -154,145 +181,166 @@ export function WarningAutoEditor({ value, onChange, exempt, onExemptChange, gui
       <div id={`${id}-label`} className='mb-1.5 text-sm font-medium text-fg'>{t('wauto.label')}</div>
       {(value.length) ? (
         <ul className='flex flex-col gap-2'>
-          {value.map((rule, index) => (
-            <li key={index} className='rounded-lg border border-border bg-surface-2 p-2'>
-              {/* the rule's controls wrap on their own, its buttons stay in the top right */}
-              <div className='flex items-start gap-2'>
-                <div className='flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1.5'>
-                  <ChoiceSelect
-                    className={COMPACT_SELECT}
-                    aria-label={t('wauto.trigger')}
-                    choices={TRIGGER_CHOICES}
-                    value={rule.trigger}
-                    onChange={(trigger) => update(index, withTrigger(rule, trigger ?? 'mentions'))}
-                  />
-                  {(rule.trigger === 'automod') ? (
-                    <>
-                      <ChoiceSelect
-                        className={COMPACT_SELECT}
-                        aria-label={t('wauto.automod_which')}
-                        choices={AUTOMOD_CHOICES}
-                        value={(rule.automod_rule_id == null) ? 'any' : 'one'}
-                        onChange={(scope) => update(index, {...rule, automod_rule_id: (scope === 'one') ? rule.automod_rule_id ?? '' : null})}
-                      />
-                      {(rule.automod_rule_id != null) ? (
+          {value.map((rule, index) => {
+            const rowError = RULE_FIELDS.map((field) => fieldError(index, field)).find(Boolean);
+            const exemptions = exemptSize(rule.exempt);
+            const exemptionsLabel = (exemptions) ? t('wauto.exemptions_count', {count: exemptions}) : t('wauto.exemptions');
+            return (
+              <li key={index} className='rounded-lg border border-border bg-surface-2 p-2'>
+                {/* the rule's controls wrap on their own, its buttons stay in the top right */}
+                <div className='flex items-start gap-2'>
+                  <div className='flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1.5'>
+                    <ChoiceSelect
+                      className={COMPACT_SELECT}
+                      aria-label={t('wauto.trigger')}
+                      aria-invalid={duplicate(index) || undefined}
+                      choices={TRIGGER_CHOICES}
+                      value={rule.trigger}
+                      onChange={(trigger) => update(index, withTrigger(rule, trigger ?? 'mentions'))}
+                    />
+                    {(rule.trigger === 'automod') ? (
+                      <>
+                        <ChoiceSelect
+                          className={COMPACT_SELECT}
+                          aria-label={t('wauto.automod_which')}
+                          choices={AUTOMOD_CHOICES}
+                          value={(rule.automod_rule_id == null) ? 'any' : 'one'}
+                          onChange={(scope) => update(index, {...rule, automod_rule_id: (scope === 'one') ? rule.automod_rule_id ?? '' : null})}
+                        />
+                        {(rule.automod_rule_id != null) ? (
+                          <input
+                            className={cn('input w-40 px-2 font-mono text-xs', COMPACT)}
+                            inputMode='numeric'
+                            aria-label={t('wauto.automod_label')}
+                            aria-invalid={!!fieldError(index, 'automod') || undefined}
+                            placeholder={t('wauto.automod_placeholder')}
+                            value={rule.automod_rule_id}
+                            onChange={(event) => update(index, {...rule, automod_rule_id: event.target.value.replace(/\s/g, '')})}
+                            onBlur={() => touch(index, 'automod')}
+                            autoComplete='off'
+                          />
+                        ) : null}
+                      </>
+                    ) : null}
+                    {(rule.trigger === 'blocked_command') ? (
+                      <button
+                        type='button'
+                        aria-pressed={rule.delete_message !== false}
+                        title={t('wauto.delete_hint')}
+                        className={cn(
+                          'inline-flex h-8 cursor-pointer items-center gap-1 rounded-md border px-2 text-xs transition-colors',
+                          (rule.delete_message !== false) ? 'border-brand/70 bg-surface-3 text-white' : 'border-line text-muted hover:bg-surface-2 hover:text-white',
+                        )}
+                        onClick={() => update(index, {...rule, delete_message: rule.delete_message === false})}
+                      >
+                        {/* on isn't only a brighter border */}
+                        {(rule.delete_message !== false) ? <Check aria-hidden className='size-3'/> : null}
+                        {t('wauto.delete_message')}
+                      </button>
+                    ) : null}
+                    {(rule.trigger === 'mentions') ? (
+                      <>
+                        <span className='flex items-center gap-2'>
+                          <span className='text-sm text-muted'>{t('wauto.more_than')}</span>
+                          <input
+                            type='number'
+                            min={1}
+                            max={MAX_WARNING_AUTO_MENTIONS}
+                            className={cn('input w-14', COMPACT)}
+                            aria-label={t('wauto.limit_label')}
+                            aria-invalid={!!fieldError(index, 'limit') || undefined}
+                            value={(rule.limit === null || Number.isNaN(rule.limit)) ? '' : rule.limit}
+                            onChange={(event) => update(index, {...rule, limit: event.target.valueAsNumber})}
+                            onBlur={() => touch(index, 'limit')}
+                          />
+                        </span>
+                        <span className='text-sm text-muted'>{t('wauto.in_one_message')}</span>
+                      </>
+                    ) : null}
+                    {/* always its own line under what the rule is for: where it applies, then what it counts as */}
+                    <div className='flex basis-full flex-wrap items-center gap-x-2 gap-y-1.5'>
+                      {(rule.trigger === 'decoy') ? (
+                        <span className='text-sm text-muted'>{t('wauto.decoy_where')}</span>
+                      ) : (
+                        <ChoiceSelect
+                          className={COMPACT_SELECT}
+                          aria-label={t('wauto.where')}
+                          aria-invalid={duplicate(index) || undefined}
+                          choices={SCOPE_CHOICES}
+                          value={(rule.channel_id === null) ? 'guild' : 'channel'}
+                          onChange={(scope) => update(index, {...rule, channel_id: (scope === 'channel') ? rule.channel_id ?? '' : null})}
+                        />
+                      )}
+                      {(rule.channel_id !== null) ? (
                         <input
                           className={cn('input w-40 px-2 font-mono text-xs', COMPACT)}
                           inputMode='numeric'
-                          aria-label={t('wauto.automod_label')}
-                          aria-invalid={!isSnowflake(rule.automod_rule_id)}
-                          placeholder={t('wauto.automod_placeholder')}
-                          value={rule.automod_rule_id}
-                          onChange={(event) => update(index, {...rule, automod_rule_id: event.target.value.replace(/\s/g, '')})}
+                          aria-label={t('wauto.channel_label')}
+                          aria-invalid={!!fieldError(index, 'channel') || undefined}
+                          placeholder={t('wauto.channel_placeholder')}
+                          value={rule.channel_id}
+                          onChange={(event) => update(index, {...rule, channel_id: event.target.value.replace(/[<>#\s]/g, '')})}
+                          onBlur={() => touch(index, 'channel')}
                           autoComplete='off'
                         />
                       ) : null}
-                    </>
-                  ) : null}
-                  {(rule.trigger === 'blocked_command') ? (
-                    <button
-                      type='button'
-                      aria-pressed={rule.delete_message !== false}
-                      title={t('wauto.delete_hint')}
-                      className={cn(
-                        'h-8 cursor-pointer rounded-md border px-2 text-xs transition-colors',
-                        (rule.delete_message !== false) ? 'border-brand/70 bg-surface-3 text-white' : 'border-line text-muted hover:bg-surface-2 hover:text-white',
-                      )}
-                      onClick={() => update(index, {...rule, delete_message: rule.delete_message === false})}
-                    >
-                      {t('wauto.delete_message')}
-                    </button>
-                  ) : null}
-                  {(rule.trigger === 'mentions') ? (
-                    <>
-                      <span className='flex items-center gap-2'>
-                        <span className='text-sm text-muted'>{t('wauto.more_than')}</span>
+                      <span className='flex items-center gap-2 whitespace-nowrap'>
+                        <span className='text-sm text-muted'>{t('wauto.counts_as')}</span>
                         <input
                           type='number'
                           min={1}
-                          max={MAX_WARNING_AUTO_MENTIONS}
+                          max={MAX_WARNING_WEIGHT}
                           className={cn('input w-14', COMPACT)}
-                          aria-label={t('wauto.limit_label')}
-                          value={(rule.limit === null || Number.isNaN(rule.limit)) ? '' : rule.limit}
-                          onChange={(event) => update(index, {...rule, limit: event.target.valueAsNumber})}
+                          aria-label={t('wauto.warnings_label')}
+                          aria-invalid={!!fieldError(index, 'warnings') || undefined}
+                          value={(Number.isNaN(rule.warnings)) ? '' : rule.warnings}
+                          onChange={(event) => update(index, {...rule, warnings: event.target.valueAsNumber})}
+                          onBlur={() => touch(index, 'warnings')}
                         />
+                        <span className='text-sm text-muted'>{plural('wauto.warnings', (Number.isNaN(rule.warnings)) ? 0 : rule.warnings)}</span>
                       </span>
-                      <span className='text-sm text-muted'>{t('wauto.in_one_message')}</span>
-                    </>
-                  ) : null}
-                  {/* always its own line under what the rule is for: where it applies, then what it counts as */}
-                  <div className='flex basis-full flex-wrap items-center gap-x-2 gap-y-1.5'>
-                    {(rule.trigger === 'decoy') ? (
-                      <span className='text-sm text-muted'>{t('wauto.decoy_where')}</span>
-                    ) : (
-                      <ChoiceSelect
-                        className={COMPACT_SELECT}
-                        aria-label={t('wauto.where')}
-                        choices={SCOPE_CHOICES}
-                        value={(rule.channel_id === null) ? 'guild' : 'channel'}
-                        onChange={(scope) => update(index, {...rule, channel_id: (scope === 'channel') ? rule.channel_id ?? '' : null})}
-                      />
-                    )}
-                    {(rule.channel_id !== null) ? (
-                      <input
-                        className={cn('input w-40 px-2 font-mono text-xs', COMPACT)}
-                        inputMode='numeric'
-                        aria-label={t('wauto.channel_label')}
-                        aria-invalid={!isSnowflake(rule.channel_id)}
-                        placeholder={t('wauto.channel_placeholder')}
-                        value={rule.channel_id}
-                        onChange={(event) => update(index, {...rule, channel_id: event.target.value.replace(/[<>#\s]/g, '')})}
-                        autoComplete='off'
-                      />
-                    ) : null}
-                    <span className='flex items-center gap-2 whitespace-nowrap'>
-                      <span className='text-sm text-muted'>{t('wauto.counts_as')}</span>
-                      <input
-                        type='number'
-                        min={1}
-                        max={MAX_WARNING_WEIGHT}
-                        className={cn('input w-14', COMPACT)}
-                        aria-label={t('wauto.warnings_label')}
-                        value={(Number.isNaN(rule.warnings)) ? '' : rule.warnings}
-                        onChange={(event) => update(index, {...rule, warnings: event.target.valueAsNumber})}
-                      />
-                      <span className='text-sm text-muted'>{plural('wauto.warnings', (Number.isNaN(rule.warnings)) ? 0 : rule.warnings)}</span>
-                    </span>
+                    </div>
+                  </div>
+                  <div className='flex min-h-8 shrink-0 items-center gap-1'>
+                    {/* its name from `sm` up, on phones an icon with how many there are once there are some */}
+                    <button
+                      type='button'
+                      className={cn(
+                        'flex h-7 shrink-0 cursor-pointer items-center gap-1 rounded-md px-1.5 text-xs transition-colors hover:bg-surface-3 hover:text-white',
+                        (open.has(index)) ? 'bg-surface-3 text-white' : (exemptions) ? 'text-fg' : 'text-subtle',
+                      )}
+                      aria-label={exemptionsLabel}
+                      title={exemptionsLabel}
+                      aria-expanded={open.has(index)}
+                      aria-controls={`${id}-exempt-${index}`}
+                      onClick={() => toggle(index)}
+                    >
+                      <ShieldCheck aria-hidden className='size-4'/>
+                      <span className='hidden sm:inline'>{exemptionsLabel}</span>
+                      {(exemptions) ? <span className='tabular-nums sm:hidden'>{exemptions}</span> : null}
+                    </button>
+                    <RemoveButton label={t('wauto.remove')} busy={false} disabled={!!disabled} onClick={() => remove(index)}/>
                   </div>
                 </div>
-                <div className='flex h-8 shrink-0 items-center gap-1'>
-                  {/* an icon, with how many there are once there are some */}
-                  <button
-                    type='button'
-                    className={cn(
-                      'flex h-7 shrink-0 cursor-pointer items-center gap-1 rounded-md px-1.5 text-xs transition-colors hover:bg-surface-3 hover:text-white',
-                      (open.has(index)) ? 'bg-surface-3 text-white' : (exemptSize(rule.exempt)) ? 'text-fg' : 'text-subtle',
-                    )}
-                    aria-label={(exemptSize(rule.exempt)) ? t('wauto.exemptions_count', {count: exemptSize(rule.exempt)}) : t('wauto.exemptions')}
-                    title={(exemptSize(rule.exempt)) ? t('wauto.exemptions_count', {count: exemptSize(rule.exempt)}) : t('wauto.exemptions')}
-                    aria-expanded={open.has(index)}
-                    aria-controls={`${id}-exempt-${index}`}
-                    onClick={() => toggle(index)}
-                  >
-                    <ShieldCheck aria-hidden className='size-4'/>
-                    {(exemptSize(rule.exempt)) ? <span className='tabular-nums'>{exemptSize(rule.exempt)}</span> : null}
-                  </button>
-                  <RemoveButton label={t('wauto.remove')} busy={false} disabled={!!disabled} onClick={() => remove(index)}/>
-                </div>
-              </div>
-              {(open.has(index)) ? (
-                <div id={`${id}-exempt-${index}`} className='mt-2 border-t border-border pt-2'>
-                  <ExemptEditor
-                    label={t('wauto.rule_exempt_label')}
-                    value={rule.exempt ?? null}
-                    onChange={(exempt) => update(index, {...rule, exempt})}
-                    guildId={guildId}
-                  />
-                  <p className='mt-1.5 text-xs text-subtle'>{t('wauto.rule_exempt_hint')}</p>
-                </div>
-              ) : null}
-            </li>
-          ))}
+                {(rowError) ? (
+                  <p role='alert' className='mt-1.5 text-xs text-danger-text'>{rowError}</p>
+                ) : (rule.channel_id !== null) ? (
+                  <p className='mt-1.5 text-xs text-subtle'>{t('rules.id_hint')}</p>
+                ) : null}
+                {(open.has(index)) ? (
+                  <div id={`${id}-exempt-${index}`} className='mt-2 border-t border-border pt-2'>
+                    <ExemptEditor
+                      label={t('wauto.rule_exempt_label')}
+                      value={rule.exempt ?? null}
+                      onChange={(exempt) => update(index, {...rule, exempt})}
+                      guildId={guildId}
+                    />
+                    <p className='mt-1.5 text-xs text-subtle'>{t('wauto.rule_exempt_hint')}</p>
+                  </div>
+                ) : null}
+              </li>
+            );
+          })}
         </ul>
       ) : (
         <p className='rounded-lg border border-dashed border-border p-3 text-sm text-subtle'>{t('wauto.off')}</p>
@@ -301,15 +349,20 @@ export function WarningAutoEditor({ value, onChange, exempt, onExemptChange, gui
         <Plus aria-hidden className='size-4'/>
         {t('wauto.add')}
       </button>
-      {(error) ? (
-        <p id={`${id}-hint`} className='mt-1.5 text-xs text-danger-text'>{error}</p>
+      {(MAX_WARNING_AUTO <= value.length) ? <p className='mt-1.5 text-xs text-subtle'>{t('wauto.full', {max: MAX_WARNING_AUTO})}</p> : null}
+      {(value.some((_, index) => duplicate(index))) ? (
+        <p id={`${id}-hint`} className='mt-1.5 text-xs text-danger-text'>{t('wauto.duplicate')}</p>
       ) : (
-        <p id={`${id}-hint`} className='mt-1.5 text-xs text-subtle'>
-          {t('wauto.hint')}
-          {(value.some((rule) => rule.trigger === 'automod')) ? ` ${t('wauto.automod_hint')}` : null}
-          {(value.some((rule) => rule.trigger === 'blocked_command')) ? ` ${t('wauto.delete_hint')}` : null}
-          {(value.some((rule) => rule.trigger === 'decoy')) ? ` ${t('wauto.decoy_hint')}` : null}
-        </p>
+        <div className='mt-1.5 text-xs text-subtle'>
+          <p id={`${id}-hint`}>{t('wauto.hint')}</p>
+          {/* the rest, and what goes for the kinds of rule there are, a click away */}
+          <HelpDisclosure summary={t('sections.how_it_works')} className='mt-1'>
+            <p>{t('wauto.hint_more')}</p>
+            {(value.some((rule) => rule.trigger === 'automod')) ? <p>{t('wauto.automod_hint')}</p> : null}
+            {(value.some((rule) => rule.trigger === 'blocked_command')) ? <p>{t('wauto.delete_hint')}</p> : null}
+            {(value.some((rule) => rule.trigger === 'decoy')) ? <p>{t('wauto.decoy_hint')}</p> : null}
+          </HelpDisclosure>
+        </div>
       )}
       <div className='mt-4'>
         <ExemptEditor label={t('wauto.exempt_label')} value={exempt} onChange={onExemptChange} guildId={guildId}/>
@@ -363,11 +416,12 @@ function ExemptEditor({ label, value, onChange, guildId }: {
                 type='button'
                 aria-pressed={active}
                 className={cn(
-                  'cursor-pointer rounded-md border px-2 py-1 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+                  'inline-flex cursor-pointer items-center gap-1 rounded-md border px-2 py-1 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-50',
                   (active) ? 'border-brand/70 bg-surface-3 text-white' : 'border-line text-muted hover:bg-surface-2 hover:text-white',
                 )}
                 onClick={() => set(permissions ^ permission.bit, roleIds)}
               >
+                {(active) ? <Check aria-hidden className='size-3'/> : null}
                 {permission.label}
               </button>
             </li>
@@ -413,7 +467,7 @@ function ExemptEditor({ label, value, onChange, guildId }: {
           {t('wauto.add_role')}
         </button>
       </div>
-      {(roleError) ? <p className='text-xs text-danger-text'>{roleError}</p> : (full) ? <p className='text-xs text-subtle'>{t('wauto.roles_full', {max: MAX_EXEMPT_ROLES})}</p> : null}
+      {(roleError) ? <p className='text-xs text-danger-text'>{roleError}</p> : <p className='text-xs text-subtle'>{(full) ? t('wauto.roles_full', {max: MAX_EXEMPT_ROLES}) : t('rules.id_hint')}</p>}
     </div>
   );
 }

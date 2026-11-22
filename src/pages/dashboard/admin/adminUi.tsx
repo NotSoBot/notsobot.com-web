@@ -190,7 +190,8 @@ function FloatingTooltip({ rect, text, wrap = false }: {rect: DOMRect, text: str
       className={cn(
         'pointer-events-none fixed z-50 rounded-md border border-line-strong bg-deep px-2.5 py-1.5',
         'text-xs text-fg tabular-nums shadow-xl shadow-black/40',
-        (wrap) ? 'max-w-64 whitespace-normal' : 'whitespace-nowrap',
+        // pre-line: a chip's explanation can have line breaks (a block's reason, then when it ends)
+        (wrap) ? 'max-w-64 whitespace-pre-line' : 'whitespace-nowrap',
         above && '-translate-y-full',
       )}
     >
@@ -239,7 +240,7 @@ export function UserCell({ user, fallbackId, size = 'md', to }: {user: AdminUser
     return (
       <span className='text-sm text-subtle'>
         Unknown user{(fallbackId) ? (
-          <> · {(to) ? <CopyableValue value={fallbackId} truncate={0} to={to} linkTitle='Open in users' className='relative z-10'/> : <span className='font-mono'>{fallbackId}</span>}</>
+          <> • {(to) ? <CopyableValue value={fallbackId} truncate={0} to={to} linkTitle='Open in users' className='relative z-10'/> : <span className='font-mono'>{fallbackId}</span>}</>
         ) : null}
       </span>
     );
@@ -318,23 +319,31 @@ export function CopyableValue({ value, truncate = 16, className, to, linkTitle }
 }
 
 
+// `title` explains the chip right away on hover, in a popup like `Hint`'s (the `title` attribute takes a second to show
+// up), and stays its description for screen readers. No ⓘ to tap like `InfoTip`'s: chips sit inside rows that are
+// links, where a button can't go
 export function Chip({ children, className, tone = 'neutral', title }: {children: ReactNode, className?: string, tone?: 'neutral' | 'danger' | 'warning' | 'success' | 'brand' | 'fuchsia', title?: string}) {
+  const { rect, handlers } = useFloatingTooltip();
   return (
-    <span
-      title={title}
-      className={cn(
-        'inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium whitespace-nowrap',
-        (tone === 'danger') ? 'bg-danger/20 text-[#ff8a8c]'
-          : (tone === 'warning') ? 'bg-warning/20 text-warning'
-          : (tone === 'success') ? 'bg-success/20 text-[#6fd391]'
-          : (tone === 'brand') ? 'bg-brand/25 text-[#aab2ff]'
-          : (tone === 'fuchsia') ? 'bg-[#eb459e]/20 text-[#f47fbf]'
-          : 'bg-line-strong text-muted',
-        className,
-      )}
-    >
-      {children}
-    </span>
+    <>
+      <span
+        aria-description={title}
+        {...((title) ? handlers : {})}
+        className={cn(
+          'inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium whitespace-nowrap',
+          (tone === 'danger') ? 'bg-danger/20 text-[#ff8a8c]'
+            : (tone === 'warning') ? 'bg-warning/20 text-warning'
+            : (tone === 'success') ? 'bg-success/20 text-[#6fd391]'
+            : (tone === 'brand') ? 'bg-brand/25 text-[#aab2ff]'
+            : (tone === 'fuchsia') ? 'bg-[#eb459e]/20 text-[#f47fbf]'
+            : 'bg-line-strong text-muted',
+          className,
+        )}
+      >
+        {children}
+      </span>
+      {(rect && title) ? createPortal(<FloatingTooltip rect={rect} text={title} wrap/>, document.body) : null}
+    </>
   );
 }
 
@@ -399,7 +408,8 @@ export function DetailList({ className, items }: {className?: string, items: Arr
 
 
 // A count tile in an item's modal (a user's, a server's), linking to the list behind it when there is one (`to`), or
-// doing something else on click (`onClick`, e.g. switching tabs). Muted when it's 0; `title` explains it on hover.
+// doing something else on click (`onClick`, e.g. switching tabs). Muted when it's 0; `title` explains it in an ⓘ next
+// to the label, like the stats page's `Metric` (the link or button is stretched under it, a button can't go inside one)
 export function StatTile({ className, label, value, to, onClick, tone = 'text-white', title }: {
   className?: string,
   label: string,
@@ -409,32 +419,22 @@ export function StatTile({ className, label, value, to, onClick, tone = 'text-wh
   tone?: string,
   title?: string,
 }) {
-  const content = (
-    <>
-      <p className='text-xs text-subtle'>{label}</p>
-      <p className={cn('mt-0.5 text-sm font-semibold tabular-nums', (to || onClick) && 'group-hover/stat:underline', (value === '0') ? 'text-subtle' : tone)}>{value}</p>
-    </>
+  const interactive = !!(to || onClick);
+  return (
+    <div className={cn('relative rounded-md border border-line bg-deep px-3 py-2', interactive && 'group/stat transition-colors hover:border-brand', className)}>
+      <p className={cn('text-xs text-subtle', title && 'flex items-center gap-1.5')}>
+        {label}
+        {(title) ? <InfoTip text={title} className='relative z-10'/> : null}
+      </p>
+      <p className={cn('mt-0.5 text-sm font-semibold tabular-nums', interactive && 'group-hover/stat:underline', (value === '0') ? 'text-subtle' : tone)}>{value}</p>
+      {/* after the text, so the label stays the tile's first child for callers styling it */}
+      {(onClick) ? (
+        <button type='button' aria-label={`${label}: ${value}`} onClick={onClick} className='absolute inset-0 cursor-pointer rounded-md'/>
+      ) : (to) ? (
+        <Link to={to} aria-label={`${label}: ${value}`} className='absolute inset-0 rounded-md'/>
+      ) : null}
+    </div>
   );
-  if (onClick) {
-    return (
-      <button
-        type='button'
-        title={title}
-        onClick={onClick}
-        className={cn('group/stat cursor-pointer rounded-md border border-line bg-deep px-3 py-2 text-left transition-colors hover:border-brand', className)}
-      >
-        {content}
-      </button>
-    );
-  }
-  if (to) {
-    return (
-      <Link to={to} title={title} className={cn('group/stat rounded-md border border-line bg-deep px-3 py-2 transition-colors hover:border-brand', className)}>
-        {content}
-      </Link>
-    );
-  }
-  return <div title={title} className={cn('rounded-md border border-line bg-deep px-3 py-2', title && 'cursor-help', className)}>{content}</div>;
 }
 
 // a date tile next to `StatTile`s (exact time on hover)
@@ -476,10 +476,10 @@ export function ContentFlagTiles({ flags, flagsPath }: {flags: AdminUserContentF
         <StatTile label='Flagged' to={flagsPath('all')} value={flags.flagged.toLocaleString()} title={FLAGGED_TITLE}/>
         <StatTile label='Borderline' value={(flags.total - flags.flagged).toLocaleString()} title={BORDERLINE_TITLE}/>
         <DateTile className='col-span-2 sm:col-span-3' label='Last flagged' value={flags.last_flagged_at}/>
-        <StatTile label='To review' to={flagsPath('0')} value={flags.pending.toLocaleString()} tone='text-warning' title={FLAG_STATUS_TITLES['0']}/>
+        <StatTile label='Pending' to={flagsPath('0')} value={flags.pending.toLocaleString()} tone='text-warning' title={FLAG_STATUS_TITLES['0']}/>
         <StatTile label='Unsure' to={flagsPath('4')} value={flags.unsure.toLocaleString()} tone='text-[#f47fbf]' title={FLAG_STATUS_TITLES['4']}/>
         <StatTile label='Confirmed' to={flagsPath('1')} value={flags.confirmed.toLocaleString()} tone='text-danger-text' title={FLAG_STATUS_TITLES['1']}/>
-        <StatTile label='Cleared' to={flagsPath('2')} value={flags.dismissed.toLocaleString()} tone='text-muted' title={FLAG_STATUS_TITLES['2']}/>
+        <StatTile label='Dismissed' to={flagsPath('2')} value={flags.dismissed.toLocaleString()} tone='text-muted' title={FLAG_STATUS_TITLES['2']}/>
         <StatTile className='col-span-2 sm:col-span-1' label='Reported' to={flagsPath('3')} value={flags.reported.toLocaleString()} tone='text-[#aab2ff]' title={FLAG_STATUS_TITLES['3']}/>
       </div>
     </section>

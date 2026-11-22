@@ -12,7 +12,7 @@ import { GUILD_REMINDERS_PAGE_SIZE, errorMessage, useGuildReminderMoveMutation, 
 import { cn, formatDate, formatDateTime } from '@/lib/utils';
 
 import { Chip, ExactDate, FiltersButton, Pagination } from '../admin/adminUi';
-import { EmptyState, Panel, Skeleton } from '../ui';
+import { EmptyState, HelpDisclosure, Panel, Skeleton } from '../ui';
 import { EntryMention, useReadOnlyMessage } from './guildMeta';
 import { Owner } from './GuildTagsSection';
 
@@ -111,9 +111,9 @@ function RemindersList({ guildId }: {guildId: string}) {
         />
         <FiltersButton open={filtersOpen} onToggle={() => setFiltersOpen((value) => !value)} active={activeFilters} controls='guild-reminder-filters'/>
       </div>
-      <p className='mb-3 text-xs text-subtle'>
-        {rich('sreminders.search_hint', {code: (chunk) => <code className='text-code'>{chunk}</code>})}
-      </p>
+      <HelpDisclosure summary={t('sections.search_tips')} className='mb-3'>
+        <p>{rich('sreminders.search_hint', {code: (chunk) => <code className='text-code'>{chunk}</code>})}</p>
+      </HelpDisclosure>
 
       <div id='guild-reminder-filters' hidden={!filtersOpen} className='mb-3 grid gap-3 rounded-md border border-line p-3 sm:grid-cols-3'>
         <label className='text-sm'>
@@ -148,7 +148,7 @@ function RemindersList({ guildId }: {guildId: string}) {
         </div>
       ) : (!items.length) ? (
         <EmptyState icon={<AlarmClock className='size-10'/>} title={t((filtered) ? 'sreminders.empty_filtered' : 'sreminders.empty')}>
-          {t((filtered) ? 'sreminders.empty_filtered_description' : 'sreminders.empty_description')}
+          {rich((filtered) ? 'sreminders.empty_filtered_description' : 'sreminders.empty_description', {code: (chunk) => <code className='text-code'>{chunk}</code>})}
         </EmptyState>
       ) : (
         <>

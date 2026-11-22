@@ -13,7 +13,8 @@ export function FontsPage() {
         title={t('page.DASHBOARD_FONTS')}
         description={rich('fonts.description', {code: (chunk) => <code className='text-fg'>{chunk}</code>})}
       />
-      <SavedFontsPanel guildId={null}/>
+      {/* the header above already says what the panel's description would */}
+      <SavedFontsPanel guildId={null} hideDescription/>
     </>
   );
 }

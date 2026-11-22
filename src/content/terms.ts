@@ -3,7 +3,7 @@ import type { LegalDocument } from './legal';
 export const TERMS_OF_SERVICE: LegalDocument = {
   title: "Terms of Service",
   effective: "November 12, 2026",
-  lastUpdated: "November 21, 2026",
+  lastUpdated: "November 22, 2026",
   intro: "Please read these Terms of Service carefully before using NotSoBot. They explain what you can and can't do with the Service, what we store when you use it, and how to reach us.",
   sections: [
     {
@@ -74,7 +74,7 @@ export const TERMS_OF_SERVICE: LegalDocument = {
           "Server information and settings for servers NotSoBot is in: server ID, name, icon, features, language, timezone, custom prefixes, default font, AI settings, and the rules for who can use which commands along with who added each rule.",
           "Logging settings: if a server enables logging, the channel and webhook used to post logs, including the webhook token. Log events are sent to that webhook and are not kept by Us.",
           "Command replies: the IDs of your command message, its channel, the command used, and NotSoBot's reply, so that editing or deleting your command can update or remove the reply. The text of your command message is not stored.",
-          "Command usage statistics: which command was used, when, and the server, channel and user IDs involved.",
+          "Command usage statistics: which command was used, when, how it was started, how it ended and how long it took, the language of the reply, and the server, channel and user IDs involved.",
           "Tags: names, content, variables, attached media, usage counts and directory listings for tags You create.",
           "Reminders: reminder text, times, and the channel and message they belong to.",
           "Reports You send with the report command, including the text, the server, channel and message IDs involved, and Our review notes.",

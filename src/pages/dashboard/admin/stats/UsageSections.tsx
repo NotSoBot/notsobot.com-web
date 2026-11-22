@@ -75,10 +75,145 @@ export function CommandsSection({ days }: {days: number}) {
                 </section>
               </div>
             </div>
+
+            <UseDetails data={data}/>
           </>
         );
       }}
     </StatsSection>
+  );
+}
+
+
+// why an attempt didn't run (the bot's `getRecordedCommandReason`), anything else is shown as it came
+const REASON_LABELS: Record<string, string> = {
+  cancel_run: 'Stopped before running',
+  channel_turned_off: 'Turned off in the channel',
+  command_permissions: 'Discord command permissions',
+  dm_disabled: 'Not usable in DMs',
+  invalid_media: 'Invalid user or URL',
+  job_cancelled: 'Job cancelled',
+  job_errored: 'Job polling failed',
+  job_failed: 'Job failed',
+  job_taken_over: 'Reply taken over',
+  job_timed_out: 'Job timed out',
+  job_unknown: 'Job state unknown',
+  no_channel_history: 'Can’t read the channel',
+  no_media: 'No media found',
+  not_enough_media: 'Not enough media',
+  nsfw: 'Not an NSFW channel',
+  premium: 'Needs premium',
+  rule: 'Server rule',
+  server_blocked: 'Server is blocked',
+  settings_fetch_failed: 'Settings didn’t load',
+  too_many_media: 'Too much media',
+  trigger_changed: 'Message changed',
+  usage: 'Usage shown',
+  user_blocked: 'User is blocked',
+  user_fetch_failed: 'User didn’t load',
+  warnings_pending: 'Staff warning shown',
+};
+
+// the lists are narrow, so the place goes on the detail line
+const INSTALL_LABELS: Record<string, string> = {'': 'No install', guild: 'Server install', user: 'User install'};
+const CONTEXT_LABELS: Record<string, string> = {
+  '': 'place unknown',
+  bot_dm: 'bot’s DMs',
+  guild: 'in a server',
+  private_channel: 'DM or group DM',
+};
+
+const LANGUAGE_NAMES = new Intl.DisplayNames(['en'], {type: 'language'});
+
+function languageName(locale: string): string {
+  try {
+    return LANGUAGE_NAMES.of(locale) ?? locale;
+  } catch {
+    // not a language tag
+    return locale;
+  }
+}
+
+function took(ms: number): string {
+  return (ms < 1000) ? `${formatNumber(ms)} ms` : `${formatNumber(Math.round(ms / 100) / 10)} s`;
+}
+
+// what the bot sends with each use since 2026-11-22: left out for an api from before then
+function UseDetails({ data }: {data: AdminCommandStats}) {
+  const { duration, locales, places, reasons, tip, triggers } = data;
+  if (!duration || !locales || !places || !reasons || !tip || !triggers) {
+    return null;
+  }
+  const triggered = (trigger: string) => triggers.find((item) => item.trigger === trigger)?.count ?? 0;
+  return (
+    <div className='mt-6'>
+      <SubHeading>Each use, in detail</SubHeading>
+      <p className='mb-3 text-sm text-muted'>Recorded since November 22, 2026, only uses from then on count here.</p>
+      <MetricGrid>
+        <Metric
+          label='Median time'
+          value={took(duration.p50)}
+          detail={`p95 ${took(duration.p95)}`}
+          title='From the command being checked to its end, a media job’s end included'
+        />
+        <Metric
+          label='Moved off the prefix'
+          value={percent(tip.switched, tip.users)}
+          detail={`${formatNumber(tip.switched)} of ${plural(tip.users, 'user')} who got the tip`}
+          color={STAT_COLORS.primary}
+          title='Users whose reply had the “prefix commands are ending” tip, and how many used a slash command or a mention after first seeing it'
+        />
+        <Metric label='Edit re-runs' value={compact(data.edited ?? 0)} detail='ran by editing the message'/>
+        <Metric
+          label='Auto-embeds'
+          value={compact(triggered('auto_embed'))}
+          detail={`${compact(triggered('ai_reply'))} replies to NotSoAI`}
+          title='Uses nobody typed a command for: a posted link, or a reply to a NotSoAI message'
+        />
+      </MetricGrid>
+
+      <div className='mt-6 grid gap-6 md:grid-cols-2 xl:grid-cols-3'>
+        <section>
+          <SubHeading>Why they didn’t run</SubHeading>
+          <RankedList
+            empty='Nothing was stopped in this window.'
+            items={reasons.map((item) => ({
+              key: item.reason,
+              label: REASON_LABELS[item.reason] ?? <span className='font-mono text-[13px]'>{item.reason}</span>,
+              value: item.count,
+              display: compact(item.count),
+              detail: plural(item.users, 'user'),
+            }))}
+          />
+        </section>
+        <section>
+          <SubHeading>Where they came from</SubHeading>
+          <RankedList
+            empty='No uses with an install yet.'
+            items={places.map((item) => ({
+              key: `${item.install}:${item.context}`,
+              label: INSTALL_LABELS[item.install] ?? item.install,
+              value: item.count,
+              display: compact(item.count),
+              detail: `${CONTEXT_LABELS[item.context] ?? item.context} • ${plural(item.users, 'user')}`,
+            }))}
+          />
+        </section>
+        <section>
+          <SubHeading>Reply languages</SubHeading>
+          <RankedList
+            empty='No uses with a language yet.'
+            items={locales.map((item) => ({
+              key: item.locale,
+              label: languageName(item.locale),
+              value: item.count,
+              display: compact(item.count),
+              detail: `${item.locale} • ${plural(item.users, 'user')}`,
+            }))}
+          />
+        </section>
+      </div>
+    </div>
   );
 }
 
@@ -184,6 +319,27 @@ export function ApiSection({ days }: {days: number}) {
               />
             </section>
           </div>
+
+          {/* which limits and paywalls people run into. an api from before the codes were recorded has no `errors`, the
+              section is left out then */}
+          {(data.errors) ? <section className='mt-6'>
+            <SubHeading>Most common errors</SubHeading>
+            <p className='mb-3 text-sm text-muted'>Error responses by their code, recorded since November 22, 2026.</p>
+            <RankedList
+              empty='No error responses with a code in this window.'
+              items={data.errors.map((item) => ({
+                key: `${item.code}:${item.tier ?? ''}`,
+                label: (
+                  <span className='font-mono text-[13px]'>
+                    {item.name ?? 'UNKNOWN'} <span className='text-subtle'>{item.code}</span>
+                  </span>
+                ),
+                value: item.count,
+                display: compact(item.count),
+                detail: [(item.tier) ? `asked for ${item.tier}` : null, `${plural(item.users, 'user')} signed in`].filter(Boolean).join(' • '),
+              }))}
+            />
+          </section> : null}
         </>
       )}
     </StatsSection>

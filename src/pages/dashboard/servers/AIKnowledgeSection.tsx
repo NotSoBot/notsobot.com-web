@@ -2,7 +2,7 @@ import { Plus } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 
 import { Spinner } from '@/components/ui/Spinner';
-import { useToast } from '@/components/ui/Toast';
+import { useToast, type ToastAction } from '@/components/ui/Toast';
 import { translate, useI18n } from '@/i18n';
 import type { GuildLLMKnowledge, UserGuild } from '@/lib/api';
 import {
@@ -13,7 +13,7 @@ import {
 } from '@/lib/api/dashboardQueries';
 import { formatNumber } from '@/lib/utils';
 
-import { Field, Panel, Skeleton } from '../ui';
+import { Field, InlineError, Panel, Skeleton } from '../ui';
 import { useReadOnlyMessage } from './guildMeta';
 import { EditButton, RemoveButton } from './ServerSections';
 
@@ -29,7 +29,7 @@ export function AIKnowledgeSection({ guild }: {guild: UserGuild}) {
   const editable = guild.editable.settings;
   const readOnlyMessage = useReadOnlyMessage();
   const toast = useToast();
-  const { data, isPending, error } = useGuildLLMKnowledgeQuery(guild.id);
+  const { data, isPending, error, refetch, isRefetching } = useGuildLLMKnowledgeQuery(guild.id);
   const mutation = useGuildLLMKnowledgeMutation(guild.id);
   const [ busyKey, setBusyKey ] = useState<string | null>(null);
   const [ editingId, setEditingId ] = useState<string | null>(null);
@@ -44,11 +44,12 @@ export function AIKnowledgeSection({ guild }: {guild: UserGuild}) {
   const full = !remaining || fullAmount;
   const trimmed = content.trim();
 
-  const run = async (key: string, action: GuildLLMKnowledgeAction, success: string): Promise<boolean> => {
+  // `undo` is a button on the success toast, removing doesn't ask first
+  const run = async (key: string, action: GuildLLMKnowledgeAction, success: string, undo?: ToastAction): Promise<boolean> => {
     setBusyKey(key);
     try {
       await mutation.mutateAsync(action);
-      toast(success);
+      toast(success, 'success', undo);
       return true;
     } catch (error) {
       toast(errorMessage(error, translate('knowledge.save_error')), 'error');
@@ -71,7 +72,7 @@ export function AIKnowledgeSection({ guild }: {guild: UserGuild}) {
           <Skeleton className='h-9 w-full bg-surface-2'/>
         </div>
       ) : (error) ? (
-        <p role='alert' className='text-sm text-danger-text'>{errorMessage(error, t('knowledge.load_error'))}</p>
+        <InlineError onRetry={() => void refetch()} retrying={isRefetching}>{errorMessage(error, t('knowledge.load_error'))}</InlineError>
       ) : (items.length) ? (
         <ol className='space-y-2'>
           {items.map((item, index) => (
@@ -94,13 +95,17 @@ export function AIKnowledgeSection({ guild }: {guild: UserGuild}) {
                 <>
                   <p className='min-w-0 flex-1 text-sm break-words whitespace-pre-wrap text-fg'>{item.content}</p>
                   {(editable) ? (
-                    <div className='flex shrink-0'>
+                    <div className='flex shrink-0 gap-1'>
                       <EditButton label={t('knowledge.edit', {number: index + 1})} disabled={mutation.isPending} onClick={() => setEditingId(item.id)}/>
                       <RemoveButton
                         label={t('knowledge.remove', {number: index + 1})}
                         busy={busyKey === item.id}
                         disabled={mutation.isPending}
-                        onClick={() => void run(item.id, {kind: 'remove', knowledgeId: item.id}, t('knowledge.removed'))}
+                        // undo adds it again (as the last entry)
+                        onClick={() => void run(item.id, {kind: 'remove', knowledgeId: item.id}, t('knowledge.removed'), {
+                          label: t('sections.undo'),
+                          onClick: () => void run('\u0000restore', {kind: 'add', content: item.content}, t('knowledge.restored')),
+                        })}
                       />
                     </div>
                   ) : null}

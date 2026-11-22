@@ -2,13 +2,15 @@
 // grants from staff). Subscriptions are bought, renewed and cancelled in Discord.
 
 import { Coins, Crown } from 'lucide-react';
+import { useMemo } from 'react';
 import { Link } from 'react-router';
 
 import { useAuth } from '@/auth';
 import { Routes, Urls } from '@/config';
 import { useI18n } from '@/i18n';
+import { AnalyticsEvents, trackEvent } from '@/lib/analytics';
 import { CreditTransactionTypes, EntitlementProviders, UserPremiumTypes, type CreditBalance, type CreditTransaction, type Entitlement } from '@/lib/api';
-import { errorMessage, useMeCreditsQuery, useMeEntitlementsQuery } from '@/lib/api/dashboardQueries';
+import { errorMessage, useMeCreditsQuery, useMeEntitlementsQuery, useMeGuildsQuery } from '@/lib/api/dashboardQueries';
 import { CREDITS_PER_TTS_BYTE } from '@/lib/credits';
 import { cn, formatDate, formatExactDateTime, formatNumber, toDate } from '@/lib/utils';
 
@@ -19,10 +21,19 @@ import { PremiumServers } from './PremiumServers';
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from './ui';
 
 
+// server names from the user's server list, like the Reminders page's: a server that isn't in it (or a list that can't
+// load) keeps showing its id
+function useGuildNames(): Map<string, string> {
+  const { data } = useMeGuildsQuery();
+  return useMemo(() => new Map((data ?? []).map((guild) => [guild.id, guild.name])), [data]);
+}
+
+
 export function PremiumPage() {
   const { user } = useAuth();
   const { t, rich } = useI18n();
   const { data, isPending, isError, error, isRefetching, refetch } = useMeEntitlementsQuery();
+  const guildNames = useGuildNames();
   const items = data?.items ?? [];
 
   if (!user) {
@@ -55,12 +66,24 @@ export function PremiumPage() {
         <ErrorPanel title={t('dpremium.load_error')} message={errorMessage(error)} onRetry={() => refetch()} retrying={isRefetching}/>
       ) : (!items.length) ? (
         <EmptyState icon={<Crown className='size-10'/>} title={t('dpremium.empty')}>
-          {rich('dpremium.empty_description', {store: (chunk) => <a href={Urls.DISCORD_STORE} target='_blank' rel='noreferrer' className='text-fg underline hover:text-white'>{chunk}</a>})}
+          {rich('dpremium.empty_description', {
+            store: (chunk) => (
+              <a
+                href={Urls.DISCORD_STORE}
+                target='_blank'
+                rel='noreferrer'
+                className='text-fg underline hover:text-white'
+                onClick={() => trackEvent(AnalyticsEvents.STORE_CLICK, {item: 'store', place: 'dash-premium'})}
+              >
+                {chunk}
+              </a>
+            ),
+          })}
         </EmptyState>
       ) : (
         <>
           <ul className='card divide-y divide-line'>
-            {items.map((entitlement) => <EntitlementRow key={entitlement.id} entitlement={entitlement}/>)}
+            {items.map((entitlement) => <EntitlementRow key={entitlement.id} entitlement={entitlement} guildNames={guildNames}/>)}
           </ul>
           {(items.length < (data?.count ?? 0)) ? (
             <p className='mt-2 text-xs text-subtle'>{t('dpremium.showing', {shown: formatNumber(items.length), count: formatNumber(data?.count ?? 0)})}</p>
@@ -87,18 +110,33 @@ function CurrentTier({ premiumType, items }: {premiumType: number, items: Array<
   }
 
   return (
-    <section className='card flex items-center gap-4 p-5'>
+    <section className='card flex flex-wrap items-center gap-4 p-5'>
       <span
         aria-hidden
         className={cn('flex size-12 shrink-0 items-center justify-center rounded-lg', premium ? 'bg-warning/15 text-warning' : 'bg-surface-3 text-subtle')}
       >
         <Crown className='size-6'/>
       </span>
-      <div className='min-w-0'>
+      <div className='min-w-0 flex-1'>
         <div className='text-sm text-muted'>{t('dpremium.current')}</div>
         <div className={cn('text-xl font-bold', premium ? 'text-warning' : 'text-white')}>{premiumLabel(premiumType)}</div>
         {(detail) ? <div className='mt-0.5 text-sm text-subtle'>{detail}</div> : null}
       </div>
+      {(!premium) ? (
+        // without premium the plans and the store are the next step, so they're here and not only at the bottom of the page
+        <div className='flex basis-full flex-wrap gap-2 sm:basis-auto'>
+          <Link to={Routes.PREMIUM} className='btn btn-sm btn-secondary'>{t('dpremium.see_plans')}</Link>
+          <a
+            href={Urls.DISCORD_STORE}
+            target='_blank'
+            rel='noreferrer'
+            className='btn btn-sm btn-primary'
+            onClick={() => trackEvent(AnalyticsEvents.STORE_CLICK, {item: 'store', place: 'dash-premium'})}
+          >
+            {t('premium.how.open_store')}
+          </a>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -108,6 +146,7 @@ function CurrentTier({ premiumType, items }: {premiumType: number, items: Array<
 function CreditsCard() {
   const { t } = useI18n();
   const { data, isPending, isError, error, isRefetching, refetch } = useMeCreditsQuery();
+  const guildNames = useGuildNames();
 
   return (
     <section className='card mt-4 p-5'>
@@ -130,7 +169,7 @@ function CreditsCard() {
             <>
               <h3 className='section-label mt-5 mb-2'>{t('dcredits.recent')}</h3>
               <ul className='divide-y divide-line text-sm'>
-                {data.transactions.map((transaction) => <CreditTransactionRow key={transaction.id} transaction={transaction}/>)}
+                {data.transactions.map((transaction) => <CreditTransactionRow key={transaction.id} transaction={transaction} guildNames={guildNames}/>)}
               </ul>
             </>
           ) : null}
@@ -186,22 +225,30 @@ function CreditBalances({ balance }: {balance: CreditBalance}) {
 }
 
 
-function CreditTransactionRow({ transaction }: {transaction: CreditTransaction}) {
+function CreditTransactionRow({ transaction, guildNames }: {transaction: CreditTransaction, guildNames: Map<string, string>}) {
   const { t } = useI18n();
   const amount = formatNumber(Math.abs(transaction.amount));
+  // the server by name when it's one of theirs (its id then goes small after the line), by id otherwise
+  const serverName = (transaction.server_id) ? guildNames.get(transaction.server_id) : undefined;
   let text: string;
   if (transaction.type === CreditTransactionTypes.REFILL) {
     text = t('dcredits.type.refill', {amount});
   } else if (transaction.type === CreditTransactionTypes.GIVE) {
-    text = t('dcredits.type.give', {amount, server: transaction.server_id ?? ''});
+    text = (serverName) ? t('dcredits.type.give_named', {amount, server: serverName}) : t('dcredits.type.give', {amount, server: transaction.server_id ?? ''});
   } else if (transaction.type === CreditTransactionTypes.GRANT) {
     text = t((transaction.amount < 0) ? 'dcredits.type.grant_taken' : 'dcredits.type.grant', {amount});
+  } else if (serverName) {
+    text = t('dcredits.type.revoke_server_named', {amount, server: serverName});
   } else {
     text = (transaction.server_id) ? t('dcredits.type.revoke_server', {amount, server: transaction.server_id}) : t('dcredits.type.revoke', {amount});
   }
+  const named = !!serverName && (transaction.type === CreditTransactionTypes.GIVE || transaction.type === CreditTransactionTypes.REVOKE);
   return (
     <li className='flex items-center justify-between gap-3 py-2'>
-      <span className={cn('min-w-0', (transaction.type === CreditTransactionTypes.REVOKE || transaction.amount < 0) ? 'text-[#ff8a8c]' : 'text-fg')}>{text}</span>
+      <span className={cn('min-w-0', (transaction.type === CreditTransactionTypes.REVOKE || transaction.amount < 0) ? 'text-[#ff8a8c]' : 'text-fg')}>
+        {text}
+        {(named) ? <span className='ml-2 font-mono text-xs text-subtle'>{transaction.server_id}</span> : null}
+      </span>
       <span className='shrink-0 text-xs text-subtle'>
         <DateLabel label='' value={transaction.created}/>
       </span>
@@ -215,8 +262,9 @@ function DateLabel({ label, value }: {label: string, value: string | number}) {
 }
 
 
-function EntitlementRow({ entitlement }: {entitlement: Entitlement}) {
+function EntitlementRow({ entitlement, guildNames }: {entitlement: Entitlement, guildNames: Map<string, string>}) {
   const { t, rich } = useI18n();
+  const serverName = (entitlement.guild_id) ? guildNames.get(entitlement.guild_id) : undefined;
   const status = entitlementStatus(entitlement);
   const discord = entitlement.provider === EntitlementProviders.DISCORD;
   const started = entitlement.starts_at ?? entitlement.created_at;
@@ -243,7 +291,13 @@ function EntitlementRow({ entitlement }: {entitlement: Entitlement}) {
           ) : (entitlement.active) ? (
             <span>{t('dpremium.no_end')}</span>
           ) : null}
-          {(entitlement.guild_id) ? <span>{rich('dpremium.server', {b: (chunk) => <span className='font-mono'>{chunk}</span>}, {id: entitlement.guild_id})}</span> : null}
+          {/* the server by name when it's one of theirs, its id small after it */}
+          {(entitlement.guild_id) ? (
+            <span>
+              {rich('dpremium.server', {b: (chunk) => <span className={(serverName) ? 'text-fg' : 'font-mono'}>{chunk}</span>}, {server: serverName ?? entitlement.guild_id})}
+              {(serverName) ? <span className='ml-1.5 font-mono text-[11px]'>{entitlement.guild_id}</span> : null}
+            </span>
+          ) : null}
           <span className='font-mono' title={t('dpremium.entitlement_id')}>#{entitlement.id}</span>
         </div>
       </div>

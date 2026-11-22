@@ -22,10 +22,16 @@ import {
   useRevealVoiceNodeMutation,
   useTestVoiceNodeMutation,
 } from '@/lib/api/dashboardQueries';
-import { cn, formatDate, formatUptime, NO_AUTOFILL } from '@/lib/utils';
+import { cn, displayLocale, formatDate, formatUptime, NO_AUTOFILL } from '@/lib/utils';
 
 import { DashboardHeader, EmptyState, ErrorPanel, Field, Skeleton, Toggle } from '../ui';
 import { Chip, InfoTip } from './adminUi';
+
+
+// 14:05:09, for when the live counts were last fetched
+function clockTime(timestamp: number): string {
+  return new Date(timestamp).toLocaleTimeString(displayLocale(), {hour: '2-digit', minute: '2-digit', second: '2-digit'});
+}
 
 
 export function OwnerVoiceNodesPage() {
@@ -51,7 +57,11 @@ export function OwnerVoiceNodesPage() {
 
   const nodes = data?.nodes ?? [];
   // live counts, every few seconds
-  const { data: statsData } = useAdminVoiceNodesStatsQuery();
+  const { data: statsData, isError: statsFailed, error: statsError, dataUpdatedAt: statsUpdatedAt } = useAdminVoiceNodesStatsQuery();
+  // never loaded at all: the rows say so instead of "Checking…" forever (a later failed poll keeps the last counts)
+  const statsUnavailable = (statsFailed && !statsData) ? errorMessage(statsError, 'Couldn’t check the nodes.') : null;
+  // the last poll failed: said next to the totals with when the counts on screen are from, they'd look live otherwise
+  const statsStale = (statsFailed) ? `stats unavailable${(statsUpdatedAt) ? ` • last updated ${clockTime(statsUpdatedAt)}` : ''}` : null;
   const stats = new Map((statsData?.nodes ?? []).map((item) => [item.id, item]));
   const totals = (statsData?.nodes ?? []).reduce((total, item) => ({
     paused: total.paused + (item.stats?.paused ?? 0),
@@ -68,6 +78,7 @@ export function OwnerVoiceNodesPage() {
             {(statsData) ?
               `${totals.playing.toLocaleString()} playing • ${totals.paused.toLocaleString()} paused • ${totals.players.toLocaleString()} players` :
               'The music nodes the bot plays music through.'}
+            {(statsStale) ? <span className='text-warning tabular-nums'>{statsStale}</span> : null}
             <InfoTip text='Each server’s music goes on the enabled node with the fewest servers. Disabling a node drains it: its servers move to an enabled node when their next song starts, delete it once it shows 0 players.'/>
           </span>
         }
@@ -93,6 +104,7 @@ export function OwnerVoiceNodesPage() {
               key={node.id}
               node={node}
               stats={stats.get(node.id)}
+              statsUnavailable={statsUnavailable}
               test={tests[node.id]}
               onTest={() => runTest(node)}
               onPassword={() => setPassword({node})}
@@ -117,7 +129,13 @@ export function OwnerVoiceNodesPage() {
       {(deleting) ? (
         <ConfirmDialog
           title={`Delete ${deleting.name}?`}
-          description='The bot stops putting servers on it, the ones on it move to another node when their next song starts.'
+          // what's on it right now (the page says to delete at 0 players), live like its row
+          description={(
+            <>
+              <DeletingCounts stats={stats.get(deleting.id)?.stats ?? null} stale={statsStale}/>
+              The bot stops putting servers on it, the ones on it move to another node when their next song starts.
+            </>
+          )}
           confirmLabel='Delete node'
           pending={remove.isPending}
           error={(remove.isError) ? errorMessage(remove.error, 'Couldn’t delete the node.') : null}
@@ -139,12 +157,56 @@ export function OwnerVoiceNodesPage() {
 }
 
 
+// the delete confirm's first line: how many servers are on the node, in the warning color while there are any
+function DeletingCounts({ stats, stale }: {stats: VoiceNodeStats | null, stale: string | null}) {
+  if (!stats) {
+    return <span className='mb-2 block text-warning'>Couldn’t check how many are playing on it right now.</span>;
+  }
+  return (
+    <span className={cn('mb-2 block tabular-nums', (stats.players) ? 'font-medium text-warning' : 'text-fg')}>
+      {stats.playing.toLocaleString()} playing right now • {stats.players.toLocaleString()} {(stats.players === 1) ? 'player' : 'players'} on it
+      {(stale) ? ` (${stale})` : null}
+    </span>
+  );
+}
+
+
 type NodeTestState = VoiceNodeTest | 'testing' | {failed: string};
 
+// what the row's dot says, worked out from the node and its live stats
+//   checking: no stats for it yet (the first poll, or a node added since the last one)
+//   unknown: the stats never loaded, offline: the api couldn't reach it
+//   online: enabled and answering, draining: disabled with players still on it, disabled: disabled and empty
+type NodeStatus = 'checking' | 'unknown' | 'offline' | 'online' | 'draining' | 'disabled';
+
+const NODE_STATUS: Record<NodeStatus, {label: string, dot: string}> = {
+  checking: {label: 'Checking…', dot: 'bg-subtle'},
+  unknown: {label: 'Couldn’t check', dot: 'bg-subtle'},
+  offline: {label: 'Offline', dot: 'bg-danger'},
+  online: {label: 'Online', dot: 'bg-success'},
+  draining: {label: 'Draining', dot: 'bg-warning'},
+  disabled: {label: 'Disabled', dot: 'bg-subtle'},
+};
+
+function nodeStatus(node: VoiceNode, item: VoiceNodeStatsItem | undefined, statsUnavailable: boolean): NodeStatus {
+  if (!item) {
+    return (statsUnavailable) ? 'unknown' : 'checking';
+  }
+  if (!item.stats) {
+    return 'offline';
+  }
+  if (node.enabled) {
+    return 'online';
+  }
+  return (0 < item.stats.players) ? 'draining' : 'disabled';
+}
+
 // one node: a status dot, its name and url, the live counts and icon actions on one line, the details under it
-function NodeRow({ node, stats: item, test, onTest, onPassword, onEdit, onDelete }: {
+function NodeRow({ node, stats: item, statsUnavailable, test, onTest, onPassword, onEdit, onDelete }: {
   node: VoiceNode,
   stats?: VoiceNodeStatsItem,
+  // why the stats never loaded, null once they have
+  statsUnavailable: string | null,
   test?: NodeTestState,
   onTest: () => void,
   onPassword: () => void,
@@ -152,9 +214,10 @@ function NodeRow({ node, stats: item, test, onTest, onPassword, onEdit, onDelete
   onDelete: () => void,
 }) {
   const stats = item?.stats ?? null;
-  const offline = !!item && !stats;
-  const draining = !node.enabled && !!stats && 0 < stats.players;
-  const status = (offline) ? 'Offline' : (!stats) ? 'Checking…' : (draining) ? 'Draining' : (node.enabled) ? 'Online' : 'Disabled';
+  const state = nodeStatus(node, item, !!statsUnavailable);
+  const offline = state === 'offline';
+  const draining = state === 'draining';
+  const status = NODE_STATUS[state].label;
   // phones show the last test on the Test button, there's no room for its chip
   const tested = describeTest(test);
   const megabytes = (bytes: number) => `${Math.round(bytes / (1024 * 1024)).toLocaleString()} MB`;
@@ -165,18 +228,13 @@ function NodeRow({ node, stats: item, test, onTest, onPassword, onEdit, onDelete
     undefined;
 
   return (
-    <li className='px-4 py-2.5 first:rounded-t-[inherit] last:rounded-b-[inherit]'>
+    <li className='px-4 py-2.5 first:rounded-t-[inherit] last:rounded-b-[inherit]' data-state={state}>
       <div className='flex items-center gap-3'>
         <span
           role='img'
           aria-label={status}
-          title={status}
-          className={cn('size-2 shrink-0 rounded-full', {
-            'bg-danger': offline,
-            'bg-subtle': !offline && (!stats || (!node.enabled && !draining)),
-            'bg-success': !offline && !!stats && node.enabled,
-            'bg-warning': draining,
-          })}
+          title={(state === 'unknown' && statsUnavailable) ? `${status}: ${statsUnavailable}` : status}
+          className={cn('size-2 shrink-0 rounded-full', NODE_STATUS[state].dot)}
         />
         <div className='flex min-w-0 flex-1 items-center gap-2 overflow-hidden'>
           <span className={cn('shrink-0 font-medium', (node.enabled) ? 'text-fg' : 'text-subtle')}>{node.name}</span>
@@ -220,6 +278,9 @@ function NodeRow({ node, stats: item, test, onTest, onPassword, onEdit, onDelete
               <span className='max-sm:hidden'>{' • '}{stats.sessions.toLocaleString()} {(stats.sessions === 1) ? 'session' : 'sessions'}</span>
               <span className='max-sm:hidden'>{' • '}{stats.workers.length.toLocaleString()} {(stats.workers.length === 1) ? 'worker' : 'workers'}</span>
             </>
+          ) : (statsUnavailable) ? (
+            // in words too, the grey dot's tooltip was the only place it said so
+            <span>stats unavailable: {statsUnavailable}</span>
           ) : null}
         </p>
         <span className='ml-auto shrink-0'>
@@ -439,8 +500,9 @@ function PasswordDialog({ node, created, onClose }: {node: VoiceNode, created?: 
 
   const password = reset.data?.password ?? created?.password ?? reveal.data?.password;
   const pending = reveal.isPending || reset.isPending;
+  // a failed reveal stops mattering once a new password is showing
   const failed = (reset.isError) ? errorMessage(reset.error, 'Couldn’t give it a new password.') :
-    (reveal.isError) ? errorMessage(reveal.error, 'Couldn’t reveal the password.') : null;
+    (reveal.isError && !reset.data) ? errorMessage(reveal.error, 'Couldn’t reveal the password.') : null;
 
   return (
     <Modal labelledBy={titleId} onClose={() => !reset.isPending && onClose()} className='max-w-md'>
@@ -452,7 +514,10 @@ function PasswordDialog({ node, created, onClose }: {node: VoiceNode, created?: 
             'The node’s VOICE_PASSWORD, the bot uses it to connect.'}
         </p>
 
-        <div className='mt-4 flex min-h-11 items-center gap-2 rounded-md border border-line bg-deep px-3 py-2'>
+        <div
+          className='mt-4 flex min-h-11 items-center gap-2 rounded-md border border-line bg-deep px-3 py-2'
+          data-state={(password) ? 'shown' : (pending) ? 'loading' : 'hidden'}
+        >
           {(password) ? (
             <>
               <code className='min-w-0 flex-1 break-all font-mono text-sm text-fg select-all'>{password}</code>

@@ -1,9 +1,10 @@
-import { CircleAlert, Lock, RefreshCw } from 'lucide-react';
-import { useEffect, useId, type ReactNode } from 'react';
+import { ChevronRight, CircleAlert, Lock, RefreshCw } from 'lucide-react';
+import { useEffect, useId, useRef, type ReactNode, type RefObject } from 'react';
 import { useBlocker } from 'react-router';
 
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Spinner } from '@/components/ui/Spinner';
+import { useToastClearance } from '@/components/ui/Toast';
 import { useI18n } from '@/i18n';
 import { cn, formatNumber } from '@/lib/utils';
 
@@ -24,10 +25,12 @@ export function DashboardHeader({ title, description, children }: {title: ReactN
 
 // A titled card. `accent` is a CSS color for the little bar next to the title (matches the commands page).
 // `readOnly` (the reason) marks the whole card as view only: dashed border, a badge, the reason up top and the
-// contents dimmed, so it's obvious at a glance which sections can't be changed.
-export function Panel({ title, description, accent, actions, className, children, headingLevel = 2, readOnly }: {
+// contents dimmed, so it's obvious at a glance which sections can't be changed. `help` goes right under the description,
+// for a `HelpDisclosure` with the rest of a long one (the description itself is a paragraph, it can't hold one).
+export function Panel({ title, description, help, accent, actions, className, children, headingLevel = 2, readOnly }: {
   title: ReactNode,
   description?: ReactNode,
+  help?: ReactNode,
   accent?: string,
   actions?: ReactNode,
   className?: string,
@@ -55,12 +58,28 @@ export function Panel({ title, description, accent, actions, className, children
             ) : null}
           </Heading>
           {(description) ? <p className='mt-1 text-sm text-muted'>{description}</p> : null}
+          {(help) ? <div className='mt-1'>{help}</div> : null}
         </div>
         {(actions) ? <div className='flex shrink-0 flex-wrap items-center gap-2'>{actions}</div> : null}
       </div>
       {(readOnly) ? <ReadOnlyNote>{readOnly}</ReadOnlyNote> : null}
       {(readOnly) ? <div className='opacity-70'>{children}</div> : children}
     </section>
+  );
+}
+
+
+// Help that's too long to always show: only `summary` ("How it works", "Search tips") until it's opened. Not for inside a
+// paragraph (a description or a hint), it goes under one.
+export function HelpDisclosure({ summary, children, className }: {summary: ReactNode, children: ReactNode, className?: string}) {
+  return (
+    <details className={cn('group/help text-xs text-subtle', className)}>
+      <summary className='inline-flex cursor-pointer list-none items-center gap-0.5 rounded text-code hover:underline [&::-webkit-details-marker]:hidden'>
+        <ChevronRight aria-hidden className='size-3.5 shrink-0 transition-transform group-open/help:rotate-90'/>
+        {summary}
+      </summary>
+      <div className='mt-1 space-y-1'>{children}</div>
+    </details>
   );
 }
 
@@ -100,11 +119,16 @@ export function ErrorPanel({ title, message, onRetry, retrying = false }: {
 }
 
 
-export function InlineError({ children }: {children: ReactNode}) {
+// `onRetry` adds a Try again button, for something that failed to load
+export function InlineError({ children, onRetry, retrying = false }: {children: ReactNode, onRetry?: () => void, retrying?: boolean}) {
+  const { t } = useI18n();
   return (
-    <p role='alert' className='mt-2 flex items-start gap-1.5 text-sm text-danger-text'>
-      <CircleAlert aria-hidden className='mt-0.5 size-4 shrink-0'/>
+    <p role='alert' className={cn('mt-2 flex gap-1.5 text-sm text-danger-text', (onRetry) ? 'flex-wrap items-center' : 'items-start')}>
+      <CircleAlert aria-hidden className={cn('size-4 shrink-0', !onRetry && 'mt-0.5')}/>
       <span className='min-w-0 break-words'>{children}</span>
+      {(onRetry) ? (
+        <button type='button' className='btn btn-secondary btn-sm ml-1.5 shrink-0' disabled={retrying} onClick={onRetry}>{t('common.try_again')}</button>
+      ) : null}
     </p>
   );
 }
@@ -166,12 +190,14 @@ export function CharCounter({ length, max }: {length: number, max: number}) {
 }
 
 
-export function Toggle({ checked, onChange, label, description, disabled = false }: {
+export function Toggle({ checked, onChange, label, description, disabled = false, busy = false }: {
   checked: boolean,
   onChange: (value: boolean) => void,
   label: ReactNode,
   description?: ReactNode,
   disabled?: boolean,
+  // a spinner next to the switch while its change is being saved
+  busy?: boolean,
 }) {
   const id = useId();
   return (
@@ -180,27 +206,31 @@ export function Toggle({ checked, onChange, label, description, disabled = false
         <label htmlFor={id} className={cn('text-sm font-medium text-fg', !disabled && 'cursor-pointer')}>{label}</label>
         {(description) ? <p className='mt-0.5 text-xs text-subtle'>{description}</p> : null}
       </div>
-      <button
-        id={id}
-        type='button'
-        role='switch'
-        aria-checked={checked}
-        disabled={disabled}
-        onClick={() => onChange(!checked)}
-        className={cn(
-          'relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-60',
-          checked ? 'bg-success' : 'bg-[#72767d]',
-        )}
-      >
-        <span className={cn('inline-block size-[1.125rem] rounded-full bg-white shadow transition-transform', checked ? 'translate-x-[1.375rem]' : 'translate-x-[0.1875rem]')}/>
-      </button>
+      <div className='flex shrink-0 items-center gap-2'>
+        {(busy) ? <Spinner className='size-3.5'/> : null}
+        <button
+          id={id}
+          type='button'
+          role='switch'
+          aria-checked={checked}
+          aria-busy={(busy) ? true : undefined}
+          disabled={disabled}
+          onClick={() => onChange(!checked)}
+          className={cn(
+            'relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-60',
+            checked ? 'bg-success' : 'bg-[#72767d]',
+          )}
+        >
+          <span className={cn('inline-block size-[1.125rem] rounded-full bg-white shadow transition-transform', checked ? 'translate-x-[1.375rem]' : 'translate-x-[0.1875rem]')}/>
+        </button>
+      </div>
     </div>
   );
 }
 
 
 // Save/discard row shown under a form; `dirty` drives the "Unsaved changes" hint.
-export function SaveBar({ dirty, pending, onDiscard, saveLabel, disabled = false, status, standalone = false }: {
+export function SaveBar({ dirty, pending, onDiscard, saveLabel, disabled = false, status, standalone = false, sticky = false }: {
   dirty: boolean,
   pending: boolean,
   onDiscard?: () => void,
@@ -209,29 +239,51 @@ export function SaveBar({ dirty, pending, onDiscard, saveLabel, disabled = false
   status?: ReactNode,
   // its own card instead of a divider at the bottom of one
   standalone?: boolean,
+  // while there are unsaved edits it stays at the bottom of the window (as far as the form it's in reaches), for a long
+  // form whose end is usually off screen. Toasts sit above it meanwhile
+  sticky?: boolean,
 }) {
   const { t } = useI18n();
+  const bar = useRef<HTMLDivElement>(null);
+  const stuck = sticky && dirty;
+  // readable form state for tests/agents; `invalid` = edits that can't be saved yet
+  const state = (pending) ? 'saving' : (!dirty) ? 'clean' : (disabled) ? 'invalid' : 'dirty';
   return (
-    <div
-      className={cn(
-        'flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between',
-        (standalone) ? cn('card p-4', dirty && 'sticky bottom-3 z-10 shadow-xl shadow-black/40') : 'mt-5 border-t border-line pt-4',
-      )}
-    >
-      <div aria-live='polite' className='min-h-5 text-sm'>
-        {(status) ? status : (dirty) ? <span className='text-warning'>{t('dash.unsaved')}</span> : null}
+    <>
+      <div
+        ref={bar}
+        data-state={state}
+        className={cn(
+          'flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between',
+          (standalone) ? cn('card p-4', dirty && 'sticky bottom-3 z-10 shadow-xl shadow-black/40')
+            : (stuck) ? 'sticky bottom-3 z-10 mt-5 rounded-lg border border-line-strong bg-surface p-3 shadow-xl shadow-black/40'
+              : 'mt-5 border-t border-line pt-4',
+        )}
+      >
+        <div aria-live='polite' className='min-h-5 text-sm'>
+          {(status) ? status : (dirty) ? <span className='text-warning'>{t('dash.unsaved')}</span> : null}
+        </div>
+        <div className='flex flex-wrap gap-2 sm:justify-end'>
+          {(onDiscard) ? (
+            <button type='button' className='btn btn-ghost' onClick={onDiscard} disabled={!dirty || pending}>{t('common.discard')}</button>
+          ) : null}
+          <button type='submit' className='btn btn-primary' disabled={!dirty || pending || disabled}>
+            {(pending) ? <Spinner className='size-4 border-white/40 border-t-white'/> : null}
+            {(pending) ? t('common.saving') : (saveLabel ?? t('common.save_changes'))}
+          </button>
+        </div>
       </div>
-      <div className='flex flex-wrap gap-2 sm:justify-end'>
-        {(onDiscard) ? (
-          <button type='button' className='btn btn-ghost' onClick={onDiscard} disabled={!dirty || pending}>{t('common.discard')}</button>
-        ) : null}
-        <button type='submit' className='btn btn-primary' disabled={!dirty || pending || disabled}>
-          {(pending) ? <Spinner className='size-4 border-white/40 border-t-white'/> : null}
-          {(pending) ? t('common.saving') : (saveLabel ?? t('common.save_changes'))}
-        </button>
-      </div>
-    </div>
+      {/* after the bar, so its element is there by the time this looks for it */}
+      {(stuck) ? <ToastClearance target={bar}/> : null}
+    </>
   );
+}
+
+
+// the toasts' corner is where a stuck save bar's buttons are
+function ToastClearance({ target }: {target: RefObject<HTMLElement | null>}) {
+  useToastClearance(target);
+  return null;
 }
 
 
@@ -255,7 +307,16 @@ export function UnsavedChangesGuard({ when }: {when: boolean}) {
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
   }, [when]);
 
-  if (blocker.state !== 'blocked') {
+  // the edits were saved (or dropped) while the dialog was up, e.g. Save then a link before the save finished: nothing is
+  // left to lose, so the navigation they started goes through instead of asking to discard what's already saved
+  const stale = blocker.state === 'blocked' && !when;
+  useEffect(() => {
+    if (blocker.state === 'blocked' && !when) {
+      blocker.proceed();
+    }
+  }, [blocker, when]);
+
+  if (blocker.state !== 'blocked' || stale) {
     return null;
   }
   return (

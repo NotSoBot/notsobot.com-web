@@ -27,7 +27,8 @@ interface Section {
   children?: ReadonlyArray<Section>,
 }
 
-// the account: Overview first, the rest alphabetical (export/delete your data is at the bottom of Settings)
+// the account (export/delete your data is at the bottom of Settings). Shown with Overview first and the rest alphabetical
+// in the language on screen (`sortedByLabel`), this is the English order
 export const DASHBOARD_SECTIONS: ReadonlyArray<Section> = [
   {to: Routes.DASHBOARD, label: 'dash.nav.overview', icon: LayoutDashboard, color: '#5865f2', end: true},
   {to: Routes.DASHBOARD_APPLICATIONS, label: 'dash.nav.applications', icon: Blocks, color: '#3ba55c'},
@@ -37,7 +38,7 @@ export const DASHBOARD_SECTIONS: ReadonlyArray<Section> = [
   {to: Routes.DASHBOARD_SETTINGS, label: 'dash.nav.settings', icon: Settings, color: '#00b0f4'},
 ];
 
-// things the user made with the bot, alphabetical
+// things the user made with the bot, alphabetical in the language on screen too
 export const CONTENT_SECTIONS: ReadonlyArray<Section> = [
   {to: Routes.DASHBOARD_AI_MEMORY, label: 'dash.nav.ai_memory', icon: Brain, color: '#eb459e'},
   {to: Routes.DASHBOARD_FILES, label: 'dash.nav.files', icon: Files, color: '#00b0f4'},
@@ -76,6 +77,14 @@ export const OWNER_SECTIONS: ReadonlyArray<Section> = [
   {to: Routes.DASHBOARD_OWNER_VOICE_NODES, label: 'Voice Nodes', icon: RadioTower, color: '#5865f2'},
 ];
 
+// Alphabetical by the translated label like the Overview page's tiles and a server's pages, Overview stays first. The
+// staff groups are plain English and keep the order they're written in
+function sortedByLabel(sections: ReadonlyArray<Section>): Array<Section> {
+  return [...sections].sort((a, b) => {
+    return Number(b.to === Routes.DASHBOARD) - Number(a.to === Routes.DASHBOARD) || maybeTranslate(a.label).localeCompare(maybeTranslate(b.label));
+  });
+}
+
 
 export function DashboardLayout() {
   const { user } = useAuth();
@@ -113,8 +122,8 @@ export function DashboardLayout() {
                 ) : null}
                 <SectionMenu
                   groups={[
-                    {label: 'dash.group.dashboard', sections: DASHBOARD_SECTIONS},
-                    {label: 'dash.group.content', sections: CONTENT_SECTIONS, badges: contentBadges},
+                    {label: 'dash.group.dashboard', sections: sortedByLabel(DASHBOARD_SECTIONS)},
+                    {label: 'dash.group.content', sections: sortedByLabel(CONTENT_SECTIONS), badges: contentBadges},
                     ...((isStaff(user)) ? [{label: 'Admin', sections: ADMIN_SECTIONS}] : []),
                     ...((isOwner(user)) ? [{label: 'Owner', sections: OWNER_SECTIONS}] : []),
                   ]}
@@ -259,6 +268,10 @@ function SectionSelect({ groups }: {groups: ReadonlyArray<SectionGroup>}) {
 // link when there's any
 function SectionList({ sections, badges }: {sections: ReadonlyArray<Section>, badges?: Record<string, number>}) {
   const { t } = useI18n();
+  const { pathname } = useLocation();
+  // a section with pages nested under it only steps back for those: its own item urls (`/tags/<id>` under Tags, beside
+  // `/tags/directory`) still light it up
+  const underChild = (section: Section) => !!section.children?.some((child) => pathname === child.to || pathname.startsWith(`${child.to}/`));
   return (
     <ul className='flex flex-col gap-0.5'>
       {sections.flatMap((section): Array<Section & {nested?: boolean, last?: boolean}> => [
@@ -277,7 +290,7 @@ function SectionList({ sections, badges }: {sections: ReadonlyArray<Section>, ba
           ) : null}
           <NavLink
             to={section.to}
-            end={section.end}
+            end={(section.children) ? section.end && underChild(section) : section.end}
             className={({ isActive }) => cn(
               'group flex items-center gap-2.5 rounded-md border border-transparent px-3 py-2 text-sm whitespace-nowrap transition-colors',
               (isActive) ? 'bg-surface-3 text-white' : 'text-muted hover:bg-surface-2 hover:text-white',

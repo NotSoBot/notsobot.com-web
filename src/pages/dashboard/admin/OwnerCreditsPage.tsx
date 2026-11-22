@@ -1,6 +1,7 @@
 // The NotSoCredits ledger: refills bought on Discord, the ones users gave to servers, what was taken back after a
 // chargeback, and what staff granted for free. A refill can be taken back from here when Discord never sent its
-// `ENTITLEMENT_DELETE`, and credits can be granted to (or with a negative amount taken from) a user.
+// `ENTITLEMENT_DELETE`, and credits can be granted to (or with a negative amount taken from) a user. A grant's own Take
+// back goes by its id, so the api only ever takes it back once (a second tab gets a 409).
 
 import { useState } from 'react';
 import { Coins } from 'lucide-react';
@@ -10,12 +11,15 @@ import { SearchInput } from '@/components/ui/SearchInput';
 import { useToast } from '@/components/ui/Toast';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useSearchParamState, useStepBackFromEmptyPage } from '@/hooks/useSearchParamState';
-import { CreditTransactionTypes, type AdminCreditTransaction } from '@/lib/api';
-import { ADMIN_PAGE_SIZE, errorMessage, useAdminCreditTransactionsQuery, useGrantAdminUserCreditsMutation, useRevokeAdminEntitlementCreditsMutation } from '@/lib/api/dashboardQueries';
-import { cn } from '@/lib/utils';
+import { ApiErrorCodes, ApiRequestError, CreditTransactionTypes, type AdminCreditTransaction } from '@/lib/api';
+import {
+  ADMIN_PAGE_SIZE, errorMessage, useAdminCreditTransactionsQuery, useAdminUserEntryQuery, useGrantAdminUserCreditsMutation,
+  useReverseAdminCreditGrantMutation, useRevokeAdminEntitlementCreditsMutation,
+} from '@/lib/api/dashboardQueries';
+import { cn, formatDateTime } from '@/lib/utils';
 
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from '../ui';
-import { Chip, CopyableValue, ExactDate, Pagination, UserCell } from './adminUi';
+import { adminUserPath, Chip, CopyableValue, ExactDate, FilterButton, Pagination, UserCell } from './adminUi';
 
 
 const TYPES: ReadonlyArray<{value: CreditTransactionTypes, label: string, tone: 'success' | 'brand' | 'danger'}> = [
@@ -59,7 +63,12 @@ export function OwnerCreditsPage() {
   const grant = useGrantAdminUserCreditsMutation();
   const [ grantUserId, setGrantUserId ] = useState('');
   const [ grantAmount, setGrantAmount ] = useState('');
-  const [ granting, setGranting ] = useState<{userId: string, amount: number} | null>(null);
+  // the grant form above the list, emptied once it's done. `requestId` is made when the dialog opens and sent with every
+  // Confirm, so a second click or a retry after a timeout that went through never grants twice
+  const [ granting, setGranting ] = useState<{userId: string, amount: number, requestId: string} | null>(null);
+  // a grant row's Take back, sent by the grant's id (the form above is left alone)
+  const reverse = useReverseAdminCreditGrantMutation();
+  const [ reversing, setReversing ] = useState<AdminCreditTransaction | null>(null);
   const parsedGrantAmount = (/^-?\d+$/.test(grantAmount.trim())) ? Number(grantAmount.trim()) : 0;
   const canGrant = ID.test(grantUserId.trim()) && parsedGrantAmount !== 0 && Math.abs(parsedGrantAmount) <= GRANT_MAX;
 
@@ -85,6 +94,10 @@ export function OwnerCreditsPage() {
     setGranting(null);
     grant.reset();
   };
+  const closeReverseDialog = () => {
+    setReversing(null);
+    reverse.reset();
+  };
 
   return (
     <>
@@ -98,7 +111,7 @@ export function OwnerCreditsPage() {
         onSubmit={(event) => {
           event.preventDefault();
           if (canGrant) {
-            setGranting({userId: grantUserId.trim(), amount: parsedGrantAmount});
+            setGranting({userId: grantUserId.trim(), amount: parsedGrantAmount, requestId: crypto.randomUUID()});
           }
         }}
       >
@@ -167,7 +180,9 @@ export function OwnerCreditsPage() {
       ) : (
         <>
           <Pagination {...pagination} className='mt-0 mb-4'/>
-          <div className={cn('card overflow-x-auto transition-opacity', isPlaceholderData && 'opacity-60')}>
+          {/* `relative`: the last column's sr-only heading is absolutely positioned, and without a positioned scroller it
+              escapes the clipping and makes the whole page scroll sideways */}
+          <div className={cn('card relative overflow-x-auto transition-opacity', isPlaceholderData && 'opacity-60')}>
             <table className='w-full min-w-[820px] text-left text-sm'>
               <thead className='border-b border-line text-xs text-subtle uppercase'>
                 <tr>
@@ -185,14 +200,11 @@ export function OwnerCreditsPage() {
                   return (
                     <tr key={transaction.id} className='align-middle hover:bg-surface-2'>
                       <td className='px-4 py-3'>
-                        <button
-                          type='button'
-                          className='-m-1 cursor-pointer rounded-md p-1 text-left hover:bg-surface-3'
-                          title='Show only this user’s credits'
-                          onClick={() => update({user_id: transaction.user_id})}
-                        >
-                          <UserCell user={transaction.user} fallbackId={transaction.user_id}/>
-                        </button>
+                        {/* the name opens the user, the funnel narrows the list to them (like Voices and Reports) */}
+                        <div className='flex min-w-0 items-center gap-1'>
+                          <div className='min-w-0'><UserCell user={transaction.user} fallbackId={transaction.user_id} to={adminUserPath(transaction.user_id)}/></div>
+                          <FilterButton label='Show only this user’s credits' onClick={() => update({user_id: transaction.user_id})}/>
+                        </div>
                       </td>
                       <td className='px-4 py-3'>
                         <Chip tone={kind?.tone ?? 'neutral'}>{kind?.label ?? `Type ${transaction.type}`}</Chip>
@@ -219,17 +231,17 @@ export function OwnerCreditsPage() {
                         ) : <span className='text-subtle'>—</span>}
                       </td>
                       <td className='px-4 py-3 whitespace-nowrap text-muted'>
-                        <ExactDate value={transaction.created}/>
+                        <ExactDate value={transaction.created} format={formatDateTime}/>
                       </td>
                       <td className='px-4 py-3 text-right'>
                         {(transaction.type === CreditTransactionTypes.GRANT && 0 < transaction.amount) ? (
-                          <button
-                            type='button'
-                            className='btn btn-ghost btn-sm whitespace-nowrap text-danger'
-                            onClick={() => setGranting({userId: transaction.user_id, amount: -transaction.amount})}
-                          >
-                            Take back
-                          </button>
+                          (transaction.reversed_by_id) ? (
+                            <span className='text-xs whitespace-nowrap text-subtle'>Taken back</span>
+                          ) : (
+                            <button type='button' className='btn btn-ghost btn-sm whitespace-nowrap text-danger' onClick={() => setReversing(transaction)}>
+                              Take back
+                            </button>
+                          )
                         ) : (transaction.type !== CreditTransactionTypes.REFILL || !transaction.entitlement_id) ? null : (revoked.has(transaction.entitlement_id)) ? (
                           <span className='text-xs whitespace-nowrap text-subtle'>Taken back</span>
                         ) : (
@@ -270,17 +282,47 @@ export function OwnerCreditsPage() {
         />
       ) : null}
 
+      {(reversing) ? (
+        <ConfirmDialog
+          title={`Take back ${reversing.amount.toLocaleString()} granted credits?`}
+          description={`From user ${reversing.user_id}’s refill credits, up to what they have left. Nothing is left owed, and a grant can only be taken back once.`}
+          confirmLabel='Take back'
+          tone='danger'
+          pending={reverse.isPending}
+          error={(reverse.isError) ? errorMessage(reverse.error, 'Couldn’t take the credits back.') : null}
+          onConfirm={() => reverse.mutate(reversing.id, {
+            onSuccess: (result) => {
+              toast(`Took back ${Math.abs(result.amount).toLocaleString()} credits, they have ${result.refill_left.toLocaleString()} now`);
+              closeReverseDialog();
+            },
+            onError: (reverseError) => {
+              // taken back from another tab meanwhile: nothing to retry, the list refetches and shows it
+              if (reverseError instanceof ApiRequestError && reverseError.code === ApiErrorCodes.CREDIT_GRANT_ALREADY_REVERSED) {
+                toast(errorMessage(reverseError, 'That grant was already taken back'), 'error');
+                closeReverseDialog();
+              }
+            },
+          })}
+          onClose={closeReverseDialog}
+        />
+      ) : null}
+
       {(granting) ? (
         <ConfirmDialog
           title={(granting.amount < 0) ? `Take ${(-granting.amount).toLocaleString()} credits away?` : `Grant ${granting.amount.toLocaleString()} credits?`}
-          description={(granting.amount < 0)
-            ? `From user ${granting.userId}’s refill credits, up to what they have left. Nothing is left owed.`
-            : `To user ${granting.userId}, as refill credits: they never expire, pay for NotSoAI and cloned voices, and can be given to servers.`}
+          description={(
+            <>
+              <GrantUser userId={granting.userId}/>
+              {(granting.amount < 0)
+                ? 'From their refill credits, up to what they have left. Nothing is left owed.'
+                : 'As refill credits: they never expire, pay for NotSoAI and cloned voices, and can be given to servers.'}
+            </>
+          )}
           confirmLabel={(granting.amount < 0) ? 'Take away' : 'Grant'}
           tone={(granting.amount < 0) ? 'danger' : 'primary'}
           pending={grant.isPending}
           error={(grant.isError) ? errorMessage(grant.error, 'Couldn’t change their credits.') : null}
-          onConfirm={() => grant.mutate(granting, {
+          onConfirm={() => grant.mutate({userId: granting.userId, amount: granting.amount, requestId: granting.requestId}, {
             onSuccess: (result) => {
               const verb = (result.amount < 0) ? 'Took away' : 'Granted';
               toast(`${verb} ${Math.abs(result.amount).toLocaleString()} credits, they have ${result.refill_left.toLocaleString()} now`);
@@ -293,6 +335,22 @@ export function OwnerCreditsPage() {
         />
       ) : null}
     </>
+  );
+}
+
+
+// who a typed id is, in the grant's confirm: their name and avatar from the admin users list, so a mistyped id shows
+// up as someone else (or as nobody NotSoBot knows) before the credits go out
+function GrantUser({ userId }: {userId: string}) {
+  const { data, isPending } = useAdminUserEntryQuery(userId);
+  return (
+    <span className='mb-3 block rounded-md border border-line bg-deep p-3'>
+      {(isPending) ? (
+        <span className='text-sm text-subtle'>Looking up <span className='font-mono'>{userId}</span>…</span>
+      ) : (
+        <UserCell user={data?.user ?? null} fallbackId={userId}/>
+      )}
+    </span>
   );
 }
 

@@ -40,9 +40,10 @@ export function StorageScopeForm({ scope, onChange }: {scope: TagStorageScope, o
         }
       }}
     >
-      <p className='mb-3 text-sm text-muted'>
+      <p className='text-sm text-muted'>
         {t('dtags.scope.description')}
       </p>
+      <p className='mt-1 mb-3 text-xs text-subtle'>{t('dtags.scope.id_hint')}</p>
       <div className='grid grid-cols-1 gap-3 sm:grid-cols-3'>
         <Field label={t('dtags.scope.user')} error={errors.user} hint={t('dtags.scope.user_hint')}>
           {(props) => <input {...props} className='input font-mono' inputMode='numeric' value={userId} onChange={(event) => setUserId(event.target.value.trim())}/>}

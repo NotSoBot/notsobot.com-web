@@ -7,11 +7,11 @@ import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
 import type { AdminTagDirectoryItem } from '@/lib/api';
-import { errorMessage, useDeleteAdminTagDirectoryMutation, useDeleteAdminUserTagsMutation, usePatchAdminUserMutation } from '@/lib/api/dashboardQueries';
+import { errorMessage, useAdminUserEntryQuery, useDeleteAdminTagDirectoryMutation, useDeleteAdminUserTagsMutation, usePatchAdminUserMutation } from '@/lib/api/dashboardQueries';
 import { NsfwBadge, VerificationBadge } from '@/pages/tags/tagDirectory';
 
 import { selectAllScope, UserCell } from './adminUi';
-import { BLOCK_REASON_MAX } from './BlockUserDialog';
+import { BLOCK_REASON_MAX, BlockDurationSelect, blockedUntilFromSeconds, canBlockUser } from './BlockUserDialog';
 import { ConfirmDeleteUserTags, tagCountLabel, useUserTagCount } from './DeleteUserTagsDialog';
 import { RemovalReasonFields, useRemovalReason } from './removalReason';
 
@@ -35,6 +35,11 @@ export function DeleteDirectoryTagFlow({ item, onClose }: {item: AdminTagDirecto
 
   const { tag, user } = item;
   const name = item.title || tag.name;
+  // The listing only has their name and avatar, whether they're blocked (or a moderator) comes from their admin users
+  // entry. Blocking is only offered once that says this viewer can: it used to be offered for anyone, and failed after
+  // the delete had already happened
+  const owner = useAdminUserEntryQuery(user?.id ?? null).data?.user ?? null;
+  const blockable = !!owner && !owner.blocked && canBlockUser(owner, isOwner(me));
   const [ deleteTag, setDeleteTag ] = useState(false);
   const [ deleteAll, setDeleteAll ] = useState(false);
   const [ blockUser, setBlockUser ] = useState(false);
@@ -43,20 +48,24 @@ export function DeleteDirectoryTagFlow({ item, onClose }: {item: AdminTagDirecto
   const tagCount = useUserTagCount(user?.id ?? tag.user_id ?? null);
   // e.g. Tag directory: `cat` #1282656576297242646
   const [ reason, setReason ] = useState(`Tag directory: \`${tag.name}\` #${tag.id}`);
-  // the listing is gone once this is set (and their tags once `allDeleted` is), so a failed later step can be
-  // retried without redoing the earlier ones
-  const [ deleted, setDeleted ] = useState(false);
-  const [ allDeleted, setAllDeleted ] = useState(false);
+  // seconds, 0 for a permanent block (like the block dialog's Length)
+  const [ duration, setDuration ] = useState(0);
+  // how far it got: the listing, then (with `deleteAll`) their tags. A failed later step is retried from where it
+  // stopped, without redoing the earlier ones
+  const [ done, setDone ] = useState<'none' | 'listing' | 'tags'>('none');
+  const deleted = done !== 'none';
   // deleting all of their tags asks once more before anything runs
   const [ confirmingAll, setConfirmingAll ] = useState(false);
 
   const pending = remove.isPending || removeAll.isPending || block.isPending;
+  // what submitting does next: the first go, or the step that failed after the listing was deleted
+  const nextStep: 'delete' | 'deleteAll' | 'block' = (done === 'none') ? 'delete' : (deleteAll && done === 'listing') ? 'deleteAll' : 'block';
 
   const runBlock = () => {
     if (!user) {
       return;
     }
-    block.mutate({userId: user.id, patch: {blocked: true, blocked_reason: reason.trim() || null}}, {
+    block.mutate({userId: user.id, patch: {blocked: true, blocked_reason: reason.trim() || null, blocked_until: blockedUntilFromSeconds(duration)}}, {
       onSuccess: () => {
         toast(`Blocked ${user.username}`);
         onClose();
@@ -80,7 +89,7 @@ export function DeleteDirectoryTagFlow({ item, onClose }: {item: AdminTagDirecto
     }
     removeAll.mutate({userId: ownerId, removal}, {
       onSuccess: ({ count }) => {
-        setAllDeleted(true);
+        setDone('tags');
         toast(`Deleted ${tagCountLabel(count)} by ${user?.username ?? ownerId}`);
         afterTags();
       },
@@ -88,18 +97,18 @@ export function DeleteDirectoryTagFlow({ item, onClose }: {item: AdminTagDirecto
   };
 
   const submit = () => {
-    if (deleted) {
-      if (deleteAll && !allDeleted) {
-        runDeleteAll();
-      } else {
-        runBlock();
-      }
+    if (nextStep === 'deleteAll') {
+      runDeleteAll();
+      return;
+    }
+    if (nextStep === 'block') {
+      runBlock();
       return;
     }
     // deleting all of their tags takes this one with it, so the listing goes with the tag either way
     remove.mutate({tagId: item.id, deleteTag: deleteTag || deleteAll, removal}, {
       onSuccess: () => {
-        setDeleted(true);
+        setDone('listing');
         toast((deleteTag || deleteAll) ? `Deleted ${name}` : `Removed ${name} from the directory`);
         if (deleteAll) {
           runDeleteAll();
@@ -115,13 +124,14 @@ export function DeleteDirectoryTagFlow({ item, onClose }: {item: AdminTagDirecto
     errorMessage(remove.error, 'Couldn’t delete the listing.') :
     (removeAll.isError) ? `The listing was deleted, but deleting their other tags failed: ${errorMessage(removeAll.error, 'Couldn’t delete their tags.')}` :
     (block.isError) ? `The listing was deleted, but blocking failed: ${errorMessage(block.error, 'Couldn’t block the user.')}` : null;
-  const retryLabel = (deleteAll && !allDeleted) ? 'Retry deleting their tags' : 'Retry block';
+  const retryLabel = (nextStep === 'deleteAll') ? 'Retry deleting their tags' : 'Retry block';
 
   return (
     <>
       <Modal labelledBy={titleId} onClose={() => !pending && !confirmingAll && onClose()} className='max-w-lg'>
         <form
           className='p-5 sm:p-6'
+          data-state={(pending) ? 'working' : (deleted) ? `retry-${nextStep}` : 'choosing'}
           onSubmit={(event) => {
             event.preventDefault();
             if (pending) {
@@ -197,7 +207,8 @@ export function DeleteDirectoryTagFlow({ item, onClose }: {item: AdminTagDirecto
 
           <RemovalReasonFields value={removal} onChange={setRemoval} disabled={pending || deleted} className='mt-3'/>
 
-          {(user) ? (
+          {/* still shown while a failed block waits for its retry (the entry refetches after the delete) */}
+          {(user && (blockable || blockUser)) ? (
             <div className='mt-3 rounded-md border border-line p-3 text-sm'>
               <label htmlFor={blockId} className='flex cursor-pointer items-start gap-2'>
                 <input
@@ -228,9 +239,14 @@ export function DeleteDirectoryTagFlow({ item, onClose }: {item: AdminTagDirecto
                     disabled={pending}
                     className='input'
                   />
+                  <BlockDurationSelect value={duration} onChange={setDuration} disabled={pending}/>
                 </div>
               ) : null}
             </div>
+          ) : (user && owner) ? (
+            <p className='mt-3 text-xs text-subtle'>
+              {(owner.blocked) ? `${user.username} is already blocked.` : `You can’t block ${user.username} (owners can’t be blocked, moderators only by owners).`}
+            </p>
           ) : null}
 
           {(error) ? (

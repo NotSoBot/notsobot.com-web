@@ -7,7 +7,7 @@ import type { DiscordOptionalScope } from './scopes';
 
 /**
  * - `anonymous`: no token stored
- * - `loading`: token stored, `/users/@me` in flight
+ * - `loading`: token stored, `/users/@me` in flight (a `retry()` after an error too)
  * - `authenticated`: token verified, `user` is set
  * - `error`: token stored but the API could not be reached (token is kept, `retry()` to try again)
  */
@@ -26,7 +26,8 @@ export interface AuthContextValue {
   user: UserMe | null,
   token: string | null,
   isAuthenticated: boolean,
-  // set after the user logs out on purpose, so protected pages go home instead of straight back to Discord
+  // set when the user logs out on purpose (from the moment they ask, only read once `anonymous`), so protected pages go
+  // home instead of straight back to Discord
   loggedOut: boolean,
   // full-page redirect to Discord OAuth via `/api/auth/login`; returns to `returnTo` (default: current page)
   login: (returnTo?: string, options?: LoginOptions) => void,

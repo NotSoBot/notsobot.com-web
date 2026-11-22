@@ -26,6 +26,14 @@ function usePageTitle(): string {
   for (let i = matches.length - 1; 0 <= i; i--) {
     const handle = matches[i].handle as RouteHandle | undefined;
     if (handle?.title) {
+      // a server's pages are child routes of its page, and take their tab's name ("Music", "Warnings") so several open
+      // at once can be told apart
+      if (handle === PAGES.DASHBOARD_SERVER && i < matches.length - 1) {
+        const tab = `server_tab.${matches[matches.length - 1].pathname.replace(/\/+$/, '').split('/').pop()}`;
+        if (hasTranslation(tab)) {
+          return pageTitle({...handle, title: t(tab)});
+        }
+      }
       // pages without a translation (the staff ones) keep their English title
       const key = `page.${PAGE_KEYS.get(handle)}`;
       return pageTitle((hasTranslation(key)) ? {...handle, title: t(key)} : handle);

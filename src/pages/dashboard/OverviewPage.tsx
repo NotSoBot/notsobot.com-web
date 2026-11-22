@@ -121,11 +121,14 @@ export function OverviewPage() {
   }
 
   const premium = user.premium_type !== UserPremiumTypes.NONE;
+  // most accounts have no API access: "0 • No API access" is noise for them, so the stat is only there once it's known
+  // they can make applications or have some (the sidebar keeps its link either way)
+  const shownApplications = (applications.data && (applications.data.can_create || 0 < applications.data.count)) ? applications.data : null;
   const manageable = guilds.data?.filter((guild) => guild.can_manage).length ?? 0;
 
   const now = Date.now();
   const nextReminder = reminders.data?.items
-    .map((reminder) => reminder.timestamp_end)
+    .map((reminder) => reminder.timestamp_start)
     .filter((value): value is string => !!value && now < toDate(value).getTime())
     .sort((a, b) => toDate(a).getTime() - toDate(b).getTime())[0];
   const globalMemories = memories.data?.items.filter((memory) => !memory.guild_id).length ?? 0;
@@ -194,12 +197,13 @@ export function OverviewPage() {
               to={Routes.DASHBOARD_PREMIUM}
               title={t('overview.premium_title')}
               className={cn(
-                'flex w-fit items-center gap-2 rounded-full border px-3 py-1 text-sm font-medium transition-colors',
+                'flex w-fit max-w-full min-w-0 items-center gap-2 rounded-full border px-3 py-1 text-sm font-medium transition-colors',
                 premium ? 'border-warning/50 bg-warning/10 text-warning hover:bg-warning/20' : 'border-line-strong bg-surface-2 text-muted hover:text-white',
               )}
             >
-              <Crown aria-hidden className='size-4'/>
-              {premiumLabel(user.premium_type)}
+              <Crown aria-hidden className='size-4 shrink-0'/>
+              {/* the longest (complimentary Max) is wider than a small phone, it's cut off there instead of wrapping in the pill */}
+              <span className='truncate'>{premiumLabel(user.premium_type)}</span>
             </Link>
             <Link
               to={Routes.DASHBOARD_SETTINGS}
@@ -223,17 +227,19 @@ export function OverviewPage() {
 
       {(unreadReports) ? <ReportUpdatesNotice count={unreadReports}/> : null}
 
-      {/* the sidebar's Dashboard sections, alphabetical. Premium and Settings are in the user card, tags in Content below */}
+      {/* the sidebar's Dashboard sections. Premium and Settings are in the user card, tags in Content below */}
       <section aria-labelledby='overview-dashboard'>
         <h2 id='overview-dashboard' className='section-label mb-3'>{t('dash.group.dashboard')}</h2>
-        <div className='grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4'>
-          <Stat
-            label={t('overview.applications')}
-            to={Routes.DASHBOARD_APPLICATIONS}
-            value={(applications.isPending) ? null : (applications.isError) ? '—' : formatNumber(applications.data.count)}
-            detail={(applications.data) ? ((applications.data.can_create) ? t('overview.can_make', {limit: formatNumber(applications.data.limit)}) : t('overview.no_api')) : undefined}
-            color='#3ba55c'
-          />
+        <div className={cn('grid grid-cols-1 gap-3 sm:gap-4', (shownApplications) ? 'sm:grid-cols-3' : 'sm:grid-cols-2')}>
+          {(shownApplications) ? (
+            <Stat
+              label={t('overview.applications')}
+              to={Routes.DASHBOARD_APPLICATIONS}
+              value={formatNumber(shownApplications.count)}
+              detail={(shownApplications.can_create) ? t('overview.can_make', {limit: formatNumber(shownApplications.limit)}) : t('overview.no_api')}
+              color='#3ba55c'
+            />
+          ) : null}
           <Stat
             label={t('overview.commands')}
             to={Routes.DASHBOARD_COMMANDS}

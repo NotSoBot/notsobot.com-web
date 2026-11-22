@@ -60,7 +60,8 @@ export function ImageComparison({ before, after, aspectRatio = 1, className }: {
       onKeyDown={onKeyDown}
       style={style}
       className={cn(
-        'relative w-full max-w-xs touch-none overflow-hidden rounded border border-line bg-deep select-none',
+        // sideways drags move the slider, up and down still scrolls the page under the finger
+        'relative w-full max-w-xs touch-pan-y overflow-hidden rounded border border-line bg-deep select-none',
         dragging ? 'cursor-ew-resize' : 'cursor-pointer',
         className,
       )}

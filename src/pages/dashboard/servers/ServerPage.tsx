@@ -1,11 +1,11 @@
 import { AlarmClock, AlertTriangle, ArrowUpRight, Ban, Crown, ExternalLink, Eye, SquareTerminal, Tags as TagsIcon, type LucideIcon } from 'lucide-react';
-import { Link, Outlet, useOutletContext, useParams } from 'react-router';
+import { Link, Outlet, useMatch, useOutletContext, useParams } from 'react-router';
 
 import { Routes } from '@/config';
 import { useI18n } from '@/i18n';
 import { ApiErrorCodes, ApiRequestError, type GuildEditableArea, type UserGuild } from '@/lib/api';
 import { errorMessage, isDiscordGrantError, isScopeMismatch, useMeGuildQuery, useMeRemindersQuery, useMeTagsCountQuery } from '@/lib/api/dashboardQueries';
-import { discordGuildUrl, formatNumber } from '@/lib/utils';
+import { cn, discordGuildUrl, formatNumber } from '@/lib/utils';
 
 import { Chip, CopyableValue } from '../admin/adminUi';
 import { SavedFontsPanel } from '../fonts/SavedFontsPanel';
@@ -54,7 +54,9 @@ export function ServerPage() {
   return (
     <>
       {(guild) ? (
-        <ServerLayout guild={guild} setDirty={setter}/>
+        // keyed by the server: switching servers keeps this route mounted, so without it one server's unsaved edits,
+        // open editors, dialogs and in-flight saves would carry over onto the next (like the admin modal's `ServerDetails`)
+        <ServerLayout key={guild.id} guild={guild} setDirty={setter}/>
       ) : (isPending) ? (
         <div aria-busy='true'>
           <h1 className='sr-only'>{t('server.loading')}</h1>
@@ -103,6 +105,10 @@ function ServerLayout({ guild, setDirty }: {guild: UserGuild, setDirty: ServerOu
   const { t } = useI18n();
   const canEditAnything = Object.values(guild.editable).some(Boolean);
   const lockedAreas = (Object.keys(AREA_LABEL) as Array<GuildEditableArea>).filter((area) => !guild.editable[area]);
+  // on a phone the page picker and this header come before any content on every one of the server's pages, so there the
+  // shortcuts and the list of what's view only are only on Home (the chip stays, and each panel says when it's locked)
+  const home = !!useMatch({path: Routes.DASHBOARD_SERVER, end: true});
+  const homeOnly = (home) ? undefined : 'max-sm:hidden';
 
   return (
     <>
@@ -127,15 +133,16 @@ function ServerLayout({ guild, setDirty }: {guild: UserGuild, setDirty: ServerOu
         <Chip
           tone={(canEditAnything) ? 'success' : 'neutral'}
           title={t((canEditAnything) ? ((lockedAreas.length) ? 'server.can_manage_some' : 'server.can_manage_all') : 'server.view_only_title')}
-          className='w-24 justify-center'
+          // at least this wide, the Spanish and Portuguese labels are longer
+          className='min-w-24 justify-center'
         >
           {t((canEditAnything) ? 'dash.role.manager' : 'dash.view_only')}
         </Chip>
       </header>
-      <YourStuffLinks guildId={guild.id}/>
+      <YourStuffLinks guildId={guild.id} className={homeOnly}/>
 
       <div className='mt-6 space-y-4'>
-        {(lockedAreas.length) ? <ViewOnlyBanner lockedAreas={lockedAreas} all={!canEditAnything}/> : null}
+        {(lockedAreas.length) ? <ViewOnlyBanner lockedAreas={lockedAreas} all={!canEditAnything} className={homeOnly}/> : null}
         {(guild.blocked) ? (
           <p role='status' className='flex items-start gap-2 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-fg'>
             <Ban aria-hidden className='mt-0.5 size-4 shrink-0 text-danger-text'/>
@@ -214,10 +221,11 @@ export function ServerRulesPage() {
 
 export function ServerWarningsPage() {
   const { guild, setDirty } = useServer();
+  // the list moderators come for first, then its settings
   return (
     <>
-      <ServerSettingsForm guild={guild} group='warnings' onDirtyChange={setDirty('warnings')}/>
       <WarningsSection guild={guild}/>
+      <ServerSettingsForm guild={guild} group='warnings' onDirtyChange={setDirty('warnings')}/>
     </>
   );
 }
@@ -247,14 +255,14 @@ export function ServerSettingsPage() {
 
 
 // "Your commands" / "Your reminders" / "Your tags" in this server, opening those pages filtered to it
-function YourStuffLinks({ guildId }: {guildId: string}) {
+function YourStuffLinks({ guildId, className }: {guildId: string, className?: string}) {
   const { t } = useI18n();
   const reminders = useMeRemindersQuery();
   const tags = useMeTagsCountQuery(guildId);
   const reminderCount = reminders.data?.items.filter((reminder) => reminder.guild_id === guildId).length;
   const search = `?${new URLSearchParams({server: guildId})}`;
   return (
-    <nav aria-label={t('server.your_things')} className='flex flex-wrap gap-2'>
+    <nav aria-label={t('server.your_things')} className={cn('flex flex-wrap gap-2', className)}>
       {/* no count, it'd scan their whole command history every time a server is opened */}
       <YourStuffLink to={`${Routes.DASHBOARD_COMMANDS}${search}`} icon={SquareTerminal} label={t('server.your_commands')} count={undefined}/>
       <YourStuffLink to={`${Routes.DASHBOARD_REMINDERS}${search}`} icon={AlarmClock} label={t('server.your_reminders')} count={reminderCount}/>
@@ -280,7 +288,7 @@ function YourStuffLink({ to, icon: Icon, label, count }: {to: string, icon: Luci
 
 
 // Says up front what can't be changed here, and which permission it would take.
-function ViewOnlyBanner({ lockedAreas, all }: {lockedAreas: Array<GuildEditableArea>, all: boolean}) {
+function ViewOnlyBanner({ lockedAreas, all, className }: {lockedAreas: Array<GuildEditableArea>, all: boolean, className?: string}) {
   const { t, rich } = useI18n();
   const byPermission = new Map<string, Array<string>>();
   for (const area of lockedAreas) {
@@ -288,7 +296,7 @@ function ViewOnlyBanner({ lockedAreas, all }: {lockedAreas: Array<GuildEditableA
     byPermission.set(permission, [...(byPermission.get(permission) ?? []), AREA_LABEL[area]]);
   }
   return (
-    <div role='status' className='flex items-start gap-3 rounded-lg border border-warning/40 bg-warning/10 p-4'>
+    <div role='status' className={cn('flex items-start gap-3 rounded-lg border border-warning/40 bg-warning/10 p-4', className)}>
       <Eye aria-hidden className='mt-0.5 size-5 shrink-0 text-warning'/>
       <div className='min-w-0 text-sm'>
         <p className='font-semibold text-white'>

@@ -258,7 +258,7 @@ export function ProxiesTab({ data }: {data: AdminIdentities}) {
       {(dialog === 'edit') ? <EditProxiesDialog data={data} proxyIds={dialogIds} onClose={() => setDialog(null)}/> : null}
       {(dialog === 'assign') ? <AssignDialog data={data} proxyIds={dialogIds} onClose={() => setDialog(null)}/> : null}
       {(dialog === 'delete') ? (
-        <DeleteProxiesDialog proxyIds={dialogIds} onClose={() => setDialog(null)} onDeleted={(ids) => setSelected((current) => new Set([...current].filter((id) => !ids.includes(id))))}/>
+        <DeleteProxiesDialog data={data} proxyIds={dialogIds} onClose={() => setDialog(null)} onDeleted={(ids) => setSelected((current) => new Set([...current].filter((id) => !ids.includes(id))))}/>
       ) : null}
       {(dialog === 'labels') ? <LabelsDialog data={data} onClose={() => setDialog(null)}/> : null}
       {(open) ? <ProxyModal key={open.id} proxy={open} onClose={() => setOpenId(null)}/> : null}
@@ -288,6 +288,9 @@ function AddProxiesDialog({ data, onClose }: {data: AdminIdentities, onClose: ()
   const [ preview, setPreview ] = useState<AdminProxiesBulkResult | null>(null);
   const lineCount = text.split('\n').filter((line) => line.trim() && !line.trim().startsWith('#')).length;
   const changes = (preview) ? preview.added + preview.updated : 0;
+  // editing: nothing previewed for what's typed (any change drops the preview), previewed: the dry run, waiting to be
+  // added, applied: added, still open because some lines couldn't be (nothing left to send)
+  const phase: 'editing' | 'previewed' | 'applied' = (!preview) ? 'editing' : (preview.applied) ? 'applied' : 'previewed';
 
   const send = (apply: boolean) => bulk.mutate({proxies: text, labels: parseLabels(labels), scheme, update_existing: updateExisting, apply}, {
     onSuccess: (result) => {
@@ -308,10 +311,12 @@ function AddProxiesDialog({ data, onClose }: {data: AdminIdentities, onClose: ()
     <Modal labelledBy={titleId} onClose={() => !bulk.isPending && onClose()} className='max-w-2xl'>
       <form
         className='p-5 sm:p-6'
+        data-state={(bulk.isPending) ? 'sending' : phase}
         onSubmit={(event) => {
           event.preventDefault();
-          if (!bulk.isPending && lineCount) {
-            send(!!preview && !preview.applied && 0 < changes);
+          // Enter in a field once it's applied would otherwise send the list again as a preview, replacing what was added
+          if (!bulk.isPending && lineCount && phase !== 'applied') {
+            send(phase === 'previewed' && 0 < changes);
           }
         }}
       >
@@ -365,13 +370,13 @@ function AddProxiesDialog({ data, onClose }: {data: AdminIdentities, onClose: ()
         {(preview) ? <BulkResults result={preview}/> : null}
 
         <div className='mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
-          <button type='button' className='btn btn-secondary' onClick={onClose} disabled={bulk.isPending}>{(preview?.applied) ? 'Close' : 'Cancel'}</button>
-          {(preview && !preview.applied && changes) ? (
+          <button type='button' className='btn btn-secondary' onClick={onClose} disabled={bulk.isPending}>{(phase === 'applied') ? 'Close' : 'Cancel'}</button>
+          {(preview && phase === 'previewed' && changes) ? (
             <button type='submit' className='btn btn-primary' disabled={bulk.isPending}>
               {(bulk.isPending) ? <Spinner className='size-4 border-white/40 border-t-white'/> : null}
               {(preview.added) ? `Add ${preview.added.toLocaleString()}` : ''}{(preview.added && preview.updated) ? ', ' : ''}{(preview.updated) ? `update ${preview.updated.toLocaleString()}` : ''}
             </button>
-          ) : (!preview?.applied) ? (
+          ) : (phase !== 'applied') ? (
             <button type='submit' className='btn btn-primary' disabled={bulk.isPending || !lineCount}>
               {(bulk.isPending) ? <Spinner className='size-4 border-white/40 border-t-white'/> : null}
               Preview {(lineCount) ? lineCount.toLocaleString() : ''}
@@ -596,7 +601,8 @@ function AssignDialog({ data, proxyIds, onClose }: {data: AdminIdentities, proxy
               });
             }}
           >
-            Remove from {service}
+            {/* how many it takes off, it acts at once */}
+            {(have) ? `Remove ${have.toLocaleString()} from ${service}` : `Remove from ${service}`}
           </button>
           <button
             type='button'
@@ -622,14 +628,20 @@ function AssignDialog({ data, proxyIds, onClose }: {data: AdminIdentities, proxy
 }
 
 
-function DeleteProxiesDialog({ proxyIds, onClose, onDeleted }: {proxyIds: Array<number>, onClose: () => void, onDeleted: (ids: Array<number>) => void}) {
+function DeleteProxiesDialog({ data, proxyIds, onClose, onDeleted }: {data: AdminIdentities, proxyIds: Array<number>, onClose: () => void, onDeleted: (ids: Array<number>) => void}) {
   const toast = useToast();
   const remove = useDeleteProxiesMutation();
+  // only the ones no identity uses are deleted, so it says how many that is instead of how many are selected
+  const chosen = data.proxies.filter((proxy) => proxyIds.includes(proxy.id));
+  const unused = chosen.filter((proxy) => !proxy.identities.length).length;
+  const inUse = chosen.length - unused;
   return (
     <ConfirmDialog
-      title={`Delete ${proxyIds.length.toLocaleString()} proxies?`}
-      description='Only the ones no identity uses are deleted, with their passwords. Remove or move their identities first for the rest.'
-      confirmLabel='Delete unused'
+      title={`Delete ${unused.toLocaleString()} unused ${(unused === 1) ? 'proxy' : 'proxies'}?`}
+      description={(inUse)
+        ? `${inUse.toLocaleString()} in use ${(inUse === 1) ? 'stays' : 'stay'}: remove or move their identities first. The unused ones are deleted with their passwords.`
+        : 'No identity uses them. They’re deleted with their passwords.'}
+      confirmLabel={`Delete ${unused.toLocaleString()} unused`}
       pending={remove.isPending}
       error={(remove.isError) ? errorMessage(remove.error, 'Couldn’t delete the proxies.') : null}
       onConfirm={() => remove.mutate(proxyIds, {
@@ -654,6 +666,8 @@ function LabelsDialog({ data, onClose }: {data: AdminIdentities, onClose: () => 
   const rename = useRenameIdentityLabelMutation();
   const remove = useDeleteIdentityLabelMutation();
   const [ editing, setEditing ] = useState<{id: number, name: string} | null>(null);
+  // the label being deleted, asked about first: it comes off every proxy that carries it
+  const [ deleting, setDeleting ] = useState<{id: number, name: string, proxies: number} | null>(null);
 
   return (
     <Modal labelledBy={titleId} onClose={onClose} className='max-w-md'>
@@ -668,7 +682,10 @@ function LabelsDialog({ data, onClose }: {data: AdminIdentities, onClose: () => 
                   className='flex flex-1 gap-2'
                   onSubmit={(event) => {
                     event.preventDefault();
-                    rename.mutate({labelId: item.id, name: editing.name}, {onSuccess: () => setEditing(null)});
+                    // Enter goes through here even while Save is disabled
+                    if (!rename.isPending && editing.name.trim()) {
+                      rename.mutate({labelId: item.id, name: editing.name}, {onSuccess: () => setEditing(null)});
+                    }
                   }}
                 >
                   <input {...NO_AUTOFILL} className='input flex-1' aria-label='Name' value={editing.name} onChange={(event) => setEditing({id: item.id, name: event.target.value})}/>
@@ -693,10 +710,11 @@ function LabelsDialog({ data, onClose }: {data: AdminIdentities, onClose: () => 
                     type='button'
                     className='btn btn-ghost btn-sm text-danger-text'
                     disabled={remove.isPending}
-                    onClick={() => remove.mutate(item.id, {
-                      onSuccess: () => toast(`Deleted the ${item.name} label`),
-                      onError: (error) => toast(errorMessage(error, `Couldn’t delete the ${item.name} label.`), 'error'),
-                    })}
+                    onClick={() => {
+                      // an earlier delete's error is about that one
+                      remove.reset();
+                      setDeleting({id: item.id, name: item.name, proxies: item.proxies});
+                    }}
                   >
                     Delete
                   </button>
@@ -710,6 +728,27 @@ function LabelsDialog({ data, onClose }: {data: AdminIdentities, onClose: () => 
           <button type='button' className='btn btn-secondary' onClick={onClose}>Close</button>
         </div>
       </div>
+      {(deleting) ? (
+        <ConfirmDialog
+          title={`Delete the ${deleting.name} label?`}
+          description={(deleting.proxies)
+            ? `It comes off the ${deleting.proxies.toLocaleString()} ${(deleting.proxies === 1) ? 'proxy that carries' : 'proxies that carry'} it. The proxies themselves stay.`
+            : 'No proxy carries it.'}
+          confirmLabel='Delete label'
+          pending={remove.isPending}
+          error={(remove.isError) ? errorMessage(remove.error, `Couldn’t delete the ${deleting.name} label.`) : null}
+          onConfirm={() => remove.mutate(deleting.id, {
+            onSuccess: () => {
+              toast(`Deleted the ${deleting.name} label`);
+              setDeleting(null);
+            },
+          })}
+          onClose={() => {
+            remove.reset();
+            setDeleting(null);
+          }}
+        />
+      ) : null}
     </Modal>
   );
 }

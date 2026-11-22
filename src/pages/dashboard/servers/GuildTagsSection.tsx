@@ -10,17 +10,17 @@ import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useI18n } from '@/i18n';
 import type { GuildContentUser, GuildTag, UserGuild } from '@/lib/api';
 import { errorMessage, useGuildTagDeleteMutation, useGuildTagsQuery } from '@/lib/api/dashboardQueries';
-import { formatDate } from '@/lib/utils';
+import { cn, formatDate } from '@/lib/utils';
 
 import { Chip } from '../admin/adminUi';
-import { EmptyState, Panel, Skeleton } from '../ui';
+import { EmptyState, InlineError, Panel, Skeleton } from '../ui';
 import { AREA_PERMISSION } from './guildMeta';
 
 
 // The tags made in the server, newest first, like `tag list` in Discord: any member can look through them, removing
 // someone else's needs Manage Server or Ban Members (a moderator's `tag remove`)
 export function GuildTagsSection({ guild }: {guild: UserGuild}) {
-  const { t, plural } = useI18n();
+  const { t, plural, rich } = useI18n();
   const toast = useToast();
   const canRemove = guild.editable.tags;
   const [ search, setSearch ] = useState('');
@@ -28,6 +28,15 @@ export function GuildTagsSection({ guild }: {guild: UserGuild}) {
   const tags = useGuildTagsQuery(guild.id, query);
   const mutation = useGuildTagDeleteMutation(guild.id);
   const [ removing, setRemoving ] = useState<GuildTag | null>(null);
+  // the tags whose whole content is showing instead of two lines of it, to read one before removing it
+  const [ expanded, setExpanded ] = useState<ReadonlySet<string>>(new Set());
+  const toggle = (id: string) => setExpanded((previous) => {
+    const next = new Set(previous);
+    if (!next.delete(id)) {
+      next.add(id);
+    }
+    return next;
+  });
 
   const pages = tags.data?.pages ?? [];
   const items = pages.flatMap((page) => page.items);
@@ -51,19 +60,46 @@ export function GuildTagsSection({ guild }: {guild: UserGuild}) {
             <Skeleton className='h-14 w-full bg-surface-2'/>
           </div>
         ) : (tags.error) ? (
-          <p role='alert' className='text-sm text-danger-text'>{errorMessage(tags.error, t('stags.load_error'))}</p>
+          <InlineError onRetry={() => void tags.refetch()} retrying={tags.isRefetching}>{errorMessage(tags.error, t('stags.load_error'))}</InlineError>
         ) : (items.length) ? (
           <ul className='divide-y divide-line rounded-md border border-line'>
             {items.map((tag) => (
-              <li key={tag.id} className='flex items-start gap-3 px-3 py-2.5'>
+              <li
+                key={tag.id}
+                className={cn('flex items-start gap-3 px-3 py-2.5', !tag.reference_tag && 'cursor-pointer')}
+                // a click anywhere on the row but its button shows the whole content (or two lines again), unless it
+                // was a drag to select some of it
+                onClick={(event) => {
+                  if (!tag.reference_tag && !(event.target as HTMLElement).closest('button') && !window.getSelection()?.toString()) {
+                    toggle(tag.id);
+                  }
+                }}
+              >
                 <div className='min-w-0 flex-1 space-y-1'>
                   <div className='flex min-w-0 flex-wrap items-center gap-2'>
-                    <span className='truncate font-mono text-sm text-white'>{tag.name}</span>
+                    <span className='truncate font-mono text-sm text-white' title={tag.name}>{tag.name}</span>
                     {(tag.reference_tag) ? <Chip tone='neutral' title={t('stags.alias_title', {name: tag.reference_tag.name})}>{t('dtags.chip.alias')}</Chip> : null}
                     {(tag.is_command) ? <Chip tone='brand' title={t('stags.command_title')}>{t('dtags.chip.command')}</Chip> : null}
                     {(tag.nsfw) ? <Chip tone='danger'>{t('stags.nsfw')}</Chip> : null}
                   </div>
-                  {(tag.reference_tag) ? null : <p className='line-clamp-2 text-sm break-words text-muted'>{tag.content}</p>}
+                  {(tag.reference_tag) ? null : (
+                    <p
+                      // the row's click is the mouse's, this is the keyboard's
+                      role='button'
+                      tabIndex={0}
+                      aria-expanded={expanded.has(tag.id)}
+                      title={t((expanded.has(tag.id)) ? 'common.show_less' : 'common.show_more')}
+                      className={cn('text-sm break-words text-muted', (expanded.has(tag.id)) ? 'whitespace-pre-wrap' : 'line-clamp-2')}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          toggle(tag.id);
+                        }
+                      }}
+                    >
+                      {tag.content}
+                    </p>
+                  )}
                   <p className='flex flex-wrap items-center gap-x-1.5 text-xs text-subtle'>
                     <Owner user={tag.user}/>
                     <span aria-hidden>•</span>
@@ -88,7 +124,7 @@ export function GuildTagsSection({ guild }: {guild: UserGuild}) {
           </ul>
         ) : (
           <EmptyState title={t((query) ? 'stags.empty_search' : 'stags.empty')}>
-            {t((query) ? 'stags.empty_search_description' : 'stags.empty_description')}
+            {rich((query) ? 'stags.empty_search_description' : 'stags.empty_description', {code: (chunk) => <code className='text-code'>{chunk}</code>})}
           </EmptyState>
         )}
 

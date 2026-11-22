@@ -69,6 +69,18 @@ function computeTotals(data: InfoDiscord) {
   return totals;
 }
 
+// every shard discord expects is ready, in a cluster that still reports. a cluster that went quiet keeps the (ready)
+// statuses it last sent, so going by those alone would call an outage normal
+function allShardsReady(data: InfoDiscord, now: number): boolean {
+  let ready = 0;
+  for (const cluster of data.clusters) {
+    if (!isClusterDead(cluster, now)) {
+      ready += cluster.shards.filter((shard) => shard.status === ShardStatuses.READY).length;
+    }
+  }
+  return !!data.shard_count && data.shard_count <= ready;
+}
+
 
 export function StatusPage() {
   const { t } = useI18n();
@@ -83,6 +95,9 @@ export function StatusPage() {
   const now = useNow(NOW_TICK);
   // tailwind's `sm` breakpoint
   const wide = useMediaQuery('(min-width: 40rem)');
+
+  // the page's one-line answer. none while loading or when the last request failed, the numbers could be old then
+  const healthy = (data && !isError) ? allShardsReady(data, now) : null;
 
   const lookup = useMemo(() => (data) ? parseLookup(lookupInput, data) : null, [lookupInput, data]);
   const target = (data && lookup) ? resolveLookup(lookup, data) : null;
@@ -104,6 +119,16 @@ export function StatusPage() {
       <h1 className='sr-only'>{t('page.STATUS')}</h1>
       <StatusSwitcher/>
 
+      {/* always there, at the line's height, so the search box doesn't move down when the answer arrives */}
+      <p role='status' className='mb-6 flex min-h-7 items-center justify-center gap-2 text-center text-lg font-medium text-white'>
+        {(healthy !== null) ? (
+          <>
+            <span aria-hidden className={cn('size-2.5 shrink-0 rounded-full', (healthy) ? 'bg-success' : 'bg-warning')}/>
+            {t((healthy) ? 'status.verdict_normal' : 'status.verdict_degraded')}
+          </>
+        ) : null}
+      </p>
+
       <div className='mb-8'>
         <SearchInput
           size='lg'
@@ -120,6 +145,8 @@ export function StatusPage() {
           </p>
         ) : (lookup?.kind === 'invalid') ? (
           <p id='lookup-hint' className='mt-2 text-sm text-danger-text'>{lookup.message}</p>
+        ) : (lookup && !target) ? (
+          <p id='lookup-hint' className='mt-2 text-sm text-warning'>{t('status.lookup_not_reported')}</p>
         ) : null}
 
         {(target && data) ? <LookupResult lookup={target.lookup} cluster={target.cluster} shard={target.shard} now={now}/> : null}
@@ -144,7 +171,7 @@ export function StatusPage() {
 
       <section aria-labelledby='shards-heading' className='card p-6'>
         <h2 id='shards-heading' className='mb-2 text-center text-2xl text-white'>{t('status.shard_status')}</h2>
-        <ul aria-label={t('status.colors')} className='mb-5 flex flex-wrap justify-center gap-x-4 gap-y-1.5 text-xs text-subtle'>
+        <ul aria-label={t('status.colors')} className='mb-2 flex flex-wrap justify-center gap-x-4 gap-y-1.5 text-xs text-subtle'>
           {LEGEND_ORDER.map((key) => (
             <li key={key} className='flex items-center gap-1.5'>
               <span className={cn('size-2 rounded-full opacity-90', STATUS_STYLES[key].className)}/>
@@ -152,6 +179,7 @@ export function StatusPage() {
             </li>
           ))}
         </ul>
+        <p className='mb-5 text-center text-xs text-subtle'>{t('status.legend_note')}</p>
         {(data) ? (
           <ShardGrid data={data} now={now} highlightShardId={target?.shard?.shard_id ?? null} highlightClusterId={target?.cluster.cluster_id ?? null}/>
         ) : (isPending) ? (

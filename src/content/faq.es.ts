@@ -16,7 +16,7 @@ export const FAQ_SPANISH: FaqTranslation = {
     // primeros pasos
     'add-to-server': {
       question: '¿Cómo añado NotSoBot a mi servidor?',
-      answer: 'Usa el botón [Añadir a Discord](/invite) y elige tu servidor. Necesitas el permiso **Gestionar servidor** en ese servidor para añadir bots.\n\nCuando entre, escribe `/` en cualquier canal para ver sus comandos de barra, o prueba `@NotSoBot help`.',
+      answer: 'Usa el botón [Añadir a Discord](/invite?src=faq) y elige tu servidor. Necesitas el permiso **Gestionar servidor** en ese servidor para añadir bots.\n\nCuando entre, escribe `/` en cualquier canal para ver sus comandos de barra, o prueba `@NotSoBot help`.',
     },
     'use-without-server': {
       question: '¿Puedo usar NotSoBot sin añadirlo a un servidor?',
@@ -38,11 +38,11 @@ export const FAQ_SPANISH: FaqTranslation = {
     },
     'chain-effects': {
       question: '¿Puedo aplicar varios efectos a la vez?',
-      answer: 'Sí, con `.pipe`. Separa los comandos con punto y coma, por ejemplo `.pipe flip; flop`. Se pueden encadenar hasta 5 comandos, y cada uno se aplica sobre el resultado del anterior.',
+      answer: 'Sí, con `/media-aiv pipe` (o `.pipe`). Separa los comandos con punto y coma, por ejemplo `/media-aiv pipe commands:flip; flop` o `.pipe flip; flop`. Se pueden encadenar hasta 5 comandos, y cada uno se aplica sobre el resultado del anterior.',
     },
     'download-videos': {
       question: '¿Cómo descargo un vídeo de TikTok, Instagram, YouTube, etc.?',
-      answer: 'Usa `.download <url>` o `/download`. También puedes hacer clic derecho (o mantener pulsado) en un mensaje con un enlace y elegir **Aplicaciones → Download**.\n\nPara cambiar la calidad de vídeo por defecto de tus descargas, usa `/settings set download-quality`.',
+      answer: 'Usa `/download` con el enlace, o haz clic derecho (o mantén pulsado) en un mensaje con un enlace y elige **Aplicaciones → Download**. Con prefijo es `.download <url>`.\n\nPara cambiar la calidad de vídeo por defecto de tus descargas, usa `/settings set download-quality`.',
     },
     'files-as-links': {
       question: '¿Por qué recibí un enlace en lugar de un archivo?',
@@ -50,29 +50,29 @@ export const FAQ_SPANISH: FaqTranslation = {
     },
     'undo': {
       question: '¿Cómo borro la respuesta del bot a mi comando?',
-      answer: 'Usa `.undo` en el mismo canal para quitar las respuestas del bot a tu último comando, o `.undo 5` para los últimos cinco.',
+      answer: 'Usa `/undo` en el mismo canal para quitar las respuestas del bot a tu último comando, o `/undo amount:5` para los últimos cinco. Con prefijo es `.undo` (o `.undo 5`).',
     },
     'nsfw': {
       question: '¿Por qué se bloqueó mi resultado, o por qué no puedo usar comandos NSFW?',
-      answer: 'Los comandos NSFW solo funcionan en canales marcados como **con restricción de edad**. En los demás canales, NotSoBot revisa lo que genera y bloquea cualquier cosa que pueda ser NSFW. Las búsquedas usan SafeSearch salvo que el canal tenga restricción de edad.\n\nPara permitir resultados NSFW, un administrador tiene que marcar el canal con restricción de edad en los ajustes del canal.',
+      answer: 'NotSoBot revisa lo que genera en todos los canales, incluidos los que tienen restricción de edad y los MD, y bloquea cualquier cosa que pueda ser NSFW. Las búsquedas siempre usan SafeSearch.\n\nLos comandos NSFW se eliminaron, así que marcar un canal con restricción de edad ya no cambia esto. Si crees que un resultado se bloqueó por error, cuéntanoslo en el [servidor de soporte](/support).',
     },
 
     // configurar el servidor
     'change-prefix': {
       question: '¿Cómo cambio el prefijo del bot?',
-      answer: 'Usa `.prefixes add <prefijo>` para añadir uno, `.prefixes replace <prefijo>` para cambiarlos todos por uno nuevo y `.prefixes remove <prefijo>` para quitar uno. Necesitan el permiso **Gestionar servidor**.\n\nEn cuanto un servidor tiene prefijos personalizados, el `.` por defecto deja de funcionar allí. Mencionar al bot siempre funciona, así que `@NotSoBot prefixes` muestra cuáles están activos.\n\nLos comandos con prefijo terminan el 1 de enero de 2027, porque Discord exige que los bots usen comandos de barra. Los comandos de barra y mencionar al bot siguen funcionando después.',
+      answer: 'Usa `/server prefixes add` para añadir uno, `/server prefixes replace` para cambiarlos todos por uno nuevo y `/server prefixes remove` para quitar uno. Necesitan el permiso **Gestionar servidor**. Con prefijo son `.prefixes add <prefijo>`, `.prefixes replace <prefijo>` y `.prefixes remove <prefijo>`.\n\nEn cuanto un servidor tiene prefijos personalizados, el `.` por defecto deja de funcionar allí. `/server prefixes list` y `@NotSoBot prefixes` muestran cuáles están activos.\n\nTodos los prefijos, también los personalizados, dejan de funcionar el 1 de enero de 2027, porque Discord exige que los bots usen comandos de barra. Los comandos de barra y mencionar al bot siguen funcionando después.',
     },
     'restrict-channels': {
       question: '¿Cómo limito NotSoBot a ciertos canales, roles o usuarios?',
-      answer: 'Usa reglas (`.rules` o `/server-rules`). Las reglas que cubren todos los comandos necesitan **Administrador**:\n\n- `.rules block everything` y luego `.rules allow everything -channels bot-commands`: el bot solo responde en #bot-commands\n- `.rules block everything -channels general -roles Muted`: el bot ignora #general y el rol Muted\n\nGana la regla más específica: un usuario gana a un rol, un rol gana a un canal y un canal gana a todo el servidor. Usa `.rules` para verlas todas, o `.rules check <comando>` para ver qué regla decide.',
+      answer: 'Usa reglas, con `/server-rules` (o `.rules`). Las reglas que cubren todos los comandos necesitan **Administrador**:\n\n- `/server-rules add action:Block target:everything` y luego `/server-rules add action:Allow target:everything channels:#bot-commands`: el bot solo responde en #bot-commands. Con prefijo: `.rules block everything` y luego `.rules allow everything -channels bot-commands`\n- `/server-rules add action:Block target:everything channels:#general roles:@Muted`: el bot ignora #general y el rol Muted. Con prefijo: `.rules block everything -channels general -roles Muted`\n\nGana la regla más específica: un usuario gana a un rol, un rol gana a un canal y un canal gana a todo el servidor. Usa `/server-rules list` (o `.rules`) para verlas todas, o `/server-rules check` (o `.rules check <comando>`) para ver qué regla decide.',
     },
     'disable-command': {
       question: '¿Cómo desactivo un comando o una categoría concreta?',
-      answer: 'Usa `.rules block <comando o categoría>`, por ejemplo `.rules block rule34` o `.rules block category:fun`. Añade `-channels` para desactivarlo solo en ciertos canales, y `-message` para decirle a la gente adónde ir: `.rules block fun -channels general -message Los comandos de diversión van en #bots`. Necesita el permiso **Gestionar servidor**.',
+      answer: 'Usa `/server-rules add` con la acción Block y el comando o la categoría como objetivo, por ejemplo `/server-rules add action:Block target:magik` o `/server-rules add action:Block target:category:fun`. Rellena `channels` para desactivarlo solo en ciertos canales, y `message` para decirle a la gente adónde ir. Necesita el permiso **Gestionar servidor**.\n\nCon prefijo es `.rules block <comando o categoría>`, por ejemplo `.rules block magik` o `.rules block category:fun`, con `-channels` y `-message` para lo mismo: `.rules block fun -channels general -message Los comandos de diversión van en #bots`.',
     },
     'loggers': {
       question: '¿Puede NotSoBot registrar lo que pasa en mi servidor?',
-      answer: 'Sí. Configura registros de baneos, canales, miembros, mensajes, roles, usuarios y voz, por ejemplo `.loggers add messages -channel message-logs`. Usa `.loggers` para ver qué se está registrando y dónde.',
+      answer: 'Sí. Configura registros de baneos, canales, miembros, mensajes, roles, usuarios y voz, por ejemplo `/server loggers add type:Messages channel:#message-logs` (o `.loggers add messages -channel message-logs`). Usa `/server loggers list` (o `.loggers`) para ver qué se está registrando y dónde.',
     },
     'language': {
       question: '¿Puede NotSoBot responder en mi idioma?',
@@ -94,17 +94,17 @@ export const FAQ_SPANISH: FaqTranslation = {
     },
     'limit-premium': {
       question: '¿Premium sube estos límites?',
-      answer: 'No, los límites de arriba son iguales para todos. NotSoPremium sube los de multimedia y voz: tamaño de archivo, tiempo por comando, fotogramas animados, fuentes guardadas, voces clonadas y la cola de música. La [página de Premium](/premium) los muestra para cada nivel.',
+      answer: 'No, los límites de arriba son iguales para todos. NotSoPremium sube los de multimedia: tamaño de archivo, tiempo por comando, fotogramas animados y fuentes guardadas. NotSoPremium Plus y Max añaden más voces clonadas, y un servidor con un espacio de servidor premium tiene una cola de música más grande. La [página de Premium](/premium) los muestra para cada nivel.',
     },
 
     // premium e ia
     'premium': {
       question: '¿Qué es NotSoPremium?',
-      answer: 'NotSoPremium es una suscripción opcional que se compra a través de Discord, en el perfil de NotSoBot. Tiene tres niveles:\n\n- **NotSoPremium**: archivos más grandes, más tiempo para cada comando y tus propios comandos personalizados\n- **NotSoPremium Plus**: todo lo anterior, y además 2 espacios de servidor premium y más voces clonadas\n- **NotSoPremium Max**: todo lo anterior, y además NotSoAI\n\nCon **NotSoPremium Plus** puedes darle tu premium a hasta 2 servidores (o MD grupales) con `/settings premium-servers add` o desde la página Premium del panel, para que algunos comandos premium funcionen allí para todos. Ser dueño de un servidor no le da premium por sí solo.\n\nLa [página de Premium](/premium) compara todos los niveles.',
+      answer: 'NotSoPremium es una suscripción opcional que se compra a través de Discord, en el perfil de NotSoBot. Tiene tres niveles:\n\n- **NotSoPremium**: archivos más grandes, más tiempo para cada comando y tus propios comandos personalizados\n- **NotSoPremium Plus**: todo lo anterior, y además 2 espacios de servidor premium, más voces clonadas y NotSoCredits cada semana para NotSoAI\n- **NotSoPremium Max**: todo lo anterior, con el doble de NotSoCredits, y los que no uses se acumulan\n\nCon **NotSoPremium Plus** o **Max** puedes darle tu premium a hasta 2 servidores (o MD grupales) con `/settings premium-servers add` o desde la página Premium del panel, para que algunos comandos premium funcionen allí para todos. Ser dueño de un servidor no le da premium por sí solo.\n\nLa [página de Premium](/premium) compara todos los niveles.',
     },
     'notsoai': {
       question: '¿Cómo hablo con NotSoAI?',
-      answer: 'Menciona al bot con un mensaje, o responde a uno de sus mensajes, y NotSoAI contestará. Funciona con NotSoCredits: **NotSoPremium Max** trae algunos cada semana, un servidor recibe algunos por cada espacio de servidor premium Max que tenga, y cualquiera puede comprar un paquete de créditos en la tienda para usarlo sin suscribirse (o darle algunos a un servidor con `/settings credits give`). Mira la [página de Premium](/premium) para ver cuánto rinden. Puedes elegir su personalidad con `/settings set ai-personality`.',
+      answer: 'Menciona al bot con un mensaje, o responde a uno de sus mensajes, y NotSoAI contestará. Funciona con NotSoCredits: **NotSoPremium Plus** y **Max** traen algunos cada semana (Max, el doble), un servidor recibe algunos por cada espacio de servidor premium Max que tenga, y cualquiera puede comprar un paquete de créditos en la tienda para usarlo sin suscribirse (o darle algunos a un servidor con `/settings credits give`). Mira la [página de Premium](/premium) para ver cuánto rinden. Puedes elegir su personalidad con `/settings set ai-personality`.',
     },
 
     // privacidad y soporte

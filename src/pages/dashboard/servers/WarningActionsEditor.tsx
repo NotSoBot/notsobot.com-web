@@ -1,5 +1,5 @@
 import { Plus } from 'lucide-react';
-import { useId } from 'react';
+import { useId, useState } from 'react';
 
 import { translate, useI18n } from '@/i18n';
 import type { GuildWarningAction } from '@/lib/api';
@@ -44,10 +44,14 @@ function withAction(step: GuildWarningAction, action: GuildWarningAction['action
   }
 }
 
-// a threshold that isn't 1-100 or is used twice, for the form to block saving
+function badThreshold(threshold: number): boolean {
+  return !Number.isInteger(threshold) || threshold < 1 || MAX_WARNING_THRESHOLD < threshold;
+}
+
+// a threshold that isn't 1-100 or is used twice, for the form to block saving (its save bar says it)
 export function warningActionsError(steps: Array<GuildWarningAction>): string | null {
   const thresholds = steps.map((step) => step.threshold);
-  if (thresholds.some((threshold) => !Number.isInteger(threshold) || threshold < 1 || MAX_WARNING_THRESHOLD < threshold)) {
+  if (thresholds.some(badThreshold)) {
     return translate('wactions.bad_threshold', {max: MAX_WARNING_THRESHOLD});
   }
   if (new Set(thresholds).size !== thresholds.length) {
@@ -58,20 +62,32 @@ export function warningActionsError(steps: Array<GuildWarningAction>): string | 
 
 
 // the warning ladder: rows of "at N active warnings, do this", the api sorts them once saved
-export function WarningActionsEditor({ value, onChange, disabled, error }: {
+export function WarningActionsEditor({ value, onChange, disabled }: {
   value: Array<GuildWarningAction>,
   onChange: (value: Array<GuildWarningAction>) => void,
   disabled?: boolean,
-  error?: string | null,
 }) {
   const { t } = useI18n();
   const id = useId();
+  // the rows (by index) whose number was left: one that's still being typed isn't marked as wrong until then
+  const [ touched, setTouched ] = useState<ReadonlySet<number>>(new Set());
   const update = (index: number, step: GuildWarningAction) => onChange(value.map((x, i) => (i === index) ? step : x));
   const add = () => {
     // a few warnings past the highest step, a mute to start with
     const highest = Math.max(0, ...value.map((step) => step.threshold));
     onChange([...value, {action: 'mute', clean: 0, duration: HOUR, threshold: Math.min(highest + ((highest) ? 2 : 3), MAX_WARNING_THRESHOLD)}]);
+    setTouched((previous) => new Set([...previous].filter((i) => i < value.length)));
   };
+  const remove = (index: number) => {
+    onChange(value.filter((_, i) => i !== index));
+    setTouched((previous) => new Set([...previous].filter((i) => i !== index).map((i) => (index < i) ? i - 1 : i)));
+  };
+  const outOfRange = (index: number) => touched.has(index) && badThreshold(value[index].threshold);
+  // two steps at the same number are marked right away, it takes picking it
+  const duplicate = (index: number) => 1 < value.filter((step) => step.threshold === value[index].threshold).length;
+  const error = (value.some((_, index) => outOfRange(index))) ? t('wactions.bad_threshold', {max: MAX_WARNING_THRESHOLD})
+    : (value.some((_, index) => duplicate(index))) ? t('wactions.duplicate')
+    : null;
 
   return (
     <div className='min-w-0 md:col-span-2' role='group' aria-labelledby={`${id}-label`} aria-describedby={`${id}-hint`}>
@@ -87,8 +103,10 @@ export function WarningActionsEditor({ value, onChange, disabled, error }: {
                 max={MAX_WARNING_THRESHOLD}
                 className='input w-20'
                 aria-label={t('wactions.active_label')}
+                aria-invalid={outOfRange(index) || duplicate(index) || undefined}
                 value={(Number.isNaN(step.threshold)) ? '' : step.threshold}
                 onChange={(event) => update(index, {...step, threshold: event.target.valueAsNumber})}
+                onBlur={() => setTouched((previous) => new Set(previous).add(index))}
               />
               <span className='text-sm text-muted'>{t('wactions.active')}</span>
               <div className='w-28'>
@@ -116,7 +134,7 @@ export function WarningActionsEditor({ value, onChange, disabled, error }: {
                 </div>
               ) : null}
               <div className='ml-auto'>
-                <RemoveButton label={t('wactions.remove')} busy={false} disabled={!!disabled} onClick={() => onChange(value.filter((_, i) => i !== index))}/>
+                <RemoveButton label={t('wactions.remove')} busy={false} disabled={!!disabled} onClick={() => remove(index)}/>
               </div>
             </li>
           ))}
@@ -128,6 +146,7 @@ export function WarningActionsEditor({ value, onChange, disabled, error }: {
         <Plus aria-hidden className='size-4'/>
         {t('wactions.add')}
       </button>
+      {(MAX_WARNING_ACTIONS <= value.length) ? <p className='mt-1.5 text-xs text-subtle'>{t('wactions.full', {max: MAX_WARNING_ACTIONS})}</p> : null}
       {(error) ? (
         <p id={`${id}-hint`} className='mt-1.5 text-xs text-danger-text'>{error}</p>
       ) : (

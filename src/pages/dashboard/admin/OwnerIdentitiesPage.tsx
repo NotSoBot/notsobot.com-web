@@ -280,7 +280,7 @@ export function OwnerIdentitiesPage() {
           title='Saves what downloads changed and reloads everything from the database, instead of within a minute'
           onClick={() => sync.mutate(undefined, {
             onSuccess: (result) => toast(`Synced ${result.identities.toLocaleString()} identities`),
-            onError: (syncError) => toast(errorMessage(syncError, 'Couldn’t sync.')),
+            onError: (syncError) => toast(errorMessage(syncError, 'Couldn’t sync.'), 'error'),
           })}
         >
           {(sync.isPending) ? <Spinner className='size-4'/> : <RefreshCw className='size-4'/>}
@@ -630,7 +630,7 @@ function ServiceCard({ service, selected, onSelect }: {service: IdentityService,
               event.stopPropagation();
               resume.mutate(service.service, {
                 onSuccess: () => toast(`Resumed ${service.service}`),
-                onError: (resumeError) => toast(errorMessage(resumeError, 'Couldn’t resume.')),
+                onError: (resumeError) => toast(errorMessage(resumeError, 'Couldn’t resume.'), 'error'),
               });
             }}
           >
@@ -796,7 +796,7 @@ function IdentityModal({ identity, data, now, onClose }: {identity: Identity, da
             ['Last error', (identity.last_error) ? (
               <span>
                 <span className='break-words'>{identity.last_error}</span>
-                {(identity.last_error_at) ? <span className='text-subtle'> · <ExactDate value={identity.last_error_at} format={() => ago(identity.last_error_at, now)}/></span> : null}
+                {(identity.last_error_at) ? <span className='text-subtle'> • <ExactDate value={identity.last_error_at} format={() => ago(identity.last_error_at, now)}/></span> : null}
               </span>
             ) : '—'],
             ['Name', (
@@ -822,12 +822,12 @@ function IdentityModal({ identity, data, now, onClose }: {identity: Identity, da
             )],
             (identity.kind !== 'none') && ['Cookies', (identity.has_secret) ? (
               <span>
-                Saved{(identity.secret_updated) ? <> · refreshed <ExactDate value={identity.secret_updated} format={() => ago(identity.secret_updated, now)}/></> : null}
+                Saved{(identity.secret_updated) ? <> • refreshed <ExactDate value={identity.secret_updated} format={() => ago(identity.secret_updated, now)}/></> : null}
               </span>
             ) : 'None'],
             (identity.kind !== 'none') && ['Login', (identity.has_login) ? (
               <span>
-                Saved{(identity.login_updated) ? <> · <ExactDate value={identity.login_updated} format={() => ago(identity.login_updated, now)}/></> : null}
+                Saved{(identity.login_updated) ? <> • <ExactDate value={identity.login_updated} format={() => ago(identity.login_updated, now)}/></> : null}
               </span>
             ) : 'None'],
             ['Added', (identity.created) ? <ExactDate value={identity.created}/> : '—'],

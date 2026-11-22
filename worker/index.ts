@@ -25,7 +25,7 @@ import { Layout as SpanishLayout } from '../src/i18n/locales/es/layout';
 import { Layout as PortugueseLayout } from '../src/i18n/locales/pt/layout';
 import { Tags as SpanishTags } from '../src/i18n/locales/es/tags';
 import { Tags as PortugueseTags } from '../src/i18n/locales/pt/tags';
-import { Routes, TAG_ADD_PARAM, TAG_ADD_VALUE } from '../src/routes';
+import { DASHBOARD_SERVER_TABS, Routes, TAG_ADD_PARAM, TAG_ADD_VALUE } from '../src/routes';
 import { PAGE_ALIASES, PAGES, pageTitle, SITE_NAME, type PageKey, type PageMeta } from '../src/seo';
 import { localizedPage } from '../src/seoTranslations';
 
@@ -93,6 +93,13 @@ const PAGE_LIST: Array<Page> = [
     meta: PAGES[key],
     canonical: Routes[key],
     matcher: matcherFor(path),
+  })),
+  // a server's pages are child routes without metadata of their own, they're their server's page
+  ...DASHBOARD_SERVER_TABS.map((tab) => ({
+    key: 'DASHBOARD_SERVER' as const,
+    meta: PAGES.DASHBOARD_SERVER,
+    canonical: null,
+    matcher: matcherFor(`${Routes.DASHBOARD_SERVER}/${tab}`),
   })),
 ];
 

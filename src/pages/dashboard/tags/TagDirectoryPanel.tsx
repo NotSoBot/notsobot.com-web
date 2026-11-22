@@ -35,27 +35,40 @@ import { CharCounter, ErrorPanel, Field, InlineError, Panel, PanelSkeleton, Save
 import { describeTagLocation, TAG_CONTENT_MAX, tagLocation } from './tagMeta';
 
 
+type DirtyForm = 'publish' | 'listing' | 'request';
+
+
 // The "Directory" tab of the tag editor: publish the tag, or edit its listing once it's published.
 // The title, description, category and whether the content is shown publicly are editable here, and the media while
 // verification is pending.
 export function TagDirectoryPanel({ tag, onDirtyChange }: {tag: Tag, onDirtyChange: (dirty: boolean) => void}) {
   const { t } = useI18n();
   const { data: directory, isPending, isError, error, refetch, isRefetching } = useMeTagDirectoryQuery(tag.id);
-  // requesting verification would freeze unsaved listing edits, so the request waits until they're saved or discarded
-  const [ listingDirty, setListingDirty ] = useState(false);
-  const onListingDirtyChange = useCallback((dirty: boolean) => {
-    setListingDirty(dirty);
+  // which of the forms below hold unsaved edits; the tab is dirty while any does. Requesting verification would freeze
+  // unsaved listing edits, so the request waits until they're saved or discarded
+  const [ dirtyForms, setDirtyForms ] = useState<Record<DirtyForm, boolean>>({publish: false, listing: false, request: false});
+  const setFormDirty = useCallback((form: DirtyForm, dirty: boolean) => {
+    setDirtyForms((previous) => (previous[form] === dirty) ? previous : {...previous, [form]: dirty});
+  }, []);
+  const onPublishDirtyChange = useCallback((dirty: boolean) => setFormDirty('publish', dirty), [setFormDirty]);
+  const onListingDirtyChange = useCallback((dirty: boolean) => setFormDirty('listing', dirty), [setFormDirty]);
+  const onRequestDirtyChange = useCallback((dirty: boolean) => setFormDirty('request', dirty), [setFormDirty]);
+  const dirty = dirtyForms.publish || dirtyForms.listing || dirtyForms.request;
+  useEffect(() => {
     onDirtyChange(dirty);
-  }, [onDirtyChange]);
+  }, [dirty, onDirtyChange]);
+  useEffect(() => () => onDirtyChange(false), [onDirtyChange]);
 
   if (isPending) {
     return <PanelSkeleton rows={3}/>;
   }
-  if (isError) {
+  // only when nothing loaded (`null` is loaded: not published yet). A failed refetch when the window gets focus again keeps
+  // the forms and their unsaved edits
+  if (isError && directory === undefined) {
     return <ErrorPanel title={t('ddir.load_error')} message={errorMessage(error)} onRetry={() => refetch()} retrying={isRefetching}/>;
   }
   if (!directory) {
-    return <PublishForm tag={tag} onDirtyChange={onDirtyChange}/>;
+    return <PublishForm tag={tag} onDirtyChange={onPublishDirtyChange}/>;
   }
   // a verified listing's open change request takes over the thumbnail and media panels, they edit its proposal
   const verified = directory.verified === TagDirectoryVerificationStates.VERIFIED;
@@ -67,9 +80,9 @@ export function TagDirectoryPanel({ tag, onDirtyChange }: {tag: Tag, onDirtyChan
   };
   return (
     <div className='space-y-4'>
-      <VerificationPanel tag={tag} directory={directory} listingDirty={listingDirty}/>
+      <VerificationPanel tag={tag} directory={directory} listingDirty={dirtyForms.listing}/>
       <ListingForm key={directory.id} tag={tag} directory={directory} onDirtyChange={onListingDirtyChange}/>
-      {(verified) ? <EditRequestPanel tag={tag} directory={directory}/> : null}
+      {(verified) ? <EditRequestPanel tag={tag} directory={directory} onDirtyChange={onRequestDirtyChange}/> : null}
       <Panel
         title={t((request) ? 'ddir.thumbnail_proposed' : 'tags.detail.thumbnail')}
         description={t((request) ? 'ddir.thumbnail_proposed_description' : 'tags.detail.thumbnail_description')}
@@ -472,13 +485,18 @@ function isOpenEditRequest(request: TagDirectoryEditRequest): boolean {
 
 // A verified listing's content, media and thumbnail are locked, so the owner drafts the changes they want here and
 // NotSoBot staff approve or reject them. The thumbnail/media panels edit the draft's proposal while one is open.
-function EditRequestPanel({ tag, directory }: {tag: Tag, directory: TagDirectoryItem}) {
+function EditRequestPanel({ tag, directory, onDirtyChange }: {tag: Tag, directory: TagDirectoryItem, onDirtyChange: (dirty: boolean) => void}) {
   const { t } = useI18n();
   const toast = useToast();
   const mutation = useMeTagDirectoryEditRequestMutation(tag.id);
   const [ discarding, setDiscarding ] = useState(false);
   const request = directory.edit_request ?? null;
   const open = !!request && isOpenEditRequest(request);
+  // the mutation is shared with Start and Withdraw, so the dialog starts without their last error
+  const openDiscard = () => {
+    mutation.reset();
+    setDiscarding(true);
+  };
 
   if (!request || !open) {
     return (
@@ -511,7 +529,7 @@ function EditRequestPanel({ tag, directory }: {tag: Tag, directory: TagDirectory
   return (
     <>
       {(request.status === TagDirectoryEditRequestStatuses.DRAFT) ? (
-        <EditRequestDraft key={request.id} tag={tag} request={request} onDiscard={() => setDiscarding(true)}/>
+        <EditRequestDraft key={request.id} tag={tag} request={request} onDirtyChange={onDirtyChange} onDiscard={openDiscard}/>
       ) : (
         <Panel
           title={t('ddir.change_request')}
@@ -540,7 +558,7 @@ function EditRequestPanel({ tag, directory }: {tag: Tag, directory: TagDirectory
                 <Undo2 className='size-3.5'/>
                 {t('ddir.withdraw')}
               </button>
-              <button type='button' className='btn btn-danger btn-sm' disabled={mutation.isPending} onClick={() => setDiscarding(true)}>
+              <button type='button' className='btn btn-danger btn-sm' disabled={mutation.isPending} onClick={openDiscard}>
                 <X className='size-3.5'/>
                 {t('tags.listing.cancel_request')}
               </button>
@@ -574,7 +592,12 @@ function EditRequestPanel({ tag, directory }: {tag: Tag, directory: TagDirectory
 }
 
 
-function EditRequestDraft({ tag, request, onDiscard }: {tag: Tag, request: TagDirectoryEditRequest, onDiscard: () => void}) {
+function EditRequestDraft({ tag, request, onDirtyChange, onDiscard }: {
+  tag: Tag,
+  request: TagDirectoryEditRequest,
+  onDirtyChange: (dirty: boolean) => void,
+  onDiscard: () => void,
+}) {
   const { t } = useI18n();
   const toast = useToast();
   const mutation = useMeTagDirectoryEditRequestMutation(tag.id);
@@ -582,6 +605,11 @@ function EditRequestDraft({ tag, request, onDiscard }: {tag: Tag, request: TagDi
   const [ content, setContent ] = useState(request.content ?? tag.content);
   const savedContent = request.content ?? tag.content;
   const dirty = note !== request.note || content !== savedContent;
+  // unsaved note/content keep the tab mounted and ask before leaving, like the listing's edits
+  useEffect(() => {
+    onDirtyChange(dirty);
+  }, [dirty, onDirtyChange]);
+  useEffect(() => () => onDirtyChange(false), [onDirtyChange]);
   const invalid = !content.trim() || TAG_CONTENT_MAX < content.length || TAG_DIRECTORY_DESCRIPTION_MAX < note.length;
 
   // the current content means "leave it", so it isn't sent as a change

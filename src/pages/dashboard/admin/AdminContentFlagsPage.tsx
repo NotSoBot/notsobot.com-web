@@ -4,7 +4,7 @@
 // api fetches it, so the reviewer's browser never touches the source), blurred until revealed and never for
 // child safety flags.
 
-import { AlertTriangle, ArrowUpRight, Ban, Check, CircleHelp, Clock, CloudOff, Eye, Flag, ImageOff, Info, Languages, type LucideIcon, MessageSquareWarning, ShieldCheck, X } from 'lucide-react';
+import { AlertTriangle, ArrowUpRight, Ban, Check, CircleHelp, Clock, CloudOff, Eye, Flag, ImageOff, Info, Languages, type LucideIcon, MessageSquareWarning, X } from 'lucide-react';
 import { Fragment, type ReactNode, useEffect, useId, useRef, useState } from 'react';
 import { Link } from 'react-router';
 
@@ -29,6 +29,7 @@ import {
   ContentFlagAutoReviewFilters,
   type ContentFlagMatchCounts,
   type ContentFlagMatches,
+  type ContentFlagPatch,
   type ContentFlagQueryType,
   type ContentFlagStatus,
   type ContentFlagType,
@@ -38,9 +39,10 @@ import { ADMIN_CONTENT_FLAGS_PAGE_SIZE, errorMessage, useAcceptContentFlagSugges
 import { cn, formatDateTime, formatMemory, formatUptime, NO_AUTOFILL } from '@/lib/utils';
 
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton, Toggle } from '../ui';
-import { AdminModalFooter, AdminTagModal, LinkedItemModal, useHoldModalNavigation, useOpenListItem } from './AdminTagModal';
-import { adminServerPath, Chip, CopyableValue, DETAIL_LIST_STACKED, DetailList, ExactDate, FiltersButton, Pagination, selectAllScope, UserCell } from './adminUi';
-import { BLOCK_REASON_MAX, BlockUserDialog, canBlockUser } from './BlockUserDialog';
+import { AdminModalFooter, AdminTagModal, LinkedItemModal, REVIEW_KEYS, ReviewShortcutsToggle, useHoldModalNavigation, useOpenListItem, useReviewShortcuts } from './AdminTagModal';
+import { adminServerPath, adminUserPath, Chip, CopyableValue, DETAIL_LIST_STACKED, DetailList, ExactDate, FiltersButton, Pagination, selectAllScope, UserCell } from './adminUi';
+import { BLOCK_REASON_MAX, BlockDurationSelect, blockedUntilFromSeconds, canBlockUser } from './BlockUserDialog';
+import { UserModerationButtons } from './UserModerationButtons';
 
 
 type Tone = 'warning' | 'danger' | 'neutral' | 'brand' | 'fuchsia';
@@ -63,6 +65,12 @@ const STATUSES: Array<{value: ContentFlagStatus, label: string, action: string, 
 
 // setting one of these first offers to set it on the other pending flags of the same media
 const MATCHABLE_STATUSES: ReadonlyArray<number> = [ContentFlagStatuses.CONFIRMED, ContentFlagStatuses.DISMISSED];
+
+// the verdicts with a key while shortcuts are on (unsure and reported aren't verdicts, mark pending undoes one)
+const STATUS_KEYS: Record<number, string> = {
+  [ContentFlagStatuses.CONFIRMED]: REVIEW_KEYS.confirm,
+  [ContentFlagStatuses.DISMISSED]: REVIEW_KEYS.dismiss,
+};
 
 const TYPE_LABELS: Record<ContentFlagType, string> = {media: 'Media', text: 'Text'};
 // the "Auto review" filter: `hash` is a flag auto-confirmed from an already confirmed one with the same media (the
@@ -127,25 +135,29 @@ function AcceptSuggestionsBar({ flags }: {flags: Array<ContentFlag>}) {
         </button>
       </div>
       {(confirming) ? (
-        <Modal labelledBy={titleId} onClose={() => setConfirming(false)} className='max-w-lg'>
-          <div className='p-5 sm:p-6'>
+        <Modal labelledBy={titleId} onClose={() => !accept.isPending && setConfirming(false)} className='max-w-lg'>
+          <div className='p-5 sm:p-6' data-state={(accept.isPending) ? 'accepting' : 'confirming'}>
             <h2 id={titleId} className='pr-10 text-lg font-semibold text-white'>Accept Haiku’s suggestions?</h2>
             <p className='mt-2 text-sm text-muted'>
               {summary} on this page get the status Haiku suggested, reviewed by you. Pending flags with the same content get it too.
               Escalations and failed reviews are left alone.
             </p>
             <div className='mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
-              <button type='button' className='btn btn-secondary' onClick={() => setConfirming(false)}>Cancel</button>
+              <button type='button' className='btn btn-secondary' disabled={accept.isPending} onClick={() => setConfirming(false)}>Cancel</button>
               <button
                 type='button'
                 className='btn btn-primary'
                 disabled={accept.isPending}
-                onClick={() => accept.mutate({flagIds: acceptable.map((flag) => flag.id)}, {
-                  onSuccess: ({ count }) => toast(`Accepted ${countLabel(count, 'suggestion')}`),
-                  onError: (error) => toast(errorMessage(error), 'error'),
-                  onSettled: () => setConfirming(false),
-                })}
+                // `mutateAsync`, not `mutate`'s callbacks: the accepted flags leave this filter, and when that empties the
+                // page this bar unmounts (the list turns into the empty state) before they'd run, losing the toast
+                onClick={() => {
+                  accept.mutateAsync({flagIds: acceptable.map((flag) => flag.id)}).then(
+                    ({ count }) => toast(`Accepted ${countLabel(count, 'suggestion')}`),
+                    (error) => toast(errorMessage(error), 'error'),
+                  ).finally(() => setConfirming(false));
+                }}
               >
+                {(accept.isPending) ? <Spinner className='size-4 border-white/40 border-t-white'/> : null}
                 Accept {countLabel(acceptable.length, 'flag')}
               </button>
             </div>
@@ -240,11 +252,6 @@ function statusInfo(status: number) {
   return STATUSES.find((item) => item.value === status) ?? {value: status, label: `Status ${status}`, action: '', short: '', tone: 'neutral' as Tone, icon: Flag, description: ''};
 }
 
-// the admin user list searching that id
-function adminUserPath(userId: string): string {
-  return `${Routes.DASHBOARD_ADMIN_USERS}?${new URLSearchParams({q: userId}).toString()}`;
-}
-
 
 // no `status` param means the review queue (pending), `all` means any status
 const DEFAULT_STATUS = ContentFlagStatuses.PENDING;
@@ -274,7 +281,7 @@ function isChildSafetyFlag(flag: ContentFlag): boolean {
     (flag.flagged_for_review ?? []).includes(CHILD_SAFETY_LABEL);
 }
 
-// the default reason when blocking someone from one of their flags
+// the default reason when warning or blocking someone from one of their flags
 function flagBlockReason(flag: ContentFlag): string {
   return `Content flag #${flag.id}${(flag.category) ? ` (${flag.category})` : ''}`;
 }
@@ -305,8 +312,9 @@ function useUndoStatusAction(): (flagId: string, previous: number) => ToastActio
 
 export function AdminContentFlagsPage() {
   const { searchParams, page, update, setPage } = useSearchParamState();
-  // kept here so the dialog survives the flag leaving the list (e.g. filtered by a status that excludes "reported")
-  const [ reportingFlag, setReportingFlag ] = useState<ContentFlag | null>(null);
+  // kept here so the dialog survives the flag leaving the list (e.g. filtered by a status that excludes "reported").
+  // `notes` is the modal's unsaved note, saved with the status (left out when there's none)
+  const [ reportingFlag, setReportingFlag ] = useState<{flag: ContentFlag, notes?: string | null} | null>(null);
   const userId = (searchParams.get('user_id') || '').trim();
   const guildId = (searchParams.get('guild_id') || '').trim();
   const channelId = (searchParams.get('channel_id') || '').trim();
@@ -468,6 +476,13 @@ export function AdminContentFlagsPage() {
       ) : (!items.length) ? (
         <EmptyState icon={<Flag className='size-10'/>} title='No content flags'>
           {(filtered) ? 'Nothing matches these filters.' : null}
+          {/* the status filter (pending unless changed) applies to a search too, which hid already reviewed flags */}
+          {(debouncedSearch && status !== null) ? (
+            <>
+              {' '}Only {statusInfo(status).label.toLowerCase()} flags were searched.{' '}
+              <button type='button' className='cursor-pointer text-brand-text hover:underline' onClick={() => update({status: ANY_STATUS})}>Search all statuses</button>
+            </>
+          ) : null}
           {(!includeBlocked) ? (
             <>
               {(filtered) ? ' ' : null}Flags from blocked users are hidden.{' '}
@@ -491,14 +506,14 @@ export function AdminContentFlagsPage() {
           <ContentFlagDetails
             key={openItem.id}
             flag={openItem}
-            onReport={() => setReportingFlag(openItem)}
+            onReport={(notes) => setReportingFlag({flag: openItem, notes})}
             navigation={{previousId, nextId, onNavigate: open}}
           />
         </AdminTagModal>
       ) : (openId) ? (
         <LinkedItemModal noun='content flag' notFoundMessage='There’s no content flag with this id.' query={linked} onClose={close}/>
       ) : null}
-      {(reportingFlag) ? <ReportFlagDialog flag={reportingFlag} onClose={() => setReportingFlag(null)}/> : null}
+      {(reportingFlag) ? <ReportFlagDialog flag={reportingFlag.flag} notes={reportingFlag.notes} onClose={() => setReportingFlag(null)}/> : null}
     </>
   );
 }
@@ -573,7 +588,7 @@ function AutoReviewSection({ review }: {review: ContentFlagAutoReview}) {
         <h3 className='section-label'>Haiku review</h3>
         <p className='text-xs text-subtle'>
           <ExactDate value={review.reviewed_at} format={formatDateTime}/>
-          {(review.model) ? <> · <span className='font-mono'>{review.model}</span></> : null}
+          {(review.model) ? <> • <span className='font-mono'>{review.model}</span></> : null}
         </p>
       </div>
       <div className='rounded-md border border-line bg-deep px-3 py-2 text-sm'>
@@ -600,7 +615,7 @@ function AutoReviewSection({ review }: {review: ContentFlagAutoReview}) {
   );
 }
 
-// Plain content only inside (no buttons, links or focusable dates), since the whole row is a button.
+// Plain content only inside (no buttons, links or focusable dates), since the whole row is a link.
 // From sm up it's three columns: what it is and who posted it, why it was flagged stacked in the middle, the status and
 // date on the right. On phones the middle doesn't fit, so the reasons go centred under the rest: the type and id in the
 // top left with the status across from them, and the poster with the date across from them, like the reports list.
@@ -609,6 +624,14 @@ function ContentFlagRow({ flag, onOpen }: {flag: ContentFlag, onOpen: (id: strin
   const isText = flag.mimetype === CONTENT_FLAG_TEXT_MIMETYPE;
   const { user } = flag;
   const reasons = [
+    // whether it reached anyone and which command made it, first: that's what decides how urgent the row is
+    (flag.action || flag.command_id) ? (
+      <span key='action' className='flex max-w-full min-w-0 items-center gap-1 text-xs text-subtle'>
+        {(flag.action) ? <ActionChip action={flag.action}/> : null}
+        {(flag.action && flag.command_id) ? <span aria-hidden>•</span> : null}
+        {(flag.command_id) ? <span className='max-w-56 min-w-0 truncate font-mono' title={flag.command_id}>{flag.command_id}</span> : null}
+      </span>
+    ) : null,
     (flag.category) ? <Chip key='category' tone={(flag.category.startsWith('unsafe')) ? 'danger' : 'warning'}>{flag.category}</Chip> : null,
     (flag.needs_human_review) ? <Chip key='review' tone='warning'>needs review</Chip> : null,
     (flag.auto_confirmed_from) ? <Chip key='auto'>auto-confirmed</Chip> : null,
@@ -624,10 +647,16 @@ function ContentFlagRow({ flag, onOpen }: {flag: ContentFlag, onOpen: (id: strin
         title={status.label}
         className={cn('pointer-events-none absolute inset-y-0 left-0 w-1 group-first/row:rounded-tl-[7px] group-last/row:rounded-bl-[7px]', STATUS_PILL_FILLS[status.tone])}
       />
-      <button
-        type='button'
-        className='grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-4 py-3 text-left first:rounded-t-[inherit] last:rounded-b-[inherit] hover:bg-surface-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:gap-x-4 sm:px-5'
-        onClick={() => onOpen(flag.id)}
+      <Link
+        to={`${Routes.DASHBOARD_ADMIN_FLAGS}/${flag.id}`}
+        className='grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-4 py-3 first:rounded-t-[inherit] last:rounded-b-[inherit] hover:bg-surface-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:gap-x-4 sm:px-5'
+        onClick={(event) => {
+          // a plain click opens it over the list (keeping the filters), new tabs and copied links still get the url
+          if (!event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey && event.button === 0) {
+            event.preventDefault();
+            onOpen(flag.id);
+          }
+        }}
       >
         {/* what it is and its id (fixed widths, so rows line up) */}
         <span className='col-start-1 row-start-1 flex min-w-0 items-center gap-3'>
@@ -650,25 +679,21 @@ function ContentFlagRow({ flag, onOpen }: {flag: ContentFlag, onOpen: (id: strin
           <Chip tone={status.tone} title={status.description} className='col-start-2 row-start-1 w-20 justify-center justify-self-end'>{status.label}</Chip>
           <span className='col-start-2 row-start-2 justify-self-end text-xs whitespace-nowrap text-subtle'>{formatDateTime(flag.created)}</span>
         </span>
-      </button>
+      </Link>
     </li>
   );
 }
 
 
-// `navigation` is the modal's Previous / Next, the status actions go between them
+// `navigation` is the modal's Previous / Next, the status actions go between them. `onReport` opens the page's report
+// dialog, with the unsaved note to save along (undefined when there's none)
 function ContentFlagDetails({ flag, onReport, navigation }: {
   flag: ContentFlag,
-  onReport: () => void,
+  onReport: (notes?: string | null) => void,
   navigation: {previousId: string | null, nextId: string | null, onNavigate: (id: string) => void},
 }) {
   const toast = useToast();
-  const { user: me } = useAuth();
-  const viewerIsOwner = isOwner(me);
-  const [ blocking, setBlocking ] = useState(false);
   const { user } = flag;
-  // only owners can unblock
-  const canToggleBlock = !!user && ((user.blocked) ? viewerIsOwner : canBlockUser(user, viewerIsOwner));
   const mutation = usePatchAdminContentFlagMutation();
   const translation = useTranslateAdminContentFlagMutation();
   const [ notes, setNotes ] = useState(flag.notes ?? '');
@@ -688,15 +713,34 @@ function ContentFlagDetails({ flag, onReport, navigation }: {
   // set while the kept frames viewer is open
   const [ viewingFrames, setViewingFrames ] = useState(false);
   const pendingStatus = (mutation.isPending) ? mutation.variables?.patch.status : checkingMatches ?? undefined;
-  const savingNotes = mutation.isPending && mutation.variables?.patch.notes !== undefined;
+  const savingNotes = mutation.isPending && mutation.variables?.patch.status === undefined;
 
   const undoAction = useUndoStatusAction();
+  // false once the modal's closed (navigating away is held while a change is in flight, closing isn't)
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
+  // `mutateAsync` rather than `mutate`'s callbacks, which don't run once this has unmounted: closing the modal while
+  // it's saving would otherwise drop the toast (and its undo), or worse an error, so it looked like it went through
   const setStatus = (value: ContentFlagStatus, match?: MatchSelection) => {
     const others = match?.others ?? 0;
     const previous = flag.status;
-    mutation.mutate({flagId: flag.id, patch: {status: value, match_sha256: match?.sha256 || undefined, match_pdq: match?.pdq || undefined}}, {
-      onSuccess: () => {
+    const patch: ContentFlagPatch = {status: value, match_sha256: match?.sha256 || undefined, match_pdq: match?.pdq || undefined};
+    // a status change carries unsaved notes along like the reports modal's, so "write a note, click Confirm" is one
+    // step (it used to drop the note). Only this flag gets them, not its matches
+    if (notesDirty) {
+      patch.notes = notes.trim() || null;
+    }
+    mutation.mutateAsync({flagId: flag.id, patch}).then(
+      (updated) => {
+        if (patch.notes !== undefined) {
+          setNotes(updated.notes ?? '');
+        }
         const label = statusInfo(value).label.toLowerCase();
         // no undo when matches changed too, the api doesn't say which flags those were so they can't be put back
         toast(
@@ -704,9 +748,13 @@ function ContentFlagDetails({ flag, onReport, navigation }: {
           'success',
           (others) ? undefined : undoAction(flag.id, previous),
         );
+        // with shortcuts on a verdict moves on to the next flag, however it was given (key or button)
+        if (value in STATUS_KEYS) {
+          shortcuts.advance();
+        }
       },
-      onError: (error) => toast(errorMessage(error), 'error'),
-    });
+      (error) => toast(errorMessage(error), 'error'),
+    );
   };
   // confirming or dismissing looks for other pending flags of the same media first, and offers to change those too
   const setStatusWithMatches = async (value: ContentFlagStatus) => {
@@ -719,6 +767,11 @@ function ContentFlagDetails({ flag, onReport, navigation }: {
       return;
     } finally {
       setCheckingMatches(null);
+    }
+    // closed while it was checking: that's backing out, so nothing's changed (it used to set the status anyway, with
+    // no toast or undo since this was gone, and skip asking about the matches)
+    if (!mounted.current) {
+      return;
     }
     if ((found.sha256?.pending ?? 0) + (found.pdq?.pending ?? 0)) {
       setMatches({status: value, found});
@@ -741,14 +794,15 @@ function ContentFlagDetails({ flag, onReport, navigation }: {
     });
   };
   const saveNotes = () => {
-    mutation.mutate({flagId: flag.id, patch: {notes: notes.trim() || null}}, {
-      onSuccess: (updated) => {
+    // like `setStatus`, so closing mid-save still says whether it worked
+    mutation.mutateAsync({flagId: flag.id, patch: {notes: notes.trim() || null}}).then(
+      (updated) => {
         // saving trims, which leaves the notes as they were when that's all it changed (and the effect above quiet)
         setNotes(updated.notes ?? '');
         toast(`Flag ${flag.id}: notes saved`);
       },
-      onError: (error) => toast(errorMessage(error), 'error'),
-    });
+      (error) => toast(errorMessage(error), 'error'),
+    );
   };
 
   const flagged = flag.flagged ?? [];
@@ -760,14 +814,43 @@ function ContentFlagDetails({ flag, onReport, navigation }: {
   });
 
   const changingStatus = mutation.isPending || checkingMatches !== null;
-  // stepping to another flag would unmount this one, dropping the change's toast (and undo) or the matches dialog
-  useHoldModalNavigation(changingStatus || translation.isPending);
+  // stepping to another flag would unmount this one, dropping the change's toast (and undo), the matches dialog or a
+  // typed note that isn't saved yet
+  const held = changingStatus || translation.isPending || notesDirty;
+  useHoldModalNavigation(held);
   // reporting goes through a dialog so the uploader can be blocked in the same step
-  const changeStatus = (value: ContentFlagStatus) => (value === ContentFlagStatuses.REPORTED) ? onReport() :
+  const changeStatus = (value: ContentFlagStatus) => (value === ContentFlagStatuses.REPORTED) ? onReport((notesDirty) ? notes.trim() || null : undefined) :
     (MATCHABLE_STATUSES.includes(value)) ? setStatusWithMatches(value) : setStatus(value);
+  // a key only does what its button would: nothing for the status the flag is already in (that slot is Mark pending)
+  const shortcuts = useReviewShortcuts({
+    keys: {
+      [REVIEW_KEYS.confirm]: (flag.status === ContentFlagStatuses.CONFIRMED) ? undefined : () => changeStatus(ContentFlagStatuses.CONFIRMED),
+      [REVIEW_KEYS.dismiss]: (flag.status === ContentFlagStatuses.DISMISSED) ? undefined : () => changeStatus(ContentFlagStatuses.DISMISSED),
+    },
+    pending: changingStatus,
+    held,
+  });
+  // what the review is doing right now, for whoever's reading the DOM
+  const reviewState = (checkingMatches !== null) ? 'checking-matches' : (matches) ? 'choosing-matches' :
+    (savingNotes) ? 'saving-notes' : (mutation.isPending) ? 'saving-status' : 'idle';
+  // the line above the evidence: what the scan did with it, the command that made it, and where it was (missing parts
+  // are left out). The flag's own id is there on phones only, the title's can be cut off there
+  const context: Array<{key: string, node: ReactNode, className?: string}> = [
+    (flag.action) ? {key: 'action', node: <ActionChip action={flag.action}/>} : null,
+    (flag.command_id) ? {key: 'command', node: <span className='font-mono text-fg' title='Command'>{flag.command_id}</span>} : null,
+    (flag.guild_id) ? {
+      key: 'server',
+      node: <>server <CopyableValue value={flag.guild_id} truncate={0} to={adminServerPath(flag.guild_id)} linkTitle='Open this server'/></>,
+    } : null,
+    (flag.tag_id) ? {
+      key: 'tag',
+      node: <>tag <CopyableValue value={flag.tag_id} truncate={0} to={`${Routes.DASHBOARD_ADMIN_TAGS}?q=${flag.tag_id}`} linkTitle='Find this tag in tags'/></>,
+    } : null,
+    {key: 'flag', node: <>flag <CopyableValue value={flag.id} truncate={0}/></>, className: 'sm:hidden'},
+  ].filter((item) => !!item);
 
   return (
-    <div>
+    <div data-state={reviewState}>
       {/* the title can be cut off on phones, so there it's in the details below with a copy button too */}
       <DetailModalHeader
         titleId={TITLE_ID}
@@ -781,10 +864,13 @@ function ContentFlagDetails({ flag, onReport, navigation }: {
           {(flag.auto_confirmed_from) ? <Chip title={`Same media as #${flag.auto_confirmed_from}, which was already confirmed`}>auto-confirmed</Chip> : null}
           {autoReviewChip(flag.auto_review)}
         </>}
-        status={<Chip tone={status.tone} title={status.description} className='w-20 justify-center'>{status.label}</Chip>}
+        status={<>
+          <ReviewShortcutsToggle enabled={shortcuts.enabled} onChange={shortcuts.setEnabled} legend='C confirm • D dismiss'/>
+          <Chip tone={status.tone} title={status.description} className='w-20 justify-center'>{status.label}</Chip>
+        </>}
       />
 
-      {/* who posted it, a link to their admin page (the server is linked from the Guild id below) */}
+      {/* who posted it, a link to their admin page (the server is linked from the line under the chips below) */}
       <DetailModalStrip>
         <div className='flex items-center gap-2'>
           {(user ?? flag.user_id) ? (
@@ -800,76 +886,28 @@ function ContentFlagDetails({ flag, onReport, navigation }: {
             <UserCell user={null}/>
           )}
           {(user?.blocked) ? <Chip tone='danger' title={user.blocked_reason || undefined}>Blocked</Chip> : null}
-          {(user && canToggleBlock) ? (
-            <button
-              type='button'
-              className={cn('btn btn-sm ml-auto shrink-0', (user.blocked) ? 'btn-secondary' : 'btn-danger')}
-              onClick={() => setBlocking(true)}
-            >
-              {(user.blocked) ? <ShieldCheck aria-hidden className='size-4'/> : <Ban aria-hidden className='size-4'/>}
-              {(user.blocked) ? 'Unblock' : 'Block'}
-            </button>
-          ) : null}
+          {/* Warn and Block (or Unblock), like the reports modal's */}
+          {(user) ? <UserModerationButtons user={user} defaultReason={flagBlockReason(flag)} className='ml-auto'/> : null}
         </div>
         {(user?.blocked && user.blocked_reason) ? <p className='mt-1 text-xs break-words text-subtle'>Blocked for: {user.blocked_reason}</p> : null}
       </DetailModalStrip>
 
       <div className='px-4 pt-4 pb-5 sm:px-6'>
         {(flagged.length || forReview.length) ? (
-          <div className='mb-4 flex flex-wrap items-center gap-1.5'>
+          <div className='mb-2 flex flex-wrap items-center gap-1.5'>
             {flagged.map((label) => <Chip key={`f-${label}`} tone='danger'>{label}</Chip>)}
             {forReview.map((label) => <Chip key={`r-${label}`} tone='warning' title='Flagged for review'>review: {label}</Chip>)}
           </div>
         ) : null}
 
-        {/* side by side once there's room, where the command/server/channel/message ids sit on the right. Stacked on phones,
-            both lists share one label column (subgrid) so their values line up */}
-        <div className='grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-4 sm:grid-cols-2'>
-          <DetailList
-            className={DETAIL_LIST_STACKED}
-            items={[
-              ['Model', flag.model || '—'],
-              ['Mimetype', flag.mimetype || '—'],
-              ['Size', (flag.size !== null && flag.size !== undefined) ? `${formatMemory(flag.size, 1)} (${flag.size.toLocaleString()} B)` : '—'],
-              (isText) ? null : ['Frames', (flag.frames !== null && flag.frames !== undefined)
-                ? `${framesFlagged.length.toLocaleString()} flagged of ${flag.frames.toLocaleString()}`
-                : '—'],
-              (framesFlagged.length) ? ['Flagged frames', <span className='font-mono text-xs'>{framesFlagged.join(', ')}</span>] : null,
-              ['SHA-256', (flag.sha256) ? (
-                <CopyableValue value={flag.sha256} to={`${Routes.DASHBOARD_ADMIN_FLAGS}?q=${flag.sha256}`} linkTitle='Search the flags of this exact file'/>
-              ) : '—'],
-              (isText) ? null : [
-                <span title={pdqHint()} className='cursor-help underline decoration-dotted underline-offset-2'>PDQ</span>,
-                (flag.pdq) ? (
-                  <CopyableValue value={flag.pdq} to={`${Routes.DASHBOARD_ADMIN_FLAGS}?q=${flag.pdq}`} linkTitle='Search the flags with this PDQ hash'/>
-                ) : '—',
-              ],
-              [
-                <span title={PROMPT_HASH_HINT} className='cursor-help underline decoration-dotted underline-offset-2'>Prompt hash</span>,
-                (flag.prompt_hash) ? (
-                  <CopyableValue
-                    value={flag.prompt_hash}
-                    to={`${Routes.DASHBOARD_ADMIN_FLAGS}?prompt_hash=${flag.prompt_hash}`}
-                    linkTitle='Show the flags scanned with this prompt hash'
-                  />
-                ) : '—',
-              ],
-            ]}
-          />
-          <DetailList
-            className={DETAIL_LIST_STACKED}
-            items={[
-              // phones only, the title's can be cut off there
-              ['Flag', <CopyableValue value={flag.id} truncate={0}/>, 'sm:hidden'],
-              // what the safety scan did with it, first (from sm up) so it's always in the same spot (beside Model)
-              ['Action', (flag.action) ? <ActionChip action={flag.action}/> : '—'],
-              ['Command', (flag.command_id) ? <span className='font-mono'>{flag.command_id}</span> : '—'],
-              ['Guild', (flag.guild_id) ? <CopyableValue value={flag.guild_id} truncate={0} to={adminServerPath(flag.guild_id)} linkTitle='Open this server'/> : '—'],
-              ['Channel', (flag.channel_id) ? <CopyableValue value={flag.channel_id} truncate={0}/> : '—'],
-              ['Message', (flag.message_id) ? <CopyableValue value={flag.message_id} truncate={0}/> : '—'],
-              (flag.tag_id) ? ['Tag', <CopyableValue value={flag.tag_id} truncate={0} to={`${Routes.DASHBOARD_ADMIN_TAGS}?q=${flag.tag_id}`} linkTitle='Find this tag in tags'/>] : null,
-            ]}
-          />
+        {/* what happened to it and where, in one line: the evidence comes next, the rest is under Technical */}
+        <div className={cn('flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-subtle', context.length === 1 && 'sm:hidden')}>
+          {context.map((item, i) => (
+            <span key={item.key} className={cn('inline-flex min-w-0 items-center gap-1.5', item.className)}>
+              {(i) ? <span aria-hidden>•</span> : null}
+              {item.node}
+            </span>
+          ))}
         </div>
 
         {(flag.query) ? (
@@ -987,6 +1025,53 @@ function ContentFlagDetails({ flag, onReport, navigation }: {
 
         {(flag.auto_review) ? <AutoReviewSection review={flag.auto_review}/> : null}
 
+        {/* what the scan ran on and the ids nobody triages by, closed until someone needs them */}
+        <details className='mt-4'>
+          <summary className='section-label w-fit cursor-pointer hover:text-fg'>Technical</summary>
+          {/* side by side once there's room, where the channel and message ids sit on the right. Stacked on phones, both
+              lists share one label column (subgrid) so their values line up */}
+          <div className='mt-2 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-4 sm:grid-cols-2'>
+            <DetailList
+              className={DETAIL_LIST_STACKED}
+              items={[
+                ['Model', flag.model || '—'],
+                ['Mimetype', flag.mimetype || '—'],
+                ['Size', (flag.size !== null && flag.size !== undefined) ? `${formatMemory(flag.size, 1)} (${flag.size.toLocaleString()} B)` : '—'],
+                (isText) ? null : ['Frames', (flag.frames !== null && flag.frames !== undefined)
+                  ? `${framesFlagged.length.toLocaleString()} flagged of ${flag.frames.toLocaleString()}`
+                  : '—'],
+                (framesFlagged.length) ? ['Flagged frames', <span className='font-mono text-xs'>{framesFlagged.join(', ')}</span>] : null,
+                ['SHA-256', (flag.sha256) ? (
+                  <CopyableValue value={flag.sha256} to={`${Routes.DASHBOARD_ADMIN_FLAGS}?q=${flag.sha256}`} linkTitle='Search the flags of this exact file'/>
+                ) : '—'],
+                (isText) ? null : [
+                  <span title={pdqHint()} className='cursor-help underline decoration-dotted underline-offset-2'>PDQ</span>,
+                  (flag.pdq) ? (
+                    <CopyableValue value={flag.pdq} to={`${Routes.DASHBOARD_ADMIN_FLAGS}?q=${flag.pdq}`} linkTitle='Search the flags with this PDQ hash'/>
+                  ) : '—',
+                ],
+                [
+                  <span title={PROMPT_HASH_HINT} className='cursor-help underline decoration-dotted underline-offset-2'>Prompt hash</span>,
+                  (flag.prompt_hash) ? (
+                    <CopyableValue
+                      value={flag.prompt_hash}
+                      to={`${Routes.DASHBOARD_ADMIN_FLAGS}?prompt_hash=${flag.prompt_hash}`}
+                      linkTitle='Show the flags scanned with this prompt hash'
+                    />
+                  ) : '—',
+                ],
+              ]}
+            />
+            <DetailList
+              className={DETAIL_LIST_STACKED}
+              items={[
+                ['Channel', (flag.channel_id) ? <CopyableValue value={flag.channel_id} truncate={0}/> : '—'],
+                ['Message', (flag.message_id) ? <CopyableValue value={flag.message_id} truncate={0}/> : '—'],
+              ]}
+            />
+          </div>
+        </details>
+
         <form
           className='mt-4'
           onSubmit={(event) => {
@@ -1015,7 +1100,7 @@ function ContentFlagDetails({ flag, onReport, navigation }: {
             className='input min-h-16 resize-y'
             rows={2}
             value={notes}
-            placeholder='Add a note for other reviewers...'
+            placeholder='Add a note for other reviewers (saved with the next status change too)...'
             onChange={(event) => setNotes(event.target.value)}
           />
           {(notesDirty) ? (
@@ -1046,7 +1131,8 @@ function ContentFlagDetails({ flag, onReport, navigation }: {
                 type='button'
                 className={cn('btn min-w-0 px-2 sm:flex-none sm:px-3', (iconOnPhones) ? 'flex-none' : 'flex-1', STATUS_BUTTON_CLASSES[item.value])}
                 disabled={changingStatus}
-                title={(item.value === ContentFlagStatuses.REPORTED) ? REPORTED_DESCRIPTION : (item.value === ContentFlagStatuses.UNSURE) ? UNSURE_DESCRIPTION : (iconOnPhones) ? item.action : undefined}
+                title={(item.value === ContentFlagStatuses.REPORTED) ? REPORTED_DESCRIPTION : (item.value === ContentFlagStatuses.UNSURE) ? UNSURE_DESCRIPTION :
+                  (item.value in STATUS_KEYS) ? shortcuts.title(item.action, STATUS_KEYS[item.value]) : (iconOnPhones) ? item.action : undefined}
                 onClick={() => changeStatus(value)}
               >
                 {(pendingStatus === value) ? <Spinner className='size-4'/> : <item.icon aria-hidden className={cn('size-4 shrink-0', !iconOnPhones && 'hidden sm:block')}/>}
@@ -1075,16 +1161,6 @@ function ContentFlagDetails({ flag, onReport, navigation }: {
       {(flaggingPrompt) ? <FlagPromptDialog flag={flag} onClose={() => setFlaggingPrompt(false)}/> : null}
       {(viewingMedia) ? <MediaDialog flag={flag} onClose={() => setViewingMedia(false)}/> : null}
       {(viewingFrames) ? <KeptFramesDialog flag={flag} onClose={() => setViewingFrames(false)}/> : null}
-      {(blocking && user) ? (
-        <BlockUserDialog
-          user={user}
-          blocked={user.blocked}
-          blockedReason={user.blocked_reason}
-          blockedUntil={user.blocked_until}
-          defaultReason={flagBlockReason(flag)}
-          onClose={() => setBlocking(false)}
-        />
-      ) : null}
     </div>
   );
 }
@@ -1334,6 +1410,11 @@ function MediaDialog({ flag, onClose }: {flag: ContentFlag, onClose: () => void}
     };
 
     load().catch((error) => {
+      // gave up (too slow, or a poll failed) while the job still runs: cancel it now instead of when the dialog closes
+      if (jobId) {
+        api.deleteJob(jobId).catch(() => {});
+        jobId = null;
+      }
       if (!signal.aborted) {
         setState({status: 'error', message: errorMessage(error, 'Couldn’t load the media.')});
       }
@@ -1612,8 +1693,9 @@ function FlagPromptDialog({ flag, onClose }: {flag: ContentFlag, onClose: () => 
 }
 
 
-// Marks a flag reported and (optionally) blocks whoever posted it, in one go.
-function ReportFlagDialog({ flag, onClose }: {flag: ContentFlag, onClose: () => void}) {
+// Marks a flag reported and (optionally) blocks whoever posted it, in one go. `notes` is the flag modal's unsaved note,
+// saved with the status (undefined when there's none)
+function ReportFlagDialog({ flag, notes, onClose }: {flag: ContentFlag, notes?: string | null, onClose: () => void}) {
   const titleId = useId();
   const blockId = useId();
   const reasonId = useId();
@@ -1628,6 +1710,8 @@ function ReportFlagDialog({ flag, onClose }: {flag: ContentFlag, onClose: () => 
   const blockable = !!user && !user.blocked && canBlockUser(user, isOwner(me));
   const [ blockUser, setBlockUser ] = useState(false);
   const [ reason, setReason ] = useState(flagBlockReason(flag));
+  // seconds, 0 for a permanent block (like the block dialog's Length)
+  const [ duration, setDuration ] = useState(0);
   // once set, a failed block can be retried without re-reporting
   const [ reported, setReported ] = useState(false);
 
@@ -1637,7 +1721,7 @@ function ReportFlagDialog({ flag, onClose }: {flag: ContentFlag, onClose: () => 
     if (!user) {
       return;
     }
-    block.mutate({userId: user.id, patch: {blocked: true, blocked_reason: reason.trim() || null}}, {
+    block.mutate({userId: user.id, patch: {blocked: true, blocked_reason: reason.trim() || null, blocked_until: blockedUntilFromSeconds(duration)}}, {
       onSuccess: () => {
         toast(`Blocked ${user.username}`);
         onClose();
@@ -1650,7 +1734,11 @@ function ReportFlagDialog({ flag, onClose }: {flag: ContentFlag, onClose: () => 
       runBlock();
       return;
     }
-    report.mutate({flagId: flag.id, patch: {status: ContentFlagStatuses.REPORTED}}, {
+    const patch: ContentFlagPatch = {status: ContentFlagStatuses.REPORTED};
+    if (notes !== undefined) {
+      patch.notes = notes;
+    }
+    report.mutate({flagId: flag.id, patch}, {
       onSuccess: () => {
         setReported(true);
         // only undoes the report, a block in the same step stays (unblocking is for owners)
@@ -1726,6 +1814,7 @@ function ReportFlagDialog({ flag, onClose }: {flag: ContentFlag, onClose: () => 
                   disabled={pending}
                   className='input'
                 />
+                <BlockDurationSelect value={duration} onChange={setDuration} disabled={pending}/>
               </div>
             ) : null}
           </div>

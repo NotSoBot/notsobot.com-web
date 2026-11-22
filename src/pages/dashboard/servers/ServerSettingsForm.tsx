@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useToast } from '@/components/ui/Toast';
 import { useI18n } from '@/i18n';
 import { GUILD_AUTO_EMBED_SITES, GuildModerationDmFlags, type UserGuild, type UserGuildPatch } from '@/lib/api';
-import { errorMessage, useGuildMutation } from '@/lib/api/dashboardQueries';
+import { errorMessage, useGuildMutation, useGuildScope } from '@/lib/api/dashboardQueries';
 
 import { ChoiceSelect } from '../settings/ChoiceSelect';
 import {
@@ -20,7 +20,7 @@ import {
 import { useMediaFontChoices } from '../fonts/SavedFontsPanel';
 import { PersonalityHint } from '../settings/PersonalityHint';
 import { useDraft } from '../settings/useDraft';
-import { CharCounter, Field, InlineError, Panel, SaveBar, Toggle } from '../ui';
+import { CharCounter, Field, HelpDisclosure, InlineError, Panel, SaveBar, Toggle } from '../ui';
 import { banCleanChoices, useReadOnlyMessage, warningsExpireChoices, warningsWindowChoices } from './guildMeta';
 import { PremiumNote } from './MusicSection';
 import { WarningActionsEditor, warningActionsError } from './WarningActionsEditor';
@@ -32,7 +32,8 @@ type SettingsPatch = Omit<UserGuildPatch, 'prefix_command_permissions' | 'rules_
 type Values = Required<{[K in keyof SettingsPatch]: Exclude<SettingsPatch[K], undefined>}>;
 
 // the settings are split into groups that each sit on their own server page, with their own save bar.
-// Saving one never touches another's edits
+// Saving one never touches another's edits. `general` is two panels, the server settings and auto-embed, over one draft
+// and one save bar
 export type SettingsGroup = 'general' | 'ai' | 'moderation' | 'warnings';
 
 // the title, description and save/fail toasts are `ssettings.<group>.title`, `.description`, `.saved` and `.failed`
@@ -84,6 +85,10 @@ const MODERATION_DMS = [
 ] as const;
 
 
+// the server's response display without "Default (embeds)": not picking one already means that, so it's the empty option
+const RESPONSE_DISPLAY_SET_CHOICES = RESPONSE_DISPLAY_CHOICES.filter((choice) => choice.value !== 0);
+
+
 // which of a modal's forms have unsaved edits, for the tabs' dots and asking before closing
 export function useDirtyGroups<K extends string>() {
   const [ dirty, setDirty ] = useState<Partial<Record<K, boolean>>>({});
@@ -96,10 +101,12 @@ export function useDirtyGroups<K extends string>() {
 
 
 export function ServerSettingsForm({ guild, group, onDirtyChange }: {guild: UserGuild, group: SettingsGroup, onDirtyChange: (dirty: boolean) => void}) {
-  const { t } = useI18n();
+  const { t, rich } = useI18n();
   const toast = useToast();
   const editable = guild.editable.settings;
   const readOnlyMessage = useReadOnlyMessage();
+  // in the admin server modal the save bar stays where it is, stuck to the bottom it'd sit on the modal's own footer
+  const staff = useGuildScope() === 'admin';
   const mutation = useGuildMutation(guild.id);
   // the server's saved fonts can be its Default Font (staff get them through `/admin/guilds` too)
   const fontChoices = useMediaFontChoices(guild.id, group === 'general');
@@ -122,6 +129,18 @@ export function ServerSettingsForm({ guild, group, onDirtyChange }: {guild: User
   const autoEmbed = values.auto_embed ?? [];
   const banClean = values.ban_clean ?? 0;
   const dmDisabled = values.moderation_dm_disabled ?? 0;
+  // an edit the api won't take, said next to its field; Save stays off until it's fixed instead of doing nothing, and
+  // the save bar says why (a row only marks its own field once it's been used)
+  const invalid = PERSONALITY_MAX < personality.length || !!actionsError || !!autoError;
+  const invalidReason = actionsError ?? autoError;
+  const code = (chunk: string) => <code className='text-code'>{chunk}</code>;
+  // where the form is, for the `data-state` (a failed save stays "error" until it's saved or discarded)
+  const formState = (mutation.isPending) ? 'saving' : (!draft.dirty) ? 'clean' : (mutation.isError) ? 'error' : 'dirty';
+  // the failed save's error goes with the edits it was for, so editing again later doesn't show it
+  const discard = () => {
+    draft.reset();
+    mutation.reset();
+  };
 
   useEffect(() => {
     onDirtyChange(draft.dirty);
@@ -132,21 +151,45 @@ export function ServerSettingsForm({ guild, group, onDirtyChange }: {guild: User
   latestOnDirtyChange.current = onDirtyChange;
   useEffect(() => () => latestOnDirtyChange.current(false), []);
 
+  // long panels end off screen, so with unsaved edits the bar follows the bottom of the window. The general group's sits
+  // under its two panels as its own card, so it can follow along both
+  const below = group === 'general' && !staff;
+  const footer = (
+    <>
+      {(mutation.isError && draft.dirty) ? <InlineError>{errorMessage(mutation.error, info.failed)}</InlineError> : null}
+      {(editable) ? (
+        <SaveBar
+          dirty={draft.dirty}
+          pending={mutation.isPending}
+          disabled={invalid}
+          status={(draft.dirty && invalidReason) ? <span className='text-danger-text'>{invalidReason}</span> : undefined}
+          onDiscard={discard}
+          standalone={below}
+          sticky={!staff}
+        />
+      ) : null}
+    </>
+  );
+
   return (
     <form
+      data-state={formState}
+      className={(group === 'general') ? 'space-y-4' : undefined}
       onSubmit={(event) => {
         event.preventDefault();
-        if (!draft.dirty || mutation.isPending || PERSONALITY_MAX < personality.length || actionsError || autoError) {
+        if (!draft.dirty || mutation.isPending || invalid) {
           return;
         }
         const sent = draft.changes;
-        mutation.mutate({kind: 'settings', patch: sent}, {
-          onSuccess: () => {
+        // a promise, not `mutate`'s callbacks: those are dropped once the form unmounts (leaving the page mid-save), and
+        // the result is still toasted then
+        mutation.mutateAsync({kind: 'settings', patch: sent}).then(
+          () => {
             draft.commit(sent);
             toast(info.saved);
           },
-          onError: (error) => toast(errorMessage(error, info.failed), 'error'),
-        });
+          (error) => toast(errorMessage(error, info.failed), 'error'),
+        );
       }}
     >
       <Panel
@@ -164,66 +207,27 @@ export function ServerSettingsForm({ guild, group, onDirtyChange }: {guild: User
               <Field label={t('settings.region.timezone')}>
                 {(props) => <ChoiceSelect {...props} noneLabel={t('settings.region.no_timezone')} choices={TIMEZONE_CHOICES} value={values.timezone} onChange={(value) => draft.set('timezone', value)}/>}
               </Field>
-              <Field label={t('settings.ai.image_model')}>
-                {(props) => <ChoiceSelect {...props} noneLabel={t('settings.default')} choices={DIFFUSION_MODEL_CHOICES} value={values.ml_diffusion_model} onChange={(value) => draft.set('ml_diffusion_model', value)}/>}
-              </Field>
-              <Field label={t('settings.media.font')} hint={t('ssettings.member_wins')}>
+              {/* nothing to pick between while there's one image model */}
+              {(1 < DIFFUSION_MODEL_CHOICES.length) ? (
+                <Field label={t('settings.ai.image_model')}>
+                  {(props) => <ChoiceSelect {...props} noneLabel={t('settings.default')} choices={DIFFUSION_MODEL_CHOICES} value={values.ml_diffusion_model} onChange={(value) => draft.set('ml_diffusion_model', value)}/>}
+                </Field>
+              ) : null}
+              <Field label={t('settings.media.font')}>
                 {(props) => <ChoiceSelect {...props} noneLabel={t('settings.default')} choices={fontChoices} value={values.media_font} onChange={(value) => draft.set('media_font', value)}/>}
               </Field>
               <Field label={t('settings.display.response')}>
-                {(props) => <ChoiceSelect {...props} noneLabel={t('settings.default')} choices={RESPONSE_DISPLAY_CHOICES} value={values.response_display} onChange={(value) => draft.set('response_display', value)}/>}
+                {(props) => <ChoiceSelect {...props} noneLabel={t('choice.display.default')} choices={RESPONSE_DISPLAY_SET_CHOICES} value={values.response_display || null} onChange={(value) => draft.set('response_display', value)}/>}
               </Field>
-              <Field label={t('settings.display.post_gallery')} hint={t('ssettings.member_wins')}>
+              <Field label={t('settings.display.post_gallery')}>
                 {(props) => <ChoiceSelect {...props} noneLabel={t('ssettings.post_gallery_default')} choices={POST_GALLERY_CHOICES} value={values.post_gallery} onChange={(value) => draft.set('post_gallery', value)}/>}
               </Field>
-              <Field label={t('settings.search.web')} hint={t('ssettings.member_wins')}>
+              <Field label={t('settings.search.web')}>
                 {(props) => <ChoiceSelect {...props} noneLabel={t('ssettings.default_ddg')} choices={SEARCH_PROVIDER_CHOICES} value={values.search_provider_web} onChange={(value) => draft.set('search_provider_web', value)}/>}
               </Field>
-              <Field label={t('settings.search.images')} hint={t('ssettings.member_wins')}>
+              <Field label={t('settings.search.images')}>
                 {(props) => <ChoiceSelect {...props} noneLabel={t('ssettings.default_google')} choices={SEARCH_PROVIDER_CHOICES} value={values.search_provider_images} onChange={(value) => draft.set('search_provider_images', value)}/>}
               </Field>
-              <div className='space-y-3 md:col-span-2'>
-                <div>
-                  <p className='text-sm font-medium text-fg'>{t('ssettings.autoembed.label')}</p>
-                  <p className='mt-0.5 text-xs text-subtle'>{t('ssettings.autoembed.hint')}</p>
-                </div>
-                <div className='grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2'>
-                  {GUILD_AUTO_EMBED_SITES.map((site) => (
-                    <Toggle
-                      key={site}
-                      label={AUTO_EMBED_SITE_NAMES[site]}
-                      checked={autoEmbed.includes(site)}
-                      disabled={!editable}
-                      // sorted like the api stores them, so turning one off and on again isn't an unsaved change
-                      onChange={(value) => draft.set('auto_embed', [...autoEmbed.filter((x) => x !== site), ...(value) ? [site] : []].sort())}
-                    />
-                  ))}
-                </div>
-                <div className='border-t border-border pt-3'>
-                  <Toggle
-                    label={t('ssettings.autoembed.text')}
-                    description={t('ssettings.autoembed.text_hint')}
-                    checked={!!values.auto_embed_text}
-                    disabled={!editable}
-                    onChange={(value) => draft.set('auto_embed_text', value)}
-                  />
-                </div>
-                <Field label={t('ssettings.autoembed.gallery')} hint={t('ssettings.autoembed.gallery_hint')}>
-                  {(props) => <ChoiceSelect {...props} noneLabel={t('ssettings.autoembed.gallery_poster')} choices={POST_GALLERY_CHOICES} value={values.auto_embed_gallery} onChange={(value) => draft.set('auto_embed_gallery', value)}/>}
-                </Field>
-                {(!guild.premium_server) ? (
-                  <PremiumNote staffText={null}>{t('ssettings.autoembed.premium')}</PremiumNote>
-                ) : null}
-                <div className='border-t border-border pt-3'>
-                  <Toggle
-                    label={t('ssettings.autoembed.members')}
-                    description={t('ssettings.autoembed.members_hint')}
-                    checked={values.auto_embed_members !== false}
-                    disabled={!editable}
-                    onChange={(value) => draft.set('auto_embed_members', value)}
-                  />
-                </div>
-              </div>
             </>
           ) : null}
           {(group === 'ai') ? (
@@ -264,6 +268,8 @@ export function ServerSettingsForm({ guild, group, onDirtyChange }: {guild: User
                   <Toggle
                     key={key}
                     label={t(`ssettings.dm.${key}`)}
+                    // the one DM whose name needs explaining
+                    description={(key === 'decoy') ? rich('ssettings.dm.decoy_hint', {code}) : undefined}
                     checked={(dmDisabled & flag) !== flag}
                     disabled={!editable}
                     onChange={(value) => draft.set('moderation_dm_disabled', (value) ? (dmDisabled & ~flag) : (dmDisabled | flag))}
@@ -284,7 +290,6 @@ export function ServerSettingsForm({ guild, group, onDirtyChange }: {guild: User
                 value={warningActions}
                 onChange={(value) => draft.set('warnings_actions', value)}
                 disabled={!editable}
-                error={actionsError}
               />
               <WarningAutoEditor
                 value={warningAuto}
@@ -293,14 +298,91 @@ export function ServerSettingsForm({ guild, group, onDirtyChange }: {guild: User
                 onExemptChange={(value) => draft.set('warnings_auto_exempt', value)}
                 guildId={guild.id}
                 disabled={!editable}
-                error={autoError}
               />
             </>
           ) : null}
         </fieldset>
-        {(mutation.isError && draft.dirty) ? <InlineError>{errorMessage(mutation.error, info.failed)}</InlineError> : null}
-        {(editable) ? <SaveBar dirty={draft.dirty} pending={mutation.isPending} onDiscard={draft.reset}/> : null}
+        {(group === 'general') ? null : footer}
       </Panel>
+      {(group === 'general') ? (
+        <>
+          <Panel
+            title={t('ssettings.autoembed.title')}
+            accent='#3ba55d'
+            description={rich('ssettings.autoembed.hint', {code})}
+            help={<HelpDisclosure summary={t('sections.how_it_works')}><p>{t('ssettings.autoembed.hint_more')}</p></HelpDisclosure>}
+            readOnly={(editable) ? undefined : readOnlyMessage('settings')}
+          >
+            {/* said before the switches, they can all be on and still do nothing */}
+            {(!guild.premium_server) ? (
+              <div className='-mt-2 mb-4'>
+                <PremiumNote staffText={null}>{t('ssettings.autoembed.premium')}</PremiumNote>
+              </div>
+            ) : null}
+            <fieldset disabled={!editable} className='min-w-0 space-y-3'>
+              <div className='flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1'>
+                <p className='text-sm font-medium text-fg'>{t('ssettings.autoembed.label')}</p>
+                {(editable) ? (
+                  <div className='flex items-center gap-3 text-xs'>
+                    {/* sites this page doesn't list are kept either way, sorted like the api stores them */}
+                    <button
+                      type='button'
+                      className='cursor-pointer text-code hover:underline disabled:cursor-default disabled:text-subtle disabled:no-underline'
+                      disabled={GUILD_AUTO_EMBED_SITES.every((site) => autoEmbed.includes(site))}
+                      onClick={() => draft.set('auto_embed', [...new Set([...autoEmbed, ...GUILD_AUTO_EMBED_SITES])].sort())}
+                    >
+                      {t('common.all')}
+                    </button>
+                    <button
+                      type='button'
+                      className='cursor-pointer text-code hover:underline disabled:cursor-default disabled:text-subtle disabled:no-underline'
+                      disabled={!GUILD_AUTO_EMBED_SITES.some((site) => autoEmbed.includes(site))}
+                      onClick={() => draft.set('auto_embed', autoEmbed.filter((site) => !GUILD_AUTO_EMBED_SITES.includes(site)))}
+                    >
+                      {t('common.none')}
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+              <div className='grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2'>
+                {GUILD_AUTO_EMBED_SITES.map((site) => (
+                  <Toggle
+                    key={site}
+                    label={AUTO_EMBED_SITE_NAMES[site]}
+                    checked={autoEmbed.includes(site)}
+                    disabled={!editable}
+                    // sorted like the api stores them, so turning one off and on again isn't an unsaved change
+                    onChange={(value) => draft.set('auto_embed', [...autoEmbed.filter((x) => x !== site), ...(value) ? [site] : []].sort())}
+                  />
+                ))}
+              </div>
+              <div className='border-t border-line pt-3'>
+                <Toggle
+                  label={t('ssettings.autoembed.text')}
+                  description={t('ssettings.autoembed.text_hint')}
+                  checked={!!values.auto_embed_text}
+                  disabled={!editable}
+                  onChange={(value) => draft.set('auto_embed_text', value)}
+                />
+              </div>
+              <Field label={t('ssettings.autoembed.gallery')} hint={t('ssettings.autoembed.gallery_hint')}>
+                {(props) => <ChoiceSelect {...props} noneLabel={t('ssettings.autoembed.gallery_poster')} choices={POST_GALLERY_CHOICES} value={values.auto_embed_gallery} onChange={(value) => draft.set('auto_embed_gallery', value)}/>}
+              </Field>
+              <div className='border-t border-line pt-3'>
+                <Toggle
+                  label={t('ssettings.autoembed.members')}
+                  description={t('ssettings.autoembed.members_hint')}
+                  checked={values.auto_embed_members !== false}
+                  disabled={!editable}
+                  onChange={(value) => draft.set('auto_embed_members', value)}
+                />
+              </div>
+            </fieldset>
+            {(below) ? null : footer}
+          </Panel>
+          {(below) ? footer : null}
+        </>
+      ) : null}
     </form>
   );
 }

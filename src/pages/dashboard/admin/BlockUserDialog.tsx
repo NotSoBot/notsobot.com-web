@@ -86,18 +86,20 @@ export function BlockUserDialog({ user, blocked: blockedNow, blockedReason: bloc
       blocked_reason: reason.trim() || null,
       blocked_until: blockedUntilFromSeconds(duration),
     };
-    mutation.mutate({userId: user.id, patch}, {
-      onSuccess: () => {
-        toast((blocked) ? `Unblocked ${user.username}` : `Blocked ${user.username}`);
-        onClose();
-      },
-    });
+    // `mutateAsync`: the save refetches the lists, and one filtered by blocked (the users page's `?blocked=not`, the
+    // content flags list hiding blocked users) drops them, unmounting what opened this before `mutate`'s callbacks would
+    // run (no toast, nothing closed). The error shows below while it's still here
+    mutation.mutateAsync({userId: user.id, patch}).then(() => {
+      toast((blocked) ? `Unblocked ${user.username}` : `Blocked ${user.username}`);
+      onClose();
+    }, () => {});
   };
 
   return (
     <Modal labelledBy={titleId} onClose={() => !mutation.isPending && onClose()} className='max-w-lg'>
       <form
         className='p-5 sm:p-6'
+        data-state={(mutation.isPending) ? 'saving' : (mutation.isError) ? 'error' : 'idle'}
         onSubmit={(event) => {
           event.preventDefault();
           if (!mutation.isPending) {

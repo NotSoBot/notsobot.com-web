@@ -1,6 +1,6 @@
 import { Link } from 'react-router';
 
-import { CollapsibleNotice } from '@/components/ui/CollapsibleNotice';
+import { CollapsibleNotice, useNoticeDismissed } from '@/components/ui/CollapsibleNotice';
 import { Routes } from '@/config';
 import { useI18n, type TranslationKey } from '@/i18n';
 
@@ -9,15 +9,23 @@ import { useI18n, type TranslationKey } from '@/i18n';
 const TIMELINE_COUNT = 9;
 const CHANGE_COUNT = 13;
 
+const STORAGE_DISMISSED = 'notice:quarantine-dismissed';
+
 function numbered(count: number): Array<number> {
   return Array.from({length: count}, (_, index) => index + 1);
 }
 
 
-export function QuarantineNotice({ className }: {className?: string}) {
+// the page holds the answer rather than the notice, the docs page also shows a way back to it once it's closed
+export function useQuarantineNoticeDismissed() {
+  return useNoticeDismissed(STORAGE_DISMISSED);
+}
+
+
+export function QuarantineNotice({ className, defaultOpen, onDismiss }: {className?: string, defaultOpen?: boolean, onDismiss?: () => void}) {
   const { t, rich } = useI18n();
   return (
-    <CollapsibleNotice className={className} title={t('quarantine.title')} tone='success'>
+    <CollapsibleNotice className={className} title={t('quarantine.title')} tone='success' defaultOpen={defaultOpen} onDismiss={onDismiss}>
       <p>
         {rich('quarantine.intro', {
           code: (chunk) => <code className='font-mono text-code'>{chunk}</code>,

@@ -81,6 +81,7 @@ export function ApplicationNameDialog({ title, initialName = '', submitLabel, pe
               value={name}
               autoComplete='off'
               spellCheck={false}
+              data-autofocus
               disabled={pending}
               onChange={(event) => setName(event.target.value)}
             />

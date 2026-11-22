@@ -9,10 +9,10 @@ import { Link, useLocation } from 'react-router';
 import { Spinner } from '@/components/ui/Spinner';
 import { useCopied } from '@/hooks/useCopied';
 import { errorMessage } from '@/lib/api/dashboardQueries';
-import { cn, decodeHash, displayLocale, formatDate, formatMemory, formatNumber } from '@/lib/utils';
+import { cn, decodeHash, displayLocale, formatDate, formatDateTime, formatMemory, formatNumber, toDate } from '@/lib/utils';
 
-import { ErrorPanel, Panel, Skeleton } from '../../ui';
-import { Hint, InfoTip } from '../adminUi';
+import { ErrorPanel, InlineError, Panel, Skeleton } from '../../ui';
+import { ExactDate, Hint, InfoTip } from '../adminUi';
 
 
 // validated against the dark surface (dataviz palette check), each pair a chart uses is told apart by everyone.
@@ -56,19 +56,33 @@ export function dayLabel(date: string): string {
 }
 
 
+// 14:05 for today, the date too once it's from another day
+function asOfLabel(value: string | number): string {
+  const date = toDate(value);
+  return (date.toDateString() === new Date().toDateString()) ? date.toLocaleTimeString(displayLocale(), {hour: '2-digit', minute: '2-digit'}) : formatDateTime(value);
+}
+
 // A section of the page, with its own loading, error and refresh. `children` renders the data; while another window
-// loads the old numbers stay, dimmed. `id` is its link (`/dashboard/owner/stats#growth`), scrolled to once it has loaded
-export function StatsSection<T>({ id, title, accent, description, query, children }: {
+// loads the old numbers stay, dimmed. `id` is its link (`/dashboard/owner/stats#growth`), scrolled to once it has loaded.
+// "as of" next to Refresh is when its numbers are from: when they were fetched, or `asOf` for a section the api says
+// it for (Files, computed there ahead of time)
+export function StatsSection<T>({ id, title, accent, description, query, asOf, children }: {
   id: string,
   title: string,
   accent: string,
   description?: ReactNode,
   query: UseQueryResult<T>,
+  asOf?: string | number | null,
   children: (data: T) => ReactNode,
 }) {
-  const { data, isPending, isError, error, isFetching, isPlaceholderData, refetch } = query;
+  const { data, isPending, isError, error, isFetching, isPlaceholderData, dataUpdatedAt, refetch } = query;
+  // not while another window's numbers stand in, those are from an earlier request
+  const from = asOf ?? ((isPlaceholderData) ? null : dataUpdatedAt || null);
   const location = useLocation();
   const loaded = data !== undefined;
+  // loading: nothing yet, failed: nothing to show, stale: a refresh failed (the numbers shown are from before it),
+  // refreshing: a refresh or another window on the way, ready: up to date
+  const state = (isPending) ? 'loading' : (!loaded) ? 'failed' : (isError) ? 'stale' : (isFetching) ? 'refreshing' : 'ready';
 
   // after it loads, the skeleton is a different height; each navigation to the hash (the jump links too) scrolls again
   useEffect(() => {
@@ -78,12 +92,12 @@ export function StatsSection<T>({ id, title, accent, description, query, childre
   }, [id, loaded, location.key]);
 
   return (
-    <section id={id} aria-label={title} className='scroll-mt-24'>
+    <section id={id} aria-label={title} className='scroll-mt-24' data-state={state}>
       {(isPending) ? (
         <SectionSkeleton/>
-      ) : (isError && !data) ? (
+      ) : (data === undefined) ? (
         <ErrorPanel title={`Couldn’t load ${title.toLowerCase()} stats`} message={errorMessage(error)} onRetry={() => refetch()} retrying={isFetching}/>
-      ) : (data) ? (
+      ) : (
         <Panel
           // the link shows on hover next to the title, like the docs' headings
           title={(
@@ -95,15 +109,22 @@ export function StatsSection<T>({ id, title, accent, description, query, childre
           accent={accent}
           description={description}
           actions={(
-            <button type='button' className='btn btn-secondary btn-sm' onClick={() => refetch()} disabled={isFetching}>
-              {(isFetching && !isPlaceholderData) ? <Spinner className='size-4'/> : <RefreshCw aria-hidden className='size-4'/>}
-              <span className='max-sm:sr-only'>Refresh</span>
-            </button>
+            <>
+              {(from) ? <span className='text-xs text-subtle tabular-nums'>as of <ExactDate value={from} format={asOfLabel}/></span> : null}
+              <button type='button' className='btn btn-secondary btn-sm' onClick={() => refetch()} disabled={isFetching}>
+                {(isFetching && !isPlaceholderData) ? <Spinner className='size-4'/> : <RefreshCw aria-hidden className='size-4'/>}
+                <span className='max-sm:sr-only'>Refresh</span>
+              </button>
+            </>
           )}
         >
+          {/* a failed Refresh used to just stop spinning, leaving the old numbers looking current */}
+          {(state === 'stale') ? (
+            <div className='-mt-2 mb-3'><InlineError>Couldn’t refresh, these are from before: {errorMessage(error)}</InlineError></div>
+          ) : null}
           <div className={cn('transition-opacity', isPlaceholderData && 'opacity-60')}>{children(data)}</div>
         </Panel>
-      ) : null}
+      )}
     </section>
   );
 }

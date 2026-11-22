@@ -137,9 +137,13 @@
   }
 
   /* form controls (dashboard) */
+  /* 16px on phones: iOS zooms the page in when a field with smaller text is focused, and leaves it zoomed */
   .input {
-    @apply block w-full min-w-0 rounded-md border border-line bg-deep px-3 py-2 text-sm text-fg placeholder:text-subtle
-      transition-colors outline-none focus:border-brand disabled:cursor-not-allowed disabled:opacity-70;
+    @apply block w-full min-w-0 rounded-md border border-line bg-deep px-3 py-2 text-base text-fg placeholder:text-subtle
+      transition-colors outline-none focus:border-brand disabled:cursor-not-allowed disabled:opacity-70 sm:text-sm;
+  }
+  .input[aria-invalid='true'] {
+    @apply border-danger focus:border-danger;
   }
   select.input {
     @apply cursor-pointer appearance-none bg-no-repeat pr-9;

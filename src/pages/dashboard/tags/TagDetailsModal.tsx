@@ -1,5 +1,5 @@
 import { AlertTriangle, ArrowUpRight, ExternalLink, Lock, Pencil } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { Link } from 'react-router';
 
 import { useAuth } from '@/auth';
@@ -12,11 +12,11 @@ import { useArrowKeyNavigation } from '@/hooks/useArrowKeyNavigation';
 import { useI18n } from '@/i18n';
 import type { Tag } from '@/lib/api';
 import { errorMessage, useMeTagDirectoryQuery, useMeTagQuery } from '@/lib/api/dashboardQueries';
-import { formatDateTime, formatNumber } from '@/lib/utils';
+import { formatDateTime } from '@/lib/utils';
 import { tagDirectoryItemPath, VerificationBadge } from '@/pages/tags/tagDirectory';
 import { MediaSection } from '@/pages/tags/TagMedia';
 
-import { Chip, CopyableValue, DETAIL_LIST_STACKED, DetailList, ExactDate, selectAllScope } from '../admin/adminUi';
+import { Chip, CopyableValue, ExactDate, selectAllScope } from '../admin/adminUi';
 import { tagDiscordUrl, tagLocation, TagLocationChip, tagServerPath } from './tagMeta';
 
 
@@ -86,10 +86,10 @@ export function TagModalHeader({ tag, titleId, title, meta }: {tag: Tag, titleId
       mono
       meta={meta}
       states={[
-        (tag.locked) ? <Chip key='locked' tone='warning' title={t('dtags.chip.locked_title')} className='gap-1'><Lock aria-hidden className='size-3'/>{t('dtags.chip.locked')}</Chip> : null,
+        (tag.locked) ? <Chip key='locked' tone='warning' title={t('dtags.chip.locked_title')} className='gap-1'><Lock aria-hidden className='size-3'/>{t('dtags.badge.locked')}</Chip> : null,
         (tag.nsfw) ? <Chip key='nsfw' tone='danger' title={t('dtags.chip.nsfw_title')}>{t('tags.nsfw')}</Chip> : null,
-        (tag.is_command) ? <Chip key='command' tone='brand' title={t('dtags.chip.command_title')}>{t('dtags.chip.command')}</Chip> : null,
-        (tag.is_on_directory) ? <Chip key='directory' tone='success' title={t('dtags.chip.directory_title')}>{t('dtags.chip.directory')}</Chip> : null,
+        (tag.is_command) ? <Chip key='command' tone='brand' title={t('dtags.chip.command_title')}>{t('dtags.badge.command')}</Chip> : null,
+        (tag.is_on_directory) ? <Chip key='directory' tone='success' title={t('dtags.chip.directory_title')}>{t('dtags.badge.directory')}</Chip> : null,
       ]}
     />
   );
@@ -118,9 +118,14 @@ export function TagLocationStrip({ tag, guildNames, children }: {tag: Tag, guild
 
 
 function TagDetails({ tag, guildNames }: {tag: Tag, guildNames: Map<string, string>}) {
-  const { user } = useAuth();
-  const { t, rich } = useI18n();
-  const location = tagLocation(tag, user, guildNames);
+  const { t, rich, plural } = useI18n();
+  const { last_used: lastUsed, edited } = tag;
+  // only what there is: a tag that was never used or edited has no date for it
+  const facts = [
+    plural('dtags.uses', tag.uses),
+    (lastUsed) ? rich('dtags.detail.last_used', {date: () => <ExactDate value={lastUsed}/>}) : null,
+    (edited) ? rich('dtags.detail.edited', {date: () => <ExactDate value={edited}/>}) : null,
+  ].filter((fact) => fact !== null);
 
   return (
     <>
@@ -133,31 +138,19 @@ function TagDetails({ tag, guildNames }: {tag: Tag, guildNames: Map<string, stri
       <TagLocationStrip tag={tag} guildNames={guildNames}/>
 
       <div className='px-4 pt-4 pb-5 sm:px-6'>
-        {/* side by side once there's room. Stacked on phones, both lists share one label column (subgrid) so their values
-            line up */}
-        <div className='grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-4 sm:grid-cols-2'>
-          <DetailList
-            className={DETAIL_LIST_STACKED}
-            items={[
-              // phones only, the title's can be cut off there
-              [t('dtags.detail.name'), <CopyableValue value={tag.name} truncate={0}/>, 'sm:hidden'],
-              [t('dtags.detail.uses'), <span className='tabular-nums'>{formatNumber(tag.uses)}</span>],
-              [t('dtags.detail.last_used'), (tag.last_used) ? <ExactDate value={tag.last_used} format={formatDateTime}/> : t('common.never')],
-              [t('dtags.detail.created'), <ExactDate value={tag.created} format={formatDateTime}/>],
-              [t('dtags.detail.edited'), (tag.edited) ? <ExactDate value={tag.edited} format={formatDateTime}/> : t('common.never')],
-            ]}
-          />
-          <DetailList
-            className={DETAIL_LIST_STACKED}
-            items={[
-              [t('dtags.detail.tag'), <CopyableValue value={tag.id} truncate={0}/>],
-              (location.id) ? [t((location.kind === 'server') ? 'dtags.detail.server' : 'dtags.detail.channel'), <CopyableValue value={location.id} truncate={0}/>] : null,
-              [t('dtags.detail.locked'), t((tag.locked) ? 'common.yes' : 'common.no')],
-              [t('dtags.detail.command'), t((tag.is_command) ? 'common.yes' : 'common.no')],
-              [t('dtags.detail.nsfw'), t((tag.nsfw) ? 'common.yes' : 'common.no')],
-            ]}
-          />
-        </div>
+        {/* phones only, the title's can be cut off there */}
+        <div className='mb-2 sm:hidden'><CopyableValue value={tag.name} truncate={0}/></div>
+        {/* one line and the tag's id: when it was made is under the title, what it is (locked, a command, NSFW) are the
+            header's chips and where it lives is the strip above, so none of those are repeated here */}
+        <p className='text-sm text-muted'>
+          {facts.map((fact, i) => (
+            <Fragment key={i}>
+              {(i) ? <span className='text-subtle'> • </span> : null}
+              {fact}
+            </Fragment>
+          ))}
+        </p>
+        <div className='mt-0.5'><CopyableValue value={tag.id} truncate={0}/></div>
 
         <div className='mt-4'>
           <div className='mb-1 flex min-h-8 items-center justify-between gap-2'>

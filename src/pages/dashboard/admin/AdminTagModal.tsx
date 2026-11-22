@@ -1,4 +1,4 @@
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Keyboard } from 'lucide-react';
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 
@@ -6,9 +6,11 @@ import { ModalFooter } from '@/components/ui/DetailModal';
 import { Modal, openModalCount } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
 import { isArrowNavigationTarget } from '@/hooks/useArrowKeyNavigation';
+import { usePersistentState } from '@/hooks/usePersistentState';
 import { useI18n } from '@/i18n';
 import { ApiRequestError } from '@/lib/api';
 import { errorMessage } from '@/lib/api/dashboardQueries';
+import { cn } from '@/lib/utils';
 
 
 // Which of a page's items is open in its modal, and the ones either side of it for ← / →. The open item is kept
@@ -152,8 +154,9 @@ function setSliding(element: HTMLElement, sliding: boolean) {
   }
 }
 
-// `AdminModalFooter`'s Previous / Next go through the modal so they slide too, and are off while it's held
-const SlideNavigation = createContext<{slide: (id: string) => void, held: boolean} | null>(null);
+// `AdminModalFooter`'s Previous / Next go through the modal so they slide too, and are off while it's held. `advance`
+// is for a verdict that went through (`useReviewShortcuts`): on to the next item, if nothing holds the modal here
+const SlideNavigation = createContext<{slide: (id: string) => void, held: boolean, advance: () => void} | null>(null);
 // how many of the item's parts are holding the modal on it (`useHoldModalNavigation`)
 const NavigationHolds = createContext<Dispatch<SetStateAction<number>> | null>(null);
 
@@ -239,6 +242,21 @@ export function AdminTagModal({ labelledBy, previousId, nextId, onNavigate, onCl
     // a newer slide cancelling this one takes over from here
     animation.finished.then(() => setSliding(element, false), () => {});
   });
+
+  // A verdict's own hold lets go in the same update that asks for this, so `held` is read after it: whatever still
+  // holds the modal then (unsaved edits, another request) keeps it on this item, and the ask is dropped, not kept
+  // for later
+  const [ advancing, setAdvancing ] = useState(false);
+  useEffect(() => {
+    if (!advancing) {
+      return;
+    }
+    setAdvancing(false);
+    const { nextId, held } = navigation.current;
+    if (nextId && !held) {
+      step.current(nextId);
+    }
+  }, [advancing]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -353,7 +371,7 @@ export function AdminTagModal({ labelledBy, previousId, nextId, onNavigate, onCl
   return (
     <Modal labelledBy={labelledBy} onClose={onClose} stickyClose={stickyClose}>
       <NavigationHolds.Provider value={setHolds}>
-        <SlideNavigation.Provider value={{slide: (id) => step.current(id), held}}>
+        <SlideNavigation.Provider value={{slide: (id) => step.current(id), held, advance: () => setAdvancing(true)}}>
           <div ref={slideRef}>
             {children}
             {(footer) ? <AdminModalFooter previousId={previousId} nextId={nextId} onNavigate={onNavigate}/> : null}
@@ -379,5 +397,94 @@ export function AdminModalFooter({ previousId, nextId, onNavigate, children }: {
     <ModalFooter previousId={(held) ? null : previousId} nextId={(held) ? null : nextId} onNavigate={navigation?.slide ?? onNavigate}>
       {children}
     </ModalFooter>
+  );
+}
+
+
+// the verdicts' keys, the same letter in every review queue that has the action
+export const REVIEW_KEYS = {confirm: 'c', dismiss: 'd', resolve: 'r', verify: 'v', unverify: 'u'} as const;
+
+// Single keys for a review modal's verdicts (content flags, reports, the tag directory), off unless turned on with
+// `ReviewShortcutsToggle`, per browser. `keys` maps a letter to its verdict, left out while the modal doesn't offer it.
+// Ignored like ← / → are (with a modifier held, from a field, under another dialog), and also with Shift, while the
+// key repeats (holding one down would go through the whole queue) and while `pending` (a request in flight, the
+// buttons are disabled then too).
+// With shortcuts on, a verdict that went through calls `advance()` and the modal steps to the next item: once its
+// request is done, and only if nothing holds the modal on this one by then (`held`, what the item passes to
+// `useHoldModalNavigation`; a note saved along with the verdict no longer does).
+export function useReviewShortcuts({ keys, pending, held }: {
+  keys: Record<string, (() => void) | undefined>,
+  pending: boolean,
+  held: boolean,
+}) {
+  const [ enabled, setEnabled ] = usePersistentState('admin:review-shortcuts', false);
+  const navigation = useContext(SlideNavigation);
+  const [ advancing, setAdvancing ] = useState(false);
+  const latest = useRef({keys, pending, enabled});
+  latest.current = {keys, pending, enabled};
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const { keys, pending, enabled } = latest.current;
+      if (!enabled || pending || event.repeat || event.defaultPrevented) {
+        return;
+      }
+      if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || !isArrowNavigationTarget(event.target)) {
+        return;
+      }
+      const run = keys[event.key.toLowerCase()];
+      if (run) {
+        event.preventDefault();
+        run();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  useEffect(() => {
+    if (!advancing || pending) {
+      return;
+    }
+    setAdvancing(false);
+    if (!held) {
+      navigation?.advance();
+    }
+  }, [advancing, pending, held]);
+
+  return {
+    enabled,
+    setEnabled,
+    advance: () => {
+      if (latest.current.enabled) {
+        setAdvancing(true);
+      }
+    },
+    // a verdict button's title, with its key while shortcuts are on
+    title: (label: string, key: string) => (enabled) ? `${label} (${key.toUpperCase()})` : undefined,
+  };
+}
+
+
+// The "Shortcuts" switch of a review modal, in its header's `status` just before the status chip (the footer has no
+// room left beside a flag's four actions). `legend` is that queue's keys, like "C confirm • D dismiss". Not on
+// phones: there's no keyboard, and the title needs the room. Only the icon until lg, for the same reason.
+export function ReviewShortcutsToggle({ enabled, onChange, legend }: {enabled: boolean, onChange: (enabled: boolean) => void, legend: string}) {
+  return (
+    <button
+      type='button'
+      aria-pressed={enabled}
+      title={(enabled)
+        ? `Shortcuts are on: ${legend}, then the next one opens. Click to turn them off.`
+        : `Shortcuts are off. Click for single-key verdicts (${legend}), each then opens the next one.`}
+      className={cn(
+        'mr-2 hidden cursor-pointer items-center gap-1 rounded px-1 text-xs font-medium whitespace-nowrap transition-colors sm:inline-flex',
+        (enabled) ? 'bg-brand/25 text-[#aab2ff] hover:bg-brand/35' : 'text-subtle hover:bg-surface-2 hover:text-fg',
+      )}
+      onClick={() => onChange(!enabled)}
+    >
+      <Keyboard aria-hidden className='size-4 shrink-0'/>
+      <span className='sr-only lg:not-sr-only'>Shortcuts</span>
+    </button>
   );
 }

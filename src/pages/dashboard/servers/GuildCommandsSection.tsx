@@ -57,7 +57,7 @@ export function GuildCommandsSection({ guild }: {guild: UserGuild}) {
         <div className='space-y-4'>
           <Segmented label={t('scommands.range')} value={days} options={RANGE_OPTIONS.map((value) => ({value, label: t(`scommands.range.${value}` as TranslationKey)}))} onChange={setDays}/>
           {(query.isError) ? (
-            <InlineError>{errorMessage(query.error, t('scommands.load_error'))}</InlineError>
+            <InlineError onRetry={() => void query.refetch()} retrying={query.isRefetching}>{errorMessage(query.error, t('scommands.load_error'))}</InlineError>
           ) : (!data) ? (
             <div aria-busy='true' className='space-y-3'>
               <Skeleton className='h-16 w-full'/>

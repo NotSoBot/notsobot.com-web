@@ -22,7 +22,7 @@ export const Home: Record<keyof typeof English, string> = {
   'home.features.tags.title': 'Tags personalizadas',
   'home.features.tags.description': 'Encadeie comandos nas suas próprias tags, ou pegue tags feitas pela comunidade no diretório de tags.',
   'home.features.music.title': 'Música',
-  'home.features.music.description': 'Toque músicas e links em canais de voz com uma fila compartilhada, efeitos ao vivo, modo DJ e votação para pular. Grátis em todos os servidores.',
+  'home.features.music.description': 'Toque músicas e links em canais de voz com uma fila compartilhada, modo DJ e votação para pular. Grátis em todos os servidores, com 24/7, uma fila maior e efeitos ao vivo nos servidores premium.',
   'home.features.moderation.title': 'Moderação',
   'home.features.moderation.description': 'Advirta, silencie, expulse e bana, limpe o chat, registre o que acontece, receba denúncias dos membros e decida quem pode usar cada comando.',
   'home.features.ai.title': 'IA',
@@ -31,9 +31,6 @@ export const Home: Record<keyof typeof English, string> = {
   'home.features.tts.description': 'Faça o NotSoBot ler texto no seu canal de voz, com a voz que você escolher.',
   'home.features.voices.title': 'Clonagem de voz',
   'home.features.voices.description': 'Clone uma voz a partir de um clipe de áudio ou vídeo e faça o NotSoBot falar com ela no texto para fala.',
-  // tier names, same as the dashboard's `premium_type.*` (not loaded on this page)
-  'home.features.premium_plus': 'Premium+',
-  'home.features.premium_max': 'Premium Max',
 
   'home.steps.title': 'Como funciona',
   'home.steps.post.title': 'Mande uma mídia',

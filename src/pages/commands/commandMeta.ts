@@ -70,6 +70,18 @@ export function sharedRatelimitLabel(key: string): TranslationKey {
   return SHARED_RATELIMIT_LABELS[key] ?? 'commands.ratelimit_group.other';
 }
 
+// who a ratelimit counts for, the bot uploads its command client's `user`/`guild`/`channel`. null for one this site
+// doesn't know, which is shown as it came
+const RATELIMIT_SCOPE_LABELS: Record<string, TranslationKey> = {
+  user: 'commands.drawer.ratelimit_scope.user',
+  guild: 'commands.drawer.ratelimit_scope.server',
+  channel: 'commands.drawer.ratelimit_scope.channel',
+};
+
+export function ratelimitScopeLabel(type: string): TranslationKey | null {
+  return RATELIMIT_SCOPE_LABELS[type] ?? null;
+}
+
 
 export const TYPE_LABELS: Record<CommandType, TranslationKey> = {
   [CommandTypes.PREFIXED]: 'command_type.prefixed',
@@ -155,6 +167,11 @@ export function categoryOrder(label: (key: TranslationKey) => string): Array<str
 }
 
 
+// the usage stats request. uses are 0 until it's `ready`, so nothing may read them as "unused" while it's `pending`
+// or once it `failed`
+export type StatsState = 'pending' | 'failed' | 'ready';
+
+
 // one way to run a command (prefix, slash, a context menu) and its uses in the stats window (0 when unused or unknown)
 export interface Variant {
   metadata: CommandMetadata,
@@ -194,6 +211,14 @@ function commandTypes(command: Command): Array<CommandType> {
 
 export function commandPath(command: Command, type: CommandType): string {
   return commandPathFor(command.id, type, commandTypes(command));
+}
+
+// the history state of the entry a card's click adds. the list is the entry before it, so closing the drawer can go
+// back to it (a drawer opened by its url has no such entry behind it)
+export const OPENED_FROM_LIST = Object.freeze({fromList: true});
+
+export function openedFromList(state: unknown): boolean {
+  return !!(state as {fromList?: boolean} | null)?.fromList;
 }
 
 // the entry (and which of its variants) a /commands/:commandId(/:commandType) path points at, undefined for an unknown

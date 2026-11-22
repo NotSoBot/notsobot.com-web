@@ -1,12 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
-import { BookOpen, Check, Copy, Link2 } from 'lucide-react';
-import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Link, useLocation, useMatch, useNavigate } from 'react-router';
+import { BookOpen, Check, ChevronDown, Copy, Link2 } from 'lucide-react';
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Link, NavigationType, useLocation, useMatch, useNavigate, useNavigationType, useSearchParams } from 'react-router';
 
 import { Segmented } from '@/components/ui/Segmented';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Spinner } from '@/components/ui/Spinner';
-import { QuarantineNotice } from '@/components/ui/QuarantineNotice';
+import { QuarantineNotice, useQuarantineNoticeDismissed } from '@/components/ui/QuarantineNotice';
 import { Routes } from '@/config';
 import {
   mediaScriptCommandAnchor,
@@ -81,14 +81,44 @@ export function TagDocsPage() {
   const navigate = useNavigate();
   const { t, plural, rich } = useI18n();
   const { docs, ready } = useTagDocs();
-  const [ query, setQuery ] = useState('');
+  // the search is in `?q=` like the tag directory's, so a reload or a shared link keeps it. The input's text is its own
+  // state: the router changes the url in a transition, and an input driven by one drops keystrokes on a page this long
+  const [ searchParams, setSearchParams ] = useSearchParams();
+  const urlQuery = searchParams.get('q') || '';
+  const [ query, setQueryText ] = useState(urlQuery);
+  const setQuery = (value: string) => {
+    setQueryText(value);
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      if (value) {
+        next.set('q', value);
+      } else {
+        next.delete('q');
+      }
+      return next;
+    }, {replace: true, preventScrollReset: true});
+  };
+  // typing replaces the entry, so any other kind of navigation (a link to the docs, back/forward) is the url's search
+  // changing under the input
+  const navigationType = useNavigationType();
+  useEffect(() => {
+    if (navigationType !== NavigationType.Replace) {
+      setQueryText(urlQuery);
+    }
+  }, [location.key, navigationType, urlQuery]);
 
   const hash = decodeHash(location.hash);
   const view: DocsView = (useMatch(Routes.TAG_DOCS_MEDIASCRIPT)) ? 'mediascript' : 'tagscript';
   const setView = (value: string) => {
-    navigate(VIEW_PATHS[value as DocsView], {replace: true});
+    // the search carries over to the other one
+    navigate({pathname: VIEW_PATHS[value as DocsView], search: location.search}, {replace: true});
     window.scrollTo({top: 0});
   };
+  // the "On this page" menu below lg
+  const mobileNav = useRef<HTMLDetailsElement>(null);
+  // closed, the notice leaves a link under the description that brings it back, already open since they asked for it
+  const [ quarantineDismissed, setQuarantineDismissed ] = useQuarantineNoticeDismissed();
+  const [ quarantineReopened, setQuarantineReopened ] = useState(false);
 
   const needle = query.trim().toLowerCase();
   const guide = useMemo(() => {
@@ -134,19 +164,33 @@ export function TagDocsPage() {
     <div className='[font-variant-ligatures:none]'>
       <div className='border-b border-line bg-surface'>
         <div className='container-page py-10 sm:py-12'>
-          <QuarantineNotice className='mb-6 max-w-3xl'/>
+          {(quarantineDismissed) ? null : (
+            <QuarantineNotice className='mb-6 max-w-3xl' defaultOpen={quarantineReopened} onDismiss={() => setQuarantineDismissed(true)}/>
+          )}
           <div className='mb-3 flex items-center gap-2 text-sm font-medium text-brand-text'>
             <BookOpen className='size-4'/>
             {t('tag_docs.badge')}
           </div>
           <h1 className='mb-2 text-3xl font-bold text-white sm:text-4xl'>{t('tag_docs.title')}</h1>
-          <p className='mb-6 max-w-2xl text-muted'>
+          <p className={cn('max-w-2xl text-muted', (quarantineDismissed) ? 'mb-2' : 'mb-6')}>
             {(view === 'mediascript') ? (
               rich('tag_docs.description_mediascript', {code}, {count: docs.mediaScriptCommands.length})
             ) : (
               t('tag_docs.description_tagscript', {count: docs.functions.length})
             )}
           </p>
+          {(quarantineDismissed) ? (
+            <button
+              type='button'
+              onClick={() => {
+                setQuarantineReopened(true);
+                setQuarantineDismissed(false);
+              }}
+              className='mb-6 block cursor-pointer text-sm text-code hover:underline'
+            >
+              {t('tag_docs.quarantine_link')}
+            </button>
+          ) : null}
           <div className='flex max-w-3xl flex-col gap-3 sm:flex-row sm:items-center'>
             <Segmented label={t('tag_docs.view_label')} value={view} options={VIEW_OPTIONS} onChange={setView}/>
             <SearchInput
@@ -166,38 +210,36 @@ export function TagDocsPage() {
               })}
             </p>
           ) : null}
+          {(ready && (guide.length || categories.length)) ? (
+            // below lg there's no sidebar, so the same links sit here, closed until asked for
+            <details ref={mobileNav} className='group mt-3 max-w-3xl rounded-lg border border-line bg-deep lg:hidden'>
+              <summary className='flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-2.5 text-sm font-medium text-fg [&::-webkit-details-marker]:hidden'>
+                {t('tag_docs.on_this_page')}
+                <ChevronDown aria-hidden className='size-4 shrink-0 text-subtle transition-transform group-open:rotate-180'/>
+              </summary>
+              <nav aria-label={t('tag_docs.nav_label')} className='max-h-[60vh] overflow-y-auto border-t border-line p-2'>
+                <SectionLinks
+                  view={view}
+                  guide={guide}
+                  categories={categories}
+                  onNavigate={(id) => {
+                    // closed first: it sits above the sections, so closing it after would move the one just scrolled to
+                    if (mobileNav.current) {
+                      mobileNav.current.open = false;
+                    }
+                    scrollTo(id);
+                  }}
+                />
+              </nav>
+            </details>
+          ) : null}
         </div>
       </div>
 
       {(ready) ? (
         <div className='container-page grid grid-cols-[minmax(0,1fr)] gap-8 py-10 lg:grid-cols-[230px_minmax(0,1fr)]'>
           <nav aria-label={t('tag_docs.nav_label')} className='hidden lg:sticky lg:top-24 lg:block lg:max-h-[calc(100vh-7rem)] lg:self-start lg:overflow-y-auto'>
-            {(guide.length) ? (
-              <>
-                <h2 className='section-label mb-2 px-1'>{t('tag_docs.guide')}</h2>
-                <ul className='mb-6 space-y-0.5'>
-                  {guide.map((section) => (
-                    <li key={section.id}>
-                      <SidebarButton onClick={() => scrollTo(guideAnchor(view, section))}>{section.title.replaceAll('`', '')}</SidebarButton>
-                    </li>
-                  ))}
-                </ul>
-              </>
-            ) : null}
-            {(categories.length) ? (
-              <>
-                <h2 className='section-label mb-2 px-1'>{t('tag_docs.reference')}</h2>
-                <ul className='space-y-0.5'>
-                  {categories.map((category) => (
-                    <li key={category.id}>
-                      <SidebarButton onClick={() => scrollTo(categoryAnchor(view, category.id))} count={category.count}>
-                        {category.title}
-                      </SidebarButton>
-                    </li>
-                  ))}
-                </ul>
-              </>
-            ) : null}
+            <SectionLinks view={view} guide={guide} categories={categories} onNavigate={scrollTo}/>
           </nav>
 
           <div className='min-w-0 space-y-12'>
@@ -245,6 +287,47 @@ export function TagDocsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+
+// the guide and reference links: the sidebar on wide screens, the "On this page" menu under the search below that
+function SectionLinks({ view, guide, categories, onNavigate }: {
+  view: DocsView,
+  guide: ReadonlyArray<TagDocGuideSection>,
+  categories: ReadonlyArray<{id: string, title: string, count: number}>,
+  onNavigate: (id: string) => void,
+}) {
+  const { t } = useI18n();
+  return (
+    <>
+      {(guide.length) ? (
+        <>
+          <h2 className='section-label mb-2 px-1'>{t('tag_docs.guide')}</h2>
+          <ul className='mb-6 space-y-0.5'>
+            {guide.map((section) => (
+              <li key={section.id}>
+                <SidebarButton onClick={() => onNavigate(guideAnchor(view, section))}>{section.title.replaceAll('`', '')}</SidebarButton>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
+      {(categories.length) ? (
+        <>
+          <h2 className='section-label mb-2 px-1'>{t('tag_docs.reference')}</h2>
+          <ul className='space-y-0.5'>
+            {categories.map((category) => (
+              <li key={category.id}>
+                <SidebarButton onClick={() => onNavigate(categoryAnchor(view, category.id))} count={category.count}>
+                  {category.title}
+                </SidebarButton>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
+    </>
   );
 }
 
@@ -305,7 +388,8 @@ function FunctionCard({ fn, highlight }: {fn: TagDocFunction, highlight: string}
     <article id={anchor} className='scroll-mt-24 rounded-lg border border-line bg-surface p-5'>
       <header className='mb-2 flex flex-wrap items-center gap-x-3 gap-y-1.5'>
         <h3 className='group flex items-center gap-2 font-mono text-lg font-semibold text-white'>
-          <span>{'{'}<Highlight text={name} query={highlight}/>{'}'}</span>
+          {/* a long name wraps instead of pushing the page wider than a phone */}
+          <span className='min-w-0 wrap-anywhere'>{'{'}<Highlight text={name} query={highlight}/>{'}'}</span>
           <AnchorLink id={anchor}/>
         </h3>
         {(aliases.length) ? (
@@ -361,7 +445,7 @@ function MediaScriptCard({ command, highlight }: {command: TagDocMediaScriptComm
     <article id={anchor} className='scroll-mt-24 rounded-lg border border-line bg-surface p-5'>
       <header className='mb-2 flex flex-wrap items-center gap-x-3 gap-y-1.5'>
         <h3 className='group flex items-center gap-2 font-mono text-lg font-semibold text-white'>
-          <Highlight text={command.name} query={highlight}/>
+          <span className='min-w-0 wrap-anywhere'><Highlight text={command.name} query={highlight}/></span>
           <AnchorLink id={anchor}/>
         </h3>
         {(command.aliases?.length) ? (
@@ -437,6 +521,7 @@ function Examples({ examples }: {examples: Array<TagDocExample>}) {
 }
 
 
+// the copy button and `AnchorLink` only show on hover with a mouse; a touch screen has no hover, so they're always there
 function CodeBlock({ code, bare }: {code: string, bare?: boolean}) {
   const { t } = useI18n();
   // a blocked clipboard just doesn't show the check
@@ -448,7 +533,7 @@ function CodeBlock({ code, bare }: {code: string, bare?: boolean}) {
         type='button'
         onClick={() => copy(code)}
         aria-label={t('tag_docs.copy_code')}
-        className='absolute top-1.5 right-1.5 cursor-pointer rounded p-1.5 text-subtle opacity-0 transition-opacity group-hover:opacity-100 hover:bg-surface-3 hover:text-white focus-visible:opacity-100'
+        className='absolute top-1.5 right-1.5 cursor-pointer rounded p-1.5 text-subtle opacity-0 transition-opacity group-hover:opacity-100 hover:bg-surface-3 hover:text-white focus-visible:opacity-100 [@media(hover:none)]:opacity-100'
       >
         {(copied) ? <Check className='size-3.5 text-success-text'/> : <Copy className='size-3.5'/>}
       </button>
@@ -463,7 +548,7 @@ function AnchorLink({ id }: {id: string}) {
     <a
       href={`#${id}`}
       aria-label={t('tag_docs.anchor_link')}
-      className='text-subtle opacity-0 transition-opacity group-hover:opacity-100 hover:text-white focus-visible:opacity-100'
+      className='text-subtle opacity-0 transition-opacity group-hover:opacity-100 hover:text-white focus-visible:opacity-100 [@media(hover:none)]:opacity-100'
     >
       <Link2 className='size-4'/>
     </a>
@@ -504,7 +589,7 @@ function Inline({ text, highlight }: {text: string, highlight: string}) {
     <>
       {text.split(INLINE_PATTERN).map((part, i) => {
         if (part.startsWith('`') && part.endsWith('`') && 2 < part.length) {
-          return <code key={i} className='rounded bg-deep box-decoration-clone px-1.5 py-0.5 font-mono text-[0.85em] text-code'>{part.slice(1, -1)}</code>;
+          return <code key={i} className='rounded bg-deep box-decoration-clone px-1.5 py-0.5 font-mono text-[0.85em] wrap-anywhere text-code'>{part.slice(1, -1)}</code>;
         }
         return <Fragment key={i}><Highlight text={part} query={highlight}/></Fragment>;
       })}

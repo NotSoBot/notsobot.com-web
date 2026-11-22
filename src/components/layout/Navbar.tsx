@@ -5,7 +5,7 @@ import { Link, matchPath, NavLink, useLocation } from 'react-router';
 import logo from '@/assets/logos/NotSoLogo.svg';
 import { config, Routes } from '@/config';
 import { useI18n } from '@/i18n';
-import { ApiEndpoints, apiUrl } from '@/lib/api';
+import { botInviteUrl } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
 import { AuthControls } from './AuthControls';
@@ -48,11 +48,30 @@ export function Navbar() {
   const { t } = useI18n();
   const [ mobileOpen, setMobileOpen ] = useState(false);
   const location = useLocation();
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   // close the mobile menu whenever we navigate
   useEffect(() => {
     setMobileOpen(false);
   }, [location.pathname]);
+
+  // and on Escape, handing focus back to its button when it was on one of the menu's links (they're gone)
+  useEffect(() => {
+    if (!mobileOpen) {
+      return;
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        if (menuRef.current?.contains(document.activeElement)) {
+          menuButtonRef.current?.focus();
+        }
+        setMobileOpen(false);
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [mobileOpen]);
 
   const isAlsoActive = (paths?: ReadonlyArray<string>) => !!paths?.some((path) => !!matchPath({path, end: false}, location.pathname));
 
@@ -60,6 +79,7 @@ export function Navbar() {
     <header className='sticky top-0 z-40 border-b border-line bg-surface'>
       <nav className='container-page flex h-16 items-center gap-4' aria-label={t('nav.main')}>
         <button
+          ref={menuButtonRef}
           type='button'
           className='btn btn-ghost -ml-2 px-2 md:hidden'
           aria-label={t(mobileOpen ? 'nav.close_menu' : 'nav.open_menu')}
@@ -89,7 +109,7 @@ export function Navbar() {
       </nav>
 
       {(mobileOpen) ? (
-        <div className='animate-fade-in border-t border-line md:hidden'>
+        <div ref={menuRef} className='animate-fade-in border-t border-line md:hidden'>
           <ul className='container-page flex flex-col gap-1 py-3'>
             {NAV_LINKS.map((link) => (
               <li key={link.to}>
@@ -105,7 +125,7 @@ export function Navbar() {
               </li>
             ))}
             <li className='pt-2'>
-              <a href={apiUrl(ApiEndpoints.HELP_DISCORD_BOT)} className='btn btn-discord w-full'>{t('common.add_to_discord')}</a>
+              <a href={botInviteUrl(null, 'navbar')} className='btn btn-discord w-full'>{t('common.add_to_discord')}</a>
             </li>
           </ul>
         </div>

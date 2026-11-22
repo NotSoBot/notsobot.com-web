@@ -3,7 +3,7 @@
 // subscribers can stack more than one slot on a server, each raises its NotSoAI limit.
 
 import { ExternalLink, Layers, Lock, MessagesSquare, Plus, Server, Trash2 } from 'lucide-react';
-import { useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useReducer, useState } from 'react';
 import { Link } from 'react-router';
 
 import { useAuth } from '@/auth';
@@ -35,7 +35,7 @@ import { MissingServersNotice, ScopeMismatchCard } from './servers/ServersPage';
 import { EmptyState, ErrorPanel, Skeleton } from './ui';
 
 
-// the api's `PREMIUM_SERVER_SWAP_COOLDOWN`, only used to explain the lock before a server is added
+// the api's `PREMIUM_SERVER_SWAP_COOLDOWN`, only used to explain the lock before a server or another slot is added
 const LOCK_HOURS = 24;
 // the lock only lasts a day, so the time matters more than the year
 const LOCK_FORMAT: Intl.DateTimeFormatOptions = {month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'};
@@ -55,6 +55,8 @@ export function PremiumServers() {
   const stack = usePutMePremiumServerMutation();
   const [ adding, setAdding ] = useState(false);
   const [ removing, setRemoving ] = useState<PremiumServer | null>(null);
+  // the server another slot is about to go on: it's asked first, a slot is locked in for a day once it's added
+  const [ stacking, setStacking ] = useState<PremiumServer | null>(null);
 
   const items = data?.items ?? [];
   const full = !!data && data.limit !== null && data.limit <= data.used;
@@ -73,10 +75,15 @@ export function PremiumServers() {
     });
   };
 
-  const addSlot = (server: PremiumServer) => {
-    stack.mutate(server.server_id, {
-      onSuccess: () => toast(t('pservers.stacked', {name: serverName(server), count: server.slots + 1})),
-      onError: (stackError) => toast(errorMessage(stackError, t('pservers.stack_error')), 'error'),
+  const confirmStack = () => {
+    if (!stacking) {
+      return;
+    }
+    stack.mutate(stacking.server_id, {
+      onSuccess: () => {
+        toast(t('pservers.stacked', {name: serverName(stacking), count: stacking.slots + 1}));
+        setStacking(null);
+      },
     });
   };
 
@@ -97,16 +104,20 @@ export function PremiumServers() {
           </p>
         </div>
         {(data?.active) ? (
-          <button
-            type='button'
-            className='btn btn-sm btn-primary'
-            disabled={full}
-            title={(full) ? t('pservers.full') : undefined}
-            onClick={() => setAdding(true)}
-          >
-            <Plus className='size-4'/>
-            {t('pservers.add')}
-          </button>
+          <div className='flex flex-col items-start gap-1 sm:items-end'>
+            <button
+              type='button'
+              className='btn btn-sm btn-primary'
+              disabled={full}
+              title={(full) ? t('pservers.full') : undefined}
+              onClick={() => setAdding(true)}
+            >
+              <Plus className='size-4'/>
+              {t('pservers.add')}
+            </button>
+            {/* why it's disabled, a tooltip doesn't show on touch */}
+            {(full) ? <p className='text-xs text-subtle'>{t('pservers.full')}</p> : null}
+          </div>
         ) : null}
       </div>
 
@@ -139,10 +150,7 @@ export function PremiumServers() {
                     server={server}
                     active={data.active}
                     // the dashboard can only add guilds, a group dm's extra slot is added with the bot
-                    onStack={(canStack && server.guild) ? () => addSlot(server) : null}
-                    stacking={stack.isPending && stack.variables === server.server_id}
-                    // one at a time: a second add would take over the first's toast and spinner
-                    stackDisabled={stack.isPending}
+                    onStack={(canStack && server.guild) ? () => setStacking(server) : null}
                     onRemove={() => setRemoving(server)}
                   />
                 ))}
@@ -154,6 +162,22 @@ export function PremiumServers() {
 
       {(adding && data) ? (
         <AddServerDialog taken={items.map((server) => server.server_id)} onClose={() => setAdding(false)}/>
+      ) : null}
+
+      {(stacking) ? (
+        <ConfirmDialog
+          title={t('pservers.stack_confirm_title', {name: serverName(stacking)})}
+          description={t('pservers.stack_confirm_description', {messages: SERVER_AI_MESSAGES_PER_SLOT, hours: LOCK_HOURS})}
+          confirmLabel={t('pservers.add_slot')}
+          tone='primary'
+          pending={stack.isPending}
+          error={(stack.isError) ? errorMessage(stack.error, t('pservers.stack_error')) : null}
+          onConfirm={confirmStack}
+          onClose={() => {
+            stack.reset();
+            setStacking(null);
+          }}
+        />
       ) : null}
 
       {(removing) ? (
@@ -179,18 +203,28 @@ export function PremiumServers() {
 }
 
 
-function ServerRow({ server, active, onStack, stacking, stackDisabled, onRemove }: {
+function ServerRow({ server, active, onStack, onRemove }: {
   server: PremiumServer,
   active: boolean,
   onStack: (() => void) | null,
-  stacking: boolean,
-  stackDisabled: boolean,
   onRemove: () => void,
 }) {
   const { t } = useI18n();
   const name = serverName(server);
   // the lock only matters while they have premium plus, the api lets them remove it any time otherwise
-  const locked = active && Date.now() < toDate(server.removable_at).getTime();
+  const removableAt = toDate(server.removable_at).getTime();
+  const locked = active && Date.now() < removableAt;
+  // drawn again when the lock runs out, so Remove turns on without a reload (the lock is at most a day, well under
+  // setTimeout's ~24.8 day limit)
+  const [ , redraw ] = useReducer((count: number) => count + 1, 0);
+  useEffect(() => {
+    const wait = removableAt - Date.now();
+    if (!active || wait <= 0 || 0x7fffffff < wait) {
+      return;
+    }
+    const timer = window.setTimeout(redraw, wait + 500);
+    return () => window.clearTimeout(timer);
+  }, [active, removableAt]);
 
   return (
     <li className='flex items-center gap-3 px-4 py-3'>
@@ -236,12 +270,11 @@ function ServerRow({ server, active, onStack, stacking, stackDisabled, onRemove 
         <button
           type='button'
           className='btn btn-sm btn-secondary shrink-0'
-          disabled={stackDisabled}
           title={t('pservers.stack_title', {messages: SERVER_AI_MESSAGES_PER_SLOT})}
           onClick={onStack}
           aria-label={t('pservers.stack_label', {name})}
         >
-          {(stacking) ? <Spinner className='size-4'/> : <Layers className='size-4'/>}
+          <Layers className='size-4'/>
           <span className='hidden sm:inline'>{t('pservers.add_slot')}</span>
         </button>
       ) : null}

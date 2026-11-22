@@ -4,6 +4,7 @@ import { useId, useState } from 'react';
 import { useAuth } from '@/auth';
 import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
+import { readStored, writeStored } from '@/hooks/usePersistentState';
 import { translate, useI18n } from '@/i18n';
 import { ApiErrorCodes, ApiRequestError, TagDirectoryVerificationStates, type Tag } from '@/lib/api';
 import { errorMessage, isDiscordGrantError, isScopeMismatch, useAddMeTagMutation, useMeGuildListingQuery, useMeGuildsQuery } from '@/lib/api/dashboardQueries';
@@ -12,6 +13,8 @@ import { CharCounter } from '@/pages/dashboard/ui';
 
 const DM_DESTINATION = 'dm';
 const NAME_MAX = 64;
+// where a tag was last added to in this browser, a server's id or `DM_DESTINATION`
+const LAST_DESTINATION_KEY = 'tags:add-destination';
 
 
 // the api's own message is more specific than the dashboard's generic one for these
@@ -38,7 +41,11 @@ export function AddTagDialog({ tag, verified, onClose }: {tag: Pick<Tag, 'id' | 
   const listing = useMeGuildListingQuery();
   const { login } = useAuth();
   const add = useAddMeTagMutation(tag.id);
-  const [ destination, setDestination ] = useState(DM_DESTINATION);
+  // null until they pick one: it then starts on the server they added to last time, once the list has it (DMs while
+  // it loads, or when that server isn't in it anymore)
+  const [ picked, setPicked ] = useState<string | null>(null);
+  const [ remembered ] = useState(() => readStored<string>(LAST_DESTINATION_KEY, DM_DESTINATION));
+  const destination = picked ?? ((guilds.data?.some((guild) => guild.id === remembered)) ? remembered : DM_DESTINATION);
   const [ name, setName ] = useState(tag.name);
   const [ added, setAdded ] = useState<{tag: Tag, where: string} | null>(null);
 
@@ -59,7 +66,10 @@ export function AddTagDialog({ tag, verified, onClose }: {tag: Pick<Tag, 'id' | 
       guild_id: (destination === DM_DESTINATION) ? undefined : destination,
       name: (trimmedName && trimmedName.toLowerCase() !== tag.name) ? trimmedName : undefined,
     }, {
-      onSuccess: (created) => setAdded({tag: created, where: (guild) ? guild.name : t('tags.add.your_dms')}),
+      onSuccess: (created) => {
+        writeStored(LAST_DESTINATION_KEY, destination);
+        setAdded({tag: created, where: (guild) ? guild.name : t('tags.add.your_dms')});
+      },
     });
   };
 
@@ -118,7 +128,7 @@ export function AddTagDialog({ tag, verified, onClose }: {tag: Pick<Tag, 'id' | 
               <select
                 id={destinationId}
                 value={destination}
-                onChange={(event) => setDestination(event.target.value)}
+                onChange={(event) => setPicked(event.target.value)}
                 disabled={add.isPending}
                 className='input'
               >

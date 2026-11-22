@@ -5,7 +5,7 @@
 // message, the reporter answers with the Respond button on its DM. What members wrote is only ever rendered as plain text.
 
 import { Check, ExternalLink, Inbox, type LucideIcon, MessagesSquare, RotateCcw, Shield, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { CopyButton } from '@/components/ui/CopyButton';
 import { DetailModalHeader, DetailModalStrip } from '@/components/ui/DetailModal';
@@ -42,7 +42,7 @@ import { AdminModalFooter, AdminTagModal, LinkedItemModal, useOpenListItem } fro
 import { Chip, ExactDate, FiltersButton, Pagination, selectAllScope, UserCell } from '../admin/adminUi';
 import { REPORT_TONE_FILLS, ROW_EDGE_BAR, reportJumpUrl, reportStatusInfo } from '../reports/reportLabels';
 import { ReportThread } from '../reports/ReportThread';
-import { EmptyState, Panel, Skeleton } from '../ui';
+import { EmptyState, HelpDisclosure, Panel, Skeleton } from '../ui';
 import { useReadOnlyMessage } from './guildMeta';
 
 
@@ -69,6 +69,26 @@ const STATUS_DONE: Record<number, TranslationKey> = {
   [ReportStatuses.RESOLVED]: 'greports.done.resolved',
   [ReportStatuses.DISMISSED]: 'greports.done.dismissed',
 };
+
+// the toast while a verdict waits to be sent, with Undo on it
+const STATUS_WAITING: Record<number, TranslationKey> = {
+  [ReportStatuses.RESOLVED]: 'greports.waiting.resolved',
+  [ReportStatuses.DISMISSED]: 'greports.waiting.dismissed',
+};
+
+// how long Resolve and Dismiss wait before they're sent: the bot DMs the reporter once one lands and Reopen can't take
+// that back, so a wrong click has this long to be undone
+const VERDICT_DELAY = 5000;
+
+// a verdict waiting out `VERDICT_DELAY`
+interface WaitingVerdict {
+  status: ReportStatus,
+  // what Undo puts it back to once it's been sent
+  previous: ReportStatus,
+  timer: number,
+  // set once it's sent, done when the api has answered
+  sent: Promise<void> | null,
+}
 
 // the slot each status button sits in; once the report is in that status, the slot turns into Reopen (like the admin
 // page's, so the buttons never move around)
@@ -119,6 +139,7 @@ export function GuildReportsSection({ guild }: {guild: UserGuild}) {
       title={t('greports.title')}
       accent='#ed4245'
       description={t('greports.description')}
+      help={<HelpDisclosure summary={t('sections.how_it_works')}><p>{t('greports.description_more')}</p></HelpDisclosure>}
       readOnly={(editable) ? undefined : readOnlyMessage('moderation')}
     >
       {(visible) ? <ReportsList guildId={guild.id} hasLogger={hasLogger} editable={editable}/> : <p className='text-sm text-muted'>{t('greports.mods_only')}</p>}
@@ -202,9 +223,9 @@ function ReportsList({ guildId, hasLogger, editable }: {guildId: string, hasLogg
         />
         <FiltersButton open={filtersOpen} onToggle={() => setFiltersOpen((value) => !value)} active={activeFilters} controls='guild-report-filters'/>
       </div>
-      <p className='mb-3 text-xs text-subtle'>
-        {rich('greports.search_hint', {code: (chunk) => <code className='text-code'>{chunk}</code>})}
-      </p>
+      <HelpDisclosure summary={t('sections.search_tips')} className='mb-3'>
+        <p>{rich('greports.search_hint', {code: (chunk) => <code className='text-code'>{chunk}</code>})}</p>
+      </HelpDisclosure>
 
       <div id='guild-report-filters' hidden={!filtersOpen} className='mb-3 grid gap-3 rounded-md border border-line p-3 sm:grid-cols-3'>
         <label className='text-sm'>
@@ -246,7 +267,7 @@ function ReportsList({ guildId, hasLogger, editable }: {guildId: string, hasLogg
         </div>
       ) : (!reports.length) ? (
         <EmptyState icon={<Inbox className='size-10'/>} title={t((filtered) ? 'greports.empty_filtered' : 'greports.empty')}>
-          {t((filtered) ? 'greports.empty_filtered_description' : (hasLogger) ? 'greports.empty_description' : 'greports.empty_no_logger')}
+          {rich((filtered) ? 'greports.empty_filtered_description' : (hasLogger) ? 'greports.empty_description' : 'greports.empty_no_logger', {code: (chunk) => <code className='text-code'>{chunk}</code>})}
         </EmptyState>
       ) : (
         <>
@@ -344,15 +365,71 @@ function ReportDetails({ guildId, report: listed, users, editable, navigation }:
   const type = typeInfo(report);
   const isMessage = report.type === GuildReportTypes.MESSAGE;
   const jumpUrl = (isMessage) ? reportJumpUrl(report) : null;
-  const pendingStatus = (mutation.isPending) ? mutation.variables?.status : undefined;
+  // Resolve or Dismiss waiting to be sent (see `VERDICT_DELAY`). The ref is what the timer, the toast's Undo and leaving
+  // read, the state only draws the buttons
+  const waiting = useRef<WaitingVerdict | null>(null);
+  const [ waitingStatus, setWaitingStatus ] = useState<ReportStatus | null>(null);
+  const pendingStatus = (mutation.isPending) ? mutation.variables?.status : waitingStatus ?? undefined;
 
-  const setStatus = (value: ReportStatus) => {
-    mutation.mutate({reportId: report.id, status: value}, {
-      onSuccess: (updated) => {
+  const send = (value: ReportStatus): Promise<void> => {
+    // a promise, not `mutate`'s callbacks: Previous / Next stay usable while it's sent and open another report (a new
+    // `ReportDetails`), which would drop them, so a failure would never be said
+    return mutation.mutateAsync({reportId: report.id, status: value}).then(
+      (updated) => {
         setReport(updated);
         toast(translate(STATUS_DONE[value], {id: report.id}));
       },
-      onError: (error) => toast(errorMessage(error, translate('greports.update_error')), 'error'),
+      (error) => toast(errorMessage(error, translate('greports.update_error')), 'error'),
+    );
+  };
+
+  // sends the waiting verdict now, if there's one
+  const flush = () => {
+    const verdict = waiting.current;
+    if (!verdict) {
+      return;
+    }
+    window.clearTimeout(verdict.timer);
+    waiting.current = null;
+    setWaitingStatus(null);
+    verdict.sent = send(verdict.status);
+  };
+  // closing the modal, stepping to another report (this one is keyed by its id) or leaving the page doesn't drop a
+  // verdict that's still waiting, it's sent right then. A closing tab gets the same, as far as the browser lets it out
+  const latestFlush = useRef(flush);
+  latestFlush.current = flush;
+  useEffect(() => {
+    const onPageHide = () => latestFlush.current();
+    window.addEventListener('pagehide', onPageHide);
+    return () => {
+      window.removeEventListener('pagehide', onPageHide);
+      latestFlush.current();
+    };
+  }, []);
+
+  const setStatus = (value: ReportStatus) => {
+    // only resolving and dismissing DM the reporter, a reopen goes right away
+    if (value === ReportStatuses.OPEN) {
+      void send(value);
+      return;
+    }
+    const verdict: WaitingVerdict = {status: value, previous: report.status, timer: window.setTimeout(() => latestFlush.current(), VERDICT_DELAY), sent: null};
+    waiting.current = verdict;
+    setWaitingStatus(value);
+    toast(translate(STATUS_WAITING[value], {id: report.id}), 'success', {
+      label: translate('sections.undo'),
+      onClick: () => {
+        if (waiting.current === verdict) {
+          // nothing was sent yet, so there's nothing to take back
+          window.clearTimeout(verdict.timer);
+          waiting.current = null;
+          setWaitingStatus(null);
+        } else if (verdict.sent) {
+          // the toast outlasts the wait by a moment: by then it's the same as the button that puts it back (after the
+          // verdict itself, so the two can't land the other way around)
+          void verdict.sent.then(() => send(verdict.previous));
+        }
+      },
     });
   };
 
@@ -443,7 +520,7 @@ function ReportDetails({ guildId, report: listed, users, editable, navigation }:
               key={slot}
               type='button'
               className={cn('btn min-w-0 flex-1 px-2 sm:flex-none sm:px-3', STATUS_BUTTON_CLASSES[value])}
-              disabled={mutation.isPending}
+              disabled={mutation.isPending || waitingStatus !== null}
               onClick={() => setStatus(value)}
             >
               {(pendingStatus === value) ? <Spinner className='size-4'/> : <Icon aria-hidden className='hidden size-4 shrink-0 sm:block'/>}

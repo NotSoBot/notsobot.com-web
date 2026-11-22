@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router';
 import { FullPageMessage } from '@/components/ui/FullPageMessage';
 import { Spinner } from '@/components/ui/Spinner';
 import { useI18n, type TranslationKey } from '@/i18n';
-import { botInviteUrl } from '@/lib/api';
+import { botInviteUrl, INVITE_SOURCE_PATTERN } from '@/lib/api';
 
 
 // Replaces the current history entry with an external URL (e.g. bot invite, support server).
@@ -25,8 +25,11 @@ export function ExternalRedirect({ to, label = 'redirect.default' }: {to: string
 }
 
 
-// `/invite`, a `?guild_id=` is passed on so Discord picks that server
+// `/invite`, a `?guild_id=` is passed on so Discord picks that server and a `?src=` says who linked here (the FAQ, our
+// other sites), `invite` when it's a bare link
 export function BotInviteRedirect() {
   const [ searchParams ] = useSearchParams();
-  return <ExternalRedirect to={botInviteUrl(searchParams.get('guild_id'))} label='redirect.discord'/>;
+  const source = searchParams.get('src');
+  const to = botInviteUrl(searchParams.get('guild_id'), (source && INVITE_SOURCE_PATTERN.test(source)) ? source : 'invite');
+  return <ExternalRedirect to={to} label='redirect.discord'/>;
 }

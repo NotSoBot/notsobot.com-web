@@ -26,9 +26,12 @@ export const Routes = Object.freeze({
   DASHBOARD_REPORT: '/dashboard/reports/:itemId',
   DASHBOARD_VOICES: '/dashboard/voices',
   DASHBOARD_ADMIN_APPLICATIONS: '/dashboard/admin/applications',
+  DASHBOARD_ADMIN_APPLICATION: '/dashboard/admin/applications/:itemId',
   DASHBOARD_ADMIN_TAGS: '/dashboard/admin/tags',
   DASHBOARD_ADMIN_TAG_DIRECTORY: '/dashboard/admin/tags/directory',
   DASHBOARD_ADMIN_TAG_DIRECTORY_ITEM: '/dashboard/admin/tags/directory/:itemId',
+  // after the directory's: `/dashboard/admin/tags/directory` matches this one too, and the worker takes the first match
+  DASHBOARD_ADMIN_TAG: '/dashboard/admin/tags/:itemId',
   DASHBOARD_ADMIN_USERS: '/dashboard/admin/users',
   DASHBOARD_ADMIN_USER: '/dashboard/admin/users/:itemId',
   DASHBOARD_ADMIN_FLAGS: '/dashboard/admin/flags',
@@ -60,6 +63,14 @@ export const Routes = Object.freeze({
   SUPPORT: '/support',
   SUPPORT_INVITE: '/support/invite',
 });
+
+
+// a server's pages under DASHBOARD_SERVER (`/dashboard/servers/:guildId/<tab>`, Home is the server's own url). here so
+// the worker knows them too, or a refresh on one would be served as a 404. src/pages/dashboard/servers/guildMeta.tsx
+// checks its tabs against this list
+export const DASHBOARD_SERVER_TABS = Object.freeze([
+  'commands', 'credits', 'fonts', 'music', 'notsoai', 'reminders', 'reports', 'rules', 'settings', 'tags', 'voices', 'warnings',
+] as const);
 
 
 // `/tags/directory/:tagId?add=true` opens that tag's add dialog (logging in first), it's the "Add to Server" button on

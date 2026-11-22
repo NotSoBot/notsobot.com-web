@@ -38,11 +38,12 @@ export function useArrowKeyNavigation(options: {
 }
 
 
-// whether arrow keys landing on `target` may step between items: not from a field, and not under a nested dialog
+// whether arrow keys landing on `target` may step between items: not from a field or a media player (which seeks with
+// them), and not under a nested dialog
 // (the browsing modal itself counts as one open modal)
 export function isArrowNavigationTarget(target: EventTarget | null): boolean {
   if (1 < openModalCount()) {
     return false;
   }
-  return !(target instanceof Element && target.closest('input, textarea, select, [contenteditable]'));
+  return !(target instanceof Element && target.closest('input, textarea, select, [contenteditable], video, audio, [role="slider"]'));
 }

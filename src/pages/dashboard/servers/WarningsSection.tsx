@@ -22,7 +22,7 @@ import { userDisplayTag } from '@/lib/discord';
 import { cn, formatDateTime, formatNumber } from '@/lib/utils';
 
 import { Chip, ExactDate, Pagination, selectAllScope } from '../admin/adminUi';
-import { EmptyState, Panel, Skeleton } from '../ui';
+import { EmptyState, HelpDisclosure, Panel, Skeleton } from '../ui';
 import { formatSeconds, useReadOnlyMessage } from './guildMeta';
 
 
@@ -30,7 +30,7 @@ import { formatSeconds, useReadOnlyMessage } from './guildMeta';
 // the bot's commands (in the admin panel any staff sees them, bot owners remove them); how long they stay active and when
 // they're deleted are in the server settings.
 export function WarningsSection({ guild }: {guild: UserGuild}) {
-  const { t } = useI18n();
+  const { t, rich } = useI18n();
   const editable = guild.editable.moderation;
   const staff = useGuildScope() === 'admin';
   const visible = editable || staff;
@@ -40,7 +40,7 @@ export function WarningsSection({ guild }: {guild: UserGuild}) {
     <Panel
       title={t('warnings.title')}
       accent='#fee75c'
-      description={t('warnings.description')}
+      description={rich('warnings.description', {code: (chunk) => <code className='text-code'>{chunk}</code>})}
       readOnly={(editable) ? undefined : readOnlyMessage('moderation')}
     >
       {(visible) ? <WarningsList guildId={guild.id} editable={editable}/> : <p className='text-sm text-muted'>{t('warnings.mods_only')}</p>}
@@ -56,8 +56,9 @@ const MEMBER_SEARCH = /^(?:user|member)\s*:\s*(\d{15,21})$/i;
 type WarningUsers = Record<string, GuildContentUser>;
 
 
-// like the server's reports: a search box and page numbers, both in the url so a search can be linked to. The page scrolls
-// inside its own box, the server's warning settings sit above it
+// like the server's reports: a search box and page numbers, both in the url so a search can be linked to. From `sm` up
+// the page scrolls inside its own box so the server's warning settings under it stay close, on phones it's as tall as
+// its rows and scrolls with the window (a box inside the page is hard to scroll past there)
 function WarningsList({ guildId, editable }: {guildId: string, editable: boolean}) {
   const { t, plural, rich } = useI18n();
   const toast = useToast();
@@ -66,7 +67,9 @@ function WarningsList({ guildId, editable }: {guildId: string, editable: boolean
   const debouncedSearch = useDebouncedValue(search.trim(), 300);
   const memberId = MEMBER_SEARCH.exec(debouncedSearch)?.[1] ?? null;
   const [ busyKey, setBusyKey ] = useState<string | null>(null);
-  const [ confirmingClear, setConfirmingClear ] = useState(false);
+  // the member whose Clear all was clicked: the dialog only stays up while the search is still theirs, so it can never
+  // clear someone a back/forward to another search put in the box
+  const [ confirmingClear, setConfirmingClear ] = useState<string | null>(null);
   // the warning whose Remove was clicked, deleted once it's confirmed
   const [ removing, setRemoving ] = useState<GuildWarning | null>(null);
   const listRef = useRef<HTMLUListElement>(null);
@@ -74,7 +77,13 @@ function WarningsList({ guildId, editable }: {guildId: string, editable: boolean
   // back to the top of the list, not of the page (`useSearchParamState`'s `setPage` scrolls the window)
   const setPage = (value: number) => {
     update({page: (value <= 0) ? null : String(value + 1)}, false);
-    listRef.current?.scrollTo({top: 0});
+    const list = listRef.current;
+    if (list && getComputedStyle(list).overflowY === 'visible') {
+      // on phones the list doesn't scroll by itself
+      list.scrollIntoView({block: 'start'});
+    } else {
+      list?.scrollTo({top: 0});
+    }
   };
   const filterBy = (value: string) => update({q: value});
 
@@ -126,14 +135,14 @@ function WarningsList({ guildId, editable }: {guildId: string, editable: boolean
           aria-label={t('warnings.search_label')}
         />
         {(editable && memberId && data?.count && !isPlaceholderData) ? (
-          <button type='button' className='btn btn-secondary btn-sm h-9' disabled={mutation.isPending} onClick={() => setConfirmingClear(true)}>
+          <button type='button' className='btn btn-secondary btn-sm h-9' disabled={mutation.isPending} onClick={() => setConfirmingClear(memberId)}>
             {t('warnings.clear_all')}
           </button>
         ) : null}
       </div>
-      <p className='text-xs text-subtle'>
-        {rich('warnings.search_hint', {code: (chunk) => <code className='text-code'>{chunk}</code>})}
-      </p>
+      <HelpDisclosure summary={t('sections.search_tips')}>
+        <p>{rich('warnings.search_hint', {code: (chunk) => <code className='text-code'>{chunk}</code>})}</p>
+      </HelpDisclosure>
 
       {(data && data.total) ? (
         <p className='text-sm text-muted'>
@@ -154,14 +163,14 @@ function WarningsList({ guildId, editable }: {guildId: string, editable: boolean
         </div>
       ) : (!warnings.length || !data) ? (
         <EmptyState icon={<ShieldAlert className='size-10'/>} title={t((debouncedSearch) ? 'warnings.empty_filtered' : 'warnings.empty')}>
-          {t((debouncedSearch) ? 'warnings.empty_filtered_description' : 'warnings.empty_description')}
+          {rich((debouncedSearch) ? 'warnings.empty_filtered_description' : 'warnings.empty_description', {code: (chunk) => <code className='text-code'>{chunk}</code>})}
         </EmptyState>
       ) : (
         <>
           <ul
             ref={listRef}
             className={cn(
-              'max-h-[min(70vh,44rem)] divide-y divide-line overflow-y-auto overscroll-contain rounded-md border border-line transition-opacity',
+              'scroll-mt-24 divide-y divide-line rounded-md border border-line transition-opacity sm:max-h-[min(70vh,44rem)] sm:overflow-y-auto sm:overscroll-contain',
               isPlaceholderData && 'opacity-60',
             )}
           >
@@ -181,7 +190,7 @@ function WarningsList({ guildId, editable }: {guildId: string, editable: boolean
         </>
       )}
 
-      {(confirmingClear && memberId && data) ? (
+      {(confirmingClear && confirmingClear === memberId && data && !isPlaceholderData) ? (
         <ConfirmDialog
           title={t('warnings.clear_title')}
           description={t((weighted) ? 'warnings.clear_description_weighted' : 'warnings.clear_description', {
@@ -192,10 +201,10 @@ function WarningsList({ guildId, editable }: {guildId: string, editable: boolean
           pending={busyKey === memberId}
           onConfirm={async () => {
             if (await run(memberId, {kind: 'clear', userId: memberId}, t('warnings.cleared'))) {
-              setConfirmingClear(false);
+              setConfirmingClear(null);
             }
           }}
-          onClose={() => setConfirmingClear(false)}
+          onClose={() => setConfirmingClear(null)}
         />
       ) : null}
 

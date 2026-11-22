@@ -110,6 +110,7 @@ export const ApiEndpoints = Object.freeze({
   ADMIN_CONTENT_FLAGS: '/admin/content-flags',
   ADMIN_CONTENT_FLAGS_ACCEPT_SUGGESTIONS: '/admin/content-flags/accept-suggestions',
   ADMIN_CREDIT_TRANSACTIONS: '/admin/credits/transactions',
+  ADMIN_CREDIT_TRANSACTION_REVERSE: (transactionId: string) => `/admin/credits/transactions/${transactionId}/reverse`,
   ADMIN_ENTITLEMENTS: '/admin/entitlements',
   ADMIN_ENTITLEMENT_CREDITS_REVOKE: (entitlementId: string) => `/admin/entitlements/${entitlementId}/credits/revoke`,
   ADMIN_IDENTITIES: '/admin/identities',

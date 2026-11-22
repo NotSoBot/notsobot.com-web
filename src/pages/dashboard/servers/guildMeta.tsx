@@ -1,6 +1,6 @@
 import { AlarmClock, AtSign, AudioLines, ChartColumn, Coins, Hash, LayoutDashboard, ListChecks, MessageSquareWarning, Music, Server, Settings, Shield, Sparkles, Tags, TriangleAlert, Type } from 'lucide-react';
 
-import { Routes } from '@/config';
+import { DASHBOARD_SERVER_TABS, Routes } from '@/config';
 import { translate, translatePlural, useI18n, type TranslationKey } from '@/i18n';
 import type { GuildEditableArea } from '@/lib/api';
 import { useGuildScope } from '@/lib/api/dashboardQueries';
@@ -37,6 +37,12 @@ export const SERVER_TAB_GROUPS = [
 ] as const;
 
 export type ServerTab = (typeof SERVER_TAB_GROUPS)[number]['tabs'][number]['id'];
+
+// the worker serves these paths from DASHBOARD_SERVER_TABS (src/routes.ts). a tab missing from either list is a type error
+const ROUTED_TABS: ReadonlyArray<Exclude<ServerTab, 'home'>> = DASHBOARD_SERVER_TABS;
+const KNOWN_TABS: ReadonlyArray<(typeof DASHBOARD_SERVER_TABS)[number]> = SERVER_TAB_GROUPS.flatMap((group) => group.tabs.map((tab) => tab.id)).filter((id) => id !== 'home');
+void ROUTED_TABS;
+void KNOWN_TABS;
 
 export function dashboardServerPath(guildId: string, tab: ServerTab = 'home'): string {
   const base = Routes.DASHBOARD_SERVER.replace(':guildId', guildId);

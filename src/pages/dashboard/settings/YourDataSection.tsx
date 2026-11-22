@@ -72,15 +72,11 @@ function exportFilename(data: UserDataExport): string {
 function ExportPanel() {
   const { t, rich } = useI18n();
   const exportData = useExportMeDataMutation();
-  const [ filename, setFilename ] = useState<string | null>(null);
+  // from the export that finished, a new one (pending) has none
+  const filename = (exportData.isSuccess) ? exportFilename(exportData.data) : null;
   const runExport = () => {
-    setFilename(null);
     exportData.mutate(undefined, {
-      onSuccess: (data) => {
-        const name = exportFilename(data);
-        downloadJson(name, data);
-        setFilename(name);
-      },
+      onSuccess: (data) => downloadJson(exportFilename(data), data),
     });
   };
 
@@ -96,7 +92,7 @@ function ExportPanel() {
         {(exportData.isPending) ? <Spinner className='size-4 border-white/40 border-t-white'/> : <Download aria-hidden className='size-4'/>}
         {t((exportData.isPending) ? 'data.export.preparing' : 'data.export.download')}
       </button>
-      {(exportData.isSuccess && filename) ? (
+      {(filename) ? (
         <Notice tone='success'>{rich('data.export.done', {b: (chunk) => <span className='font-mono'>{chunk}</span>}, {filename})}</Notice>
       ) : (isNotAvailableYet(exportData.error)) ? (
         <NotAvailableYet/>

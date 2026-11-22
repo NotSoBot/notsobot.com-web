@@ -51,6 +51,10 @@ export function ApplicationsPage() {
     rename.reset();
     remove.reset();
     reset.reset();
+    // a revealed token isn't kept once its dialog closes either (one still loading keeps going, it opens its dialog)
+    if (!reveal.isPending) {
+      reveal.reset();
+    }
     setDialog(null);
   };
 
@@ -69,16 +73,20 @@ export function ApplicationsPage() {
         description={t('apps.description')}
       >
         {(data) ? (
-          <button
-            type='button'
-            className='btn btn-primary'
-            disabled={!canCreate || atLimit}
-            title={(!canCreate) ? t('apps.no_access') : (atLimit) ? t('apps.limit', {limit: data.limit}) : undefined}
-            onClick={() => setDialog({kind: 'create'})}
-          >
-            <Plus className='size-4'/>
-            {t('apps.new')}
-          </button>
+          <div className='flex flex-col items-start gap-1 sm:items-end'>
+            <button
+              type='button'
+              className='btn btn-primary'
+              disabled={!canCreate || atLimit}
+              title={(!canCreate) ? t('apps.no_access') : (atLimit) ? t('apps.limit', {limit: data.limit}) : undefined}
+              onClick={() => setDialog({kind: 'create'})}
+            >
+              <Plus className='size-4'/>
+              {t('apps.new')}
+            </button>
+            {/* why it's disabled, a tooltip doesn't show on touch (no access has its own notice below) */}
+            {(canCreate && atLimit) ? <p className='text-xs text-subtle'>{t('apps.limit', {limit: data.limit})}</p> : null}
+          </div>
         ) : null}
       </DashboardHeader>
 
@@ -99,9 +107,15 @@ export function ApplicationsPage() {
       ) : (isError) ? (
         <ErrorPanel title={t('apps.load_error')} message={errorMessage(error)} onRetry={() => refetch()} retrying={isRefetching}/>
       ) : (!items.length) ? (
-        <EmptyState icon={<Blocks className='size-10'/>} title={t('apps.empty')}>
-          {(canCreate) ? t('apps.empty_description') : null}
-        </EmptyState>
+        <>
+          <EmptyState icon={<Blocks className='size-10'/>} title={t('apps.empty')}>
+            {(canCreate) ? t('apps.empty_description') : null}
+          </EmptyState>
+          {/* the limit, known before the first one */}
+          <p className='mt-3 text-xs text-subtle'>
+            {t('apps.count', {count: items.length, limit: data?.limit ?? 0})}
+          </p>
+        </>
       ) : (
         <>
           <ul className='card divide-y divide-line'>
@@ -147,9 +161,9 @@ export function ApplicationsPage() {
                     <Pencil className='size-4'/>
                     <span className='sr-only'>{t('apps.rename')}</span>
                   </button>
-                  <button type='button' className='btn btn-sm btn-ghost text-danger-text' title={t('common.delete')} onClick={() => setDialog({kind: 'delete', application})}>
+                  <button type='button' className='btn btn-sm btn-ghost' title={t('common.delete')} onClick={() => setDialog({kind: 'delete', application})}>
                     <Trash2 className='size-4'/>
-                    <span className='sr-only'>{t('common.delete')}</span>
+                    <span className='sr-only sm:not-sr-only'>{t('common.delete')}</span>
                   </button>
                 </div>
               </li>

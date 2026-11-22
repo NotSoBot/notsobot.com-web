@@ -287,6 +287,10 @@ function UserDetails({ entry, navigation }: {
   const { owner } = userRoles(user);
   const canBlock = canBlockUser(user, viewerIsOwner);
   const cantBlockReason = (canBlock) ? null : (owner) ? 'Owners can’t be blocked.' : 'Only owners can block moderators.';
+  // the footer's block slot does the opposite of what they are now: unblocking is owner only (the api refuses anyone
+  // else), like `UserModerationButtons`
+  const canToggleBlock = (user.blocked) ? viewerIsOwner : canBlock;
+  const cantToggleBlockReason = (canToggleBlock) ? null : (user.blocked) ? 'Only bot owners can unblock users.' : cantBlockReason;
   // deleting everything they made can't be undone, so owners only (moderators delete tags one at a time)
   const canDeleteTags = canBlock && viewerIsOwner;
   const cantDeleteTagsReason = (canDeleteTags) ? null : cantBlockReason ?? 'Only bot owners can delete all of a user’s tags.';
@@ -348,7 +352,7 @@ function UserDetails({ entry, navigation }: {
             <StatTile
               label='Files'
               // an api from before the size was added leaves it out
-              value={(entry.owned.files && entry.files_size) ? `${entry.owned.files.toLocaleString()} · ${formatMemory(entry.files_size, (entry.files_size < 1024 * 1024) ? 0 : 1)}` : entry.owned.files.toLocaleString()}
+              value={(entry.owned.files && entry.files_size) ? `${entry.owned.files.toLocaleString()} • ${formatMemory(entry.files_size, (entry.files_size < 1024 * 1024) ? 0 : 1)}` : entry.owned.files.toLocaleString()}
               title='Files they’ve uploaded that haven’t expired, and the storage they take up (the same file uploaded twice is stored once)'
             />
             {/* a count only: reminders are people's private notes, so staff don't get to read them */}
@@ -385,8 +389,8 @@ function UserDetails({ entry, navigation }: {
         <button
           type='button'
           className={cn(ACTION, (user.blocked) ? 'btn-secondary' : 'btn-danger')}
-          disabled={!canBlock}
-          title={cantBlockReason ?? undefined}
+          disabled={!canToggleBlock}
+          title={cantToggleBlockReason ?? undefined}
           onClick={() => setBlocking(true)}
         >
           {(user.blocked) ? <ShieldCheck aria-hidden className='hidden size-4 shrink-0 sm:block'/> : <Ban aria-hidden className='hidden size-4 shrink-0 sm:block'/>}
@@ -451,7 +455,7 @@ function StrikeCard({ strike, users }: {strike: AdminCopyrightStrike, users: Adm
             <CopyableValue value={strike.actor_id} truncate={0} to={adminUserPath(strike.actor_id)} linkTitle='Open in users'/>
           </span>
         ) : <span>Unknown staff member</span>}
-        <span aria-hidden>·</span>
+        <span aria-hidden>•</span>
         <ExactDate value={strike.created} format={formatDateTime}/>
         {(strike.asset_ids.length) ? <Chip>{strike.asset_ids.length.toLocaleString()} {(strike.asset_ids.length === 1) ? 'file' : 'files'}</Chip> : null}
       </div>

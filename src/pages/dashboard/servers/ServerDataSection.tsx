@@ -34,13 +34,15 @@ export function ServerDataSection({ guild }: {guild: UserGuild}) {
   const [ confirmingDelete, setConfirmingDelete ] = useState(false);
 
   const runExport = () => {
-    exportData.mutate(undefined, {
-      onSuccess: (data) => {
+    // a promise, not `mutate`'s callbacks: those are dropped if the page is left while it's being put together, and the
+    // file that was asked for would never download
+    exportData.mutateAsync().then(
+      (data) => {
         downloadJson(exportFilename(guild.id, data), data);
         toast(translate('sdata.exported'));
       },
-      onError: (error) => toast(errorMessage(error, translate('sdata.export_error')), 'error'),
-    });
+      (error) => toast(errorMessage(error, translate('sdata.export_error')), 'error'),
+    );
   };
 
   const confirmDelete = () => {

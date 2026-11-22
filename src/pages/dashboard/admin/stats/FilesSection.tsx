@@ -12,7 +12,7 @@ import { errorMessage, useAdminFileStatsQuery, useAdminStatsQuery } from '@/lib/
 import { cn, formatDate, formatDateTime, formatNumber, NO_AUTOFILL, toDate } from '@/lib/utils';
 
 import { InlineError, Skeleton } from '../../ui';
-import { adminUserPath, ExactDate, Hint, InfoTip } from '../adminUi';
+import { adminUserPath, Hint, InfoTip } from '../adminUi';
 import { bytes, DailyBars, dayLabel, Metric, MetricGrid, plural, RankedList, STAT_COLORS, StatsSection, SubHeading } from './statsUi';
 
 
@@ -55,7 +55,8 @@ export function FilesSection({ days }: {days: number}) {
       title='Files'
       accent={COLORS.temporary}
       query={query}
-      description={(query.data) ? <>As of <ExactDate value={query.data.generated_at} format={formatDateTime}/>.</> : null}
+      // when the api computed them, next to Refresh like the other sections' (theirs is when they were fetched)
+      asOf={query.data?.generated_at}
     >
       {(data) => (
         <>
@@ -166,12 +167,14 @@ function StorageBreakdown({ stats }: {stats: AdminFileStats}) {
 
 // uploads per day over the page's window, its own request
 function UploadsChart({ days }: {days: number}) {
-  const { data, isPending, isError, error } = useAdminStatsQuery<AdminUploadStats>('uploads', days);
+  const { data, isPending, isError, isFetching, error } = useAdminStatsQuery<AdminUploadStats>('uploads', days);
+  // same states as StatsSection: a failed refresh keeps the old bars but says they're from before it
+  const state = (isPending) ? 'loading' : (!data) ? 'failed' : (isError) ? 'stale' : (isFetching) ? 'refreshing' : 'ready';
   const [ measure, setMeasure ] = useState<Measure>('count');
   const format = (value: number) => (measure === 'count') ? formatNumber(value) : bytes(value);
 
   return (
-    <section className='mt-6 border-t border-line pt-5'>
+    <section data-state={state} className='mt-6 border-t border-line pt-5'>
       <SubHeading actions={<Segmented label='Uploads chart measure' value={measure} onChange={(value) => setMeasure(value as Measure)} options={MEASURES}/>}>
         Uploads
       </SubHeading>
@@ -181,6 +184,7 @@ function UploadsChart({ days }: {days: number}) {
         <InlineError>{errorMessage(error, 'Couldn’t load uploads.')}</InlineError>
       ) : (data) ? (
         <>
+          {(isError) ? <div className='mb-2'><InlineError>Couldn’t refresh, these are from before: {errorMessage(error)}</InlineError></div> : null}
           <p className='mb-2 text-sm text-muted tabular-nums'>
             {plural(data.permanent.count + data.temporary.count, 'file')} ({bytes(data.permanent.size + data.temporary.size)}) in {plural(data.days, 'day')}
             <span className='text-subtle'> • temporary ones only while they’re still around</span>

@@ -3,6 +3,7 @@ import { useId, useState } from 'react';
 import { Link } from 'react-router';
 
 import { useAuth } from '@/auth';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
 import { Turnstile } from '@/components/ui/Turnstile';
@@ -10,6 +11,7 @@ import { config } from '@/config';
 import { translate, useI18n, type TranslationKey } from '@/i18n';
 import { ApiErrorCodes, ApiRequestError, ReportTypes, type MeReport } from '@/lib/api';
 import { errorMessage, useCreateReportMutation } from '@/lib/api/dashboardQueries';
+import { cn } from '@/lib/utils';
 import { Routes } from '@/routes';
 import { CharCounter } from '@/pages/dashboard/ui';
 
@@ -31,14 +33,21 @@ const TAG_REASONS = [
 ] as const satisfies ReadonlyArray<{value: string, label: TranslationKey}>;
 type TagReason = (typeof TAG_REASONS)[number]['value'];
 
-// the api's own message says which limit (hour or day) was hit, or why the captcha failed
 function reportErrorMessage(error: unknown): string {
-  if (error instanceof ApiRequestError && error.body?.message) {
-    if (error.code === ApiErrorCodes.MAX_REPORTS || error.code === ApiErrorCodes.CANNOT_REPORT_YOURSELF || error.code === ApiErrorCodes.CAPTCHA_INVALID) {
-      return error.body.message;
-    }
-    if (error.code === ApiErrorCodes.SERVER_MISCONFIGURED) {
-      return translate('report.anonymous_unavailable');
+  if (error instanceof ApiRequestError) {
+    switch (error.code) {
+      // the only thing this dialog reports with an owner is a tag
+      case ApiErrorCodes.CANNOT_REPORT_YOURSELF:
+        return translate('report.own_tag');
+      case ApiErrorCodes.CAPTCHA_INVALID:
+        return translate('report.captcha_failed');
+      case ApiErrorCodes.SERVER_MISCONFIGURED:
+        return translate('report.anonymous_unavailable');
+      // the api's own message says which limit (hour or day) was hit and what it is, so it stays as it is
+      case ApiErrorCodes.MAX_REPORTS:
+        if (error.body?.message) {
+          return error.body.message;
+        }
     }
   }
   return errorMessage(error, translate('report.send_error'));
@@ -51,6 +60,7 @@ export function ReportDialog({ subject, onClose }: {subject: ReportSubject, onCl
   const titleId = useId();
   const reasonId = useId();
   const detailsId = useId();
+  const hintId = useId();
 
   const { isAuthenticated, login } = useAuth();
   const create = useCreateReportMutation();
@@ -59,8 +69,11 @@ export function ReportDialog({ subject, onClose }: {subject: ReportSubject, onCl
   const [ turnstileToken, setTurnstileToken ] = useState<string | null>(null);
   // tokens are one use, a failed send needs a fresh one
   const [ turnstileReset, setTurnstileReset ] = useState(0);
-  // the report, or null for an anonymous one; undefined until it's sent
-  const [ sent, setSent ] = useState<MeReport | null | undefined>(undefined);
+  const [ confirmingDiscard, setConfirmingDiscard ] = useState(false);
+  // the report, or null for an anonymous one; undefined until it's sent (read from the mutation, not copied out of it)
+  const sent: MeReport | null | undefined = (create.isSuccess) ? create.data.report : undefined;
+  // for anyone reading the page: the form's step, `data-state` on the dialog's content
+  const step = (sent !== undefined) ? 'sent' : (create.isPending) ? 'sending' : (create.isError) ? 'error' : 'editing';
 
   const anonymous = !isAuthenticated;
   const isTag = subject.type === 'tag';
@@ -70,6 +83,13 @@ export function ReportDialog({ subject, onClose }: {subject: ReportSubject, onCl
   const needsDetails = !isTag || reason === 'Something else';
   const valid = ((isTag) ? !!reason : true) && (!needsDetails || !!trimmed) && content.length <= CONTENT_MAX;
   const canSend = valid && (!anonymous || !!turnstileToken) && !create.isPending;
+  // why Send is disabled: the first thing still missing, null once it can be sent (and while it's sending)
+  const missing: TranslationKey | null = (create.isPending) ? null :
+    (isTag && !reason) ? 'report.missing_reason' :
+    (needsDetails && !trimmed) ? 'report.missing_details' :
+    (CONTENT_MAX < content.length) ? 'report.too_long' :
+    (anonymous && !turnstileToken) ? 'report.missing_captcha' :
+      null;
 
   const submit = () => {
     create.mutate({
@@ -78,15 +98,27 @@ export function ReportDialog({ subject, onClose }: {subject: ReportSubject, onCl
       type: (isTag) ? ReportTypes.TAG : ReportTypes.BUG,
       turnstileToken,
     }, {
-      onSuccess: ({ report }) => setSent(report),
       onError: () => anonymous && setTurnstileReset((value) => value + 1),
     });
   };
 
+  // Escape, a click outside and the X: a report that's been written but not sent isn't thrown away unasked (Cancel
+  // says what it does, so it just closes)
+  const close = () => {
+    if (create.isPending) {
+      return;
+    }
+    if (sent === undefined && trimmed) {
+      setConfirmingDiscard(true);
+    } else {
+      onClose();
+    }
+  };
+
   return (
-    <Modal labelledBy={titleId} onClose={() => !create.isPending && onClose()} className='max-w-md'>
+    <Modal labelledBy={titleId} onClose={close} className='max-w-md'>
       {(sent !== undefined) ? (
-        <div className='p-5 sm:p-6'>
+        <div className='p-5 sm:p-6' data-state={step}>
           <h2 id={titleId} className='flex items-center gap-2 pr-10 text-lg font-semibold text-white'>
             <CheckCircle2 aria-hidden className='size-5 text-success-text'/>
             {t('report.sent')}
@@ -107,6 +139,7 @@ export function ReportDialog({ subject, onClose }: {subject: ReportSubject, onCl
       ) : (
         <form
           className='p-5 sm:p-6'
+          data-state={step}
           onSubmit={(event) => {
             event.preventDefault();
             if (canSend) {
@@ -161,7 +194,11 @@ export function ReportDialog({ subject, onClose }: {subject: ReportSubject, onCl
               <div className='mb-1.5 flex items-baseline justify-between gap-3'>
                 <label htmlFor={detailsId} className='text-sm text-muted'>
                   {t((isTag) ? 'report.details' : 'report.what_happened')}
-                  {(isTag && !needsDetails) ? <span className='text-subtle'>{t('report.optional')}</span> : null}
+                  {(!isTag) ? null : (needsDetails) ? (
+                    <span className='text-warning'>{t('report.required')}</span>
+                  ) : (
+                    <span className='text-subtle'>{t('report.optional')}</span>
+                  )}
                 </label>
                 <span className='shrink-0 text-xs text-subtle tabular-nums'><CharCounter length={content.length} max={CONTENT_MAX}/></span>
               </div>
@@ -173,6 +210,7 @@ export function ReportDialog({ subject, onClose }: {subject: ReportSubject, onCl
                 rows={(isTag) ? 4 : 6}
                 placeholder={t((isTag) ? 'report.tag_placeholder' : 'report.bug_placeholder')}
                 className='input resize-y'
+                aria-required={needsDetails}
                 autoFocus={!isTag}
               />
             </div>
@@ -186,15 +224,30 @@ export function ReportDialog({ subject, onClose }: {subject: ReportSubject, onCl
             <p role='alert' className='mt-4 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-fg'>{reportErrorMessage(create.error)}</p>
           ) : null}
 
-          <div className='mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
+          {/* always there, empty or not: the captcha finishes on its own, and the buttons shouldn't move under the pointer when it does */}
+          <p id={hintId} aria-live='polite' className='mt-4 min-h-4 text-xs text-subtle sm:text-right'>{(missing) ? t(missing) : null}</p>
+
+          <div className='mt-2 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
             <button type='button' className='btn btn-secondary' onClick={onClose} disabled={create.isPending}>{t('common.cancel')}</button>
-            <button type='submit' className='btn btn-danger' disabled={!canSend}>
+            {/* red for reporting someone's tag, a bug report is an ordinary form */}
+            <button type='submit' className={cn('btn', (isTag) ? 'btn-danger' : 'btn-primary')} disabled={!canSend} aria-describedby={hintId}>
               {(create.isPending) ? <Spinner className='size-4 border-white/40 border-t-white'/> : null}
               {t('report.send')}
             </button>
           </div>
         </form>
       )}
+
+      {/* next to the form, not inside it: its own form's submit would bubble up to this one and send the report */}
+      {(confirmingDiscard) ? (
+        <ConfirmDialog
+          title={t('dash.discard_title')}
+          description={t('tags.report_discard_description')}
+          confirmLabel={t('common.discard')}
+          onConfirm={onClose}
+          onClose={() => setConfirmingDiscard(false)}
+        />
+      ) : null}
     </Modal>
   );
 }

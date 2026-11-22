@@ -1,4 +1,4 @@
-import { BookOpen, Tags as TagsIcon } from 'lucide-react';
+import { BookOpen, Tags as TagsIcon, X } from 'lucide-react';
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useMatch, useNavigate, useSearchParams } from 'react-router';
 
@@ -65,9 +65,10 @@ export function TagsPage() {
   // `?server=<id>`: only the tags in that server (a server page's "Your tags")
   const serverId = searchParams.get('server') || null;
   const filtered = !!debouncedQuery || directoryFilter.filter !== null || !!serverId;
-  // the panel starts closed like the admin pages', the button counts the ones not on their default
+  // the panel starts closed like the admin pages', the button counts the ones not on their default. The sort isn't one
+  // of them: it never hides a tag, so it sits next to the search where it's always in sight
   const [ filtersOpen, setFiltersOpen ] = useState(false);
-  const activeFilters = [directoryFilter.filter !== null, sortBy !== 'newest'].filter(Boolean).length;
+  const activeFilters = [directoryFilter.filter !== null].filter(Boolean).length;
 
   // `?page=` is 1-based, left out for the first
   const page = Math.max(0, (Number(searchParams.get('page')) || 1) - 1);
@@ -83,7 +84,10 @@ export function TagsPage() {
   const guildNames = useMemo(() => new Map((guilds ?? []).map((guild) => [guild.id, guild.name])), [guilds]);
 
   // ---- leave off where you were ----
-  // arriving without a search, sort or filter (sidebar, "All tags", after a delete): bring back the last ones
+  // arriving without a search, sort or filter (sidebar, "All tags", after a delete): bring back the last ones. `restored`
+  // says so next to the search with a way to clear them, the list can open on "0 tags match" with the reason (a filter
+  // in the closed panel) out of sight. It's dropped as soon as they change any of them themselves
+  const [ restored, setRestored ] = useState(false);
   useLayoutEffect(() => {
     // a server's tags start from a clean slate
     if (searchParams.has('server')) {
@@ -97,6 +101,7 @@ export function TagsPage() {
     };
     if (restore.q || restore.sort || restore.directory) {
       updateParams(restore);
+      setRestored(true);
     }
     // only on arrival
   }, []);
@@ -200,9 +205,14 @@ export function TagsPage() {
 
   const tagIndex = (tagId) ? items.findIndex((item) => item.id === tagId) : -1;
 
-  const setQuery = (value: string) => updateParams({q: value});
-  const setSortBy = (value: string) => updateParams({sort: (value === 'newest') ? null : value});
-  const setDirectoryFilter = (value: string) => updateParams({directory: (value === 'all') ? null : value});
+  // the user's own changes, see `restored`
+  const changeParams = (changes: Record<string, string | null>) => {
+    setRestored(false);
+    updateParams(changes);
+  };
+  const setQuery = (value: string) => changeParams({q: value});
+  const setSortBy = (value: string) => changeParams({sort: (value === 'newest') ? null : value});
+  const setDirectoryFilter = (value: string) => changeParams({directory: (value === 'all') ? null : value});
 
   return (
     <>
@@ -221,7 +231,8 @@ export function TagsPage() {
         }
       />
 
-      <div className='mb-4 flex gap-2'>
+      {/* the search, the sort (under it until there's room beside it), then the filters panel's button */}
+      <div className='mb-4 flex flex-wrap gap-2'>
         <SearchInput
           className='min-w-0 flex-1'
           value={query}
@@ -229,20 +240,30 @@ export function TagsPage() {
           placeholder={t('dtags.search_placeholder')}
           aria-label={t('dtags.search_label')}
         />
+        <label className='flex items-center gap-2 text-sm text-muted max-md:order-last max-md:basis-full'>
+          {t('dtags.sort')}
+          <select className='input h-12 rounded-lg bg-surface-3 md:w-56' value={sortBy} onChange={(event) => setSortBy(event.target.value)}>
+            {SORTS.map((sort) => <option key={sort.value} value={sort.value}>{t(`dtags.sort.${sort.value}`)}</option>)}
+          </select>
+        </label>
         <FiltersButton open={filtersOpen} onToggle={() => setFiltersOpen((value) => !value)} active={activeFilters} controls='tag-filters'/>
       </div>
+
+      {(restored) ? (
+        <p className='-mt-2 mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-subtle'>
+          {t('dtags.restored')}
+          <button type='button' className='btn btn-sm btn-secondary px-2 py-0.5' onClick={() => changeParams({q: null, sort: null, directory: null})}>
+            <X aria-hidden className='size-3'/>
+            {t('common.clear')}
+          </button>
+        </p>
+      ) : null}
 
       <div id='tag-filters' hidden={!filtersOpen} className='card mb-4 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4'>
         <label className='text-sm'>
           <span className='mb-1 block text-subtle'>{t('dtags.directory')}</span>
           <select className='input' value={directoryFilter.value} onChange={(event) => setDirectoryFilter(event.target.value)}>
             {DIRECTORY_FILTERS.map((filter) => <option key={filter.value} value={filter.value}>{t(`dtags.filter.${filter.value}` as TranslationKey)}</option>)}
-          </select>
-        </label>
-        <label className='text-sm'>
-          <span className='mb-1 block text-subtle'>{t('dtags.sort')}</span>
-          <select className='input' value={sortBy} onChange={(event) => setSortBy(event.target.value)}>
-            {SORTS.map((sort) => <option key={sort.value} value={sort.value}>{t(`dtags.sort.${sort.value}`)}</option>)}
           </select>
         </label>
       </div>

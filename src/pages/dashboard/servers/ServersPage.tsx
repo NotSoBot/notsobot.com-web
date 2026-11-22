@@ -63,8 +63,10 @@ export function ServersPage() {
   const pinnedIds = useMemo(() => settings.data?.dashboard_pinned_guilds ?? [], [settings.data]);
   const pinned = useMemo(() => new Set(pinnedIds), [pinnedIds]);
   const savePins = (ids: Array<string>) => {
-    patchSettings.mutate({dashboard_pinned_guilds: ids.slice(0, MAX_PINNED)}, {
-      onError: (saveError) => toast(errorMessage(saveError, translate('servers.pin_error')), 'error'),
+    // mutateAsync, not mutate's per-call onError: that only runs for the latest call, so pin A failing after pin B was
+    // clicked never said so. The cache is put right by the hook either way
+    patchSettings.mutateAsync({dashboard_pinned_guilds: ids.slice(0, MAX_PINNED)}).catch((saveError: unknown) => {
+      toast(errorMessage(saveError, translate('servers.pin_error')), 'error');
     });
   };
   const togglePin = (guildId: string) => {
@@ -128,7 +130,7 @@ export function ServersPage() {
         <ErrorPanel title={t('servers.load_error')} message={errorMessage(error)} onRetry={() => refetch()} retrying={isRefetching}/>
       ) : (!guilds.length && !addable.length) ? (
         <EmptyState icon={<Server className='size-10'/>} title={t('servers.empty')}>
-          <a href={botInviteUrl()} className='mt-3 inline-flex btn btn-discord'>{t('servers.add')}</a>
+          <a href={botInviteUrl(null, 'dash-servers')} className='mt-3 inline-flex btn btn-discord'>{t('servers.add')}</a>
         </EmptyState>
       ) : (
         <>
@@ -167,7 +169,7 @@ export function ServersPage() {
 
 
 // the pin is a badge on the icon's corner, outside the link (a button can't go inside one): always shown once it's pinned,
-// on hover (or always on phones) otherwise
+// on hover (or always on phones) otherwise. It looks 24px but takes clicks on 36px (`before`, set in from the 1px border)
 function ServerCard({ guild, pinned, onTogglePin }: {guild: UserGuildSummary, pinned: boolean, onTogglePin: () => void}) {
   const { t } = useI18n();
   const PinIcon = (pinned) ? PinOff : Pin;
@@ -201,7 +203,7 @@ function ServerCard({ guild, pinned, onTogglePin }: {guild: UserGuildSummary, pi
       <button
         type='button'
         className={cn(
-          'absolute top-2 left-2 flex size-6 cursor-pointer items-center justify-center rounded-full border border-line bg-surface-1 shadow transition focus-visible:opacity-100',
+          'absolute top-2 left-2 flex size-6 cursor-pointer items-center justify-center rounded-full border border-line bg-surface-1 shadow transition before:absolute before:-inset-[7px] focus-visible:opacity-100',
           (pinned) ? 'text-brand-text' : 'text-subtle opacity-0 group-hover/server:opacity-100 hover:text-white max-sm:opacity-100',
         )}
         aria-pressed={pinned}
@@ -222,7 +224,7 @@ function AddServerCard({ guild }: {guild: UserGuildSummary}) {
   return (
     <li>
       <a
-        href={botInviteUrl(guild.id)}
+        href={botInviteUrl(guild.id, 'dash-server')}
         className='group card card-hover flex h-full items-center gap-3 p-4 hover:border-line-strong'
         aria-label={t('servers.add_to_label', {name: guild.name})}
       >

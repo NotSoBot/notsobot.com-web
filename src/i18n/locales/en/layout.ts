@@ -12,7 +12,7 @@ export const Layout = {
   'nav.close_menu': 'Close menu',
 
   'footer.label': 'Footer',
-  'footer.company': 'Company',
+  'footer.links': 'Links',
   'footer.tag_docs': 'Tag Docs',
   'footer.report_bug': 'Report a Bug',
   'footer.privacy': 'Privacy Policy',
@@ -23,8 +23,8 @@ export const Layout = {
 
   'account.loading': 'Loading account',
   'account.unreachable': 'Couldn\'t reach NotSoBot — retry',
-  'account.login': 'Login',
-  'account.login_discord': 'Login with Discord',
+  'account.login': 'Log in',
+  'account.login_discord': 'Log in with Discord',
   'account.report_updates_one': '{count} report update',
   'account.report_updates_other': '{count} report updates',
   'account.dashboard': 'Dashboard',
@@ -73,7 +73,7 @@ export const Layout = {
 
   'not_found.title': 'Page Not Found',
   'not_found.description': 'The page you\'re looking for doesn\'t exist or has been moved. (404 lol)',
-  'not_found.home': 'Go back home',
+  'not_found.home': 'Go home',
 
   'route_error.title': 'Well, That Was Unexpected',
   'route_error.description': 'Something broke while rendering this page.',

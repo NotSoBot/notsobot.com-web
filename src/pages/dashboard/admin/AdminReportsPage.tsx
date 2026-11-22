@@ -10,7 +10,7 @@ import { CopyButton } from '@/components/ui/CopyButton';
 import { DetailModalHeader, DetailModalStrip } from '@/components/ui/DetailModal';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Spinner } from '@/components/ui/Spinner';
-import { useToast } from '@/components/ui/Toast';
+import { useToast, type ToastAction } from '@/components/ui/Toast';
 import { Routes } from '@/config';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useSearchParamState, useStepBackFromEmptyPage } from '@/hooks/useSearchParamState';
@@ -30,7 +30,7 @@ import { cn, formatDateTime } from '@/lib/utils';
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from '../ui';
 import { REPORT_TARGET_LABELS, REPORT_TONE_FILLS, REPORT_TYPES, ROW_EDGE_BAR, type ReportTone, reportJumpUrl, reportTypeInfo } from '../reports/reportLabels';
 import { ReportThread } from '../reports/ReportThread';
-import { AdminModalFooter, AdminTagModal, LinkedItemModal, useHoldModalNavigation, useOpenListItem } from './AdminTagModal';
+import { AdminModalFooter, AdminTagModal, LinkedItemModal, REVIEW_KEYS, ReviewShortcutsToggle, useHoldModalNavigation, useOpenListItem, useReviewShortcuts } from './AdminTagModal';
 import { UserModerationButtons } from './UserModerationButtons';
 import { adminServerPath, adminUserPath, Chip, CopyableValue, DETAIL_LIST_STACKED, DetailList, ExactDate, FilterButton, FiltersButton, Pagination, selectAllScope, UserCell } from './adminUi';
 
@@ -91,6 +91,35 @@ const STATUS_ICONS: Record<number, LucideIcon> = {
   [ReportStatuses.DISMISSED]: X,
 };
 
+// the verdicts with a key while shortcuts are on (reopening undoes one)
+const STATUS_KEYS: Record<number, string> = {
+  [ReportStatuses.RESOLVED]: REVIEW_KEYS.resolve,
+  [ReportStatuses.DISMISSED]: REVIEW_KEYS.dismiss,
+};
+
+// The undo button on the toast after a report's status changes, putting it back to `previous`, like the content flags'.
+// Uses `mutateAsync` since the report has usually left the list (and the modal may be closed) by the time it's clicked,
+// and `mutate`'s callbacks don't run then. Notes saved with the change stay. None for a status this page doesn't know
+function useUndoStatusAction(): (reportId: string, previous: number) => ToastAction | undefined {
+  const toast = useToast();
+  const mutation = usePatchAdminReportMutation();
+  return (reportId, previous) => {
+    const status = STATUSES.find((item) => item.value === previous);
+    if (!status) {
+      return undefined;
+    }
+    return {
+      label: 'Undo',
+      onClick: () => {
+        mutation.mutateAsync({reportId, patch: {status: status.value}}).then(
+          () => toast(`Report ${reportId}: back to ${status.label.toLowerCase()}`),
+          (error) => toast(errorMessage(error), 'error'),
+        );
+      },
+    };
+  };
+}
+
 
 export function AdminReportsPage() {
   const { searchParams, page, update, setPage } = useSearchParamState();
@@ -113,9 +142,12 @@ export function AdminReportsPage() {
   });
   const items = data?.items ?? [];
   const { openId, openItem: listedItem, previousId, nextId, open, close } = useOpenListItem(items, (report) => report.id, Routes.DASHBOARD_ADMIN_REPORTS);
-  // a link to a report that isn't on this page
-  const linked = useAdminReportQuery(openId, !listedItem);
-  const openItem = listedItem ?? linked.data ?? null;
+  // a link to a report that isn't on this page, or one that left it after its status changed (resolving it in the open
+  // queue). `listedItem` is then the last copy seen in the list and goes stale on the next change (Reopen kept showing
+  // Reopen, saved notes looked unsaved), the mutation keeps this one up to date instead
+  const inList = items.some((report) => report.id === openId);
+  const linked = useAdminReportQuery(openId, !inList);
+  const openItem = ((inList) ? listedItem : linked.data ?? listedItem) ?? null;
   const steppingBack = useStepBackFromEmptyPage({page, setPage, data, isPlaceholderData, pageSize: ADMIN_PAGE_SIZE});
   const pagination = {
     page,
@@ -205,6 +237,13 @@ export function AdminReportsPage() {
       ) : (!items.length) ? (
         <EmptyState icon={<Inbox className='size-10'/>} title={(filtered) ? 'No reports' : 'No open reports'}>
           {(filtered) ? 'Nothing matches these filters.' : 'Everything’s been reviewed.'}
+          {/* the status filter (open unless changed) applies to a search too, which hid already reviewed reports */}
+          {(debouncedQuery && status !== null) ? (
+            <>
+              {' '}Only {statusInfo(status).label.toLowerCase()} reports were searched.{' '}
+              <button type='button' className='cursor-pointer text-brand-text hover:underline' onClick={() => update({status: 'all'})}>Search all statuses</button>
+            </>
+          ) : null}
         </EmptyState>
       ) : (
         <>
@@ -235,9 +274,9 @@ export function AdminReportsPage() {
 
 
 // one line per report, just enough to triage from; the rest is in `ReportDetails` a click away.
-// Plain content only inside (no buttons, links or focusable dates), since the whole row is a button.
-// The type and id in the top left with the reporter under them, the status in the top right with the date under it, and
-// what they wrote across the bottom.
+// Plain content only inside (no buttons, links or focusable dates), since the whole row is a link.
+// The type and id in the top left with the reporter (and who or what they reported) under them, the status in the top
+// right with the date under it, and what they wrote across the bottom.
 function ReportRow({ report, onOpen }: {report: Report, onOpen: (id: string) => void}) {
   const status = statusInfo(report.status);
   const type = typeInfo(report.type);
@@ -245,18 +284,37 @@ function ReportRow({ report, onOpen }: {report: Report, onOpen: (id: string) => 
     <li className='group/row relative'>
       {/* the status at a glance, down the left edge like the content flags' */}
       <span aria-hidden title={status.label} className={cn(ROW_EDGE_BAR, REPORT_TONE_FILLS[status.tone])}/>
-      <button
-        type='button'
-        className='grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-4 py-3 text-left first:rounded-t-[inherit] last:rounded-b-[inherit] hover:bg-surface-2 sm:gap-x-4 sm:px-5'
-        onClick={() => onOpen(report.id)}
+      <Link
+        to={`${Routes.DASHBOARD_ADMIN_REPORTS}/${report.id}`}
+        className='grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-4 py-3 first:rounded-t-[inherit] last:rounded-b-[inherit] hover:bg-surface-2 sm:gap-x-4 sm:px-5'
+        onClick={(event) => {
+          // a plain click opens it over the list (keeping the filters), new tabs and copied links still get the url
+          if (!event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey && event.button === 0) {
+            event.preventDefault();
+            onOpen(report.id);
+          }
+        }}
       >
         {/* what it is and its id (fixed widths, so rows line up) */}
         <span className='col-start-1 row-start-1 flex min-w-0 items-center gap-3'>
           <Chip tone={type.tone} className='w-16 shrink-0 justify-center'>{type.label}</Chip>
           <span className='min-w-0 truncate font-mono text-sm leading-5 text-white'>#{report.id}</span>
         </span>
-        {/* who sent it, under the type */}
-        <span className='col-start-1 row-start-2 min-w-0'>{(report.user) ? <UserCell user={report.user} size='sm'/> : <AnonymousReporter/>}</span>
+        {/* who sent it and who or what it's about (bugs have no target), under the type */}
+        <span className='col-start-1 row-start-2 flex min-w-0 items-center gap-2'>
+          {(report.user) ? <UserCell user={report.user} size='sm'/> : <AnonymousReporter/>}
+          {(report.target_user || report.target_id) ? (
+            <>
+              <span aria-hidden className='shrink-0 text-subtle'>→</span>
+              <span className='sr-only'>about</span>
+              {(report.target_user) ? <UserCell user={report.target_user} size='sm'/> : (
+                <span className='min-w-0 truncate text-xs text-subtle'>
+                  {REPORT_TARGET_LABELS[report.type] ?? 'target'} <span className='font-mono'>{report.target_id}</span>
+                </span>
+              )}
+            </>
+          ) : null}
+        </span>
         {/* what they wrote, across the bottom in a code box like the modal's */}
         <span className='col-span-2 row-start-3 flex min-w-0 items-center gap-2 text-sm text-muted'>
           {(report.replies) ? (
@@ -273,7 +331,7 @@ function ReportRow({ report, onOpen }: {report: Report, onOpen: (id: string) => 
         {/* the status in the top right, when it was sent under it */}
         <Chip tone={status.tone} className='col-start-2 row-start-1 w-20 justify-center justify-self-end'>{status.label}</Chip>
         <span className='col-start-2 row-start-2 justify-self-end text-xs whitespace-nowrap text-subtle'>{formatDateTime(report.created)}</span>
-      </button>
+      </Link>
     </li>
   );
 }
@@ -288,6 +346,7 @@ function ReportDetails({ report, onFilterReporter, onFilterTarget, navigation }:
 }) {
   const toast = useToast();
   const mutation = usePatchAdminReportMutation();
+  const undoAction = useUndoStatusAction();
   const [ notes, setNotes ] = useState(report.notes ?? '');
   useEffect(() => setNotes(report.notes ?? ''), [report.notes]);
   const notesDirty = notes !== (report.notes ?? '');
@@ -299,25 +358,41 @@ function ReportDetails({ report, onFilterReporter, onFilterTarget, navigation }:
   const type = typeInfo(report.type);
   const pendingStatus = (mutation.isPending) ? mutation.variables?.patch.status : undefined;
   const savingNotes = mutation.isPending && mutation.variables?.patch.status === undefined;
-  // stepping to another report would unmount this one and drop the change's toast
-  useHoldModalNavigation(mutation.isPending || translationMutation.isPending);
+  // stepping to another report would unmount this one and drop the change's toast, or a typed note that isn't saved yet
+  const held = mutation.isPending || translationMutation.isPending || notesDirty;
+  useHoldModalNavigation(held);
 
-  // a status change carries unsaved notes along, so "write a note, click Resolve" is one step
+  // A status change carries unsaved notes along, so "write a note, click Resolve" is one step. `mutateAsync` rather than
+  // `mutate`'s callbacks, which don't run once the modal's closed: closing it mid-save dropped the toast, or the error
   const setStatus = (value: ReportStatus) => {
+    const previous = report.status;
     const patch: ReportPatch = {status: value};
     if (notesDirty) {
       patch.notes = notes.trim() || null;
     }
-    mutation.mutate({reportId: report.id, patch}, {
-      onSuccess: (updated) => {
+    mutation.mutateAsync({reportId: report.id, patch}).then(
+      (updated) => {
         if (patch.notes !== undefined) {
           setNotes(updated.notes ?? '');
         }
-        toast(`Report ${report.id}: ${(value === ReportStatuses.OPEN) ? 'reopened' : statusInfo(value).label.toLowerCase()}`);
+        toast(`Report ${report.id}: ${(value === ReportStatuses.OPEN) ? 'reopened' : statusInfo(value).label.toLowerCase()}`, 'success', undoAction(report.id, previous));
+        // with shortcuts on a verdict moves on to the next report, however it was given (key or button)
+        if (value in STATUS_KEYS) {
+          shortcuts.advance();
+        }
       },
-      onError: (error) => toast(errorMessage(error), 'error'),
-    });
+      (error) => toast(errorMessage(error), 'error'),
+    );
   };
+  // a key only does what its button would: nothing for the status the report is already in (that slot is Reopen)
+  const shortcuts = useReviewShortcuts({
+    keys: {
+      [REVIEW_KEYS.resolve]: (report.status === ReportStatuses.RESOLVED) ? undefined : () => setStatus(ReportStatuses.RESOLVED),
+      [REVIEW_KEYS.dismiss]: (report.status === ReportStatuses.DISMISSED) ? undefined : () => setStatus(ReportStatuses.DISMISSED),
+    },
+    pending: mutation.isPending,
+    held,
+  });
   const translate = () => {
     translationMutation.mutate({reportId: report.id}, {
       onSuccess: (result) => {
@@ -330,14 +405,14 @@ function ReportDetails({ report, onFilterReporter, onFilterTarget, navigation }:
     });
   };
   const saveNotes = () => {
-    mutation.mutate({reportId: report.id, patch: {notes: notes.trim() || null}}, {
-      onSuccess: (updated) => {
+    mutation.mutateAsync({reportId: report.id, patch: {notes: notes.trim() || null}}).then(
+      (updated) => {
         // saving trims, which leaves the notes as they were when that's all it changed (and the effect above quiet)
         setNotes(updated.notes ?? '');
         toast(`Report ${report.id}: notes saved`);
       },
-      onError: (error) => toast(errorMessage(error), 'error'),
-    });
+      (error) => toast(errorMessage(error), 'error'),
+    );
   };
 
   // where the report command was used, or the reported message for message reports; a DM has no guild
@@ -352,7 +427,7 @@ function ReportDetails({ report, onFilterReporter, onFilterTarget, navigation }:
     {};
 
   return (
-    <div>
+    <div data-state={(savingNotes) ? 'saving-notes' : (mutation.isPending) ? 'saving-status' : 'idle'}>
       {/* the title can be cut off on phones, so there it's in the details below with a copy button too */}
       <DetailModalHeader
         titleId={TITLE_ID}
@@ -361,7 +436,10 @@ function ReportDetails({ report, onFilterReporter, onFilterTarget, navigation }:
         mono
         meta={<ExactDate value={report.created} format={formatDateTime}/>}
         states={(awaitingReply(report)) ? <Chip tone='warning' title='The reporter replied last, waiting on staff'>waiting on staff</Chip> : null}
-        status={<Chip tone={status.tone} className='w-20 justify-center'>{status.label}</Chip>}
+        status={<>
+          <ReviewShortcutsToggle enabled={shortcuts.enabled} onChange={shortcuts.setEnabled} legend='R resolve • D dismiss'/>
+          <Chip tone={status.tone} className='w-20 justify-center'>{status.label}</Chip>
+        </>}
       />
 
       {/* who sent it and what it's about. The reporter links to their admin page, the target id to whatever it is */}
@@ -581,6 +659,7 @@ function ReportDetails({ report, onFilterReporter, onFilterTarget, navigation }:
               type='button'
               className={cn('btn min-w-0 flex-1 px-2 sm:flex-none sm:px-3', STATUS_BUTTON_CLASSES[value])}
               disabled={mutation.isPending}
+              title={(value in STATUS_KEYS) ? shortcuts.title(statusInfo(value).action, STATUS_KEYS[value]) : undefined}
               onClick={() => setStatus(value)}
             >
               {(pendingStatus === value) ? <Spinner className='size-4'/> : <Icon aria-hidden className='hidden size-4 shrink-0 sm:block'/>}

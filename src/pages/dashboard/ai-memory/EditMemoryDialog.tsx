@@ -71,6 +71,7 @@ export function EditMemoryDialog({ memory, mutation, onClose }: {
               {...props}
               className='input min-h-24 resize-y'
               value={content}
+              data-autofocus
               disabled={mutation.isPending}
               onChange={(event) => setContent(event.target.value)}
             />

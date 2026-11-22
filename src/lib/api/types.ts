@@ -491,6 +491,9 @@ export const ApiErrorCodes = {
   MAX_SAVED_FONTS: 30032,
   SAVED_FONT_NAME_TAKEN: 50050,
   UNKNOWN_ENTITLEMENT: 10038,
+  UNKNOWN_CREDIT_TRANSACTION: 10040,
+  // a staff grant's Take back was already sent (another tab, a double click)
+  CREDIT_GRANT_ALREADY_REVERSED: 50052,
   CREDITS_LIMIT: 30033,
   UNKNOWN_VOICE_NODE: 10031,
   UNKNOWN_MUSIC_QUEUE_ITEM: 10030,
@@ -2709,6 +2712,8 @@ export interface CreditTransaction {
   // the refill bought, or the one a revoke was for
   entitlement_id: string | null,
   id: string,
+  // a staff grant's take back: the grant it took back
+  reverses_id: string | null,
   // the server given to, or a revoke took from (null when it was the user's own)
   server_id: string | null,
   type: CreditTransactionTypes,
@@ -2717,6 +2722,8 @@ export interface CreditTransaction {
 
 // `/admin/credits/transactions`, everyone's
 export interface AdminCreditTransaction extends CreditTransaction {
+  // the row that took this staff grant back, null when it wasn't (and on every other row)
+  reversed_by_id: string | null,
   user: AdminUserRef,
 }
 
@@ -2814,6 +2821,12 @@ export interface CreditGrantResult {
   refill_left: number,
 }
 
+// a staff grant taken back: `amount` is negative (what was really taken), `id` the new row
+export interface CreditGrantReverseResult extends CreditGrantResult {
+  id: string,
+  reverses_id: string,
+}
+
 
 export interface CountAndSize {
   count: number,
@@ -2876,6 +2889,18 @@ export interface AdminCommandStats extends AdminStatsWindow {
   top: Array<{command_id: string, count: number, users: number}>,
   types: Array<{type: CommandType, count: number}>,
   results: Array<{result: string, count: number}>,
+  // the rest is what the bot sends with each use since 2026-11-22 (missing from an api from before then), counted over
+  // the uses that have it. `reasons` is why attempts didn't run, `places` the install (`guild`, `user`, '') and where
+  // (`guild`, `bot_dm`, `private_channel`), `triggers` what started the ones nobody typed (`auto_embed`, `ai_reply`),
+  // `duration` ms, `edited` the ones an edit ran, and `tip` the "prefix commands are ending" tip: replies that had it,
+  // the users who got it, and how many of them used a slash command or a mention afterwards
+  reasons?: Array<{reason: string, count: number, users: number}>,
+  places?: Array<{install: string, context: string, count: number, users: number}>,
+  triggers?: Array<{trigger: string, count: number, users: number}>,
+  locales?: Array<{locale: string, count: number, users: number}>,
+  duration?: {count: number, p50: number, p95: number},
+  edited?: number,
+  tip?: {shown: number, users: number, switched: number},
 }
 
 // `/users/@me/guilds/<id>/commands/stats` (Manage Server): commands run in one server over the window, counts only.
@@ -2899,10 +2924,14 @@ export interface AdminApiStats extends AdminStatsWindow {
   series: DailySeries<{requests: number, server_errors: number}>,
   endpoints: Array<{method: string, endpoint: string, requests: number, server_errors: number, took_avg: number}>,
   applications: Array<{application: {id: string, name: string | null} | null, requests: number, server_errors: number}>,
+  // the most common error responses by their api error code (`name` null for one the api doesn't know) and the premium
+  // tier they asked for, `users` the signed in ones. recorded since 2026-11-22, missing from an api from before then
+  errors?: Array<{code: number, name: string | null, tier: string | null, count: number, users: number}>,
 }
 
 // `/admin/stats/growth`: `users.total` is every (non-bot) user row, `active_ever` everyone who's run a command, `new`
-// the ones whose first command was in the window. `servers.current` is the servers the bot is in now. `ghosts` are servers
+// the ones whose first command was in the window (commands that ran: a blocked or errored attempt doesn't count since
+// 2026-11-22). `servers.current` is the servers the bot is in now. `ghosts` are servers
 // the bot had already left that discord still lists when a shard identifies, then removes again: not leaves, but how
 // often shards identified. `installs` are discord's authorization webhook events, each user (or user and server) once a
 // day: added to an account, added to a server, and `removed` from someone's authorized apps
@@ -2929,6 +2958,10 @@ export interface AdminGrowthStats extends AdminStatsWindow {
     removed: number,
     series: DailySeries<{users: number, servers: number, removed: number}>,
   },
+  // "Delete my data" and servers' data deletions in the window, counts only (nothing says whose). `users_kept` kept
+  // their row for staff or a purchase, `servers_staff` were deleted from the admin dashboard. missing from an api from
+  // before they were counted (2026-11-22)
+  deletions?: {users: number, users_kept: number, servers: number, servers_staff: number},
 }
 
 // `/admin/stats/premium`: active entitlements by tier (`premium_type` null for a sku we don't sell) and provider,
@@ -2947,6 +2980,10 @@ export interface AdminPremiumStats extends AdminStatsWindow {
   premium_servers: number,
   premium_slots: number,
   series: DailySeries<{started: number, ended: number}>,
+  // what changed in the window, every kind in order: users' tiers (`start`, `upgrade`, `downgrade`, `end`) and discord's
+  // entitlements (`purchase`, `cancel`, `resume`, `refund`). `users` is who it happened to, the same change can be
+  // recorded twice. recorded since 2026-11-22, missing from an api from before then
+  events?: Array<{kind: string, count: number, users: number}>,
 }
 
 // `/admin/stats/moderation`: what's waiting on staff (pending flags leave out blocked users', like the flags page),

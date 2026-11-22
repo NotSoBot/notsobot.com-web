@@ -16,7 +16,7 @@ export function ServerFilterChip({ guildId, name, to = dashboardServerPath(guild
   const { t } = useI18n();
   return (
     <div className='mb-4 flex flex-wrap items-center gap-2 text-sm text-muted'>
-      Only in
+      {t('server_chip.only_in')}
       <span className='inline-flex max-w-full min-w-0 items-center rounded-md border border-line-strong bg-surface-2 text-xs'>
         <Link to={to} className='inline-flex min-w-0 items-center gap-1.5 py-1 pr-1 pl-2 font-medium text-fg hover:text-brand-text' title={t('server_chip.open')}>
           <Server aria-hidden className='size-3.5 shrink-0 text-muted'/>

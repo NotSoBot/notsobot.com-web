@@ -18,6 +18,31 @@ export function tagDirectoryItemPath(id: string): string {
 }
 
 
+// how long a two-step button stays armed
+const CONFIRM_PRESS_MS = 3000;
+
+// A light two-step for a removal that doesn't need a dialog: the first press arms `key` (its button then asks, e.g.
+// "Remove?"), a second one on the same key while it's armed runs the action, otherwise it resets by itself
+export function useConfirmPress(): {armed: string | null, press: (key: string, action: () => void) => void} {
+  const [ armed, setArmed ] = useState<string | null>(null);
+  const timer = useRef<number | undefined>(undefined);
+
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+
+  const press = (key: string, action: () => void) => {
+    window.clearTimeout(timer.current);
+    if (armed === key) {
+      setArmed(null);
+      action();
+      return;
+    }
+    setArmed(key);
+    timer.current = window.setTimeout(() => setArmed(null), CONFIRM_PRESS_MS);
+  };
+  return {armed, press};
+}
+
+
 // `param` is what the directory puts in its URL (the label is `tag_category.<param>`); alphabetical in English, except
 // `Other` goes last
 export const TAG_DIRECTORY_CATEGORY_OPTIONS: Array<{param: string, label: TranslationKey, value: TagDirectoryCategory}> = [
@@ -240,14 +265,15 @@ export function NsfwBadge({ size = 'sm' }: {size?: 'sm' | 'lg'}) {
 }
 
 
-// Opens the add dialog (logging in first if needed); the dialog lives outside the card so its clicks
-// don't hit the card's stretched link. `verified` lets the dialog warn about unverified tags.
+// Opens the add dialog (logging in first if needed, the large button then says so); the dialog lives outside the card
+// so its clicks don't hit the card's stretched link. `verified` lets the dialog warn about unverified tags.
 // `openFromUrl` opens it straight away when the page has `?add=true` (TAG_ADD_PARAM), only the tag's own modal sets it.
-// `?add=1` still works for embeds discord cached before the switch
+// `?add=1` still works for embeds discord cached before the switch.
+// `md` is the large button's label at the size of a modal footer's buttons
 export function AddTagButton({ tag, verified, size = 'sm', className, openFromUrl = false }: {
   tag: Pick<Tag, 'id' | 'name'>,
   verified: number,
-  size?: 'sm' | 'lg',
+  size?: 'sm' | 'md' | 'lg',
   className?: string,
   openFromUrl?: boolean,
 }) {
@@ -281,20 +307,37 @@ export function AddTagButton({ tag, verified, size = 'sm', className, openFromUr
   if (!isAuthenticated && !config.authEnabled) {
     return null;
   }
+
+  const onClick = () => {
+    // a stored login is still being checked: a click now would send someone who's logged in off to Discord
+    if (status === 'loading') {
+      return;
+    }
+    if (isAuthenticated) {
+      setOpen(true);
+      return;
+    }
+    // back to this tag's own page with the add param (and the directory's filters), so its modal opens the dialog
+    // after logging in instead of landing on the bare list
+    const params = new URLSearchParams(searchParams);
+    params.set(TAG_ADD_PARAM, TAG_ADD_VALUE);
+    login(`${tagDirectoryItemPath(tag.id)}?${params}`);
+  };
+
   return (
     <>
       <button
         type='button'
-        onClick={() => (isAuthenticated) ? setOpen(true) : login()}
+        onClick={onClick}
         title={t((isAuthenticated) ? 'tags.add_title' : 'tags.add_login')}
         className={cn(
           'relative z-10 flex shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded bg-brand font-medium text-white transition-colors hover:bg-brand-hover',
-          (size === 'lg') ? 'gap-2 rounded-lg px-6 py-3' : 'px-3 py-1.5 text-sm',
+          (size === 'lg') ? 'gap-2 rounded-lg px-6 py-3' : (size === 'md') ? 'gap-2 rounded-lg px-4 py-2 text-sm' : 'px-3 py-1.5 text-sm',
           className,
         )}
       >
         <Plus className={(size === 'lg') ? 'size-5' : 'size-4'}/>
-        {t((size === 'lg') ? 'tags.add_tag' : 'common.add')}
+        {t((size === 'sm') ? 'common.add' : (status === 'anonymous') ? 'tags.login_to_add' : 'tags.add_tag')}
       </button>
       {(open) ? createPortal(<AddTagDialog tag={tag} verified={verified} onClose={() => setOpen(false)}/>, document.body) : null}
     </>

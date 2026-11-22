@@ -58,9 +58,12 @@ export const PAGES: Readonly<Record<keyof typeof Routes, PageMeta>> = Object.fre
   DASHBOARD_REPORT: {title: 'Report', description: DASHBOARD_DESCRIPTION},
   DASHBOARD_VOICES: {title: 'Your Voices', description: DASHBOARD_DESCRIPTION},
   DASHBOARD_ADMIN_APPLICATIONS: {title: 'Applications', description: ADMIN_DESCRIPTION},
+  DASHBOARD_ADMIN_APPLICATION: {title: 'Application', description: ADMIN_DESCRIPTION},
   DASHBOARD_ADMIN_TAGS: {title: 'Tags', description: ADMIN_DESCRIPTION},
   DASHBOARD_ADMIN_TAG_DIRECTORY: {title: 'Tag Directory', description: ADMIN_DESCRIPTION},
   DASHBOARD_ADMIN_TAG_DIRECTORY_ITEM: {title: 'Directory Tag', description: ADMIN_DESCRIPTION},
+  // keep after the directory's two: the worker tests these in order, and `/dashboard/admin/tags/directory` matches it too
+  DASHBOARD_ADMIN_TAG: {title: 'Tag', description: ADMIN_DESCRIPTION},
   DASHBOARD_ADMIN_USERS: {title: 'Users', description: ADMIN_DESCRIPTION},
   DASHBOARD_ADMIN_USER: {title: 'User', description: ADMIN_DESCRIPTION},
   DASHBOARD_ADMIN_FLAGS: {title: 'Content Flags', description: ADMIN_DESCRIPTION},

@@ -1,22 +1,24 @@
 import { useMemo, useRef, useState, type KeyboardEvent, type SyntheticEvent } from 'react';
 
+import { useI18n } from '@/i18n';
 import { cn } from '@/lib/utils';
 
 
 // Plain <textarea> with a line-number gutter and a cursor/line status row. No wrapping, so gutter
-// rows always line up with text rows; long lines scroll sideways inside the editor.
-export function CodeEditor({ value, onChange, onSave, readOnly = false, maxLength, minRows = 12, className, ...props }: {
+// rows always line up with text rows; long lines scroll sideways inside the editor. The character count is the
+// field's own counter (above it), not repeated here
+export function CodeEditor({ value, onChange, onSave, readOnly = false, minRows = 12, className, ...props }: {
   value: string,
   onChange: (value: string) => void,
   onSave?: () => void,
   readOnly?: boolean,
-  maxLength?: number,
   minRows?: number,
   className?: string,
   id?: string,
   'aria-describedby'?: string,
   'aria-invalid'?: boolean,
 }) {
+  const { t, plural } = useI18n();
   const gutterRef = useRef<HTMLDivElement>(null);
   const [ cursor, setCursor ] = useState({line: 1, column: 1});
   const lineCount = useMemo(() => value.split('\n').length, [value]);
@@ -48,6 +50,11 @@ export function CodeEditor({ value, onChange, onSave, readOnly = false, maxLengt
       return;
     }
     if (event.key === 'Escape') {
+      // it only lets Tab out of the field, it doesn't close the dialog around it (and the unsaved code with it) too.
+      // read only, Tab was never held, so there it's the dialog's
+      if (!readOnly) {
+        event.preventDefault();
+      }
       event.currentTarget.dataset.escaped = '1';
     } else {
       delete event.currentTarget.dataset.escaped;
@@ -97,11 +104,8 @@ export function CodeEditor({ value, onChange, onSave, readOnly = false, maxLengt
         />
       </div>
       <div className='flex flex-wrap items-center justify-between gap-x-3 border-t border-line bg-[#1b1c1f] px-3 py-1 text-xs text-subtle tabular-nums'>
-        <span>Ln {cursor.line}, Col {cursor.column}</span>
-        <span>
-          {lineCount.toLocaleString()} {lineCount === 1 ? 'line' : 'lines'}
-          {(maxLength) ? <> · <span className={cn(maxLength < value.length && 'text-danger-text')}>{value.length.toLocaleString()} / {maxLength.toLocaleString()}</span></> : null}
-        </span>
+        <span>{t('dtags.code.cursor', {line: cursor.line, column: cursor.column})}</span>
+        <span>{plural('dtags.code.lines', lineCount)}</span>
       </div>
     </div>
   );

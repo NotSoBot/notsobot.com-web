@@ -36,6 +36,7 @@ export function AIMemoryPage() {
   const [ clearing, setClearing ] = useState(false);
 
   const items = data?.items ?? [];
+  // unknown until the settings load; the toggle stays disabled until then (or if they can't), instead of showing "on"
   const enabled = !settings.data?.ml_llm_memory_disabled;
 
   const setEnabled = (value: boolean) => {
@@ -84,36 +85,40 @@ export function AIMemoryPage() {
         <Toggle
           checked={enabled}
           onChange={setEnabled}
-          disabled={settings.isPending || patchSettings.isPending}
+          disabled={!settings.data || patchSettings.isPending}
           label={t('memory.toggle')}
           description={t('memory.toggle_description')}
         />
+        {/* unlike the settings page's toggles, which wait for Save */}
+        <p className='mt-2 text-xs text-subtle'>{t('memory.toggle_instant')}</p>
       </div>
 
       {(isPending) ? (
         <ListSkeleton/>
       ) : (isError) ? (
         <ErrorPanel title={t('memory.load_error')} message={errorMessage(error)} onRetry={() => refetch()} retrying={isRefetching}/>
-      ) : (!items.length) ? (
-        <EmptyState icon={<Brain className='size-10'/>} title={t('memory.empty')}>
-          {rich('memory.empty_description', {code: (chunk) => <code className='text-fg'>{chunk}</code>})}
-        </EmptyState>
       ) : (
         <>
-          {/* the global ones have their own limit, and each server has its own on top */}
+          {/* the global ones have their own limit, and each server has its own on top. Shown with none saved too */}
           <p className='mb-3 text-sm text-subtle'>
             {t('memory.count', {used: formatNumber(items.filter((memory) => !memory.guild_id).length), limit: formatNumber(data.limits.global), server: formatNumber(data.limits.server)})}
           </p>
-          <ul className='card divide-y divide-line'>
-            {items.map((memory) => (
-              <MemoryRow
-                key={memory.id}
-                memory={memory}
-                onEdit={() => setEditing(memory)}
-                onDelete={() => setDeleting(memory)}
-              />
-            ))}
-          </ul>
+          {(!items.length) ? (
+            <EmptyState icon={<Brain className='size-10'/>} title={t('memory.empty')}>
+              {rich('memory.empty_description', {code: (chunk) => <code className='text-fg'>{chunk}</code>})}
+            </EmptyState>
+          ) : (
+            <ul className='card divide-y divide-line'>
+              {items.map((memory) => (
+                <MemoryRow
+                  key={memory.id}
+                  memory={memory}
+                  onEdit={() => setEditing(memory)}
+                  onDelete={() => setDeleting(memory)}
+                />
+              ))}
+            </ul>
+          )}
         </>
       )}
 

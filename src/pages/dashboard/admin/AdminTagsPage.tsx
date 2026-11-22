@@ -7,7 +7,7 @@ import { Markdown, stripMarkdown } from '@/components/ui/Markdown';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Segmented } from '@/components/ui/Segmented';
 import { Spinner } from '@/components/ui/Spinner';
-import { useToast } from '@/components/ui/Toast';
+import { useToast, type ToastAction } from '@/components/ui/Toast';
 import { Routes } from '@/config';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import {
@@ -36,7 +36,7 @@ import { TAG_NAME_MAX } from '@/pages/dashboard/tags/tagMeta';
 import { CategoryBadge, categoryLabel, categoryOptionFromParam, CategorySelect, DescriptionEditor, NsfwBadge, TAG_DIRECTORY_CATEGORY_OPTIONS, VerificationBadge, verificationRequirement } from '@/pages/tags/tagDirectory';
 
 import { CharCounter, DashboardHeader, EmptyState, ErrorPanel, Field, Skeleton, Toggle } from '../ui';
-import { AdminModalFooter, AdminTagModal, LinkedItemModal, useHoldModalNavigation, useOpenListItem } from './AdminTagModal';
+import { AdminModalFooter, AdminTagModal, LinkedItemModal, REVIEW_KEYS, ReviewShortcutsToggle, useHoldModalNavigation, useOpenListItem, useReviewShortcuts } from './AdminTagModal';
 import { adminUserPath, Chip, CopyableValue, DETAIL_LIST_STACKED, DetailList, ExactDate, FiltersButton, Pagination, selectAllScope, UserCell } from './adminUi';
 import { DeleteDirectoryTagFlow } from './DeleteDirectoryTagFlow';
 import { TagOwnerStrip } from './DeleteUserTagsDialog';
@@ -98,9 +98,13 @@ export function AdminTagsPage() {
   });
   const items = data?.items ?? [];
   const { openId, openItem: listedItem, previousId, nextId, open, close } = useOpenListItem(items, (item) => item.id, Routes.DASHBOARD_ADMIN_TAG_DIRECTORY);
-  // a linked listing that isn't on this page (or under this filter) is fetched on its own
-  const linked = useAdminTagDirectoryItemQuery(openId ?? '', {enabled: !!openId && !listedItem});
-  const openItem = listedItem ?? linked.data ?? null;
+  // A linked listing that isn't on this page (or under this filter) is fetched on its own, and so is one that left it
+  // after a change (verifying it out of the pending queue). `listedItem` is then the last copy seen in the list and
+  // goes stale on the next change (Mark pending kept showing Verified, a saved listing its old title), the mutations
+  // keep this one up to date instead (`setQueriesData` on the admin tags key covers it)
+  const inList = items.some((item) => item.id === openId);
+  const linked = useAdminTagDirectoryItemQuery(openId ?? '', {enabled: !!openId && !inList});
+  const openItem = ((inList) ? listedItem : linked.data ?? listedItem) ?? null;
   const steppingBack = useStepBackFromEmptyPage({page, setPage, data, isPlaceholderData, pageSize: ADMIN_TAGS_PAGE_SIZE});
   const pagination = {
     page,
@@ -246,7 +250,7 @@ function DirectoryTagCard({ item, onOpen }: {item: AdminTagDirectoryItem, onOpen
       </div>
       <div className='mt-auto flex items-center justify-between gap-3 border-t border-line pt-3 text-xs text-subtle'>
         <span className='tabular-nums'>
-          {(tag.uses ?? 0).toLocaleString()} uses · {(item.server_count ?? 0).toLocaleString()} {(item.server_count === 1) ? 'server' : 'servers'}
+          {(tag.uses ?? 0).toLocaleString()} uses • {(item.server_count ?? 0).toLocaleString()} {(item.server_count === 1) ? 'server' : 'servers'}
         </span>
         <span>{(item.created) ? `Listed ${formatDate(item.created)}` : `Created ${formatDate(tag.created)}`}</span>
       </div>
@@ -271,6 +275,7 @@ function DirectoryTagDetails({ item, navigation, onDelete }: {
   const ownerId = item.user?.id ?? tag.user_id ?? null;
   const toast = useToast();
   const mutation = usePatchAdminTagDirectoryMutation();
+  const undoAction = useUndoVerifiedAction();
   // separate instance so saving content doesn't show up as a pending verification change
   const contentMutation = usePatchAdminTagDirectoryMutation();
   const listingMutation = usePatchAdminTagDirectoryMutation();
@@ -340,8 +345,15 @@ function DirectoryTagDetails({ item, navigation, onDelete }: {
   };
 
   const setVerified = (verified: number, label: string) => {
+    const previous = item.verified;
     mutation.mutate({tagId: item.id, verified}, {
-      onSuccess: () => toast(`${item.title || tag.name}: ${label}`),
+      onSuccess: () => {
+        toast(`${item.title || tag.name}: ${label}`, 'success', undoAction(item.id, item.title || tag.name, previous));
+        // with shortcuts on a verdict moves on to the next listing, however it was given (key or button)
+        if (VERIFY_ACTIONS[verified]?.key) {
+          shortcuts.advance();
+        }
+      },
       onError: (error) => toast(errorMessage(error), 'error'),
     });
   };
@@ -349,7 +361,22 @@ function DirectoryTagDetails({ item, navigation, onDelete }: {
   const missing = verificationRequirement(item);
   const saving = mutation.isPending || contentMutation.isPending || listingMutation.isPending;
   // stepping to another tag would unmount this one: a save's toast and reset are dropped, unsaved edits lost
-  useHoldModalNavigation(saving || (draft !== null && draft !== content) || listingChanged);
+  const held = saving || (draft !== null && draft !== content) || listingChanged;
+  useHoldModalNavigation(held);
+  // a key only does what its button would: nothing for the state the listing is already in (that slot is Mark pending),
+  // and no verifying a listing that's missing something
+  const shortcutFor = (verified: number) => {
+    const action = VERIFY_ACTIONS[verified];
+    return (item.verified === verified || (verified === TagDirectoryVerificationStates.VERIFIED && missing)) ? undefined : () => setVerified(verified, action.toast);
+  };
+  const shortcuts = useReviewShortcuts({
+    keys: {
+      [REVIEW_KEYS.verify]: shortcutFor(TagDirectoryVerificationStates.VERIFIED),
+      [REVIEW_KEYS.unverify]: shortcutFor(TagDirectoryVerificationStates.NOT_VERIFIED),
+    },
+    pending: mutation.isPending,
+    held,
+  });
 
   return (
     <>
@@ -361,7 +388,7 @@ function DirectoryTagDetails({ item, navigation, onDelete }: {
         meta={
           <div className='flex min-w-0 items-center gap-1.5'>
             <span className='min-w-0 truncate font-mono text-code'>{tag.name}</span>
-            <span aria-hidden>·</span>
+            <span aria-hidden>•</span>
             <span className='shrink-0 whitespace-nowrap'>
               {(item.created) ? <>Listed <ExactDate value={item.created} format={formatDateTime}/></> : <>Created <ExactDate value={tag.created} format={formatDateTime}/></>}
             </span>
@@ -372,7 +399,10 @@ function DirectoryTagDetails({ item, navigation, onDelete }: {
           (tag.locked) ? <Chip key='locked' tone='warning'>Locked</Chip> : null,
           (item.edit_request) ? <Chip key='request' tone='brand'>Change request</Chip> : null,
         ]}
-        status={<VerificationBadge verified={item.verified}/>}
+        status={<>
+          <ReviewShortcutsToggle enabled={shortcuts.enabled} onChange={shortcuts.setEnabled} legend='V verify • U unverify'/>
+          <VerificationBadge verified={item.verified}/>
+        </>}
       />
 
       <TagOwnerStrip user={item.user} fallbackId={ownerId} blockReason={`Tag directory: \`${tag.name}\` #${tag.id}`}/>
@@ -572,8 +602,9 @@ function DirectoryTagDetails({ item, navigation, onDelete }: {
 
       </div>
 
-      {/* verify on the left, reject on the right, delete set apart after a divider (an outline, like the content flags
-          modal's reporting, so it doesn't read as a second reject). The current status' slot turns into "Mark pending",
+      {/* verify on the left, unverify on the right ("Unverify", not "Reject": a change request's panel has its own
+          "Reject changes"), delete set apart after a divider (an outline, like the content flags modal's reporting, so
+          it doesn't read as a second verdict). The current status' slot turns into "Mark pending",
           like the content flags modal, so nothing sits greyed out and the buttons never move around */}
       <AdminModalFooter {...navigation}>
         {VERIFY_SLOTS.map((slot) => {
@@ -588,7 +619,7 @@ function DirectoryTagDetails({ item, navigation, onDelete }: {
               icon={action.icon}
               className={action.className}
               disabled={mutation.isPending || blocked}
-              title={(blocked) ? (missing ?? undefined) : undefined}
+              title={(blocked) ? (missing ?? undefined) : (action.key) ? shortcuts.title(action.label, action.key) : undefined}
               pending={pendingTarget === value}
               onClick={() => setVerified(value, action.toast)}
             />
@@ -617,7 +648,7 @@ function AssetRow({ asset, ownerId }: {asset: TagDirectoryAsset, ownerId: string
     (meta?.width && meta?.height) ? `${meta.width}×${meta.height}` : null,
     (meta?.size) ? formatMemory(meta.size, 1) : null,
     (meta?.duration) ? `${meta.duration}s` : null,
-  ].filter(Boolean).join(' · ');
+  ].filter(Boolean).join(' • ');
   return (
     <li className='text-sm'>
       <div className='flex flex-wrap items-baseline gap-x-2'>
@@ -678,7 +709,7 @@ function EditRequestReview({ item, request }: {item: AdminTagDirectoryItem, requ
             onClick={approve}
           />
           <ActionButton
-            label='Reject'
+            label='Reject changes'
             icon={<X className='size-4'/>}
             className='btn-danger'
             disabled={mutation.isPending || rejecting}
@@ -825,11 +856,37 @@ function MiniMedia({ url, mimetype, label, badge }: {url: string | null, mimetyp
 
 const VERIFY_SLOTS = [ TagDirectoryVerificationStates.VERIFIED, TagDirectoryVerificationStates.NOT_VERIFIED ] as const;
 
-const VERIFY_ACTIONS: Record<number, {label: string, short: string, toast: string, icon: typeof ShieldCheck, className: string}> = {
-  [TagDirectoryVerificationStates.VERIFIED]: {label: 'Verify', short: 'Verify', toast: 'verified', icon: ShieldCheck, className: 'btn-primary'},
+// `key`: the verdicts with a key while shortcuts are on (mark pending undoes one)
+const VERIFY_ACTIONS: Record<number, {label: string, short: string, toast: string, icon: typeof ShieldCheck, className: string, key?: string}> = {
+  [TagDirectoryVerificationStates.VERIFIED]: {label: 'Verify', short: 'Verify', toast: 'verified', icon: ShieldCheck, className: 'btn-primary', key: REVIEW_KEYS.verify},
   [TagDirectoryVerificationStates.PENDING_VERIFICATION]: {label: 'Mark pending', short: 'Pending', toast: 'marked pending', icon: Clock, className: 'btn-secondary'},
-  [TagDirectoryVerificationStates.NOT_VERIFIED]: {label: 'Reject', short: 'Reject', toast: 'set to unverified', icon: ShieldX, className: 'btn-danger'},
+  // sets the whole listing to unverified
+  [TagDirectoryVerificationStates.NOT_VERIFIED]: {label: 'Unverify', short: 'Unverify', toast: 'set to unverified', icon: ShieldX, className: 'btn-danger', key: REVIEW_KEYS.unverify},
 };
+
+
+// The undo button on the toast after a listing's verification changes, putting it back to `previous`, like the content
+// flags'. Uses `mutateAsync` since the modal may have moved on or closed by the time it's clicked, and `mutate`'s
+// callbacks don't run then. None for a state this page doesn't know
+function useUndoVerifiedAction(): (tagId: string, name: string, previous: number) => ToastAction | undefined {
+  const toast = useToast();
+  const mutation = usePatchAdminTagDirectoryMutation();
+  return (tagId, name, previous) => {
+    const action = VERIFY_ACTIONS[previous] as (typeof VERIFY_ACTIONS)[number] | undefined;
+    if (!action) {
+      return undefined;
+    }
+    return {
+      label: 'Undo',
+      onClick: () => {
+        mutation.mutateAsync({tagId, verified: previous}).then(
+          () => toast(`${name}: ${action.toast}`),
+          (error) => toast(errorMessage(error), 'error'),
+        );
+      },
+    };
+  };
+}
 
 
 // `AdminModalFooter`'s buttons, sized like the content flags modal's: they share the width on phones (with the short

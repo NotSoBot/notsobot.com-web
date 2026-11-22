@@ -18,7 +18,7 @@ import { useSearchParamState, useStepBackFromEmptyPage } from '@/hooks/useSearch
 import { translate, useI18n, type TranslationKey } from '@/i18n';
 import type { UserFile, UserFilesSortBy } from '@/lib/api';
 import { ME_FILES_PAGE_SIZE, errorMessage, useDeleteMeFilesMutation, useMeFilesQuery } from '@/lib/api/dashboardQueries';
-import { cn, formatDate, formatDateTime, formatExactDateTime, formatMemory, formatNumber, toDate } from '@/lib/utils';
+import { cn, formatDate, formatExactDateTime, formatMemory, formatNumber, toDate } from '@/lib/utils';
 
 import { Chip, FiltersButton, Pagination } from '../admin/adminUi';
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from '../ui';
@@ -87,9 +87,10 @@ export function FilesPage() {
   const temporaryParam = searchParams.get('temporary');
   const temporary = (temporaryParam === 'true') ? true : (temporaryParam === 'false') ? false : null;
   const debouncedQuery = useDebouncedValue(query.trim(), 300);
-  // the panel starts closed, the button counts the ones not on their default (more filters will go in it)
+  // the panel starts closed, the button counts the ones not on their default (more filters will go in it). The sort
+  // isn't one of them: it never hides a file, so it sits next to the search where it's always in sight
   const [ filtersOpen, setFiltersOpen ] = useState(false);
-  const activeFilters = [sortBy !== 'newest', temporary !== null].filter(Boolean).length;
+  const activeFilters = [temporary !== null].filter(Boolean).length;
   const filtered = !!debouncedQuery || temporary !== null;
   const [ storedView, setView ] = usePersistentState<FilesView>('dashboard:files-view', 'list');
   const view = VIEWS.find((option) => option.value === storedView)?.value ?? 'list';
@@ -136,11 +137,11 @@ export function FilesPage() {
     <>
       <DashboardHeader
         title={t('page.DASHBOARD_FILES')}
-        description={rich('files.description', {link: (chunk) => <Link to={Routes.DASHBOARD_SETTINGS} className='text-code hover:underline'>{chunk}</Link>})}
+        description={rich('files.description', {link: (chunk) => <Link to={`${Routes.DASHBOARD_SETTINGS}#media`} className='text-code hover:underline'>{chunk}</Link>})}
       />
 
-      {/* the search, how they're shown, then the filters panel's button */}
-      <div className='mb-4 flex gap-2'>
+      {/* the search, the sort (under it until there's room beside it), how they're shown, then the filters panel's button */}
+      <div className='mb-4 flex flex-wrap gap-2'>
         <SearchInput
           className='min-w-0 flex-1'
           value={query}
@@ -148,17 +149,17 @@ export function FilesPage() {
           placeholder={t('files.search_placeholder')}
           aria-label={t('files.search_label')}
         />
+        <label className='flex items-center gap-2 text-sm text-muted max-md:order-last max-md:basis-full'>
+          {t('files.sort')}
+          <select className='input h-12 rounded-lg bg-surface-3 md:w-40' value={sortBy} onChange={(event) => update({sort: (event.target.value === 'newest') ? null : event.target.value})}>
+            {SORTS.map((sort) => <option key={sort.value} value={sort.value}>{t(sort.label)}</option>)}
+          </select>
+        </label>
         <ViewMenu value={view} onChange={setView}/>
         <FiltersButton open={filtersOpen} onToggle={() => setFiltersOpen((value) => !value)} active={activeFilters} controls='file-filters'/>
       </div>
 
       <div id='file-filters' hidden={!filtersOpen} className='card mb-4 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4'>
-        <label className='text-sm'>
-          <span className='mb-1 block text-subtle'>{t('files.sort')}</span>
-          <select className='input' value={sortBy} onChange={(event) => update({sort: (event.target.value === 'newest') ? null : event.target.value})}>
-            {SORTS.map((sort) => <option key={sort.value} value={sort.value}>{t(sort.label)}</option>)}
-          </select>
-        </label>
         <label className='text-sm'>
           <span className='mb-1 block text-subtle'>{t('files.temporary')}</span>
           <select className='input' value={(temporary === null) ? '' : String(temporary)} onChange={(event) => update({temporary: event.target.value || null})}>
@@ -362,10 +363,11 @@ function OpenButton({ file, label = true }: {file: UserFile, label?: boolean}) {
 }
 
 
+// grey like every row's delete on the dashboard, the red one is the confirm button in the dialog it opens
 function DeleteButton({ onClick, label = true }: {onClick: () => void, label?: boolean}) {
   const { t } = useI18n();
   return (
-    <button type='button' className='btn btn-sm btn-danger' onClick={onClick} aria-label={t('files.delete_label')} title={t('common.delete')}>
+    <button type='button' className='btn btn-sm btn-secondary' onClick={onClick} aria-label={t('files.delete_label')} title={t('common.delete')}>
       <Trash2 className='size-4'/>
       {(label) ? <span className='hidden sm:inline'>{t('common.delete')}</span> : null}
     </button>
@@ -396,7 +398,7 @@ function FilesList({ files, onDelete }: {files: Array<UserFile>, onDelete: (file
                   <span>{metadata.width}×{metadata.height}</span>
                 ) : null}
                 {(metadata.duration) ? <span>{formatDuration(metadata.duration)}</span> : null}
-                <span title={formatExactDateTime(file.created)}>{t('files.uploaded', {date: formatDateTime(file.created)})}</span>
+                <span title={formatExactDateTime(file.created)}>{t('files.uploaded', {date: formatDate(file.created)})}</span>
               </div>
             </div>
             <div className='flex shrink-0 flex-col gap-1.5 sm:flex-row'>

@@ -1,4 +1,4 @@
-import { Check, Flame, LayoutGrid } from 'lucide-react';
+import { Check, Flame, Info, LayoutGrid } from 'lucide-react';
 import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 
@@ -26,15 +26,19 @@ import {
   compareByUses,
   entryFromPath,
   matchesAccess,
+  openedFromList,
   TYPE_OPTIONS,
   typeOptionFromParam,
   type Entry,
+  type StatsState,
 } from './commandMeta';
 
 
 // Filters live in the URL (shareable) and the last-used set is remembered, so coming back to a
 // plain /commands (e.g. from the navbar) restores them. An explicit filter in the URL wins.
-const FILTER_PARAMS = ['type', 'category', 'in', 'access', 'q', 'sort'] as const;
+// The search text is in the URL too but isn't remembered: days later it would quietly cut the list down to an old search.
+const REMEMBERED_PARAMS = ['type', 'category', 'in', 'access', 'sort'] as const;
+const FILTER_PARAMS = [...REMEMBERED_PARAMS, 'q'] as const;
 const STORAGE_FILTERS = 'commands:filters';
 
 const PAGE_SIZE = 60;
@@ -81,8 +85,9 @@ export function CommandsPage() {
       return;
     }
     const stored = readStored<Record<string, string>>(STORAGE_FILTERS, {});
+    // a search saved before it stopped being remembered is dropped here too
     const restored = Object.fromEntries(
-      Object.entries(stored).filter(([key, value]) => (FILTER_PARAMS as ReadonlyArray<string>).includes(key) && value),
+      Object.entries(stored).filter(([key, value]) => (REMEMBERED_PARAMS as ReadonlyArray<string>).includes(key) && value),
     );
     if (Object.keys(restored).length) {
       updateParams(restored);
@@ -92,7 +97,7 @@ export function CommandsPage() {
 
   useEffect(() => {
     const filters: Record<string, string> = {};
-    for (const key of FILTER_PARAMS) {
+    for (const key of REMEMBERED_PARAMS) {
       const value = searchParams.get(key);
       if (value) {
         filters[key] = value;
@@ -102,7 +107,10 @@ export function CommandsPage() {
   }, [searchParams]);
 
   const { data: commands, isPending, isError, refetch } = useCommandsQuery(language);
-  const { data: stats } = useCommandStatsQuery(7);
+  const { data: stats, isError: statsError } = useCommandStatsQuery(7);
+  // without the numbers nothing is called unused: placeholders while they load, no uses or trending when they failed
+  // (a failed refetch keeps the ones it has)
+  const statsState: StatsState = (stats) ? 'ready' : (statsError) ? 'failed' : 'pending';
 
   // every command, for the header and the drawer (which shows all of a command's variants whatever the filters)
   const entries = useMemo(() => buildEntries(commands || [], stats), [commands, stats]);
@@ -173,14 +181,43 @@ export function CommandsPage() {
   const selected = (commandId) ? entryFromPath(entries, commandId, commandType) : undefined;
   const siblings = (selected) ? entries.filter((entry) => entry.command.id === selected.entry.command.id && entry.key !== selected.entry.key) : [];
   // the filters stay in the query string either way
-  const goTo = useCallback((pathname: string, search: string) => {
-    navigate({pathname, search}, {replace: true, preventScrollReset: true});
+  const goTo = useCallback((pathname: string, search: string, state?: unknown) => {
+    navigate({pathname, search}, {replace: true, preventScrollReset: true, state});
   }, [navigate]);
-  // a card opens on the variant it shows
+  // from inside the open drawer (another variant, a command it links to): the same history entry and its state, so
+  // Back still closes the drawer however many were looked at
   const openCommand = useCallback((entry: Entry, type: CommandType = entry.metadata.type) => {
-    goTo(commandPath(entry.command, type), location.search);
-  }, [goTo, location.search]);
-  const closeCommand = useCallback(() => goTo(Routes.COMMANDS, location.search), [goTo, location.search]);
+    goTo(commandPath(entry.command, type), location.search, location.state);
+  }, [goTo, location.search, location.state]);
+  // A card's click added a history entry, so closing goes back to the list's like the browser's Back does (adding the
+  // list again instead would make Back reopen the drawer). One opened by its url has no list behind it, its entry
+  // becomes the list.
+  const fromList = openedFromList(location.state);
+  const leaving = useRef(false);
+  useEffect(() => {
+    leaving.current = false;
+  }, [location.key]);
+  const closeCommand = useCallback(() => {
+    if (!fromList) {
+      goTo(Routes.COMMANDS, location.search);
+    } else if (!leaving.current) {
+      // going back isn't instant, a second Escape or click in the meantime mustn't go back twice and off the page
+      leaving.current = true;
+      navigate(-1);
+    }
+  }, [goTo, navigate, location.search, fromList]);
+
+  // a link to a command that's gone (removed, or a type it no longer has): say so above the list and drop the dead id
+  // from the url. cleared by opening a command
+  const [ missing, setMissing ] = useState(false);
+  useEffect(() => {
+    if (selected) {
+      setMissing(false);
+    } else if (commandId && commands) {
+      setMissing(true);
+      goTo(Routes.COMMANDS, location.search);
+    }
+  }, [commandId, commands, selected, goTo, location.search]);
 
   const categories = useMemo(() => categoryOrder(t), [t]);
 
@@ -206,8 +243,16 @@ export function CommandsPage() {
       </div>
 
       <div className='container-page py-8'>
+        {(missing) ? (
+          <p role='status' className='mb-4 flex items-start gap-3 rounded-md border border-line bg-surface px-4 py-3 text-sm text-fg'>
+            <Info aria-hidden className='mt-0.5 size-5 shrink-0 text-muted'/>
+            {t('commands.missing')}
+          </p>
+        ) : null}
         <PrefixSunsetNotice className='mb-8'/>
-        {(entries.length) ? (
+        {/* there from the first render (a skeleton until the commands and their uses are in), so the list below doesn't
+            jump down when it fills in. left out when the uses couldn't be loaded */}
+        {((isPending || entries.length) && statsState !== 'failed') ? (
           <section aria-labelledby='trending-heading' className='mb-10'>
             <h2 id='trending-heading' className='mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-xl text-white'>
               <Flame className='size-5 text-warning'/>
@@ -219,7 +264,13 @@ export function CommandsPage() {
               ) : null}
             </h2>
             {/* one row that only scrolls sideways (cards are a constant height), so switching filters never shifts the page */}
-            {(trending.length) ? (
+            {(isPending || statsState === 'pending') ? (
+              <div aria-hidden className='-mx-4 sm:mx-0'>
+                <ul className='grid auto-cols-[15.5rem] grid-flow-col gap-3 overflow-hidden px-4 pb-2 sm:px-0'>
+                  {Array.from({length: TRENDING_COUNT}, (_, i) => <li key={i} className='card h-[11.5rem] animate-pulse'/>)}
+                </ul>
+              </div>
+            ) : (trending.length) ? (
               <div className='-mx-4 sm:mx-0'>
                 <ul
                   key={`${typeOption.param}:${category}:${dmOnly}:${access}`}
@@ -229,7 +280,7 @@ export function CommandsPage() {
                   )}
                 >
                   {trending.map((entry) => (
-                    <TrendingCard key={entry.key} entry={entry} max={trending[0].uses} onOpen={() => openCommand(entry)}/>
+                    <TrendingCard key={entry.key} entry={entry} max={trending[0].uses}/>
                   ))}
                 </ul>
               </div>
@@ -315,7 +366,7 @@ export function CommandsPage() {
               {(activeFilterCount) ? (
                 <button
                   type='button'
-                  onClick={() => updateParams({type: null, category: null, in: null, access: null})}
+                  onClick={() => updateParams({type: null, category: null, in: null, access: null, q: null})}
                   className='cursor-pointer text-muted transition-colors hover:text-white'
                 >
                   {t('commands.clear_filters')}
@@ -325,7 +376,8 @@ export function CommandsPage() {
 
             {(isPending) ? (
               <CardGridSkeleton/>
-            ) : (isError) ? (
+            ) : (isError && !commands) ? (
+              // a failed refetch keeps the list it already has, like the header and trending above it
               <div className='card flex flex-col items-center gap-3 p-10 text-center'>
                 <p className='text-muted'>{t('commands.load_error')}</p>
                 <button type='button' className='btn btn-secondary' onClick={() => refetch()}>{t('common.retry')}</button>
@@ -334,7 +386,7 @@ export function CommandsPage() {
               <>
                 <ul className='grid grid-cols-1 gap-3 md:grid-cols-2 2xl:grid-cols-3'>
                   {filtered.slice(0, visible).map((entry) => (
-                    <CommandCard key={entry.key} entry={entry} onOpen={() => openCommand(entry)}/>
+                    <CommandCard key={entry.key} entry={entry} stats={statsState}/>
                   ))}
                 </ul>
                 {(visible < filtered.length) ? (
@@ -359,6 +411,7 @@ export function CommandsPage() {
           siblings={siblings}
           entries={entries}
           totalRanked={totalRanked}
+          stats={statsState}
           onSelect={openCommand}
           onClose={closeCommand}
         />

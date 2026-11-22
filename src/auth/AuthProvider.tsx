@@ -72,6 +72,10 @@ export function AuthProvider({ children }: {children: ReactNode}) {
   }, []);
 
   const logout = useCallback(async () => {
+    // before the request: a session already gone server-side answers it 401, and the API client clears the token right
+    // then, mid-await. A protected page seeing that before knowing it's a logout would head for Discord (deleting the
+    // account logs out like that). `loggedOut` only counts once the token is gone, so it's safe to set early
+    setLoggedOut(true);
     if (tokenStorage.get()) {
       try {
         await api.logout();
@@ -79,7 +83,6 @@ export function AuthProvider({ children }: {children: ReactNode}) {
         // session may already be gone server-side; clear locally regardless
       }
     }
-    setLoggedOut(true);
     forgetGrantedScopes();
     tokenStorage.clear();
   }, []);
@@ -103,7 +106,8 @@ export function AuthProvider({ children }: {children: ReactNode}) {
   } else if (meQuery.data) {
     status = 'authenticated';
   } else if (meQuery.isError) {
-    status = isAuthRejection(meQuery.error) ? 'anonymous' : 'error';
+    // a retry keeps the error until it lands, show it as checking again meanwhile (a spinner, not a dead Retry button)
+    status = (isAuthRejection(meQuery.error)) ? 'anonymous' : (meQuery.isFetching) ? 'loading' : 'error';
   } else {
     status = 'loading';
   }

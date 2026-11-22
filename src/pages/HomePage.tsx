@@ -1,16 +1,16 @@
-import { ArrowRight, Crown, RefreshCw, Sparkles, Upload, Wand2, type LucideIcon } from 'lucide-react';
+import { ArrowRight, RefreshCw, Sparkles, Upload, Wand2, type LucideIcon } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
 
 import { ImageComparison } from '@/components/ui/ImageComparison';
 import { PrefixSunsetNotice } from '@/components/ui/PrefixSunsetNotice';
-import { QuarantineNotice } from '@/components/ui/QuarantineNotice';
+import { QuarantineNotice, useQuarantineNoticeDismissed } from '@/components/ui/QuarantineNotice';
 import { ReportUpdatesNotice } from '@/components/ui/ReportUpdatesNotice';
 import { Segmented } from '@/components/ui/Segmented';
 import { Routes } from '@/config';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useI18n } from '@/i18n';
-import { ApiEndpoints, apiUrl, CommandMediaTypes, CommandTypes, type Command, type CommandMedia } from '@/lib/api';
+import { botInviteUrl, CommandMediaTypes, CommandTypes, type Command, type CommandMedia } from '@/lib/api';
 import { useCommandsQuery, useInfoDiscordQuery } from '@/lib/api/queries';
 import { enabledCommandVariants } from '@/lib/commandAvailability';
 import { compareCommandTypes } from '@/lib/commandPaths';
@@ -22,8 +22,6 @@ import { commandPath, PREFIXES } from './commands/commandMeta';
 // what the gallery doesn't show, `home.features.<key>.title` / `.description`, two rows of four on wide screens
 // shown in alphabetical order of their translated titles
 const FEATURES = ['ai', 'audio', 'conversion', 'moderation', 'music', 'search', 'tags', 'tts', 'voices'] as const;
-// NotSoAI needs Max and cloning a voice needs Plus (`.ai` / `tts voice create` in the bot)
-const FEATURE_PREMIUM = {ai: 'home.features.premium_max', voices: 'home.features.premium_plus'} as const;
 
 // `home.steps.<key>.title` / `.description`
 const STEPS: Array<{icon: LucideIcon, key: 'post' | 'run' | 'result'}> = [
@@ -104,7 +102,6 @@ function compactNumber(value: number): string {
 
 export function HomePage() {
   const { t, language } = useI18n();
-  const inviteUrl = apiUrl(ApiEndpoints.HELP_DISCORD_BOT);
   const commands = useCommandsQuery(language);
 
   const { sliders, showcases } = useMemo(() => {
@@ -127,14 +124,19 @@ export function HomePage() {
   const hasSlider = commands.isPending || sliders.length > 0;
   const collator = new Intl.Collator(displayLocale());
   const features = [ ...FEATURES ].sort((a, b) => collator.compare(t(`home.features.${a}.title`), t(`home.features.${b}.title`)));
+  const [ quarantineDismissed, setQuarantineDismissed ] = useQuarantineNoticeDismissed();
 
   return (
     <>
       {/* Hero */}
       <section className='container-page py-12 sm:py-20'>
-        <ReportUpdatesNotice className='mx-auto mb-4 max-w-3xl lg:max-w-5xl'/>
-        <PrefixSunsetNotice className='mx-auto mb-4 max-w-3xl lg:max-w-5xl'/>
-        <QuarantineNotice className='mx-auto mb-6 max-w-3xl sm:mb-10 lg:max-w-5xl'/>
+        {/* one box holds the gap to the headline, so whichever notices are left after closing some keep it (and with
+            none left it takes no room) */}
+        <div className='mx-auto mb-6 flex max-w-3xl flex-col gap-4 empty:hidden sm:mb-10 lg:max-w-5xl'>
+          <ReportUpdatesNotice/>
+          <PrefixSunsetNotice/>
+          {(quarantineDismissed) ? null : <QuarantineNotice onDismiss={() => setQuarantineDismissed(true)}/>}
+        </div>
         {/* a real before/after under the buttons, or beside the text on large screens. kept to max-w-5xl so the two
             don't drift to opposite edges of a wide screen */}
         <div className={cn('mx-auto max-w-5xl text-center', (hasSlider) && 'lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-center lg:gap-12 lg:text-left')}>
@@ -147,7 +149,7 @@ export function HomePage() {
             </p>
             <p className='mb-8 text-sm text-muted italic'>{t('home.hero.quote')}</p>
             <div className={cn('flex flex-col items-center justify-center gap-4 sm:flex-row', (hasSlider) && 'lg:justify-start')}>
-              <a href={inviteUrl} className='btn btn-discord btn-lg'>
+              <a href={botInviteUrl(null, 'hero')} className='btn btn-discord btn-lg'>
                 {t('common.add_to_discord')}
                 <ArrowRight className='size-5'/>
               </a>
@@ -196,15 +198,7 @@ export function HomePage() {
         <dl className='grid gap-x-8 gap-y-6 sm:grid-cols-2 md:border-t md:border-line md:pt-8 lg:grid-cols-3'>
           {features.map((key) => (
             <div key={key}>
-              <dt className='mb-1 flex flex-wrap items-center gap-2 font-semibold text-white'>
-                {t(`home.features.${key}.title`)}
-                {(key in FEATURE_PREMIUM) ? (
-                  <span className='inline-flex items-center gap-1 rounded bg-warning/15 px-1.5 py-0.5 text-xs font-medium text-warning'>
-                    <Crown aria-hidden className='size-3'/>
-                    {t(FEATURE_PREMIUM[key as keyof typeof FEATURE_PREMIUM])}
-                  </span>
-                ) : null}
-              </dt>
+              <dt className='mb-1 font-semibold text-white'>{t(`home.features.${key}.title`)}</dt>
               <dd className='text-sm text-muted'>{t(`home.features.${key}.description`)}</dd>
             </div>
           ))}
@@ -244,7 +238,7 @@ export function HomePage() {
           <p className='mx-auto mb-8 max-w-2xl text-xl text-muted'>
             {t('home.cta.description')}
           </p>
-          <a href={inviteUrl} className='btn btn-discord btn-lg'>
+          <a href={botInviteUrl(null, 'home-bottom')} className='btn btn-discord btn-lg'>
             {t('common.add_to_discord')}
             <ArrowRight className='size-5'/>
           </a>
@@ -315,8 +309,8 @@ function GalleryTile({ showcase }: {showcase: Showcase}) {
 
 function LiveStats() {
   const { t, language } = useI18n();
-  const { data: info } = useInfoDiscordQuery({poll: false});
-  const { data: commands } = useCommandsQuery(language);
+  const { data: info, isError: infoFailed } = useInfoDiscordQuery({poll: false});
+  const { data: commands, isError: commandsFailed } = useCommandsQuery(language);
 
   const totals = useMemo(() => {
     if (!info) {
@@ -335,10 +329,11 @@ function LiveStats() {
 
   const commandCount = commands?.filter((command) => enabledCommandVariants(command).length).length;
 
+  // `failed` is its request giving up: a number that isn't coming gets a dash instead of loading forever
   const stats = [
-    {label: t('home.stats.servers'), value: (totals) ? compactNumber(totals.guilds) : null},
-    {label: t('home.stats.users'), value: (totals) ? compactNumber(totals.users) : null},
-    {label: t('home.stats.commands'), value: (commandCount) ? commandCount.toLocaleString(displayLocale()) : null},
+    {label: t('home.stats.servers'), value: (totals) ? compactNumber(totals.guilds) : null, failed: infoFailed},
+    {label: t('home.stats.users'), value: (totals) ? compactNumber(totals.users) : null, failed: infoFailed},
+    {label: t('home.stats.commands'), value: (commandCount) ? commandCount.toLocaleString(displayLocale()) : null, failed: commandsFailed},
   ];
 
   return (
@@ -348,6 +343,8 @@ function LiveStats() {
           <div key={stat.label}>
             {(stat.value) ? (
               <div className='mb-2 text-4xl font-bold text-brand-text tabular-nums md:text-5xl'>{stat.value}</div>
+            ) : (stat.failed) ? (
+              <div className='mb-2 text-4xl font-bold text-subtle md:text-5xl'>—</div>
             ) : (
               <div className='mx-auto mb-2 h-12 w-32 animate-pulse rounded bg-surface-3 md:h-14'/>
             )}

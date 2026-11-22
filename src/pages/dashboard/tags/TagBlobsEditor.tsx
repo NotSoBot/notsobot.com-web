@@ -58,7 +58,8 @@ export function TagBlobsEditor({ tag, scope, readOnly, onDirtyChange }: {
   if (isPending) {
     return <div className='space-y-4'><PanelSkeleton rows={2}/><PanelSkeleton rows={2}/></div>;
   }
-  if (isError) {
+  // only when nothing loaded: a failed refetch (reconnecting, say) keeps the form and its unsaved edits
+  if (isError && !data) {
     return <ErrorPanel title={t('dtags.blobs.load_error')} message={errorMessage(error)} onRetry={() => refetch()} retrying={isRefetching}/>;
   }
   // a new scope/response starts a fresh form
@@ -128,9 +129,9 @@ function BlobsForm({ tag, scope, blobs, readOnly, onDirtyChange }: {
     sent.current = draft;
     put.mutate(body, {
       onSuccess: () => toast(translate('dtags.blobs.saved')),
-      onError: (saveError) => {
+      // no toast for a failure: it shows above the save bar
+      onError: () => {
         sent.current = null;
-        toast(errorMessage(saveError, translate('dtags.blobs.save_error')), 'error');
       },
     });
   };
@@ -192,7 +193,7 @@ function BlobsForm({ tag, scope, blobs, readOnly, onDirtyChange }: {
                     className='input resize-y font-mono text-xs leading-5'
                     value={slotText(slot)}
                     onChange={(event) => {
-                      // clears a failed save's error; resetting one that's still sending would drop its toast
+                      // clears a failed save's error; resetting one that's still sending would drop its result
                       if (!put.isPending) {
                         put.reset();
                       }

@@ -2,6 +2,7 @@ import { X } from 'lucide-react';
 import { useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { useI18n } from '@/i18n';
 import { cn } from '@/lib/utils';
 
@@ -19,10 +20,11 @@ export function openModalCount(): number {
 }
 
 
-// Centered dialog over the current page: Escape / backdrop click close it, focus moves in and is
-// handed back to whatever opened it, and the page underneath doesn't scroll while it's open.
+// Centered dialog over the current page: Escape / backdrop click close it, focus moves in, stays in (Tab wraps around
+// inside the top dialog) and is handed back to whatever opened it, and the page underneath doesn't scroll while it's open.
 // Rendered at the end of `body`, so it's never inside a transformed ancestor and a modal opened from another one stacks
 // over it (each one's dimming included).
+// A field marked `data-autofocus` gets the focus on open, on devices with a keyboard (see below).
 // `stickyClose` keeps the close button at the top of the window while scrolling on phones, for a modal whose header
 // sticks there too (at `-top-12`, this window's top padding on phones).
 export function Modal({ labelledBy, onClose, className, stickyClose = false, children }: {
@@ -34,13 +36,32 @@ export function Modal({ labelledBy, onClose, className, stickyClose = false, chi
 }) {
   const { t } = useI18n();
   const closeRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+  const self = useRef(Symbol('modal')).current;
+  // what had focus before the dialog rendered. read here and not in the effect: by then an autofocused field inside the
+  // dialog has taken it, and closing would hand focus back to that removed field instead of the button that opened it
+  const openerRef = useRef<HTMLElement | null | undefined>(undefined);
+  if (openerRef.current === undefined) {
+    openerRef.current = document.activeElement as HTMLElement | null;
+  }
+  useFocusTrap(dialogRef, () => openModals.at(-1) === self);
 
   useEffect(() => {
-    const previouslyFocused = document.activeElement as HTMLElement | null;
-    closeRef.current?.focus({preventScroll: true});
-    const self = Symbol('modal');
+    const previouslyFocused = openerRef.current;
+    // a dialog built around one field marks it `data-autofocus`: with a keyboard and mouse it gets the focus (its text
+    // selected, for a rename), so typing works right away. on touch devices focus stays on the close button, focusing a
+    // field there opens the on-screen keyboard over half the dialog
+    const field = dialogRef.current?.querySelector<HTMLElement>('[data-autofocus]');
+    if (field && window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+      field.focus({preventScroll: true});
+      if (field instanceof HTMLInputElement) {
+        field.select();
+      }
+    } else {
+      closeRef.current?.focus({preventScroll: true});
+    }
     if (!openModals.length) {
       pageStyles = {overflow: document.body.style.overflow, position: document.documentElement.style.position};
       document.body.style.overflow = 'hidden';
@@ -49,7 +70,9 @@ export function Modal({ labelledBy, onClose, className, stickyClose = false, chi
     }
     openModals.push(self);
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && openModals.at(-1) === self) {
+      // an Escape something inside already used (leaving the tag editor's code field, cancelling an inline edit)
+      // calls preventDefault, and doesn't close the dialog too
+      if (event.key === 'Escape' && !event.defaultPrevented && openModals.at(-1) === self) {
         onCloseRef.current();
       }
     };
@@ -64,7 +87,7 @@ export function Modal({ labelledBy, onClose, className, stickyClose = false, chi
       }
       previouslyFocused?.focus?.({preventScroll: true});
     };
-  }, []);
+  }, [self]);
 
   return createPortal(
     <>
@@ -78,6 +101,7 @@ export function Modal({ labelledBy, onClose, className, stickyClose = false, chi
         {/* the blur only needs to cover what's in the window, a blur the size of the whole page is slow */}
         <div aria-hidden className='fixed inset-0 animate-fade-in backdrop-blur-sm' onClick={onClose}/>
         <div
+          ref={dialogRef}
           role='dialog'
           aria-modal='true'
           aria-labelledby={labelledBy}
@@ -93,7 +117,11 @@ export function Modal({ labelledBy, onClose, className, stickyClose = false, chi
               type='button'
               aria-label={t('ui.close')}
               onClick={onClose}
-              className='absolute top-3 right-3 z-10 cursor-pointer rounded-md p-2 text-muted transition-colors hover:bg-surface-2 hover:text-white'
+              className={cn(
+                'absolute top-3 right-3 z-10 cursor-pointer rounded-md p-2 text-muted transition-colors hover:bg-surface-2 hover:text-white',
+                // stuck over scrolled content on phones (a modal whose header doesn't stick with it), it needs its own backing
+                stickyClose && 'max-sm:bg-bg/90 max-sm:backdrop-blur',
+              )}
             >
               <X className='size-5'/>
             </button>

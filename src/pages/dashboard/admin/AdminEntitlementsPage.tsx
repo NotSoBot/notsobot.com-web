@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 
 import { ENTITLEMENT_PROVIDERS, ENTITLEMENT_TIERS, entitlementProviderLabel, entitlementStatus, entitlementTierLabel } from '../premium';
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from '../ui';
-import { Chip, CopyableValue, ExactDate, Pagination, UserCell } from './adminUi';
+import { adminUserPath, Chip, CopyableValue, ExactDate, FilterButton, Pagination, UserCell } from './adminUi';
 
 
 function parseNumber(value: string | null): number | null {
@@ -136,14 +136,11 @@ export function AdminEntitlementsPage() {
                     <tr key={entitlement.id} className='align-middle hover:bg-surface-2'>
                       <td className='px-4 py-3'>
                         {(entitlement.user) ? (
-                          <button
-                            type='button'
-                            className='-m-1 cursor-pointer rounded-md p-1 text-left hover:bg-surface-3'
-                            title='Show only this user’s entitlements'
-                            onClick={() => update({user_id: entitlement.user?.id ?? null})}
-                          >
-                            <UserCell user={entitlement.user}/>
-                          </button>
+                          // the name opens the user, the funnel narrows the list to them (like Voices and Reports)
+                          <div className='flex min-w-0 items-center gap-1'>
+                            <div className='min-w-0'><UserCell user={entitlement.user} to={adminUserPath(entitlement.user.id)}/></div>
+                            <FilterButton label='Show only this user’s entitlements' onClick={() => update({user_id: entitlement.user?.id ?? null})}/>
+                          </div>
                         ) : (entitlement.guild_id) ? (
                           <div className='text-xs text-muted'>
                             Server

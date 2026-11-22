@@ -14,7 +14,7 @@ export const Layout: Record<keyof typeof English, string> = {
   'nav.close_menu': 'Cerrar menú',
 
   'footer.label': 'Pie de página',
-  'footer.company': 'Empresa',
+  'footer.links': 'Enlaces',
   'footer.tag_docs': 'Docs de tags',
   'footer.report_bug': 'Reportar un error',
   'footer.privacy': 'Política de privacidad',
@@ -75,7 +75,7 @@ export const Layout: Record<keyof typeof English, string> = {
 
   'not_found.title': 'Página no encontrada',
   'not_found.description': 'La página que buscas no existe o se ha movido. (404 jaja)',
-  'not_found.home': 'Volver al inicio',
+  'not_found.home': 'Ir al inicio',
 
   'route_error.title': 'Bueno, eso no lo esperábamos',
   'route_error.description': 'Algo falló al mostrar esta página.',

@@ -109,7 +109,7 @@ function ActionCard({ entries, users, ownerId }: {entries: Array<TagAuditEntry>,
     <li className='rounded-md border border-line bg-deep p-2.5 text-sm'>
       <div className='flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-subtle'>
         <Actor id={first.actor_id} users={users} ownerId={ownerId}/>
-        <span aria-hidden>·</span>
+        <span aria-hidden>•</span>
         <ExactDate value={first.created} format={formatDateTime}/>
         {(reason) ? <Chip tone={reason.tone}>{reason.label}</Chip> : null}
       </div>
@@ -209,7 +209,7 @@ function AssetDetails({ entry, ownerId }: {entry: TagAuditEntry, ownerId: string
   const facts = [
     details.mimetype,
     (details.size) ? formatMemory(details.size, 1) : null,
-  ].filter(Boolean).join(' · ');
+  ].filter(Boolean).join(' • ');
   return (
     <div className='mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-subtle'>
       {(entry.asset_id) ? <CopyableValue value={entry.asset_id} truncate={0}/> : null}

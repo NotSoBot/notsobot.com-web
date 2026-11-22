@@ -13,7 +13,7 @@ import { errorMessage, useGuildMusicMutation, useGuildMusicQuery, useGuildScope,
 import { cn, formatNumber } from '@/lib/utils';
 
 import { isSnowflake } from '../tags/tagMeta';
-import { Field, Panel, Skeleton, Toggle } from '../ui';
+import { Field, HelpDisclosure, Panel, Skeleton, Toggle } from '../ui';
 import { EntryMention, useReadOnlyMessage } from './guildMeta';
 import {
   MAX_MUSIC_EFFECTS,
@@ -43,6 +43,7 @@ export function MusicSection({ guild }: {guild: UserGuild}) {
   const mutation = useGuildMusicMutation(guild.id);
   const [ busyKey, setBusyKey ] = useState<string | null>(null);
   const [ confirming, setConfirming ] = useState<'clear' | 'leave' | null>(null);
+  const code = (chunk: string) => <code className='text-code'>{chunk}</code>;
 
   // whether it went through
   const run = async (key: string, action: GuildMusicAction, success?: string): Promise<boolean> => {
@@ -82,7 +83,7 @@ export function MusicSection({ guild }: {guild: UserGuild}) {
     <Panel
       title={t('music.title')}
       accent='#1db954'
-      description={t('music.description')}
+      description={rich('music.description', {code})}
       readOnly={(editable) ? undefined : readOnlyMessage('music')}
       actions={(music && playing) ? (
         <Segmented
@@ -94,17 +95,22 @@ export function MusicSection({ guild }: {guild: UserGuild}) {
         />
       ) : null}
     >
+      {/* it's fetched again every few seconds: one of those failing says so over the last copy instead of replacing the
+          queue (while the sound and settings below kept showing it), and it goes once a fetch works again */}
+      {(error && music) ? (
+        <p role='alert' className='mb-3 text-sm text-danger-text'>{errorMessage(error, t('music.load_error'))}</p>
+      ) : null}
       {(isPending) ? (
         <div aria-hidden className='space-y-2'>
           <Skeleton className='h-16 w-full bg-surface-2'/>
           <Skeleton className='h-9 w-full bg-surface-2'/>
         </div>
-      ) : (error) ? (
+      ) : (error && !music) ? (
         <p role='alert' className='text-sm text-danger-text'>{errorMessage(error, t('music.load_error'))}</p>
       ) : (!music || !playing) ? (
         <p className='flex items-center gap-2 text-sm text-muted'>
           <Music aria-hidden className='size-4 text-subtle'/>
-          {rich('music.nothing', {code: (chunk) => <code className='text-code'>{chunk}</code>})}
+          {rich('music.nothing', {code})}
         </p>
       ) : (
         <div className='space-y-4'>
@@ -120,7 +126,7 @@ export function MusicSection({ guild }: {guild: UserGuild}) {
                 if (action === 'leave') {
                   setConfirming('leave');
                 } else {
-                  void run(action, {kind: 'control', action});
+                  void run(action, {kind: 'control', action, ...(action === 'skip') ? {itemId: music.current?.id} : {}});
                 }
               }}
             />
@@ -236,7 +242,7 @@ export function MusicSection({ guild }: {guild: UserGuild}) {
       ) : (confirming === 'leave') ? (
         <ConfirmDialog
           title={t('music.stop_title')}
-          description={t('music.stop_description')}
+          description={rich('music.stop_description', {code})}
           confirmLabel={t('music.stop')}
           pending={busyKey === 'leave'}
           onConfirm={async () => {
@@ -257,6 +263,9 @@ export function MusicSection({ guild }: {guild: UserGuild}) {
 // the text is `music.vote.<key>.label`, `.description` and the `.on` / `.off` toasts
 const VOTE_SETTINGS: ReadonlyArray<'vote_skip' | 'vote_pause' | 'vote_resume'> = ['vote_skip', 'vote_pause', 'vote_resume'];
 
+// the settings that are a switch
+type MusicSwitch = 'dj_only' | 'fair_queue' | 'no_duplicates' | 'pause_alone' | 'stay' | (typeof VOTE_SETTINGS)[number];
+
 // the server's music settings (`music settings` in Discord): who controls the music, the queue's rules and 24/7
 function MusicSettings({ guildId, music, editable, busyKey, disabled, run }: {
   guildId: string,
@@ -267,36 +276,38 @@ function MusicSettings({ guildId, music, editable, busyKey, disabled, run }: {
   run: (key: string, action: GuildMusicAction, success?: string) => Promise<boolean>,
 }) {
   const { t } = useI18n();
-  const locked = !editable || disabled;
+  // one edit is sent at a time: the switch that was clicked shows what was picked with a spinner (the api answers with
+  // the saved settings), the others just wait instead of the whole list dimming
+  const toggle = (key: MusicSwitch, checked: boolean, success: (value: boolean) => string, off = false) => ({
+    checked: (busyKey === key) ? !checked : checked,
+    busy: busyKey === key,
+    disabled: !editable || off || busyKey === key,
+    onChange: (value: boolean) => {
+      if (!disabled) {
+        void run(key, {kind: 'settings', settings: {[key]: value}}, success(value));
+      }
+    },
+  });
   return (
     <div className='mt-4'>
       <h3 className='mb-2 text-sm font-semibold text-white'>{t('music.settings')}</h3>
       <div className='divide-y divide-line rounded-md border border-line bg-deep'>
         <div className='px-3 py-2.5'>
           <Toggle
-            checked={music.fair_queue}
-            disabled={locked}
+            {...toggle('fair_queue', music.fair_queue, (value) => t((value) ? 'music.fair_on' : 'music.fair_off'))}
             label={t('music.fair')}
             description={t('music.fair_description')}
-            onChange={(value) => void run(
-              'fair_queue',
-              {kind: 'settings', settings: {fair_queue: value}},
-              t((value) ? 'music.fair_on' : 'music.fair_off'),
-            )}
           />
         </div>
         <div className='px-3 py-2.5'>
           <Toggle
-            checked={music.dj_only}
-            disabled={locked}
+            {...toggle('dj_only', music.dj_only, (value) => t((value) ? 'music.dj_on' : 'music.dj_off'))}
             label={t('music.dj')}
             description={t('music.dj_description')}
-            onChange={(value) => void run(
-              'dj_only',
-              {kind: 'settings', settings: {dj_only: value}},
-              t((value) ? 'music.dj_on' : 'music.dj_off'),
-            )}
           />
+          <HelpDisclosure summary={t('sections.how_it_works')} className='mt-1'>
+            <p>{t('music.dj_description_more')}</p>
+          </HelpDisclosure>
           <DjRoleSetting guildId={guildId} music={music} editable={editable} busyKey={busyKey} disabled={disabled} run={run}/>
         </div>
         <div className='px-3 py-2.5'>
@@ -307,60 +318,38 @@ function MusicSettings({ guildId, music, editable, busyKey, disabled, run }: {
             {VOTE_SETTINGS.map((setting) => (
               <Toggle
                 key={setting}
-                checked={music[setting]}
-                disabled={locked || music.dj_only}
+                {...toggle(setting, music[setting], (value) => t(`music.vote.${setting}.${(value) ? 'on' : 'off'}` as TranslationKey), music.dj_only)}
                 label={t(`music.vote.${setting}.label`)}
                 description={t(`music.vote.${setting}.description`)}
-                onChange={(value) => void run(
-                  setting,
-                  {kind: 'settings', settings: {[setting]: value}},
-                  t(`music.vote.${setting}.${(value) ? 'on' : 'off'}` as TranslationKey),
-                )}
               />
             ))}
           </div>
         </div>
         <div className='px-3 py-2.5'>
           <Toggle
-            checked={music.no_duplicates}
-            disabled={locked}
+            {...toggle('no_duplicates', music.no_duplicates, (value) => t((value) ? 'music.duplicates_on' : 'music.duplicates_off'))}
             label={t('music.duplicates')}
             description={t('music.duplicates_description')}
-            onChange={(value) => void run(
-              'no_duplicates',
-              {kind: 'settings', settings: {no_duplicates: value}},
-              t((value) ? 'music.duplicates_on' : 'music.duplicates_off'),
-            )}
           />
         </div>
         <MaxDurationSetting music={music} editable={editable} busy={busyKey === 'max_duration'} disabled={disabled} run={run}/>
+        {/* the premium ones all look the same on a server without it: locked on what the bot does there (not on what's
+            saved, that's kept as it is), a chip on the name and a line under it */}
         <div className='px-3 py-2.5'>
           <Toggle
-            checked={music.stay}
-            disabled={locked}
-            label={t('music.stay')}
+            {...toggle('stay', music.premium && music.stay, (value) => t((value) ? 'music.stay_on' : 'music.stay_off'), !music.premium)}
+            label={<>{t('music.stay')}{(music.premium) ? null : <PremiumChip/>}</>}
             description={t('music.stay_description')}
-            onChange={(value) => void run(
-              'stay',
-              {kind: 'settings', settings: {stay: value}},
-              t((value) ? 'music.stay_on' : 'music.stay_off'),
-            )}
           />
           {(!music.premium) ? (
-            <PremiumNote>{t('music.stay_premium')}</PremiumNote>
+            <PremiumNote>{t('music.premium_locked')}</PremiumNote>
           ) : null}
         </div>
         <div className='px-3 py-2.5'>
           <Toggle
-            checked={music.pause_alone}
-            disabled={locked || !music.premium}
-            label={t('music.pause_alone')}
+            {...toggle('pause_alone', music.pause_alone || !music.premium, (value) => t((value) ? 'music.pause_alone_on' : 'music.pause_alone_off'), !music.premium)}
+            label={<>{t('music.pause_alone')}{(music.premium) ? null : <PremiumChip/>}</>}
             description={t('music.pause_alone_description')}
-            onChange={(value) => void run(
-              'pause_alone',
-              {kind: 'settings', settings: {pause_alone: value}},
-              t((value) ? 'music.pause_alone_on' : 'music.pause_alone_off'),
-            )}
           />
           {(!music.premium) ? (
             <PremiumNote>{t('music.pause_alone_premium')}</PremiumNote>
@@ -441,7 +430,7 @@ function DjRoleSetting({ guildId, music, editable, busyKey, disabled, run }: {
           onClick={() => void run('dj_role-none', {kind: 'settings', settings: {dj_role_id: null}}, t('music.dj_none'))}
         >
           {(busyKey === 'dj_role-none') ? <Spinner className='size-4'/> : null}
-          {t('music.none')}
+          {t('music.dj_remove')}
         </button>
       ) : null}
     </form>
@@ -465,14 +454,16 @@ function CrossfadeSetting({ music, editable, busy, disabled, run }: {
     {kind: 'settings', settings: {crossfade: value}},
     (value) ? translate('music.crossfade_on', {seconds: value}) : translate('music.crossfade_off'),
   ));
+  // without premium songs play one after the other whatever is saved, so it sits on Off and can't be moved
+  const shown = (music.premium) ? draft : 0;
 
   return (
     <div className='px-3 py-2.5'>
       <div className='flex items-baseline justify-between gap-4'>
-        <label htmlFor={id} className='text-sm font-medium text-fg'>{t('music.crossfade')}</label>
-        <span className='flex items-center gap-1.5 text-sm text-fg tabular-nums'>
+        <label htmlFor={id} className='text-sm font-medium text-fg'>{t('music.crossfade')}{(music.premium) ? null : <PremiumChip/>}</label>
+        <span className={cn('flex items-center gap-1.5 text-sm tabular-nums', (music.premium) ? 'text-fg' : 'text-subtle')}>
           {(busy) ? <Spinner className='size-3.5'/> : null}
-          {(draft) ? `${draft}s` : t('music.off')}
+          {(shown) ? `${shown}s` : t('music.off')}
         </span>
       </div>
       <p className='mt-0.5 text-xs text-subtle'>{t('music.crossfade_description')}</p>
@@ -482,9 +473,9 @@ function CrossfadeSetting({ music, editable, busy, disabled, run }: {
         min={0}
         max={MAX_CROSSFADE}
         step={1}
-        value={draft}
-        disabled={!editable}
-        aria-valuetext={(draft) ? t('music.seconds', {count: draft}) : t('music.off')}
+        value={shown}
+        disabled={!editable || !music.premium}
+        aria-valuetext={(shown) ? t('music.seconds', {count: shown}) : t('music.off')}
         onChange={(event) => setDraft(Number(event.target.value))}
         className='mt-2 w-full cursor-pointer accent-[#1db954] disabled:cursor-not-allowed disabled:opacity-60'
       />
@@ -493,7 +484,7 @@ function CrossfadeSetting({ music, editable, busy, disabled, run }: {
         <span>{MAX_CROSSFADE}s</span>
       </div>
       {(!music.premium) ? (
-        <PremiumNote>{t('music.crossfade_premium')}</PremiumNote>
+        <PremiumNote>{t('music.premium_locked')}</PremiumNote>
       ) : null}
     </div>
   );
@@ -612,7 +603,7 @@ function LiveEffects({ music, effects, editable, busyKey, disabled, run }: {
   return (
     <div>
       <div className='mb-2 flex flex-wrap items-center justify-between gap-2'>
-        <h3 className='text-sm font-semibold text-white'>{t('music.effects')}</h3>
+        <h3 className='text-sm font-semibold text-white'>{t('music.effects')}{(music.premium) ? null : <PremiumChip/>}</h3>
         <div className='flex items-center gap-3 text-xs text-muted tabular-nums'>
           <span>{t('music.effects_count', {count: effects.length, max: MAX_MUSIC_EFFECTS})}</span>
           {(editable && effects.length) ? (
@@ -735,7 +726,7 @@ function MusicSound({ music, editable, busyKey, disabled, run }: {
 
   return (
     <div className='mt-5'>
-      <h3 className='mb-2 text-sm font-semibold text-white'>{t('music.sound')}</h3>
+      <h3 className='mb-2 text-sm font-semibold text-white'>{t('music.sound')}{(music.premium) ? null : <PremiumChip/>}</h3>
       <div className='space-y-3'>
         <SoundSlider
           label={t('music.speed_label')}
@@ -834,6 +825,17 @@ function SoundSlider({ label, value, min, max, format, editable, resettable, bus
         {t('music.sound_reset')}
       </button>
     </div>
+  );
+}
+
+// on the name of a setting that only does anything on a premium server, where the server isn't one
+function PremiumChip() {
+  const { t } = useI18n();
+  return (
+    <span className='ml-1.5 inline-flex items-center gap-1 rounded-full bg-[#f0b232]/15 px-1.5 py-px align-middle text-[0.6875rem] font-medium text-[#f0b232]'>
+      <Crown aria-hidden className='size-3'/>
+      {t('music.premium_chip')}
+    </span>
   );
 }
 

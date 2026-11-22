@@ -8,9 +8,8 @@ import { errorMessage, useGuildCreditsQuery } from '@/lib/api/dashboardQueries';
 import { CREDITS_WEEKLY_SERVER_AI_SLOT, CREDITS_WEEKLY_SERVER_TTS_SLOT } from '@/lib/credits';
 import { cn, formatDate, formatExactDateTime, formatNumber } from '@/lib/utils';
 
-import { StatTile } from '../admin/adminUi';
 import { premiumTierLabel } from '../premium';
-import { EmptyState, Panel, Skeleton } from '../ui';
+import { EmptyState, InlineError, Panel, Skeleton } from '../ui';
 import { Owner } from './GuildTagsSection';
 
 
@@ -19,7 +18,7 @@ import { Owner } from './GuildTagsSection';
 // `/settings credits give` and buying is Discord's store
 export function ServerCreditsSection({ guild }: {guild: UserGuild}) {
   const { t, rich } = useI18n();
-  const { data, isPending, error } = useGuildCreditsQuery(guild.id);
+  const { data, isPending, error, refetch, isRefetching } = useGuildCreditsQuery(guild.id);
   const code = (chunk: ReactNode) => <code className='text-fg'>{chunk}</code>;
 
   return (
@@ -30,7 +29,7 @@ export function ServerCreditsSection({ guild }: {guild: UserGuild}) {
           <Skeleton className='h-28 w-full bg-surface-2'/>
         </div>
       ) : (error) ? (
-        <p role='alert' className='text-sm text-danger-text'>{errorMessage(error, t('scredits.load_error'))}</p>
+        <InlineError onRetry={() => void refetch()} retrying={isRefetching}>{errorMessage(error, t('scredits.load_error'))}</InlineError>
       ) : (
         <CreditsDetails credits={data}/>
       )}
@@ -66,16 +65,16 @@ function CreditsDetails({ credits }: {credits: GuildCredits}) {
         </div>
       </div>
 
-      <div className='grid grid-cols-2 gap-2'>
-        <StatTile
+      <div className='grid gap-2 sm:grid-cols-2'>
+        <SlotTile
           label={t('scredits.ai_slots')}
           value={formatNumber(slots.ai)}
-          title={t('scredits.ai_slots_title', {amount: formatNumber(CREDITS_WEEKLY_SERVER_AI_SLOT)})}
+          detail={t('scredits.ai_slots_title', {amount: formatNumber(CREDITS_WEEKLY_SERVER_AI_SLOT)})}
         />
-        <StatTile
+        <SlotTile
           label={t('scredits.plus_slots')}
           value={formatNumber(slots.plus)}
-          title={t('scredits.plus_slots_title', {amount: formatNumber(CREDITS_WEEKLY_SERVER_TTS_SLOT)})}
+          detail={t('scredits.plus_slots_title', {amount: formatNumber(CREDITS_WEEKLY_SERVER_TTS_SLOT)})}
         />
       </div>
 
@@ -106,6 +105,18 @@ function CreditsDetails({ credits }: {credits: GuildCredits}) {
           <EmptyState title={t('scredits.gifts_empty')}>{rich('scredits.gifts_empty_description', {code: (chunk) => <code className='text-fg'>{chunk}</code>})}</EmptyState>
         )}
       </div>
+    </div>
+  );
+}
+
+
+// how many premium slots of a kind the server has, with what each gives it written on the tile (not only on hover)
+function SlotTile({ label, value, detail }: {label: string, value: string, detail: string}) {
+  return (
+    <div className='rounded-md border border-line bg-deep px-3 py-2'>
+      <p className='text-xs text-subtle'>{label}</p>
+      <p className={cn('mt-0.5 text-sm font-semibold tabular-nums', (value === '0') ? 'text-subtle' : 'text-white')}>{value}</p>
+      <p className='mt-1 text-xs text-subtle'>{detail}</p>
     </div>
   );
 }

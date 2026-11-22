@@ -279,9 +279,19 @@ export function useMeSettingsQuery() {
 }
 
 
+// one queue for every settings save, whichever section or page sent it, see `usePatchMeSettingsMutation`
+const ME_SETTINGS_PATCH_KEY = ['users', '@me', 'settings-patch'] as const;
+
+// set when a save failed while later ones were still queued: the cache is put right once the queue is empty
+const meSettingsResyncOwed = new WeakSet<QueryClient>();
+
 // optimistic: the form shows the new values right away and rolls back if the API refuses.
 // every section saves on its own, so each one only ever writes (or rolls back) the fields it sent;
-// restoring a whole snapshot would undo another section's save that finished in the meantime
+// restoring a whole snapshot would undo another section's save that finished in the meantime.
+// Saves run one at a time, in the order they were made (`scope`): the pins send the whole list, so pin A then pin B
+// sent side by side could reach the api the other way round and leave only [A] saved. A save only writes (or rolls
+// back) the fields no save queued after it also sent, so A's answer can't cover B's optimistic [A, B] with [A], and a
+// failed A can't put back a list from before B. Each queued save still shows `isPending` until its own turn finishes
 export function usePatchMeSettingsMutation() {
   const { token } = useAuth();
   const queryClient = useQueryClient();
@@ -289,7 +299,20 @@ export function usePatchMeSettingsMutation() {
   const pick = (source: UserSettings, body: UserSettingsPatch): UserSettingsPatch => {
     return Object.fromEntries(Object.keys(body).map((field) => [field, source[field as keyof UserSettingsPatch]]));
   };
+  // the fields of `body` no save queued after it sent (they're all later: the queue only holds saves not settled yet)
+  const ownFields = (body: UserSettingsPatch) => {
+    const later = queryClient.getMutationCache().findAll({mutationKey: ME_SETTINGS_PATCH_KEY, status: 'pending'})
+      .map((mutation) => mutation.state.variables as UserSettingsPatch | undefined)
+      .filter((variables): variables is UserSettingsPatch => !!variables && variables !== body);
+    const taken = new Set(later.flatMap((variables) => Object.keys(variables)));
+    return {fields: Object.keys(body).filter((field) => !taken.has(field)), queued: !!later.length};
+  };
+  const only = (patch: UserSettingsPatch, fields: Array<string>): UserSettingsPatch => {
+    return Object.fromEntries(fields.filter((field) => field in patch).map((field) => [field, patch[field as keyof UserSettingsPatch]]));
+  };
   return useMutation({
+    mutationKey: ME_SETTINGS_PATCH_KEY,
+    scope: {id: 'users-@me-settings-patch'},
     mutationFn: (body: UserSettingsPatch) => api.patchMeSettings(body),
     onMutate: async (body) => {
       await queryClient.cancelQueries({queryKey: key});
@@ -299,14 +322,30 @@ export function usePatchMeSettingsMutation() {
       }
       return {previous: (current) ? pick(current, body) : undefined};
     },
-    onError: (_error, _body, context) => {
+    onError: (_error, body, context) => {
+      const { fields, queued } = ownFields(body);
       const previous = context?.previous;
-      if (previous) {
-        queryClient.setQueryData<UserSettings>(key, (current) => (current) ? {...current, ...previous} : current);
+      if (previous && fields.length) {
+        queryClient.setQueryData<UserSettings>(key, (current) => (current) ? {...current, ...only(previous, fields)} : current);
+      }
+      // the rollback is a guess: a timeout may have saved after all, and a queued save of the same field rolls back
+      // to this one's optimistic value if it fails too. Ask the api what it has, once nothing is queued (a refetch now
+      // would show the queued saves' fields as they were before them)
+      if (queued) {
+        meSettingsResyncOwed.add(queryClient);
+      } else {
+        meSettingsResyncOwed.delete(queryClient);
+        void queryClient.invalidateQueries({queryKey: key});
       }
     },
     onSuccess: (data, body) => {
-      queryClient.setQueryData<UserSettings>(key, (current) => (current) ? {...current, ...pick(data, body)} : data);
+      const { fields } = ownFields(body);
+      queryClient.setQueryData<UserSettings>(key, (current) => (current) ? {...current, ...only(pick(data, body), fields)} : data);
+    },
+    onSettled: (_data, _error, body) => {
+      if (!ownFields(body).queued && meSettingsResyncOwed.delete(queryClient)) {
+        void queryClient.invalidateQueries({queryKey: key});
+      }
     },
   });
 }
@@ -659,6 +698,8 @@ export function useCreateMeApplicationMutation() {
   const updateCache = useMeApplicationsCache();
   return useMutation({
     mutationFn: (name: string) => api.postMeApplication(name),
+    // answers with the token, see `useRevealMeApplicationTokenMutation`
+    gcTime: 0,
     onSuccess: (application) => {
       updateCache((page) => ({...page, count: page.count + 1, items: [withoutToken(application), ...page.items]}));
     },
@@ -685,16 +726,20 @@ export function useDeleteMeApplicationMutation() {
   });
 }
 
-// a mutation rather than a query so the token is only ever held by the dialog showing it, never cached
+// a mutation rather than a query so the token is only ever held by the dialog showing it, never cached: finished
+// mutations stay in the mutation cache for 5 minutes after nothing shows them (`reset()` included), `gcTime: 0` drops
+// them right away
 export function useRevealMeApplicationTokenMutation() {
   return useMutation({
     mutationFn: (applicationId: string) => api.fetchMeApplicationToken(applicationId),
+    gcTime: 0,
   });
 }
 
 export function useResetMeApplicationTokenMutation() {
   return useMutation({
     mutationFn: (applicationId: string) => api.resetMeApplicationToken(applicationId),
+    gcTime: 0,
   });
 }
 
@@ -803,14 +848,30 @@ export function useMePremiumServersQuery() {
 }
 
 
+// what a slot changes about the server itself: its `premium_server`, and the limits, credits and music queue size its
+// slots give (any scope, only the ones on screen refetch). Without this a server page opened within the cache's
+// stale time still shows it without (or with) the slot
+function useInvalidatePremiumServer() {
+  const { token } = useAuth();
+  const queryClient = useQueryClient();
+  return (guildId: string) => Promise.all([
+    queryClient.invalidateQueries({queryKey: queryKeys.meGuild(token, guildId), exact: true}),
+    queryClient.invalidateQueries({queryKey: ['users', '@me', token, 'guild-limits']}),
+    queryClient.invalidateQueries({queryKey: ['users', '@me', token, 'guild-credits']}),
+    queryClient.invalidateQueries({queryKey: ['users', '@me', token, 'guild-music']}),
+  ]);
+}
+
 // both return the caller's whole list afterwards
 export function usePutMePremiumServerMutation() {
   const { token } = useAuth();
   const queryClient = useQueryClient();
+  const invalidateServer = useInvalidatePremiumServer();
   return useMutation({
     mutationFn: (guildId: string) => api.putMePremiumServer(guildId),
-    onSuccess: ({ created: _created, ...page }) => {
+    onSuccess: ({ created: _created, ...page }, guildId) => {
       queryClient.setQueryData<PremiumServersPage>(queryKeys.mePremiumServers(token), page);
+      void invalidateServer(guildId);
     },
   });
 }
@@ -819,10 +880,12 @@ export function usePutMePremiumServerMutation() {
 export function useDeleteMePremiumServerMutation() {
   const { token } = useAuth();
   const queryClient = useQueryClient();
+  const invalidateServer = useInvalidatePremiumServer();
   return useMutation({
     mutationFn: (serverId: string) => api.deleteMePremiumServer(serverId),
-    onSuccess: (page) => {
+    onSuccess: (page, serverId) => {
       queryClient.setQueryData<PremiumServersPage>(queryKeys.mePremiumServers(token), page);
+      void invalidateServer(serverId);
     },
   });
 }
@@ -1732,7 +1795,8 @@ export function useGuildMusicStatsQuery(guildId: string, period: GuildMusicStats
 export type GuildMusicAction =
   | {kind: 'loop', loop: GuildMusicLoop}
   | {kind: 'settings', settings: GuildMusicSettings}
-  | {kind: 'control', action: GuildMusicControl}
+  // `itemId` with skip: the song shown playing, the api refuses (409) when it already ended instead of skipping the next
+  | {kind: 'control', action: GuildMusicControl, itemId?: string}
   | {kind: 'effect', control: GuildMusicEffectControl}
   | {kind: 'sound', control: GuildMusicSoundControl}
   | {kind: 'move', itemId: string, position: number}
@@ -1754,7 +1818,7 @@ export function useGuildMusicMutation(guildId: string) {
         case 'remove': return api.deleteGuildMusicQueueItem(scope, guildId, action.itemId);
         case 'clear': return api.clearGuildMusicQueue(scope, guildId);
         case 'control': {
-          await api.controlGuildMusic(scope, guildId, {action: action.action});
+          await api.controlGuildMusic(scope, guildId, {action: action.action, ...(action.itemId) ? {item_id: action.itemId} : {}});
           return null;
         }
         case 'effect':
@@ -2690,7 +2754,17 @@ export function useGrantAdminUserCreditsMutation() {
   const { token } = useAuth();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ userId, amount }: {userId: string, amount: number}) => api.grantAdminUserCredits(userId, amount),
+    mutationFn: ({ userId, amount, requestId }: {userId: string, amount: number, requestId?: string}) => api.grantAdminUserCredits(userId, amount, requestId),
+    onSettled: () => queryClient.invalidateQueries({queryKey: [...queryKeys.admin(token), 'credit-transactions']}),
+  });
+}
+
+// a grant's Take back, by its id so a second one (another tab) is refused instead of taking the credits twice
+export function useReverseAdminCreditGrantMutation() {
+  const { token } = useAuth();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (transactionId: string) => api.reverseAdminCreditGrant(transactionId),
     onSettled: () => queryClient.invalidateQueries({queryKey: [...queryKeys.admin(token), 'credit-transactions']}),
   });
 }
@@ -2965,6 +3039,8 @@ export function useCreateVoiceNodeMutation() {
 export function useEditVoiceNodeMutation() {
   const invalidate = useInvalidateAdminVoiceNodes();
   return useMutation({
+    // its input carries a password, cookies or a login: don't keep it in the mutation cache for 5 minutes
+    gcTime: 0,
     mutationFn: ({ nodeId, body }: {nodeId: string, body: VoiceNodeEdit}) => api.editAdminVoiceNode(nodeId, body),
     onSettled: invalidate,
   });
@@ -3038,6 +3114,8 @@ function useAdminIdentitiesCache() {
 export function useCreateIdentityMutation() {
   const cache = useAdminIdentitiesCache();
   return useMutation({
+    // its input carries a password, cookies or a login: don't keep it in the mutation cache for 5 minutes
+    gcTime: 0,
     mutationFn: (body: AdminIdentityCreate) => api.createAdminIdentity(body),
     onSuccess: cache.put,
     onSettled: cache.invalidate,
@@ -3047,6 +3125,8 @@ export function useCreateIdentityMutation() {
 export function usePatchIdentityMutation() {
   const cache = useAdminIdentitiesCache();
   return useMutation({
+    // its input carries a password, cookies or a login: don't keep it in the mutation cache for 5 minutes
+    gcTime: 0,
     mutationFn: ({ identityId, body }: {identityId: string, body: AdminIdentityPatch}) => api.patchAdminIdentity(identityId, body),
     onSuccess: cache.put,
     onSettled: cache.invalidate,
@@ -3067,6 +3147,8 @@ export function useBulkCreateIdentitiesMutation() {
   const cache = useAdminIdentitiesCache();
   return {
     ...useMutation({
+      // its input carries a password, cookies or a login: don't keep it in the mutation cache for 5 minutes
+      gcTime: 0,
       mutationFn: (body: AdminIdentitiesBulkCreate) => api.createAdminIdentities(body),
     }),
     invalidate: cache.invalidate,
@@ -3085,6 +3167,8 @@ export function useDeleteIdentitiesMutation() {
 export function useSetIdentityLoginMutation() {
   const cache = useAdminIdentitiesCache();
   return useMutation({
+    // its input carries a password, cookies or a login: don't keep it in the mutation cache for 5 minutes
+    gcTime: 0,
     mutationFn: ({ identityId, login }: {identityId: string, login: IdentityLogin}) => api.putAdminIdentityLogin(identityId, login),
     onSuccess: cache.put,
   });
@@ -3131,6 +3215,8 @@ const IDENTITY_COOKIES_CHUNK = 20;
 export function useBulkIdentityCookiesMutation() {
   const cache = useAdminIdentitiesCache();
   return useMutation({
+    // its input carries a password, cookies or a login: don't keep it in the mutation cache for 5 minutes
+    gcTime: 0,
     mutationFn: async (items: Array<{identity_id: string, cookies: string}>) => {
       const results: Array<{identity_id: string, status?: string, error?: string}> = [];
       for (let start = 0; start < items.length; start += IDENTITY_COOKIES_CHUNK) {
@@ -3145,6 +3231,8 @@ export function useBulkIdentityCookiesMutation() {
 export function useBulkAddProxiesMutation() {
   const cache = useAdminIdentitiesCache();
   return useMutation({
+    // its input carries a password, cookies or a login: don't keep it in the mutation cache for 5 minutes
+    gcTime: 0,
     mutationFn: (body: AdminProxiesBulk) => api.bulkAddAdminProxies(body),
     onSuccess: (result) => {
       if (result.applied) {
@@ -3157,6 +3245,8 @@ export function useBulkAddProxiesMutation() {
 export function usePatchProxiesMutation() {
   const cache = useAdminIdentitiesCache();
   return useMutation({
+    // its input carries a password, cookies or a login: don't keep it in the mutation cache for 5 minutes
+    gcTime: 0,
     mutationFn: (body: AdminProxiesPatch) => api.patchAdminProxies(body),
     onSettled: cache.invalidate,
   });
@@ -3165,6 +3255,8 @@ export function usePatchProxiesMutation() {
 export function usePatchProxyMutation() {
   const cache = useAdminIdentitiesCache();
   return useMutation({
+    // its input carries a password, cookies or a login: don't keep it in the mutation cache for 5 minutes
+    gcTime: 0,
     mutationFn: ({ proxyId, body }: {proxyId: number, body: AdminProxyPatch}) => api.patchAdminProxy(proxyId, body),
     onSettled: cache.invalidate,
   });

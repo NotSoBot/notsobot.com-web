@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { ArrowUpRight, Clock, EyeOff, Pencil, ShieldCheck, ShieldX, X } from 'lucide-react';
-import { useId, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useId, useState, type FormEvent, type ReactNode } from 'react';
 import { Link } from 'react-router';
 
 import { isStaff, useAuth } from '@/auth';
@@ -36,7 +36,7 @@ import { TagAssetsPanel } from '@/pages/dashboard/admin/TagAssetsPanel';
 import { GuildIcon } from '@/pages/dashboard/servers/GuildIcon';
 import { CharCounter, Field, InlineError, Toggle } from '@/pages/dashboard/ui';
 
-import { CategorySelect, DescriptionEditor, tagContentAcknowledgement, verificationRequirement, VerificationWarning } from './tagDirectory';
+import { CategorySelect, DescriptionEditor, tagContentAcknowledgement, useConfirmPress, verificationRequirement, VerificationWarning } from './tagDirectory';
 
 
 // The listing's owner and NotSoBot staff can manage a directory tag right from the public directory. Owners go through
@@ -403,6 +403,8 @@ function OwnerVerificationSection({ item, editing }: {item: TagDirectoryItem, ed
   const request = useRequestMeTagDirectoryVerificationMutation(item.id);
   const cancel = useCancelMeTagDirectoryVerificationMutation(item.id);
   const [ confirming, setConfirming ] = useState(false);
+  // canceling drops their place in the review queue, so one stray click only asks
+  const cancelPress = useConfirmPress();
 
   if (item.verified === TagDirectoryVerificationStates.VERIFIED) {
     return null;
@@ -432,9 +434,9 @@ function OwnerVerificationSection({ item, editing }: {item: TagDirectoryItem, ed
       {(pending) ? (
         <>
           <p className='mb-3 text-xs text-subtle'>{t('tags.listing.pending_description')}</p>
-          <button type='button' className='btn btn-danger w-full' disabled={cancel.isPending} onClick={doCancel}>
+          <button type='button' className='btn btn-danger w-full' disabled={cancel.isPending} onClick={() => cancelPress.press('cancel', doCancel)}>
             <X className='size-4'/>
-            {t((cancel.isPending) ? 'tags.listing.canceling' : 'tags.listing.cancel_request')}
+            {t((cancel.isPending) ? 'tags.listing.canceling' : (cancelPress.armed) ? 'tags.listing.cancel_request_confirm' : 'tags.listing.cancel_request')}
           </button>
           {(cancel.isError) ? <InlineError>{errorMessage(cancel.error, t('tags.listing.cancel_error'))}</InlineError> : null}
         </>
@@ -481,7 +483,14 @@ const VERIFY_ACTIONS: Record<number, {label: string, icon: typeof ShieldCheck, c
 // Replaces the listing's description/content in the modal while editing. Owners get the title, description, category
 // and the "show content publicly" switch; staff get the title, description, category and the content itself, with
 // `media` (the thumbnail/media managers, which save on their own) slotted in above the content.
-export function ListingEditForm({ item, access, media, onDone }: {item: TagDirectoryItem, access: ListingAccess, media?: ReactNode, onDone: () => void}) {
+// `onDirtyChange` hears whether there are unsaved edits, for the modal to ask before it closes over them.
+export function ListingEditForm({ item, access, media, onDone, onDirtyChange }: {
+  item: TagDirectoryItem,
+  access: ListingAccess,
+  media?: ReactNode,
+  onDone: () => void,
+  onDirtyChange?: (dirty: boolean) => void,
+}) {
   const { t, rich } = useI18n();
   const full = useFullContent(item, access);
   // same query `useFullContent` reads, for the tag's archived files
@@ -512,6 +521,14 @@ export function ListingEditForm({ item, access, media, onDone }: {item: TagDirec
   const dirty = titleChanged || descriptionChanged || categoryChanged || contentChanged || contentPublicChanged;
   const invalid = TAG_DIRECTORY_TITLE_MAX < title.length || TAG_DIRECTORY_DESCRIPTION_MAX < description.length ||
     (contentChanged && (!content!.trim() || CONTENT_MAX < content!.length));
+
+  // not while saving: the save finishes by itself, closing then loses nothing. The form going away (saved, canceled,
+  // another tag) leaves nothing unsaved either
+  const unsaved = dirty && !saving;
+  useEffect(() => {
+    onDirtyChange?.(unsaved);
+    return () => onDirtyChange?.(false);
+  }, [unsaved, onDirtyChange]);
 
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault();

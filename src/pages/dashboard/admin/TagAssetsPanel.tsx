@@ -8,6 +8,7 @@ import { errorMessage, useDeleteAdminTagAssetMutation, useUploadAdminTagAssetMut
 import { cn, formatMemory, NO_AUTOFILL } from '@/lib/utils';
 import { InlineError } from '@/pages/dashboard/ui';
 
+import { useHoldModalNavigation } from './AdminTagModal';
 import { AssetProvenanceLine } from './AssetProvenance';
 import { RemovalConfirm } from './removalReason';
 
@@ -33,6 +34,9 @@ export function TagAssetsPanel({ tagId, assets, ownerId = null, onArchived, clas
   const [ url, setUrl ] = useState('');
   // recorded on the file (`requested_by`), so it's clear the owner wanted it rehosted
   const [ ownerRequested, setOwnerRequested ] = useState(false);
+  // inside an admin tag modal, stepping to another tag mid-upload unmounted this: the url swap into the editor and any
+  // error were lost (a no-op elsewhere, like the public listing editor)
+  useHoldModalNavigation(upload.isPending);
 
   const archive = (source: {file: File} | {url: string}) => {
     upload.mutate({tagId, source, ownerRequested}, {
@@ -142,6 +146,7 @@ function TagAssetRow({ tagId, asset, ownerId, onArchived }: {
   const [ confirming, setConfirming ] = useState(false);
   const [ editing, setEditing ] = useState(false);
   const [ previewFailed, setPreviewFailed ] = useState(false);
+  useHoldModalNavigation(remove.isPending);
 
   const meta = asset.metadata;
   const isImage = meta?.mimetype?.startsWith('image/') && !previewFailed;
@@ -149,7 +154,7 @@ function TagAssetRow({ tagId, asset, ownerId, onArchived }: {
     meta?.mimetype,
     (meta?.width && meta?.height) ? `${meta.width}×${meta.height}` : null,
     (meta?.size) ? formatMemory(meta.size, 1) : null,
-  ].filter(Boolean).join(' · ');
+  ].filter(Boolean).join(' • ');
 
   return (
     <li className='rounded-md border border-line bg-deep p-2'>
@@ -245,6 +250,9 @@ function TagAssetTextEditor({ tagId, asset, onClose, onSaved }: {
   const [ original, setOriginal ] = useState<string | null>(null);
   const [ draft, setDraft ] = useState('');
   const [ loadError, setLoadError ] = useState<string | null>(null);
+  const changed = original !== null && draft !== original;
+  // a save in flight or unsaved edits keep the modal on this tag, like the content editor
+  useHoldModalNavigation(upload.isPending || changed);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -283,7 +291,6 @@ function TagAssetTextEditor({ tagId, asset, onClose, onSaved }: {
     );
   }
 
-  const changed = draft !== original;
   return (
     <div className='mt-2'>
       <textarea

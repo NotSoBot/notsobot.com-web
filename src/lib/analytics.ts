@@ -3,6 +3,8 @@
 
 export const AnalyticsEvents = Object.freeze({
   BOT_ADDED: 'BotAdded',
+  // a link to discord's store was clicked (the checkout is on discord, so the click is all we see)
+  STORE_CLICK: 'StoreClick',
 });
 
 

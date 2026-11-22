@@ -153,7 +153,7 @@ export function BulkAddIdentitiesDialog({ data, onClose }: {data: AdminIdentitie
         sent = start + chunk.length;
       }
     } catch (error) {
-      toast(errorMessage(error, 'Couldn’t add the identities.'));
+      toast(errorMessage(error, 'Couldn’t add the identities.'), 'error');
     } finally {
       // still sending until the list has the new ones, or Add would offer the added rows (and their proxies) again
       await create.invalidate();

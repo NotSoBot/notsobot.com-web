@@ -169,6 +169,7 @@ import type {
   VoiceTransfer,
   VoicesPage,
   CreditGrantResult,
+  CreditGrantReverseResult,
   CreditRevokeResult,
 } from './types';
 
@@ -906,7 +907,7 @@ export const api = {
     return apiRequest<GuildMusic>(guildEndpoints(scope, guildId).MUSIC, {method: 'PATCH', body: patch});
   },
 
-  controlGuildMusic: (scope: GuildScope, guildId: string, control: {action: GuildMusicControl} | GuildMusicEffectControl | GuildMusicSoundControl) => {
+  controlGuildMusic: (scope: GuildScope, guildId: string, control: {action: GuildMusicControl, item_id?: string} | GuildMusicEffectControl | GuildMusicSoundControl) => {
     return apiRequest<void>(guildEndpoints(scope, guildId).MUSIC_CONTROL, {method: 'POST', body: control});
   },
 
@@ -1379,8 +1380,14 @@ export const api = {
   },
 
   // gives a user refill credits for free, a negative amount takes some away (up to what they have left)
-  grantAdminUserCredits: (userId: string, amount: number) => {
-    return apiRequest<CreditGrantResult>(ApiEndpoints.ADMIN_USER_CREDITS_GRANT(userId), {method: 'POST', body: {amount}});
+  // `requestId` the same for every try of one grant: the api answers a repeat with the first one's result
+  grantAdminUserCredits: (userId: string, amount: number, requestId?: string) => {
+    return apiRequest<CreditGrantResult>(ApiEndpoints.ADMIN_USER_CREDITS_GRANT(userId), {method: 'POST', body: {amount, request_id: requestId}});
+  },
+
+  // takes back one staff grant, once: a second time is a 409 (`CREDIT_GRANT_ALREADY_REVERSED`)
+  reverseAdminCreditGrant: (transactionId: string) => {
+    return apiRequest<CreditGrantReverseResult>(ApiEndpoints.ADMIN_CREDIT_TRANSACTION_REVERSE(transactionId), {method: 'POST'});
   },
 
   fetchAdminEntitlements: (params: {

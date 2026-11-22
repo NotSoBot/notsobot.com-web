@@ -38,7 +38,7 @@ function playedTime(milliseconds: number): string {
 // songs, the members whose songs played the most and the top artists, ranked by plays or time played, with how often a
 // loop played them again. Like `music stats`, any member can see it
 export function MusicStatsSection({ guild }: {guild: UserGuild}) {
-  const { t, plural } = useI18n();
+  const { t, plural, rich } = useI18n();
   const [ period, setPeriod ] = useState<GuildMusicStatsPeriod>('all');
   const [ sort, setSort ] = useState<GuildMusicStatsSort>('plays');
   const query = useGuildMusicStatsQuery(guild.id, period, sort);
@@ -56,7 +56,7 @@ export function MusicStatsSection({ guild }: {guild: UserGuild}) {
   });
 
   return (
-    <Panel title={t('mstats.title')} accent='#1db954' description={t('mstats.description')}>
+    <Panel title={t('mstats.title')} accent='#1db954' description={rich('mstats.description', {code: (chunk) => <code className='text-code'>{chunk}</code>})}>
       <div className='space-y-4'>
         <div className='flex flex-wrap gap-2'>
           <Segmented
@@ -73,7 +73,7 @@ export function MusicStatsSection({ guild }: {guild: UserGuild}) {
           />
         </div>
         {(query.isError) ? (
-          <InlineError>{errorMessage(query.error, t('mstats.load_error'))}</InlineError>
+          <InlineError onRetry={() => void query.refetch()} retrying={query.isRefetching}>{errorMessage(query.error, t('mstats.load_error'))}</InlineError>
         ) : (!data) ? (
           <div aria-busy='true' className='space-y-3'>
             <Skeleton className='h-16 w-full'/>

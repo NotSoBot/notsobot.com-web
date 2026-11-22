@@ -26,6 +26,8 @@ import { cn } from '@/lib/utils';
 import { RemovalConfirm } from '@/pages/dashboard/admin/removalReason';
 import { InlineError } from '@/pages/dashboard/ui';
 
+import { useConfirmPress } from './tagDirectory';
+
 
 // A listing's assets (`TagDirectoryAssets`): images, videos and audio, in order, the first is the cover on the directory.
 // The owner can only change them while verification is pending, so staff review them with the listing; the public
@@ -425,8 +427,10 @@ function MediaManager({ assets, selected, selectedIndex, manage, onUploaded, chi
   const mutation = useMediaMutation(manage);
   const input = useRef<HTMLInputElement>(null);
   const [ localError, setLocalError ] = useState<string | null>(null);
-  // staff say why before removing one (the audit log records it), owners just remove it
+  // staff say why before removing one (the audit log records it)
   const [ confirmingRemove, setConfirmingRemove ] = useState<string | null>(null);
+  // owners click twice: the button sits right next to the reorder arrows, and the file is deleted
+  const removePress = useConfirmPress();
 
   const editable = (manage.editRequest) ?
     manage.editRequest.status === TagDirectoryEditRequestStatuses.DRAFT :
@@ -525,20 +529,23 @@ function MediaManager({ assets, selected, selectedIndex, manage, onUploaded, chi
                 </button>
                 <button
                   type='button'
-                  className='btn btn-ghost btn-sm text-danger-text'
+                  className={cn('btn btn-sm', (removePress.armed === selected.id) ? 'btn-danger' : 'btn-ghost text-danger-text')}
                   disabled={busy}
                   aria-expanded={(manage.staff) ? confirmingRemove === selected.id : undefined}
                   onClick={() => {
                     if (manage.staff && !manage.editRequest) {
                       setConfirmingRemove((confirmingRemove === selected.id) ? null : selected.id);
                     } else {
-                      setLocalError(null);
-                      mutation.mutate({remove: selected.id});
+                      // armed per file, so picking another one asks again
+                      removePress.press(selected.id, () => {
+                        setLocalError(null);
+                        mutation.mutate({remove: selected.id});
+                      });
                     }
                   }}
                 >
                   <Trash2 className='size-3.5'/>
-                  {t('common.remove')}
+                  {t((removePress.armed === selected.id) ? 'tags.remove_confirm' : 'common.remove')}
                 </button>
               </>
             ) : null}
@@ -600,8 +607,9 @@ export function ThumbnailManager({ assets, thumbnail, manage }: {
   const active = (request) ? draft : listing;
   const input = useRef<HTMLInputElement>(null);
   const [ localError, setLocalError ] = useState<string | null>(null);
-  // staff say why before removing it, like the media
+  // staff say why before removing it, like the media, and owners click twice
   const [ confirmingRemove, setConfirmingRemove ] = useState(false);
+  const removePress = useConfirmPress();
 
   const editable = (request) ?
     request.status === TagDirectoryEditRequestStatuses.DRAFT :
@@ -701,13 +709,13 @@ export function ThumbnailManager({ assets, thumbnail, manage }: {
               {(effective) ? (
                 <button
                   type='button'
-                  className='btn btn-ghost btn-sm text-danger-text'
+                  className={cn('btn btn-sm', (removePress.armed) ? 'btn-danger' : 'btn-ghost text-danger-text')}
                   disabled={busy}
                   aria-expanded={(manage.staff && !request) ? confirmingRemove : undefined}
-                  onClick={() => (manage.staff && !request) ? setConfirmingRemove(!confirmingRemove) : remove()}
+                  onClick={() => (manage.staff && !request) ? setConfirmingRemove(!confirmingRemove) : removePress.press('thumbnail', () => remove())}
                 >
                   <Trash2 className='size-3.5'/>
-                  {t('common.remove')}
+                  {t((removePress.armed) ? 'tags.remove_confirm' : 'common.remove')}
                 </button>
               ) : null}
               {(request && request.thumbnailMode !== TagDirectoryEditRequestThumbnailModes.KEEP) ? (

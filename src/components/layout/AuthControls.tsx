@@ -26,8 +26,9 @@ export function AuthControls({ compact = false }: {compact?: boolean}) {
 
   if (status === 'error') {
     return (
-      <button type='button' className='btn btn-ghost' onClick={retry} title={t('account.unreachable')}>
-        <RefreshCw className='size-4'/>
+      // named "Retry" for screen readers (`compact` is the icon alone), the tooltip says what went wrong
+      <button type='button' className='btn btn-ghost' onClick={retry} aria-label={t('common.retry')} title={t('account.unreachable')}>
+        <RefreshCw aria-hidden className='size-4'/>
         {compact ? null : <span>{t('common.retry')}</span>}
       </button>
     );

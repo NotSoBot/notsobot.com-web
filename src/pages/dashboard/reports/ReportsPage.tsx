@@ -4,11 +4,12 @@
 // `content` is whatever the user typed, so it's only ever rendered as plain text.
 
 import { ExternalLink, MessageSquareWarning, MessagesSquare, RotateCcw } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
 
 import logo from '@/assets/logos/NotSoLogo.svg';
 import { useAuth } from '@/auth';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { CopyButton } from '@/components/ui/CopyButton';
 import { DetailModalHeader, DetailModalStrip } from '@/components/ui/DetailModal';
 import { SearchInput } from '@/components/ui/SearchInput';
@@ -23,13 +24,14 @@ import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import {
   ME_REPORTS_PAGE_SIZE,
   errorMessage,
+  useMeGuildsQuery,
   useMeReportMessagesQuery,
   useMeReportQuery,
   useMeReportsQuery,
   usePostMeReportMessageMutation,
   useReopenMeReportMutation,
 } from '@/lib/api/dashboardQueries';
-import { cn, formatDateTime, formatNumber, toDate } from '@/lib/utils';
+import { cn, formatDate, formatDateTime, formatNumber, toDate } from '@/lib/utils';
 
 import { AdminModalFooter, AdminTagModal, LinkedItemModal, useOpenListItem } from '../admin/AdminTagModal';
 import { Chip, CopyableValue, DETAIL_LIST_STACKED, DetailList, ExactDate, FiltersButton, Pagination, selectAllScope } from '../admin/adminUi';
@@ -130,9 +132,10 @@ function BotReportsTab() {
   const sortBy = SORTS.find((sort) => sort.value === searchParams.get('sort'))?.value ?? 'updated';
   const query = searchParams.get('q') || '';
   const debouncedQuery = useDebouncedValue(query.trim(), 300);
-  // the panel starts closed like the admin pages', the button counts the ones not on their default
+  // the panel starts closed like the admin pages', the button counts the ones not on their default. The sort isn't one
+  // of them: it never hides a report, so it sits next to the search where it's always in sight
   const [ filtersOpen, setFiltersOpen ] = useState(false);
-  const activeFilters = [sortBy !== 'updated', status !== null].filter(Boolean).length;
+  const activeFilters = [status !== null].filter(Boolean).length;
   const filtered = !!debouncedQuery || status !== null;
 
   const { data, isPending, isError, error, isPlaceholderData, isFetching, isRefetching, refetch } = useMeReportsQuery({query: debouncedQuery, status, sortBy, page});
@@ -150,9 +153,29 @@ function BotReportsTab() {
     fetching: isFetching && isPlaceholderData,
   };
 
+  // a reply typed into the open report but not sent: closing the modal or stepping to another report would drop it, so
+  // those ask first (`leaving.to` is the report to step to, null to close)
+  const unsentReply = useRef(false);
+  const [ leaving, setLeaving ] = useState<{to: string | null} | null>(null);
+  const leave = (to: string | null) => {
+    if (to) {
+      open(to);
+    } else {
+      close();
+    }
+  };
+  const askToLeave = (to: string | null) => {
+    if (unsentReply.current) {
+      setLeaving({to});
+    } else {
+      leave(to);
+    }
+  };
+
   return (
     <>
-      <div className='mb-4 flex gap-2'>
+      {/* the search, the sort (under it until there's room beside it), then the filters panel's button */}
+      <div className='mb-4 flex flex-wrap gap-2'>
         <SearchInput
           className='min-w-0 flex-1'
           value={query}
@@ -160,16 +183,16 @@ function BotReportsTab() {
           placeholder={t('reports.search_placeholder')}
           aria-label={t('reports.search_label')}
         />
+        <label className='flex items-center gap-2 text-sm text-muted max-md:order-last max-md:basis-full'>
+          {t('reports.sort')}
+          <select className='input h-12 rounded-lg bg-surface-3 md:w-44' value={sortBy} onChange={(event) => update({sort: (event.target.value === 'updated') ? null : event.target.value})}>
+            {SORTS.map((sort) => <option key={sort.value} value={sort.value}>{t(sort.label)}</option>)}
+          </select>
+        </label>
         <FiltersButton open={filtersOpen} onToggle={() => setFiltersOpen((value) => !value)} active={activeFilters} controls='report-filters'/>
       </div>
 
       <div id='report-filters' hidden={!filtersOpen} className='card mb-4 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4'>
-        <label className='text-sm'>
-          <span className='mb-1 block text-subtle'>{t('reports.sort')}</span>
-          <select className='input' value={sortBy} onChange={(event) => update({sort: (event.target.value === 'updated') ? null : event.target.value})}>
-            {SORTS.map((sort) => <option key={sort.value} value={sort.value}>{t(sort.label)}</option>)}
-          </select>
-        </label>
         <label className='text-sm'>
           <span className='mb-1 block text-subtle'>{t('reports.status')}</span>
           <select className='input' value={(status === null) ? '' : String(status)} onChange={(event) => update({status: event.target.value})}>
@@ -203,11 +226,31 @@ function BotReportsTab() {
       )}
 
       {(openItem) ? (
-        <AdminTagModal labelledBy={TITLE_ID} previousId={previousId} nextId={nextId} onNavigate={open} onClose={close} footer={false} stickyClose>
-          <ReportDetails key={openItem.id} report={openItem} navigation={{previousId, nextId, onNavigate: open}}/>
+        <AdminTagModal labelledBy={TITLE_ID} previousId={previousId} nextId={nextId} onNavigate={askToLeave} onClose={() => askToLeave(null)} footer={false} stickyClose>
+          <ReportDetails
+            key={openItem.id}
+            report={openItem}
+            navigation={{previousId, nextId, onNavigate: askToLeave}}
+            onDraftChange={(unsent) => {
+              unsentReply.current = unsent;
+            }}
+          />
         </AdminTagModal>
       ) : (openId) ? (
         <LinkedItemModal noun={t('reports.noun')} notFoundMessage={t('reports.not_found')} query={linked} onClose={close}/>
+      ) : null}
+
+      {(leaving) ? (
+        <ConfirmDialog
+          title={t('reports.discard_title')}
+          description={t('reports.discard_description')}
+          confirmLabel={t('common.discard')}
+          onConfirm={() => {
+            setLeaving(null);
+            leave(leaving.to);
+          }}
+          onClose={() => setLeaving(null)}
+        />
       ) : null}
     </>
   );
@@ -242,7 +285,7 @@ function ReportRow({ report, showUpdated, onOpen }: {report: MeReport, showUpdat
         </span>
         {/* who replied last, under the type. What it's about (ids) is in the modal */}
         <span className='col-start-1 row-start-2 flex min-h-5 min-w-0 items-center'>
-          <LastReplyChip report={report} className='shrink-0'/>
+          <LastReplyChip report={report} className='min-w-0'/>
         </span>
         {/* what they wrote, across the bottom in a code box like the modal's */}
         <span className='col-span-2 row-start-3 flex min-w-0 items-center gap-2 text-sm text-muted'>
@@ -259,7 +302,11 @@ function ReportRow({ report, showUpdated, onOpen }: {report: MeReport, showUpdat
         </span>
         {/* the status in the top right, when it was sent under it */}
         <Chip tone={status.tone} className='col-start-2 row-start-1 w-20 justify-center justify-self-end'>{status.label}</Chip>
-        <span className='col-start-2 row-start-2 justify-self-end text-xs whitespace-nowrap text-subtle'>
+        {/* the day alone on phones: with the time, this column left no room for the id and the reply chip beside it */}
+        <span className='col-start-2 row-start-2 justify-self-end text-xs whitespace-nowrap text-subtle sm:hidden'>
+          {(edited) ? t('reports.updated', {date: formatDate(updated)}) : formatDate(report.created)}
+        </span>
+        <span className='col-start-2 row-start-2 hidden justify-self-end text-xs whitespace-nowrap text-subtle sm:inline'>
           {(edited) ? t('reports.updated', {date: formatDateTime(updated)}) : formatDateTime(report.created)}
         </span>
       </button>
@@ -271,12 +318,19 @@ function ReportRow({ report, showUpdated, onOpen }: {report: MeReport, showUpdat
 // the admin modal's layout without the staff parts (notes, who reviewed it): the header, what it's about in a strip under
 // it, where it was sent, what they wrote and the conversation. `navigation` is the modal's Previous / Next, Reopen goes
 // between them once it's closed
-function ReportDetails({ report, navigation }: {
+function ReportDetails({ report, navigation, onDraftChange }: {
   report: MeReport,
   navigation: {previousId: string | null, nextId: string | null, onNavigate: (id: string) => void},
+  // whether there's a reply typed but not sent, see `ReportThread`
+  onDraftChange: (unsent: boolean) => void,
 }) {
   const { t, rich } = useI18n();
   const toast = useToast();
+  // only for server names (where it was sent, and the server a server report is about): an id shows alone when it isn't
+  // one of theirs, or the list can't load
+  const guilds = useMeGuildsQuery().data;
+  const guildName = guilds?.find((guild) => guild.id === report.guild_id)?.name;
+  const targetName = (report.type === ReportTypes.SERVER) ? guilds?.find((guild) => guild.id === report.target_id)?.name : undefined;
   const reopen = useReopenMeReportMutation(report.id);
   const status = reportStatusInfo(report.status);
   const type = reportTypeInfo(report.type);
@@ -301,7 +355,8 @@ function ReportDetails({ report, navigation }: {
       {(report.type !== ReportTypes.BUG) ? (
         <DetailModalStrip className='grid grid-cols-[max-content_minmax(0,1fr)] items-center gap-x-3'>
           <span className='text-xs text-subtle'>{(isMessageReport) ? t('reports.command_by') : t('reports.reported', {target: REPORT_TARGET_LABELS[report.type] ?? t('reports.target')})}</span>
-          <div className='flex min-h-8 min-w-0 items-center'>
+          <div className='flex min-h-8 min-w-0 flex-wrap items-center gap-x-2'>
+            {(targetName) ? <span className='min-w-0 truncate text-sm text-fg'>{targetName}</span> : null}
             {(report.target_id) ? <CopyableValue value={report.target_id} truncate={0}/> : <span className='text-sm text-subtle'>{t('reports.not_given')}</span>}
           </div>
         </DetailModalStrip>
@@ -314,7 +369,12 @@ function ReportDetails({ report, navigation }: {
           <DetailList
             className={DETAIL_LIST_STACKED}
             items={[
-              [t('reports.server'), (report.guild_id) ? <CopyableValue value={report.guild_id} truncate={0}/> : <span className='text-subtle'>{t((isMessageReport) ? 'reports.none_in_dms' : 'reports.none_sent_dms')}</span>],
+              [t('reports.server'), (report.guild_id) ? (
+                <span className='inline-flex max-w-full flex-wrap items-center gap-x-2'>
+                  {(guildName) ? <span className='min-w-0 break-words'>{guildName}</span> : null}
+                  <CopyableValue value={report.guild_id} truncate={0}/>
+                </span>
+              ) : <span className='text-subtle'>{t((isMessageReport) ? 'reports.none_in_dms' : 'reports.none_sent_dms')}</span>],
               [t('reports.channel'), (report.channel_id) ? <CopyableValue value={report.channel_id} truncate={0}/> : '—'],
               [t((isMessageReport) ? 'reports.reported_message' : 'reports.message'), (report.message_id) ? (
                 <span className='inline-flex flex-wrap items-center gap-x-2'>
@@ -363,7 +423,7 @@ function ReportDetails({ report, navigation }: {
           <div className='mb-1 flex min-h-8 items-center'>
             <h3 className='section-label'>{t('reports.conversation', {staff: REPORT_STAFF_NAME})}</h3>
           </div>
-          <ReportConversation report={report}/>
+          <ReportConversation report={report} onDraftChange={onDraftChange}/>
         </div>
       </div>
 
@@ -389,7 +449,7 @@ function ReportDetails({ report, navigation }: {
 
 
 // works whatever the status is; replying alone doesn't reopen it, that's the footer's Reopen
-function ReportConversation({ report }: {report: MeReport}) {
+function ReportConversation({ report, onDraftChange }: {report: MeReport, onDraftChange: (unsent: boolean) => void}) {
   const { rich } = useI18n();
   const toast = useToast();
   const { user } = useAuth();
@@ -408,6 +468,7 @@ function ReportConversation({ report }: {report: MeReport}) {
         throw error;
       })}
       sending={send.isPending}
+      onDraftChange={onDraftChange}
       notice={(report.status !== ReportStatuses.OPEN) ? (
         rich('reports.closed_notice', {b: (chunk) => <span className='text-fg'>{chunk}</span>}, {status: reportStatusInfo(report.status).label.toLowerCase()})
       ) : undefined}

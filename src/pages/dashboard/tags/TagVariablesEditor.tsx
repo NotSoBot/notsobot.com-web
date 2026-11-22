@@ -60,7 +60,8 @@ export function TagVariablesEditor({ tag, scope, readOnly, onDirtyChange }: {
   if (isPending) {
     return <div className='space-y-4'><PanelSkeleton rows={2}/><PanelSkeleton rows={2}/></div>;
   }
-  if (isError) {
+  // only when nothing loaded: a failed refetch (reconnecting, say) keeps the list and any open editor's unsaved text
+  if (isError && !data) {
     return <ErrorPanel title={t('dtags.vars.load_error')} message={errorMessage(error)} onRetry={() => refetch()} retrying={isRefetching}/>;
   }
 
@@ -109,7 +110,9 @@ function StorageGroup({ tagId, scope, meta, storageId, variables, readOnly, setD
       description={(storageId && storageId !== '0') ? <>{meta.description} <span className='font-mono text-subtle'>{storageId}</span></> : meta.description}
       actions={(storageId) ? (
         <>
-          <span className='text-xs text-subtle tabular-nums'>{entries.length} / {TAG_VARIABLES_PER_STORAGE}</span>
+          {/* why Add is disabled, its tooltip doesn't show on touch */}
+          {(full && !readOnly) ? <span className='text-xs text-subtle'>{t('dtags.vars.full')}</span> : null}
+          <span className='text-xs text-subtle tabular-nums'>{t('dlimits.count', {count: entries.length, max: TAG_VARIABLES_PER_STORAGE})}</span>
           {(!readOnly) ? (
             <button type='button' className='btn btn-secondary btn-sm' disabled={full || adding} onClick={() => setAdding(true)} title={full ? t('dtags.vars.full') : undefined}>
               <Plus aria-hidden className='size-3.5'/> {t('common.add')}
@@ -206,11 +209,12 @@ function VariableRow({ tagId, scope, storageType, storageId, name, value, readOn
           <pre className='mt-1.5 max-h-40 overflow-auto rounded bg-deep px-2.5 py-1.5 font-mono text-xs break-all whitespace-pre-wrap text-code'>{(json) ? formatJson(value) ?? value : value}</pre>
         </div>
         {(!readOnly) ? (
+          // at least 36px to tap on touch screens, the desktop size stays
           <div className='flex shrink-0 gap-1'>
-            <button type='button' className='btn btn-ghost btn-sm px-2' aria-label={t('dtags.vars.edit', {name})} onClick={() => setEditing(true)}>
+            <button type='button' className='btn btn-ghost btn-sm px-2 pointer-coarse:min-h-9 pointer-coarse:min-w-9' aria-label={t('dtags.vars.edit', {name})} onClick={() => setEditing(true)}>
               <Pencil aria-hidden className='size-4'/>
             </button>
-            <button type='button' className='btn btn-ghost btn-sm px-2 hover:text-danger-text' aria-label={t('dtags.delete_label', {name})} onClick={() => setConfirming(true)}>
+            <button type='button' className='btn btn-ghost btn-sm px-2 hover:text-danger-text pointer-coarse:min-h-9 pointer-coarse:min-w-9' aria-label={t('dtags.delete_label', {name})} onClick={() => setConfirming(true)}>
               <Trash2 aria-hidden className='size-4'/>
             </button>
           </div>
@@ -292,6 +296,8 @@ function VariableEditor({ tagId, scope, storageType, storageId, initialName, ini
       }}
       onKeyDown={(event) => {
         if (event.key === 'Escape' && !dirty) {
+          // only this edit is cancelled, the tag editor around it stays open
+          event.preventDefault();
           onDone();
         }
       }}

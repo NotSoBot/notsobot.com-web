@@ -65,6 +65,7 @@ export function ConfirmDialog({
               onChange={(event) => setTyped(event.target.value)}
               autoComplete='off'
               spellCheck={false}
+              data-autofocus
               className='input'
             />
           </div>

@@ -41,7 +41,6 @@ export const routes: Array<RouteObject> = [
       },
       {path: Routes.CHANGELOG, lazy: async () => ({Component: (await import('@/pages/ChangelogPage')).ChangelogPage}), handle: PAGES.CHANGELOG},
       {path: Routes.FAQ, lazy: async () => ({Component: (await import('@/pages/FaqPage')).FaqPage}), handle: PAGES.FAQ},
-      // not in the navbar or footer yet
       {path: Routes.PREMIUM, lazy: async () => ({Component: (await import('@/pages/PremiumPage')).PremiumPage}), handle: PAGES.PREMIUM},
       {path: Routes.STATUS, lazy: async () => ({Component: (await import('@/pages/status/StatusPage')).StatusPage}), handle: PAGES.STATUS},
       {path: Routes.STATUS_VOICE, lazy: async () => ({Component: (await import('@/pages/status/VoiceStatusPage')).VoiceStatusPage}), handle: PAGES.STATUS_VOICE},
@@ -142,8 +141,9 @@ export const routes: Array<RouteObject> = [
                 element: <RequireStaff/>,
                 children: [
                   {path: '/dashboard/admin', element: <Navigate to={Routes.DASHBOARD_ADMIN_TAGS} replace/>},
-                  {path: Routes.DASHBOARD_ADMIN_APPLICATIONS, lazy: async () => ({Component: (await import('@/pages/dashboard/admin/AdminApplicationsPage')).AdminApplicationsPage}), handle: PAGES.DASHBOARD_ADMIN_APPLICATIONS},
-                  {path: Routes.DASHBOARD_ADMIN_TAGS, lazy: async () => ({Component: (await import('@/pages/dashboard/admin/AdminAllTagsPage')).AdminAllTagsPage}), handle: PAGES.DASHBOARD_ADMIN_TAGS},
+                  {path: `${Routes.DASHBOARD_ADMIN_APPLICATIONS}/:itemId?`, lazy: async () => ({Component: (await import('@/pages/dashboard/admin/AdminApplicationsPage')).AdminApplicationsPage}), handle: PAGES.DASHBOARD_ADMIN_APPLICATIONS},
+                  // `/dashboard/admin/tags/directory` still goes to the directory below, a static segment outranks `:itemId`
+                  {path: `${Routes.DASHBOARD_ADMIN_TAGS}/:itemId?`, lazy: async () => ({Component: (await import('@/pages/dashboard/admin/AdminAllTagsPage')).AdminAllTagsPage}), handle: PAGES.DASHBOARD_ADMIN_TAGS},
                   {path: `${Routes.DASHBOARD_ADMIN_TAG_DIRECTORY}/:itemId?`, lazy: async () => ({Component: (await import('@/pages/dashboard/admin/AdminTagsPage')).AdminTagsPage}), handle: PAGES.DASHBOARD_ADMIN_TAG_DIRECTORY},
                   {path: `${Routes.DASHBOARD_ADMIN_USERS}/:itemId?`, lazy: async () => ({Component: (await import('@/pages/dashboard/admin/AdminUsersPage')).AdminUsersPage}), handle: PAGES.DASHBOARD_ADMIN_USERS},
                   {path: `${Routes.DASHBOARD_ADMIN_FLAGS}/:itemId?`, lazy: async () => ({Component: (await import('@/pages/dashboard/admin/AdminContentFlagsPage')).AdminContentFlagsPage}), handle: PAGES.DASHBOARD_ADMIN_FLAGS},

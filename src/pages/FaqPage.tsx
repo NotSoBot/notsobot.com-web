@@ -46,6 +46,8 @@ export function FaqPage() {
   const [ query, setQuery ] = useState('');
   // answers opened by the reader; search results open on their own
   const [ open, setOpen ] = useState<Set<string>>(() => new Set());
+  // and the search results the reader closed again, forgotten when the search changes
+  const [ collapsed, setCollapsed ] = useState<Set<string>>(() => new Set());
 
   const needle = query.trim().toLowerCase();
   const matches = useMemo(() => {
@@ -70,7 +72,7 @@ export function FaqPage() {
   }, [allQuestions, location.hash]);
 
   const toggle = (id: string) => {
-    setOpen((previous) => {
+    ((needle) ? setCollapsed : setOpen)((previous) => {
       const next = new Set(previous);
       if (!next.delete(id)) {
         next.add(id);
@@ -99,7 +101,10 @@ export function FaqPage() {
             size='lg'
             className='max-w-2xl'
             value={query}
-            onValueChange={setQuery}
+            onValueChange={(value) => {
+              setQuery(value);
+              setCollapsed(new Set());
+            }}
             placeholder={t('faq.search_placeholder')}
             aria-label={t('faq.search_label')}
           />
@@ -167,7 +172,7 @@ export function FaqPage() {
                       <QuestionItem
                         key={question.id}
                         question={question}
-                        open={!!needle || open.has(question.id)}
+                        open={(needle) ? !collapsed.has(question.id) : open.has(question.id)}
                         highlight={needle}
                         divider={0 < i}
                         onToggle={() => toggle(question.id)}
@@ -319,8 +324,9 @@ function AnswerLink({ href, children }: {href: string, children: ReactNode}) {
   if (href.startsWith('#')) {
     return <a href={href} className={className}>{children}</a>;
   }
-  // `/invite` and `/support` are redirect routes, so let them do a full navigation
-  if (href.startsWith('/') && href !== Routes.INVITE && href !== Routes.SUPPORT) {
+  // `/invite` and `/support` are redirect routes, so let them do a full navigation (the invite has a `?src=faq`)
+  const path = href.split('?')[0];
+  if (href.startsWith('/') && path !== Routes.INVITE && path !== Routes.SUPPORT) {
     return <Link to={href} className={className}>{children}</Link>;
   }
   const external = /^https?:/.test(href);

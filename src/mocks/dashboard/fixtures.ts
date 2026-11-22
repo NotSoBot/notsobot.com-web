@@ -869,21 +869,23 @@ const PREMIUM_SKUS: Record<number, string> = {
   4: DiscordSkus.USER_NOTSOPREMIUM_MAX,
 };
 
-// the mock user has an active Premium+ subscription, an older cancelled Premium one and a replaced staff grant;
+// the mock user has an active NotSoPremium Plus subscription, an older cancelled Premium one and a replaced staff grant;
 // everyone else gets a mix of active, expired, cancelled and staff-given ones
-// the credits ledger: a few refills (50K/150K/700K), some given to servers, one taken back after a chargeback, one staff grant
+// the credits ledger: a few refills (50K/150K/700K), some given to servers, one taken back after a chargeback, two staff grants (one taken back)
 export function createCreditTransactions(users: Array<AdminUser>): Array<AdminCreditTransaction> {
   const hour = 3600000;
   const now = Date.now();
   const ref = (user: AdminUser) => ({avatar: user.avatar, discriminator: user.discriminator, id: user.id, username: user.username});
   const transactions: Array<AdminCreditTransaction> = [];
   let id = 1360000000000000000n;
-  const add = (user: AdminUser, type: number, amount: number, hoursAgo: number, serverId: string | null, entitlementId: string | null) => {
+  const add = (user: AdminUser, type: number, amount: number, hoursAgo: number, serverId: string | null, entitlementId: string | null, reversesId: string | null = null) => {
     id += 1n;
     transactions.push({
       amount, created: new Date(now - hoursAgo * hour).toISOString(), entitlement_id: entitlementId, id: String(id),
-      server_id: serverId, type, user: ref(user), user_id: user.id,
+      // `reversed_by_id` is worked out by the mock route from the rows that point back at a grant
+      reversed_by_id: null, reverses_id: reversesId, server_id: serverId, type, user: ref(user), user_id: user.id,
     });
+    return String(id);
   };
   const amounts = [50_000, 150_000, 50_000, 700_000, 50_000, 325_000];
   amounts.forEach((amount, i) => {
@@ -899,7 +901,9 @@ export function createCreditTransactions(users: Array<AdminUser>): Array<AdminCr
       add(user, 3, -233_333, 20, String(1290000000000000100n + BigInt(i)), entitlementId);
     }
   });
-  // an apology from staff, no entitlement behind it
+  // an apology from staff, no entitlement behind it, and an older one that was taken back
+  const mistake = add(users[5 % users.length], 4, 50_000, 30, null, null);
+  add(users[5 % users.length], 4, -50_000, 28, null, null, mistake);
   add(users[3 % users.length], 4, 325_000, 6, null, null);
   return transactions.reverse();
 }

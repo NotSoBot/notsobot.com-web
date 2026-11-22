@@ -57,6 +57,12 @@ export function VoiceList({ guildId, editable = true }: {guildId: string | null,
   // only voices on a paid platform need credits to change, ZONOS3 ones (on our own servers) are free
   const canUploadTo = (voice: MeVoice) => editable && (voice.platform_type === VoiceCloneTypes.ZONOS3 || !!data?.premium);
   const lockedPaid = editable && !data?.premium && items.some((voice) => voice.platform_type !== VoiceCloneTypes.ZONOS3);
+  // their Move button is disabled for it, which a tooltip alone doesn't say on touch
+  const lockedMove = editable && !!data && !data.premium && items.some((voice) => voice.platform_type === VoiceCloneTypes.ZONOS3 && voice.clips.length);
+  // shown over an empty list too, so the limit is known before the first one
+  const count = (data?.limit !== undefined) ? (
+    <p className='mb-3 text-xs text-subtle'>{t('voices.count', {count: formatNumber(data.count), max: formatNumber(data.limit)})}</p>
+  ) : null;
   // a ZONOS3 voice moves to fish.audio (needs `premium`), a fish.audio or ElevenLabs one back to ZONOS3 (always free)
   const moveTarget = (voice: MeVoice) => (voice.platform_type === VoiceCloneTypes.ZONOS3) ? VoiceCloneTypes.FISH_AUDIO : VoiceCloneTypes.ZONOS3;
   const code = (chunk: ReactNode) => <code className='text-fg'>{chunk}</code>;
@@ -66,26 +72,29 @@ export function VoiceList({ guildId, editable = true }: {guildId: string | null,
     <>
       {(isPending) ? (
         <ListSkeleton/>
-      ) : (isError) ? (
+      ) : (isError && !data) ? (
+        // only when nothing loaded: a failed refetch keeps the cards, and with them an upload's progress and result
         (guildId) ? (
           <p role='alert' className='text-sm text-danger-text'>{errorMessage(error, t('voices.server_load_error'))}</p>
         ) : (
           <ErrorPanel title={t('voices.load_error')} message={errorMessage(error)} onRetry={() => refetch()} retrying={isRefetching}/>
         )
       ) : (!items.length) ? (
-        <EmptyState icon={<AudioLines className='size-10'/>} title={t((guildId) ? 'voices.server_empty' : 'voices.empty')}>
-          {rich((guildId) ? 'voices.server_empty_description' : 'voices.empty_description', {code})}
-        </EmptyState>
+        <>
+          {count}
+          <EmptyState icon={<AudioLines className='size-10'/>} title={t((guildId) ? 'voices.server_empty' : 'voices.empty')}>
+            {rich((guildId) ? 'voices.server_empty_description' : 'voices.empty_description', {code})}
+          </EmptyState>
+        </>
       ) : (
         <>
-          {(data?.limit !== undefined) ? (
-            <p className='mb-3 text-xs text-subtle'>{t('voices.count', {count: formatNumber(data.count), max: formatNumber(data.limit)})}</p>
-          ) : null}
+          {count}
           {(lockedPaid) ? (
             <p className='mb-3 text-sm text-muted'>
               {rich((guildId) ? 'voices.server_needs_plus' : 'voices.needs_plus', {link: premiumLink})}
             </p>
           ) : null}
+          {(lockedMove) ? <p className='mb-3 text-sm text-muted'>{t('voices.move_needs_credits')}</p> : null}
           <ul className='space-y-3'>
             {items.map((voice) => (
               <VoiceCard
@@ -272,7 +281,7 @@ function VoiceCard({ guildId, voice, creator, editable, canUpload, canMove, move
                 <span className='hidden sm:inline'>{t('voices.move_button', {target: voicePlatformLabel(moveTarget)})}</span>
               </button>
             ) : null}
-            <button type='button' className='btn btn-sm btn-danger' disabled={upload.isPending} aria-label={t('voices.delete_label', {name: voice.name})} onClick={onDelete}>
+            <button type='button' className='btn btn-sm btn-secondary' disabled={upload.isPending} aria-label={t('voices.delete_label', {name: voice.name})} onClick={onDelete}>
               <Trash2 className='size-4'/>
               <span className='hidden sm:inline'>{t('common.delete')}</span>
             </button>
@@ -293,6 +302,9 @@ function VoiceCard({ guildId, voice, creator, editable, canUpload, canMove, move
           }}
         />
       </div>
+
+      {/* why Add clip is disabled, its tooltip doesn't show on touch */}
+      {(editable && canUpload && full) ? <p className='px-4 pb-3 text-xs text-subtle'>{t('voices.clips_full', {max: VOICE_CLIPS_MAX})}</p> : null}
 
       {(upload.isError) ? (
         <div className='px-4 pb-3'>
@@ -381,6 +393,8 @@ function ClipRow({ guildId, voiceId, clip, editable, canUpload, canDelete, busy,
         <div className='mt-0.5 text-xs text-subtle'>
           {formatDuration(clip.duration)} • {formatMemory(clip.size, (clip.size < 1024 * 1024) ? 0 : 1)} • {t('voices.clip_added_on', {date: formatDate(clip.created)})}
         </div>
+        {/* why its delete is disabled, the tooltip doesn't show on touch */}
+        {(editable && !canDelete) ? <div className='mt-0.5 text-xs text-subtle'>{t('voices.last_clip')}</div> : null}
       </div>
       <ClipDownload clip={clip} load={load}/>
       {(editable) ? (
@@ -451,6 +465,14 @@ export function ClipPlayer({ clip, load }: {clip: VoiceClip, load: () => Promise
   const [ loading, setLoading ] = useState(false);
   const [ playing, setPlaying ] = useState(false);
   const [ failed, setFailed ] = useState(false);
+  // a load that finishes after the row is gone (list refetched, card collapsed) makes no object url nobody would revoke
+  const mounted = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -474,6 +496,9 @@ export function ClipPlayer({ clip, load }: {clip: VoiceClip, load: () => Promise
       setFailed(false);
       try {
         const blob = await load();
+        if (!mounted.current) {
+          return;
+        }
         const objectUrl = URL.createObjectURL(blob);
         element.src = objectUrl;
         setUrl(objectUrl);

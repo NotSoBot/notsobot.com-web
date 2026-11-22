@@ -72,6 +72,7 @@ export function RenameVoiceDialog({ voice, mutation, onClose }: {
               value={name}
               autoComplete='off'
               spellCheck={false}
+              data-autofocus
               disabled={mutation.isPending}
               onChange={(event) => setName(event.target.value)}
             />

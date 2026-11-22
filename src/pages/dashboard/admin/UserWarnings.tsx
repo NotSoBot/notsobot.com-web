@@ -90,7 +90,7 @@ function WarningCard({ warning, users, userId, canDelete }: {
           {(moderator) ? <span className='truncate font-medium text-fg'>{moderator.username}</span> : null}
           <CopyableValue value={warning.moderator_id} truncate={0} to={adminUserPath(warning.moderator_id)} linkTitle='Open in users'/>
         </span>
-        <span aria-hidden>·</span>
+        <span aria-hidden>•</span>
         <ExactDate value={warning.created} format={formatDateTime}/>
         {(warning.acknowledged) ? (
           <Chip tone='success' title={`Seen ${formatDateTime(warning.acknowledged)}`}>Seen</Chip>

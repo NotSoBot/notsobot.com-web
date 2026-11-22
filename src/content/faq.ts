@@ -41,7 +41,7 @@ export const FAQ_QUESTIONS: Array<FaqQuestion> = [
     id: 'add-to-server',
     section: 'start',
     question: 'How do I add NotSoBot to my server?',
-    answer: 'Use the [Add to Discord](/invite) button and pick your server. You need the **Manage Server** permission in that server to add bots.\n\nOnce it joins, type `/` in any channel to browse its slash commands, or try `@NotSoBot help`.',
+    answer: 'Use the [Add to Discord](/invite?src=faq) button and pick your server. You need the **Manage Server** permission in that server to add bots.\n\nOnce it joins, type `/` in any channel to browse its slash commands, or try `@NotSoBot help`.',
   },
   {
     id: 'use-without-server',
@@ -73,13 +73,13 @@ export const FAQ_QUESTIONS: Array<FaqQuestion> = [
     id: 'chain-effects',
     section: 'commands',
     question: 'Can I apply several effects at once?',
-    answer: 'Yes, with `.pipe`. Separate the commands with semicolons, for example `.pipe flip; flop`. Up to 5 commands can be chained, and each one runs on the result of the one before it.',
+    answer: 'Yes, with `/media-aiv pipe` (or `.pipe`). Separate the commands with semicolons, for example `/media-aiv pipe commands:flip; flop` or `.pipe flip; flop`. Up to 5 commands can be chained, and each one runs on the result of the one before it.',
   },
   {
     id: 'download-videos',
     section: 'commands',
     question: 'How do I download a video from TikTok, Instagram, YouTube and so on?',
-    answer: 'Use `.download <url>` or `/download`. You can also right-click (or long-press) a message containing a link and choose **Apps → Download**.\n\nTo change the default video quality for your downloads, use `/settings set download-quality`.',
+    answer: 'Use `/download` with the link, or right-click (or long-press) a message containing a link and choose **Apps → Download**. The prefix form is `.download <url>`.\n\nTo change the default video quality for your downloads, use `/settings set download-quality`.',
   },
   {
     id: 'files-as-links',
@@ -91,13 +91,13 @@ export const FAQ_QUESTIONS: Array<FaqQuestion> = [
     id: 'undo',
     section: 'commands',
     question: 'How do I delete the bot\'s response to my command?',
-    answer: 'Run `.undo` in the same channel to remove the bot\'s responses to your last command, or `.undo 5` for your last five.',
+    answer: 'Run `/undo` in the same channel to remove the bot\'s responses to your last command, or `/undo amount:5` for your last five. The prefix form is `.undo` (or `.undo 5`).',
   },
   {
     id: 'nsfw',
     section: 'commands',
     question: 'Why was my result blocked, or why can\'t I use NSFW commands?',
-    answer: 'NSFW commands only work in channels marked as **age-restricted**. In other channels, NotSoBot scans media it produces and blocks anything that may be NSFW. Searches use SafeSearch unless the channel is age-restricted.\n\nTo allow NSFW results, a server admin has to mark the channel as age-restricted in its channel settings.',
+    answer: 'NotSoBot scans the media it produces in every channel, age-restricted channels and DMs included, and blocks anything that may be NSFW. Searches always use SafeSearch.\n\nNSFW-specific commands were removed, so marking a channel as age-restricted no longer changes this. If you think a result was blocked by mistake, tell us in the [support server](/support).',
   },
 
   // server setup
@@ -105,25 +105,25 @@ export const FAQ_QUESTIONS: Array<FaqQuestion> = [
     id: 'change-prefix',
     section: 'server',
     question: 'How do I change the bot\'s prefix?',
-    answer: 'Use `.prefixes add <prefix>` to add one, `.prefixes replace <prefix>` to swap all of them for a single new one, and `.prefixes remove <prefix>` to remove one. These need the **Manage Server** permission.\n\nOnce a server has custom prefixes, the default `.` stops working there. Mentioning the bot always works, so `@NotSoBot prefixes` shows what\'s active.\n\nPrefix commands end on January 1, 2027, since Discord requires bots to use slash commands. Slash commands and mentioning the bot keep working after that.',
+    answer: 'Use `/server prefixes add` to add one, `/server prefixes replace` to swap all of them for a single new one, and `/server prefixes remove` to remove one. These need the **Manage Server** permission. The prefix forms are `.prefixes add <prefix>`, `.prefixes replace <prefix>` and `.prefixes remove <prefix>`.\n\nOnce a server has custom prefixes, the default `.` stops working there. `/server prefixes list` and `@NotSoBot prefixes` both show what\'s active.\n\nEvery prefix, custom ones included, stops working on January 1, 2027, since Discord requires bots to use slash commands. Slash commands and mentioning the bot keep working after that.',
   },
   {
     id: 'restrict-channels',
     section: 'server',
     question: 'How do I limit NotSoBot to certain channels, roles or users?',
-    answer: 'Use rules (`.rules` or `/server-rules`). Rules covering every command need **Administrator**:\n\n- `.rules block everything` then `.rules allow everything -channels bot-commands`: the bot only responds in #bot-commands\n- `.rules block everything -channels general -roles Muted`: the bot ignores #general and the Muted role\n\nThe most specific rule wins: a user beats a role, a role beats a channel, and a channel beats the whole server. Run `.rules` to see them all, or `.rules check <command>` to see which rule decides.',
+    answer: 'Use rules, with `/server-rules` (or `.rules`). Rules covering every command need **Administrator**:\n\n- `/server-rules add action:Block target:everything` then `/server-rules add action:Allow target:everything channels:#bot-commands`: the bot only responds in #bot-commands. With a prefix: `.rules block everything` then `.rules allow everything -channels bot-commands`\n- `/server-rules add action:Block target:everything channels:#general roles:@Muted`: the bot ignores #general and the Muted role. With a prefix: `.rules block everything -channels general -roles Muted`\n\nThe most specific rule wins: a user beats a role, a role beats a channel, and a channel beats the whole server. Run `/server-rules list` (or `.rules`) to see them all, or `/server-rules check` (or `.rules check <command>`) to see which rule decides.',
   },
   {
     id: 'disable-command',
     section: 'server',
     question: 'How do I turn off a specific command or category?',
-    answer: 'Use `.rules block <command or category>`, for example `.rules block rule34` or `.rules block category:fun`. Add `-channels` to only turn it off in certain channels, and `-message` to tell people where to go instead: `.rules block fun -channels general -message Fun commands go in #bots`. This needs the **Manage Server** permission.',
+    answer: 'Use `/server-rules add` with the action set to Block and the command or category as its target, for example `/server-rules add action:Block target:magik` or `/server-rules add action:Block target:category:fun`. Fill in `channels` to only turn it off in certain channels, and `message` to tell people where to go instead. This needs the **Manage Server** permission.\n\nThe prefix form is `.rules block <command or category>`, for example `.rules block magik` or `.rules block category:fun`, with `-channels` and `-message` for the same options: `.rules block fun -channels general -message Fun commands go in #bots`.',
   },
   {
     id: 'loggers',
     section: 'server',
     question: 'Can NotSoBot log what happens in my server?',
-    answer: 'Yes. Set up loggers for bans, channels, members, messages, roles, users and voice, for example `.loggers add messages -channel message-logs`. Run `.loggers` to see what\'s currently being logged and where.',
+    answer: 'Yes. Set up loggers for bans, channels, members, messages, roles, users and voice, for example `/server loggers add type:Messages channel:#message-logs` (or `.loggers add messages -channel message-logs`). Run `/server loggers list` (or `.loggers`) to see what\'s currently being logged and where.',
   },
   {
     id: 'language',
@@ -155,7 +155,7 @@ export const FAQ_QUESTIONS: Array<FaqQuestion> = [
     id: 'limit-premium',
     section: 'limits',
     question: 'Does premium raise these limits?',
-    answer: 'No, the limits above are the same for everyone. NotSoPremium raises the media and voice ones instead: file size, time per command, animated frames, saved fonts, cloned voices and the music queue. The [Premium page](/premium) lists them for every tier.',
+    answer: 'No, the limits above are the same for everyone. NotSoPremium raises the media ones instead: file size, time per command, animated frames and saved fonts. NotSoPremium Plus and Max add more cloned voices, and a server with a premium server slot gets a bigger music queue. The [Premium page](/premium) lists them for every tier.',
   },
 
   // premium & ai
@@ -163,13 +163,13 @@ export const FAQ_QUESTIONS: Array<FaqQuestion> = [
     id: 'premium',
     section: 'premium',
     question: 'What is NotSoPremium?',
-    answer: 'NotSoPremium is an optional subscription, bought through Discord on NotSoBot\'s profile. It comes in three tiers:\n\n- **NotSoPremium**: bigger files, more time for every command and your own custom commands\n- **NotSoPremium Plus**: everything above, plus 2 premium server slots and more cloned voices\n- **NotSoPremium Max**: everything above, plus NotSoAI\n\nWith **NotSoPremium Plus** you can give up to 2 servers (or group DMs) your premium with `/settings premium-servers add` or from the dashboard\'s Premium page, so some premium commands work there for everyone. Owning a server doesn\'t give it premium by itself.\n\nThe [Premium page](/premium) compares every tier side by side.',
+    answer: 'NotSoPremium is an optional subscription, bought through Discord on NotSoBot\'s profile. It comes in three tiers:\n\n- **NotSoPremium**: bigger files, more time for every command and your own custom commands\n- **NotSoPremium Plus**: everything above, plus 2 premium server slots, more cloned voices and NotSoCredits every week for NotSoAI\n- **NotSoPremium Max**: everything above, with twice the NotSoCredits, and the ones you don\'t use roll over\n\nWith **NotSoPremium Plus** or **Max** you can give up to 2 servers (or group DMs) your premium with `/settings premium-servers add` or from the dashboard\'s Premium page, so some premium commands work there for everyone. Owning a server doesn\'t give it premium by itself.\n\nThe [Premium page](/premium) compares every tier side by side.',
   },
   {
     id: 'notsoai',
     section: 'premium',
     question: 'How do I talk to NotSoAI?',
-    answer: 'Mention the bot with a message, or reply to one of its messages, and NotSoAI will answer. It runs on NotSoCredits: **NotSoPremium Max** comes with some every week, a server gets some from each Max premium server slot on it, and anyone can buy a credit pack in the store to use it without subscribing (or give some to a server with `/settings credits give`). See the [Premium page](/premium) for how far they go. You can set its personality with `/settings set ai-personality`.',
+    answer: 'Mention the bot with a message, or reply to one of its messages, and NotSoAI will answer. It runs on NotSoCredits: **NotSoPremium Plus** and **Max** come with some every week (Max gets twice as many), a server gets some from each Max premium server slot on it, and anyone can buy a credit pack in the store to use it without subscribing (or give some to a server with `/settings credits give`). See the [Premium page](/premium) for how far they go. You can set its personality with `/settings set ai-personality`.',
   },
 
   // privacy & support

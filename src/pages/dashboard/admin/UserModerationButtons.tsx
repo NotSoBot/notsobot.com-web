@@ -2,7 +2,7 @@ import { Ban, MessageSquareWarning, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
 
 import { isOwner, useAuth } from '@/auth';
-import { UserFlags, type User } from '@/lib/api';
+import { UserFlags, type ContentFlagUser } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
 import { BlockUserDialog, canBlockUser } from './BlockUserDialog';
@@ -10,9 +10,14 @@ import { WarnUserDialog } from './UserWarnings';
 
 
 // Warn and Block (or Unblock) for a user shown somewhere other than their own admin page, like a report's reporter or
-// the user it's about. Same rules as the user page: owners can't be warned or blocked, moderators can't do either to
-// other moderators, unblocking is owner only, and bots can't be warned. `defaultReason` fills both dialogs
-export function UserModerationButtons({ user, defaultReason = '', className }: {user: User, defaultReason?: string, className?: string}) {
+// the user it's about, a flag's uploader or a tag's owner. Same rules as the user page: owners can't be warned or
+// blocked, moderators can't do either to other moderators, unblocking is owner only, and bots can't be warned (`bot`
+// is only on a report's users, the others don't say). `defaultReason` fills both dialogs
+export function UserModerationButtons({ user, defaultReason = '', className }: {
+  user: ContentFlagUser & {bot?: boolean},
+  defaultReason?: string,
+  className?: string,
+}) {
   const { user: me } = useAuth();
   const viewerIsOwner = isOwner(me);
   const [ dialog, setDialog ] = useState<'block' | 'warn' | null>(null);
@@ -27,7 +32,7 @@ export function UserModerationButtons({ user, defaultReason = '', className }: {
       <button
         type='button'
         className='btn btn-secondary btn-sm px-2'
-        disabled={!allowed || user.bot}
+        disabled={!allowed || !!user.bot}
         title={warnTitle}
         onClick={() => setDialog('warn')}
       >

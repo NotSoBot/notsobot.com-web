@@ -37,7 +37,14 @@ export function Footer() {
           <h2 className='mb-1 text-xl text-white'>NotSoBot</h2>
           <FooterQuote/>
           <div className='mb-3 flex gap-3'>
-            <a href={apiUrl(ApiEndpoints.HELP_DISCORD_SERVER)} aria-label={t('footer.support_server')} className='text-muted transition-colors hover:text-brand-text'>
+            <a
+              href={apiUrl(ApiEndpoints.HELP_DISCORD_SERVER)}
+              target='_blank'
+              rel='noreferrer'
+              title={t('footer.support_server')}
+              aria-label={t('footer.support_server')}
+              className='text-muted transition-colors hover:text-brand-text'
+            >
               <MessageSquare className='size-5'/>
             </a>
             <a href={Urls.GITHUB} target='_blank' rel='noreferrer' aria-label='GitHub' className='text-muted transition-colors hover:text-white'>
@@ -49,14 +56,15 @@ export function Footer() {
         </div>
 
         <nav aria-label={t('footer.label')}>
-          <h3 className='section-label mb-3'>{t('footer.company')}</h3>
+          <h3 className='section-label mb-3'>{t('footer.links')}</h3>
           <ul className='space-y-2 text-sm'>
             <li><Link to={Routes.FAQ} className='text-muted transition-colors hover:text-white'>{t('nav.faq')}</Link></li>
             <li><Link to={Routes.CHANGELOG} className='text-muted transition-colors hover:text-white'>{t('nav.changelog')}</Link></li>
             <li><Link to={Routes.PREMIUM} className='text-muted transition-colors hover:text-white'>{t('nav.premium')}</Link></li>
             <li><Link to={Routes.TAG_DOCS} className='text-muted transition-colors hover:text-white'>{t('footer.tag_docs')}</Link></li>
-            {/* anonymous when logged out (behind a captcha), or logging in first when the site has no captcha set up */}
-            <li><ReportButton subject={{type: 'bug'}} className='cursor-pointer text-muted transition-colors hover:text-white'>{t('footer.report_bug')}</ReportButton></li>
+            {/* anonymous when logged out (behind a captcha), or logging in first when the site has no captcha set up.
+                the button is nothing when there's no way to report, the item goes with it instead of leaving a gap */}
+            <li className='empty:hidden'><ReportButton subject={{type: 'bug'}} className='cursor-pointer text-muted transition-colors hover:text-white'>{t('footer.report_bug')}</ReportButton></li>
             <li><Link to={Routes.LEGAL_PRIVACY} className='text-muted transition-colors hover:text-white'>{t('footer.privacy')}</Link></li>
             <li><Link to={Routes.LEGAL_TERMS_OF_SERVICE} className='text-muted transition-colors hover:text-white'>{t('footer.terms')}</Link></li>
           </ul>
@@ -83,7 +91,7 @@ function FooterQuote() {
 
   const [ quote, author ] = state?.quotes[state.index] ?? [];
   return (
-    <p key={`${quote}-${author}`} className='mb-3 min-h-5 animate-fade-in text-sm text-muted' aria-live='polite'>
+    <p key={`${quote}-${author}`} className='mb-3 min-h-5 animate-fade-in text-sm text-muted'>
       {(quote) ? `"${quote}" - ${author}` : null}
     </p>
   );

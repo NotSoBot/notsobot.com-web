@@ -86,7 +86,7 @@ The visual design follows the Figma export in `../Discord Bot Command Page` (Dis
 | `/status` | Live shard and cluster health, polled every 2s. A collapsible "Show all totals" panel lists all 18 per-shard counters summed across shards (labels and notes in `src/lib/shardCounts.ts`). statistics, and a centered shard grid where each cluster shows its healthy count and RAM and each shard has a hover card with live counts. The lookup box takes a server ID, a channel link, `shard 12` or `cluster 5` (kept in the URL as `?lookup=`). It shows the full cluster: health, shard range, RAM, last report, that cluster's shards with the target highlighted, its counts, and a "Show in grid" jump. |
 | `/legal/privacy`, `/legal/tos` (`/privacy` and `/terms` redirect here) | Legal pages. The text was copied over unchanged and lives in `src/content/`. |
 | `/auth/login`, `/auth/login/callback` | Discord OAuth (see below) |
-| `/auth/redirect` | Landing page after adding the bot. Sends the Umami `BotAdded` event, then redirects to `/commands`. |
+| `/auth/redirect` | Landing page after adding the bot. Sends the Umami `BotAdded` event (with the invite's `src`, the button it was on), then redirects to `/commands`. |
 | `/invite`, `/support`, `/support/invite`, `/foxbot` | Redirects to external sites |
 
 ## Authentication

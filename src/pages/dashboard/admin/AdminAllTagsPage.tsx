@@ -1,15 +1,16 @@
 import { BookMarked, Replace, Search, Tags, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 
 import { isOwner, useAuth } from '@/auth';
 import { CopyButton } from '@/components/ui/CopyButton';
 import { DetailModalHeader } from '@/components/ui/DetailModal';
 import { SearchInput } from '@/components/ui/SearchInput';
+import { Routes } from '@/config';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useSearchParamState, useStepBackFromEmptyPage } from '@/hooks/useSearchParamState';
 import { TagDirectoryVerificationStates, type AdminTagItem, type AdminTagsSortBy } from '@/lib/api';
-import { ADMIN_TAGS_PAGE_SIZE, errorMessage, useAdminTagsQuery } from '@/lib/api/dashboardQueries';
+import { ADMIN_TAGS_PAGE_SIZE, errorMessage, useAdminTagsQuery, type AdminTagsFilters } from '@/lib/api/dashboardQueries';
 import { cn, formatDate, formatDateTime } from '@/lib/utils';
 import { TagCardDeleteButton, tagLocation, TagLocationChip, TagStatusBadges, type TagLocation, type TagLocationKind } from '@/pages/dashboard/tags/tagMeta';
 import { NsfwBadge, VerificationBadge } from '@/pages/tags/tagDirectory';
@@ -17,7 +18,7 @@ import { NsfwBadge, VerificationBadge } from '@/pages/tags/tagDirectory';
 import { ServerFilterChip } from '../servers/ServerFilterChip';
 
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton, Toggle } from '../ui';
-import { AdminModalFooter, AdminTagModal, useOpenListItem } from './AdminTagModal';
+import { AdminModalFooter, AdminTagModal, LinkedItemModal, useOpenListItem } from './AdminTagModal';
 import { adminServerPath, adminTagDirectoryPath, adminUserPath, Chip, CopyableValue, DETAIL_LIST_STACKED, DetailList, ExactDate, FiltersButton, Pagination, selectAllScope, UserCell } from './adminUi';
 import { TagOwnerStrip } from './DeleteUserTagsDialog';
 import { DeleteTagDialog } from './DeleteTagDialog';
@@ -42,6 +43,7 @@ const TITLE_ID = 'admin-tag-modal-title';
 
 export function AdminAllTagsPage() {
   const { searchParams, page, update, setPage } = useSearchParamState();
+  const navigate = useNavigate();
   // deleting from a card, without opening it
   const [ deleting, setDeleting ] = useState<AdminTagItem | null>(null);
   const hideNsfw = searchParams.get('nsfw') === 'hide';
@@ -55,16 +57,25 @@ export function AdminAllTagsPage() {
   const [ filtersOpen, setFiltersOpen ] = useState(false);
   const activeFilters = [sortBy !== 'newest', searchContent, hideNsfw].filter(Boolean).length;
 
-  const { data, isPending, isError, error, isPlaceholderData, isFetching, isRefetching, refetch } = useAdminTagsQuery({
+  const filters: AdminTagsFilters = {
     query: debouncedQuery,
     serverId,
     searchContent,
     sortBy,
     nsfw: (hideNsfw) ? false : null,
     page,
-  });
+  };
+  const { data, isPending, isError, error, isPlaceholderData, isFetching, isRefetching, refetch } = useAdminTagsQuery(filters);
   const items = data?.items ?? [];
-  const { openItem, previousId, nextId, open, close } = useOpenListItem(items, (item) => item.tag.id);
+  // `/dashboard/admin/tags/<id>` opens the tag over the list, ← / → step through this page's tags
+  const { openId, openItem: listedItem, previousId, nextId, open, close } = useOpenListItem(items, (item) => item.tag.id, Routes.DASHBOARD_ADMIN_TAGS);
+  // A link to a tag that isn't on this page is found with the list's own `id:<id>` search, there's no route for one tag.
+  // The query can't be switched off, so with nothing to look up it asks for the page above again (the same cached request)
+  const lookingUp = !!openId && !listedItem;
+  const linked = useAdminTagsQuery((lookingUp && /^\d+$/.test(openId)) ? {query: `id:${openId}`, searchContent: false, sortBy: 'newest', nsfw: null, page: 0} : filters);
+  // the page above stands in while the lookup loads (`keepPreviousData`), that's not its answer yet
+  const linkedReady = lookingUp && !!linked.data && !linked.isPlaceholderData;
+  const openItem = listedItem ?? ((linkedReady) ? linked.data?.items.find((item) => item.tag.id === openId) : null) ?? null;
   const steppingBack = useStepBackFromEmptyPage({page, setPage, data, isPlaceholderData, pageSize: ADMIN_TAGS_PAGE_SIZE});
   const pagination = {
     page,
@@ -72,6 +83,14 @@ export function AdminAllTagsPage() {
     pageSize: ADMIN_TAGS_PAGE_SIZE,
     onChange: setPage,
     fetching: isFetching && isPlaceholderData,
+  };
+  // closes the tag too (in the same navigation, closing and then changing the search would be two that undo each
+  // other), it might not be in the new list
+  const searchFor = (value: string) => {
+    const next = new URLSearchParams(searchParams);
+    next.set('q', value);
+    next.delete('page');
+    navigate({pathname: Routes.DASHBOARD_ADMIN_TAGS, search: next.toString()}, {replace: true, preventScrollReset: true});
   };
 
   return (
@@ -140,18 +159,25 @@ export function AdminAllTagsPage() {
             key={openItem.tag.id}
             item={openItem}
             navigation={{previousId, nextId, onNavigate: open}}
-            onSearch={(value) => {
-              close();
-              update({q: value});
-            }}
-            onReplaced={(targetId) => {
-              close();
-              // the tag that's left, with everything moved onto it
-              update({q: `id:${targetId}`});
-            }}
+            onSearch={searchFor}
+            // the tag that's left, with everything moved onto it
+            onReplaced={(targetId) => searchFor(`id:${targetId}`)}
             onDeleted={close}
           />
         </AdminTagModal>
+      ) : (openId) ? (
+        <LinkedItemModal
+          noun='tag'
+          notFoundMessage='There’s no tag with this id. It may have been deleted.'
+          query={{
+            data: (linkedReady) ? null : undefined,
+            isPending: !linked.isError && !linkedReady,
+            error: linked.error,
+            isRefetching: linked.isRefetching,
+            refetch: linked.refetch,
+          }}
+          onClose={close}
+        />
       ) : null}
 
       {(deleting) ? <DeleteTagDialog item={deleting} onDeleted={() => setDeleting(null)} onClose={() => setDeleting(null)}/> : null}
