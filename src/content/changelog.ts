@@ -41,6 +41,7 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'improved', text: 'The prefix command and quarantine banners on the website can be dismissed, and the FAQ leads with slash commands.'},
       {kind: 'improved', text: 'The docs have an On this page menu on phones, and the status page shows a one-line verdict and says when shards aren\'t reporting.'},
       {kind: 'improved', text: 'Pressing a button that stopped working, like page buttons left over after a restart, now greys out its dead buttons instead of leaving them there.'},
+      {kind: 'improved', text: 'Adding NotSoBot now also asks for Pin Messages and for creating threads, which `pin` and the decoy channel need, and no longer asks for Use Voice Activity, which a bot never used.'},
       {kind: 'fixed', text: 'Translate, OCR translate and transcribe translate failing when the translation came back empty.'},
       {kind: 'fixed', text: '`.audio noise` always failing.'},
       {kind: 'fixed', text: 'Steam profile lookups failing instead of saying the profile doesn\'t exist.'},
