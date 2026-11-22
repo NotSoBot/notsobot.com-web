@@ -22,7 +22,7 @@ import {
   useMeVoicesQuery,
   useSavedFontsQuery,
 } from '@/lib/api/dashboardQueries';
-import { UserPremiumTypes } from '@/lib/api';
+import { UserFlags, UserPremiumTypes } from '@/lib/api';
 import { userDisplayTag } from '@/lib/discord';
 import { cn, formatDate, formatMemory, formatNumber, toDate } from '@/lib/utils';
 
@@ -121,9 +121,11 @@ export function OverviewPage() {
   }
 
   const premium = user.premium_type !== UserPremiumTypes.NONE;
-  // most accounts have no API access: "0 • No API access" is noise for them, so the stat is only there once it's known
-  // they can make applications or have some (the sidebar keeps its link either way)
-  const shownApplications = (applications.data && (applications.data.can_create || 0 < applications.data.count)) ? applications.data : null;
+  // most accounts have no API access: "0 • No API access" is noise for them, so the stat is only there for those who can
+  // make applications or have some (the sidebar keeps its link either way). Until the query answers (or when it fails)
+  // that's the session's API access flag, so the tile is in the grid from the start instead of pushing the others over
+  const apiAccess = isOwner(user) || (user.flags & UserFlags.API_ACCESS) === UserFlags.API_ACCESS;
+  const showApplications = (applications.data) ? (applications.data.can_create || 0 < applications.data.count) : apiAccess;
   const manageable = guilds.data?.filter((guild) => guild.can_manage).length ?? 0;
 
   const now = Date.now();
@@ -230,13 +232,13 @@ export function OverviewPage() {
       {/* the sidebar's Dashboard sections. Premium and Settings are in the user card, tags in Content below */}
       <section aria-labelledby='overview-dashboard'>
         <h2 id='overview-dashboard' className='section-label mb-3'>{t('dash.group.dashboard')}</h2>
-        <div className={cn('grid grid-cols-1 gap-3 sm:gap-4', (shownApplications) ? 'sm:grid-cols-3' : 'sm:grid-cols-2')}>
-          {(shownApplications) ? (
+        <div className={cn('grid grid-cols-1 gap-3 sm:gap-4', (showApplications) ? 'sm:grid-cols-3' : 'sm:grid-cols-2')}>
+          {(showApplications) ? (
             <Stat
               label={t('overview.applications')}
               to={Routes.DASHBOARD_APPLICATIONS}
-              value={formatNumber(shownApplications.count)}
-              detail={(shownApplications.can_create) ? t('overview.can_make', {limit: formatNumber(shownApplications.limit)}) : t('overview.no_api')}
+              value={(applications.data) ? formatNumber(applications.data.count) : (applications.isPending) ? null : '—'}
+              detail={(!applications.data) ? undefined : (applications.data.can_create) ? t('overview.can_make', {limit: formatNumber(applications.data.limit)}) : t('overview.no_api')}
               color='#3ba55c'
             />
           ) : null}

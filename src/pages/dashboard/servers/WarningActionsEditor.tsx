@@ -95,7 +95,7 @@ export function WarningActionsEditor({ value, onChange, disabled }: {
       {(value.length) ? (
         <ul className='flex flex-col gap-2'>
           {value.map((step, index) => (
-            <li key={index} className='flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface-2 p-2'>
+            <li key={index} className='flex flex-wrap items-center gap-2 rounded-lg border border-line bg-surface-2 p-2'>
               <span className='text-sm text-muted'>{t('wactions.at')}</span>
               <input
                 type='number'
@@ -140,7 +140,7 @@ export function WarningActionsEditor({ value, onChange, disabled }: {
           ))}
         </ul>
       ) : (
-        <p className='rounded-lg border border-dashed border-border p-3 text-sm text-subtle'>{t('wactions.off')}</p>
+        <p className='rounded-lg border border-dashed border-line-strong p-3 text-sm text-subtle'>{t('wactions.off')}</p>
       )}
       <button type='button' className='btn btn-sm btn-secondary mt-2' disabled={disabled || MAX_WARNING_ACTIONS <= value.length} onClick={add}>
         <Plus aria-hidden className='size-4'/>

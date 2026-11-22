@@ -331,6 +331,7 @@ export const GUIDE_SPANISH: TagDocsTranslation['guide'] = {
       rows: [
         ['Tiempo de ejecución', '40 segundos', 'Cuánto puede durar toda la ejecución, incluido todo lo que llama: 60 segundos en un servidor premium, 70 con Premium, 100 con Plus y 130 con Max.'],
         ['Iteraciones', '', 'Veces que se analiza texto por ejecución. Cuando se agotan, el texto restante se muestra sin evaluar.'],
+        ['Llamadas a funciones', '10.000', 'Funciones llamadas en una ejecución, incluidos los tags que llama.'],
         ['Peticiones de red', '', 'Funciones que acceden a internet: descargas, búsquedas, archivos adjuntos, ejecuciones de código, buscar usuarios, etc.'],
         ['Peticiones de IA', '', 'Llamadas a `{ai}`.'],
         ['Peticiones de aprendizaje automático', '', 'Generación y edición de imágenes (`{imagine}`, `{edit}` y sus versiones de URL).'],
@@ -340,6 +341,7 @@ export const GUIDE_SPANISH: TagDocsTranslation['guide'] = {
         ['Ejecuciones de componentes', '', 'Veces que el tag puede volver a ejecutarse por clics en botones, menús de selección o `{componentsontimeout}`.'],
         ['Archivos adjuntos', '', 'Archivos adjuntos a la respuesta.'],
         ['Embeds', '', 'Embeds en la respuesta.'],
+        ['Tamaño del texto de salida', '', 'Todo el texto que produce el tag, o el límite de subida del canal si es menor.'],
         ['Páginas', '1.000', 'Páginas añadidas con `{pagejson}` o desde código.'],
         ['Variables', '', 'Variables definidas durante una ejecución.'],
         ['Longitud del nombre de variable', '64 caracteres', 'Longitud del nombre de una variable.'],
@@ -355,6 +357,7 @@ export const GUIDE_SPANISH: TagDocsTranslation['guide'] = {
         ['Red del código', '', 'Velocidad de internet dentro del sandbox, con unas 3 peticiones por segundo.'],
         ['Longitud del prompt de IA', '12.000 caracteres', 'Los prompts de `{ai}` más largos se cortan.'],
         ['Tiempo de regex', '', 'Cuánto tiempo puede dedicar `{replace}` a una expresión regular.'],
+        ['Tiempo de math y replace', '2 segundos', 'Tiempo que `{math}` y `{replace}` pueden usar en total en una ejecución, incluidos los tags que llama.'],
         ['Tamaño del bucle', '', 'Elementos que `{foreach}` puede recorrer.'],
       ],
     },

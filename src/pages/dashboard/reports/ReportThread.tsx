@@ -8,6 +8,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 're
 
 import logo from '@/assets/logos/NotSoLogo.svg';
 import { Spinner } from '@/components/ui/Spinner';
+import { ExactDate } from '@/components/ui/Tooltip';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { useI18n } from '@/i18n';
 import { ReportStatuses, type ReportMessage, type ReportTranslation, type User } from '@/lib/api';
@@ -15,7 +16,6 @@ import { errorMessage } from '@/lib/api/dashboardQueries';
 import { userDisplayTag } from '@/lib/discord';
 import { cn, formatDateTime } from '@/lib/utils';
 
-import { ExactDate } from '../admin/adminUi';
 import { CharCounter, InlineError, Skeleton } from '../ui';
 import { REPORT_STAFF_NAME } from './reportLabels';
 
@@ -305,7 +305,7 @@ function StatusEvent({ message, viewer, reporterName, staffName }: {message: Rep
       <span className='text-center'>
         {rich((yours) ? `thread.status.you_${verb}` : `thread.status.${verb}`, {who: (chunk) => <span className='text-muted'>{chunk}</span>}, {who})}
         {(message.author === 'staff' && viewer === 'staff' && message.author_id) ? <> (<span className='font-mono'>{message.author_id}</span>)</> : null}
-        {' · '}
+        {' • '}
         <ExactDate value={message.created} format={formatDateTime}/>
       </span>
       <span aria-hidden className='h-px flex-1 bg-line'/>

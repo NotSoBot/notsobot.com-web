@@ -313,12 +313,12 @@ function ApplicationDetails({ application, navigation, onFilterOwner, onDeleted 
             </div>
           ) : (
             <div className='grid grid-cols-2 gap-2 sm:grid-cols-4'>
-              <StatTile label='Requests' value={usage.requests.toLocaleString()} title='Requests made with its token'/>
+              <StatTile label='Requests' value={usage.requests.toLocaleString()} hint='Requests made with its token'/>
               <StatTile
                 label='Errors'
                 value={usage.errors.toLocaleString()}
                 tone='text-warning'
-                title={(usage.requests) ? `${((usage.errors / usage.requests) * 100).toFixed(1)}% of its requests failed (status 400 or above)` : 'Requests that failed (status 400 or above)'}
+                hint={(usage.requests) ? `${((usage.errors / usage.requests) * 100).toFixed(1)}% of its requests failed (status 400 or above)` : 'Requests that failed (status 400 or above)'}
               />
               <DateTile label='First request' value={usage.first_request_at} empty='None' title='Its first request in that time'/>
               <DateTile label='Last request' value={usage.last_request_at} empty='None' title='Its most recent request'/>

@@ -204,7 +204,7 @@ function ServerCard({ guild, pinned, onTogglePin }: {guild: UserGuildSummary, pi
       <button
         type='button'
         className={cn(
-          'absolute top-2 left-2 flex size-6 cursor-pointer items-center justify-center rounded-full border border-line bg-surface-1 shadow transition before:absolute before:-inset-[7px] focus-visible:opacity-100',
+          'absolute top-2 left-2 flex size-6 cursor-pointer items-center justify-center rounded-full border border-line bg-surface shadow transition before:absolute before:-inset-[7px] focus-visible:opacity-100',
           (pinned) ? 'text-brand-text' : 'text-subtle opacity-0 group-hover/server:opacity-100 hover:text-white max-sm:opacity-100',
         )}
         aria-pressed={pinned}

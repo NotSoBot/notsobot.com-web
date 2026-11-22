@@ -1,13 +1,13 @@
 import { KeyRound, TriangleAlert } from 'lucide-react';
 import { useId, useState, type ReactNode } from 'react';
 
+import { Chip } from '@/components/ui/Chip';
 import { CopyButton } from '@/components/ui/CopyButton';
 import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
 import { useI18n } from '@/i18n';
 import { ApplicationFlags, type Application, type ApplicationWithToken } from '@/lib/api';
 
-import { Chip } from '../admin/adminUi';
 import { CharCounter, Field } from '../ui';
 
 

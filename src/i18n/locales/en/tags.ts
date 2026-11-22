@@ -128,7 +128,6 @@ export const Tags = {
   'tags.listing.edit': 'Edit Listing',
   'tags.listing.open_dashboard': 'Open in dashboard',
   'tags.listing.verification': 'Verification',
-  'tags.listing.verify_error': 'Couldn’t change the verification.',
   'tags.listing.save_first': 'Save or cancel your listing changes before requesting verification.',
   'tags.listing.pending_description': 'Waiting for NotSoBot’s team to review it. Canceling unlocks the tag so you can edit it again.',
   'tags.listing.canceling': 'Canceling…',

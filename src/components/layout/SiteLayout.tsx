@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Outlet, ScrollRestoration, useMatches } from 'react-router';
 
 import { Routes } from '@/config';
@@ -11,6 +11,9 @@ import { Navbar } from './Navbar';
 
 
 const SCROLL_BY_PATH: ReadonlySet<string> = new Set([Routes.DASHBOARD_TAGS]);
+
+// where the skip link sends focus
+const MAIN_ID = 'main';
 
 
 // handles are the PAGES entries themselves, so the entry's key finds its translated title
@@ -44,6 +47,8 @@ function usePageTitle(): string {
 
 
 export function SiteLayout() {
+  const { t } = useI18n();
+  const mainRef = useRef<HTMLElement>(null);
   const title = usePageTitle();
   useEffect(() => {
     document.title = title;
@@ -51,8 +56,22 @@ export function SiteLayout() {
 
   return (
     <div className='flex min-h-dvh flex-col'>
+      {/* the first thing Tab reaches, kept above the screen until it's focused: keyboard and screen reader users get
+          past the navbar without tabbing through it. focus is moved by hand so the url keeps its own hash (changelog
+          and legal anchors), the href is what works before the app has loaded */}
+      <a
+        href={`#${MAIN_ID}`}
+        className='btn btn-primary fixed top-3 left-3 z-50 -translate-y-16 focus:translate-y-0'
+        onClick={(event) => {
+          event.preventDefault();
+          mainRef.current?.focus();
+        }}
+      >
+        {t('nav.skip')}
+      </a>
       <Navbar/>
-      <main className='flex-1'>
+      {/* focusable only from the link above, so no outline around the whole page */}
+      <main ref={mainRef} id={MAIN_ID} tabIndex={-1} className='flex-1 outline-none'>
         <Outlet/>
       </main>
       <Footer/>

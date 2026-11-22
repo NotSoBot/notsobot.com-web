@@ -12,6 +12,7 @@ export const Layout: Record<keyof typeof English, string> = {
   'nav.faq': 'FAQ',
   'nav.open_menu': 'Abrir menu',
   'nav.close_menu': 'Fechar menu',
+  'nav.skip': 'Pular para o conteúdo',
 
   'footer.label': 'Rodapé',
   'footer.links': 'Links',

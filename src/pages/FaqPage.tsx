@@ -1,7 +1,7 @@
 import { Check, ChevronDown, Crown, Gauge, LifeBuoy, Link2, MessageCircleQuestion, Rocket, Shield, Terminal, type LucideIcon } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Link, useLocation } from 'react-router';
+import { Link, NavigationType, useLocation, useNavigationType, useSearchParams } from 'react-router';
 
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Spinner } from '@/components/ui/Spinner';
@@ -43,7 +43,31 @@ export function FaqPage() {
   const { t, plural } = useI18n();
   const { sections, questions: allQuestions, ready } = useFaq();
   const location = useLocation();
-  const [ query, setQuery ] = useState('');
+  // the search is in `?q=` like the docs' search, so a reload or a shared link keeps it. The input's text is its own
+  // state: the router changes the url in a transition, and an input driven by one drops keystrokes
+  const [ searchParams, setSearchParams ] = useSearchParams();
+  const urlQuery = searchParams.get('q') || '';
+  const [ query, setQueryText ] = useState(urlQuery);
+  const setQuery = (value: string) => {
+    setQueryText(value);
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      if (value) {
+        next.set('q', value);
+      } else {
+        next.delete('q');
+      }
+      return next;
+    }, {replace: true, preventScrollReset: true});
+  };
+  // typing replaces the entry, so any other kind of navigation (a link to the faq, back/forward) is the url's search
+  // changing under the input
+  const navigationType = useNavigationType();
+  useEffect(() => {
+    if (navigationType !== NavigationType.Replace) {
+      setQueryText(urlQuery);
+    }
+  }, [location.key, navigationType, urlQuery]);
   // answers opened by the reader; search results open on their own
   const [ open, setOpen ] = useState<Set<string>>(() => new Set());
   // and the search results the reader closed again, forgotten when the search changes

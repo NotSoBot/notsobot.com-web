@@ -7,11 +7,17 @@ import { BellOff, BellRing, ExternalLink, MessageSquareWarning, MessagesSquare, 
 import { useState } from 'react';
 
 import { useAuth } from '@/auth';
+import { Chip } from '@/components/ui/Chip';
+import { CopyableValue, selectAllScope } from '@/components/ui/CopyableValue';
 import { CopyButton } from '@/components/ui/CopyButton';
 import { DetailModalHeader, DetailModalStrip } from '@/components/ui/DetailModal';
+import { FiltersButton } from '@/components/ui/FiltersButton';
+import { AdminModalFooter, AdminTagModal, useOpenListItem } from '@/components/ui/ItemModal';
+import { Pagination } from '@/components/ui/Pagination';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
+import { ExactDate } from '@/components/ui/Tooltip';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useSearchParamState, useStepBackFromEmptyPage } from '@/hooks/useSearchParamState';
 import { translate, useI18n } from '@/i18n';
@@ -26,12 +32,11 @@ import {
 } from '@/lib/api/dashboardQueries';
 import { cn, formatDate, formatDateTime } from '@/lib/utils';
 
-import { AdminModalFooter, AdminTagModal, useOpenListItem } from '../admin/AdminTagModal';
-import { Chip, CopyableValue, ExactDate, FiltersButton, Pagination, selectAllScope } from '../admin/adminUi';
 import { GuildIcon } from '../servers/GuildIcon';
 import { EmptyState, ErrorPanel, Skeleton } from '../ui';
 import { REPORT_STATUSES, reportJumpUrl, reportStatusInfo, ROW_EDGE_BAR } from './reportLabels';
 import { ReportThread } from './ReportThread';
+import { useReplyGuard } from './useReplyGuard';
 
 
 // the api's `MAX_GUILD_REPORT_MESSAGE_LENGTH`, a whole reply fits in the bot's DMs
@@ -65,7 +70,9 @@ export function ServerReportsTab() {
   const { data, isPending, isError, error, isPlaceholderData, isFetching, isRefetching, refetch } = useSentGuildReportsQuery({query: debouncedQuery, status, page});
   const items = data?.items ?? [];
   // opened in place, the bot's DMs about these don't link here
-  const { openItem, previousId, nextId, open, close } = useOpenListItem(items, (report) => report.id);
+  const { openId, openItem, previousId, nextId, open, close } = useOpenListItem(items, (report) => report.id);
+  // closing the modal or stepping to another report with a reply typed but not sent asks first, like the Bot tab
+  const guard = useReplyGuard({openId, open, close});
   const steppingBack = useStepBackFromEmptyPage({page, setPage, data, isPlaceholderData, pageSize: ME_REPORTS_PAGE_SIZE});
   const pagination = {
     page,
@@ -119,10 +126,12 @@ export function ServerReportsTab() {
       )}
 
       {(openItem) ? (
-        <AdminTagModal labelledBy={TITLE_ID} previousId={previousId} nextId={nextId} onNavigate={open} onClose={close} footer={false} stickyClose>
-          <ReportDetails key={openItem.id} report={openItem} navigation={{previousId, nextId, onNavigate: open}}/>
+        <AdminTagModal labelledBy={TITLE_ID} previousId={previousId} nextId={nextId} onNavigate={guard.open} onClose={guard.close} footer={false} stickyClose>
+          <ReportDetails key={openItem.id} report={openItem} navigation={{previousId, nextId, onNavigate: guard.open}} onDraftChange={guard.onDraftChange}/>
         </AdminTagModal>
       ) : null}
+
+      {guard.dialog}
     </>
   );
 }
@@ -145,7 +154,7 @@ function ReportRow({ report, onOpen }: {report: SentGuildReport, onOpen: (id: st
         onClick={() => onOpen(report.id)}
       >
         <span className='col-start-1 row-start-1 flex min-w-0 items-center gap-3'>
-          <Chip tone={type.tone} className='w-18 shrink-0 justify-center'>{type.label}</Chip>
+          <Chip tone={type.tone} className='min-w-18 shrink-0 justify-center'>{type.label}</Chip>
           <span className='min-w-0 truncate font-mono text-sm leading-5 text-white'>#{report.id}</span>
         </span>
         <span className='col-start-1 row-start-2 flex min-w-0 items-center gap-2'>
@@ -164,7 +173,7 @@ function ReportRow({ report, onOpen }: {report: SentGuildReport, onOpen: (id: st
           ) : null}
           <span className='min-w-0 flex-1 truncate rounded-md border border-line bg-deep px-2.5 py-1 font-mono text-xs text-fg'>{report.reason}</span>
         </span>
-        <Chip tone={status.tone} className='col-start-2 row-start-1 w-20 justify-center justify-self-end'>{status.label}</Chip>
+        <Chip tone={status.tone} className='col-start-2 row-start-1 min-w-20 justify-center justify-self-end'>{status.label}</Chip>
         <span className='col-start-2 row-start-2 justify-self-end text-xs whitespace-nowrap text-subtle'>{formatDateTime(report.created)}</span>
       </button>
     </li>
@@ -187,9 +196,11 @@ function ServerName({ report }: {report: SentGuildReport}) {
 }
 
 
-function ReportDetails({ report, navigation }: {
+function ReportDetails({ report, navigation, onDraftChange }: {
   report: SentGuildReport,
   navigation: {previousId: string | null, nextId: string | null, onNavigate: (id: string) => void},
+  // whether there's a reply typed but not sent, see `ReportThread`
+  onDraftChange: (unsent: boolean) => void,
 }) {
   const { t } = useI18n();
   const status = reportStatusInfo(report.status);
@@ -201,12 +212,12 @@ function ReportDetails({ report, navigation }: {
     <div>
       <DetailModalHeader
         titleId={TITLE_ID}
-        leading={<Chip tone={type.tone} className='w-18 shrink-0 justify-center'>{type.label}</Chip>}
+        leading={<Chip tone={type.tone} className='min-w-18 shrink-0 justify-center'>{type.label}</Chip>}
         title={<><span className='sr-only'>{t('reports.report_sr')}</span>#{report.id}</>}
         mono
         meta={<ExactDate value={report.created} format={formatDateTime}/>}
         states={(moderatorsReplied(report)) ? <Chip tone='brand'>{t('sreports.replied')}</Chip> : null}
-        status={<Chip tone={status.tone} className='w-20 justify-center'>{status.label}</Chip>}
+        status={<Chip tone={status.tone} className='min-w-20 justify-center'>{status.label}</Chip>}
       />
 
       <DetailModalStrip className='grid grid-cols-[max-content_minmax(0,1fr)] items-center gap-x-3 gap-y-1'>
@@ -261,7 +272,7 @@ function ReportDetails({ report, navigation }: {
           <div className='mb-1 flex min-h-8 items-center'>
             <h3 className='section-label'>{t('sreports.conversation')}</h3>
           </div>
-          <Conversation report={report}/>
+          <Conversation report={report} onDraftChange={onDraftChange}/>
         </section>
       </div>
 
@@ -299,7 +310,7 @@ function MuteButton({ report }: {report: SentGuildReport}) {
 
 
 // replying works whatever the status is and doesn't reopen it, the moderators decide that
-function Conversation({ report }: {report: SentGuildReport}) {
+function Conversation({ report, onDraftChange }: {report: SentGuildReport, onDraftChange: (unsent: boolean) => void}) {
   const { t } = useI18n();
   const toast = useToast();
   const { user } = useAuth();
@@ -322,6 +333,7 @@ function Conversation({ report }: {report: SentGuildReport}) {
         throw error;
       })}
       sending={send.isPending}
+      onDraftChange={onDraftChange}
       staff={{name: t('sreports.moderators'), icon: <Shield className='size-4 text-brand-text'/>}}
       emptyText={t('sreports.empty_thread')}
       placeholder={t('sreports.placeholder')}

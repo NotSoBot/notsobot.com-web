@@ -1,8 +1,10 @@
 import { Brain, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 
+import { Chip } from '@/components/ui/Chip';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
+import { ExactDate } from '@/components/ui/Tooltip';
 import { useI18n } from '@/i18n';
 import type { LLMMemory } from '@/lib/api';
 import {
@@ -14,9 +16,8 @@ import {
   usePatchMeLLMMemoryMutation,
   usePatchMeSettingsMutation,
 } from '@/lib/api/dashboardQueries';
-import { formatDate, formatExactDateTime, formatNumber } from '@/lib/utils';
+import { formatDate, formatNumber } from '@/lib/utils';
 
-import { Chip } from '../admin/adminUi';
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton, Toggle } from '../ui';
 import { EditMemoryDialog } from './EditMemoryDialog';
 
@@ -86,6 +87,7 @@ export function AIMemoryPage() {
           checked={enabled}
           onChange={setEnabled}
           disabled={!settings.data || patchSettings.isPending}
+          busy={patchSettings.isPending}
           label={t('memory.toggle')}
           description={t('memory.toggle_description')}
         />
@@ -179,7 +181,7 @@ function MemoryRow({ memory, onEdit, onDelete }: {
           ) : (
             <Chip title={t('memory.everywhere_title')}>{t('memory.everywhere')}</Chip>
           )}
-          <span title={formatExactDateTime(memory.created)}>{t('memory.saved_on', {date: formatDate(memory.created)})}</span>
+          <ExactDate value={memory.created} format={(value) => t('memory.saved_on', {date: formatDate(value)})}/>
         </div>
       </div>
       <div className='flex shrink-0 flex-col gap-1.5 sm:flex-row'>

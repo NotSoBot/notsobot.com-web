@@ -10,7 +10,7 @@ import { Routes } from '@/config';
 import { translate, useI18n, type TranslationKey } from '@/i18n';
 import type { GuildMusic, GuildMusicLoop, GuildMusicQueueItem, UserGuild } from '@/lib/api';
 import { errorMessage, useGuildMusicMutation, useGuildMusicQuery, useGuildScope, type GuildMusicAction } from '@/lib/api/dashboardQueries';
-import { cn, formatNumber } from '@/lib/utils';
+import { cn, formatClock, formatNumber } from '@/lib/utils';
 
 import { isSnowflake } from '../tags/tagMeta';
 import { Field, HelpDisclosure, Panel, Skeleton, Toggle } from '../ui';
@@ -141,7 +141,7 @@ export function MusicSection({ guild }: {guild: UserGuild}) {
               <h3 className='text-sm font-semibold text-white'>{t('music.up_next')}</h3>
               <div className='flex items-center gap-3 text-xs text-muted tabular-nums'>
                 {(queued.length) ? (
-                  <span>{t('music.queued', {count: formatNumber(queued.length), duration: formatTime(queueDuration), more: (unknownLengths) ? '+' : ''})}</span>
+                  <span>{t('music.queued', {count: formatNumber(queued.length), duration: formatClock(queueDuration), more: (unknownLengths) ? '+' : ''})}</span>
                 ) : null}
                 {(editable && queued.length) ? (
                   <button type='button' className='btn btn-sm btn-ghost' disabled={mutation.isPending} onClick={() => setConfirming('clear')}>{t('common.clear')}</button>
@@ -172,7 +172,7 @@ export function MusicSection({ guild }: {guild: UserGuild}) {
                     <div className='min-w-0 flex-1'>
                       <p className='truncate text-sm text-fg'>{musicItemTitle(item)}</p>
                       <p className='flex min-w-0 items-center gap-1.5 text-xs text-subtle'>
-                        <span className='tabular-nums'>{(item.track) ? formatTime(item.track.duration / speed) : t((item.status === 'converting') ? 'music.converting' : 'music.link')}</span>
+                        <span className='tabular-nums'>{(item.track) ? formatClock(item.track.duration / speed) : t((item.status === 'converting') ? 'music.converting' : 'music.link')}</span>
                         <span aria-hidden>•</span>
                         <EntryMention type='user' id={item.user_id}/>
                         {(item.batch_id) ? (
@@ -277,16 +277,12 @@ function MusicSettings({ guildId, music, editable, busyKey, disabled, run }: {
 }) {
   const { t } = useI18n();
   // one edit is sent at a time: the switch that was clicked shows what was picked with a spinner (the api answers with
-  // the saved settings), the others just wait instead of the whole list dimming
+  // the saved settings), the others dim until it's done so a click on one of them isn't silently dropped
   const toggle = (key: MusicSwitch, checked: boolean, success: (value: boolean) => string, off = false) => ({
     checked: (busyKey === key) ? !checked : checked,
     busy: busyKey === key,
-    disabled: !editable || off || busyKey === key,
-    onChange: (value: boolean) => {
-      if (!disabled) {
-        void run(key, {kind: 'settings', settings: {[key]: value}}, success(value));
-      }
-    },
+    disabled: !editable || off || disabled,
+    onChange: (value: boolean) => void run(key, {kind: 'settings', settings: {[key]: value}}, success(value)),
   });
   return (
     <div className='mt-4'>
@@ -505,7 +501,7 @@ function PauseTimeoutSetting({ music, editable, busy, disabled, run }: {
   const [ draft, setDraft ] = useSliderAutosave(music.pause_timeout, disabled, (value) => run(
     'pause_timeout',
     {kind: 'settings', settings: {pause_timeout: value}},
-    (value) ? translate('music.pause_timeout_on', {length: formatTime(value * 1000)}) : translate('music.pause_timeout_instant_on'),
+    (value) ? translate('music.pause_timeout_on', {length: formatClock(value * 1000)}) : translate('music.pause_timeout_instant_on'),
   ));
 
   const stays = music.stay && music.premium;
@@ -515,7 +511,7 @@ function PauseTimeoutSetting({ music, editable, busy, disabled, run }: {
         <label htmlFor={id} className='text-sm font-medium text-fg'>{t('music.pause_timeout')}</label>
         <span className='flex items-center gap-1.5 text-sm text-fg tabular-nums'>
           {(busy) ? <Spinner className='size-3.5'/> : null}
-          {(draft) ? formatTime(draft * 1000) : t('music.pause_timeout_instant')}
+          {(draft) ? formatClock(draft * 1000) : t('music.pause_timeout_instant')}
         </span>
       </div>
       <p className='mt-0.5 text-xs text-subtle'>{t('music.pause_timeout_description')}</p>
@@ -527,13 +523,13 @@ function PauseTimeoutSetting({ music, editable, busy, disabled, run }: {
         step={PAUSE_TIMEOUT_STEP}
         value={draft}
         disabled={!editable}
-        aria-valuetext={(draft) ? formatTime(draft * 1000) : t('music.pause_timeout_instant')}
+        aria-valuetext={(draft) ? formatClock(draft * 1000) : t('music.pause_timeout_instant')}
         onChange={(event) => setDraft(Number(event.target.value))}
         className={cn('mt-2 w-full cursor-pointer accent-[#1db954] disabled:cursor-not-allowed disabled:opacity-60', stays && 'opacity-60')}
       />
       <div aria-hidden className='flex justify-between text-xs text-subtle'>
         <span>{t('music.pause_timeout_instant')}</span>
-        <span>{formatTime(MAX_PAUSE_TIMEOUT * 1000)}</span>
+        <span>{formatClock(MAX_PAUSE_TIMEOUT * 1000)}</span>
       </div>
       {(stays) ? (
         <p className='mt-1.5 text-xs text-subtle'>{t('music.pause_timeout_stay')}</p>
@@ -870,7 +866,7 @@ function MaxDurationSetting({ music, editable, busy, disabled, run }: {
   run: (key: string, action: GuildMusicAction, success?: string) => Promise<boolean>,
 }) {
   const { t } = useI18n();
-  const saved = (music.max_duration) ? formatTime(music.max_duration * 1000) : '';
+  const saved = (music.max_duration) ? formatClock(music.max_duration * 1000) : '';
   const [ draft, setDraft ] = useState(saved);
   // it's fetched again every few seconds, only a change from somewhere else replaces what's typed
   useEffect(() => setDraft(saved), [saved]);
@@ -891,7 +887,7 @@ function MaxDurationSetting({ music, editable, busy, disabled, run }: {
         void run(
           'max_duration',
           {kind: 'settings', settings: {max_duration: seconds}},
-          (seconds) ? t('music.max_on', {length: formatTime(seconds * 1000)}) : t('music.max_off'),
+          (seconds) ? t('music.max_on', {length: formatClock(seconds * 1000)}) : t('music.max_off'),
         );
       }}
     >
@@ -990,7 +986,7 @@ function NowPlaying({ music, item, fetchedAt, editable, busyKey, disabled, onCon
       </div>
       {(duration) ? (
         <div className='mt-3 flex items-center gap-2 text-xs text-subtle tabular-nums'>
-          <span className='w-10 text-right'>{formatTime(position / speed)}</span>
+          <span className='w-10 text-right'>{formatClock(position / speed)}</span>
           <div
             role='progressbar'
             aria-label={t('music.progress')}
@@ -1001,7 +997,7 @@ function NowPlaying({ music, item, fetchedAt, editable, busyKey, disabled, onCon
           >
             <div className={cn('h-full rounded-full', (paused) ? 'bg-subtle' : 'bg-[#1db954]')} style={{width: `${ratio * 100}%`}}/>
           </div>
-          <span className='w-10'>{formatTime(duration / speed)}</span>
+          <span className='w-10'>{formatClock(duration / speed)}</span>
         </div>
       ) : null}
     </div>
@@ -1222,12 +1218,3 @@ function parseDuration(text: string): number {
   return parts.reduce((total, part) => total * 60 + part, 0);
 }
 
-
-// `1:23`, `1:02:03`
-function formatTime(milliseconds: number): string {
-  const seconds = Math.floor(milliseconds / 1000);
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const rest = String(seconds % 60).padStart(2, '0');
-  return (hours) ? `${hours}:${String(minutes).padStart(2, '0')}:${rest}` : `${minutes}:${rest}`;
-}

@@ -5,7 +5,7 @@ export const Faq: Record<keyof typeof English, string> = {
   'faq.badge': 'Central de ajuda',
   'faq.title': 'Perguntas frequentes',
   'faq.description': 'Tudo sobre adicionar o NotSoBot, usar comandos, configurá-lo no seu servidor, premium e seus dados.',
-  'faq.search_placeholder': 'Pesquisar perguntas e respostas...',
+  'faq.search_placeholder': 'Pesquise perguntas e respostas...',
   'faq.search_label': 'Pesquisar no FAQ',
   'faq.results_one': '{count} resposta para “{query}”',
   'faq.results_other': '{count} respostas para “{query}”',

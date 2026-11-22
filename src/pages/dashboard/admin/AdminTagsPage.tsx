@@ -403,6 +403,8 @@ function DirectoryTagDetails({ item, navigation, onDelete }: {
           <ReviewShortcutsToggle enabled={shortcuts.enabled} onChange={shortcuts.setEnabled} legend='V verify • U unverify'/>
           <VerificationBadge verified={item.verified}/>
         </>}
+        // room for the shortcuts toggle beside the badge on phones
+        wideStatus
       />
 
       <TagOwnerStrip user={item.user} fallbackId={ownerId} blockReason={`Tag directory: \`${tag.name}\` #${tag.id}`}/>

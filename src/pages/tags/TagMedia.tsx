@@ -1,6 +1,7 @@
 import { ArrowLeft, ArrowRight, Eye, EyeOff, ImagePlus, Lock, Music, Play, Star, Trash2, Undo2, Upload } from 'lucide-react';
-import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 
+import { InlineError } from '@/components/ui/form';
 import { Spinner } from '@/components/ui/Spinner';
 import { translate, useI18n } from '@/i18n';
 import {
@@ -23,10 +24,13 @@ import {
   useMeTagDirectoryThumbnailMutation,
 } from '@/lib/api/dashboardQueries';
 import { cn } from '@/lib/utils';
-import { RemovalConfirm } from '@/pages/dashboard/admin/removalReason';
-import { InlineError } from '@/pages/dashboard/ui';
 
 import { useConfirmPress } from './tagDirectory';
+
+
+// staff's "why is this removed" step, only fetched once staff remove something: the directory's cards use this file too,
+// and nobody else ever sees it
+const RemovalConfirm = lazy(async () => ({default: (await import('@/pages/dashboard/admin/removalReason')).RemovalConfirm}));
 
 
 // A listing's assets (`TagDirectoryAssets`): images, videos and audio, in order, the first is the cover on the directory.
@@ -551,16 +555,18 @@ function MediaManager({ assets, selected, selectedIndex, manage, onUploaded, chi
             ) : null}
           </div>
         )}
-        {(selected && confirmingRemove === selected.id) ? (
-          <RemovalConfirm
-            label={t('tag_media.remove_media')}
-            pending={busy}
-            onConfirm={(removal) => {
-              setLocalError(null);
-              mutation.mutate({remove: selected.id, removal}, () => setConfirmingRemove(null));
-            }}
-            onCancel={() => setConfirmingRemove(null)}
-          />
+        {(manage.staff && selected && confirmingRemove === selected.id) ? (
+          <Suspense fallback={null}>
+            <RemovalConfirm
+              label={t('tag_media.remove_media')}
+              pending={busy}
+              onConfirm={(removal) => {
+                setLocalError(null);
+                mutation.mutate({remove: selected.id, removal}, () => setConfirmingRemove(null));
+              }}
+              onCancel={() => setConfirmingRemove(null)}
+            />
+          </Suspense>
         ) : null}
         <input ref={input} type='file' accept={ACCEPTED_TYPES} className='hidden' onChange={onFile}/>
         <p className='mt-2 flex items-center gap-1.5 text-xs text-subtle'>
@@ -738,8 +744,10 @@ export function ThumbnailManager({ assets, thumbnail, manage }: {
         </div>
       </div>
       <input ref={input} type='file' accept={THUMBNAIL_ACCEPTED_TYPES} className='hidden' onChange={onFile}/>
-      {(confirmingRemove && effective) ? (
-        <RemovalConfirm label={t('tag_media.thumb.remove')} pending={busy} onConfirm={remove} onCancel={() => setConfirmingRemove(false)}/>
+      {(manage.staff && confirmingRemove && effective) ? (
+        <Suspense fallback={null}>
+          <RemovalConfirm label={t('tag_media.thumb.remove')} pending={busy} onConfirm={remove} onCancel={() => setConfirmingRemove(false)}/>
+        </Suspense>
       ) : null}
       {(lockedMessage) ? (
         <p className='mt-3 flex gap-2 rounded-md border border-line bg-deep px-3 py-2 text-sm text-muted'>

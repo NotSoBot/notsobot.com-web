@@ -91,22 +91,22 @@ export function CategoryBadge({ category, className }: {category: string, classN
 
 // `stats` is the usage request: a placeholder while it loads and nothing when it failed, "no uses" is only said once
 // the numbers are in
-export function UsesLabel({ entry, stats = 'ready', className }: {entry: Entry, stats?: StatsState, className?: string}) {
+function UsesLabel({ entry, stats = 'ready' }: {entry: Entry, stats?: StatsState}) {
   const { t } = useI18n();
   if (stats === 'failed') {
     return null;
   }
   if (stats === 'pending') {
-    return <span aria-hidden className={cn('h-3 w-12 animate-pulse rounded bg-surface-3', className)}/>;
+    return <span aria-hidden className='h-3 w-12 animate-pulse rounded bg-surface-3'/>;
   }
   if (!entry.uses) {
-    return <span className={cn('text-xs text-subtle', className)}>{t('commands.no_uses')}</span>;
+    return <span className='text-xs text-subtle'>{t('commands.no_uses')}</span>;
   }
   const hot = entry.rank !== null && entry.rank <= 10;
   return (
     <span
       title={t('commands.uses_title', {uses: formatNumber(entry.uses), rank: entry.rank})}
-      className={cn('inline-flex items-center gap-1 text-xs tabular-nums', hot ? 'text-white' : 'text-muted', className)}
+      className={cn('inline-flex items-center gap-1 text-xs tabular-nums', hot ? 'text-white' : 'text-muted')}
     >
       {(hot) ? <TrendingUp aria-hidden className='size-3.5 text-success-text'/> : null}
       {formatCompact(entry.uses)}<span className='text-subtle'>{t('commands.per_week')}</span>

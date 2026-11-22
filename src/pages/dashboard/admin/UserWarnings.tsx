@@ -55,11 +55,14 @@ export function UserWarningsSection({ user, cantWarnReason, viewerIsOwner }: {
           label='Warnings'
           value={value}
           tone='text-warning'
-          title={(query.isError) ? errorMessage(query.error, 'Couldn’t load their warnings.') : (items.length) ? `${(open) ? 'Hide' : 'Show'} their warnings` : 'Warnings NotSoBot staff gave them'}
+          hint={(query.isError) ? errorMessage(query.error, 'Couldn’t load their warnings.') : 'Warnings NotSoBot staff gave them'}
+          // what clicking it does, only while there are any to show
+          title={(items.length) ? `${(open) ? 'Hide' : 'Show'} their warnings` : undefined}
+          expanded={(items.length) ? open : undefined}
           onClick={(items.length) ? () => setOpen(!open) : undefined}
         />
         <DateTile label='Last warning' value={items[0]?.created ?? null} empty='Never'/>
-        <StatTile label='Not seen yet' value={(query.isPending || query.isError) ? value : pending.toLocaleString()} title='Waiting to be shown on their next command (or dismissed on the dashboard)'/>
+        <StatTile label='Not seen yet' value={(query.isPending || query.isError) ? value : pending.toLocaleString()} hint='Waiting to be shown on their next command (or dismissed on the dashboard)'/>
       </div>
       {(open && items.length) ? (
         <ol className='mt-2 space-y-2'>

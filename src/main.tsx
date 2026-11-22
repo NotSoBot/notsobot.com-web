@@ -7,7 +7,7 @@ import './index.css';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StrictMode } from 'react';
 import { createRoot, hydrateRoot } from 'react-dom/client';
-import type { HydrationState } from 'react-router';
+import { matchRoutes, type HydrationState } from 'react-router';
 
 import { AuthProvider } from '@/auth';
 import { activeLanguage, I18nProvider, initI18n, splitLanguagePath } from '@/i18n';
@@ -15,7 +15,7 @@ import { installAnalyticsHook } from '@/lib/analytics';
 import { ApiRequestError } from '@/lib/api';
 import { reloadForNewBuild } from '@/lib/chunkReload';
 import { preloadPage } from '@/lib/pagePreload';
-import { createRouter, HYDRATION_DATA_ID, loadRouteModules } from '@/router';
+import { createRouter, HYDRATION_DATA_ID, loadRouteModules, routes } from '@/router';
 
 
 installAnalyticsHook();
@@ -73,7 +73,22 @@ function readHydrationData(): HydrationState | null {
 // language than the worker rendered, or a page's code failed to load (that renders the error page instead)
 async function start(hydrationData: HydrationState | null): Promise<boolean> {
   const path = window.location.pathname;
-  await Promise.all([enableDashboardMocks(), initI18n()]);
+  const { language, prefix } = splitLanguagePath(path);
+  const ready = Promise.all([enableDashboardMocks(), initI18n()]);
+  // A url with its language in it (`/es/faq`) says what the page needs before anything has loaded: initI18n keeps
+  // that language and leaves the url alone. So the page's code and its translated content are fetched alongside the
+  // dictionary instead of each waiting for the one before it
+  if (hydrationData && language) {
+    const handles = (matchRoutes(routes, window.location, prefix || undefined) ?? []).map(({ route }) => route.handle);
+    const page = Promise.all([loadRouteModules(prefix), preloadPage(queryClient, handles, language)]);
+    // a failed load is the second await's to throw, after the language is in (the page renders in it either way)
+    page.catch(() => undefined);
+    await ready;
+    await page;
+    return true;
+  }
+  // without one initI18n picks the language, and moves the url to it
+  await ready;
   if (!hydrationData || window.location.pathname !== path) {
     return false;
   }

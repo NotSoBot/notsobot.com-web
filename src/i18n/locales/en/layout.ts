@@ -10,6 +10,7 @@ export const Layout = {
   'nav.faq': 'FAQ',
   'nav.open_menu': 'Open menu',
   'nav.close_menu': 'Close menu',
+  'nav.skip': 'Skip to content',
 
   'footer.label': 'Footer',
   'footer.links': 'Links',

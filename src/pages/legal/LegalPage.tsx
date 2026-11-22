@@ -1,4 +1,5 @@
 import { Calendar, Mail, type LucideIcon } from 'lucide-react';
+import { useId } from 'react';
 
 import { Urls } from '@/config';
 import type { LegalDocument } from '@/content/legal';
@@ -12,6 +13,7 @@ function slugify(value: string): string {
 
 export function LegalPage({ document, icon: Icon }: {document: LegalDocument, icon: LucideIcon}) {
   const { t, rich, language } = useI18n();
+  const contentsId = useId();
   return (
     <div className='mx-auto max-w-4xl px-4 py-8 sm:px-6'>
       <header className='card mb-6 p-8'>
@@ -26,6 +28,18 @@ export function LegalPage({ document, icon: Icon }: {document: LegalDocument, ic
         {(language === DEFAULT_LANGUAGE) ? null : <p className='mt-4 text-sm text-subtle'>{t('legal.english_only')}</p>}
         {(document.intro) ? <p className='mt-4 text-fg' lang={DEFAULT_LANGUAGE}>{document.intro}</p> : null}
       </header>
+
+      {/* the documents run to 17 and 19 sections. the titles are the document's own, so they stay English */}
+      <nav aria-labelledby={contentsId} className='card mb-6 p-6'>
+        <h2 id={contentsId} className='section-label mb-3'>{t('common.on_this_page')}</h2>
+        <ol className='gap-x-8 text-sm sm:columns-2' lang={DEFAULT_LANGUAGE}>
+          {document.sections.map((section) => (
+            <li key={section.title} className='break-inside-avoid py-1'>
+              <a href={`#${slugify(section.title)}`} className='text-muted transition-colors hover:text-white'>{section.title}</a>
+            </li>
+          ))}
+        </ol>
+      </nav>
 
       <div className='space-y-6' lang={DEFAULT_LANGUAGE}>
         {document.sections.map((section) => (

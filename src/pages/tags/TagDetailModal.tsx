@@ -18,9 +18,9 @@ import { TagDirectoryVerificationStates, type TagDirectoryItem } from '@/lib/api
 import { useAdminTagDirectoryItemQuery, useMeTagDirectoryQuery } from '@/lib/api/dashboardQueries';
 import { useTagDirectoryItemQuery } from '@/lib/api/queries';
 import { Routes } from '@/routes';
+import { adminTagsPath } from '@/lib/adminPaths';
 import { userDisplayTag } from '@/lib/discord';
 import { cn, formatDate, formatDateTime, formatNumber } from '@/lib/utils';
-import { adminTagsPath } from '@/pages/dashboard/admin/adminUi';
 
 import { AddTagButton, categoryLabel, NsfwBadge, verificationInfo } from './tagDirectory';
 import { HiddenContentSection, ListingEditForm, ManageListingCard, TagServersSection, useListingAccess } from './TagListingManager';
@@ -49,6 +49,9 @@ export function TagDetailModal({ tagId, initialItem, previousId, nextId, onNavig
   // (`to` is null) or stepping to another tag
   const [ dirty, setDirty ] = useState(false);
   const [ leaving, setLeaving ] = useState<{to: string | null} | null>(null);
+  // a save in flight holds closing and stepping: leaving would unmount the form, and a failed save's error with it
+  const [ saving, setSaving ] = useState(false);
+  const held = editing && saving;
 
   // ← / → step through the tags loaded behind the modal (ignored while typing, editing the listing, or with a dialog open over it)
   useArrowKeyNavigation({previousId, nextId, onNavigate, disabled: editing});
@@ -61,8 +64,12 @@ export function TagDetailModal({ tagId, initialItem, previousId, nextId, onNavig
     }
   };
 
-  // Escape, a click outside, the X and Previous / Next all come through here, so typed edits aren't thrown away unasked
+  // Escape, a click outside, the X and Previous / Next come through here, so they don't throw typed edits away unasked.
+  // The form's own Cancel, the links inside it and the browser's Back don't
   const requestLeave = (to: string | null) => {
+    if (held) {
+      return;
+    }
     if (editing && dirty) {
       setLeaving({to});
     } else {
@@ -89,19 +96,21 @@ export function TagDetailModal({ tagId, initialItem, previousId, nextId, onNavig
       ) : (!item) ? (
         <TagMessage title={t('tags.detail.not_found_title')} description={t('tags.detail.not_found_description')}/>
       ) : (
-        // keyed on the tag so a dialog opened from it (adding, reporting, ownership checks) never carries its state over to the next one
+        // keyed on the tag so a dialog opened from it (adding, reporting, ownership checks) never carries its state over to the next one.
+        // a save that finishes after another tag was stepped to only closes its own form, not the one open by then
         <TagDetail
           key={tagId}
           item={item}
           editing={editing}
-          onEditingChange={(value) => setEditingId((value) ? tagId : null)}
+          onEditingChange={(value) => setEditingId((current) => (value) ? tagId : (current === tagId) ? null : current)}
           onDirtyChange={setDirty}
+          onSavingChange={setSaving}
         />
       )}
 
       {/* stays at the bottom of the window, so adding the tag and the next one are always a tap away. Without a tag
           (still loading, or it failed) only the browsing is left */}
-      <ModalFooter previousId={previousId} nextId={nextId} onNavigate={(browsing) ? requestLeave : undefined}>
+      <ModalFooter previousId={(held) ? null : previousId} nextId={(held) ? null : nextId} onNavigate={(browsing) ? requestLeave : undefined}>
         {(item && canAdd) ? <AddTagButton key={tagId} tag={item.tag} verified={item.verified} size='md' openFromUrl/> : null}
       </ModalFooter>
 
@@ -122,12 +131,14 @@ export function TagDetailModal({ tagId, initialItem, previousId, nextId, onNavig
 }
 
 
-function TagDetail({ item, editing, onEditingChange, onDirtyChange }: {
+function TagDetail({ item, editing, onEditingChange, onDirtyChange, onSavingChange }: {
   item: TagDirectoryItem,
   editing: boolean,
   onEditingChange: (editing: boolean) => void,
   // whether the listing form has unsaved edits
   onDirtyChange: (dirty: boolean) => void,
+  // whether it's saving them right now
+  onSavingChange: (saving: boolean) => void,
 }) {
   const { t, rich } = useI18n();
   const { tag } = item;
@@ -145,37 +156,33 @@ function TagDetail({ item, editing, onEditingChange, onDirtyChange }: {
   return (
     <>
       <header className='rounded-t-xl border-b border-line bg-surface px-6 pt-6 pb-5 sm:pr-14'>
-        <div className='flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
-          <div className='min-w-0 flex-1'>
-            {/* clear of the close button; on wider screens the whole header is */}
-            <div className='flex flex-wrap items-center gap-2 pr-8 sm:pr-0'>
-              <h2 id={TITLE_ID} className='text-2xl font-bold break-words text-white sm:text-3xl'>{tag.name}</h2>
-              {(tag.nsfw) ? <NsfwBadge/> : null}
-            </div>
-            {(item.title) ? <p className='mt-1 text-muted'>{item.title}</p> : null}
-            {/* one quiet line instead of a row of pills */}
-            <p className='mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm'>
-              {/* verified stands out as a solid pill, the other states stay plain text */}
-              <span
-                title={verification.description}
-                className={cn(
-                  'inline-flex items-center gap-1.5 font-medium',
-                  (item.verified === TagDirectoryVerificationStates.VERIFIED) ?
-                    'rounded-full bg-success px-2.5 py-0.5 text-white shadow-sm' :
-                    verification.textClassName,
-                )}
-              >
-                <verification.icon aria-hidden className='size-4'/>
-                {verification.label}
-              </span>
-              <span aria-hidden className='text-subtle'>·</span>
-              <span className='inline-flex items-center gap-1.5 text-muted'>
-                <TagIcon aria-hidden className='size-4 text-subtle'/>
-                {categoryLabel(item.category)}
-              </span>
-            </p>
-          </div>
+        {/* clear of the close button; on wider screens the whole header is */}
+        <div className='flex flex-wrap items-center gap-2 pr-8 sm:pr-0'>
+          <h2 id={TITLE_ID} className='text-2xl font-bold break-words text-white sm:text-3xl'>{tag.name}</h2>
+          {(tag.nsfw) ? <NsfwBadge/> : null}
         </div>
+        {(item.title) ? <p className='mt-1 text-muted'>{item.title}</p> : null}
+        {/* one quiet line instead of a row of pills */}
+        <p className='mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm'>
+          {/* verified stands out as a solid pill, the other states stay plain text */}
+          <span
+            title={verification.description}
+            className={cn(
+              'inline-flex items-center gap-1.5 font-medium',
+              (item.verified === TagDirectoryVerificationStates.VERIFIED) ?
+                'rounded-full bg-success px-2.5 py-0.5 text-white shadow-sm' :
+                verification.textClassName,
+            )}
+          >
+            <verification.icon aria-hidden className='size-4'/>
+            {verification.label}
+          </span>
+          <span aria-hidden className='text-subtle'>•</span>
+          <span className='inline-flex items-center gap-1.5 text-muted'>
+            <TagIcon aria-hidden className='size-4 text-subtle'/>
+            {categoryLabel(item.category)}
+          </span>
+        </p>
       </header>
 
       <div className='grid gap-6 p-6 md:grid-cols-[minmax(0,1fr)_280px]'>
@@ -213,6 +220,7 @@ function TagDetail({ item, editing, onEditingChange, onDirtyChange }: {
                 ) : undefined}
                 onDone={() => onEditingChange(false)}
                 onDirtyChange={onDirtyChange}
+                onSavingChange={onSavingChange}
               />
               {(staffManage) ? null : (access.owner && own.data && own.data.verified === TagDirectoryVerificationStates.VERIFIED) ? (
                 <p className='rounded-lg border border-line bg-surface p-4 text-sm text-muted'>

@@ -698,7 +698,9 @@ function ContentFlagDetails({ flag, onReport, navigation }: {
   const translation = useTranslateAdminContentFlagMutation();
   const [ notes, setNotes ] = useState(flag.notes ?? '');
   useEffect(() => setNotes(flag.notes ?? ''), [flag.notes]);
-  const notesDirty = notes !== (flag.notes ?? '');
+  // trimmed like saving does: a note that only differs by spaces saves as what's there already, so nothing comes back
+  // to reset this (Mark reported leaves it as typed) and it stayed "unsaved", holding Previous / Next for good
+  const notesDirty = notes.trim() !== (flag.notes ?? '').trim();
   const status = statusInfo(flag.status);
   const isText = flag.mimetype === CONTENT_FLAG_TEXT_MIMETYPE;
   const fetchMatches = useFetchContentFlagMatches();
@@ -868,6 +870,8 @@ function ContentFlagDetails({ flag, onReport, navigation }: {
           <ReviewShortcutsToggle enabled={shortcuts.enabled} onChange={shortcuts.setEnabled} legend='C confirm • D dismiss'/>
           <Chip tone={status.tone} title={status.description} className='w-20 justify-center'>{status.label}</Chip>
         </>}
+        // room for the shortcuts toggle beside the chip on phones
+        wideStatus
       />
 
       {/* who posted it, a link to their admin page (the server is linked from the line under the chips below) */}
@@ -1409,21 +1413,25 @@ function MediaDialog({ flag, onClose }: {flag: ContentFlag, onClose: () => void}
       setState({status: 'ready', url, type: blob.type, sameFile, frames});
     };
 
-    load().catch((error) => {
-      // gave up (too slow, or a poll failed) while the job still runs: cancel it now instead of when the dialog closes
+    // once: closing mid-poll aborts the poll's request, which lands in the catch below after the cleanup already
+    // cancelled the job (the second delete was a 404 nobody saw)
+    const cancelJob = () => {
       if (jobId) {
         api.deleteJob(jobId).catch(() => {});
         jobId = null;
       }
+    };
+
+    load().catch((error) => {
+      // gave up (too slow, or a poll failed) while the job still runs: cancel it now instead of when the dialog closes
+      cancelJob();
       if (!signal.aborted) {
         setState({status: 'error', message: errorMessage(error, 'Couldn’t load the media.')});
       }
     });
     return () => {
       controller.abort();
-      if (jobId) {
-        api.deleteJob(jobId).catch(() => {});
-      }
+      cancelJob();
       for (const url of urls) {
         URL.revokeObjectURL(url);
       }

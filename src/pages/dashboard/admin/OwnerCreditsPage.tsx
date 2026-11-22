@@ -340,13 +340,16 @@ export function OwnerCreditsPage() {
 
 
 // who a typed id is, in the grant's confirm: their name and avatar from the admin users list, so a mistyped id shows
-// up as someone else (or as nobody NotSoBot knows) before the credits go out
+// up as someone else (or as nobody NotSoBot knows) before the credits go out. A lookup that failed says so, it isn't
+// the same as nobody having that id
 function GrantUser({ userId }: {userId: string}) {
-  const { data, isPending } = useAdminUserEntryQuery(userId);
+  const { data, isPending, isError } = useAdminUserEntryQuery(userId);
   return (
     <span className='mb-3 block rounded-md border border-line bg-deep p-3'>
       {(isPending) ? (
         <span className='text-sm text-subtle'>Looking up <span className='font-mono'>{userId}</span>…</span>
+      ) : (isError && data === undefined) ? (
+        <span className='text-sm text-warning'>Couldn’t check who <span className='font-mono'>{userId}</span> is</span>
       ) : (
         <UserCell user={data?.user ?? null} fallbackId={userId}/>
       )}

@@ -4,7 +4,7 @@
 // notsobot.api's `prompts/sections/premium.txt`, update it too when perks change.
 
 import { ArrowRight, Bot, Check, Clock, Coins, Crown, FileUp, Link2, Minus, Music, Server, Sparkles, type LucideIcon } from 'lucide-react';
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useMemo, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router';
 
 import { useAuth } from '@/auth';
@@ -64,7 +64,7 @@ const TIERS: Array<Tier> = [
   {id: 'premium', name: 'NotSoPremium', sku: DiscordSkus.USER_NOTSOPREMIUM, perks: 8},
   {id: 'plus', name: 'NotSoPremium Plus', sku: DiscordSkus.USER_NOTSOPREMIUM_PLUS, includes: 'NotSoPremium', perks: 5},
   // NotSoPremium Plus AI until 2026-11-12
-  {id: 'max', name: 'NotSoPremium Max', sku: DiscordSkus.USER_NOTSOPREMIUM_MAX, includes: 'NotSoPremium Plus', perks: 5},
+  {id: 'max', name: 'NotSoPremium Max', sku: DiscordSkus.USER_NOTSOPREMIUM_MAX, includes: 'NotSoPremium Plus', perks: 4},
 ];
 
 // labels are `premium.column.<id>`
@@ -232,7 +232,8 @@ const SERVER_COMPARISON: Array<ComparisonGroup> = [
   },
 ];
 
-// the credit numbers the perks and the credits section are written with, formatted for the reader's language
+// the credit numbers the perks and the credits section are written with, formatted for the reader's language. The page
+// makes them once per render and hands them down, every translated table cell asking for its own was ~1,500 numbers
 function creditVariables() {
   return {
     ai_message: formatNumber(CREDITS_AI_MESSAGE),
@@ -263,12 +264,7 @@ function creditVariables() {
   };
 }
 
-
-// a cell's text: its translation when it's a key, as-is otherwise ('30s', '200 MB')
-function useCellText(): (value: string) => string {
-  const { t } = useI18n();
-  return (value) => (hasTranslation(value)) ? t(value, creditVariables()) : value;
-}
+type CreditVariables = ReturnType<typeof creditVariables>;
 
 
 function currentTierId(premiumType: number | undefined): TierId | null {
@@ -286,7 +282,9 @@ function currentTierId(premiumType: number | undefined): TierId | null {
 
 export function PremiumPage() {
   const { user } = useAuth();
-  const { t, rich } = useI18n();
+  const { t, rich, language } = useI18n();
+  // the numbers are formatted for the language, so that's when they change
+  const variables = useMemo(() => creditVariables(), [language]);
   const current = currentTierId(user?.premium_type);
   const location = useLocation();
 
@@ -315,7 +313,7 @@ export function PremiumPage() {
       <section id='premium-tiers' aria-labelledby='premium-tiers-title' className='mb-16 scroll-mt-24'>
         <h2 id='premium-tiers-title' className='section-label mb-4'>{t('premium.tiers')}</h2>
         <div className='grid gap-6 lg:grid-cols-3'>
-          {TIERS.map((tier) => <TierCard key={tier.id} tier={tier} current={current === tier.id}/>)}
+          {TIERS.map((tier) => <TierCard key={tier.id} tier={tier} current={current === tier.id} variables={variables}/>)}
         </div>
         {/* a nod to NotSoSuper, the bot's original creator. english in every language, the pun is on the name */}
         <p className='mt-4 text-center text-sm italic text-subtle'>Isn’t this a NotSoSuper deal?</p>
@@ -332,7 +330,7 @@ export function PremiumPage() {
             <p className='text-muted'>
               {rich('premium.servers.description', {code: (chunk) => <code className='text-code'>{chunk}</code>})}
             </p>
-            <p className='mt-3 text-muted'>{t('premium.servers.stacking', creditVariables())}</p>
+            <p className='mt-3 text-muted'>{t('premium.servers.stacking', variables)}</p>
             <p className='mt-3 text-sm text-subtle'>{t('premium.servers.owning')}</p>
           </div>
           <a href='#premium-compare-servers' className='mt-5 inline-flex items-center gap-1.5 text-sm font-medium text-brand-text hover:underline'>
@@ -342,11 +340,11 @@ export function PremiumPage() {
         </div>
       </section>
 
-      <CreditsSection/>
+      <CreditsSection variables={variables}/>
 
       <section id='premium-compare' aria-labelledby='premium-compare-title' className='scroll-mt-24'>
         <AnchorHeading id='premium-compare-title' sectionId='premium-compare'>{t('premium.compare')}</AnchorHeading>
-        <ComparisonTable columns={TIER_TABLE_COLUMNS} groups={COMPARISON} current={current}/>
+        <ComparisonTable columns={TIER_TABLE_COLUMNS} groups={COMPARISON} current={current} variables={variables}/>
         <p className='mt-3 text-xs text-subtle'>{t('premium.compare_credits_note')}</p>
         <p className='mt-1 text-xs text-subtle'>
           {rich('premium.compare_note', {terms: (chunk) => <Link to={Routes.LEGAL_TERMS_OF_SERVICE} className='underline hover:text-muted'>{chunk}</Link>})}
@@ -355,8 +353,8 @@ export function PremiumPage() {
 
       <section id='premium-compare-servers' aria-labelledby='premium-compare-servers-title' className='mt-12 scroll-mt-24'>
         <AnchorHeading id='premium-compare-servers-title' sectionId='premium-compare-servers'>{t('premium.compare_servers')}</AnchorHeading>
-        <ComparisonTable columns={SERVER_TABLE_COLUMNS} groups={SERVER_COMPARISON} current={null}/>
-        <p className='mt-3 text-xs text-subtle'>{t('premium.compare_servers_note', creditVariables())}</p>
+        <ComparisonTable columns={SERVER_TABLE_COLUMNS} groups={SERVER_COMPARISON} current={null} variables={variables}/>
+        <p className='mt-3 text-xs text-subtle'>{t('premium.compare_servers_note', variables)}</p>
         <p className='mt-1 text-xs text-subtle'>{t('premium.compare_credits_note')}</p>
       </section>
     </div>
@@ -415,7 +413,7 @@ function HowToSubscribe({ signedIn }: {signedIn: boolean}) {
 }
 
 
-function TierCard({ tier, current }: {tier: Tier, current: boolean}) {
+function TierCard({ tier, current, variables }: {tier: Tier, current: boolean, variables: CreditVariables}) {
   const { t, rich } = useI18n();
   const ai = tier.id === 'max';
   return (
@@ -438,7 +436,7 @@ function TierCard({ tier, current }: {tier: Tier, current: boolean}) {
       <ul className='mb-6 grid gap-3'>
         {Array.from({length: tier.perks}, (_, index) => {
           const key = `premium.${tier.id}.perk_${index + 1}` as TranslationKey;
-          return <Perk key={key}>{t(key, creditVariables())}</Perk>;
+          return <Perk key={key}>{t(key, variables)}</Perk>;
         })}
       </ul>
       <a
@@ -455,7 +453,7 @@ function TierCard({ tier, current }: {tier: Tier, current: boolean}) {
 }
 
 
-function CreditsSection() {
+function CreditsSection({ variables }: {variables: CreditVariables}) {
   const { t, rich } = useI18n();
   return (
     <section id='premium-credits' aria-labelledby='premium-credits-title' className='mb-16 scroll-mt-24'>
@@ -465,12 +463,12 @@ function CreditsSection() {
             <Coins className='size-6 text-brand-text'/>
           </div>
           <h2 id='premium-credits-title' className='mb-2 text-2xl text-white'>{t('premium.credits.title')}</h2>
-          <p className='text-muted'>{t('premium.credits.description', creditVariables())}</p>
+          <p className='text-muted'>{t('premium.credits.description', variables)}</p>
           <p className='mt-3 text-muted'>{t('premium.credits.packs')}</p>
           <ul className='mt-2 grid gap-2'>
-            <Perk>{t('premium.credits.packs_1', creditVariables())}</Perk>
+            <Perk>{t('premium.credits.packs_1', variables)}</Perk>
             <Perk>{t('premium.credits.packs_2')}</Perk>
-            <Perk>{rich('premium.credits.packs_3', {code: (chunk) => <code className='text-code'>{chunk}</code>}, creditVariables())}</Perk>
+            <Perk>{rich('premium.credits.packs_3', {code: (chunk) => <code className='text-code'>{chunk}</code>}, variables)}</Perk>
           </ul>
         </div>
         <ul className='grid content-start gap-4 sm:grid-cols-2'>
@@ -528,7 +526,12 @@ function Perk({ children }: {children: ReactNode}) {
 // `current` highlights the reader's own column (the tiers' table). On phones the table scrolls sideways under its
 // first column: the perk names stay put (on the card's own background, so the values pass behind them) and are kept
 // narrow there, or they'd leave no room to see a value next to them
-function ComparisonTable({ columns, groups, current }: {columns: Array<ComparisonColumn>, groups: Array<ComparisonGroup>, current: string | null}) {
+function ComparisonTable({ columns, groups, current, variables }: {
+  columns: Array<ComparisonColumn>,
+  groups: Array<ComparisonGroup>,
+  current: string | null,
+  variables: CreditVariables,
+}) {
   const { t } = useI18n();
   return (
     <div className='card overflow-x-auto'>
@@ -563,7 +566,7 @@ function ComparisonTable({ columns, groups, current }: {columns: Array<Compariso
                 <th scope='row' className='sticky left-0 bg-surface px-4 py-2.5 text-left font-normal text-fg max-sm:w-40'>{t(row.label)}</th>
                 {row.values.map((value, index) => (
                   <td key={columns[index].id} className={cn('px-4 py-2.5 text-center whitespace-nowrap tabular-nums', (current === columns[index].id) && 'bg-warning/5')}>
-                    <CellValue value={value}/>
+                    <CellValue value={value} variables={variables}/>
                   </td>
                 ))}
               </tr>
@@ -576,9 +579,10 @@ function ComparisonTable({ columns, groups, current }: {columns: Array<Compariso
 }
 
 
-function CellValue({ value }: {value: Cell}) {
+function CellValue({ value, variables }: {value: Cell, variables: CreditVariables}) {
   const { t } = useI18n();
-  const text = useCellText();
+  // a cell's text: its translation when it's a key, as-is otherwise ('30s', '200 MB')
+  const text = (cell: string) => (hasTranslation(cell)) ? t(cell, variables) : cell;
   if (value === true) {
     return <Check className='mx-auto size-4 text-success-text' aria-label={t('premium.included')}/>;
   }

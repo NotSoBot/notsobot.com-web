@@ -4,6 +4,7 @@ import { Navigate, Outlet, useLocation } from 'react-router';
 import { FullPageMessage } from '@/components/ui/FullPageMessage';
 import { Spinner } from '@/components/ui/Spinner';
 import { Routes } from '@/config';
+import { useI18n } from '@/i18n';
 
 import { useAuth } from './AuthContext';
 
@@ -20,6 +21,7 @@ import { useAuth } from './AuthContext';
 export function RequireAuth({ children }: {children?: ReactNode}) {
   const { loggedOut, status, retry } = useAuth();
   const location = useLocation();
+  const { t } = useI18n();
 
   if (status === 'loading') {
     return (
@@ -31,8 +33,8 @@ export function RequireAuth({ children }: {children?: ReactNode}) {
 
   if (status === 'error') {
     return (
-      <FullPageMessage title="Couldn't reach NotSoBot" description='We could not verify your session. Try again in a moment.'>
-        <button type='button' className='btn btn-secondary' onClick={retry}>Retry</button>
+      <FullPageMessage title={t('ui.session_error.title')} description={t('ui.session_error.description')}>
+        <button type='button' className='btn btn-secondary' onClick={retry}>{t('common.retry')}</button>
       </FullPageMessage>
     );
   }

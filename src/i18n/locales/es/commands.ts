@@ -71,7 +71,7 @@ export const Commands: Record<keyof typeof English, string> = {
 
   'commands.no_description': 'Sin descripción',
   'commands.no_uses': 'Sin usos esta semana',
-  'commands.uses_title': '{uses} usos en los últimos 7 días · n.º {rank} en total',
+  'commands.uses_title': '{uses} usos en los últimos 7 días • n.º {rank} en total',
   'commands.per_week': '/sem',
   'commands.uses_this_week': 'usos esta semana',
 
@@ -94,7 +94,7 @@ export const Commands: Record<keyof typeof English, string> = {
   'commands.drawer.ratelimit_scope.server': 'por servidor',
   'commands.drawer.ratelimit_scope.channel': 'por canal',
   'commands.drawer.ratelimit_shared': 'Límite compartido: {group}.',
-  'commands.drawer.ratelimit_shared_description': 'Todos los comandos de este grupo cuentan para el mismo límite, con prefijo o slash.',
+  'commands.drawer.ratelimit_shared_description': 'Todos los comandos de este grupo cuentan para el mismo límite, con prefijo o de barra.',
   'commands.drawer.ratelimit_shared_more': '+{count} más',
   'commands.ratelimit_group.browser': 'Capturas y descargas',
   'commands.ratelimit_group.media': 'Edición de medios',

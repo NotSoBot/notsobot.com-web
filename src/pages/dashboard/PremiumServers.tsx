@@ -7,11 +7,13 @@ import { useEffect, useId, useMemo, useReducer, useState } from 'react';
 import { Link } from 'react-router';
 
 import { useAuth } from '@/auth';
+import { Chip } from '@/components/ui/Chip';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Modal } from '@/components/ui/Modal';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
+import { ExactDate } from '@/components/ui/Tooltip';
 import { Routes } from '@/config';
 import { translate, useI18n } from '@/i18n';
 import type { PremiumServer, UserGuildSummary } from '@/lib/api';
@@ -26,9 +28,8 @@ import {
   usePutMePremiumServerMutation,
 } from '@/lib/api/dashboardQueries';
 import { SERVER_AI_MESSAGES_PER_SLOT } from '@/lib/credits';
-import { discordDmUrl, discordGuildUrl, formatDate, formatExactDateTime, formatNumber, toDate } from '@/lib/utils';
+import { discordDmUrl, discordGuildUrl, formatDate, formatNumber, toDate } from '@/lib/utils';
 
-import { Chip } from './admin/adminUi';
 import { hasPremiumMax } from './premium';
 import { GuildIcon } from './servers/GuildIcon';
 import { MissingServersNotice, ScopeMismatchCard } from './servers/ServersPage';
@@ -252,7 +253,7 @@ function ServerRow({ server, active, onStack, onRemove }: {
           ) : null}
         </div>
         <div className='mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-subtle'>
-          <span title={formatExactDateTime(server.created)}>{t('pservers.added', {date: formatDate(server.created)})}</span>
+          <ExactDate value={server.created} format={(value) => t('pservers.added', {date: formatDate(value)})}/>
           <span className='font-mono'>{server.server_id}</span>
           {/* no guild row is almost always a group dm, the bot knows every guild it's in */}
           <a

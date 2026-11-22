@@ -5,6 +5,8 @@ import { Link } from 'react-router';
 import { useAuth } from '@/auth';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
+import { ExactDate } from '@/components/ui/Tooltip';
+import { useConfirmPress } from '@/hooks/useConfirmPress';
 import { translate, useI18n } from '@/i18n';
 import {
   TAG_DIRECTORY_DESCRIPTION_MAX,
@@ -355,8 +357,8 @@ function ListingForm({ tag, directory, onDirtyChange }: {
       >
         <div className='mb-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-subtle'>
           <VerificationBadge verified={directory.verified}/>
-          <span title={formatDateTime(directory.created)}>{t('ddir.listed', {date: formatDate(directory.created)})}</span>
-          {(directory.edited) ? <span title={formatDateTime(directory.edited)}>{t('ddir.edited', {date: formatDate(directory.edited)})}</span> : null}
+          <ExactDate value={directory.created} format={(value) => t('ddir.listed', {date: formatDate(value)})}/>
+          {(directory.edited) ? <ExactDate value={directory.edited} format={(value) => t('ddir.edited', {date: formatDate(value)})}/> : null}
           <span className='tabular-nums'>{plural('tags.directory.servers', directory.server_count)}</span>
         </div>
 
@@ -395,6 +397,8 @@ function VerificationPanel({ tag, directory, listingDirty }: {tag: Tag, director
   const request = useRequestMeTagDirectoryVerificationMutation(tag.id);
   const cancel = useCancelMeTagDirectoryVerificationMutation(tag.id);
   const [ confirming, setConfirming ] = useState(false);
+  // canceling drops the tag's place in the review queue, so one stray click only asks
+  const cancelPress = useConfirmPress();
 
   if (directory.verified === TagDirectoryVerificationStates.VERIFIED) {
     return null;
@@ -435,9 +439,9 @@ function VerificationPanel({ tag, directory, listingDirty }: {tag: Tag, director
         {(pending) ? (
           <div className='mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4'>
             <p className='text-sm text-subtle'>{t('ddir.cancel_note')}</p>
-            <button type='button' className='btn btn-danger btn-sm shrink-0' disabled={cancel.isPending} onClick={doCancel}>
+            <button type='button' className='btn btn-danger btn-sm shrink-0' disabled={cancel.isPending} onClick={() => cancelPress.press('cancel', doCancel)}>
               <X className='size-3.5'/>
-              {t((cancel.isPending) ? 'tags.listing.canceling' : 'tags.listing.cancel_request')}
+              {t((cancel.isPending) ? 'tags.listing.canceling' : (cancelPress.armed) ? 'tags.listing.cancel_request_confirm' : 'tags.listing.cancel_request')}
             </button>
           </div>
         ) : (

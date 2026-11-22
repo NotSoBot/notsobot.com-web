@@ -35,10 +35,9 @@ export const Premium = {
   'premium.plus.perk_5': '{plus_credits} NotSoCredits every week for NotSoAI and fish.audio voices (about {plus_messages} messages or {plus_minutes} minutes of speech)',
   'premium.max.tagline': 'Everything, with twice the NotSoAI.',
   'premium.max.perk_1': '{max_credits} NotSoCredits every week for NotSoAI and fish.audio voices (about {max_messages} messages), and what’s left rolls over, up to {max_rollover} banked',
-  'premium.max.perk_2': 'AI in your tags with {ai}',
-  'premium.max.perk_3': 'Your premium server slots give everyone there NotSoAI too, {slot_messages} messages a week for each slot (stack both on one server for {slot_messages_double})',
-  'premium.max.perk_4': '120 seconds to process media and 130 to run tags',
-  'premium.max.perk_5': 'Clone up to {voices_max} voices',
+  'premium.max.perk_2': 'Your premium server slots give everyone there NotSoAI too, {slot_messages} messages a week for each slot (stack both on one server for {slot_messages_double})',
+  'premium.max.perk_3': '120 seconds to process media and 130 to run tags',
+  'premium.max.perk_4': 'Clone up to {voices_max} voices',
 
   'premium.column.free': 'Free',
   'premium.column.premium': 'Premium',

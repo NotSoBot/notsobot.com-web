@@ -108,7 +108,7 @@ export const DashboardContent = {
   'files.count_one': '{count} file',
   'files.count_other': '{count} files',
   'files.matched': '<b>{files}</b> matched, <b>{size}</b>',
-  'files.across': ' · {size} across all {files}',
+  'files.across': ' • {size} across all {files}',
   'files.used': '<b>{size}</b> used across <b>{files}</b>',
   'files.expires_title': 'Temporary, expires {date}',
   'files.expires': 'Expires {when}',

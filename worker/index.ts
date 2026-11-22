@@ -16,7 +16,7 @@ import {
   type TagDirectoryItem,
   type TagDirectoryPage,
 } from '../src/lib/api/types';
-import { ANALYTICS_BEFORE_SEND, SOURCE_PARAM } from '../src/lib/analyticsUrl';
+import { ANALYTICS_BEFORE_SEND, encodeSource, SOURCE_CODE_PARAM } from '../src/lib/analyticsUrl';
 import { enabledCommandVariants } from '../src/lib/commandAvailability';
 import { commandTypeFromPath, compareCommandTypes } from '../src/lib/commandPaths';
 import { renderApp, type RenderedPage } from '../src/entry-server';
@@ -40,6 +40,9 @@ interface Env {
   // from Umami's website settings, one per site. a secret from .dev.vars (.dev.vars.beta for beta), uploaded by
   // `npm run deploy`. empty or unset leaves analytics off
   UMAMI_WEBSITE_ID?: string,
+  // the deployed version, when wrangler.jsonc has a `version_metadata` binding under this name. part of every page's
+  // etag (htmlEtag) so a deploy that only changes the worker still replaces cached html
+  CF_VERSION_METADATA?: {id: string},
 }
 
 
@@ -387,12 +390,13 @@ function tagEmbed(
   if (description) {
     text.push({type: 10, content: escapeMarkdown(truncate(description, EMBED_DESCRIPTION_MAX_LENGTH))});
   }
-  text.push({type: 10, content: `-# ${escapeMarkdown(stats.join(' · '))}`});
+  text.push({type: 10, content: `-# ${escapeMarkdown(stats.join(' • '))}`});
 
   const addUrl = new URL(languagePath(language, Routes.TAG_DIRECTORY_ITEM.replace(':tagId', item.id)), `https://${env.SITE_DOMAIN}`);
   addUrl.searchParams.set(TAG_ADD_PARAM, TAG_ADD_VALUE);
-  // where the click came from, for analytics (src/lib/analyticsUrl.ts)
-  addUrl.searchParams.set(SOURCE_PARAM, 'embed-tag');
+  // where the click came from, for analytics. scrambled: discord shows the whole link before opening it
+  // (src/lib/analyticsUrl.ts)
+  addUrl.searchParams.set(SOURCE_CODE_PARAM, encodeSource('embed-tag'));
 
   const components: DiscordContainer = {
     type: 17,
@@ -414,7 +418,7 @@ function tagEmbed(
   return {
     meta: {
       title: (title) ? `${tag.name} — ${title}` : tag.name,
-      description: [ (description) ? truncate(description, EMBED_DESCRIPTION_MAX_LENGTH) : null, stats.join(' · ') ].filter(Boolean).join('\n\n'),
+      description: [ (description) ? truncate(description, EMBED_DESCRIPTION_MAX_LENGTH) : null, stats.join(' • ') ].filter(Boolean).join('\n\n'),
     },
     siteName: words.tagSiteName,
     image,
@@ -442,12 +446,12 @@ const COMMANDS_CACHE_TTL = 5 * 60;
 // waiting on another's. one list per language, since the descriptions are translated
 const cachedCommands = new Map<Language, {commands: Array<Command>, expires: number}>();
 
+// how long an expired list keeps being served before another refresh is started: longer than fetchApi's timeout, so
+// requests arriving during a refresh (or right after a failed one) don't each download the list too
+const COMMANDS_REFRESH_HOLD = 10;
+
 // the whole list, there's no single-command endpoint
-async function fetchCommands(env: Env, language: Language): Promise<Array<Command> | null> {
-  const cached = cachedCommands.get(language);
-  if (cached && Date.now() < cached.expires) {
-    return cached.commands;
-  }
+async function loadCommands(env: Env, language: Language): Promise<Array<Command> | null> {
   const query: Record<string, string> = (language === DEFAULT_LANGUAGE) ? {} : {language};
   const commands = await fetchApi<Array<Command>>(env, '/commands', query, COMMANDS_CACHE_TTL);
   // a failure isn't kept, the next request tries again
@@ -456,6 +460,24 @@ async function fetchCommands(env: Env, language: Language): Promise<Array<Comman
   }
   cachedCommands.set(language, {commands, expires: Date.now() + COMMANDS_CACHE_TTL * 1000});
   return commands;
+}
+
+// an expired list is served as it is and refreshed after the response, so only an isolate's first request for a
+// language waits on the api (1.7 MB, up to fetchApi's timeout)
+async function fetchCommands(env: Env, context: ExecutionContext | null, language: Language): Promise<Array<Command> | null> {
+  const cached = cachedCommands.get(language);
+  if (cached && Date.now() < cached.expires) {
+    return cached.commands;
+  }
+  // nothing to serve in the meantime, or no way to keep working after the response
+  if (!cached || !context) {
+    return loadCommands(env, language);
+  }
+  // a flag would stay set if the refresh never settled, a time can't
+  cached.expires = Date.now() + COMMANDS_REFRESH_HOLD * 1000;
+  // a failed refresh keeps the old list (loadCommands only stores a good one), fetchApi never rejects
+  context.waitUntil(loadCommands(env, language));
+  return cached.commands;
 }
 
 
@@ -486,8 +508,14 @@ function commandUsage(language: Language, metadata: CommandMetadata): string {
 
 
 // the variant /commands/:commandId(/:commandType) shows, null for an unknown, hidden (owner) or disabled command
-async function fetchCommandMetadata(env: Env, language: Language, commandId: string, slug: string | undefined): Promise<[Command, CommandMetadata] | null> {
-  const commands = await fetchCommands(env, language);
+async function fetchCommandMetadata(
+  env: Env,
+  context: ExecutionContext | null,
+  language: Language,
+  commandId: string,
+  slug: string | undefined,
+): Promise<[Command, CommandMetadata] | null> {
+  const commands = await fetchCommands(env, context, language);
   const command = commands?.find((item) => item.id === commandId);
   if (!command) {
     return null;
@@ -624,8 +652,42 @@ function renderStaticBody(language: Language, meta: PageMeta): string {
 }
 
 
+// A page's validator, so a revisit is a 304 instead of the whole html again (and no render). It has to change whenever
+// the html would, so `parts` is everything the html is made from (see renderPage). weak: cloudflare compresses the
+// html on the way out, and would weaken a strong one anyway
+async function htmlEtag(parts: Array<string>): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(parts)));
+  const hash = Array.from(new Uint8Array(digest).subarray(0, 16), (byte) => byte.toString(16).padStart(2, '0')).join('');
+  return `W/"${hash}"`;
+}
+
+// If-None-Match may list several, and compares without the `W/` (RFC 9110's weak comparison)
+function etagMatches(header: string | null, etag: string): boolean {
+  const opaque = etag.replace(/^W\//, '');
+  return (header ?? '').split(',').some((item) => item.trim().replace(/^W\//, '') === opaque);
+}
+
+// what every page's response carries, a 304 included (browsers update the stored page's headers from it)
+function setPageHeaders(headers: Headers, etag: string | null): Headers {
+  headers.set('cache-control', 'no-cache');
+  // the html depends on the path, the shell's etag doesn't describe it
+  headers.delete('etag');
+  if (etag) {
+    headers.set('etag', etag);
+  }
+  headers.set('content-security-policy', FRAME_POLICY);
+  headers.set('content-security-policy-report-only', CONTENT_POLICY);
+  headers.set('x-frame-options', 'DENY');
+  headers.set('x-content-type-options', 'nosniff');
+  headers.set('referrer-policy', 'strict-origin-when-cross-origin');
+  headers.set('strict-transport-security', STRICT_TRANSPORT_SECURITY);
+  headers.set('permissions-policy', PERMISSIONS_POLICY);
+  return headers;
+}
+
+
 // the html for one of the site's pages (or the not-found page) with its metatags filled in, or a file from static assets
-async function renderPage(request: Request, env: Env): Promise<Response> {
+async function renderPage(request: Request, env: Env, context: ExecutionContext | null): Promise<Response> {
   const url = new URL(request.url);
 
   // `/es/premium` is the Spanish copy of `/premium`, everything below works on the path without the prefix
@@ -654,7 +716,7 @@ async function renderPage(request: Request, env: Env): Promise<Response> {
   // generic embed
   try {
     if (page?.meta === PAGES.TAG_DIRECTORY_ITEM) {
-      const [ item, commands ] = await Promise.all([ fetchTagDirectoryItem(env, segments[3] ?? ''), fetchCommands(env, language) ]);
+      const [ item, commands ] = await Promise.all([ fetchTagDirectoryItem(env, segments[3] ?? ''), fetchCommands(env, context, language) ]);
       if (item) {
         embed = tagEmbed(env, language, item, {
           tagGet: slashCommandMention(commands?.find((command) => command.id === TAG_GET_COMMAND_ID)),
@@ -668,7 +730,7 @@ async function renderPage(request: Request, env: Env): Promise<Response> {
       } catch {
         // left as-is, it won't match a command
       }
-      const found = await fetchCommandMetadata(env, language, commandId, segments[3]);
+      const found = await fetchCommandMetadata(env, context, language, commandId, segments[3]);
       if (found) {
         embed = commandEmbed(language, ...found);
       }
@@ -723,9 +785,42 @@ async function renderPage(request: Request, env: Env): Promise<Response> {
     head += `<script defer data-website-id="${escapeHtml(env.UMAMI_WEBSITE_ID)}" data-before-send="${ANALYTICS_BEFORE_SEND}" src="${UMAMI_SCRIPT_URL}"></script>`;
   }
 
+  const title = pageTitle(meta);
+  const staticBody = renderStaticBody(language, meta);
+  const serverRendered = !page || SERVER_RENDERED_PAGES.has(page.key);
+
+  // Everything the html below is made from, so a browser that already has it gets a 304 before anything is rendered:
+  // - the build: the shell's own etag (its content names the app's hashed entry script and stylesheet, which change
+  //   with any of the app's code), plus the worker's version when it's bound
+  // - the request: path and query as sent, language and url prefix, and Accept-Language (the render's Intl locale)
+  // - what the worker adds: title, head (metatags, canonical, the tag/command embed built from the api's data,
+  //   analytics) and the static body
+  // - the utc day: rendered pages show the year (footer) and switch text on a date (PrefixSunsetNotice)
+  // Nothing in it depends on who is logged in, the worker never sees that. Left off the not-found page (a 404), in
+  // `vite dev` (the shell stays the same while the code changes) and when the shell has no etag to tell builds apart
+  const shellEtag = shell.headers.get('etag');
+  const etag = (page && shellEtag && !import.meta.env.DEV) ? await htmlEtag([
+    shellEtag,
+    env.CF_VERSION_METADATA?.id ?? '',
+    url.pathname,
+    url.search,
+    language,
+    split.prefix,
+    (serverRendered) ? (request.headers.get('accept-language') ?? '') : '',
+    title,
+    head,
+    staticBody,
+    new Date().toISOString().slice(0, 10),
+  ]) : null;
+  if (etag && etagMatches(request.headers.get('if-none-match'), etag)) {
+    // the shell isn't sent, so it's let go unread
+    await shell.body?.cancel().catch(() => undefined);
+    return new Response(null, {status: 304, headers: setPageHeaders(new Headers(), etag)});
+  }
+
   // a page that fails to render still gets the static body, the browser renders it like any other
   let rendered: RenderedPage | null = null;
-  if (!page || SERVER_RENDERED_PAGES.has(page.key)) {
+  if (serverRendered) {
     try {
       rendered = await renderApp(request, language, split.prefix);
     } catch (error) {
@@ -738,27 +833,19 @@ async function renderPage(request: Request, env: Env): Promise<Response> {
     .on('meta[name="description"]', {element: (element) => { element.remove(); }})
     .on('meta[name="theme-color"]', {element: (element) => { element.setAttribute('content', THEME_COLOR); }})
     // setInnerContent escapes text by default
-    .on('title', {element: (element) => { element.setInnerContent(pageTitle(meta)); }})
+    .on('title', {element: (element) => { element.setInnerContent(title); }})
     .on('head', {element: (element) => { element.append(head, {html: true}); }})
     .on('div#root', {element: (element) => {
-      element.setInnerContent(rendered?.html ?? renderStaticBody(language, meta), {html: true});
+      element.setInnerContent(rendered?.html ?? staticBody, {html: true});
       if (rendered) {
         element.after(rendered.hydrationScript, {html: true});
       }
     }})
     .transform(shell);
 
-  const headers = new Headers(response.headers);
-  headers.set('cache-control', 'no-cache');
-  // the html now depends on the path, the shell's etag no longer describes it
-  headers.delete('etag');
-  headers.set('content-security-policy', FRAME_POLICY);
-  headers.set('content-security-policy-report-only', CONTENT_POLICY);
-  headers.set('x-frame-options', 'DENY');
-  headers.set('x-content-type-options', 'nosniff');
-  headers.set('referrer-policy', 'strict-origin-when-cross-origin');
-  headers.set('strict-transport-security', STRICT_TRANSPORT_SECURITY);
-  headers.set('permissions-policy', PERMISSIONS_POLICY);
+  // the etag describes the rendered page: one whose render failed this time goes without, so the browser asks again
+  // in full instead of keeping the fallback
+  const headers = setPageHeaders(new Headers(response.headers), (rendered || !serverRendered) ? etag : null);
   // unknown paths still get the app, so its not-found page renders, but as a real 404
   return new Response(response.body, {headers, status: (page === null) ? 404 : 200});
 }
@@ -791,7 +878,7 @@ for (const host of [...SITE_HOSTS, ...LOCAL_HOSTS]) {
   }, {priority: 1});
 
   // every other path, the routes above win by priority (a catch-all listing every method would otherwise sort first)
-  site.route('/:path...', '*', (event) => renderPage(event.request, getEnv(event)));
+  site.route('/:path...', '*', (event) => renderPage(event.request, getEnv(event), event.context));
   router.addRouter(site);
 }
 

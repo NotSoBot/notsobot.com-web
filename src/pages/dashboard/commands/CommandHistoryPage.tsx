@@ -6,7 +6,13 @@ import { ExternalLink, SquareTerminal, X } from 'lucide-react';
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link } from 'react-router';
 
+import { Chip } from '@/components/ui/Chip';
+import { FilterButton } from '@/components/ui/FilterButton';
+import { FiltersButton } from '@/components/ui/FiltersButton';
+import { IdFilter } from '@/components/ui/IdFilter';
+import { Pagination } from '@/components/ui/Pagination';
 import { PrefixSunsetNotice } from '@/components/ui/PrefixSunsetNotice';
+import { ExactDate } from '@/components/ui/Tooltip';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useSearchParamState, useStepBackFromEmptyPage } from '@/hooks/useSearchParamState';
 import { useI18n } from '@/i18n';
@@ -15,9 +21,8 @@ import { ME_COMMANDS_PAGE_SIZE, errorMessage, useMeCommandsQuery, useMeGuildsQue
 import { useCommandsQuery } from '@/lib/api/queries';
 import { enabledCommandVariants } from '@/lib/commandAvailability';
 import { commandPath } from '@/lib/commandPaths';
-import { cn, formatDate, formatDateTime, formatExactDateTime, formatNumber, NO_AUTOFILL } from '@/lib/utils';
+import { cn, formatDateTime, formatNumber, NO_AUTOFILL } from '@/lib/utils';
 
-import { Chip, FilterButton, FiltersButton, IdFilter, Pagination } from '../admin/adminUi';
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from '../ui';
 import { COMMAND_TYPE_LABELS, RESULT_LABELS, resultInfo, TONE_FILLS } from './commandLabels';
 
@@ -108,7 +113,7 @@ export function CommandHistoryPage() {
           label={t('history.first')}
           color='#3ba55c'
           value={(isPending) ? null : (data?.first_used) ? (
-            <time dateTime={data.first_used} title={formatExactDateTime(data.first_used)}>{formatDate(data.first_used)}</time>
+            <ExactDate value={data.first_used}/>
           ) : '—'}
           detail={(data?.first_used) ? formatDateTime(data.first_used) : undefined}
         />
@@ -341,7 +346,7 @@ function CommandRow({ use, serverName, commandTypes, onFilter }: {
         </div>
         <div className='mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-subtle'>
           {/* on phones the time goes here, there's no room for it on the right */}
-          <time dateTime={use.timestamp} title={formatExactDateTime(use.timestamp)} className='sm:hidden'>{formatDateTime(use.timestamp)}</time>
+          <ExactDate value={use.timestamp} format={formatDateTime} className='sm:hidden'/>
           <span className='inline-flex max-w-full min-w-0 shrink-0 items-center'>
             {(serverName) ? <span className='truncate'>{serverName}</span> : <span className='font-mono'>{t('history.server_id', {id: use.guild_id})}</span>}
             <FilterButton label={t('history.only_server')} onClick={() => onFilter({server: use.guild_id ?? DMS})}/>
@@ -356,9 +361,7 @@ function CommandRow({ use, serverName, commandTypes, onFilter }: {
           </span>
         </div>
       </div>
-      <time dateTime={use.timestamp} title={formatExactDateTime(use.timestamp)} className='hidden shrink-0 text-right text-xs text-subtle sm:block'>
-        {formatDateTime(use.timestamp)}
-      </time>
+      <ExactDate value={use.timestamp} format={formatDateTime} className='hidden shrink-0 text-right text-xs text-subtle sm:block'/>
     </li>
   );
 }

@@ -1,5 +1,5 @@
 import { BookMarked, Replace, Search, Tags, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 
 import { isOwner, useAuth } from '@/auth';
@@ -75,7 +75,15 @@ export function AdminAllTagsPage() {
   const linked = useAdminTagsQuery((lookingUp && /^\d+$/.test(openId)) ? {query: `id:${openId}`, searchContent: false, sortBy: 'newest', nsfw: null, page: 0} : filters);
   // the page above stands in while the lookup loads (`keepPreviousData`), that's not its answer yet
   const linkedReady = lookingUp && !!linked.data && !linked.isPlaceholderData;
-  const openItem = listedItem ?? ((linkedReady) ? linked.data?.items.find((item) => item.tag.id === openId) : null) ?? null;
+  // The open tag while its Delete or Replace dialog is up: both refetch the lists before their follow-up closes the tag,
+  // and one that's only here through its link is gone from the lookup by then. Without it the details (and the dialog
+  // with them) gave way to "Tag not found" in between. A listed tag is kept by `useOpenListItem` already
+  const [ removing, setRemoving ] = useState<AdminTagItem | null>(null);
+  // let go of once another tag (or none) is open, so opening the same id again later looks it up afresh
+  useEffect(() => setRemoving((current) => (current && current.tag.id !== openId) ? null : current), [openId]);
+  const openItem = listedItem
+    ?? ((linkedReady) ? linked.data?.items.find((item) => item.tag.id === openId) : null)
+    ?? ((removing && removing.tag.id === openId) ? removing : null);
   const steppingBack = useStepBackFromEmptyPage({page, setPage, data, isPlaceholderData, pageSize: ADMIN_TAGS_PAGE_SIZE});
   const pagination = {
     page,
@@ -163,6 +171,7 @@ export function AdminAllTagsPage() {
             // the tag that's left, with everything moved onto it
             onReplaced={(targetId) => searchFor(`id:${targetId}`)}
             onDeleted={close}
+            onRemoving={setRemoving}
           />
         </AdminTagModal>
       ) : (openId) ? (
@@ -250,12 +259,14 @@ function TagCard({ item, onOpen, onDelete }: {item: AdminTagItem, onOpen: (id: s
 
 
 // `navigation` is the modal's Previous / Next, the tag's actions go between them. Its directory listing is the status
-function TagDetails({ item, navigation, onSearch, onReplaced, onDeleted }: {
+// `onRemoving` gets the tag while its Delete or Replace dialog is open, and `null` once that's closed without going through
+function TagDetails({ item, navigation, onSearch, onReplaced, onDeleted, onRemoving }: {
   item: AdminTagItem,
   navigation: {previousId: string | null, nextId: string | null, onNavigate: (id: string) => void},
   onSearch: (query: string) => void,
   onReplaced: (targetId: string) => void,
   onDeleted: () => void,
+  onRemoving: (item: AdminTagItem | null) => void,
 }) {
   const { tag, directory } = item;
   const { user: me } = useAuth();
@@ -374,7 +385,10 @@ function TagDetails({ item, navigation, onSearch, onReplaced, onDeleted }: {
             type='button'
             className='btn btn-secondary min-w-0 flex-1 px-2 sm:flex-none sm:px-3'
             title='Move everything to another tag, then delete this one'
-            onClick={() => setReplacing(true)}
+            onClick={() => {
+              setReplacing(true);
+              onRemoving(item);
+            }}
           >
             <Replace aria-hidden className='hidden size-4 shrink-0 sm:block'/>
             <span className='truncate sm:hidden'>Replace</span>
@@ -384,7 +398,10 @@ function TagDetails({ item, navigation, onSearch, onReplaced, onDeleted }: {
         <button
           type='button'
           className='btn btn-danger min-w-0 flex-1 px-2 sm:flex-none sm:px-3'
-          onClick={() => setDeleting(true)}
+          onClick={() => {
+            setDeleting(true);
+            onRemoving(item);
+          }}
         >
           <Trash2 aria-hidden className='hidden size-4 shrink-0 sm:block'/>
           <span className='truncate'>Delete</span>
@@ -398,7 +415,10 @@ function TagDetails({ item, navigation, onSearch, onReplaced, onDeleted }: {
             setReplacing(false);
             onReplaced(targetId);
           }}
-          onClose={() => setReplacing(false)}
+          onClose={() => {
+            setReplacing(false);
+            onRemoving(null);
+          }}
         />
       ) : null}
       {(deleting) ? (
@@ -408,7 +428,10 @@ function TagDetails({ item, navigation, onSearch, onReplaced, onDeleted }: {
             setDeleting(false);
             onDeleted();
           }}
-          onClose={() => setDeleting(false)}
+          onClose={() => {
+            setDeleting(false);
+            onRemoving(null);
+          }}
         />
       ) : null}
     </div>

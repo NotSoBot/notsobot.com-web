@@ -4,6 +4,7 @@ import { Link } from 'react-router';
 
 import { useAuth } from '@/auth';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { CharCounter } from '@/components/ui/form';
 import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
 import { Turnstile } from '@/components/ui/Turnstile';
@@ -13,7 +14,6 @@ import { ApiErrorCodes, ApiRequestError, ReportTypes, type MeReport } from '@/li
 import { errorMessage, useCreateReportMutation } from '@/lib/api/dashboardQueries';
 import { cn } from '@/lib/utils';
 import { Routes } from '@/routes';
-import { CharCounter } from '@/pages/dashboard/ui';
 
 import type { ReportSubject } from './ReportButton';
 

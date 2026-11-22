@@ -81,12 +81,25 @@ function FooterQuote() {
 
   useEffect(() => {
     setState({quotes: shuffle(QUOTES), index: 0});
-    const timer = window.setInterval(() => {
-      setState((previous) => {
-        return (previous && previous.index + 1 < previous.quotes.length) ? {...previous, index: previous.index + 1} : {quotes: shuffle(QUOTES), index: 0};
-      });
-    }, QUOTE_INTERVAL);
-    return () => window.clearInterval(timer);
+    // only ticks while the tab is showing, a hidden one would keep re-rendering the footer for nobody
+    let timer: number | undefined;
+    const sync = () => {
+      window.clearInterval(timer);
+      timer = undefined;
+      if (document.visibilityState !== 'hidden') {
+        timer = window.setInterval(() => {
+          setState((previous) => {
+            return (previous && previous.index + 1 < previous.quotes.length) ? {...previous, index: previous.index + 1} : {quotes: shuffle(QUOTES), index: 0};
+          });
+        }, QUOTE_INTERVAL);
+      }
+    };
+    sync();
+    document.addEventListener('visibilitychange', sync);
+    return () => {
+      document.removeEventListener('visibilitychange', sync);
+      window.clearInterval(timer);
+    };
   }, []);
 
   const [ quote, author ] = state?.quotes[state.index] ?? [];

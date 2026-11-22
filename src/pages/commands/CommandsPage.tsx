@@ -236,7 +236,7 @@ export function CommandsPage() {
           {(entries.length) ? (
             <p className='text-sm text-subtle tabular-nums'>
               {plural('commands.total', entries.length)}
-              {(weekTotal) ? <> · {rich('commands.week_uses', {b: (chunk) => <span className='text-muted'>{chunk}</span>}, {count: formatCompact(weekTotal)})}</> : null}
+              {(weekTotal) ? <> • {rich('commands.week_uses', {b: (chunk) => <span className='text-muted'>{chunk}</span>}, {count: formatCompact(weekTotal)})}</> : null}
             </p>
           ) : null}
         </div>
@@ -259,7 +259,7 @@ export function CommandsPage() {
               {t('commands.trending')}
               {(category || typeOption.types) ? (
                 <span className='text-sm text-subtle'>
-                  · {[category && t(categoryMeta(category).label), typeOption.types && t(typeOption.label)].filter(Boolean).join(' · ')}
+                  • {[category && t(categoryMeta(category).label), typeOption.types && t(typeOption.label)].filter(Boolean).join(' • ')}
                 </span>
               ) : null}
             </h2>

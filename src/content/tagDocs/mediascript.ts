@@ -2513,6 +2513,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
   },
   {
     name: 'subtitle',
+    aliases: ['subtitles'],
     category: 'compose',
     summary: 'Puts movie subtitles along the bottom of the media, white with a black outline.',
     syntax: 'subtitle MEDIA_KEY YELLOW=false ...TEXT',
@@ -2582,6 +2583,7 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
   },
   {
     name: 'demotivate',
+    aliases: ['demotivational'],
     category: 'compose',
     summary: 'Turns the media into a demotivational poster: framed on black with a big serif title and a line under it.',
     syntax: 'demotivate MEDIA_KEY ...TEXT',

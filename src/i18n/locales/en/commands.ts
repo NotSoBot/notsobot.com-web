@@ -69,7 +69,7 @@ export const Commands = {
 
   'commands.no_description': 'No description available',
   'commands.no_uses': 'No uses this week',
-  'commands.uses_title': '{uses} uses in the last 7 days · #{rank} overall',
+  'commands.uses_title': '{uses} uses in the last 7 days • #{rank} overall',
   'commands.per_week': '/wk',
   'commands.uses_this_week': 'uses this week',
 

@@ -10,6 +10,9 @@
     // hashed bundles and the favicon skip the worker (and its request billing) entirely
     "run_worker_first": ["/*", "!/assets/*", "!/favicon.svg"]
   },
+  // the deployed version's id, part of every html response's ETag (pageEtag in the worker): a deploy that only changes
+  // worker code would otherwise keep answering 304 for html the previous version rendered
+  "version_metadata": {"binding": "CF_VERSION_METADATA"},
   // every subdomain of notsobot.com, like nsb.gg: notsobot.com and www. are the site, anything else 404s (SITE_HOSTS in the
   // worker). beta.notsobot.com's own route below is more specific, so it stays on the beta script, and notsobot.com/api/*
   // has a "no worker" route on the zone (see the readme)
@@ -30,6 +33,8 @@
       "routes": [
         {"pattern": "beta.notsobot.com/*", "zone_name": "notsobot.com"}
       ],
+      // bindings aren't inherited by environments
+      "version_metadata": {"binding": "CF_VERSION_METADATA"},
       "vars": {
         "SITE_DOMAIN": "beta.notsobot.com",
         "ALLOW_INDEXING": "false"

@@ -91,13 +91,14 @@ export function DeleteTagDialog({ item, onDeleted, onClose }: {item: AdminTagIte
       confirmLabel={(total === 1) ? 'Delete tag' : `Delete ${tagsLabel(total)}`}
       pending={remove.isPending}
       error={(remove.isError) ? errorMessage(remove.error, 'Couldn’t delete the tag.') : null}
-      onConfirm={() => remove.mutate({tagId: tag.id, userDuplicates, globalDuplicates, removal}, {
-        onSuccess: ({ count, skipped }) => {
-          const deleted = (count === 1) ? `Deleted “${tag.name}”` : `Deleted ${tagsLabel(count)}`;
-          toast((skipped) ? `${deleted}, skipped ${tagsLabel(skipped)} you can’t delete` : deleted);
-          onDeleted();
-        },
-      })}
+      // `mutateAsync`: the lists refetch before `mutate`'s callbacks would run, and a tag that was only open through its
+      // link (not on the loaded page) leaves with them, unmounting this: the toast and `onDeleted` were lost. A
+      // failure shows above while it's still here
+      onConfirm={() => remove.mutateAsync({tagId: tag.id, userDuplicates, globalDuplicates, removal}).then(({ count, skipped }) => {
+        const deleted = (count === 1) ? `Deleted “${tag.name}”` : `Deleted ${tagsLabel(count)}`;
+        toast((skipped) ? `${deleted}, skipped ${tagsLabel(skipped)} you can’t delete` : deleted);
+        onDeleted();
+      }, () => {})}
       onClose={onClose}
     />
   );

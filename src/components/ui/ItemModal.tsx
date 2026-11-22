@@ -1,0 +1,404 @@
+import { AlertTriangle } from 'lucide-react';
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type Dispatch, type ReactNode, type RefObject, type SetStateAction } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router';
+
+import { isArrowNavigationTarget } from '@/hooks/useArrowKeyNavigation';
+import { useI18n } from '@/i18n';
+import { ApiRequestError } from '@/lib/api';
+import { errorMessage } from '@/lib/api/dashboardQueries';
+
+import { ModalFooter } from './DetailModal';
+import { Modal, openModalCount } from './Modal';
+import { Spinner } from './Spinner';
+
+
+// Which of a page's items is open in its modal, and the ones either side of it for ← / →. The open item is kept
+// after it leaves the list (verifying it out of the review queue, a refetch), so the modal doesn't vanish under
+// you, and its neighbours are then whatever's around where it was.
+// With `basePath` the open item is in the url (`<basePath>/<id>`, the page's route has an optional `:itemId`), so it can
+// be linked. `openId` is then set before the item is found, a page fetches it by id when it isn't on the loaded page.
+export function useOpenListItem<T>(items: Array<T>, getId: (item: T) => string, basePath?: string) {
+  const [ stateId, setStateId ] = useState<string | null>(null);
+  const { itemId } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const openId = (basePath) ? (itemId ?? null) : stateId;
+  // opened from the list (not a link), so closing it can go back instead of adding another history entry
+  const openedHere = (location.state as {itemOpenedHere?: boolean} | null)?.itemOpenedHere === true;
+
+  const setOpenId = (id: string | null) => {
+    if (!basePath) {
+      setStateId(id);
+    } else if (id) {
+      navigate({pathname: `${basePath}/${id}`, search: location.search}, {
+        preventScrollReset: true,
+        // stepping between items replaces, so Back still closes the modal in one go
+        replace: !!openId,
+        state: {itemOpenedHere: openedHere || !openId},
+      });
+    } else if (openedHere) {
+      navigate(-1);
+    } else {
+      navigate({pathname: basePath, search: location.search}, {replace: true, preventScrollReset: true});
+    }
+  };
+  const last = useRef<{item: T, index: number} | null>(null);
+
+  const index = (openId) ? items.findIndex((item) => getId(item) === openId) : -1;
+  if (index !== -1) {
+    last.current = {item: items[index], index};
+  } else if (!openId || (last.current && getId(last.current.item) !== openId)) {
+    last.current = null;
+  }
+
+  const openItem = (index !== -1) ? items[index] : last.current?.item ?? null;
+  const at = (index !== -1) ? index : Math.min(last.current?.index ?? 0, items.length);
+  const previous = (openItem && 0 < at) ? items[at - 1] : undefined;
+  const next = (openItem) ? items[(index !== -1) ? at + 1 : at] : undefined;
+
+  return {
+    openId,
+    openItem,
+    previousId: (previous) ? getId(previous) : null,
+    nextId: (next) ? getId(next) : null,
+    open: setOpenId,
+    close: () => setOpenId(null),
+  };
+}
+
+
+const LINKED_TITLE_ID = 'linked-item-modal-title';
+
+// The modal for a linked item (`<basePath>/<id>`) that isn't on the loaded page, while it's fetched on its own by id:
+// loading, then "<noun> not found" when there's no such item (a query `select`ing `null`, a 404, or a 400 for an id
+// that can't be one), or the error with a Retry. The page shows its own modal instead once it has the item.
+export function LinkedItemModal({ noun, notFoundMessage, query, onClose }: {
+  noun: string,
+  notFoundMessage: string,
+  query: {data: unknown, isPending: boolean, error: Error | null, isRefetching: boolean, refetch: () => unknown},
+  onClose: () => void,
+}) {
+  const { t } = useI18n();
+  const { data, isPending, error, isRefetching, refetch } = query;
+  const notFound = data === null || (error instanceof ApiRequestError && (error.status === 404 || error.status === 400));
+  return (
+    <Modal labelledBy={LINKED_TITLE_ID} onClose={onClose} className='max-w-lg'>
+      {(isPending) ? (
+        <div aria-busy='true' className='flex justify-center px-6 py-16'>
+          <h2 id={LINKED_TITLE_ID} className='sr-only'>{t('linked.loading', {noun})}</h2>
+          <Spinner className='size-8'/>
+        </div>
+      ) : (
+        <div className='px-6 py-16 text-center'>
+          <AlertTriangle aria-hidden className='mx-auto mb-4 size-14 text-danger-text'/>
+          <h2 id={LINKED_TITLE_ID} className='mb-3 text-2xl font-bold text-white'>
+            {(notFound) ? t('linked.not_found', {noun: `${noun[0].toUpperCase()}${noun.slice(1)}`}) : t('linked.load_error', {noun})}
+          </h2>
+          <p className='mb-6 text-muted'>{(notFound) ? notFoundMessage : errorMessage(error)}</p>
+          {(notFound) ? (
+            <button type='button' className='btn btn-secondary' onClick={onClose}>{t('linked.back')}</button>
+          ) : (
+            <button type='button' className='btn btn-secondary' disabled={isRefetching} onClick={() => refetch()}>{t('common.retry')}</button>
+          )}
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+
+// a quick flick counts once it's moved this far, a slow drag once it's past this much of the width
+const SWIPE_MIN_DISTANCE = 60;
+const SWIPE_MAX_DURATION = 600;
+const SWIPE_COMMIT_FRACTION = 0.35;
+// how far it has to move before it's decided whether it's a swipe or a scroll
+const SWIPE_INTENT_DISTANCE = 10;
+// dragging towards the end of the page only stretches a bit
+const SWIPE_EDGE_RESISTANCE = 0.25;
+// how far the next item slides in from
+const SLIDE_IN_DISTANCE = 96;
+
+// Whether a swipe from `target` belongs to something else: a text field, or anything that scrolls sideways itself.
+function swipeHandledBy(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) {
+    return false;
+  }
+  if (target.closest('input, textarea, select, [contenteditable], video, audio')) {
+    return true;
+  }
+  for (let element: Element | null = target; element && element !== document.body; element = element.parentElement) {
+    const { overflowX } = getComputedStyle(element);
+    if ((overflowX === 'auto' || overflowX === 'scroll') && element.clientWidth < element.scrollWidth) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function prefersReducedMotion(): boolean {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+// While the content slides it's clipped to the dialog, and once it stops nothing is left on it: a transform would
+// make it the containing block of the `fixed` dialogs opened from inside it.
+function setSliding(element: HTMLElement, sliding: boolean) {
+  const dialog = element.closest<HTMLElement>('[role=dialog]');
+  if (dialog) {
+    // `clip` rather than `hidden`, which would break the sticky footer
+    dialog.style.overflow = (sliding) ? 'clip' : '';
+  }
+  if (!sliding) {
+    element.style.transform = '';
+    element.style.opacity = '';
+  }
+}
+
+// `AdminModalFooter`'s Previous / Next go through the modal so they slide too, and are off while it's held. `advance`
+// is for a verdict that went through (`useReviewShortcuts`): on to the next item, if nothing holds the modal here.
+// `steppedAt` is when the modal last went to another item (`performance.now()`), however it got there
+export const SlideNavigation = createContext<{slide: (id: string) => void, held: boolean, advance: () => void, steppedAt: RefObject<number>} | null>(null);
+// how many of the item's parts are holding the modal on it (`useHoldModalNavigation`)
+const NavigationHolds = createContext<Dispatch<SetStateAction<number>> | null>(null);
+
+// Keeps an `AdminTagModal` on its item while `held`: ← / →, swiping and the footer's arrows do nothing. For a change to
+// the item in flight (stepping away unmounts it, and `mutate`'s toasts and follow-ups with it) or unsaved edits.
+export function useHoldModalNavigation(held: boolean) {
+  const setHolds = useContext(NavigationHolds);
+  useEffect(() => {
+    if (!held || !setHolds) {
+      return;
+    }
+    setHolds((count) => count + 1);
+    return () => setHolds((count) => count - 1);
+  }, [held, setHolds]);
+}
+
+
+// One admin tag over the list, like the dashboard's own tag modal: the full card, with ← / → (or swiping on touch
+// screens) stepping through the page. Swiping drags the item along, and every step slides the next one in.
+// `footer={false}` leaves the footer to the children, for an `AdminModalFooter` with the item's own actions in it.
+// `stickyClose` is `Modal`'s, for children with a header that sticks to the top on phones.
+export function AdminTagModal({ labelledBy, previousId, nextId, onNavigate, onClose, footer = true, stickyClose = false, children }: {
+  labelledBy: string,
+  previousId: string | null,
+  nextId: string | null,
+  onNavigate: (id: string) => void,
+  onClose: () => void,
+  footer?: boolean,
+  stickyClose?: boolean,
+  children: ReactNode,
+}) {
+  const [ holds, setHolds ] = useState(0);
+  const held = 0 < holds;
+  const navigation = useRef({previousId, nextId, onNavigate, held});
+  navigation.current = {previousId, nextId, onNavigate, held};
+  const slideRef = useRef<HTMLDivElement>(null);
+  // the direction to slide the next render in from, 1 for the next item and -1 for the previous one
+  const slideIn = useRef<1 | -1 | null>(null);
+  const steppedAt = useRef(0);
+
+  // `dragged`: a swipe left the content off to one side, it slides the rest of the way out first
+  const step = useRef(async (id: string, dragged = false) => {
+    if (navigation.current.held) {
+      return;
+    }
+    const direction = (id === navigation.current.previousId) ? -1 : 1;
+    const element = slideRef.current;
+    if (!element || prefersReducedMotion()) {
+      if (element) {
+        setSliding(element, false);
+      }
+      steppedAt.current = performance.now();
+      navigation.current.onNavigate(id);
+      return;
+    }
+    if (dragged) {
+      const { transform, opacity } = element.style;
+      element.getAnimations().forEach((animation) => animation.cancel());
+      // held at the end until the next item replaces it
+      await element.animate(
+        [{transform, opacity}, {transform: `translateX(${-direction * element.offsetWidth}px)`, opacity: 0}],
+        {duration: 140, easing: 'ease-in', fill: 'forwards'},
+      ).finished.catch(() => {});
+    }
+    slideIn.current = direction;
+    steppedAt.current = performance.now();
+    navigation.current.onNavigate(id);
+  });
+
+  // before the next item is painted, so it never shows in place first
+  useLayoutEffect(() => {
+    const element = slideRef.current;
+    const direction = slideIn.current;
+    if (!element || direction === null) {
+      return;
+    }
+    slideIn.current = null;
+    element.getAnimations().forEach((animation) => animation.cancel());
+    setSliding(element, true);
+    element.style.transform = '';
+    element.style.opacity = '';
+    const animation = element.animate(
+      [{transform: `translateX(${direction * SLIDE_IN_DISTANCE}px)`, opacity: 0}, {transform: 'none', opacity: 1}],
+      {duration: 220, easing: 'cubic-bezier(0.2, 0.9, 0.3, 1)'},
+    );
+    // a newer slide cancelling this one takes over from here
+    animation.finished.then(() => setSliding(element, false), () => {});
+  });
+
+  // A verdict's own hold lets go in the same update that asks for this, so `held` is read after it: whatever still
+  // holds the modal then (unsaved edits, another request) keeps it on this item, and the ask is dropped, not kept
+  // for later
+  const [ advancing, setAdvancing ] = useState(false);
+  useEffect(() => {
+    if (!advancing) {
+      return;
+    }
+    setAdvancing(false);
+    const { nextId, held } = navigation.current;
+    if (nextId && !held) {
+      step.current(nextId);
+    }
+  }, [advancing]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      // not from a field, or while a dialog is open over this one (a confirm, the media viewer)
+      if (event.altKey || event.ctrlKey || event.metaKey || !isArrowNavigationTarget(event.target)) {
+        return;
+      }
+      const { previousId, nextId } = navigation.current;
+      if (event.key === 'ArrowLeft' && previousId) {
+        step.current(previousId);
+      } else if (event.key === 'ArrowRight' && nextId) {
+        step.current(nextId);
+      }
+    };
+
+    // Swipe left for the next one, right for the previous one. The content follows the finger once the touch has
+    // gone sideways more than down, and springs back if it's let go too soon.
+    let swipe: {x: number, y: number, time: number, dragging: boolean} | null = null;
+    const springBack = () => {
+      const element = slideRef.current;
+      if (!element) {
+        return;
+      }
+      const { transform, opacity } = element.style;
+      element.style.transform = '';
+      element.style.opacity = '';
+      if (!transform) {
+        setSliding(element, false);
+        return;
+      }
+      element.animate([{transform, opacity}, {transform: 'none', opacity: 1}], {duration: 200, easing: 'ease-out'})
+        .finished.then(() => setSliding(element, false), () => {});
+    };
+    const onTouchStart = (event: TouchEvent) => {
+      // not pinch zooms, while a dialog is open over this one, or while it's held on this item
+      swipe = (event.touches.length === 1 && openModalCount() <= 1 && !navigation.current.held && !swipeHandledBy(event.target))
+        ? {x: event.touches[0].clientX, y: event.touches[0].clientY, time: event.timeStamp, dragging: false}
+        : null;
+    };
+    const onTouchMove = (event: TouchEvent) => {
+      const element = slideRef.current;
+      if (!swipe || !element) {
+        return;
+      }
+      // a second finger joining in cancels it
+      if (1 < event.touches.length) {
+        swipe = null;
+        springBack();
+        return;
+      }
+      const dx = event.touches[0].clientX - swipe.x;
+      const dy = event.touches[0].clientY - swipe.y;
+      if (!swipe.dragging) {
+        if (Math.abs(dx) < SWIPE_INTENT_DISTANCE && Math.abs(dy) < SWIPE_INTENT_DISTANCE) {
+          return;
+        }
+        // scrolling, or selecting text by dragging
+        if (Math.abs(dx) <= Math.abs(dy) || !document.getSelection()?.isCollapsed) {
+          swipe = null;
+          return;
+        }
+        swipe.dragging = true;
+        element.getAnimations().forEach((animation) => animation.cancel());
+        setSliding(element, true);
+      }
+      const { previousId, nextId } = navigation.current;
+      const offset = (((dx < 0) ? nextId : previousId) ? 1 : SWIPE_EDGE_RESISTANCE) * dx;
+      element.style.transform = `translateX(${offset}px)`;
+      element.style.opacity = String(1 - 0.5 * Math.min(1, Math.abs(offset) / element.offsetWidth));
+    };
+    const onTouchEnd = (event: TouchEvent) => {
+      const start = swipe;
+      swipe = null;
+      if (!start) {
+        return;
+      }
+      const element = slideRef.current;
+      const dx = event.changedTouches[0].clientX - start.x;
+      const dy = event.changedTouches[0].clientY - start.y;
+      const target = (dx < 0) ? navigation.current.nextId : navigation.current.previousId;
+      const sideways = Math.abs(dy) < Math.abs(dx);
+      const flicked = SWIPE_MIN_DISTANCE <= Math.abs(dx) && event.timeStamp - start.time <= SWIPE_MAX_DURATION;
+      const far = !!element && SWIPE_COMMIT_FRACTION * element.offsetWidth < Math.abs(dx);
+      // held since the swipe started (a save went out): springs back
+      if (target && sideways && (flicked || far) && !event.touches.length && document.getSelection()?.isCollapsed && !navigation.current.held) {
+        step.current(target, start.dragging);
+      } else if (start.dragging) {
+        springBack();
+      }
+    };
+    const onTouchCancel = () => {
+      if (swipe?.dragging) {
+        springBack();
+      }
+      swipe = null;
+    };
+
+    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('touchstart', onTouchStart, {passive: true});
+    document.addEventListener('touchmove', onTouchMove, {passive: true});
+    document.addEventListener('touchend', onTouchEnd, {passive: true});
+    document.addEventListener('touchcancel', onTouchCancel, {passive: true});
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('touchstart', onTouchStart);
+      document.removeEventListener('touchmove', onTouchMove);
+      document.removeEventListener('touchend', onTouchEnd);
+      document.removeEventListener('touchcancel', onTouchCancel);
+    };
+  }, []);
+
+  return (
+    <Modal labelledBy={labelledBy} onClose={onClose} stickyClose={stickyClose}>
+      <NavigationHolds.Provider value={setHolds}>
+        <SlideNavigation.Provider value={{slide: (id) => step.current(id), held, advance: () => setAdvancing(true), steppedAt}}>
+          <div ref={slideRef}>
+            {children}
+            {(footer) ? <AdminModalFooter previousId={previousId} nextId={nextId} onNavigate={onNavigate}/> : null}
+          </div>
+        </SlideNavigation.Provider>
+      </NavigationHolds.Provider>
+    </Modal>
+  );
+}
+
+
+// `ModalFooter` for `AdminTagModal`, whose Previous / Next go through the modal so they slide too. With `children` (the
+// item's actions) they go between the two and the footer stays at the bottom of the window while scrolling.
+export function AdminModalFooter({ previousId, nextId, onNavigate, children }: {
+  previousId: string | null,
+  nextId: string | null,
+  onNavigate: (id: string) => void,
+  children?: ReactNode,
+}) {
+  const navigation = useContext(SlideNavigation);
+  const held = !!navigation?.held;
+  return (
+    <ModalFooter previousId={(held) ? null : previousId} nextId={(held) ? null : nextId} onNavigate={navigation?.slide ?? onNavigate}>
+      {children}
+    </ModalFooter>
+  );
+}

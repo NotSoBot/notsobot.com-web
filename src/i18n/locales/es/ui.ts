@@ -117,4 +117,6 @@ export const Ui: Record<keyof typeof English, string> = {
   'pagination.page': 'Página {page} / {pages}',
   'ui.collapse': 'Contraer',
   'ui.clear_filter': 'Quitar el filtro de {label}',
+  'ui.session_error.title': 'No se pudo conectar con NotSoBot',
+  'ui.session_error.description': 'No pudimos verificar tu sesión. Inténtalo de nuevo en un momento.',
 };

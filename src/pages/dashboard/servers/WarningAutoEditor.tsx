@@ -186,7 +186,7 @@ export function WarningAutoEditor({ value, onChange, exempt, onExemptChange, gui
             const exemptions = exemptSize(rule.exempt);
             const exemptionsLabel = (exemptions) ? t('wauto.exemptions_count', {count: exemptions}) : t('wauto.exemptions');
             return (
-              <li key={index} className='rounded-lg border border-border bg-surface-2 p-2'>
+              <li key={index} className='rounded-lg border border-line bg-surface-2 p-2'>
                 {/* the rule's controls wrap on their own, its buttons stay in the top right */}
                 <div className='flex items-start gap-2'>
                   <div className='flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1.5'>
@@ -328,7 +328,7 @@ export function WarningAutoEditor({ value, onChange, exempt, onExemptChange, gui
                   <p className='mt-1.5 text-xs text-subtle'>{t('rules.id_hint')}</p>
                 ) : null}
                 {(open.has(index)) ? (
-                  <div id={`${id}-exempt-${index}`} className='mt-2 border-t border-border pt-2'>
+                  <div id={`${id}-exempt-${index}`} className='mt-2 border-t border-line pt-2'>
                     <ExemptEditor
                       label={t('wauto.rule_exempt_label')}
                       value={rule.exempt ?? null}
@@ -343,7 +343,7 @@ export function WarningAutoEditor({ value, onChange, exempt, onExemptChange, gui
           })}
         </ul>
       ) : (
-        <p className='rounded-lg border border-dashed border-border p-3 text-sm text-subtle'>{t('wauto.off')}</p>
+        <p className='rounded-lg border border-dashed border-line-strong p-3 text-sm text-subtle'>{t('wauto.off')}</p>
       )}
       <button type='button' className='btn btn-sm btn-secondary mt-2' disabled={disabled || MAX_WARNING_AUTO <= value.length} onClick={add}>
         <Plus aria-hidden className='size-4'/>

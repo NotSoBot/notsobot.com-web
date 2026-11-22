@@ -7,13 +7,13 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { ModalFooter } from '@/components/ui/DetailModal';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
+import { ExactDate } from '@/components/ui/Tooltip';
 import { Routes } from '@/config';
 import { translate, useI18n } from '@/i18n';
 import { ApiErrorCodes, ApiRequestError, type Tag, type TagStorageScope } from '@/lib/api';
 import { errorMessage, useMeGuildsQuery, useMeTagDirectoryQuery, useMeTagQuery, usePatchMeTagMutation } from '@/lib/api/dashboardQueries';
 import { cn, formatDate, formatDateTime, formatNumber } from '@/lib/utils';
 
-import { ExactDate } from '../admin/adminUi';
 import { CharCounter, Field, InlineError, Panel, PanelSkeleton, ReadOnlyNote, SaveBar, Skeleton, Toggle, UnsavedChangesGuard } from '../ui';
 import { CodeEditor } from './CodeEditor';
 import { DeleteMeTagDialog } from './DeleteMeTagDialog';
@@ -347,9 +347,12 @@ function TagContentForm({ tag, readOnly, onDirtyChange }: {tag: Tag, readOnly: b
         setDraft((current) => (current === sent) ? null : current);
         toast(translate('dtags.editor.saved'));
       },
-      // no toast for a failure: it shows above the save bar (or under the name, when it's taken)
+      // no toast for a failure: it shows above the save bar (or under the name, when it's taken) and in the bar itself,
+      // which is where a save from further up the form is looked for
     });
   };
+
+  const saveError = (patch.isError) ? errorMessage(patch.error, t('dtags.editor.save_error')) : null;
 
   const saveRef = useRef(save);
   saveRef.current = save;
@@ -417,13 +420,19 @@ function TagContentForm({ tag, readOnly, onDirtyChange }: {tag: Tag, readOnly: b
           />
         </div>
 
-        {(patch.isError && !nameError) ? <InlineError>{errorMessage(patch.error, t('dtags.editor.save_error'))}</InlineError> : null}
+        {(saveError && !nameError) ? <InlineError>{saveError}</InlineError> : null}
 
         {(!readOnly) ? (
-          <SaveBar dirty={dirty} pending={patch.isPending} disabled={invalid} onDiscard={() => {
-            patch.reset();
-            setDraft(null);
-          }}/>
+          <SaveBar
+            dirty={dirty}
+            pending={patch.isPending}
+            disabled={invalid}
+            status={(saveError) ? <span className='text-danger-text'>{saveError}</span> : undefined}
+            onDiscard={() => {
+              patch.reset();
+              setDraft(null);
+            }}
+          />
         ) : null}
       </Panel>
     </form>

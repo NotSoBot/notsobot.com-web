@@ -89,7 +89,7 @@ export const Status: Record<keyof typeof English, string> = {
   'status.show_all': 'Mostrar los {count}',
   'status.hide_totals': 'Ocultar todos los totales',
   'status.show_totals': 'Mostrar todos los totales ({count})',
-  'status.totals_note': 'La mayoría son tamaños de caché sumados entre shards. Pasa el ratón por un número para ver exactamente qué cuenta.',
+  'status.totals_note': 'La mayoría son tamaños de caché sumados entre shards. Pasa el cursor por un número para ver exactamente qué cuenta.',
   'voice_status.title': 'Estado de voz',
   'voice_status.online': 'En línea',
   'voice_status.draining': 'Vaciando',

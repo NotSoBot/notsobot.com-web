@@ -337,7 +337,7 @@ function UserDetails({ entry, navigation }: {
           <section>
             <h3 className='section-label mb-2'>Activity</h3>
             <div className='grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-2'>
-              <StatTile label='Commands run' value={entry.commands.toLocaleString()} title='Commands they’ve run, ever'/>
+              <StatTile label='Commands run' value={entry.commands.toLocaleString()} hint='Commands they’ve run, ever'/>
               <DateTile label='First seen' value={entry.first_seen} empty='Never' title='When they ran their first command'/>
               <StatTile label='Reports about' to={adminReportsPath({q: `target:${user.id}`, status: 'all'})} value={entry.reports.toLocaleString()} tone='text-warning'/>
               <StatTile label='Reports sent' to={adminReportsPath({q: `user:${user.id}`, status: 'all'})} value={entry.reports_sent.toLocaleString()}/>
@@ -353,10 +353,10 @@ function UserDetails({ entry, navigation }: {
               label='Files'
               // an api from before the size was added leaves it out
               value={(entry.owned.files && entry.files_size) ? `${entry.owned.files.toLocaleString()} • ${formatMemory(entry.files_size, (entry.files_size < 1024 * 1024) ? 0 : 1)}` : entry.owned.files.toLocaleString()}
-              title='Files they’ve uploaded that haven’t expired, and the storage they take up (the same file uploaded twice is stored once)'
+              hint='Files they’ve uploaded that haven’t expired, and the storage they take up (the same file uploaded twice is stored once)'
             />
             {/* a count only: reminders are people's private notes, so staff don't get to read them */}
-            <StatTile label='Reminders' value={entry.owned.reminders.toLocaleString()} title='Reminders they’ve set. Their contents are private.'/>
+            <StatTile label='Reminders' value={entry.owned.reminders.toLocaleString()} hint='Reminders they’ve set. Their contents are private.'/>
             <StatTile label='Tags' to={adminTagsPath(`user:${user.id}`)} value={entry.owned.tags.toLocaleString()}/>
             <StatTile label='Voices' to={adminListPath(Routes.DASHBOARD_ADMIN_VOICES, {user_id: user.id})} value={entry.owned.voices.toLocaleString()}/>
           </div>
@@ -429,7 +429,10 @@ function CopyrightStrikes({ userId }: {userId: string}) {
           label='Strikes'
           value={value}
           tone='text-danger-text'
-          title={(query.isError) ? errorMessage(query.error, 'Couldn’t load their strikes.') : (strikes.length) ? `${(open) ? 'Hide' : 'Show'} their strikes` : 'Copyright removals of their tags, one per staff action'}
+          hint={(query.isError) ? errorMessage(query.error, 'Couldn’t load their strikes.') : 'Copyright removals of their tags, one per staff action'}
+          // what clicking it does, only while there are any to show
+          title={(strikes.length) ? `${(open) ? 'Hide' : 'Show'} their strikes` : undefined}
+          expanded={(strikes.length) ? open : undefined}
           onClick={(strikes.length) ? () => setOpen(!open) : undefined}
         />
         <DateTile label='Last strike' value={strikes[0]?.created ?? null} empty='Never'/>

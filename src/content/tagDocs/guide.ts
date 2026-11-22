@@ -559,6 +559,7 @@ export const TAG_DOC_GUIDE: Array<TagDocGuideSection> = [
       rows: [
         ['Run time', '40 seconds', 'How long the whole run can take, everything it calls included: 60 seconds in a premium server, 70 with Premium, 100 with Plus and 130 with Max.'],
         ['Iterations', '450', 'Times text is parsed per run. When it runs out the remaining text is output unevaluated.'],
+        ['Function calls', '10,000', 'Functions called in one run, the tags it calls included.'],
         ['Network requests', '15', 'Functions that reach the internet: downloads, searches, attachments, code runs, looking up users and so on.'],
         ['AI requests', '1', '`{ai}` calls.'],
         ['Machine learning requests', '5', 'Image generation and editing (`{imagine}`, `{edit}` and their URL versions).'],
@@ -568,6 +569,7 @@ export const TAG_DOC_GUIDE: Array<TagDocGuideSection> = [
         ['Component runs', '2', 'Times the tag can run again from button clicks, select menus or `{componentsontimeout}`.'],
         ['Attachments', '10', 'Files attached to the reply.'],
         ['Embeds', '10', 'Embeds in the reply.'],
+        ['Output text size', '10 MB', 'All the text the tag produces, or the channel\'s upload limit if that is smaller.'],
         ['Pages', '1,000', 'Pages added with `{pagejson}` or from code.'],
         ['Variables', '100', 'Variables set during one run.'],
         ['Variable name length', '64 characters', 'Length of a variable\'s name.'],
@@ -583,6 +585,7 @@ export const TAG_DOC_GUIDE: Array<TagDocGuideSection> = [
         ['Code network', '20 Mbps', 'Internet speed inside the sandbox, at about 3 requests per second.'],
         ['AI prompt length', '12,000 characters', 'Longer `{ai}` prompts are cut off.'],
         ['Regex time', '25 ms', 'How long `{replace}` can spend on a regular expression.'],
+        ['Math and replace time', '2 seconds', 'Time `{math}` and `{replace}` can use in total in one run, the tags it calls included.'],
         ['Loop size', '200', 'Items `{foreach}` can loop over.'],
       ],
     },

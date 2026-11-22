@@ -133,7 +133,7 @@ function UserMenu({ compact }: {compact: boolean}) {
                 <MessageSquareWarning className='size-4 text-muted'/>
                 {t('account.report_updates')}
                 <span className='ml-auto min-w-5 rounded-full bg-brand px-1.5 text-center text-xs leading-5 font-semibold text-white tabular-nums'>
-                  {unreadReports.toLocaleString()}
+                  {formatNumber(unreadReports)}
                 </span>
               </Link>
             ) : null}

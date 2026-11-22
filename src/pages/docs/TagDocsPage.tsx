@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { BookOpen, Check, ChevronDown, Copy, Link2 } from 'lucide-react';
-import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Fragment, memo, useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, NavigationType, useLocation, useMatch, useNavigate, useNavigationType, useSearchParams } from 'react-router';
 
 import { Segmented } from '@/components/ui/Segmented';
@@ -120,7 +120,10 @@ export function TagDocsPage() {
   const [ quarantineDismissed, setQuarantineDismissed ] = useQuarantineNoticeDismissed();
   const [ quarantineReopened, setQuarantineReopened ] = useState(false);
 
-  const needle = query.trim().toLowerCase();
+  // the results follow the input a moment later, so typing isn't held up by filtering and rendering every card (they
+  // are memo'd below, so the render that only updates the input skips them)
+  const shownQuery = useDeferredValue(query).trim();
+  const needle = shownQuery.toLowerCase();
   const guide = useMemo(() => {
     const sections = (view === 'mediascript') ? docs.mediaScriptGuide : docs.guide;
     return (needle) ? sections.filter((section) => guideSearchText(section).includes(needle)) : sections;
@@ -206,7 +209,7 @@ export function TagDocsPage() {
               {t('tag_docs.results', {
                 items: plural((view === 'mediascript') ? 'tag_docs.commands' : 'tag_docs.functions', total),
                 sections: plural('tag_docs.sections', guide.length),
-                query: query.trim(),
+                query: shownQuery,
               })}
             </p>
           ) : null}
@@ -261,7 +264,7 @@ export function TagDocsPage() {
 
             {(!total && !guide.length) ? (
               <div className='card p-10 text-center'>
-                <p className='mb-1 text-lg text-white'>{t('tag_docs.empty_title', {query: query.trim()})}</p>
+                <p className='mb-1 text-lg text-white'>{t('tag_docs.empty_title', {query: shownQuery})}</p>
                 <p className='text-muted'>
                   {rich((view === 'mediascript') ? 'tag_docs.empty_mediascript' : 'tag_docs.empty_tagscript', {code})}
                 </p>
@@ -346,7 +349,8 @@ function SidebarButton({ onClick, count, children }: {onClick: () => void, count
 }
 
 
-function GuideSection({ anchor, section, highlight }: {anchor: string, section: TagDocGuideSection, highlight: string}) {
+// memo, like the two cards below: only a search that has caught up with the input (`highlight`) renders them again
+const GuideSection = memo(function GuideSection({ anchor, section, highlight }: {anchor: string, section: TagDocGuideSection, highlight: string}) {
   return (
     <section id={anchor} className='scroll-mt-24 rounded-lg border border-line bg-surface p-5 sm:p-6'>
       <h2 className='group mb-3 flex items-center gap-2 text-xl font-semibold text-white'>
@@ -377,10 +381,10 @@ function GuideSection({ anchor, section, highlight }: {anchor: string, section: 
       {(section.examples?.length) ? <Examples examples={section.examples}/> : null}
     </section>
   );
-}
+});
 
 
-function FunctionCard({ fn, highlight }: {fn: TagDocFunction, highlight: string}) {
+const FunctionCard = memo(function FunctionCard({ fn, highlight }: {fn: TagDocFunction, highlight: string}) {
   const { t } = useI18n();
   const anchor = tagFunctionAnchor(fn);
   const [ name, ...aliases ] = fn.names;
@@ -436,10 +440,10 @@ function FunctionCard({ fn, highlight }: {fn: TagDocFunction, highlight: string}
       ) : null}
     </article>
   );
-}
+});
 
 
-function MediaScriptCard({ command, highlight }: {command: TagDocMediaScriptCommand, highlight: string}) {
+const MediaScriptCard = memo(function MediaScriptCard({ command, highlight }: {command: TagDocMediaScriptCommand, highlight: string}) {
   const anchor = mediaScriptCommandAnchor(command);
   return (
     <article id={anchor} className='scroll-mt-24 rounded-lg border border-line bg-surface p-5'>
@@ -497,7 +501,7 @@ function MediaScriptCard({ command, highlight }: {command: TagDocMediaScriptComm
       ) : null}
     </article>
   );
-}
+});
 
 
 function Examples({ examples }: {examples: Array<TagDocExample>}) {

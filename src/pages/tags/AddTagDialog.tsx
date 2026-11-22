@@ -2,13 +2,13 @@ import { CheckCircle2, TriangleAlert } from 'lucide-react';
 import { useId, useState } from 'react';
 
 import { useAuth } from '@/auth';
+import { CharCounter } from '@/components/ui/form';
 import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
 import { readStored, writeStored } from '@/hooks/usePersistentState';
 import { translate, useI18n } from '@/i18n';
 import { ApiErrorCodes, ApiRequestError, TagDirectoryVerificationStates, type Tag } from '@/lib/api';
 import { errorMessage, isDiscordGrantError, isScopeMismatch, useAddMeTagMutation, useMeGuildListingQuery, useMeGuildsQuery } from '@/lib/api/dashboardQueries';
-import { CharCounter } from '@/pages/dashboard/ui';
 
 
 const DM_DESTINATION = 'dm';
@@ -41,11 +41,17 @@ export function AddTagDialog({ tag, verified, onClose }: {tag: Pick<Tag, 'id' | 
   const listing = useMeGuildListingQuery();
   const { login } = useAuth();
   const add = useAddMeTagMutation(tag.id);
-  // null until they pick one: it then starts on the server they added to last time, once the list has it (DMs while
-  // it loads, or when that server isn't in it anymore)
-  const [ picked, setPicked ] = useState<string | null>(null);
   const [ remembered ] = useState(() => readStored<string>(LAST_DESTINATION_KEY, DM_DESTINATION));
-  const destination = picked ?? ((guilds.data?.some((guild) => guild.id === remembered)) ? remembered : DM_DESTINATION);
+  // starts on the server they added to last time, which has to wait for the list to have it (DMs when that server
+  // isn't in it anymore). null until then, with the choice and Add held: showing DMs and switching once the list
+  // arrived sent a quick click somewhere they never saw selected
+  const [ picked, setPicked ] = useState<string | null>((remembered === DM_DESTINATION) ? DM_DESTINATION : null);
+  // decided once, a later refetch of the list never moves it
+  if (picked === null && !guilds.isPending) {
+    setPicked((guilds.data?.some((guild) => guild.id === remembered)) ? remembered : DM_DESTINATION);
+  }
+  const awaitingServers = picked === null;
+  const destination = picked ?? DM_DESTINATION;
   const [ name, setName ] = useState(tag.name);
   const [ added, setAdded ] = useState<{tag: Tag, where: string} | null>(null);
 
@@ -97,7 +103,7 @@ export function AddTagDialog({ tag, verified, onClose }: {tag: Pick<Tag, 'id' | 
           className='p-5 sm:p-6'
           onSubmit={(event) => {
             event.preventDefault();
-            if (trimmedName && !add.isPending) {
+            if (trimmedName && !add.isPending && !awaitingServers) {
               submit();
             }
           }}
@@ -129,7 +135,7 @@ export function AddTagDialog({ tag, verified, onClose }: {tag: Pick<Tag, 'id' | 
                 id={destinationId}
                 value={destination}
                 onChange={(event) => setPicked(event.target.value)}
-                disabled={add.isPending}
+                disabled={add.isPending || awaitingServers}
                 className='input'
               >
                 <option value={DM_DESTINATION}>{t('tags.add.dms')}</option>
@@ -201,8 +207,8 @@ export function AddTagDialog({ tag, verified, onClose }: {tag: Pick<Tag, 'id' | 
 
           <div className='mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
             <button type='button' className='btn btn-secondary' onClick={onClose} disabled={add.isPending}>{t('common.cancel')}</button>
-            <button type='submit' className='btn btn-primary' disabled={!trimmedName || add.isPending}>
-              {(add.isPending) ? <Spinner className='size-4 border-white/40 border-t-white'/> : null}
+            <button type='submit' className='btn btn-primary' disabled={!trimmedName || add.isPending || awaitingServers}>
+              {(add.isPending || awaitingServers) ? <Spinner className='size-4 border-white/40 border-t-white'/> : null}
               {t('tags.add.submit')}
             </button>
           </div>

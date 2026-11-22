@@ -237,7 +237,7 @@ function SectionSelect({ groups }: {groups: ReadonlyArray<SectionGroup>}) {
         {(current) ? <current.icon className='size-4 shrink-0 text-muted'/> : null}
         <span className='min-w-0 flex-1 truncate'>{(current) ? maybeTranslate(current.label) : t('dash.choose_page')}</span>
         {(current?.badge) ? (
-          <span className='min-w-5 rounded-full bg-brand px-1.5 text-center text-xs leading-5 font-semibold text-white tabular-nums'>{current.badge.toLocaleString()}</span>
+          <span className='min-w-5 rounded-full bg-brand px-1.5 text-center text-xs leading-5 font-semibold text-white tabular-nums'>{formatNumber(current.badge)}</span>
         ) : null}
         {(elsewhere) ? <span className='size-2 shrink-0 rounded-full bg-brand'/> : null}
         <ChevronsUpDown className='size-4 shrink-0 text-muted'/>
@@ -300,7 +300,7 @@ function SectionList({ sections, badges }: {sections: ReadonlyArray<Section>, ba
             {maybeTranslate(section.label)}
             {(badges?.[section.to]) ? (
               <span className='ml-auto min-w-5 rounded-full bg-brand px-1.5 text-center text-xs leading-5 font-semibold text-white tabular-nums'>
-                {badges[section.to].toLocaleString()}
+                {formatNumber(badges[section.to])}
                 <span className='sr-only'>{t('dash.with_updates')}</span>
               </span>
             ) : null}

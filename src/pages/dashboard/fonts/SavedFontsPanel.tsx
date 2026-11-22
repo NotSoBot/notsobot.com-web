@@ -52,7 +52,7 @@ export function SavedFontsPanel({ guildId, editable = true, readOnly, hideDescri
 }) {
   const { t, rich } = useI18n();
   const toast = useToast();
-  const { data, isPending, error } = useSavedFontsQuery(guildId);
+  const { data, isPending, error, isRefetching, refetch } = useSavedFontsQuery(guildId);
   const mutation = useSavedFontsMutation(guildId);
   // from the mutation itself, so it can't outlive (or miss) the request
   const busyKey = (mutation.isPending && mutation.variables) ? actionKey(mutation.variables) : null;
@@ -99,7 +99,7 @@ export function SavedFontsPanel({ guildId, editable = true, readOnly, hideDescri
           <Skeleton className='h-12 w-full bg-surface-2'/>
         </div>
       ) : (error) ? (
-        <p role='alert' className='text-sm text-danger-text'>{errorMessage(error, t('fonts.load_error'))}</p>
+        <InlineError onRetry={() => refetch()} retrying={isRefetching}>{errorMessage(error, t('fonts.load_error'))}</InlineError>
       ) : (items.length) ? (
         <>
           <Field label={t('fonts.preview_label')} hint={t('fonts.preview_hint')} className='mb-3'>

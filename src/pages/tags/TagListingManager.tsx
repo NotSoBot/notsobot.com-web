@@ -1,10 +1,12 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { ArrowUpRight, Clock, EyeOff, Pencil, ShieldCheck, ShieldX, X } from 'lucide-react';
-import { useEffect, useId, useState, type FormEvent, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useId, useState, type FormEvent, type ReactNode } from 'react';
 import { Link } from 'react-router';
 
 import { isStaff, useAuth } from '@/auth';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { CharCounter, Field, InlineError, Toggle } from '@/components/ui/form';
+import { GuildIcon } from '@/components/ui/GuildIcon';
 import { Modal } from '@/components/ui/Modal';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Spinner } from '@/components/ui/Spinner';
@@ -29,12 +31,9 @@ import {
   useAdminTagServersQuery,
   useTagServerCountsQuery,
 } from '@/lib/api/dashboardQueries';
+import { adminTagDirectoryPath } from '@/lib/adminPaths';
 import { queryKeys } from '@/lib/api/queries';
 import { cn, formatDate, formatNumber } from '@/lib/utils';
-import { adminTagDirectoryPath } from '@/pages/dashboard/admin/adminUi';
-import { TagAssetsPanel } from '@/pages/dashboard/admin/TagAssetsPanel';
-import { GuildIcon } from '@/pages/dashboard/servers/GuildIcon';
-import { CharCounter, Field, InlineError, Toggle } from '@/pages/dashboard/ui';
 
 import { CategorySelect, DescriptionEditor, tagContentAcknowledgement, useConfirmPress, verificationRequirement, VerificationWarning } from './tagDirectory';
 
@@ -45,6 +44,10 @@ import { CategorySelect, DescriptionEditor, tagContentAcknowledgement, useConfir
 
 // `Tag.content` is varchar(2000)
 const CONTENT_MAX = 2000;
+
+// staff's panel for archiving a tag's files comes with a good part of the admin panel, so it's only fetched once staff
+// open the edit form: everyone else browsing the directory never downloads it
+const TagAssetsPanel = lazy(async () => ({default: (await import('@/pages/dashboard/admin/TagAssetsPanel')).TagAssetsPanel}));
 
 export interface ListingAccess {
   owner: boolean,
@@ -483,13 +486,15 @@ const VERIFY_ACTIONS: Record<number, {label: string, icon: typeof ShieldCheck, c
 // Replaces the listing's description/content in the modal while editing. Owners get the title, description, category
 // and the "show content publicly" switch; staff get the title, description, category and the content itself, with
 // `media` (the thumbnail/media managers, which save on their own) slotted in above the content.
-// `onDirtyChange` hears whether there are unsaved edits, for the modal to ask before it closes over them.
-export function ListingEditForm({ item, access, media, onDone, onDirtyChange }: {
+// `onDirtyChange` hears whether there are unsaved edits, for the modal to ask before it closes over them, and
+// `onSavingChange` whether a save is in flight, for it to stay put until that's done.
+export function ListingEditForm({ item, access, media, onDone, onDirtyChange, onSavingChange }: {
   item: TagDirectoryItem,
   access: ListingAccess,
   media?: ReactNode,
   onDone: () => void,
   onDirtyChange?: (dirty: boolean) => void,
+  onSavingChange?: (saving: boolean) => void,
 }) {
   const { t, rich } = useI18n();
   const full = useFullContent(item, access);
@@ -522,13 +527,19 @@ export function ListingEditForm({ item, access, media, onDone, onDirtyChange }: 
   const invalid = TAG_DIRECTORY_TITLE_MAX < title.length || TAG_DIRECTORY_DESCRIPTION_MAX < description.length ||
     (contentChanged && (!content!.trim() || CONTENT_MAX < content!.length));
 
-  // not while saving: the save finishes by itself, closing then loses nothing. The form going away (saved, canceled,
-  // another tag) leaves nothing unsaved either
+  // not while saving: the modal stays put for that moment instead of asking (see `onSavingChange`). The form going away
+  // (saved, canceled, another tag) leaves nothing unsaved either
   const unsaved = dirty && !saving;
   useEffect(() => {
     onDirtyChange?.(unsaved);
     return () => onDirtyChange?.(false);
   }, [unsaved, onDirtyChange]);
+
+  // stepping to another tag mid-save would unmount this form: a failed save's error would never be shown
+  useEffect(() => {
+    onSavingChange?.(saving);
+    return () => onSavingChange?.(false);
+  }, [saving, onSavingChange]);
 
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -671,16 +682,18 @@ export function ListingEditForm({ item, access, media, onDone, onDirtyChange }: 
           </Field>
           {/* archiving a link that's in the content swaps it for the permanent one in the draft, saved with the listing */}
           {(admin.data) ? (
-            <TagAssetsPanel
-              tagId={item.id}
-              assets={admin.data.tag.assets ?? []}
-              className=''
-              onArchived={(asset, sourceUrl) => {
-                if (sourceUrl) {
-                  setContent((current) => current?.replaceAll(sourceUrl, asset.urls.cdn) ?? current);
-                }
-              }}
-            />
+            <Suspense fallback={null}>
+              <TagAssetsPanel
+                tagId={item.id}
+                assets={admin.data.tag.assets ?? []}
+                className=''
+                onArchived={(asset, sourceUrl) => {
+                  if (sourceUrl) {
+                    setContent((current) => current?.replaceAll(sourceUrl, asset.urls.cdn) ?? current);
+                  }
+                }}
+              />
+            </Suspense>
           ) : null}
         </>
       ) : (

@@ -20,7 +20,7 @@ export const FAQ_SPANISH: FaqTranslation = {
     },
     'use-without-server': {
       question: '¿Puedo usar NotSoBot sin añadirlo a un servidor?',
-      answer: 'Sí. Puedes añadir NotSoBot a tu cuenta de Discord en lugar de a un servidor. Sus comandos de barra y los del menú del clic derecho (como **Download** u **OCR** en un mensaje) funcionarán en MD y en servidores que permitan aplicaciones externas.\n\nLos comandos con prefijo como `.magik` solo funcionan en servidores donde se ha añadido el bot.',
+      answer: 'Sí. Puedes añadir NotSoBot a tu cuenta de Discord en lugar de a un servidor. Sus comandos de barra y los del menú del clic derecho (como **Download** u **OCR** en un mensaje) funcionarán en MD y en servidores que permitan aplicaciones externas.\n\nLos comandos con prefijo como `.magik` solo funcionan en servidores donde se ha añadido el bot y en tus MD con NotSoBot.',
     },
     'how-to-run-commands': {
       question: '¿Cómo uso un comando?',
@@ -34,15 +34,15 @@ export const FAQ_SPANISH: FaqTranslation = {
     // comandos y multimedia
     'image-input': {
       question: '¿Cómo uso un comando de imagen con una foto concreta?',
-      answer: 'Los comandos de imagen y vídeo cogen lo que van a editar de aquí, por orden de preferencia:\n\n- Un archivo adjunto a tu mensaje\n- Un mensaje al que estés respondiendo\n- Un enlace, un emoji personalizado o un usuario (para su avatar), como `.magik @alguien`\n\nSi no le das nada, NotSoBot usa la imagen o el vídeo más reciente del canal.',
+      answer: 'Los comandos de imagen y vídeo toman lo que van a editar de aquí, por orden de preferencia:\n\n- Un archivo adjunto a tu mensaje\n- Un mensaje al que estés respondiendo\n- Un enlace, un emoji personalizado o un usuario (para su avatar), como `.magik @alguien`\n\nSi no le das nada, NotSoBot usa la imagen o el vídeo más reciente del canal.',
     },
     'chain-effects': {
       question: '¿Puedo aplicar varios efectos a la vez?',
-      answer: 'Sí, con `/media-aiv pipe` (o `.pipe`). Separa los comandos con punto y coma, por ejemplo `/media-aiv pipe commands:flip; flop` o `.pipe flip; flop`. Se pueden encadenar hasta 5 comandos, y cada uno se aplica sobre el resultado del anterior.',
+      answer: 'Sí, con `/media-aiv pipe` (o `.pipe`). Separa los comandos con punto y coma, por ejemplo `/media-aiv pipe commands:flip; flop` o `.pipe flip; flop`. Se pueden encadenar hasta 10 comandos, o 5 si alguno tiene que ejecutarse por separado, y cada uno se aplica sobre el resultado del anterior.',
     },
     'download-videos': {
       question: '¿Cómo descargo un vídeo de TikTok, Instagram, YouTube, etc.?',
-      answer: 'Usa `/download` con el enlace, o haz clic derecho (o mantén pulsado) en un mensaje con un enlace y elige **Aplicaciones → Download**. Con prefijo es `.download <url>`.\n\nPara cambiar la calidad de vídeo por defecto de tus descargas, usa `/settings set download-quality`.',
+      answer: 'Usa `/download` con el enlace, o haz clic derecho (o mantén presionado) en un mensaje con un enlace y elige **Aplicaciones → Download**. Con prefijo es `.download <url>`.\n\nPara cambiar la calidad de vídeo por defecto de tus descargas, usa `/settings set download-quality`.',
     },
     'files-as-links': {
       question: '¿Por qué recibí un enlace en lugar de un archivo?',
@@ -72,11 +72,11 @@ export const FAQ_SPANISH: FaqTranslation = {
     },
     'loggers': {
       question: '¿Puede NotSoBot registrar lo que pasa en mi servidor?',
-      answer: 'Sí. Configura registros de baneos, canales, miembros, mensajes, roles, usuarios y voz, por ejemplo `/server loggers add type:Messages channel:#message-logs` (o `.loggers add messages -channel message-logs`). Usa `/server loggers list` (o `.loggers`) para ver qué se está registrando y dónde.',
+      answer: 'Sí. Configura registros de baneos, canales, miembros, mensajes, roles, usuarios, voz, moderación (advertencias), reportes y del canal señuelo, por ejemplo `/server loggers add type:Messages channel:#message-logs` (o `.loggers add messages -channel message-logs`). Usa `/server loggers list` (o `.loggers`) para ver qué se está registrando y dónde.',
     },
     'language': {
       question: '¿Puede NotSoBot responder en mi idioma?',
-      answer: 'Sí, está disponible en 33 idiomas. Usa `/settings set locale` para elegir el tuyo, o `/settings-server set locale` para poner el idioma por defecto del servidor.',
+      answer: 'Sí, está disponible en 33 idiomas. Usa `/settings set locale` para elegir el tuyo, o `/server set locale` para poner el idioma por defecto del servidor.',
     },
 
     // límites

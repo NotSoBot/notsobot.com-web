@@ -4,20 +4,31 @@
 // the bot DMs them the moderators' replies (as "the moderators") and posts both sides in a thread on the report's logger
 // message, the reporter answers with the Respond button on its DM. What members wrote is only ever rendered as plain text.
 
+import { useQueryClient } from '@tanstack/react-query';
 import { Check, ExternalLink, Inbox, type LucideIcon, MessagesSquare, RotateCcw, Shield, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
+import { useAuth } from '@/auth';
+import { Chip } from '@/components/ui/Chip';
+import { selectAllScope } from '@/components/ui/CopyableValue';
 import { CopyButton } from '@/components/ui/CopyButton';
 import { DetailModalHeader, DetailModalStrip } from '@/components/ui/DetailModal';
+import { FiltersButton } from '@/components/ui/FiltersButton';
+import { AdminModalFooter, AdminTagModal, LinkedItemModal, useOpenListItem } from '@/components/ui/ItemModal';
+import { Pagination } from '@/components/ui/Pagination';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
+import { ExactDate } from '@/components/ui/Tooltip';
+import { UserCell } from '@/components/ui/UserCell';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useSearchParamState, useStepBackFromEmptyPage } from '@/hooks/useSearchParamState';
 import { translate, useI18n, type TranslationKey } from '@/i18n';
 import {
   GuildReportTypes,
   ReportStatuses,
+  apiRequest,
+  guildEndpoints,
   type GuildContentUser,
   type GuildReport,
   type GuildReportImageKind,
@@ -36,12 +47,12 @@ import {
   useGuildReportsQuery,
   usePostGuildReportMessageMutation,
 } from '@/lib/api/dashboardQueries';
+import { queryKeys } from '@/lib/api/queries';
 import { cn, formatDate, formatDateTime } from '@/lib/utils';
 
-import { AdminModalFooter, AdminTagModal, LinkedItemModal, useOpenListItem } from '../admin/AdminTagModal';
-import { Chip, ExactDate, FiltersButton, Pagination, selectAllScope, UserCell } from '../admin/adminUi';
 import { REPORT_TONE_FILLS, ROW_EDGE_BAR, reportJumpUrl, reportStatusInfo } from '../reports/reportLabels';
 import { ReportThread } from '../reports/ReportThread';
+import { useReplyGuard } from '../reports/useReplyGuard';
 import { EmptyState, HelpDisclosure, Panel, Skeleton } from '../ui';
 import { useReadOnlyMessage } from './guildMeta';
 
@@ -83,11 +94,9 @@ const VERDICT_DELAY = 5000;
 // a verdict waiting out `VERDICT_DELAY`
 interface WaitingVerdict {
   status: ReportStatus,
-  // what Undo puts it back to once it's been sent
-  previous: ReportStatus,
   timer: number,
-  // set once it's sent, done when the api has answered
-  sent: Promise<void> | null,
+  // set once it's sent, whether it went through
+  sent: Promise<boolean> | null,
 }
 
 // the slot each status button sits in; once the report is in that status, the slot turns into Reopen (like the admin
@@ -210,6 +219,13 @@ function ReportsList({ guildId, hasLogger, editable }: {guildId: string, hasLogg
   const linkedId = searchParams.get('report');
   const linked = useGuildReportQuery(guildId, linkedId);
   const closeLinked = () => update({report: null}, false);
+  // closing the modal or stepping to another report with a reply typed but not sent asks first, like the Bot tab. One
+  // guard for both modals (only one is ever up): the linked one has no Previous / Next, and closes its own way
+  const guard = useReplyGuard({
+    openId: (openItem) ? openItem.id : (linked.data) ? linkedId : null,
+    open,
+    close: (openItem) ? close : closeLinked,
+  });
 
   return (
     <div>
@@ -280,11 +296,19 @@ function ReportsList({ guildId, hasLogger, editable }: {guildId: string, hasLogg
       )}
 
       {(openItem) ? (
-        <AdminTagModal labelledBy={TITLE_ID} previousId={previousId} nextId={nextId} onNavigate={open} onClose={close} footer={false} stickyClose>
-          <ReportDetails key={openItem.id} guildId={guildId} report={openItem} users={users} editable={editable} navigation={{previousId, nextId, onNavigate: open}}/>
+        <AdminTagModal labelledBy={TITLE_ID} previousId={previousId} nextId={nextId} onNavigate={guard.open} onClose={guard.close} footer={false} stickyClose>
+          <ReportDetails
+            key={openItem.id}
+            guildId={guildId}
+            report={openItem}
+            users={users}
+            editable={editable}
+            navigation={{previousId, nextId, onNavigate: guard.open}}
+            onDraftChange={guard.onDraftChange}
+          />
         </AdminTagModal>
       ) : (linkedId && linked.data) ? (
-        <AdminTagModal labelledBy={TITLE_ID} previousId={null} nextId={null} onNavigate={() => {}} onClose={closeLinked} footer={false} stickyClose>
+        <AdminTagModal labelledBy={TITLE_ID} previousId={null} nextId={null} onNavigate={() => {}} onClose={guard.close} footer={false} stickyClose>
           <ReportDetails
             key={linked.data.report.id}
             guildId={guildId}
@@ -292,11 +316,13 @@ function ReportsList({ guildId, hasLogger, editable }: {guildId: string, hasLogg
             users={{...users, ...linked.data.users}}
             editable={editable}
             navigation={{previousId: null, nextId: null, onNavigate: () => {}}}
+            onDraftChange={guard.onDraftChange}
           />
         </AdminTagModal>
       ) : (linkedId) ? (
         <LinkedItemModal noun={t('reports.noun')} notFoundMessage={t('greports.not_found')} query={linked} onClose={closeLinked}/>
       ) : null}
+      {guard.dialog}
     </div>
   );
 }
@@ -347,15 +373,20 @@ function ReportRow({ report, users, onOpen }: {report: GuildReport, users: Repor
 
 
 // `navigation` is the modal's Previous / Next, the status actions go between them (not for staff who can only look)
-function ReportDetails({ guildId, report: listed, users, editable, navigation }: {
+function ReportDetails({ guildId, report: listed, users, editable, navigation, onDraftChange }: {
   guildId: string,
   report: GuildReport,
   users: ReportUsers,
   editable: boolean,
   navigation: {previousId: string | null, nextId: string | null, onNavigate: (id: string) => void},
+  // whether there's a reply typed but not sent, see `ReportThread`
+  onDraftChange: (unsent: boolean) => void,
 }) {
   const { t } = useI18n();
   const toast = useToast();
+  const { token } = useAuth();
+  const scope = useGuildScope();
+  const queryClient = useQueryClient();
   const mutation = useGuildReportMutation(guildId);
   // the api's copy after a status change, a report handled here can leave the filtered list (the modal keeps the copy it
   // last saw from there)
@@ -371,20 +402,36 @@ function ReportDetails({ guildId, report: listed, users, editable, navigation }:
   const [ waitingStatus, setWaitingStatus ] = useState<ReportStatus | null>(null);
   const pendingStatus = (mutation.isPending) ? mutation.variables?.status : waitingStatus ?? undefined;
 
-  const send = (value: ReportStatus): Promise<void> => {
+  // a page that's going away cancels its ordinary requests, a `keepalive` one is still delivered. The mutation can't ask
+  // for one, so that one is the same request made directly (and the lists are refetched for a page that comes back)
+  const request = (value: ReportStatus, unloading: boolean): Promise<GuildReport> => {
+    if (!unloading) {
+      return mutation.mutateAsync({reportId: report.id, status: value});
+    }
+    return apiRequest<GuildReport>(guildEndpoints(scope, guildId).REPORT(report.id), {method: 'PATCH', body: {status: value}, keepalive: true, timeout: 0}).finally(() => {
+      void queryClient.invalidateQueries({queryKey: queryKeys.guildReports(token, scope, guildId)});
+    });
+  };
+
+  // whether it went through
+  const send = (value: ReportStatus, unloading = false): Promise<boolean> => {
     // a promise, not `mutate`'s callbacks: Previous / Next stay usable while it's sent and open another report (a new
     // `ReportDetails`), which would drop them, so a failure would never be said
-    return mutation.mutateAsync({reportId: report.id, status: value}).then(
+    return request(value, unloading).then(
       (updated) => {
         setReport(updated);
         toast(translate(STATUS_DONE[value], {id: report.id}));
+        return true;
       },
-      (error) => toast(errorMessage(error, translate('greports.update_error')), 'error'),
+      (error) => {
+        toast(errorMessage(error, translate('greports.update_error')), 'error');
+        return false;
+      },
     );
   };
 
-  // sends the waiting verdict now, if there's one
-  const flush = () => {
+  // sends the waiting verdict now, if there's one. From then on its toast's Undo has nothing left to cancel
+  const flush = (unloading = false) => {
     const verdict = waiting.current;
     if (!verdict) {
       return;
@@ -392,14 +439,16 @@ function ReportDetails({ guildId, report: listed, users, editable, navigation }:
     window.clearTimeout(verdict.timer);
     waiting.current = null;
     setWaitingStatus(null);
-    verdict.sent = send(verdict.status);
+    verdict.sent = send(verdict.status, unloading);
   };
   // closing the modal, stepping to another report (this one is keyed by its id) or leaving the page doesn't drop a
-  // verdict that's still waiting, it's sent right then. A closing tab gets the same, as far as the browser lets it out
+  // verdict that's still waiting, it's sent right then. A closing tab gets the same, as a request that outlives the page.
+  // It's this going away that sends it, so a close or a step that only asked about an unsent reply (`useReplyGuard`)
+  // sends nothing until it's answered with Discard
   const latestFlush = useRef(flush);
   latestFlush.current = flush;
   useEffect(() => {
-    const onPageHide = () => latestFlush.current();
+    const onPageHide = () => latestFlush.current(true);
     window.addEventListener('pagehide', onPageHide);
     return () => {
       window.removeEventListener('pagehide', onPageHide);
@@ -413,21 +462,26 @@ function ReportDetails({ guildId, report: listed, users, editable, navigation }:
       void send(value);
       return;
     }
-    const verdict: WaitingVerdict = {status: value, previous: report.status, timer: window.setTimeout(() => latestFlush.current(), VERDICT_DELAY), sent: null};
+    const verdict: WaitingVerdict = {status: value, timer: window.setTimeout(() => latestFlush.current(), VERDICT_DELAY), sent: null};
     waiting.current = verdict;
     setWaitingStatus(value);
     toast(translate(STATUS_WAITING[value], {id: report.id}), 'success', {
       label: translate('sections.undo'),
       onClick: () => {
         if (waiting.current === verdict) {
-          // nothing was sent yet, so there's nothing to take back
+          // nothing was sent yet, so cancelling it is all there is to do
           window.clearTimeout(verdict.timer);
           waiting.current = null;
           setWaitingStatus(null);
         } else if (verdict.sent) {
-          // the toast outlasts the wait by a moment: by then it's the same as the button that puts it back (after the
-          // verdict itself, so the two can't land the other way around)
-          void verdict.sent.then(() => send(verdict.previous));
+          // the toast outlasts the wait, and a verdict sent early by closing the report: by then the reporter has been
+          // told and nothing takes that back, so Undo sends nothing (a reopen after the verdict isn't an undo) and only
+          // says so. One the api refused changed nothing, and that was already said
+          void verdict.sent.then((sent) => {
+            if (sent) {
+              toast(translate('greports.undo_late', {id: report.id}), 'error');
+            }
+          });
         }
       },
     });
@@ -507,7 +561,7 @@ function ReportDetails({ guildId, report: listed, users, editable, navigation }:
           <div className='mb-1 flex min-h-8 items-center'>
             <h3 className='section-label'>{t('greports.conversation_with')}</h3>
           </div>
-          <Conversation guildId={guildId} report={report} reporter={users[report.user_id] ?? null} editable={editable}/>
+          <Conversation guildId={guildId} report={report} reporter={users[report.user_id] ?? null} editable={editable} onDraftChange={onDraftChange}/>
         </section>
       </div>
 
@@ -613,7 +667,13 @@ function imageAlt(report: GuildReport, kind: GuildReportImageKind): string {
 
 
 // moderators are the thread's staff side here, the reporter only ever sees "the moderators" in the bot's DMs
-function Conversation({ guildId, report, reporter, editable }: {guildId: string, report: GuildReport, reporter: GuildContentUser | null, editable: boolean}) {
+function Conversation({ guildId, report, reporter, editable, onDraftChange }: {
+  guildId: string,
+  report: GuildReport,
+  reporter: GuildContentUser | null,
+  editable: boolean,
+  onDraftChange: (unsent: boolean) => void,
+}) {
   const { t } = useI18n();
   const toast = useToast();
   const query = useGuildReportMessagesQuery(guildId, report.id);
@@ -640,6 +700,7 @@ function Conversation({ guildId, report, reporter, editable }: {guildId: string,
       placeholder={t('greports.placeholder')}
       maxLength={MAX_REPLY_LENGTH}
       notice={(report.status !== ReportStatuses.OPEN) ? t('greports.no_reopen') : undefined}
+      onDraftChange={onDraftChange}
     />
   );
 }

@@ -5,7 +5,7 @@ export const Changelog: Record<keyof typeof English, string> = {
   'changelog.badge': 'Novidades',
   'changelog.description': 'Comandos novos, melhorias e correções no NotSoBot e no notsobot.com, dia a dia.',
   'changelog.english_only': 'As mudanças em si estão escritas em inglês.',
-  'changelog.search_placeholder': 'Pesquisar mudanças, como .zoom ou {foreach}...',
+  'changelog.search_placeholder': 'Pesquise mudanças, como .zoom ou {foreach}...',
   'changelog.search_label': 'Pesquisar nas novidades',
   'changelog.show_changes': 'Mostrar mudanças',
   'changelog.kind.new': 'Novo',

@@ -15,7 +15,7 @@ import { CommandMediaTypes, CommandTypes, type Command, type CommandMedia } from
 import { useCommandsQuery, useInfoDiscordQuery } from '@/lib/api/queries';
 import { enabledCommandVariants } from '@/lib/commandAvailability';
 import { compareCommandTypes } from '@/lib/commandPaths';
-import { cn, displayLocale, shuffle } from '@/lib/utils';
+import { cn, displayLocale, formatCompact, shuffle } from '@/lib/utils';
 
 import { commandPath, PREFIXES } from './commands/commandMeta';
 
@@ -34,7 +34,8 @@ const STEPS: Array<{icon: LucideIcon, key: 'post' | 'run' | 'result'}> = [
 // the hero's before/after slider picks from these (by prefix name), in this order, when their preview fits a slider
 const HERO_COMMANDS = ['magik', 'deepfry', 'swirl', 'jpeg', 'pixelate', 'explode'];
 const GALLERY_SIZE = 8;
-// phones show the first two rows, so the feature list isn't three screens down
+// phones show the first two rows, so the feature list isn't three screens down. the other tiles aren't rendered there
+// rather than hidden: a hidden <video autoPlay> still downloads
 const GALLERY_PHONE_SIZE = 4;
 
 // a command's real preview from the api (the same media the commands page shows)
@@ -96,11 +97,6 @@ function fitsSlider(showcase: Showcase): showcase is Showcase & {before: Command
 }
 
 
-function compactNumber(value: number): string {
-  return new Intl.NumberFormat(displayLocale(), {notation: 'compact', maximumFractionDigits: 1}).format(value);
-}
-
-
 export function HomePage() {
   const { t, language } = useI18n();
   const commands = useCommandsQuery(language);
@@ -116,11 +112,13 @@ export function HomePage() {
     return {sliders, showcases: [ ...rest, ...sliders ]};
   }, [commands.data]);
   // "show other commands" walks this one order a visible page at a time, wrapping at the end, so nothing repeats
-  // until every showcase has had its turn. phones step by what they show, not by the tiles hidden under md
+  // until every showcase has had its turn. tailwind's `md`: the grid is four columns from there, two below it.
+  // `wide` is false on the worker and while its page hydrates, which is fine: the commands (so the tiles) only arrive
+  // after that
   const wide = useMediaQuery('(min-width: 48rem)');
   const step = (wide) ? GALLERY_SIZE : GALLERY_PHONE_SIZE;
   const [ galleryOffset, setGalleryOffset ] = useState(0);
-  const gallery = Array.from({length: Math.min(GALLERY_SIZE, showcases.length)}, (_, index) => showcases[(galleryOffset + index) % showcases.length]);
+  const gallery = Array.from({length: Math.min(step, showcases.length)}, (_, index) => showcases[(galleryOffset + index) % showcases.length]);
   // the slider (or its placeholder while the commands load) sits beside the headline on large screens
   const hasSlider = commands.isPending || sliders.length > 0;
   const collator = new Intl.Collator(displayLocale());
@@ -177,6 +175,7 @@ export function HomePage() {
           <div className='order-last mt-10 md:mt-0 md:mb-12'>
             <ul className='grid grid-cols-2 gap-3 md:grid-cols-4'>
               {gallery.map((showcase, index) => (
+                // the class only matters for the moment between a window getting narrower and `wide` hearing of it
                 <li key={showcase.command.id} className={cn(GALLERY_PHONE_SIZE <= index && 'max-md:hidden')}>
                   <GalleryTile showcase={showcase}/>
                 </li>
@@ -332,8 +331,9 @@ function LiveStats() {
 
   // `failed` is its request giving up: a number that isn't coming gets a dash instead of loading forever
   const stats = [
-    {label: t('home.stats.servers'), value: (totals) ? compactNumber(totals.guilds) : null, failed: infoFailed},
-    {label: t('home.stats.users'), value: (totals) ? compactNumber(totals.users) : null, failed: infoFailed},
+    // floored with a plus (`1.2M+`) like the status page's, so the two never disagree about the same count
+    {label: t('home.stats.servers'), value: (totals) ? formatCompact(totals.guilds) : null, failed: infoFailed},
+    {label: t('home.stats.users'), value: (totals) ? formatCompact(totals.users) : null, failed: infoFailed},
     {label: t('home.stats.commands'), value: (commandCount) ? commandCount.toLocaleString(displayLocale()) : null, failed: commandsFailed},
   ];
 

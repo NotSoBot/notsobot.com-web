@@ -20,11 +20,11 @@ export const FAQ_PORTUGUESE: FaqTranslation = {
     },
     'use-without-server': {
       question: 'Posso usar o NotSoBot sem adicioná-lo a um servidor?',
-      answer: 'Sim. Você pode adicionar o NotSoBot à sua conta do Discord em vez de a um servidor. Os comandos de barra e os do menu do botão direito (como **Download** ou **OCR** numa mensagem) vão funcionar em DMs e em servidores que permitem apps externos.\n\nComandos com prefixo como `.magik` só funcionam em servidores onde o bot foi adicionado.',
+      answer: 'Sim. Você pode adicionar o NotSoBot à sua conta do Discord em vez de a um servidor. Os comandos de barra e os do menu do botão direito (como **Download** ou **OCR** numa mensagem) vão funcionar em DMs e em servidores que permitem apps externos.\n\nComandos com prefixo como `.magik` só funcionam em servidores onde o bot foi adicionado e nas suas DMs com o NotSoBot.',
     },
     'how-to-run-commands': {
       question: 'Como uso um comando?',
-      answer: 'Tem três jeitos:\n\n- Use os comandos de barra digitando `/` e escolhendo um\n- Mencione o bot, como `@NotSoBot magik`\n- Digite o prefixo e o nome do comando, como `.magik` (o prefixo padrão é `.`). Os comandos de prefixo acabam em 1º de janeiro de 2027, porque o Discord exige que bots usem comandos de barra; os outros dois jeitos continuam funcionando\n\nA [lista de comandos](/commands) mostra todos os comandos, como usá-los e exemplos.',
+      answer: 'Tem três jeitos:\n\n- Use os comandos de barra digitando `/` e escolhendo um\n- Mencione o bot, como `@NotSoBot magik`\n- Digite o prefixo e o nome do comando, como `.magik` (o prefixo padrão é `.`). Os comandos com prefixo acabam em 1º de janeiro de 2027, porque o Discord exige que bots usem comandos de barra; os outros dois jeitos continuam funcionando\n\nA [lista de comandos](/commands) mostra todos os comandos, como usá-los e exemplos.',
     },
     'not-responding': {
       question: 'O bot não responde aos meus comandos. O que houve?',
@@ -38,7 +38,7 @@ export const FAQ_PORTUGUESE: FaqTranslation = {
     },
     'chain-effects': {
       question: 'Posso aplicar vários efeitos de uma vez?',
-      answer: 'Sim, com `/media-aiv pipe` (ou `.pipe`). Separe os comandos com ponto e vírgula, por exemplo `/media-aiv pipe commands:flip; flop` ou `.pipe flip; flop`. Dá para encadear até 5 comandos, e cada um é aplicado sobre o resultado do anterior.',
+      answer: 'Sim, com `/media-aiv pipe` (ou `.pipe`). Separe os comandos com ponto e vírgula, por exemplo `/media-aiv pipe commands:flip; flop` ou `.pipe flip; flop`. Dá para encadear até 10 comandos, ou 5 se algum precisar rodar sozinho, e cada um é aplicado sobre o resultado do anterior.',
     },
     'download-videos': {
       question: 'Como baixo um vídeo do TikTok, Instagram, YouTube etc.?',
@@ -72,11 +72,11 @@ export const FAQ_PORTUGUESE: FaqTranslation = {
     },
     'loggers': {
       question: 'O NotSoBot pode registrar o que acontece no meu servidor?',
-      answer: 'Sim. Configure registros de banimentos, canais, membros, mensagens, cargos, usuários e voz, por exemplo `/server loggers add type:Messages channel:#message-logs` (ou `.loggers add messages -channel message-logs`). Use `/server loggers list` (ou `.loggers`) para ver o que está sendo registrado e onde.',
+      answer: 'Sim. Configure registros de banimentos, canais, membros, mensagens, cargos, usuários, voz, moderação (advertências), denúncias e do canal isca, por exemplo `/server loggers add type:Messages channel:#message-logs` (ou `.loggers add messages -channel message-logs`). Use `/server loggers list` (ou `.loggers`) para ver o que está sendo registrado e onde.',
     },
     'language': {
       question: 'O NotSoBot pode responder no meu idioma?',
-      answer: 'Sim, ele está disponível em 33 idiomas. Use `/settings set locale` para escolher o seu, ou `/settings-server set locale` para definir o idioma padrão do servidor.',
+      answer: 'Sim, ele está disponível em 33 idiomas. Use `/settings set locale` para escolher o seu, ou `/server set locale` para definir o idioma padrão do servidor.',
     },
 
     // limites

@@ -1,5 +1,5 @@
 import { ChevronDown, Crosshair, HardDrive, Layers, RefreshCw, Server } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { memo, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
 
 import { SearchInput } from '@/components/ui/SearchInput';
@@ -45,6 +45,43 @@ function useNow(interval: number): number {
 }
 
 
+// the newest report in a response, null when it has none to go by
+function newestReport(data: InfoDiscord): number | null {
+  let newest: number | null = null;
+  for (const cluster of data.clusters) {
+    const time = Date.parse(cluster.last_refresh);
+    if (Number.isFinite(time) && (newest === null || newest < time)) {
+      newest = time;
+    }
+  }
+  return newest;
+}
+
+// The time the page judges reports against (dead clusters, the verdict, the healthy count, "reported 5s ago"). Not the
+// visitor's clock, a wrong one called every cluster dead or none: it's the newest report in the response, plus how
+// long this browser has been looking at that same one. The second part is only a difference of the visitor's clock,
+// and it's what still lets every cluster go dead when they all stop reporting at once (the newest report stops moving
+// then). A response without a usable time falls back to the visitor's clock
+function useReportClock(data: InfoDiscord | undefined): number {
+  // ticks on its own: react-query doesn't re-render for failed polls or identical data, so going by renders
+  // would never mark a cluster dead during an outage
+  const now = useNow(NOW_TICK);
+  const newest = useMemo(() => (data) ? newestReport(data) : null, [data]);
+  // when this browser first saw that newest report
+  const [ seen, setSeen ] = useState<{report: number, at: number} | null>(null);
+  useEffect(() => {
+    if (newest !== null) {
+      setSeen({report: newest, at: Date.now()});
+    }
+  }, [newest]);
+  if (newest === null) {
+    return now;
+  }
+  // `now` is up to a tick behind `seen.at`, hence the max
+  return newest + ((seen?.report === newest) ? Math.max(0, now - seen.at) : 0);
+}
+
+
 function isClusterDead(cluster: InfoDiscordCluster, now: number): boolean {
   return CLUSTER_DEAD_AFTER <= now - Date.parse(cluster.last_refresh);
 }
@@ -54,31 +91,23 @@ function displayStatus(shard: InfoDiscordShard, dead: boolean): DisplayStatus {
 }
 
 
-function computeTotals(data: InfoDiscord) {
+// `healthyShards` are the ready ones in a cluster that still reports: a cluster that went quiet keeps the (ready)
+// statuses it last sent, so going by those alone would call an outage normal. The "Healthy shards" tile and the
+// page's verdict both go by it, so they can't disagree
+function computeTotals(data: InfoDiscord, now: number) {
   const totals = {guilds: 0, healthyShards: 0, ram: 0, users: 0};
   for (const cluster of data.clusters) {
+    const dead = isClusterDead(cluster, now);
     totals.ram += cluster.ram_usage;
     for (const shard of cluster.shards) {
       totals.guilds += shard.counts.guilds;
       totals.users += shard.counts.users;
-      if (shard.status === ShardStatuses.READY) {
+      if (!dead && shard.status === ShardStatuses.READY) {
         totals.healthyShards += 1;
       }
     }
   }
   return totals;
-}
-
-// every shard discord expects is ready, in a cluster that still reports. a cluster that went quiet keeps the (ready)
-// statuses it last sent, so going by those alone would call an outage normal
-function allShardsReady(data: InfoDiscord, now: number): boolean {
-  let ready = 0;
-  for (const cluster of data.clusters) {
-    if (!isClusterDead(cluster, now)) {
-      ready += cluster.shards.filter((shard) => shard.status === ShardStatuses.READY).length;
-    }
-  }
-  return !!data.shard_count && data.shard_count <= ready;
 }
 
 
@@ -88,16 +117,15 @@ export function StatusPage() {
   const lookupInput = searchParams.get('lookup') || '';
   const { data, isPending, isError } = useInfoDiscordQuery();
 
-  const totals = useMemo(() => (data) ? computeTotals(data) : null, [data]);
+  const now = useReportClock(data);
+  const totals = useMemo(() => (data) ? computeTotals(data, now) : null, [data, now]);
   const allCounts = useMemo(() => (data) ? sumCounts(data.clusters.flatMap((cluster) => cluster.shards)) : null, [data]);
-  // ticks on its own: react-query doesn't re-render for failed polls or identical data, so going by renders
-  // would never mark a cluster dead during an outage
-  const now = useNow(NOW_TICK);
   // tailwind's `sm` breakpoint
   const wide = useMediaQuery('(min-width: 40rem)');
 
-  // the page's one-line answer. none while loading or when the last request failed, the numbers could be old then
-  const healthy = (data && !isError) ? allShardsReady(data, now) : null;
+  // the page's one-line answer: every shard discord expects is healthy. none while loading or when the last request
+  // failed, the numbers could be old then
+  const healthy = (data && totals && !isError) ? (!!data.shard_count && data.shard_count <= totals.healthyShards) : null;
 
   const lookup = useMemo(() => (data) ? parseLookup(lookupInput, data) : null, [lookupInput, data]);
   const target = (data && lookup) ? resolveLookup(lookup, data) : null;
@@ -297,7 +325,8 @@ function ShardGrid({ data, now, highlightShardId, highlightClusterId }: {
             dead={isClusterDead(cluster, now)}
             highlightShardId={highlightShardId}
             targeted={cluster.cluster_id === highlightClusterId}
-            hoveredShardId={hovered?.shardId ?? null}
+            // only the cluster with the hovered shard hears about it, so the others skip rendering
+            hoveredShardId={(hovered && cluster === hoveredCluster) ? hovered.shardId : null}
           />
         ))}
       </div>
@@ -309,7 +338,10 @@ function ShardGrid({ data, now, highlightShardId, highlightClusterId }: {
 }
 
 
-function ClusterBlock({ cluster, dead, highlightShardId, hoveredShardId = null, targeted = false, anchor = true }: {
+// memo: the grid renders again for every hover, clock tick and poll, which change a few of its 160 clusters at most.
+// The pointer handlers are on the grid itself, so a cluster only gets data: its own part of the response (the same
+// object between polls while nothing in it changed, react-query keeps those) and plain values
+const ClusterBlock = memo(function ClusterBlock({ cluster, dead, highlightShardId, hoveredShardId = null, targeted = false, anchor = true }: {
   cluster: InfoDiscordCluster,
   dead: boolean,
   highlightShardId: number | null,
@@ -339,7 +371,7 @@ function ClusterBlock({ cluster, dead, highlightShardId, hoveredShardId = null, 
           ) : (
             <>
               <span className={(healthy === total) ? 'text-success-text' : 'text-warning'}>{healthy}/{total}</span>
-              {' · '}{formatMemory(cluster.ram_usage, 2)}
+              {' • '}{formatMemory(cluster.ram_usage, 2)}
             </>
           )}
         </span>
@@ -368,7 +400,7 @@ function ClusterBlock({ cluster, dead, highlightShardId, hoveredShardId = null, 
       </ul>
     </div>
   );
-}
+});
 
 
 const HOVER_CARD_WIDTH = 240;
@@ -405,7 +437,7 @@ function ShardHoverCard({ rect, shard, cluster, dead }: {
         </span>
       </div>
       <div className='mb-2 text-xs text-subtle'>
-        {t('status.cluster', {id: cluster.cluster_id})} · {formatMemory(cluster.ram_usage, 2)}
+        {t('status.cluster', {id: cluster.cluster_id})} • {formatMemory(cluster.ram_usage, 2)}
       </div>
       <dl className='grid grid-cols-2 gap-x-3 gap-y-1 border-t border-line pt-2'>
         {FEATURED_COUNTERS.map((counter) => (
@@ -625,11 +657,13 @@ function ResultFact({ icon: Icon, children }: {icon: typeof Server, children: Re
 // Every counter, grouped. Used for the global totals and the expanded lookup card.
 function CounterGroups({ counts, variant }: {counts: ShardCounts, variant: 'panel' | 'result'}) {
   const { t } = useI18n();
+  // the next level down from what it sits under: the stats section's h2, or the lookup card's h3
+  const Heading = (variant === 'panel') ? 'h3' : 'h4';
   return (
     <div className='space-y-4'>
       {COUNTER_GROUPS.map((group) => (
         <div key={group}>
-          <h4 className='mb-2 text-xs text-subtle'>{t(`counter_group.${group}`)}</h4>
+          <Heading className='mb-2 text-xs text-subtle'>{t(`counter_group.${group}`)}</Heading>
           <dl className={cn('grid grid-cols-2 gap-2', (variant === 'panel') ? 'sm:grid-cols-3 lg:grid-cols-6' : 'sm:grid-cols-3')}>
             {COUNTERS.filter((counter) => counter.group === group).map((counter) => (
               <CounterTile key={counter.key} counter={counter} value={counts[counter.key]} variant={variant}/>

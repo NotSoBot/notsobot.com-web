@@ -1,13 +1,13 @@
 import { History } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
-import { Link, useLocation } from 'react-router';
+import { memo, useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { Link, NavigationType, useLocation, useNavigationType, useSearchParams } from 'react-router';
 
 import { FiltersButton } from '@/components/ui/FiltersButton';
 import { Markdown } from '@/components/ui/Markdown';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Segmented } from '@/components/ui/Segmented';
 import { Routes } from '@/config';
-import { CHANGELOG, type ChangeKind } from '@/content/changelog';
+import { CHANGELOG, type ChangeKind, type ChangelogDay } from '@/content/changelog';
 import { DEFAULT_LANGUAGE, useI18n, type TranslationKey } from '@/i18n';
 import { cn, decodeHash, displayLocale } from '@/lib/utils';
 
@@ -42,18 +42,69 @@ function parseDay(date: string): Date {
   return new Date(`${date}T00:00:00Z`);
 }
 
+// `?kind=` and `?until=`, anything that isn't one of the choices is the default
+function kindFromParam(value: string | null): KindFilter {
+  return KIND_ORDER.find((kind) => kind === value) ?? 'all';
+}
+
+function untilFromParam(value: string | null): string {
+  return (value && CHANGELOG.some((day) => day.date === value)) ? value : '';
+}
+
 
 export function ChangelogPage() {
   const { t, plural, rich, language } = useI18n();
   // English keeps its US dates (Oct 17), other languages use their own
   const formats = useMemo(() => dayFormats((language === DEFAULT_LANGUAGE) ? 'en-US' : displayLocale()), [language]);
   const location = useLocation();
-  const [ filter, setFilter ] = useState<KindFilter>('all');
+  // the search and filters are in the url (`?q=`, `?kind=`, `?until=`) like the docs' search, so a reload or a shared
+  // link keeps them. They're state as well: the router changes the url in a transition, and an input driven by one
+  // drops keystrokes on a page this long
+  const [ searchParams, setSearchParams ] = useSearchParams();
+  const urlFilter = kindFromParam(searchParams.get('kind'));
+  const urlUntil = untilFromParam(searchParams.get('until'));
+  const urlQuery = searchParams.get('q') || '';
+  const [ filter, setFilterValue ] = useState<KindFilter>(urlFilter);
   // only show that day and older ones, '' shows every day
-  const [ until, setUntil ] = useState('');
-  const [ query, setQuery ] = useState('');
+  const [ until, setUntilValue ] = useState(urlUntil);
+  const [ query, setQueryText ] = useState(urlQuery);
+  const setParam = (name: string, value: string) => {
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      if (value) {
+        next.set(name, value);
+      } else {
+        next.delete(name);
+      }
+      return next;
+    }, {replace: true, preventScrollReset: true});
+  };
+  const setFilter = (value: KindFilter) => {
+    setFilterValue(value);
+    setParam('kind', (value === 'all') ? '' : value);
+  };
+  const setUntil = (value: string) => {
+    setUntilValue(value);
+    setParam('until', value);
+  };
+  const setQuery = (value: string) => {
+    setQueryText(value);
+    setParam('q', value);
+  };
+  // those replace the entry, so any other kind of navigation (a link to the changelog, back/forward) is the url
+  // changing under them
+  const navigationType = useNavigationType();
+  useEffect(() => {
+    if (navigationType !== NavigationType.Replace) {
+      setFilterValue(urlFilter);
+      setUntilValue(urlUntil);
+      setQueryText(urlQuery);
+    }
+  }, [location.key, navigationType, urlFilter, urlUntil, urlQuery]);
   const [ filtersOpen, setFiltersOpen ] = useState(false);
-  const needle = query.trim().toLowerCase();
+  // the list follows the input a moment later, so typing isn't held up by filtering and rendering every day
+  const shownQuery = useDeferredValue(query).trim();
+  const needle = shownQuery.toLowerCase();
 
   // within a day, new things first, then improvements, fixes and removals
   const days = useMemo(() => {
@@ -125,7 +176,7 @@ export function ChangelogPage() {
           </div>
           {(needle) ? (
             <p className='mt-3 text-sm text-muted' aria-live='polite'>
-              {plural('changelog.results', matchCount, {query: query.trim()})}
+              {plural('changelog.results', matchCount, {query: shownQuery})}
             </p>
           ) : null}
         </div>
@@ -133,32 +184,7 @@ export function ChangelogPage() {
 
       <div className='container-page py-10'>
         <ol className='space-y-10'>
-          {days.map((day) => {
-            const date = parseDay(day.date);
-            return (
-              <li key={day.date} id={day.date} className='grid scroll-mt-24 grid-cols-[minmax(0,1fr)] gap-3 md:grid-cols-[160px_minmax(0,1fr)] md:gap-8'>
-                <div className='md:sticky md:top-24 md:self-start md:pt-5'>
-                  <a href={`#${day.date}`} className='group inline-flex items-baseline gap-2 md:flex-col md:gap-0.5'>
-                    <time dateTime={day.date} className='text-lg font-semibold text-white group-hover:text-brand-text'>{formats.day.format(date)}</time>
-                    <span className='text-sm text-muted'>{formats.weekday.format(date)}, {formats.year.format(date)}</span>
-                  </a>
-                </div>
-                <article className='card p-5 sm:p-6'>
-                  <h2 className='mb-4 text-xl font-semibold text-white'>{day.title}</h2>
-                  <ul className='space-y-3'>
-                    {day.items.map((item, i) => (
-                      <li key={i} className='flex flex-col gap-1.5 sm:flex-row sm:gap-3'>
-                        <span className={cn('h-fit w-fit shrink-0 rounded px-2 py-0.5 text-xs font-semibold sm:mt-0.5 sm:w-20 sm:text-center', KIND_CLASSES[item.kind])}>
-                          {t(`changelog.kind.${item.kind}`)}
-                        </span>
-                        <Markdown text={item.text} className='leading-relaxed text-fg'/>
-                      </li>
-                    ))}
-                  </ul>
-                </article>
-              </li>
-            );
-          })}
+          {days.map((day) => <DayEntry key={day.date} day={day} formats={formats}/>)}
         </ol>
 
         {(!days.length) ? (
@@ -182,3 +208,40 @@ export function ChangelogPage() {
     </>
   );
 }
+
+
+// One day's changes. `days` is rebuilt for every search and filter, but most days come out of it with the same changes
+// they had, and those skip rendering (and parsing their Markdown again): the comparison goes by what the day shows
+const DayEntry = memo(function DayEntry({ day, formats }: {day: ChangelogDay, formats: ReturnType<typeof dayFormats>}) {
+  const { t } = useI18n();
+  const date = parseDay(day.date);
+  return (
+    <li id={day.date} className='grid scroll-mt-24 grid-cols-[minmax(0,1fr)] gap-3 md:grid-cols-[160px_minmax(0,1fr)] md:gap-8'>
+      <div className='md:sticky md:top-24 md:self-start md:pt-5'>
+        <a href={`#${day.date}`} className='group inline-flex items-baseline gap-2 md:flex-col md:gap-0.5'>
+          <time dateTime={day.date} className='text-lg font-semibold text-white group-hover:text-brand-text'>{formats.day.format(date)}</time>
+          <span className='text-sm text-muted'>{formats.weekday.format(date)}, {formats.year.format(date)}</span>
+        </a>
+      </div>
+      <article className='card p-5 sm:p-6'>
+        <h2 className='mb-4 text-xl font-semibold text-white'>{day.title}</h2>
+        <ul className='space-y-3'>
+          {day.items.map((item, i) => (
+            <li key={i} className='flex flex-col gap-1.5 sm:flex-row sm:gap-3'>
+              <span className={cn('h-fit w-fit shrink-0 rounded px-2 py-0.5 text-xs font-semibold sm:mt-0.5 sm:w-20 sm:text-center', KIND_CLASSES[item.kind])}>
+                {t(`changelog.kind.${item.kind}`)}
+              </span>
+              <Markdown text={item.text} className='leading-relaxed text-fg'/>
+            </li>
+          ))}
+        </ul>
+      </article>
+    </li>
+  );
+}, (previous, next) => {
+  return previous.formats === next.formats
+    && previous.day.date === next.day.date
+    && previous.day.title === next.day.title
+    && previous.day.items.length === next.day.items.length
+    && previous.day.items.every((item, index) => item === next.day.items[index]);
+});

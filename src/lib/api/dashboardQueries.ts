@@ -2978,7 +2978,8 @@ function useInvalidateApplicationAccess() {
   return () => Promise.all([
     invalidate(),
     queryClient.invalidateQueries({queryKey: [...queryKeys.admin(token), 'users']}),
-    queryClient.invalidateQueries({queryKey: queryKeys.me(token)}),
+    // exact: the key is also the start of every other per-user key
+    queryClient.invalidateQueries({queryKey: queryKeys.me(token), exact: true}),
   ]);
 }
 

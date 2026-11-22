@@ -4,14 +4,14 @@
 
 import { Gauge } from 'lucide-react';
 
+import { StatTile } from '@/components/ui/StatTile';
 import { useI18n } from '@/i18n';
 import { type LimitCount, type LimitsSummary as Limits, type UserGuild } from '@/lib/api';
 import { errorMessage, useGuildLimitsQuery, useMeLimitsQuery } from '@/lib/api/dashboardQueries';
 import { formatMemory, formatNumber } from '@/lib/utils';
 
-import { StatTile } from './admin/adminUi';
 import { premiumTierLabel as tierLabel } from './premium';
-import { ErrorPanel, Panel, Skeleton } from './ui';
+import { ErrorPanel, InlineError, Panel, Skeleton } from './ui';
 
 
 function LimitsGrid({ limits }: {limits: Limits}) {
@@ -85,14 +85,14 @@ export function MyLimitsCard() {
 // own premium get whichever is better
 export function ServerLimitsSection({ guild }: {guild: UserGuild}) {
   const { t } = useI18n();
-  const { data, isPending, error } = useGuildLimitsQuery(guild.id);
+  const { data, isPending, error, isRefetching, refetch } = useGuildLimitsQuery(guild.id);
 
   return (
     <Panel title={t('dlimits.server_title')} accent='#5865f2' description={t('dlimits.server_description')}>
       {(isPending) ? (
         <Skeleton className='h-28 w-full bg-surface-2'/>
       ) : (error) ? (
-        <p role='alert' className='text-sm text-danger-text'>{errorMessage(error, t('dlimits.load_error'))}</p>
+        <InlineError onRetry={() => refetch()} retrying={isRefetching}>{errorMessage(error, t('dlimits.load_error'))}</InlineError>
       ) : (
         <LimitsGrid limits={data}/>
       )}

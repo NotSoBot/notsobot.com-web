@@ -2,6 +2,7 @@ import { AudioLines, ChevronDown, Download, Pause, Pencil, Play, Plus, RefreshCw
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 
+import { Chip } from '@/components/ui/Chip';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
@@ -19,9 +20,8 @@ import {
   useTransferVoiceMutation,
   useUploadVoiceClipMutation,
 } from '@/lib/api/dashboardQueries';
-import { cn, downloadBlob, formatDate, formatMemory, formatNumber } from '@/lib/utils';
+import { cn, downloadBlob, formatClock, formatDate, formatMemory, formatNumber } from '@/lib/utils';
 
-import { Chip } from '../admin/adminUi';
 import { Owner } from '../servers/GuildTagsSection';
 import { EmptyState, ErrorPanel, InlineError, Skeleton } from '../ui';
 import { RenameVoiceDialog, voicePlatformLabel } from './RenameVoiceDialog';
@@ -31,10 +31,8 @@ import { RenameVoiceDialog, voicePlatformLabel } from './RenameVoiceDialog';
 const VOICE_CLIPS_MAX = 10;
 
 
-export function formatDuration(ms: number): string {
-  const seconds = Math.round(ms / 1000);
-  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
-}
+// the staff voices page imports it from here
+export const formatDuration = formatClock;
 
 
 // Cloned voices and the clips they're made from: the caller's own (`guildId` null) or a server's (through
@@ -75,7 +73,7 @@ export function VoiceList({ guildId, editable = true }: {guildId: string | null,
       ) : (isError && !data) ? (
         // only when nothing loaded: a failed refetch keeps the cards, and with them an upload's progress and result
         (guildId) ? (
-          <p role='alert' className='text-sm text-danger-text'>{errorMessage(error, t('voices.server_load_error'))}</p>
+          <InlineError onRetry={() => refetch()} retrying={isRefetching}>{errorMessage(error, t('voices.server_load_error'))}</InlineError>
         ) : (
           <ErrorPanel title={t('voices.load_error')} message={errorMessage(error)} onRetry={() => refetch()} retrying={isRefetching}/>
         )
@@ -391,7 +389,7 @@ function ClipRow({ guildId, voiceId, clip, editable, canUpload, canDelete, busy,
       <div className='min-w-0 flex-1'>
         <div className='truncate text-sm text-fg'>{clip.name}</div>
         <div className='mt-0.5 text-xs text-subtle'>
-          {formatDuration(clip.duration)} • {formatMemory(clip.size, (clip.size < 1024 * 1024) ? 0 : 1)} • {t('voices.clip_added_on', {date: formatDate(clip.created)})}
+          {formatClock(clip.duration)} • {formatMemory(clip.size, (clip.size < 1024 * 1024) ? 0 : 1)} • {t('voices.clip_added_on', {date: formatDate(clip.created)})}
         </div>
         {/* why its delete is disabled, the tooltip doesn't show on touch */}
         {(editable && !canDelete) ? <div className='mt-0.5 text-xs text-subtle'>{t('voices.last_clip')}</div> : null}

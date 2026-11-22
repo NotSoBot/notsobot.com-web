@@ -35,24 +35,29 @@ export function tagCountLabel(count: number | null): string {
 
 
 // The last step before deleting every tag someone owns, on top of whichever dialog asked for it. Typed, like deleting
-// an identity: "delete" and how many tags go, or their name while the count hasn't loaded
+// an identity: "delete" and how many tags go, or their name when the count hadn't loaded as it opened.
+// What it asks for is picked once, as it opens: the count arriving (or changing) later would swap the phrase under a
+// name already typed. The number is written the same way in the title, the button and the phrase, always with commas:
+// a browser's own grouping can be a space nobody can type
 export function ConfirmDeleteUserTags({ username, count, onConfirm, onClose }: {
   username: string,
   count: number | null,
   onConfirm: () => void,
   onClose: () => void,
 }) {
+  const [ opened ] = useState(count);
+  const tags = (opened === null) ? null : `${opened.toLocaleString('en-US')} ${(opened === 1) ? 'tag' : 'tags'}`;
   return (
     <ConfirmDialog
-      title={(count === null) ? `Permanently delete all of ${username}’s tags?` : `Permanently delete ${username}’s ${tagCountLabel(count)}?`}
+      title={(tags === null) ? `Permanently delete all of ${username}’s tags?` : `Permanently delete ${username}’s ${tags}?`}
       description={
         <>
           Every tag <span className='text-white'>{username}</span> owns is deleted, in every server, their DMs and the
           directory, with their variables and everyone’s aliases of them. <span className='font-medium text-white'>This can’t be undone.</span>
         </>
       }
-      confirmLabel={`Delete ${tagCountLabel(count)}`}
-      confirmPhrase={(count === null) ? username : `delete ${count}`}
+      confirmLabel={`Delete ${tags ?? 'all their tags'}`}
+      confirmPhrase={(opened === null) ? username : `delete ${opened.toLocaleString('en-US')}`}
       onConfirm={onConfirm}
       onClose={onClose}
     />

@@ -6,10 +6,14 @@ import { Check, ChevronDown, ExternalLink, File as FileIcon, FileAudio, FileImag
 import { useEffect, useId, useRef, useState } from 'react';
 import { Link } from 'react-router';
 
+import { Chip } from '@/components/ui/Chip';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { CopyButton } from '@/components/ui/CopyButton';
+import { FiltersButton } from '@/components/ui/FiltersButton';
+import { Pagination } from '@/components/ui/Pagination';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { useToast } from '@/components/ui/Toast';
+import { ExactDate } from '@/components/ui/Tooltip';
 import { Routes } from '@/config';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useDismiss } from '@/hooks/useDismiss';
@@ -18,9 +22,8 @@ import { useSearchParamState, useStepBackFromEmptyPage } from '@/hooks/useSearch
 import { translate, useI18n, type TranslationKey } from '@/i18n';
 import type { UserFile, UserFilesSortBy } from '@/lib/api';
 import { ME_FILES_PAGE_SIZE, errorMessage, useDeleteMeFilesMutation, useMeFilesQuery } from '@/lib/api/dashboardQueries';
-import { cn, formatDate, formatExactDateTime, formatMemory, formatNumber, toDate } from '@/lib/utils';
+import { cn, formatClock, formatDate, formatExactDateTime, formatNumber, formatSize, toDate } from '@/lib/utils';
 
-import { Chip, FiltersButton, Pagination } from '../admin/adminUi';
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from '../ui';
 
 
@@ -53,16 +56,6 @@ function fileKind(mimetype: string): 'image' | 'video' | 'audio' | 'text' | 'oth
 
 const KIND_ICONS = {image: FileImage, video: FileVideo, audio: FileAudio, text: FileText, other: FileIcon};
 
-
-function formatDuration(ms: number): string {
-  const seconds = Math.round(ms / 1000);
-  const minutes = Math.floor(seconds / 60);
-  return `${minutes}:${String(seconds % 60).padStart(2, '0')}`;
-}
-
-function formatSize(bytes: number): string {
-  return formatMemory(bytes, (bytes < 1024 * 1024) ? 0 : 1);
-}
 
 // `in 20h`, short enough for the grid and table; the exact time is on hover
 function formatExpiresIn(value: string): string {
@@ -397,8 +390,8 @@ function FilesList({ files, onDelete }: {files: Array<UserFile>, onDelete: (file
                 {((kind === 'image' || kind === 'video') && metadata.width && metadata.height) ? (
                   <span>{metadata.width}×{metadata.height}</span>
                 ) : null}
-                {(metadata.duration) ? <span>{formatDuration(metadata.duration)}</span> : null}
-                <span title={formatExactDateTime(file.created)}>{t('files.uploaded', {date: formatDate(file.created)})}</span>
+                {(metadata.duration) ? <span>{formatClock(metadata.duration)}</span> : null}
+                <ExactDate value={file.created} format={(value) => t('files.uploaded', {date: formatDate(value)})}/>
               </div>
             </div>
             <div className='flex shrink-0 flex-col gap-1.5 sm:flex-row'>
@@ -427,7 +420,7 @@ function FilesGrid({ files, onDelete }: {files: Array<UserFile>, onDelete: (file
             <FileLink file={file} className='block text-sm'/>
             <div className='flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-subtle'>
               <span>{formatSize(file.metadata.size)}</span>
-              <span title={formatExactDateTime(file.created)}>{formatDate(file.created)}</span>
+              <ExactDate value={file.created}/>
             </div>
             <div className='mt-auto flex flex-wrap items-center justify-between gap-2 pt-1.5'>
               <div className='min-h-5'><ExpiryChip file={file}/></div>
@@ -530,7 +523,7 @@ function FilesTable({ files, selected, onSelectedChange, onDelete, onDeleteSelec
                   </div>
                 </td>
                 <td className='px-3 py-2 whitespace-nowrap text-muted'>{formatSize(file.metadata.size)}</td>
-                <td className='px-3 py-2 whitespace-nowrap text-muted' title={formatExactDateTime(file.created)}>{formatDate(file.created)}</td>
+                <td className='px-3 py-2 whitespace-nowrap text-muted'><ExactDate value={file.created}/></td>
                 <td className='px-3 py-2'><VanityLink file={file}/></td>
                 <td className='px-3 py-2'>
                   <div className='flex justify-end gap-1.5'>

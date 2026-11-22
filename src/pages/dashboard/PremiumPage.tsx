@@ -6,15 +6,16 @@ import { useMemo } from 'react';
 import { Link } from 'react-router';
 
 import { useAuth } from '@/auth';
+import { Chip } from '@/components/ui/Chip';
+import { ExactDate } from '@/components/ui/Tooltip';
 import { Routes, Urls } from '@/config';
 import { useI18n } from '@/i18n';
 import { AnalyticsEvents, trackEvent } from '@/lib/analytics';
 import { CreditTransactionTypes, EntitlementProviders, UserPremiumTypes, type CreditBalance, type CreditTransaction, type Entitlement } from '@/lib/api';
 import { errorMessage, useMeCreditsQuery, useMeEntitlementsQuery, useMeGuildsQuery } from '@/lib/api/dashboardQueries';
 import { CREDITS_PER_TTS_BYTE } from '@/lib/credits';
-import { cn, formatDate, formatExactDateTime, formatNumber, toDate } from '@/lib/utils';
+import { cn, formatNumber, toDate } from '@/lib/utils';
 
-import { Chip } from './admin/adminUi';
 import { entitlementStatus, entitlementTierLabel, premiumLabel } from './premium';
 import { MyLimitsCard } from './LimitsSummary';
 import { PremiumServers } from './PremiumServers';
@@ -258,7 +259,7 @@ function CreditTransactionRow({ transaction, guildNames }: {transaction: CreditT
 
 
 function DateLabel({ label, value }: {label: string, value: string | number}) {
-  return <span title={formatExactDateTime(value)}>{label} {formatDate(value)}</span>;
+  return <span>{label} <ExactDate value={value}/></span>;
 }
 
 
@@ -294,7 +295,8 @@ function EntitlementRow({ entitlement, guildNames }: {entitlement: Entitlement, 
           {/* the server by name when it's one of theirs, its id small after it */}
           {(entitlement.guild_id) ? (
             <span>
-              {rich('dpremium.server', {b: (chunk) => <span className={(serverName) ? 'text-fg' : 'font-mono'}>{chunk}</span>}, {server: serverName ?? entitlement.guild_id})}
+              {/* the name goes in as an element, not into the string: a `<b>` of its own would be read as markup */}
+              {rich('dpremium.server', {b: () => <span className={(serverName) ? 'text-fg' : 'font-mono'}>{serverName ?? entitlement.guild_id}</span>})}
               {(serverName) ? <span className='ml-1.5 font-mono text-[11px]'>{entitlement.guild_id}</span> : null}
             </span>
           ) : null}

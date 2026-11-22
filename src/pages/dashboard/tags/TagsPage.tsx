@@ -2,6 +2,8 @@ import { BookOpen, Tags as TagsIcon, X } from 'lucide-react';
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useMatch, useNavigate, useSearchParams } from 'react-router';
 
+import { FiltersButton } from '@/components/ui/FiltersButton';
+import { Pagination } from '@/components/ui/Pagination';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Routes } from '@/config';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
@@ -13,7 +15,6 @@ import { TagDirectoryVerificationStates, type MeTagsDirectoryFilter, type MeTags
 import { cn, formatDate } from '@/lib/utils';
 import { NsfwBadge, tagDirectoryItemPath } from '@/pages/tags/tagDirectory';
 
-import { FiltersButton, Pagination } from '../admin/adminUi';
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from '../ui';
 import { ServerFilterChip } from '../servers/ServerFilterChip';
 import { DeleteMeTagDialog } from './DeleteMeTagDialog';

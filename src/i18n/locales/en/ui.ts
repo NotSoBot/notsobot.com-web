@@ -115,4 +115,6 @@ export const Ui = {
   'pagination.page': 'Page {page} / {pages}',
   'ui.collapse': 'Collapse',
   'ui.clear_filter': 'Clear {label} filter',
+  'ui.session_error.title': 'Couldn’t reach NotSoBot',
+  'ui.session_error.description': 'We couldn’t verify your session. Try again in a moment.',
 } as const;

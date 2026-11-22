@@ -47,12 +47,13 @@ export function ReplaceTagDialog({ tag, onReplaced, onClose }: {
   const inputError = (invalid) ? 'Paste a tag id, or id:<tag id>' : (targetId && preview.isError) ? errorMessage(preview.error) : null;
 
   const submit = (target: AdminDirectoryTag) => {
-    mutation.mutate({tagId: tag.id, targetId: target.id}, {
-      onSuccess: ({ target }) => {
-        toast(`Replaced ${tag.name} with ${target.name}`);
-        onReplaced(target.id);
-      },
-    });
+    // `mutateAsync`: the lists refetch before `mutate`'s callbacks would run, and a tag that was only open through its
+    // link (not on the loaded page) leaves with them, unmounting this: the toast and `onReplaced` were lost. A failure
+    // shows in the dialog while it's still here
+    mutation.mutateAsync({tagId: tag.id, targetId: target.id}).then(({ target }) => {
+      toast(`Replaced ${tag.name} with ${target.name}`);
+      onReplaced(target.id);
+    }, () => {});
   };
 
   return (

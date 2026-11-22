@@ -118,7 +118,7 @@ export function describeTagLocation(location: TagLocation): string {
 export function TagLocationLabel({ location, className }: {location: TagLocation, className?: string}) {
   const Icon = location.icon;
   return (
-    <span className={className} title={(location.id) ? `${location.label} · ${location.id}` : location.label}>
+    <span className={className} title={(location.id) ? `${location.label} • ${location.id}` : location.label}>
       <Icon aria-hidden className='size-3.5 shrink-0'/>
       <span className={(location.named) ? 'truncate text-fg' : 'shrink-0'}>{location.label}</span>
       {(location.id) ? <span className='min-w-0 truncate font-mono text-subtle'>{location.id}</span> : null}
@@ -145,7 +145,7 @@ export function TagLocationChip({ location, to }: {location: TagLocation, to?: s
     </>
   );
   const className = 'inline-flex max-w-full min-w-0 items-center gap-1.5 self-start rounded-md border border-line bg-surface-2 px-2 py-1 text-xs';
-  const title = (location.id) ? `${location.label} · ${location.id}` : location.label;
+  const title = (location.id) ? `${location.label} • ${location.id}` : location.label;
   if (to) {
     return (
       <Link
@@ -196,24 +196,6 @@ function DirectoryStatusBadge({ tag }: {tag: StatusTag}) {
     <span className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${className}`} title={t('dtags.badge.directory_title', {state: label.toLowerCase()})}>
       {t('dtags.badge.directory_state', {state: label})}
     </span>
-  );
-}
-
-
-export function TagBadges({ tag }: {tag: Tag}) {
-  const { t } = useI18n();
-  return (
-    <>
-      {(tag.locked) ? (
-        <span className='inline-flex items-center gap-1 rounded bg-warning/15 px-1.5 py-0.5 text-[11px] font-medium text-warning'>
-          <Lock aria-hidden className='size-3'/> {t('dtags.badge.locked')}
-        </span>
-      ) : null}
-      {(tag.nsfw) ? <span className='rounded bg-danger/15 px-1.5 py-0.5 text-[11px] font-medium text-danger-text'>{t('tags.nsfw')}</span> : null}
-      {(tag.is_command) ? <span className='rounded bg-brand/20 px-1.5 py-0.5 text-[11px] font-medium text-[#a5acff]'>{t('dtags.badge.command')}</span> : null}
-      {(tag.is_on_directory) ? <span className='rounded bg-success/15 px-1.5 py-0.5 text-[11px] font-medium text-success-text'>{t('dtags.badge.directory')}</span> : null}
-      {(tag.reference_tag) ? <span className='rounded bg-surface-3 px-1.5 py-0.5 text-[11px] font-medium text-muted'>{t('dtags.badge.alias')}</span> : null}
-    </>
   );
 }
 

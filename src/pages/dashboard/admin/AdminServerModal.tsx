@@ -301,14 +301,14 @@ function ServerDetails({ guild, navigation, onDirtyChange }: {guild: AdminGuild,
               <section>
                 <h3 className='section-label mb-2'>Activity</h3>
                 <div className='grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-2'>
-                  <StatTile label='Commands run' value={(guild.commands ?? 0).toLocaleString()} title='Commands run in this server, ever'/>
+                  <StatTile label='Commands run' value={(guild.commands ?? 0).toLocaleString()} hint='Commands run in this server, ever'/>
                   <DateTile label='First seen' value={guild.first_seen ?? null} empty='Never' title='When the first command was run in this server'/>
                   <StatTile
                     label='Staff reports'
                     to={adminListPath(Routes.DASHBOARD_ADMIN_REPORTS, {q: `server:${guild.id}`, status: 'all'})}
                     value={(counts?.reports ?? 0).toLocaleString()}
                     tone='text-warning'
-                    title='Reports to NotSoBot’s staff sent from this server, or about it. Its members’ reports to its own moderators are in the Reports tab'
+                    hint='Reports to NotSoBot’s staff sent from this server, or about it. Its members’ reports to its own moderators are in the Reports tab'
                   />
                   <DateTile
                     label='Last seen'
@@ -346,7 +346,7 @@ function ServerDetails({ guild, navigation, onDirtyChange }: {guild: AdminGuild,
                   </div>
                 </div>
                 {/* a count only: reminders are people's private notes, so staff don't get to read them */}
-                <StatTile label='Reminders' value={(counts?.reminders ?? 0).toLocaleString()} title='Reminders set in this server. Their contents are private.'/>
+                <StatTile label='Reminders' value={(counts?.reminders ?? 0).toLocaleString()} hint='Reminders set in this server. Their contents are private.'/>
               </div>
             </section>
 
@@ -381,8 +381,9 @@ function ServerDetails({ guild, navigation, onDirtyChange }: {guild: AdminGuild,
             <RulesSection guild={guild}/>
           </TabPanel>
           <TabPanel tabsId={tabsId} id='warnings' tab={tab} opened={opened}>
-            <ServerSettingsForm guild={guild} group='warnings' onDirtyChange={setter('warnings')}/>
+            {/* the list first, then its settings, like the server's own page */}
             <WarningsSection guild={guild}/>
+            <ServerSettingsForm guild={guild} group='warnings' onDirtyChange={setter('warnings')}/>
           </TabPanel>
           <TabPanel tabsId={tabsId} id='credits' tab={tab} opened={opened}>
             <ServerCreditsSection guild={guild}/>

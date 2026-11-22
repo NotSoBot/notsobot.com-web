@@ -30,6 +30,7 @@ import { cn, formatDateTime } from '@/lib/utils';
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from '../ui';
 import { REPORT_TARGET_LABELS, REPORT_TONE_FILLS, REPORT_TYPES, ROW_EDGE_BAR, type ReportTone, reportJumpUrl, reportTypeInfo } from '../reports/reportLabels';
 import { ReportThread } from '../reports/ReportThread';
+import { useReplyGuard } from '../reports/useReplyGuard';
 import { AdminModalFooter, AdminTagModal, LinkedItemModal, REVIEW_KEYS, ReviewShortcutsToggle, useHoldModalNavigation, useOpenListItem, useReviewShortcuts } from './AdminTagModal';
 import { UserModerationButtons } from './UserModerationButtons';
 import { adminServerPath, adminUserPath, Chip, CopyableValue, DETAIL_LIST_STACKED, DetailList, ExactDate, FilterButton, FiltersButton, Pagination, selectAllScope, UserCell } from './adminUi';
@@ -148,6 +149,9 @@ export function AdminReportsPage() {
   const inList = items.some((report) => report.id === openId);
   const linked = useAdminReportQuery(openId, !inList);
   const openItem = ((inList) ? listedItem : linked.data ?? listedItem) ?? null;
+  // closing asks first while a reply to the reporter is typed but not sent, like the reporter's own page. Only closing:
+  // Previous / Next are held then (`ReportDetails`), so they never get to drop one
+  const guard = useReplyGuard({openId, open, close});
   const steppingBack = useStepBackFromEmptyPage({page, setPage, data, isPlaceholderData, pageSize: ADMIN_PAGE_SIZE});
   const pagination = {
     page,
@@ -256,18 +260,20 @@ export function AdminReportsPage() {
       )}
 
       {(openItem) ? (
-        <AdminTagModal labelledBy={TITLE_ID} previousId={previousId} nextId={nextId} onNavigate={open} onClose={close} footer={false} stickyClose>
+        <AdminTagModal labelledBy={TITLE_ID} previousId={previousId} nextId={nextId} onNavigate={open} onClose={guard.close} footer={false} stickyClose>
           <ReportDetails
             key={openItem.id}
             report={openItem}
             onFilterReporter={(value) => filterBy({q: `user:${value}`})}
             onFilterTarget={(value) => filterBy({q: `target:${value}`})}
             navigation={{previousId, nextId, onNavigate: open}}
+            onDraftChange={guard.onDraftChange}
           />
         </AdminTagModal>
       ) : (openId) ? (
         <LinkedItemModal noun='report' notFoundMessage='There’s no report with this id.' query={linked} onClose={close}/>
       ) : null}
+      {guard.dialog}
     </>
   );
 }
@@ -337,12 +343,14 @@ function ReportRow({ report, onOpen }: {report: Report, onOpen: (id: string) => 
 }
 
 
-// `navigation` is the modal's Previous / Next, the status actions go between them
-function ReportDetails({ report, onFilterReporter, onFilterTarget, navigation }: {
+// `navigation` is the modal's Previous / Next, the status actions go between them. `onDraftChange` is told whether a
+// reply is typed but not sent, for the page to ask before closing
+function ReportDetails({ report, onFilterReporter, onFilterTarget, navigation, onDraftChange }: {
   report: Report,
   onFilterReporter: (userId: string) => void,
   onFilterTarget: (targetId: string) => void,
   navigation: {previousId: string | null, nextId: string | null, onNavigate: (id: string) => void},
+  onDraftChange: (unsent: boolean) => void,
 }) {
   const toast = useToast();
   const mutation = usePatchAdminReportMutation();
@@ -358,8 +366,11 @@ function ReportDetails({ report, onFilterReporter, onFilterTarget, navigation }:
   const type = typeInfo(report.type);
   const pendingStatus = (mutation.isPending) ? mutation.variables?.patch.status : undefined;
   const savingNotes = mutation.isPending && mutation.variables?.patch.status === undefined;
-  // stepping to another report would unmount this one and drop the change's toast, or a typed note that isn't saved yet
-  const held = mutation.isPending || translationMutation.isPending || notesDirty;
+  // a reply typed to the reporter but not sent yet (`ReportThread` says when)
+  const [ unsentReply, setUnsentReply ] = useState(false);
+  // stepping to another report would unmount this one and drop the change's toast, a typed note that isn't saved yet or
+  // a reply that isn't sent yet
+  const held = mutation.isPending || translationMutation.isPending || notesDirty || unsentReply;
   useHoldModalNavigation(held);
 
   // A status change carries unsaved notes along, so "write a note, click Resolve" is one step. `mutateAsync` rather than
@@ -440,6 +451,8 @@ function ReportDetails({ report, onFilterReporter, onFilterTarget, navigation }:
           <ReviewShortcutsToggle enabled={shortcuts.enabled} onChange={shortcuts.setEnabled} legend='R resolve • D dismiss'/>
           <Chip tone={status.tone} className='w-20 justify-center'>{status.label}</Chip>
         </>}
+        // room for the shortcuts toggle beside the chip on phones
+        wideStatus
       />
 
       {/* who sent it and what it's about. The reporter links to their admin page, the target id to whatever it is */}
@@ -638,7 +651,13 @@ function ReportDetails({ report, onFilterReporter, onFilterTarget, navigation }:
             <h3 className='section-label'>Conversation with the reporter</h3>
           </div>
           {(report.user) ? (
-            <ReportConversation report={report}/>
+            <ReportConversation
+              report={report}
+              onDraftChange={(unsent) => {
+                setUnsentReply(unsent);
+                onDraftChange(unsent);
+              }}
+            />
           ) : (
             <p className='rounded-md border border-line bg-deep px-3 py-2 text-sm text-muted'>
               Sent anonymously from the website, so there’s nobody to reply to. Changing the status still works.
@@ -685,7 +704,7 @@ function AnonymousReporter() {
 
 
 // replies here show up on the reporter's dashboard as NotSoAdmin
-function ReportConversation({ report }: {report: Report}) {
+function ReportConversation({ report, onDraftChange }: {report: Report, onDraftChange: (unsent: boolean) => void}) {
   const toast = useToast();
   const messages = useAdminReportMessagesQuery(report.id);
   const send = usePostAdminReportMessageMutation(report.id);
@@ -708,6 +727,7 @@ function ReportConversation({ report }: {report: Report}) {
         toast(errorMessage(error), 'error');
         throw error;
       })}
+      onDraftChange={onDraftChange}
     />
   );
 }

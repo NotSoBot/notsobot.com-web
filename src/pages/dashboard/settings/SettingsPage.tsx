@@ -1,6 +1,6 @@
 import { Crown } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
-import { Link, useLocation } from 'react-router';
+import { Link, NavigationType, useLocation, useNavigationType, type Location } from 'react-router';
 
 import { isOwner, useAuth } from '@/auth';
 import { Routes } from '@/config';
@@ -40,17 +40,37 @@ type Values = Omit<UserSettings, 'file_upload_name'>;
 type SectionProps = {settings: UserSettings, onDirtyChange: (section: string, dirty: boolean) => void};
 
 
+// the location a page load starts on is a POP to the router like Back/Forward are (its key is `default`). It's a fresh
+// visit when the page was opened (a link from the bot, say), not when it was reloaded or reached through the browser's
+// history, and only the first time: coming back to it later is a history step
+let firstLocationJumped = false;
+
+function isFreshVisit(navigationType: NavigationType, location: Location): boolean {
+  if (navigationType !== NavigationType.Pop) {
+    return true;
+  }
+  if (location.key !== 'default' || firstLocationJumped) {
+    return false;
+  }
+  const entry = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+  return entry?.type === 'navigate';
+}
+
+
 export function SettingsPage() {
   const { t } = useI18n();
   const { data: settings, isPending, error, refetch, isRefetching } = useMeSettingsQuery();
   const [ dirtySections, setDirtySections ] = useState<ReadonlySet<string>>(new Set());
   const location = useLocation();
+  const navigationType = useNavigationType();
   const loaded = !!settings;
 
-  // `/dashboard/settings#media` (or any section's id) jumps to it, once the sections are there
+  // `/dashboard/settings#media` (or any section's id) jumps to it, once the sections are there. Only when it was
+  // navigated to: Back/Forward and a reload put the scroll back where it was, which this would jump away from
   useEffect(() => {
     const id = decodeHash(location.hash);
-    if (id && loaded) {
+    if (id && loaded && isFreshVisit(navigationType, location)) {
+      firstLocationJumped = true;
       document.getElementById(id)?.scrollIntoView({block: 'start'});
     }
   }, [location.hash, loaded]);
@@ -138,7 +158,13 @@ function useSettingsSection<K extends keyof Values>(name: TranslationKey, settin
     draft.set(key, value as Pick<Values, K>[F]);
   };
 
-  return {values: draft.values, dirty: draft.dirty, set, submit, discard: draft.reset, mutation};
+  // a failed save's error goes with the edits it was about
+  const discard = () => {
+    mutation.reset();
+    draft.reset();
+  };
+
+  return {values: draft.values, dirty: draft.dirty, set, submit, discard, mutation};
 }
 
 
@@ -342,7 +368,7 @@ function AutoEmbedSection({ settings, onDirtyChange }: SectionProps) {
             />
           ))}
         </div>
-        <div className='border-t border-border pt-3'>
+        <div className='border-t border-line pt-3'>
           <Toggle
             label={t('settings.autoembed.text')}
             description={t('settings.autoembed.text_hint')}

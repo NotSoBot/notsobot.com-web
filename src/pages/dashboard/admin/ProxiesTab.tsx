@@ -110,6 +110,7 @@ export function ProxiesTab({ data }: {data: AdminIdentities}) {
     }
     return next;
   });
+  const toggleAll = () => setSelected((allSelected) ? new Set() : new Set(proxies.map((proxy) => proxy.id)));
   const open = data.proxies.find((proxy) => proxy.id === openId) ?? null;
   const openBulkDialog = (value: 'edit' | 'assign' | 'delete') => {
     setDialogIds(selectedIds);
@@ -197,61 +198,78 @@ export function ProxiesTab({ data }: {data: AdminIdentities}) {
           ) : (!proxies.length) ? (
             <EmptyState icon={<Network className='size-10'/>} title='No proxies match'>Try a different search or filter.</EmptyState>
           ) : (
-            <div className='card overflow-x-auto'>
-              <table className='w-full min-w-[720px] text-left text-sm'>
-                <thead className='border-b border-line text-xs text-subtle uppercase'>
-                  <tr>
-                    <th scope='col' className='w-10 px-4 py-2.5'>
-                      <input
-                        type='checkbox'
-                        aria-label='Select every listed proxy'
-                        checked={allSelected}
-                        onChange={() => setSelected((allSelected) ? new Set() : new Set(proxies.map((proxy) => proxy.id)))}
-                      />
-                    </th>
-                    <th scope='col' className='px-2 py-2.5 font-medium'>Proxy</th>
-                    <th scope='col' className='px-2 py-2.5 font-medium'>Labels</th>
-                    <th scope='col' className='px-2 py-2.5 font-medium'>Used by</th>
-                    <th scope='col' className='px-4 py-2.5 font-medium'>Status</th>
-                  </tr>
-                </thead>
-                <tbody className='divide-y divide-line'>
-                  {proxies.map((proxy) => (
-                    <tr key={proxy.id} className={cn('align-middle hover:bg-surface-2', selected.has(proxy.id) && 'bg-brand/5')}>
-                      <td className='px-4 py-2.5'>
-                        <input type='checkbox' aria-label={`Select ${proxyLabel(proxy)}`} checked={selected.has(proxy.id)} onChange={() => toggle(proxy.id)}/>
-                      </td>
-                      <td className='px-2 py-2.5'>
-                        <button type='button' className='cursor-pointer text-left font-mono text-sm text-white hover:underline' onClick={() => setOpenId(proxy.id)}>
+            <>
+              {/* phones: stacked rows, the table is wider than the screen and its checkboxes scrolled away with it */}
+              <ul className='card divide-y divide-line sm:hidden'>
+                <li className='px-4 py-2.5'>
+                  <label className='flex cursor-pointer items-center gap-3 text-xs text-subtle'>
+                    <input type='checkbox' checked={allSelected} onChange={toggleAll}/>
+                    Select all {proxies.length.toLocaleString()} listed
+                  </label>
+                </li>
+                {proxies.map((proxy) => (
+                  <li key={proxy.id} className={cn('flex items-start gap-3 px-4 py-3', selected.has(proxy.id) && 'bg-brand/5')}>
+                    <input type='checkbox' className='mt-1 shrink-0' aria-label={`Select ${proxyLabel(proxy)}`} checked={selected.has(proxy.id)} onChange={() => toggle(proxy.id)}/>
+                    <div className='min-w-0 flex-1 space-y-1.5'>
+                      <div>
+                        <button type='button' className='cursor-pointer text-left font-mono text-sm break-all text-white hover:underline' onClick={() => setOpenId(proxy.id)}>
                           {proxyLabel(proxy)}
                         </button>
                         {(proxy.scheme !== 'http') ? <span className='ml-2 text-xs text-subtle'>{proxy.scheme}</span> : null}
-                      </td>
-                      <td className='px-2 py-2.5'><LabelChips labels={proxy.labels}/></td>
-                      <td className='px-2 py-2.5'>
-                        <span className='inline-flex flex-wrap gap-1'>
-                          {proxy.identities.map((identity) => (
-                            <Hint key={identity.id} text={`${identity.id} (${identity.status})`}>
-                              <Chip tone={(identity.status === 'active') ? 'success' : (identity.status === 'dead') ? 'danger' : (identity.status === 'pending') ? 'warning' : 'neutral'}>
-                                {identity.service}
-                              </Chip>
-                            </Hint>
-                          ))}
-                          {(!proxy.identities.length) ? <span className='text-xs text-subtle'>unused</span> : null}
-                        </span>
-                      </td>
-                      <td className='px-4 py-2.5'>
-                        <span className='inline-flex gap-1'>
-                          {(proxy.status === 'disabled') ? <Chip>Disabled</Chip> : <Chip tone='success'>Active</Chip>}
-                          {(proxy.down) ? <Chip tone='warning'>Down</Chip> : null}
-                          {(!proxy.has_password && proxy.username) ? <Hint text='A username without a password'><Chip tone='warning'>No password</Chip></Hint> : null}
-                        </span>
-                      </td>
+                      </div>
+                      <div className='flex flex-wrap items-center gap-1'>
+                        <ProxyStatusChips proxy={proxy}/>
+                        <LabelChips labels={proxy.labels}/>
+                      </div>
+                      <div className='flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-subtle'>
+                        Used by
+                        <ProxyUsedBy proxy={proxy}/>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <div className='card hidden overflow-x-auto sm:block'>
+                <table className='w-full min-w-[720px] text-left text-sm'>
+                  <thead className='border-b border-line text-xs text-subtle uppercase'>
+                    <tr>
+                      <th scope='col' className='w-10 px-4 py-2.5'>
+                        <input
+                          type='checkbox'
+                          aria-label='Select every listed proxy'
+                          checked={allSelected}
+                          onChange={toggleAll}
+                        />
+                      </th>
+                      <th scope='col' className='px-2 py-2.5 font-medium'>Proxy</th>
+                      <th scope='col' className='px-2 py-2.5 font-medium'>Labels</th>
+                      <th scope='col' className='px-2 py-2.5 font-medium'>Used by</th>
+                      <th scope='col' className='px-4 py-2.5 font-medium'>Status</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className='divide-y divide-line'>
+                    {proxies.map((proxy) => (
+                      <tr key={proxy.id} className={cn('align-middle hover:bg-surface-2', selected.has(proxy.id) && 'bg-brand/5')}>
+                        <td className='px-4 py-2.5'>
+                          <input type='checkbox' aria-label={`Select ${proxyLabel(proxy)}`} checked={selected.has(proxy.id)} onChange={() => toggle(proxy.id)}/>
+                        </td>
+                        <td className='px-2 py-2.5'>
+                          <button type='button' className='cursor-pointer text-left font-mono text-sm text-white hover:underline' onClick={() => setOpenId(proxy.id)}>
+                            {proxyLabel(proxy)}
+                          </button>
+                          {(proxy.scheme !== 'http') ? <span className='ml-2 text-xs text-subtle'>{proxy.scheme}</span> : null}
+                        </td>
+                        <td className='px-2 py-2.5'><LabelChips labels={proxy.labels}/></td>
+                        <td className='px-2 py-2.5'><ProxyUsedBy proxy={proxy}/></td>
+                        <td className='px-4 py-2.5'>
+                          <span className='inline-flex gap-1'><ProxyStatusChips proxy={proxy}/></span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
 
       {(dialog === 'add') ? <AddProxiesDialog data={data} onClose={() => setDialog(null)}/> : null}
@@ -263,6 +281,34 @@ export function ProxiesTab({ data }: {data: AdminIdentities}) {
       {(dialog === 'labels') ? <LabelsDialog data={data} onClose={() => setDialog(null)}/> : null}
       {(open) ? <ProxyModal key={open.id} proxy={open} onClose={() => setOpenId(null)}/> : null}
     </div>
+  );
+}
+
+
+// the services with an identity on the proxy, each in its identity's status colour
+function ProxyUsedBy({ proxy }: {proxy: IdentityProxyItem}) {
+  return (
+    <span className='inline-flex flex-wrap gap-1'>
+      {proxy.identities.map((identity) => (
+        <Hint key={identity.id} text={`${identity.id} (${identity.status})`}>
+          <Chip tone={(identity.status === 'active') ? 'success' : (identity.status === 'dead') ? 'danger' : (identity.status === 'pending') ? 'warning' : 'neutral'}>
+            {identity.service}
+          </Chip>
+        </Hint>
+      ))}
+      {(!proxy.identities.length) ? <span className='text-xs text-subtle'>unused</span> : null}
+    </span>
+  );
+}
+
+
+function ProxyStatusChips({ proxy }: {proxy: IdentityProxyItem}) {
+  return (
+    <>
+      {(proxy.status === 'disabled') ? <Chip>Disabled</Chip> : <Chip tone='success'>Active</Chip>}
+      {(proxy.down) ? <Chip tone='warning'>Down</Chip> : null}
+      {(!proxy.has_password && proxy.username) ? <Hint text='A username without a password'><Chip tone='warning'>No password</Chip></Hint> : null}
+    </>
   );
 }
 
@@ -629,12 +675,33 @@ function AssignDialog({ data, proxyIds, onClose }: {data: AdminIdentities, proxy
 
 
 function DeleteProxiesDialog({ data, proxyIds, onClose, onDeleted }: {data: AdminIdentities, proxyIds: Array<number>, onClose: () => void, onDeleted: (ids: Array<number>) => void}) {
+  const titleId = useId();
   const toast = useToast();
   const remove = useDeleteProxiesMutation();
   // only the ones no identity uses are deleted, so it says how many that is instead of how many are selected
   const chosen = data.proxies.filter((proxy) => proxyIds.includes(proxy.id));
   const unused = chosen.filter((proxy) => !proxy.identities.length).length;
   const inUse = chosen.length - unused;
+  // nothing it could delete: said so, with a Delete that can't be pressed. Only before anything was sent, a delete that
+  // went through leaves none of them here either
+  if (!unused && remove.isIdle) {
+    return (
+      <Modal labelledBy={titleId} onClose={onClose} className='max-w-md'>
+        <div className='p-5 sm:p-6'>
+          <h2 id={titleId} className='pr-10 text-lg font-semibold text-white'>Nothing to delete</h2>
+          <p className='mt-2 text-sm text-muted'>
+            {(!chosen.length) ? 'The selected proxies are gone already.'
+              : (inUse === 1) ? 'The selected proxy is in use, and only unused ones are deleted: remove or move its identities first.'
+              : `All ${inUse.toLocaleString()} selected proxies are in use, and only unused ones are deleted: remove or move their identities first.`}
+          </p>
+          <div className='mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
+            <button type='button' className='btn btn-secondary' onClick={onClose}>Close</button>
+            <button type='button' className='btn btn-danger' disabled>Delete 0 unused</button>
+          </div>
+        </div>
+      </Modal>
+    );
+  }
   return (
     <ConfirmDialog
       title={`Delete ${unused.toLocaleString()} unused ${(unused === 1) ? 'proxy' : 'proxies'}?`}

@@ -7,12 +7,12 @@ import { useEffect, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router';
 
 import { Spinner } from '@/components/ui/Spinner';
+import { ExactDate, Hint, InfoTip } from '@/components/ui/Tooltip';
 import { useCopied } from '@/hooks/useCopied';
 import { errorMessage } from '@/lib/api/dashboardQueries';
 import { cn, decodeHash, displayLocale, formatDate, formatDateTime, formatMemory, formatNumber, toDate } from '@/lib/utils';
 
 import { ErrorPanel, InlineError, Panel, Skeleton } from '../../ui';
-import { ExactDate, Hint, InfoTip } from '../adminUi';
 
 
 // validated against the dark surface (dataviz palette check), each pair a chart uses is told apart by everyone.

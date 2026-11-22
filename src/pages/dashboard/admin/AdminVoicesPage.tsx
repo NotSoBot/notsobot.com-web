@@ -72,6 +72,8 @@ export function AdminVoicesPage() {
   const ownersTotal = (owners) ? owners.user + owners.server : undefined;
   const platformsTotal = (data) ? Object.values(platforms).reduce((total, count) => total + count, 0) : undefined;
 
+  const filterUser = (id: string) => update({user_id: id, server_id: null, q: null});
+  const filterServer = (id: string) => update({server_id: id, user_id: null, q: null});
   const toggleClips = (voiceId: string) => {
     setExpanded((previous) => {
       const next = new Set(previous);
@@ -140,9 +142,24 @@ export function AdminVoicesPage() {
       ) : (
         <>
           <Pagination {...pagination} className='mt-0 mb-4'/>
+          {/* phones: one stacked row per voice like the Users and Servers lists, the table is wider than the screen and
+              left the owner, clips and Rename off it */}
+          <ul className={cn('card divide-y divide-line transition-opacity sm:hidden', isPlaceholderData && 'opacity-60')}>
+            {items.map((voice) => (
+              <VoiceCard
+                key={voice.id}
+                voice={voice}
+                open={expanded.has(voice.id)}
+                onToggleClips={() => toggleClips(voice.id)}
+                onRename={() => setRenaming(voice)}
+                onFilterUser={filterUser}
+                onFilterServer={filterServer}
+              />
+            ))}
+          </ul>
           {/* `relative`: the last column's sr-only heading is absolutely positioned, and without a positioned scroller it
               escapes the clipping and makes the whole page scroll sideways */}
-          <div className={cn('card relative overflow-x-auto transition-opacity', isPlaceholderData && 'opacity-60')}>
+          <div className={cn('card relative hidden overflow-x-auto transition-opacity sm:block', isPlaceholderData && 'opacity-60')}>
             <table className='w-full min-w-[980px] text-left text-sm'>
               <thead className='border-b border-line text-xs text-subtle uppercase'>
                 <tr>
@@ -162,8 +179,8 @@ export function AdminVoicesPage() {
                     open={expanded.has(voice.id)}
                     onToggleClips={() => toggleClips(voice.id)}
                     onRename={() => setRenaming(voice)}
-                    onFilterUser={(id) => update({user_id: id, server_id: null, q: null})}
-                    onFilterServer={(id) => update({server_id: id, user_id: null, q: null})}
+                    onFilterUser={filterUser}
+                    onFilterServer={filterServer}
                   />
                 ))}
               </tbody>
@@ -197,62 +214,36 @@ function ClearChip({ label, value, onClear }: {label: string, value: string, onC
 }
 
 
-// the voice's row, and its clips under it while they're shown
-function VoiceRows({ voice, open, onToggleClips, onRename, onFilterUser, onFilterServer }: {
+type VoiceProps = {
   voice: AdminVoice,
   open: boolean,
   onToggleClips: () => void,
   onRename: () => void,
   onFilterUser: (userId: string) => void,
   onFilterServer: (serverId: string) => void,
-}) {
-  const duration = voice.clips.reduce((total, clip) => total + clip.duration, 0);
-  const size = voice.clips.reduce((total, clip) => total + clip.size, 0);
-  // the voice can't speak without it (ZONOS3 keeps the speaker embedding with us, the others keep theirs themselves)
-  const missingData = voice.platform_type === VoiceCloneTypes.ZONOS3 && !voice.has_platform_data;
-  const { server_id: serverId, user } = voice;
+};
 
+// the voice's row, and its clips under it while they're shown
+function VoiceRows({ voice, open, onToggleClips, onRename, onFilterUser, onFilterServer }: VoiceProps) {
   return (
     <Fragment>
       <tr className='align-top hover:bg-surface-2'>
         <td className='max-w-64 px-4 py-3'>
           <div className='truncate font-medium text-white' title={voice.name}>{voice.name}</div>
           <CopyableValue value={voice.id} truncate={0} className='mt-0.5'/>
-          {(serverId) ? <div className='mt-1'><Chip tone='brand'>Server voice</Chip></div> : null}
+          {(voice.server_id) ? <div className='mt-1'><Chip tone='brand'>Server voice</Chip></div> : null}
         </td>
         <td className='px-4 py-3'>
-          {(serverId) ? (
-            <ServerOwner voice={voice} serverId={serverId} onFilter={() => onFilterServer(serverId)}/>
-          ) : (
-            <OwnerLine onFilter={(user) ? () => onFilterUser(user.id) : undefined} filterLabel='Show only this user’s voices'>
-              <UserCell user={user} to={(user) ? adminUserPath(user.id) : undefined}/>
-            </OwnerLine>
-          )}
+          <VoiceOwner voice={voice} onFilterUser={onFilterUser} onFilterServer={onFilterServer}/>
         </td>
         <td className='px-4 py-3'>
           <div className='flex flex-wrap items-center gap-1'>
-            <Chip>{voicePlatformLabel(voice.platform_type)}</Chip>
-            {(missingData) ? <Chip tone='danger' title='Its speaker embedding is missing, so tts with it fails'>No embedding</Chip> : null}
+            <PlatformChips voice={voice}/>
           </div>
           <div className='mt-1'><CopyableValue value={voice.platform_id} truncate={12}/></div>
         </td>
         <td className='px-4 py-3'>
-          {(voice.clips.length) ? (
-            <button
-              type='button'
-              className='-m-1 inline-flex cursor-pointer items-start gap-1 rounded-md p-1 text-left hover:bg-surface-3'
-              aria-expanded={open}
-              onClick={onToggleClips}
-            >
-              <span>
-                <span className='block text-fg'>{formatNumber(voice.clips.length)} {(voice.clips.length === 1) ? 'clip' : 'clips'}</span>
-                <span className='block text-xs whitespace-nowrap text-subtle tabular-nums'>{formatDuration(duration)} • {formatMemory(size, (size < 1024 * 1024) ? 0 : 1)}</span>
-              </span>
-              <ChevronDown aria-hidden className={cn('mt-0.5 size-3.5 shrink-0 text-subtle transition-transform', open && 'rotate-180')}/>
-            </button>
-          ) : (
-            <span className='text-subtle' title='Cloned before clips were kept'>None kept</span>
-          )}
+          <ClipsToggle voice={voice} open={open} onToggle={onToggleClips}/>
         </td>
         <td className='px-4 py-3 whitespace-nowrap text-muted'>
           <ExactDate value={voice.created}/>
@@ -267,30 +258,123 @@ function VoiceRows({ voice, open, onToggleClips, onRename, onFilterUser, onFilte
       {(open && voice.clips.length) ? (
         <tr className='bg-deep'>
           <td colSpan={COLUMNS} className='px-4 py-2'>
-            <ul className='divide-y divide-line'>
-              {voice.clips.map((clip) => {
-                const load = () => api.fetchAdminVoiceClipAudio(voice.id, clip.id);
-                return (
-                  <li key={clip.id} className='flex items-center gap-3 py-2'>
-                    <ClipPlayer clip={clip} load={load}/>
-                    <div className='min-w-0 flex-1'>
-                      <div className='truncate text-sm text-fg' title={clip.name}>{clip.name}</div>
-                      <div className='mt-0.5 flex flex-wrap items-center gap-x-1 text-xs text-subtle'>
-                        <span className='tabular-nums'>{formatDuration(clip.duration)}</span> •
-                        <span>{formatMemory(clip.size, (clip.size < 1024 * 1024) ? 0 : 1)}</span> •
-                        <ExactDate value={clip.created}/> •
-                        <CopyableValue value={clip.id} truncate={0}/>
-                      </div>
-                    </div>
-                    <ClipDownload clip={clip} load={load}/>
-                  </li>
-                );
-              })}
-            </ul>
+            <ClipList voice={voice}/>
           </td>
         </tr>
       ) : null}
     </Fragment>
+  );
+}
+
+
+// The same voice below sm, stacked: its name and Rename, what it's on, whose it is, then its clips and when it was cloned
+function VoiceCard({ voice, open, onToggleClips, onRename, onFilterUser, onFilterServer }: VoiceProps) {
+  return (
+    <li className='px-4 py-3 text-sm'>
+      <div className='flex items-start justify-between gap-3'>
+        <div className='min-w-0'>
+          <div className='truncate font-medium text-white' title={voice.name}>{voice.name}</div>
+          <CopyableValue value={voice.id} truncate={0} className='mt-0.5 max-w-full'/>
+        </div>
+        <button type='button' className='btn btn-sm btn-ghost shrink-0' onClick={onRename}>
+          <Pencil className='size-4'/>
+          Rename
+        </button>
+      </div>
+      <div className='mt-2 flex flex-wrap items-center gap-x-2 gap-y-1'>
+        {(voice.server_id) ? <Chip tone='brand'>Server voice</Chip> : null}
+        <PlatformChips voice={voice}/>
+        <CopyableValue value={voice.platform_id} truncate={12}/>
+      </div>
+      <div className='mt-2.5'>
+        <VoiceOwner voice={voice} onFilterUser={onFilterUser} onFilterServer={onFilterServer}/>
+      </div>
+      <div className='mt-2.5 flex items-start justify-between gap-3'>
+        <ClipsToggle voice={voice} open={open} onToggle={onToggleClips}/>
+        <span className='shrink-0 text-xs whitespace-nowrap text-subtle'>Cloned <ExactDate value={voice.created}/></span>
+      </div>
+      {(open && voice.clips.length) ? (
+        <div className='mt-2 rounded-md bg-deep px-3'>
+          <ClipList voice={voice}/>
+        </div>
+      ) : null}
+    </li>
+  );
+}
+
+
+// whose it is: the server (and who made it there), or the user
+function VoiceOwner({ voice, onFilterUser, onFilterServer }: Pick<VoiceProps, 'voice' | 'onFilterUser' | 'onFilterServer'>) {
+  const { server_id: serverId, user } = voice;
+  if (serverId) {
+    return <ServerOwner voice={voice} serverId={serverId} onFilter={() => onFilterServer(serverId)}/>;
+  }
+  return (
+    <OwnerLine onFilter={(user) ? () => onFilterUser(user.id) : undefined} filterLabel='Show only this user’s voices'>
+      <UserCell user={user} to={(user) ? adminUserPath(user.id) : undefined}/>
+    </OwnerLine>
+  );
+}
+
+
+function PlatformChips({ voice }: {voice: AdminVoice}) {
+  // the voice can't speak without it (ZONOS3 keeps the speaker embedding with us, the others keep theirs themselves)
+  const missingData = voice.platform_type === VoiceCloneTypes.ZONOS3 && !voice.has_platform_data;
+  return (
+    <>
+      <Chip>{voicePlatformLabel(voice.platform_type)}</Chip>
+      {(missingData) ? <Chip tone='danger' title='Its speaker embedding is missing, so tts with it fails'>No embedding</Chip> : null}
+    </>
+  );
+}
+
+
+// how many clips it's made from, their length and size; shows and hides them
+function ClipsToggle({ voice, open, onToggle }: {voice: AdminVoice, open: boolean, onToggle: () => void}) {
+  if (!voice.clips.length) {
+    return <span className='text-subtle' title='Cloned before clips were kept'>None kept</span>;
+  }
+  const duration = voice.clips.reduce((total, clip) => total + clip.duration, 0);
+  const size = voice.clips.reduce((total, clip) => total + clip.size, 0);
+  return (
+    <button
+      type='button'
+      className='-m-1 inline-flex cursor-pointer items-start gap-1 rounded-md p-1 text-left hover:bg-surface-3'
+      aria-expanded={open}
+      onClick={onToggle}
+    >
+      <span>
+        <span className='block text-fg'>{formatNumber(voice.clips.length)} {(voice.clips.length === 1) ? 'clip' : 'clips'}</span>
+        <span className='block text-xs whitespace-nowrap text-subtle tabular-nums'>{formatDuration(duration)} • {formatMemory(size, (size < 1024 * 1024) ? 0 : 1)}</span>
+      </span>
+      <ChevronDown aria-hidden className={cn('mt-0.5 size-3.5 shrink-0 text-subtle transition-transform', open && 'rotate-180')}/>
+    </button>
+  );
+}
+
+
+function ClipList({ voice }: {voice: AdminVoice}) {
+  return (
+    <ul className='divide-y divide-line'>
+      {voice.clips.map((clip) => {
+        const load = () => api.fetchAdminVoiceClipAudio(voice.id, clip.id);
+        return (
+          <li key={clip.id} className='flex items-center gap-3 py-2'>
+            <ClipPlayer clip={clip} load={load}/>
+            <div className='min-w-0 flex-1'>
+              <div className='truncate text-sm text-fg' title={clip.name}>{clip.name}</div>
+              <div className='mt-0.5 flex flex-wrap items-center gap-x-1 text-xs text-subtle'>
+                <span className='tabular-nums'>{formatDuration(clip.duration)}</span> •
+                <span>{formatMemory(clip.size, (clip.size < 1024 * 1024) ? 0 : 1)}</span> •
+                <ExactDate value={clip.created}/> •
+                <CopyableValue value={clip.id} truncate={0}/>
+              </div>
+            </div>
+            <ClipDownload clip={clip} load={load}/>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 

@@ -331,6 +331,7 @@ export const GUIDE_PORTUGUESE: TagDocsTranslation['guide'] = {
       rows: [
         ['Tempo de execução', '40 segundos', 'Quanto tempo a execução inteira pode levar, incluindo tudo o que ela chama: 60 segundos num servidor premium, 70 com Premium, 100 com Plus e 130 com Max.'],
         ['Iterações', '', 'Vezes que o texto é analisado por execução. Quando acabam, o texto restante aparece sem ser avaliado.'],
+        ['Chamadas de funções', '10.000', 'Funções chamadas numa execução, incluindo as tags que ela chama.'],
         ['Requisições de rede', '', 'Funções que acessam a internet: downloads, pesquisas, anexos, execuções de código, buscar usuários etc.'],
         ['Requisições de IA', '', 'Chamadas de `{ai}`.'],
         ['Requisições de aprendizado de máquina', '', 'Geração e edição de imagens (`{imagine}`, `{edit}` e suas versões de URL).'],
@@ -340,6 +341,7 @@ export const GUIDE_PORTUGUESE: TagDocsTranslation['guide'] = {
         ['Execuções de componentes', '', 'Vezes que a tag pode rodar de novo por cliques em botões, menus de seleção ou `{componentsontimeout}`.'],
         ['Anexos', '', 'Arquivos anexados à resposta.'],
         ['Embeds', '', 'Embeds na resposta.'],
+        ['Tamanho do texto de saída', '', 'Todo o texto que a tag produz, ou o limite de upload do canal se for menor.'],
         ['Páginas', '1.000', 'Páginas adicionadas com `{pagejson}` ou pelo código.'],
         ['Variáveis', '', 'Variáveis definidas durante uma execução.'],
         ['Tamanho do nome de variável', '64 caracteres', 'Tamanho do nome de uma variável.'],
@@ -355,6 +357,7 @@ export const GUIDE_PORTUGUESE: TagDocsTranslation['guide'] = {
         ['Rede do código', '', 'Velocidade da internet dentro do sandbox, com cerca de 3 requisições por segundo.'],
         ['Tamanho do prompt de IA', '12.000 caracteres', 'Prompts de `{ai}` maiores são cortados.'],
         ['Tempo de regex', '', 'Quanto tempo o `{replace}` pode gastar numa expressão regular.'],
+        ['Tempo de math e replace', '2 segundos', 'Tempo que `{math}` e `{replace}` podem usar no total numa execução, incluindo as tags que ela chama.'],
         ['Tamanho do loop', '', 'Itens que o `{foreach}` pode percorrer.'],
       ],
     },

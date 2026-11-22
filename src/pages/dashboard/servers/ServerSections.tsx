@@ -153,13 +153,14 @@ function AdminBypassToggle({ guild, edit }: {guild: UserGuild, edit: ReturnType<
   const { t } = useI18n();
   const editable = guild.editable.rules_admin;
   const staff = useGuildScope() === 'admin';
-  // only this switch dims while it saves, another edit being sent just makes it wait
+  // the spinner is only on this switch's own save, any other edit in the panel dims it meanwhile (one is sent at a
+  // time, a click then would be dropped)
   const busy = edit.busyKey === '\u0000bypass';
   return (
     <div className='mb-4 rounded-md border border-line bg-deep px-3 py-2.5'>
       <Toggle
         checked={edit.pendingPatch?.rules_admin_bypass ?? guild.settings.rules_admin_bypass}
-        disabled={!editable || busy}
+        disabled={!editable || edit.pending}
         busy={busy}
         label={t('bypass.label')}
         description={(
@@ -168,11 +169,7 @@ function AdminBypassToggle({ guild, edit }: {guild: UserGuild, edit: ReturnType<
             {(editable) ? null : <LockNote>{t((staff) ? 'bypass.staff' : 'bypass.owner_only')}</LockNote>}
           </>
         )}
-        onChange={(value) => {
-          if (!edit.pending) {
-            void edit.run('\u0000bypass', {kind: 'settings', patch: {rules_admin_bypass: value}}, t((value) ? 'bypass.on' : 'bypass.off'));
-          }
-        }}
+        onChange={(value) => void edit.run('\u0000bypass', {kind: 'settings', patch: {rules_admin_bypass: value}}, t((value) ? 'bypass.on' : 'bypass.off'))}
       />
     </div>
   );
@@ -206,18 +203,22 @@ function PrefixPermissionsSelect({ guild, edit }: {guild: UserGuild, edit: Retur
         )}
       >
         {(props) => (
-          <ChoiceSelect
-            {...props}
-            // only its own save dims it, another edit being sent just makes it wait
-            disabled={!editable || edit.busyKey === '\u0000prefix_permissions'}
-            choices={choices}
-            value={current}
-            onChange={(value) => {
-              if (value !== null && !edit.pending) {
-                void edit.run('\u0000prefix_permissions', {kind: 'settings', patch: {prefix_command_permissions: value}}, t('prefix_permissions.saved'));
-              }
-            }}
-          />
+          <div className='flex items-center gap-2'>
+            <ChoiceSelect
+              {...props}
+              // any edit in the panel dims it (one is sent at a time, a pick then would snap back), the spinner is only
+              // for its own save
+              disabled={!editable || edit.pending}
+              choices={choices}
+              value={current}
+              onChange={(value) => {
+                if (value !== null) {
+                  void edit.run('\u0000prefix_permissions', {kind: 'settings', patch: {prefix_command_permissions: value}}, t('prefix_permissions.saved'));
+                }
+              }}
+            />
+            {(edit.busyKey === '\u0000prefix_permissions') ? <Spinner className='size-3.5 shrink-0'/> : null}
+          </div>
         )}
       </Field>
       <PrefixSunsetLine className='mt-1.5'/>
@@ -275,6 +276,8 @@ export function PrefixesSection({ guild }: {guild: UserGuild}) {
   // the API strips leading/trailing whitespace, so compare (and send) what it'll actually store
   const trimmed = prefix.trim();
   const exists = guild.prefixes.some((item) => item.prefix === trimmed);
+  // removing doesn't ask first, like a rule: its toast's Undo adds the same prefix again
+  const restore = (removed: string) => void edit.run('\u0000restore', {kind: 'prefix', prefix: removed, present: true}, t('prefixes.restored', {prefix: removed}));
 
   return (
     <Panel
@@ -295,7 +298,12 @@ export function PrefixesSection({ guild }: {guild: UserGuild}) {
                   label={t('prefixes.remove', {prefix: item.prefix})}
                   busy={edit.busyKey === item.prefix}
                   disabled={edit.pending}
-                  onClick={() => void edit.run(item.prefix, {kind: 'prefix', prefix: item.prefix, present: false}, t('prefixes.removed', {prefix: item.prefix}))}
+                  onClick={() => void edit.run(
+                    item.prefix,
+                    {kind: 'prefix', prefix: item.prefix, present: false},
+                    t('prefixes.removed', {prefix: item.prefix}),
+                    {label: t('sections.undo'), onClick: () => restore(item.prefix)},
+                  )}
                 />
               ) : <span className='w-2'/>}
             </li>
@@ -541,8 +549,7 @@ export function RulesSection({ guild }: {guild: UserGuild}) {
   const valid = isSnowflake(targetId) && (covers !== 'command' || !!commandId) && !exists && (!needsAdmin || adminEditable);
 
   const canChange = (rule: GuildRule) => editable && (!coversEverything(rule) || adminEditable);
-  // removing doesn't ask first, its toast's Undo adds the same rule again. Its own owner/admin bypass only comes back
-  // for admins (the api only takes one from them), otherwise the rule follows the server's
+  // removing doesn't ask first, its toast's Undo adds the same rule again, with its own owner/admin bypass if it had one
   const restore = (rule: GuildRule) => void edit.run('\u0000restore', {kind: 'rules-add', rules: [{
     action: 'access',
     category: rule.category,
@@ -550,8 +557,13 @@ export function RulesSection({ guild }: {guild: UserGuild}) {
     target_id: rule.target_id,
     target_type: rule.target_type,
     value: rule.value,
-    ...(adminEditable && rule.admin_bypass !== null) ? {admin_bypass: rule.admin_bypass} : {},
+    ...(rule.admin_bypass !== null) ? {admin_bypass: rule.admin_bypass} : {},
   }]}, t('rules.restored'));
+  // the api only takes a rule's own bypass from admins, so anyone else's Undo would bring back a rule that follows the
+  // server's instead. Those are asked first, with no Undo after
+  const restorable = (rule: GuildRule) => rule.admin_bypass === null || adminEditable;
+  // the rule whose Remove was clicked and has to be confirmed, as it was then
+  const [ removing, setRemoving ] = useState<GuildRule | null>(null);
   // the rule whose message is being edited
   const [ editingId, setEditingId ] = useState<string | null>(null);
 
@@ -669,7 +681,13 @@ export function RulesSection({ guild }: {guild: UserGuild}) {
                     label={t('rules.remove')}
                     busy={edit.busyKey === rule.id}
                     disabled={edit.pending}
-                    onClick={() => void edit.run(rule.id, {kind: 'rules-remove', ids: [rule.id]}, t('rules.removed'), {label: t('sections.undo'), onClick: () => restore(rule)})}
+                    onClick={() => {
+                      if (restorable(rule)) {
+                        void edit.run(rule.id, {kind: 'rules-remove', ids: [rule.id]}, t('rules.removed'), {label: t('sections.undo'), onClick: () => restore(rule)});
+                      } else {
+                        setRemoving(rule);
+                      }
+                    }}
                   />
                 ) : null}
               </li>
@@ -748,6 +766,22 @@ export function RulesSection({ guild }: {guild: UserGuild}) {
             </Field>
           ) : null}
         </AddRow>
+      ) : null}
+
+      {(removing) ? (
+        <ConfirmDialog
+          title={t('rules.remove_title')}
+          description={t('rules.remove_description', {setting: t((removing.admin_bypass) ? 'bypass.skip' : 'bypass.follow')})}
+          confirmLabel={t('rules.remove_confirm')}
+          pending={edit.busyKey === removing.id}
+          onConfirm={async () => {
+            // a failure is toasted, the dialog stays open to try again
+            if (await edit.run(removing.id, {kind: 'rules-remove', ids: [removing.id]}, t('rules.removed'))) {
+              setRemoving(null);
+            }
+          }}
+          onClose={() => setRemoving(null)}
+        />
       ) : null}
     </Panel>
   );

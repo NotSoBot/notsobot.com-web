@@ -1,42 +1,41 @@
 import { AlarmClock, AlertTriangle, ArrowUpRight, Ban, Crown, ExternalLink, Eye, SquareTerminal, Tags as TagsIcon, type LucideIcon } from 'lucide-react';
 import { Link, Outlet, useMatch, useOutletContext, useParams } from 'react-router';
 
+import { Chip } from '@/components/ui/Chip';
+import { CopyableValue } from '@/components/ui/CopyableValue';
 import { Routes } from '@/config';
 import { useI18n } from '@/i18n';
 import { ApiErrorCodes, ApiRequestError, type GuildEditableArea, type UserGuild } from '@/lib/api';
-import { errorMessage, isDiscordGrantError, isScopeMismatch, useMeGuildQuery, useMeRemindersQuery, useMeTagsCountQuery } from '@/lib/api/dashboardQueries';
+import {
+  errorMessage,
+  isDiscordGrantError,
+  isScopeMismatch,
+  useGuildCreditsQuery,
+  useGuildLLMKnowledgeQuery,
+  useGuildTagsQuery,
+  useGuildVoicesQuery,
+  useMeGuildQuery,
+  useMeRemindersQuery,
+  useMeTagsCountQuery,
+  useSavedFontsQuery,
+} from '@/lib/api/dashboardQueries';
 import { cn, discordGuildUrl, formatNumber } from '@/lib/utils';
 
-import { Chip, CopyableValue } from '../admin/adminUi';
-import { SavedFontsPanel } from '../fonts/SavedFontsPanel';
 import { PanelSkeleton, Skeleton, UnsavedChangesGuard } from '../ui';
-import { AIKnowledgeSection } from './AIKnowledgeSection';
-import { GuildCommandsSection } from './GuildCommandsSection';
 import { GuildIcon } from './GuildIcon';
-import { GuildRemindersSection } from './GuildRemindersSection';
-import { GuildReportsSection } from './GuildReportsSection';
-import { GuildTagsSection } from './GuildTagsSection';
-import { AREA_LABEL, AREA_PERMISSION, useReadOnlyMessage } from './guildMeta';
-import { MusicSection } from './MusicSection';
-import { MusicStatsSection } from './MusicStatsSection';
-import { ServerLimitsSection } from '../LimitsSummary';
-import { ServerCreditsSection } from './ServerCreditsSection';
-import { ServerDataSection } from './ServerDataSection';
-import { LoggersSection, PrefixesSection, RulesSection } from './ServerSections';
-import { ServerHome } from './ServerHome';
-import { ServerSettingsForm, useDirtyGroups, type SettingsGroup } from './ServerSettingsForm';
-import { ServerVoicesSection } from './ServerVoicesSection';
+import { AREA_LABEL, AREA_PERMISSION } from './guildMeta';
 import { ScopeMismatchCard } from './ServersPage';
-import { WarningsSection } from './WarningsSection';
+import { useDirtyGroups, type SettingsGroup } from './useDirtyGroups';
 
 
-// what each tab's page gets from `ServerPage`
+// what each tab's page (`./tabs`, a module each so opening one doesn't download the others) gets from `ServerPage`.
+// Nothing a tab draws is imported here, or it'd come with every one of them
 interface ServerOutletContext {
   guild: UserGuild,
   setDirty: (group: SettingsGroup) => (dirty: boolean) => void,
 }
 
-function useServer(): ServerOutletContext {
+export function useServer(): ServerOutletContext {
   return useOutletContext<ServerOutletContext>();
 }
 
@@ -50,9 +49,12 @@ export function ServerPage() {
   const { guildId = '' } = useParams();
   const { data: guild, isPending, error, refetch, isRefetching } = useMeGuildQuery(guildId);
   const { setter, any } = useDirtyGroups<SettingsGroup>();
+  const home = !!useMatch({path: Routes.DASHBOARD_SERVER, end: true});
 
   return (
     <>
+      {/* not for a server that didn't load, there's no Home to show them on */}
+      {(home && (guild || isPending)) ? <HomeQueries guildId={guildId}/> : null}
       {(guild) ? (
         // keyed by the server: switching servers keeps this route mounted, so without it one server's unsaved edits,
         // open editors, dialogs and in-flight saves would carry over onto the next (like the admin modal's `ServerDetails`)
@@ -156,101 +158,16 @@ function ServerLayout({ guild, setDirty }: {guild: UserGuild, setDirty: ServerOu
 }
 
 
-/* each section's page */
-
-export function ServerHomePage() {
-  const { guild } = useServer();
-  return <ServerHome guild={guild}/>;
-}
-
-export function ServerCommandsPage() {
-  const { guild } = useServer();
-  return <GuildCommandsSection guild={guild}/>;
-}
-
-export function ServerMusicPage() {
-  const { guild } = useServer();
-  return (
-    <>
-      <MusicSection guild={guild}/>
-      <MusicStatsSection guild={guild}/>
-    </>
-  );
-}
-
-export function ServerNotSoAIPage() {
-  const { guild, setDirty } = useServer();
-  return (
-    <>
-      <ServerSettingsForm guild={guild} group='ai' onDirtyChange={setDirty('ai')}/>
-      <AIKnowledgeSection guild={guild}/>
-    </>
-  );
-}
-
-export function ServerRemindersPage() {
-  const { guild } = useServer();
-  return <GuildRemindersSection guild={guild}/>;
-}
-
-export function ServerTagsPage() {
-  const { guild } = useServer();
-  return <GuildTagsSection guild={guild}/>;
-}
-
-export function ServerVoicesPage() {
-  const { guild } = useServer();
-  return <ServerVoicesSection guild={guild}/>;
-}
-
-export function ServerFontsPage() {
-  const { guild } = useServer();
-  const readOnlyMessage = useReadOnlyMessage();
-  return <SavedFontsPanel guildId={guild.id} editable={guild.editable.settings} readOnly={readOnlyMessage('settings')}/>;
-}
-
-export function ServerReportsPage() {
-  const { guild } = useServer();
-  return <GuildReportsSection guild={guild}/>;
-}
-
-export function ServerRulesPage() {
-  const { guild } = useServer();
-  return <RulesSection guild={guild}/>;
-}
-
-export function ServerWarningsPage() {
-  const { guild, setDirty } = useServer();
-  // the list moderators come for first, then its settings
-  return (
-    <>
-      <WarningsSection guild={guild}/>
-      <ServerSettingsForm guild={guild} group='warnings' onDirtyChange={setDirty('warnings')}/>
-    </>
-  );
-}
-
-export function ServerCreditsPage() {
-  const { guild } = useServer();
-  return (
-    <>
-      <ServerCreditsSection guild={guild}/>
-      <ServerLimitsSection guild={guild}/>
-    </>
-  );
-}
-
-export function ServerSettingsPage() {
-  const { guild, setDirty } = useServer();
-  return (
-    <>
-      <PrefixesSection guild={guild}/>
-      <ServerSettingsForm guild={guild} group='general' onDirtyChange={setDirty('general')}/>
-      <ServerSettingsForm guild={guild} group='moderation' onDirtyChange={setDirty('moderation')}/>
-      <LoggersSection guild={guild}/>
-      <ServerDataSection guild={guild}/>
-    </>
-  );
+// Home's counts that only need the server's id, the same queries `ServerHome` reads: asked for next to the server itself
+// instead of a round trip later, once it has loaded and Home is drawn. It stays for as long as Home is open (leaving
+// right as Home takes over would cancel them mid-flight), and draws nothing
+function HomeQueries({ guildId }: {guildId: string}) {
+  useGuildLLMKnowledgeQuery(guildId);
+  useGuildTagsQuery(guildId, '');
+  useGuildVoicesQuery(guildId);
+  useSavedFontsQuery(guildId);
+  useGuildCreditsQuery(guildId);
+  return null;
 }
 
 

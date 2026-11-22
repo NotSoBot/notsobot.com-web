@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 
 import { useToast } from '@/components/ui/Toast';
 import { useI18n } from '@/i18n';
@@ -23,6 +23,7 @@ import { useDraft } from '../settings/useDraft';
 import { CharCounter, Field, HelpDisclosure, InlineError, Panel, SaveBar, Toggle } from '../ui';
 import { banCleanChoices, useReadOnlyMessage, warningsExpireChoices, warningsWindowChoices } from './guildMeta';
 import { PremiumNote } from './MusicSection';
+import { useDirtyGroups, type SettingsGroup } from './useDirtyGroups';
 import { WarningActionsEditor, warningActionsError } from './WarningActionsEditor';
 import { WarningAutoEditor, warningAutoError } from './WarningAutoEditor';
 
@@ -31,10 +32,8 @@ import { WarningAutoEditor, warningAutoError } from './WarningAutoEditor';
 type SettingsPatch = Omit<UserGuildPatch, 'prefix_command_permissions' | 'rules_admin_bypass'>;
 type Values = Required<{[K in keyof SettingsPatch]: Exclude<SettingsPatch[K], undefined>}>;
 
-// the settings are split into groups that each sit on their own server page, with their own save bar.
-// Saving one never touches another's edits. `general` is two panels, the server settings and auto-embed, over one draft
-// and one save bar
-export type SettingsGroup = 'general' | 'ai' | 'moderation' | 'warnings';
+// in their own file for the server page's shell, still exported from here for what takes them with the form
+export { useDirtyGroups, type SettingsGroup };
 
 // the title, description and save/fail toasts are `ssettings.<group>.title`, `.description`, `.saved` and `.failed`
 const GROUP_ACCENTS: Record<SettingsGroup, string> = {
@@ -60,7 +59,9 @@ function savedValues(guild: UserGuild): Values {
     ml_diffusion_model: guild.settings.ml_diffusion_model,
     media_font: guild.settings.media_font,
     post_gallery: guild.settings.post_gallery ?? null,
-    response_display: guild.settings.response_display,
+    // 0 is "Default (embeds)", which the select shows (and sets) as nothing picked: the same here, or picking another
+    // one and then Default again would stay unsaved
+    response_display: guild.settings.response_display || null,
     search_provider_images: guild.settings.search_provider_images,
     search_provider_web: guild.settings.search_provider_web,
     ban_clean: guild.settings.ban_clean,
@@ -87,17 +88,6 @@ const MODERATION_DMS = [
 
 // the server's response display without "Default (embeds)": not picking one already means that, so it's the empty option
 const RESPONSE_DISPLAY_SET_CHOICES = RESPONSE_DISPLAY_CHOICES.filter((choice) => choice.value !== 0);
-
-
-// which of a modal's forms have unsaved edits, for the tabs' dots and asking before closing
-export function useDirtyGroups<K extends string>() {
-  const [ dirty, setDirty ] = useState<Partial<Record<K, boolean>>>({});
-  const setter = useCallback((key: K) => (value: boolean) => {
-    setDirty((previous) => (!!previous[key] === value) ? previous : {...previous, [key]: value});
-  }, []);
-  const any = Object.values(dirty).some(Boolean);
-  return {dirty, setter, any};
-}
 
 
 export function ServerSettingsForm({ guild, group, onDirtyChange }: {guild: UserGuild, group: SettingsGroup, onDirtyChange: (dirty: boolean) => void}) {
@@ -207,8 +197,9 @@ export function ServerSettingsForm({ guild, group, onDirtyChange }: {guild: User
               <Field label={t('settings.region.timezone')}>
                 {(props) => <ChoiceSelect {...props} noneLabel={t('settings.region.no_timezone')} choices={TIMEZONE_CHOICES} value={values.timezone} onChange={(value) => draft.set('timezone', value)}/>}
               </Field>
-              {/* nothing to pick between while there's one image model */}
-              {(1 < DIFFUSION_MODEL_CHOICES.length) ? (
+              {/* nothing to pick between while there's one image model, but a server that has one saved (maybe a
+                  retired one) still sees it and can clear it */}
+              {(1 < DIFFUSION_MODEL_CHOICES.length || saved.ml_diffusion_model !== null) ? (
                 <Field label={t('settings.ai.image_model')}>
                   {(props) => <ChoiceSelect {...props} noneLabel={t('settings.default')} choices={DIFFUSION_MODEL_CHOICES} value={values.ml_diffusion_model} onChange={(value) => draft.set('ml_diffusion_model', value)}/>}
                 </Field>

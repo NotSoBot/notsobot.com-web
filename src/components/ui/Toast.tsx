@@ -23,8 +23,8 @@ interface ToastItem {
 type ShowToast = (message: string, tone?: ToastTone, action?: ToastAction) => void;
 
 const ToastContext = createContext<ShowToast | null>(null);
-// sets how far up the toasts sit, see `useToastClearance`
-const ToastLiftContext = createContext<((height: number) => void) | null>(null);
+// sets how far up the toasts sit for one bar (null once it's gone), see `useToastClearance`
+const ToastLiftContext = createContext<((owner: symbol, height: number | null) => void) | null>(null);
 
 
 export function useToast(): ShowToast {
@@ -45,11 +45,14 @@ export function useToastClearance(ref: RefObject<HTMLElement | null>): void {
     if (!element || !setLift) {
       return;
     }
-    const observer = new ResizeObserver(() => setLift(element.offsetHeight));
+    // several bars can ask at once (two stuck save bars, a modal's footer over one): each has its own entry, so one
+    // leaving doesn't drop the toasts onto the others
+    const owner = Symbol('toast-clearance');
+    const observer = new ResizeObserver(() => setLift(owner, element.offsetHeight));
     observer.observe(element);
     return () => {
       observer.disconnect();
-      setLift(0);
+      setLift(owner, null);
     };
   }, [ref, setLift]);
 }
@@ -60,8 +63,19 @@ export function useToastClearance(ref: RefObject<HTMLElement | null>): void {
 // reach it) or on click. The countdown waits while the pointer is on a toast or something in it has focus.
 export function ToastProvider({ children }: {children: ReactNode}) {
   const [ toasts, setToasts ] = useState<Array<ToastItem>>([]);
-  const [ lift, setLift ] = useState(0);
+  const [ lift, setLiftHeight ] = useState(0);
+  const lifts = useRef(new Map<symbol, number>());
   const nextId = useRef(1);
+
+  // the tallest bar wins
+  const setLift = useCallback((owner: symbol, height: number | null) => {
+    if (height === null) {
+      lifts.current.delete(owner);
+    } else {
+      lifts.current.set(owner, height);
+    }
+    setLiftHeight(Math.max(0, ...lifts.current.values()));
+  }, []);
 
   const dismiss = useCallback((id: number) => {
     setToasts((items) => items.filter((item) => item.id !== id));
@@ -80,6 +94,7 @@ export function ToastProvider({ children }: {children: ReactNode}) {
         {children}
       </ToastLiftContext.Provider>
       <div
+        data-toast-region
         className='pointer-events-none fixed inset-x-0 bottom-0 z-[60] flex flex-col items-center gap-2 p-4 sm:items-end'
         style={(lift) ? {bottom: lift} : undefined}
       >

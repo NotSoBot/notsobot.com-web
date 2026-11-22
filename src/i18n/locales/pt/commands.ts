@@ -52,7 +52,7 @@ export const Commands: Record<keyof typeof English, string> = {
   'commands.trending_empty': 'Nada aqui foi usado nesta semana.',
   'commands.categories': 'Categorias',
   'commands.all': 'Todos os comandos',
-  'commands.search_placeholder': 'Pesquisar comandos, apelidos, descrições...',
+  'commands.search_placeholder': 'Pesquise comandos, apelidos, descrições...',
   'commands.search_label': 'Pesquisar comandos',
   'commands.type_label': 'Tipo de comando',
   'commands.access_label': 'Grátis ou premium',
@@ -71,7 +71,7 @@ export const Commands: Record<keyof typeof English, string> = {
 
   'commands.no_description': 'Sem descrição',
   'commands.no_uses': 'Sem usos nesta semana',
-  'commands.uses_title': '{uses} usos nos últimos 7 dias · #{rank} no geral',
+  'commands.uses_title': '{uses} usos nos últimos 7 dias • #{rank} no geral',
   'commands.per_week': '/sem',
   'commands.uses_this_week': 'usos nesta semana',
 
@@ -94,7 +94,7 @@ export const Commands: Record<keyof typeof English, string> = {
   'commands.drawer.ratelimit_scope.server': 'por servidor',
   'commands.drawer.ratelimit_scope.channel': 'por canal',
   'commands.drawer.ratelimit_shared': 'Limite compartilhado: {group}.',
-  'commands.drawer.ratelimit_shared_description': 'Todos os comandos deste grupo contam para o mesmo limite, com prefixo ou slash.',
+  'commands.drawer.ratelimit_shared_description': 'Todos os comandos deste grupo contam para o mesmo limite, com prefixo ou de barra.',
   'commands.drawer.ratelimit_shared_more': '+{count} mais',
   'commands.ratelimit_group.browser': 'Capturas e downloads',
   'commands.ratelimit_group.media': 'Edição de mídia',

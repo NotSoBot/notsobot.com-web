@@ -47,7 +47,7 @@ export const FAQ_QUESTIONS: Array<FaqQuestion> = [
     id: 'use-without-server',
     section: 'start',
     question: 'Can I use NotSoBot without adding it to a server?',
-    answer: 'Yes. You can add NotSoBot to your Discord account instead of a server. Its slash commands and right-click menu commands (like **Download** or **OCR** on a message) then work in DMs and in servers that allow external apps.\n\nPrefix commands like `.magik` only work in servers the bot has been added to.',
+    answer: 'Yes. You can add NotSoBot to your Discord account instead of a server. Its slash commands and right-click menu commands (like **Download** or **OCR** on a message) then work in DMs and in servers that allow external apps.\n\nPrefix commands like `.magik` only work in servers the bot has been added to and in your DMs with NotSoBot.',
   },
   {
     id: 'how-to-run-commands',
@@ -73,7 +73,7 @@ export const FAQ_QUESTIONS: Array<FaqQuestion> = [
     id: 'chain-effects',
     section: 'commands',
     question: 'Can I apply several effects at once?',
-    answer: 'Yes, with `/media-aiv pipe` (or `.pipe`). Separate the commands with semicolons, for example `/media-aiv pipe commands:flip; flop` or `.pipe flip; flop`. Up to 5 commands can be chained, and each one runs on the result of the one before it.',
+    answer: 'Yes, with `/media-aiv pipe` (or `.pipe`). Separate the commands with semicolons, for example `/media-aiv pipe commands:flip; flop` or `.pipe flip; flop`. Up to 10 commands can be chained, or 5 when one of them has to run on its own, and each one runs on the result of the one before it.',
   },
   {
     id: 'download-videos',
@@ -123,13 +123,13 @@ export const FAQ_QUESTIONS: Array<FaqQuestion> = [
     id: 'loggers',
     section: 'server',
     question: 'Can NotSoBot log what happens in my server?',
-    answer: 'Yes. Set up loggers for bans, channels, members, messages, roles, users and voice, for example `/server loggers add type:Messages channel:#message-logs` (or `.loggers add messages -channel message-logs`). Run `/server loggers list` (or `.loggers`) to see what\'s currently being logged and where.',
+    answer: 'Yes. Set up loggers for bans, channels, members, messages, roles, users, voice, moderation (warnings), reports and the decoy channel, for example `/server loggers add type:Messages channel:#message-logs` (or `.loggers add messages -channel message-logs`). Run `/server loggers list` (or `.loggers`) to see what\'s currently being logged and where.',
   },
   {
     id: 'language',
     section: 'server',
     question: 'Can NotSoBot reply in my language?',
-    answer: 'Yes, it\'s available in 33 languages. Use `/settings set locale` to pick yours, or `/settings-server set locale` to set the server\'s default.',
+    answer: 'Yes, it\'s available in 33 languages. Use `/settings set locale` to pick yours, or `/server set locale` to set the server\'s default.',
   },
 
   // limits

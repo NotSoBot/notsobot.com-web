@@ -6,6 +6,9 @@ import react from '@vitejs/plugin-react';
 import { defineConfig, loadEnv } from 'vite';
 
 
+const LUCIDE_PATTERN = /node_modules[\\/]lucide-react[\\/]/;
+
+
 export default defineConfig(({ command, mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
 
@@ -66,6 +69,27 @@ export default defineConfig(({ command, mode }) => {
               return 'assets/effect.[hash][extname]';
             }
             return 'assets/[name]-[hash][extname]';
+          },
+        },
+      },
+    },
+    // only the browser's build (on top of `build` above), the worker's chunks aren't fetched one by one
+    environments: {
+      client: {
+        build: {
+          rolldownOptions: {
+            output: {
+              // an icon more than one page uses was a chunk of its own, a third of all the chunks at a few hundred
+              // bytes each. they're two files now: the ones the first load already needed (shared with the entry),
+              // and the ones only lazy pages share, which the first load still doesn't fetch. an icon one page uses
+              // stays in that page's chunk
+              codeSplitting: {
+                groups: [
+                  {name: 'icons-initial', test: LUCIDE_PATTERN, tags: ['$initial'], minShareCount: 2, priority: 2},
+                  {name: 'icons', test: LUCIDE_PATTERN, minShareCount: 2, priority: 1},
+                ],
+              },
+            },
           },
         },
       },

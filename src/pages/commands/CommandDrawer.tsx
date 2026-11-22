@@ -218,7 +218,7 @@ export function CommandDrawer({ entry, type, siblings, entries, totalRanked, sta
                     const scope = ratelimitScopeLabel(limit.type);
                     return (
                       <li key={i} className='rounded bg-surface-3 px-2.5 py-1 text-sm text-fg'>
-                        {t('commands.drawer.ratelimit', {limit: limit.limit, seconds: limit.duration / 1000})} <span className='text-subtle'>· {(scope) ? t(scope) : limit.type}</span>
+                        {t('commands.drawer.ratelimit', {limit: limit.limit, seconds: limit.duration / 1000})} <span className='text-subtle'>• {(scope) ? t(scope) : limit.type}</span>
                       </li>
                     );
                   })}

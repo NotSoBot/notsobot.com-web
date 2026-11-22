@@ -4,17 +4,23 @@
 // `content` is whatever the user typed, so it's only ever rendered as plain text.
 
 import { ExternalLink, MessageSquareWarning, MessagesSquare, RotateCcw } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { useSearchParams } from 'react-router';
 
 import logo from '@/assets/logos/NotSoLogo.svg';
 import { useAuth } from '@/auth';
-import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { Chip } from '@/components/ui/Chip';
+import { CopyableValue, selectAllScope } from '@/components/ui/CopyableValue';
 import { CopyButton } from '@/components/ui/CopyButton';
+import { DETAIL_LIST_STACKED, DetailList } from '@/components/ui/DetailList';
 import { DetailModalHeader, DetailModalStrip } from '@/components/ui/DetailModal';
+import { FiltersButton } from '@/components/ui/FiltersButton';
+import { AdminModalFooter, AdminTagModal, LinkedItemModal, useOpenListItem } from '@/components/ui/ItemModal';
+import { Pagination } from '@/components/ui/Pagination';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
+import { ExactDate } from '@/components/ui/Tooltip';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { useSearchParamState, useStepBackFromEmptyPage } from '@/hooks/useSearchParamState';
 import { translate, useI18n, type TranslationKey } from '@/i18n';
@@ -33,14 +39,13 @@ import {
 } from '@/lib/api/dashboardQueries';
 import { cn, formatDate, formatDateTime, formatNumber, toDate } from '@/lib/utils';
 
-import { AdminModalFooter, AdminTagModal, LinkedItemModal, useOpenListItem } from '../admin/AdminTagModal';
-import { Chip, CopyableValue, DETAIL_LIST_STACKED, DetailList, ExactDate, FiltersButton, Pagination, selectAllScope } from '../admin/adminUi';
 import { Segmented } from '@/components/ui/Segmented';
 
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from '../ui';
 import { REPORT_STATUSES, REPORT_TARGET_LABELS, reportJumpUrl, reportStatusInfo, reportTypeInfo, ROW_EDGE_BAR } from './reportLabels';
 import { REPORT_STAFF_NAME, ReportThread } from './ReportThread';
 import { ServerReportsTab } from './ServerReportsTab';
+import { useReplyGuard } from './useReplyGuard';
 
 
 function parseStatus(value: string | null): number | null {
@@ -154,23 +159,8 @@ function BotReportsTab() {
   };
 
   // a reply typed into the open report but not sent: closing the modal or stepping to another report would drop it, so
-  // those ask first (`leaving.to` is the report to step to, null to close)
-  const unsentReply = useRef(false);
-  const [ leaving, setLeaving ] = useState<{to: string | null} | null>(null);
-  const leave = (to: string | null) => {
-    if (to) {
-      open(to);
-    } else {
-      close();
-    }
-  };
-  const askToLeave = (to: string | null) => {
-    if (unsentReply.current) {
-      setLeaving({to});
-    } else {
-      leave(to);
-    }
-  };
+  // those ask first
+  const guard = useReplyGuard({openId, open, close});
 
   return (
     <>
@@ -226,32 +216,14 @@ function BotReportsTab() {
       )}
 
       {(openItem) ? (
-        <AdminTagModal labelledBy={TITLE_ID} previousId={previousId} nextId={nextId} onNavigate={askToLeave} onClose={() => askToLeave(null)} footer={false} stickyClose>
-          <ReportDetails
-            key={openItem.id}
-            report={openItem}
-            navigation={{previousId, nextId, onNavigate: askToLeave}}
-            onDraftChange={(unsent) => {
-              unsentReply.current = unsent;
-            }}
-          />
+        <AdminTagModal labelledBy={TITLE_ID} previousId={previousId} nextId={nextId} onNavigate={guard.open} onClose={guard.close} footer={false} stickyClose>
+          <ReportDetails key={openItem.id} report={openItem} navigation={{previousId, nextId, onNavigate: guard.open}} onDraftChange={guard.onDraftChange}/>
         </AdminTagModal>
       ) : (openId) ? (
         <LinkedItemModal noun={t('reports.noun')} notFoundMessage={t('reports.not_found')} query={linked} onClose={close}/>
       ) : null}
 
-      {(leaving) ? (
-        <ConfirmDialog
-          title={t('reports.discard_title')}
-          description={t('reports.discard_description')}
-          confirmLabel={t('common.discard')}
-          onConfirm={() => {
-            setLeaving(null);
-            leave(leaving.to);
-          }}
-          onClose={() => setLeaving(null)}
-        />
-      ) : null}
+      {guard.dialog}
     </>
   );
 }
@@ -278,9 +250,9 @@ function ReportRow({ report, showUpdated, onOpen }: {report: MeReport, showUpdat
         className='grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-4 py-3 text-left first:rounded-t-[inherit] last:rounded-b-[inherit] hover:bg-surface-2 sm:gap-x-4 sm:px-5'
         onClick={() => onOpen(report.id)}
       >
-        {/* what it is and its id (fixed widths, so rows line up) */}
+        {/* what it is and its id (a width to start from so rows line up, a longer label in another language grows it) */}
         <span className='col-start-1 row-start-1 flex min-w-0 items-center gap-3'>
-          <Chip tone={type.tone} className='w-16 shrink-0 justify-center'>{type.label}</Chip>
+          <Chip tone={type.tone} className='min-w-16 shrink-0 justify-center'>{type.label}</Chip>
           <span className='min-w-0 truncate font-mono text-sm leading-5 text-white'>#{report.id}</span>
         </span>
         {/* who replied last, under the type. What it's about (ids) is in the modal */}
@@ -301,7 +273,7 @@ function ReportRow({ report, showUpdated, onOpen }: {report: MeReport, showUpdat
           <span className='min-w-0 flex-1 truncate rounded-md border border-line bg-deep px-2.5 py-1 font-mono text-xs text-fg'>{report.content}</span>
         </span>
         {/* the status in the top right, when it was sent under it */}
-        <Chip tone={status.tone} className='col-start-2 row-start-1 w-20 justify-center justify-self-end'>{status.label}</Chip>
+        <Chip tone={status.tone} className='col-start-2 row-start-1 min-w-20 justify-center justify-self-end'>{status.label}</Chip>
         {/* the day alone on phones: with the time, this column left no room for the id and the reply chip beside it */}
         <span className='col-start-2 row-start-2 justify-self-end text-xs whitespace-nowrap text-subtle sm:hidden'>
           {(edited) ? t('reports.updated', {date: formatDate(updated)}) : formatDate(report.created)}
@@ -342,12 +314,12 @@ function ReportDetails({ report, navigation, onDraftChange }: {
     <div>
       <DetailModalHeader
         titleId={TITLE_ID}
-        leading={<Chip tone={type.tone} className='w-16 shrink-0 justify-center'>{type.label}</Chip>}
+        leading={<Chip tone={type.tone} className='min-w-16 shrink-0 justify-center'>{type.label}</Chip>}
         title={<><span className='sr-only'>{t('reports.report_sr')}</span>#{report.id}</>}
         mono
         meta={<ExactDate value={report.created} format={formatDateTime}/>}
         states={(report.last_reply) ? <LastReplyChip report={report}/> : null}
-        status={<Chip tone={status.tone} className='w-20 justify-center'>{status.label}</Chip>}
+        status={<Chip tone={status.tone} className='min-w-20 justify-center'>{status.label}</Chip>}
       />
 
       {/* what it's about, bugs aren't about anything. A message report is about one of the bot's replies, so its target is

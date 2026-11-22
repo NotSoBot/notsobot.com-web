@@ -11,7 +11,14 @@ export const ANALYTICS_BEFORE_SEND = 'nsbAnalyticsBeforeSend';
 // what a link's `src` may be, the same as the API takes for an invite's (INVITE_SOURCE_PATTERN in src/lib/api)
 const SOURCE_PATTERN = /^[a-z0-9_-]{1,32}$/;
 
-export const SOURCE_PARAM = 'src';
+const SOURCE_PARAM = 'src';
+// The same thing for links people read before they click: the bot's, which discord shows in full in its "leaving
+// discord" prompt. `?i=` is the source scrambled, so it reads as some id rather than as where they clicked.
+// Not a secret (anyone can read this file), it only has to not say "bot-invite". notsobot.ts makes them with its
+// `encodeSiteSource` (src/utils/tools.ts), the two have to change together
+export const SOURCE_CODE_PARAM = 'i';
+const SOURCE_CODE_KEY = [0x5a, 0x13, 0xc7, 0x2e, 0x91, 0x64, 0xb8, 0x3d];
+const SOURCE_CODE_SEED = 0x6b;
 const UTM_SOURCE_PARAM = 'utm_source';
 const UTM_CAMPAIGN_PARAM = 'utm_campaign';
 
@@ -81,12 +88,62 @@ export function cleanPath(pathname: string): {language: Language, path: string} 
 }
 
 
+// one byte that depends on the whole source. it's the code's first byte and mixed into the rest, so two sources never
+// share a beginning (`bot-help`, `bot-invite`), and a made up code doesn't decode to anything
+function sourceCheck(source: string): number {
+  let check = SOURCE_CODE_SEED;
+  for (let i = 0; i < source.length; i++) {
+    check = (check * 33 + source.charCodeAt(i)) & 0xff;
+  }
+  return check;
+}
+
+// 'bot-invite' -> 15 letters of base64url
+export function encodeSource(source: string): string {
+  const check = sourceCheck(source);
+  let bytes = String.fromCharCode(check);
+  for (let i = 0; i < source.length; i++) {
+    bytes += String.fromCharCode(source.charCodeAt(i) ^ SOURCE_CODE_KEY[i % SOURCE_CODE_KEY.length] ^ check);
+  }
+  return btoa(bytes).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+// null for anything `encodeSource` didn't make
+export function decodeSource(code: string): string | null {
+  let bytes: string;
+  try {
+    bytes = atob(code.replace(/-/g, '+').replace(/_/g, '/'));
+  } catch {
+    return null;
+  }
+  if (bytes.length < 2) {
+    return null;
+  }
+  const check = bytes.charCodeAt(0);
+  let source = '';
+  for (let i = 1; i < bytes.length; i++) {
+    source += String.fromCharCode(bytes.charCodeAt(i) ^ SOURCE_CODE_KEY[(i - 1) % SOURCE_CODE_KEY.length] ^ check);
+  }
+  return (SOURCE_PATTERN.test(source) && sourceCheck(source) === check) ? source : null;
+}
+
+// where a link says it was, from its `?src=` or its scrambled `?i=`
+export function readSource(params: URLSearchParams): string | null {
+  const source = params.get(SOURCE_PARAM);
+  if (source && SOURCE_PATTERN.test(source)) {
+    return source;
+  }
+  const code = params.get(SOURCE_CODE_PARAM);
+  return (code) ? decodeSource(code) : null;
+}
+
+
 // a link's `?src=bot-help` is its short way of saying where it was (the bot's help, nsb.gg's viewer). umami only
 // knows utm parameters, so it's sent as those: the part before the first `-` is the source (`bot`) and the whole
 // thing the campaign (`bot-help`). a link with real utm parameters keeps them
 function addSource(params: URLSearchParams): void {
-  const source = params.get(SOURCE_PARAM);
-  if (!source || !SOURCE_PATTERN.test(source) || params.has(UTM_SOURCE_PARAM)) {
+  const source = readSource(params);
+  if (!source || params.has(UTM_SOURCE_PARAM)) {
     return;
   }
   params.set(UTM_SOURCE_PARAM, source.split('-')[0] || source);

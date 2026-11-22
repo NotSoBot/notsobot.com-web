@@ -2,8 +2,10 @@ import { AlarmClock, ExternalLink, Pencil, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 
+import { Chip } from '@/components/ui/Chip';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
+import { ExactDate } from '@/components/ui/Tooltip';
 import { useI18n, type TranslationKey } from '@/i18n';
 import type { Reminder } from '@/lib/api';
 import {
@@ -13,9 +15,8 @@ import {
   useMeRemindersQuery,
   usePatchMeReminderMutation,
 } from '@/lib/api/dashboardQueries';
-import { formatDate, formatDateTime, formatExactDateTime } from '@/lib/utils';
+import { formatDate, formatDateTime } from '@/lib/utils';
 
-import { Chip } from '../admin/adminUi';
 import { ServerFilterChip } from '../servers/ServerFilterChip';
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from '../ui';
 import { EditReminderDialog } from './EditReminderDialog';
@@ -168,8 +169,8 @@ function ReminderRow({ reminder, where, onEdit, onDelete }: {
         <AlarmClock className='size-5 text-[#faa81a]'/>
       </span>
       <div className='min-w-0 flex-1'>
-        <div className='font-medium text-white' title={formatExactDateTime(reminder.timestamp_start)}>
-          {(reminder.is_all_day) ? formatDate(reminder.timestamp_start) : formatDateTime(reminder.timestamp_start)}
+        <div className='font-medium text-white'>
+          <ExactDate value={reminder.timestamp_start} format={(reminder.is_all_day) ? formatDate : formatDateTime}/>
           {(reminder.timestamp_end) ? (
             <span className='text-muted'> – {(reminder.is_all_day) ? formatDate(reminder.timestamp_end) : formatDateTime(reminder.timestamp_end)}</span>
           ) : null}

@@ -1,6 +1,7 @@
 import { Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { useId, useLayoutEffect, useRef, useState } from 'react';
 
+import { Chip } from '@/components/ui/Chip';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Spinner } from '@/components/ui/Spinner';
@@ -12,7 +13,6 @@ import type { GuildContentUser, GuildTag, UserGuild } from '@/lib/api';
 import { errorMessage, useGuildTagDeleteMutation, useGuildTagsQuery } from '@/lib/api/dashboardQueries';
 import { cn, formatDate } from '@/lib/utils';
 
-import { Chip } from '../admin/adminUi';
 import { EmptyState, InlineError, Panel, Skeleton } from '../ui';
 import { AREA_PERMISSION } from './guildMeta';
 
@@ -64,62 +64,14 @@ export function GuildTagsSection({ guild }: {guild: UserGuild}) {
         ) : (items.length) ? (
           <ul className='divide-y divide-line rounded-md border border-line'>
             {items.map((tag) => (
-              <li
+              <TagRow
                 key={tag.id}
-                className={cn('flex items-start gap-3 px-3 py-2.5', !tag.reference_tag && 'cursor-pointer')}
-                // a click anywhere on the row but its button shows the whole content (or two lines again), unless it
-                // was a drag to select some of it
-                onClick={(event) => {
-                  if (!tag.reference_tag && !(event.target as HTMLElement).closest('button') && !window.getSelection()?.toString()) {
-                    toggle(tag.id);
-                  }
-                }}
-              >
-                <div className='min-w-0 flex-1 space-y-1'>
-                  <div className='flex min-w-0 flex-wrap items-center gap-2'>
-                    <span className='truncate font-mono text-sm text-white' title={tag.name}>{tag.name}</span>
-                    {(tag.reference_tag) ? <Chip tone='neutral' title={t('stags.alias_title', {name: tag.reference_tag.name})}>{t('dtags.chip.alias')}</Chip> : null}
-                    {(tag.is_command) ? <Chip tone='brand' title={t('stags.command_title')}>{t('dtags.chip.command')}</Chip> : null}
-                    {(tag.nsfw) ? <Chip tone='danger'>{t('stags.nsfw')}</Chip> : null}
-                  </div>
-                  {(tag.reference_tag) ? null : (
-                    <p
-                      // the row's click is the mouse's, this is the keyboard's
-                      role='button'
-                      tabIndex={0}
-                      aria-expanded={expanded.has(tag.id)}
-                      title={t((expanded.has(tag.id)) ? 'common.show_less' : 'common.show_more')}
-                      className={cn('text-sm break-words text-muted', (expanded.has(tag.id)) ? 'whitespace-pre-wrap' : 'line-clamp-2')}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter' || event.key === ' ') {
-                          event.preventDefault();
-                          toggle(tag.id);
-                        }
-                      }}
-                    >
-                      {tag.content}
-                    </p>
-                  )}
-                  <p className='flex flex-wrap items-center gap-x-1.5 text-xs text-subtle'>
-                    <Owner user={tag.user}/>
-                    <span aria-hidden>•</span>
-                    <span className='tabular-nums'>{plural('dtags.uses', tag.uses)}</span>
-                    <span aria-hidden>•</span>
-                    <span>{formatDate(tag.created)}</span>
-                  </p>
-                </div>
-                {(canRemove) ? (
-                  <button
-                    type='button'
-                    className='btn btn-secondary btn-sm shrink-0'
-                    disabled={mutation.isPending}
-                    onClick={() => setRemoving(tag)}
-                  >
-                    <Trash2 aria-hidden className='size-3.5'/>
-                    {t('common.remove')}
-                  </button>
-                ) : null}
-              </li>
+                tag={tag}
+                expanded={expanded.has(tag.id)}
+                onToggle={() => toggle(tag.id)}
+                onRemove={(canRemove) ? () => setRemoving(tag) : undefined}
+                removeDisabled={mutation.isPending}
+              />
             ))}
           </ul>
         ) : (
@@ -155,6 +107,95 @@ export function GuildTagsSection({ guild }: {guild: UserGuild}) {
         />
       ) : null}
     </Panel>
+  );
+}
+
+
+// one tag: its name and chips, two lines of its content (all of it once opened), then who made it. `onRemove` is only
+// for who can remove it
+function TagRow({ tag, expanded, onToggle, onRemove, removeDisabled }: {
+  tag: GuildTag,
+  expanded: boolean,
+  onToggle: () => void,
+  onRemove?: () => void,
+  removeDisabled: boolean,
+}) {
+  const { t, plural } = useI18n();
+  const contentId = useId();
+  const content = useRef<HTMLParagraphElement>(null);
+  // whether the two lines cut anything off, measured (it depends on the row's width). Only while it's closed: opened
+  // nothing is cut, and what was measured before still says there's something to close
+  const [ clamped, setClamped ] = useState(false);
+  useLayoutEffect(() => {
+    const element = content.current;
+    if (!element || expanded) {
+      return;
+    }
+    const measure = () => setClamped(1 < element.scrollHeight - element.clientHeight);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [expanded, tag.content]);
+  // an alias has no content of its own, and a short one has nothing more to show
+  const expandable = !tag.reference_tag && (expanded || clamped);
+
+  return (
+    <li
+      className={cn('flex items-start gap-3 px-3 py-2.5', expandable && 'cursor-pointer')}
+      // a click anywhere on the row but its buttons shows the whole content (or two lines again), unless it was a drag
+      // to select some of it. The keyboard has the Show more button
+      onClick={(event) => {
+        if (expandable && !(event.target as HTMLElement).closest('button') && !window.getSelection()?.toString()) {
+          onToggle();
+        }
+      }}
+    >
+      <div className='min-w-0 flex-1 space-y-1'>
+        <div className='flex min-w-0 flex-wrap items-center gap-2'>
+          <span className='truncate font-mono text-sm text-white' title={tag.name}>{tag.name}</span>
+          {(tag.reference_tag) ? <Chip tone='neutral' title={t('stags.alias_title', {name: tag.reference_tag.name})}>{t('dtags.chip.alias')}</Chip> : null}
+          {(tag.is_command) ? <Chip tone='brand' title={t('stags.command_title')}>{t('dtags.chip.command')}</Chip> : null}
+          {(tag.nsfw) ? <Chip tone='danger'>{t('stags.nsfw')}</Chip> : null}
+        </div>
+        {(tag.reference_tag) ? null : (
+          <>
+            <p ref={content} id={contentId} className={cn('text-sm break-words text-muted', (expanded) ? 'whitespace-pre-wrap' : 'line-clamp-2')}>
+              {tag.content}
+            </p>
+            {(expandable) ? (
+              <button
+                type='button'
+                aria-expanded={expanded}
+                aria-controls={contentId}
+                className='cursor-pointer rounded text-xs text-code hover:underline'
+                onClick={onToggle}
+              >
+                {t((expanded) ? 'common.show_less' : 'common.show_more')}
+              </button>
+            ) : null}
+          </>
+        )}
+        <p className='flex flex-wrap items-center gap-x-1.5 text-xs text-subtle'>
+          <Owner user={tag.user}/>
+          <span aria-hidden>•</span>
+          <span className='tabular-nums'>{plural('dtags.uses', tag.uses)}</span>
+          <span aria-hidden>•</span>
+          <span>{formatDate(tag.created)}</span>
+        </p>
+      </div>
+      {(onRemove) ? (
+        <button
+          type='button'
+          className='btn btn-secondary btn-sm shrink-0'
+          disabled={removeDisabled}
+          onClick={onRemove}
+        >
+          <Trash2 aria-hidden className='size-3.5'/>
+          {t('common.remove')}
+        </button>
+      ) : null}
+    </li>
   );
 }
 

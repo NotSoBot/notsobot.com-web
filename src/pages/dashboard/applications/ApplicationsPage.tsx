@@ -2,6 +2,7 @@ import { Blocks, Eye, Pencil, Plus, RefreshCw, Trash2, TriangleAlert } from 'luc
 import { useState } from 'react';
 
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { CopyableValue } from '@/components/ui/CopyableValue';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
 import { Routes } from '@/config';
@@ -18,7 +19,6 @@ import {
 } from '@/lib/api/dashboardQueries';
 import { formatDate } from '@/lib/utils';
 
-import { CopyableValue } from '../admin/adminUi';
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from '../ui';
 import { ApplicationChips, ApplicationNameDialog, ApplicationTokenDialog, isNotSoBotApplication } from './ApplicationDialogs';
 

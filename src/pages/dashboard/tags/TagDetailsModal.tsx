@@ -3,11 +3,14 @@ import { Fragment, type ReactNode } from 'react';
 import { Link } from 'react-router';
 
 import { useAuth } from '@/auth';
+import { Chip } from '@/components/ui/Chip';
+import { CopyableValue, selectAllScope } from '@/components/ui/CopyableValue';
 import { CopyButton } from '@/components/ui/CopyButton';
 import { DetailModalHeader, DetailModalStrip, ModalFooter } from '@/components/ui/DetailModal';
 import { stripMarkdown } from '@/components/ui/Markdown';
 import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
+import { ExactDate } from '@/components/ui/Tooltip';
 import { useArrowKeyNavigation } from '@/hooks/useArrowKeyNavigation';
 import { useI18n } from '@/i18n';
 import type { Tag } from '@/lib/api';
@@ -16,7 +19,6 @@ import { formatDateTime } from '@/lib/utils';
 import { tagDirectoryItemPath, VerificationBadge } from '@/pages/tags/tagDirectory';
 import { MediaSection } from '@/pages/tags/TagMedia';
 
-import { Chip, CopyableValue, ExactDate, selectAllScope } from '../admin/adminUi';
 import { tagDiscordUrl, tagLocation, TagLocationChip, tagServerPath } from './tagMeta';
 
 

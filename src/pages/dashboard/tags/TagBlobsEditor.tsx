@@ -129,12 +129,14 @@ function BlobsForm({ tag, scope, blobs, readOnly, onDirtyChange }: {
     sent.current = draft;
     put.mutate(body, {
       onSuccess: () => toast(translate('dtags.blobs.saved')),
-      // no toast for a failure: it shows above the save bar
+      // no toast for a failure: it shows above the save bar and in it (the bar stays in view, the line above it may not)
       onError: () => {
         sent.current = null;
       },
     });
   };
+
+  const saveError = (put.isError) ? errorMessage(put.error, t('dtags.blobs.save_error')) : null;
 
   return (
     <form
@@ -217,12 +219,20 @@ function BlobsForm({ tag, scope, blobs, readOnly, onDirtyChange }: {
         );
       })}
 
-      {(put.isError) ? <InlineError>{errorMessage(put.error, t('dtags.blobs.save_error'))}</InlineError> : null}
+      {(saveError) ? <InlineError>{saveError}</InlineError> : null}
       {(!readOnly) ? (
-        <SaveBar standalone dirty={dirty} pending={put.isPending} disabled={tooBig} saveLabel={t('dtags.blobs.save')} onDiscard={() => {
-          put.reset();
-          setDraft(saved);
-        }}/>
+        <SaveBar
+          standalone
+          dirty={dirty}
+          pending={put.isPending}
+          disabled={tooBig}
+          saveLabel={t('dtags.blobs.save')}
+          status={(saveError) ? <span className='text-danger-text'>{saveError}</span> : undefined}
+          onDiscard={() => {
+            put.reset();
+            setDraft(saved);
+          }}
+        />
       ) : null}
     </form>
   );

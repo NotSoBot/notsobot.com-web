@@ -28,6 +28,23 @@ export function formatMemory(bytes: number, decimals = 0): string {
 }
 
 
+// a file's size: whole units below a megabyte, one decimal from there (`305 KB`, `2.4 MB`)
+export function formatSize(bytes: number): string {
+  return formatMemory(bytes, (bytes < 1024 * 1024) ? 0 : 1);
+}
+
+
+// how long a clip or a song is, or where playback is: `1:23`, `1:02:03`. floors, so it never shows a second that
+// hasn't been reached
+export function formatClock(milliseconds: number): string {
+  const seconds = Math.max(0, Math.floor(milliseconds / 1000));
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const rest = String(seconds % 60).padStart(2, '0');
+  return (hours) ? `${hours}:${String(minutes).padStart(2, '0')}:${rest}` : `${minutes}:${rest}`;
+}
+
+
 // `45m`, `5h 12m`, `3d 4h`
 export function formatUptime(milliseconds: number): string {
   const minutes = Math.floor(milliseconds / 60000);
@@ -45,8 +62,17 @@ export function displayLocale(): string {
 }
 
 
+// building an Intl formatter costs far more than using one (the premium page formats ~1,500 numbers per render)
+const numberFormatters = new Map<string, Intl.NumberFormat>();
+
 export function formatNumber(value: number): string {
-  return value.toLocaleString(displayLocale());
+  const locale = displayLocale();
+  let formatter = numberFormatters.get(locale);
+  if (!formatter) {
+    formatter = new Intl.NumberFormat(locale);
+    numberFormatters.set(locale, formatter);
+  }
+  return formatter.format(value);
 }
 
 
@@ -100,9 +126,21 @@ export function toDate(value: string | number): Date {
 }
 
 
+const dateFormatters = new Map<string, Intl.DateTimeFormat>();
+
 export function formatDate(value: string | number, options: Intl.DateTimeFormatOptions = {year: 'numeric', month: 'short', day: 'numeric'}): string {
   const date = toDate(value);
-  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString(displayLocale(), options);
+  if (Number.isNaN(date.getTime())) {
+    return '—';
+  }
+  const locale = displayLocale();
+  const key = `${locale}|${JSON.stringify(options)}`;
+  let formatter = dateFormatters.get(key);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat(locale, options);
+    dateFormatters.set(key, formatter);
+  }
+  return formatter.format(date);
 }
 
 

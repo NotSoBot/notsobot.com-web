@@ -49,6 +49,10 @@ export function Modal({ labelledBy, onClose, className, stickyClose = false, chi
   useFocusTrap(dialogRef, () => openModals.at(-1) === self);
 
   useEffect(() => {
+    // when this dialog replaces another in the same render, the element read above was inside the old one. by now the
+    // old one has handed focus back to whatever opened it, which is the better place to return to
+    const focusedNow = document.activeElement as HTMLElement | null;
+    const fallback = (focusedNow && focusedNow !== document.body && !dialogRef.current?.contains(focusedNow)) ? focusedNow : null;
     const previouslyFocused = openerRef.current;
     // a dialog built around one field marks it `data-autofocus`: with a keyboard and mouse it gets the focus (its text
     // selected, for a rename), so typing works right away. on touch devices focus stays on the close button, focusing a
@@ -85,7 +89,7 @@ export function Modal({ labelledBy, onClose, className, stickyClose = false, chi
         document.documentElement.style.position = pageStyles.position;
         pageStyles = null;
       }
-      previouslyFocused?.focus?.({preventScroll: true});
+      ((previouslyFocused?.isConnected) ? previouslyFocused : fallback)?.focus?.({preventScroll: true});
     };
   }, [self]);
 

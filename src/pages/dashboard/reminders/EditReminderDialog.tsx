@@ -4,10 +4,11 @@ import { useEffect, useId, useState } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
+import { ExactDate } from '@/components/ui/Tooltip';
 import { useI18n } from '@/i18n';
 import type { Reminder } from '@/lib/api';
 import { errorMessage, type ReminderEdit } from '@/lib/api/dashboardQueries';
-import { formatDate, formatDateTime, formatExactDateTime } from '@/lib/utils';
+import { formatDate, formatDateTime } from '@/lib/utils';
 
 import { CharCounter, Field, Toggle } from '../ui';
 
@@ -70,8 +71,8 @@ export function EditReminderDialog({ reminder, where, mutation, onClose }: {
         <p className='mt-2 text-sm text-muted'>{t('reminders.edit_description')}</p>
 
         <div className='mt-3 rounded-md border border-line bg-deep p-3 text-sm'>
-          <div className='font-medium text-white' title={formatExactDateTime(reminder.timestamp_start)}>
-            {(reminder.is_all_day) ? formatDate(reminder.timestamp_start) : formatDateTime(reminder.timestamp_start)}
+          <div className='font-medium text-white'>
+            <ExactDate value={reminder.timestamp_start} format={(reminder.is_all_day) ? formatDate : formatDateTime}/>
             {(reminder.timestamp_end) ? (
               <span className='text-muted'> – {(reminder.is_all_day) ? formatDate(reminder.timestamp_end) : formatDateTime(reminder.timestamp_end)}</span>
             ) : null}
