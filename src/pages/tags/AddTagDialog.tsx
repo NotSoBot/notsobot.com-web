@@ -2,6 +2,7 @@ import { CheckCircle2, TriangleAlert } from 'lucide-react';
 import { useId, useState } from 'react';
 
 import { useAuth } from '@/auth';
+import { DialogError } from '@/components/ui/DialogError';
 import { CharCounter } from '@/components/ui/form';
 import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
@@ -202,7 +203,7 @@ export function AddTagDialog({ tag, verified, onClose }: {tag: Pick<Tag, 'id' | 
           </div>
 
           {(add.isError) ? (
-            <p role='alert' className='mt-4 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-fg'>{addErrorMessage(add.error)}</p>
+            <DialogError className='mt-4'>{addErrorMessage(add.error)}</DialogError>
           ) : null}
 
           <div className='mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>

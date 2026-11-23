@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { Link } from 'react-router';
 
 import { formatPrefixCommandsEnd, prefixCommandsEnded } from '@/components/ui/PrefixSunsetNotice';
+import { Hint } from '@/components/ui/Tooltip';
 import { Routes } from '@/config';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { useI18n } from '@/i18n';
@@ -338,7 +339,12 @@ function VariantTabs({ entry, type, showUses, onSelect }: {entry: Entry, type: C
             )}
           >
             {t(TYPE_LABELS[variant.metadata.type])}
-            {(showUses) ? <span className='text-xs text-subtle tabular-nums' title={t('commands.uses_this_week')}>{formatCompact(variant.uses)}</span> : null}
+            {/* a tab is a button, so no ⓘ in it: the `/wk` says what the number is where there's no hover */}
+            {(showUses) ? (
+              <Hint text={`${formatNumber(variant.uses)} ${t('commands.uses_this_week')}`} className='text-xs text-subtle tabular-nums'>
+                {formatCompact(variant.uses)}{t('commands.per_week')}
+              </Hint>
+            ) : null}
           </button>
         );
       })}

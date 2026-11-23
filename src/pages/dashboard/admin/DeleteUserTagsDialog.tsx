@@ -4,6 +4,7 @@ import { Link } from 'react-router';
 
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DetailModalStrip } from '@/components/ui/DetailModal';
+import { DialogError } from '@/components/ui/DialogError';
 import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
@@ -127,9 +128,9 @@ export function DeleteUserTagsDialog({ user, onClose }: {user: AdminUserRef, onC
           {(count !== 0) ? <RemovalReasonFields value={removal} onChange={setRemoval} disabled={mutation.isPending} className='mt-3'/> : null}
 
           {(mutation.isError) ? (
-            <p role='alert' className='mt-4 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-fg'>
+            <DialogError className='mt-4'>
               {errorMessage(mutation.error, 'Couldn’t delete their tags.')}
-            </p>
+            </DialogError>
           ) : null}
 
           <div className='mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>

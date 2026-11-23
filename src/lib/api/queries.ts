@@ -13,6 +13,7 @@ export const SAVED_GUILDS_KEY = 'servers:last';
 export const queryKeys = {
   commands: (language: Language) => ['commands', {language}] as const,
   commandStats: (since: string) => ['commands', 'stats', {since}] as const,
+  home: (language: Language) => ['home', {language}] as const,
   infoDiscord: ['info', 'discord'] as const,
   infoVoice: ['info', 'voice'] as const,
   tagDirectory: (filters: TagDirectoryFilters) => ['tags', 'directory', filters] as const,
@@ -123,6 +124,19 @@ export function useCommandsQuery(language: Language) {
     gcTime: Infinity,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
+  });
+}
+
+
+// the home page's gallery, hero slider and totals (~17 KB instead of the ~280 KB command list and discord info it
+// used to take). the api keeps it for 5 minutes, so coming back to the tab doesn't ask again
+// an api without `/home` (404) gets those two requests instead, put together by `homeFallback.ts`
+export function useHomeQuery(language: Language) {
+  return useQuery({
+    queryKey: queryKeys.home(language),
+    queryFn: ({ signal }) => api.fetchHome(language, signal),
+    staleTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 }
 

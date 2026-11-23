@@ -3,6 +3,7 @@ import { useId, useState, type ReactNode } from 'react';
 import { useI18n } from '@/i18n';
 import { cn } from '@/lib/utils';
 
+import { DialogError } from './DialogError';
 import { Modal } from './Modal';
 import { Spinner } from './Spinner';
 
@@ -85,7 +86,7 @@ export function ConfirmDialog({
           </label>
         ) : null}
 
-        {(error) ? <p role='alert' className='mt-4 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-fg'>{error}</p> : null}
+        {(error) ? <DialogError className='mt-4'>{error}</DialogError> : null}
 
         <div className='mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
           <button type='button' className='btn btn-secondary' onClick={onClose} disabled={pending}>{t('common.cancel')}</button>

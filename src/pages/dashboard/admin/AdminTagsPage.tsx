@@ -3,6 +3,7 @@ import { useState, type ReactNode } from 'react';
 
 import { CopyButton } from '@/components/ui/CopyButton';
 import { DetailModalHeader } from '@/components/ui/DetailModal';
+import { DialogError } from '@/components/ui/DialogError';
 import { Markdown, stripMarkdown } from '@/components/ui/Markdown';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Segmented } from '@/components/ui/Segmented';
@@ -820,9 +821,9 @@ function EditRequestReview({ item, request }: {item: AdminTagDirectoryItem, requ
         </div>
       ) : null}
       {(mutation.isError) ? (
-        <p role='alert' className='mt-3 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-fg'>
+        <DialogError className='mt-3'>
           {errorMessage(mutation.error, 'Couldn’t update the change request.')}
-        </p>
+        </DialogError>
       ) : null}
     </section>
   );

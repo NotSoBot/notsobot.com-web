@@ -85,6 +85,8 @@ export function OwnerCreditsPage() {
   };
   const filtered = !!(validUserId || validServerId || type !== null);
   const badId = (debouncedUserId && !validUserId) || (debouncedServerId && !validServerId);
+  const filterUser = (id: string) => update({user_id: id});
+  const filterServer = (id: string) => update({server_id: id});
 
   const closeDialog = () => {
     setRevoking(null);
@@ -180,9 +182,24 @@ export function OwnerCreditsPage() {
       ) : (
         <>
           <Pagination {...pagination} className='mt-0 mb-4'/>
+          {/* phones: one stacked row per transaction like the Users and Servers lists, the table is wider than the screen
+              and left the server, the time and Take back off it */}
+          <ul className={cn('card divide-y divide-line transition-opacity sm:hidden', isPlaceholderData && 'opacity-60')}>
+            {items.map((transaction) => (
+              <TransactionCard
+                key={transaction.id}
+                transaction={transaction}
+                revoked={revoked}
+                onFilterUser={filterUser}
+                onFilterServer={filterServer}
+                onReverse={setReversing}
+                onRevoke={setRevoking}
+              />
+            ))}
+          </ul>
           {/* `relative`: the last column's sr-only heading is absolutely positioned, and without a positioned scroller it
               escapes the clipping and makes the whole page scroll sideways */}
-          <div className={cn('card relative overflow-x-auto transition-opacity', isPlaceholderData && 'opacity-60')}>
+          <div className={cn('card relative hidden overflow-x-auto transition-opacity sm:block', isPlaceholderData && 'opacity-60')}>
             <table className='w-full min-w-[820px] text-left text-sm'>
               <thead className='border-b border-line text-xs text-subtle uppercase'>
                 <tr>
@@ -200,11 +217,7 @@ export function OwnerCreditsPage() {
                   return (
                     <tr key={transaction.id} className='align-middle hover:bg-surface-2'>
                       <td className='px-4 py-3'>
-                        {/* the name opens the user, the funnel narrows the list to them (like Voices and Reports) */}
-                        <div className='flex min-w-0 items-center gap-1'>
-                          <div className='min-w-0'><UserCell user={transaction.user} fallbackId={transaction.user_id} to={adminUserPath(transaction.user_id)}/></div>
-                          <FilterButton label='Show only this user’s credits' onClick={() => update({user_id: transaction.user_id})}/>
-                        </div>
+                        <TransactionUser transaction={transaction} onFilterUser={filterUser}/>
                       </td>
                       <td className='px-4 py-3'>
                         <Chip tone={kind?.tone ?? 'neutral'}>{kind?.label ?? `Type ${transaction.type}`}</Chip>
@@ -215,8 +228,7 @@ export function OwnerCreditsPage() {
                         ) : null}
                       </td>
                       <td className={cn('px-4 py-3 text-right font-mono whitespace-nowrap', (transaction.amount < 0) ? 'text-[#ff8a8c]' : 'text-white')}>
-                        {(0 < transaction.amount && transaction.type !== CreditTransactionTypes.GIVE) ? '+' : null}
-                        {transaction.amount.toLocaleString()}
+                        <SignedAmount transaction={transaction}/>
                       </td>
                       <td className='px-4 py-3'>
                         {(transaction.server_id) ? (
@@ -234,21 +246,7 @@ export function OwnerCreditsPage() {
                         <ExactDate value={transaction.created} format={formatDateTime}/>
                       </td>
                       <td className='px-4 py-3 text-right'>
-                        {(transaction.type === CreditTransactionTypes.GRANT && 0 < transaction.amount) ? (
-                          (transaction.reversed_by_id) ? (
-                            <span className='text-xs whitespace-nowrap text-subtle'>Taken back</span>
-                          ) : (
-                            <button type='button' className='btn btn-ghost btn-sm whitespace-nowrap text-danger' onClick={() => setReversing(transaction)}>
-                              Take back
-                            </button>
-                          )
-                        ) : (transaction.type !== CreditTransactionTypes.REFILL || !transaction.entitlement_id) ? null : (revoked.has(transaction.entitlement_id)) ? (
-                          <span className='text-xs whitespace-nowrap text-subtle'>Taken back</span>
-                        ) : (
-                          <button type='button' className='btn btn-ghost btn-sm whitespace-nowrap text-danger' onClick={() => setRevoking(transaction)}>
-                            Take back
-                          </button>
-                        )}
+                        <TakeBack transaction={transaction} revoked={revoked} onReverse={setReversing} onRevoke={setRevoking}/>
                       </td>
                     </tr>
                   );
@@ -335,6 +333,94 @@ export function OwnerCreditsPage() {
         />
       ) : null}
     </>
+  );
+}
+
+
+type TransactionProps = {
+  transaction: AdminCreditTransaction,
+  // the entitlements of the refills already taken back on this page
+  revoked: ReadonlySet<string | null>,
+  onFilterUser: (userId: string) => void,
+  onFilterServer: (serverId: string) => void,
+  onReverse: (transaction: AdminCreditTransaction) => void,
+  onRevoke: (transaction: AdminCreditTransaction) => void,
+};
+
+// The same transaction below sm, stacked: who, what happened and how many credits, the server when there is one, then
+// when it was and its Take back
+function TransactionCard({ transaction, revoked, onFilterUser, onFilterServer, onReverse, onRevoke }: TransactionProps) {
+  const kind = TYPES.find((item) => item.value === transaction.type);
+  const serverId = transaction.server_id;
+  return (
+    <li className='px-4 py-3 text-sm'>
+      <TransactionUser transaction={transaction} onFilterUser={onFilterUser}/>
+      <div className='mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1'>
+        <Chip tone={kind?.tone ?? 'neutral'}>{kind?.label ?? `Type ${transaction.type}`}</Chip>
+        <span className={cn('font-mono whitespace-nowrap', (transaction.amount < 0) ? 'text-[#ff8a8c]' : 'text-white')}>
+          <SignedAmount transaction={transaction}/>
+        </span>
+        {(transaction.entitlement_id) ? (
+          <span className='inline-flex min-w-0' title='Entitlement ID'>
+            <CopyableValue value={transaction.entitlement_id} truncate={0}/>
+          </span>
+        ) : null}
+      </div>
+      {(serverId) ? (
+        // a funnel like the user's, the id alone doesn't look like something to tap
+        <div className='mt-2 flex min-w-0 items-center gap-1 text-xs text-subtle'>
+          <span className='shrink-0'>Server</span>
+          <span className='ml-1 truncate font-mono text-muted'>{serverId}</span>
+          <FilterButton label='Show only this server’s credits' onClick={() => onFilterServer(serverId)}/>
+        </div>
+      ) : null}
+      <div className='mt-2 flex items-center justify-between gap-3'>
+        <span className='text-xs text-subtle'><ExactDate value={transaction.created} format={formatDateTime}/></span>
+        <TakeBack transaction={transaction} revoked={revoked} onReverse={onReverse} onRevoke={onRevoke}/>
+      </div>
+    </li>
+  );
+}
+
+
+function TransactionUser({ transaction, onFilterUser }: Pick<TransactionProps, 'transaction' | 'onFilterUser'>) {
+  return (
+    // the name opens the user, the funnel narrows the list to them (like Voices and Reports)
+    <div className='flex min-w-0 items-center gap-1'>
+      <div className='min-w-0'><UserCell user={transaction.user} fallbackId={transaction.user_id} to={adminUserPath(transaction.user_id)}/></div>
+      <FilterButton label='Show only this user’s credits' onClick={() => onFilterUser(transaction.user_id)}/>
+    </div>
+  );
+}
+
+
+// the amount with its sign, the same in the table and the stacked rows
+function SignedAmount({ transaction }: Pick<TransactionProps, 'transaction'>) {
+  return (
+    <>
+      {(0 < transaction.amount && transaction.type !== CreditTransactionTypes.GIVE) ? '+' : null}
+      {transaction.amount.toLocaleString()}
+    </>
+  );
+}
+
+
+// a row's Take back, or that it was taken back already: a staff grant by its own id, a refill by its entitlement
+function TakeBack({ transaction, revoked, onReverse, onRevoke }: Pick<TransactionProps, 'transaction' | 'revoked' | 'onReverse' | 'onRevoke'>) {
+  return (transaction.type === CreditTransactionTypes.GRANT && 0 < transaction.amount) ? (
+    (transaction.reversed_by_id) ? (
+      <span className='text-xs whitespace-nowrap text-subtle'>Taken back</span>
+    ) : (
+      <button type='button' className='btn btn-ghost btn-sm whitespace-nowrap text-danger' onClick={() => onReverse(transaction)}>
+        Take back
+      </button>
+    )
+  ) : (transaction.type !== CreditTransactionTypes.REFILL || !transaction.entitlement_id) ? null : (revoked.has(transaction.entitlement_id)) ? (
+    <span className='text-xs whitespace-nowrap text-subtle'>Taken back</span>
+  ) : (
+    <button type='button' className='btn btn-ghost btn-sm whitespace-nowrap text-danger' onClick={() => onRevoke(transaction)}>
+      Take back
+    </button>
   );
 }
 

@@ -8,7 +8,7 @@ import { useEffect, useMemo, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router';
 
 import { useAuth } from '@/auth';
-import { PageHeader } from '@/components/ui/PageHeader';
+import { PageHero } from '@/components/ui/PageHero';
 import { Routes, Urls } from '@/config';
 import { hasTranslation, useI18n, type TranslationKey } from '@/i18n';
 import { AnalyticsEvents, trackEvent } from '@/lib/analytics';
@@ -297,8 +297,8 @@ export function PremiumPage() {
   }, [location.hash]);
 
   return (
-    <div className='container-page pb-16'>
-      <PageHeader
+    <>
+      <PageHero
         title={(
           <span className='flex items-center gap-3'>
             <Crown className='size-8 text-warning' aria-hidden/>
@@ -308,56 +308,58 @@ export function PremiumPage() {
         description={t('premium.description')}
       >
         <HowToSubscribe signedIn={!!user}/>
-      </PageHeader>
+      </PageHero>
 
-      <section id='premium-tiers' aria-labelledby='premium-tiers-title' className='mb-16 scroll-mt-24'>
-        <h2 id='premium-tiers-title' className='section-label mb-4'>{t('premium.tiers')}</h2>
-        <div className='grid gap-6 lg:grid-cols-3'>
-          {TIERS.map((tier) => <TierCard key={tier.id} tier={tier} current={current === tier.id} variables={variables}/>)}
-        </div>
-        {/* a nod to NotSoSuper, the bot's original creator. english in every language, the pun is on the name */}
-        <p className='mt-4 text-center text-sm italic text-subtle'>Isn’t this a NotSoSuper deal?</p>
-      </section>
-
-      <section id='premium-servers' aria-labelledby='premium-servers-title' className='mb-16 scroll-mt-24'>
-        {/* how slots work, what they give a server is the comparison table at the bottom */}
-        <div className='card p-6 md:p-8'>
-          <div className='mb-4 flex size-12 items-center justify-center rounded-lg bg-brand/10'>
-            <Server className='size-6 text-brand-text'/>
+      <div className='container-page pt-10 pb-16'>
+        <section id='premium-tiers' aria-labelledby='premium-tiers-title' className='mb-16 scroll-mt-24'>
+          <h2 id='premium-tiers-title' className='section-label mb-4'>{t('premium.tiers')}</h2>
+          <div className='grid gap-6 lg:grid-cols-3'>
+            {TIERS.map((tier) => <TierCard key={tier.id} tier={tier} current={current === tier.id} variables={variables}/>)}
           </div>
-          <h2 id='premium-servers-title' className='mb-2 text-2xl text-white'>{t('premium.servers.title')}</h2>
-          <div className='max-w-3xl'>
-            <p className='text-muted'>
-              {rich('premium.servers.description', {code: (chunk) => <code className='text-code'>{chunk}</code>})}
-            </p>
-            <p className='mt-3 text-muted'>{t('premium.servers.stacking', variables)}</p>
-            <p className='mt-3 text-sm text-subtle'>{t('premium.servers.owning')}</p>
+          {/* a nod to NotSoSuper, the bot's original creator. english in every language, the pun is on the name */}
+          <p className='mt-4 text-center text-sm italic text-subtle'>Isn’t this a NotSoSuper deal?</p>
+        </section>
+
+        <section id='premium-servers' aria-labelledby='premium-servers-title' className='mb-16 scroll-mt-24'>
+          {/* how slots work, what they give a server is the comparison table at the bottom */}
+          <div className='card p-6 md:p-8'>
+            <div className='mb-4 flex size-12 items-center justify-center rounded-lg bg-brand/10'>
+              <Server className='size-6 text-brand-text'/>
+            </div>
+            <h2 id='premium-servers-title' className='mb-2 text-2xl text-white'>{t('premium.servers.title')}</h2>
+            <div className='max-w-3xl'>
+              <p className='text-muted'>
+                {rich('premium.servers.description', {code: (chunk) => <code className='text-code'>{chunk}</code>})}
+              </p>
+              <p className='mt-3 text-muted'>{t('premium.servers.stacking', variables)}</p>
+              <p className='mt-3 text-sm text-subtle'>{t('premium.servers.owning')}</p>
+            </div>
+            <a href='#premium-compare-servers' className='mt-5 inline-flex items-center gap-1.5 text-sm font-medium text-brand-text hover:underline'>
+              {t('premium.servers.compare_link')}
+              <ArrowRight className='size-4' aria-hidden/>
+            </a>
           </div>
-          <a href='#premium-compare-servers' className='mt-5 inline-flex items-center gap-1.5 text-sm font-medium text-brand-text hover:underline'>
-            {t('premium.servers.compare_link')}
-            <ArrowRight className='size-4' aria-hidden/>
-          </a>
-        </div>
-      </section>
+        </section>
 
-      <CreditsSection variables={variables}/>
+        <CreditsSection variables={variables}/>
 
-      <section id='premium-compare' aria-labelledby='premium-compare-title' className='scroll-mt-24'>
-        <AnchorHeading id='premium-compare-title' sectionId='premium-compare'>{t('premium.compare')}</AnchorHeading>
-        <ComparisonTable columns={TIER_TABLE_COLUMNS} groups={COMPARISON} current={current} variables={variables}/>
-        <p className='mt-3 text-xs text-subtle'>{t('premium.compare_credits_note')}</p>
-        <p className='mt-1 text-xs text-subtle'>
-          {rich('premium.compare_note', {terms: (chunk) => <Link to={Routes.LEGAL_TERMS_OF_SERVICE} className='underline hover:text-muted'>{chunk}</Link>})}
-        </p>
-      </section>
+        <section id='premium-compare' aria-labelledby='premium-compare-title' className='scroll-mt-24'>
+          <AnchorHeading id='premium-compare-title' sectionId='premium-compare'>{t('premium.compare')}</AnchorHeading>
+          <ComparisonTable columns={TIER_TABLE_COLUMNS} groups={COMPARISON} current={current} variables={variables}/>
+          <p className='mt-3 text-xs text-subtle'>{t('premium.compare_credits_note')}</p>
+          <p className='mt-1 text-xs text-subtle'>
+            {rich('premium.compare_note', {terms: (chunk) => <Link to={Routes.LEGAL_TERMS_OF_SERVICE} className='underline hover:text-muted'>{chunk}</Link>})}
+          </p>
+        </section>
 
-      <section id='premium-compare-servers' aria-labelledby='premium-compare-servers-title' className='mt-12 scroll-mt-24'>
-        <AnchorHeading id='premium-compare-servers-title' sectionId='premium-compare-servers'>{t('premium.compare_servers')}</AnchorHeading>
-        <ComparisonTable columns={SERVER_TABLE_COLUMNS} groups={SERVER_COMPARISON} current={null} variables={variables}/>
-        <p className='mt-3 text-xs text-subtle'>{t('premium.compare_servers_note', variables)}</p>
-        <p className='mt-1 text-xs text-subtle'>{t('premium.compare_credits_note')}</p>
-      </section>
-    </div>
+        <section id='premium-compare-servers' aria-labelledby='premium-compare-servers-title' className='mt-12 scroll-mt-24'>
+          <AnchorHeading id='premium-compare-servers-title' sectionId='premium-compare-servers'>{t('premium.compare_servers')}</AnchorHeading>
+          <ComparisonTable columns={SERVER_TABLE_COLUMNS} groups={SERVER_COMPARISON} current={null} variables={variables}/>
+          <p className='mt-3 text-xs text-subtle'>{t('premium.compare_servers_note', variables)}</p>
+          <p className='mt-1 text-xs text-subtle'>{t('premium.compare_credits_note')}</p>
+        </section>
+      </div>
+    </>
   );
 }
 

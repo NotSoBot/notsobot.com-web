@@ -1,6 +1,7 @@
 // The voice nodes (notsobot.voice) that play music, from `GET /info/voice`: enabled ones, and disabled ones while they
 // still have players. Their urls and why one couldn't be reached stay on the owner page
 
+import { InfoTip } from '@/components/ui/Tooltip';
 import { useI18n } from '@/i18n';
 import type { InfoVoiceNode } from '@/lib/api';
 import { useInfoVoiceQuery } from '@/lib/api/queries';
@@ -128,11 +129,15 @@ function NodeCard({ node }: {node: InfoVoiceNode}) {
             </div>
           </div>
 
-          <p className='mt-auto truncate pt-3 text-xs text-subtle tabular-nums' title={t('voice_status.version', {version: stats.version})}>
-            {formatMemory(stats.memory)}
-            {(node.latency !== null) ? <>{' • '}{formatNumber(node.latency)} ms</> : null}
-            {' • '}{t('voice_status.up', {uptime: formatUptime(stats.uptime)})}
-            {' • '}v{stats.version}
+          {/* the version is last, so it's what a narrow card cuts off: the ⓘ has it in full (a `title` never shows on touch) */}
+          <p className='mt-auto flex items-center gap-1 pt-3 text-xs text-subtle tabular-nums'>
+            <span className='truncate'>
+              {formatMemory(stats.memory)}
+              {(node.latency !== null) ? <>{' • '}{formatNumber(node.latency)} ms</> : null}
+              {' • '}{t('voice_status.up', {uptime: formatUptime(stats.uptime)})}
+              {' • '}v{stats.version}
+            </span>
+            <InfoTip text={t('voice_status.version', {version: stats.version})}/>
           </p>
         </>
       ) : (
@@ -181,7 +186,8 @@ function Count({ label, value, effects = 0, highlight = false, large }: {
   const { t } = useI18n();
   return (
     // top to bottom: how many of them have live effects (right aligned on a line of its own that's always there, so it
-    // can't run into a long number and showing up never moves anything), the number and its label
+    // can't run into a long number and showing up never moves anything), the number and its label. the ⓘ spells the
+    // short "fx" out on hover, focus or a tap, and is what a screen reader gets
     <div className='flex flex-col-reverse items-center px-1'>
       <dt className={cn('text-muted', (large) ? 'text-xs' : 'text-[11px]')}>{label}</dt>
       {(value !== undefined) ? (
@@ -190,14 +196,13 @@ function Count({ label, value, effects = 0, highlight = false, large }: {
         <dd className='mb-1 h-5 w-8 animate-pulse rounded bg-surface-3'/>
       )}
       <dd
-        className={cn('self-end truncate text-subtle tabular-nums', (large) ? 'h-4 pr-1 text-xs leading-4 sm:pr-2' : 'h-3.5 pr-0.5 text-[11px] leading-3.5')}
-        title={(effects) ? t('voice_status.effects_count', {count: formatNumber(effects)}) : undefined}
+        className={cn('flex max-w-full items-center gap-1 self-end text-subtle tabular-nums', (large) ? 'h-4 pr-1 text-xs leading-4 sm:pr-2' : 'h-3.5 pr-0.5 text-[11px] leading-3.5')}
         aria-hidden={(!effects) || undefined}
       >
         {(effects) ? (
           <>
-            <span aria-hidden>{t('voice_status.effects_short', {count: formatNumber(effects)})}</span>
-            <span className='sr-only'>{t('voice_status.effects_count', {count: formatNumber(effects)})}</span>
+            <span aria-hidden className='truncate'>{t('voice_status.effects_short', {count: formatNumber(effects)})}</span>
+            <InfoTip text={t('voice_status.effects_count', {count: formatNumber(effects)})}/>
           </>
         ) : null}
       </dd>

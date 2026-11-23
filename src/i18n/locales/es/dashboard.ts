@@ -210,7 +210,7 @@ export const Dashboard: Record<keyof typeof English, string> = {
   'dlimits.file_days': 'Archivos de nsb.gg guardados',
   'dlimits.days': '{count} días',
   'dlimits.download_quality': 'Calidad de descarga',
-  'dlimits.frames': 'Fotogramas en GIFs y videos',
+  'dlimits.frames': 'Fotogramas en GIFs y vídeos',
   'dlimits.still_size': 'Tamaño de imagen fija',
   'dlimits.media_time': 'Procesar multimedia',
   'dlimits.tag_time': 'Ejecutar un tag',

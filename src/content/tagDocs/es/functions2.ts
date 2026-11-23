@@ -184,12 +184,12 @@ export const FUNCTIONS_SPANISH_2: TagDocsTranslation['functions'] = {
     ],
   },
   IMAGE_INTERROGATE: {
-    summary: 'Describe una imagen con IA, devolviendo un prompt corto con lo que muestra.',
+    summary: 'Describe una imagen en detalle con IA, devolviendo unas frases sobre lo que muestra.',
     args: {
       image: IMAGE,
     },
     results: [
-      'Una descripción de la última imagen del chat, p. ej. "a cat sitting on a laptop keyboard"',
+      'Una descripción de la última imagen del chat, p. ej. "A gray cat sitting on a laptop keyboard on a wooden desk..."',
       'Una descripción de tu avatar',
     ],
     notes: [

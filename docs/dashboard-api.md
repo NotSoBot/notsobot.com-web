@@ -17,6 +17,24 @@ against this document. Paths are relative to the API root (the site calls them u
 - **Ownership:** a tag is editable only by its owner (`tag.user_id == caller`). Server settings are
   editable only with the Discord permission the matching bot command requires (see the table below).
 
+## Public site data
+
+No token: these are the same for everyone, nothing about the caller is read. They're sent with
+`Cache-Control: public, max-age=300, stale-while-revalidate=86400` and a strong `ETag` (a hash of the body), and a
+request whose `If-None-Match` has it (`W/` or not, or `*`) gets `304` with no body (same two headers). The language is
+in the query, so caches keep one copy per language.
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/commands` | Query `language` (the site's, `es`/`pt`, left out for English; up to 16 characters). Every command (`Command.to_dict(language)`, disabled ones too with `enabled: false`): names, descriptions and arguments of slash/context menu commands in that language where the bot has a translation, English otherwise. Ordered by command id, variants by type, so the same data always has the same `ETag`. Changes when the bot uploads its commands (`PUT /commands`) or the previews it asked for are made. |
+| GET | `/home` | Query `language` (as `/commands`). What the home page shows, built at most every 5 minutes per language (redis `home:<language>`, `home:` for English): `{counts: {commands, guilds, users}, hero: [{id, name, type, after, before, example}], showcases: [{id, name, type, after}]}`. `showcases` is every command with a preview result that isn't audio and isn't a country flag overlay (`media-iv-flag-*`), shown as its first variant with a name (slash, then prefix, then user/message app; `name` translated like `/commands`, `type` is `CommandTypes`), ordered by id (the page shuffles them). `hero` is the slider's, `magik`, `deepfry`, `swirl`, `jpeg`, `pixelate`, `explode` by prefix name in that order, each only when its single input and its result are images within 5% of the same shape; they're left out of `showcases`. `after`/`before` are `{url, mimetype, width, height}` (`CommandMedia` without the rest), `example` is what the preview shows without the prefix (`null` when unknown). `counts.commands` is commands with a variant still offered, `guilds`/`users` the totals over the current shard layout's shards (`/info/discord`), both `null` while no cluster has reported. |
+
+Asked every time, with no caching headers: the status page polls it and must never be shown an old answer.
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/info/discord` | `{clusters: [{cluster_id, last_refresh, ram_usage, shards: [{cluster_id, shard_id, status, counts}]}], shard_count, shards_per_cluster, timestamp}`: the shard layout whose clusters reported most recently (there are two during a reshard), read at most every 5 seconds per worker. `timestamp` (ISO, UTC, since 2026-11-22) is the api's clock when it was read: the status page judges each cluster's `last_refresh` against it (dead 45 seconds after its last report) instead of the newest report in the response, which is old too when every cluster stops at once, or the visitor's clock. The site falls back to the newest report when it's missing. `500` code `90002` (`DISCORD_INFO_UNAVAILABLE`) before any cluster has reported. The home page doesn't ask for this, its two totals are in `/home`. |
+
 ## User settings
 
 | Method | Path | Notes |

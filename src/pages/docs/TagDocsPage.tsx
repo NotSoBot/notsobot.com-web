@@ -3,6 +3,7 @@ import { BookOpen, Check, ChevronDown, Copy, Link2 } from 'lucide-react';
 import { Fragment, memo, useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, NavigationType, useLocation, useMatch, useNavigate, useNavigation, useNavigationType, useSearchParams } from 'react-router';
 
+import { PageHero } from '@/components/ui/PageHero';
 import { Segmented } from '@/components/ui/Segmented';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Spinner } from '@/components/ui/Spinner';
@@ -194,79 +195,75 @@ function TagDocsContent({ docs, ready }: {docs: TagDocs, ready: boolean}) {
   // no ligatures: JetBrains Mono would otherwise draw `!=` and `>=` as single glyphs, which can't be typed
   return (
     <div className='[font-variant-ligatures:none]'>
-      <div className='border-b border-line bg-surface'>
-        <div className='container-page py-10 sm:py-12'>
-          {(quarantineDismissed) ? null : (
-            <QuarantineNotice className='mb-6 max-w-3xl' defaultOpen={quarantineReopened} onDismiss={() => setQuarantineDismissed(true)}/>
-          )}
-          <div className='mb-3 flex items-center gap-2 text-sm font-medium text-brand-text'>
-            <BookOpen className='size-4'/>
-            {t('tag_docs.badge')}
-          </div>
-          <h1 className='mb-2 text-3xl font-bold text-white sm:text-4xl'>{t('tag_docs.title')}</h1>
-          <p className={cn('max-w-2xl text-muted', (quarantineDismissed) ? 'mb-2' : 'mb-6')}>
-            {(docs.view === 'mediascript') ? (
-              rich('tag_docs.description_mediascript', {code}, {count: docs.commands.length})
-            ) : (
-              t('tag_docs.description_tagscript', {count: docs.functions.length})
-            )}
-          </p>
-          {(quarantineDismissed) ? (
-            <button
-              type='button'
-              onClick={() => {
-                setQuarantineReopened(true);
-                setQuarantineDismissed(false);
-              }}
-              className='mb-6 block cursor-pointer text-sm text-code hover:underline'
-            >
-              {t('tag_docs.quarantine_link')}
-            </button>
-          ) : null}
-          <div className='flex max-w-3xl flex-col gap-3 sm:flex-row sm:items-center'>
-            <Segmented label={t('tag_docs.view_label')} value={pendingView ?? view} options={VIEW_OPTIONS} onChange={setView}/>
-            <SearchInput
-              className='min-w-0 flex-1'
-              value={query}
-              onValueChange={setQuery}
-              placeholder={(view === 'mediascript') ? t('tag_docs.search_placeholder_mediascript') : t('tag_docs.search_placeholder_tagscript')}
-              aria-label={t('tag_docs.search_label')}
-            />
-          </div>
-          {(needle && ready) ? (
-            <p className='mt-2 text-sm text-muted' aria-live='polite'>
-              {t('tag_docs.results', {
-                items: plural((view === 'mediascript') ? 'tag_docs.commands' : 'tag_docs.functions', total),
-                sections: plural('tag_docs.sections', guide.length),
-                query: shownQuery,
-              })}
-            </p>
-          ) : null}
-          {(ready && (guide.length || categories.length)) ? (
-            // below lg there's no sidebar, so the same links sit here, closed until asked for
-            <details ref={mobileNav} className='group mt-3 max-w-3xl rounded-lg border border-line bg-deep lg:hidden'>
-              <summary className='flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-2.5 text-sm font-medium text-fg [&::-webkit-details-marker]:hidden'>
-                {t('tag_docs.on_this_page')}
-                <ChevronDown aria-hidden className='size-4 shrink-0 text-subtle transition-transform group-open:rotate-180'/>
-              </summary>
-              <nav aria-label={t('tag_docs.nav_label')} className='max-h-[60vh] overflow-y-auto border-t border-line p-2'>
-                <SectionLinks
-                  view={view}
-                  guide={guide}
-                  categories={categories}
-                  onNavigate={(id) => {
-                    // closed first: it sits above the sections, so closing it after would move the one just scrolled to
-                    if (mobileNav.current) {
-                      mobileNav.current.open = false;
-                    }
-                    scrollTo(id);
-                  }}
-                />
-              </nav>
-            </details>
-          ) : null}
+      <PageHero
+        lead={(quarantineDismissed) ? null : (
+          <QuarantineNotice className='mb-6 max-w-3xl' defaultOpen={quarantineReopened} onDismiss={() => setQuarantineDismissed(true)}/>
+        )}
+        badge={<><BookOpen className='size-4'/>{t('tag_docs.badge')}</>}
+        title={t('tag_docs.title')}
+        description={(docs.view === 'mediascript') ? (
+          rich('tag_docs.description_mediascript', {code}, {count: docs.commands.length})
+        ) : (
+          t('tag_docs.description_tagscript', {count: docs.functions.length})
+        )}
+        // closer to the link that brings the notice back, which then has the gap to the controls
+        descriptionClassName={(quarantineDismissed) ? 'mb-2' : undefined}
+      >
+        {(quarantineDismissed) ? (
+          <button
+            type='button'
+            onClick={() => {
+              setQuarantineReopened(true);
+              setQuarantineDismissed(false);
+            }}
+            className='mb-6 block cursor-pointer text-sm text-code hover:underline'
+          >
+            {t('tag_docs.quarantine_link')}
+          </button>
+        ) : null}
+        <div className='flex max-w-3xl flex-col gap-3 sm:flex-row sm:items-center'>
+          <Segmented label={t('tag_docs.view_label')} value={pendingView ?? view} options={VIEW_OPTIONS} onChange={setView}/>
+          <SearchInput
+            className='min-w-0 flex-1'
+            value={query}
+            onValueChange={setQuery}
+            placeholder={(view === 'mediascript') ? t('tag_docs.search_placeholder_mediascript') : t('tag_docs.search_placeholder_tagscript')}
+            aria-label={t('tag_docs.search_label')}
+          />
         </div>
-      </div>
+        {(needle && ready) ? (
+          <p className='mt-2 text-sm text-muted' aria-live='polite'>
+            {t('tag_docs.results', {
+              items: plural((view === 'mediascript') ? 'tag_docs.commands' : 'tag_docs.functions', total),
+              sections: plural('tag_docs.sections', guide.length),
+              query: shownQuery,
+            })}
+          </p>
+        ) : null}
+        {(ready && (guide.length || categories.length)) ? (
+          // below lg there's no sidebar, so the same links sit here, closed until asked for
+          <details ref={mobileNav} className='group mt-3 max-w-3xl rounded-lg border border-line bg-deep lg:hidden'>
+            <summary className='flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-2.5 text-sm font-medium text-fg [&::-webkit-details-marker]:hidden'>
+              {t('tag_docs.on_this_page')}
+              <ChevronDown aria-hidden className='size-4 shrink-0 text-subtle transition-transform group-open:rotate-180'/>
+            </summary>
+            <nav aria-label={t('tag_docs.nav_label')} className='max-h-[60vh] overflow-y-auto border-t border-line p-2'>
+              <SectionLinks
+                view={view}
+                guide={guide}
+                categories={categories}
+                onNavigate={(id) => {
+                  // closed first: it sits above the sections, so closing it after would move the one just scrolled to
+                  if (mobileNav.current) {
+                    mobileNav.current.open = false;
+                  }
+                  scrollTo(id);
+                }}
+              />
+            </nav>
+          </details>
+        ) : null}
+      </PageHero>
 
       {(ready) ? (
         <div className='container-page grid grid-cols-[minmax(0,1fr)] gap-8 py-10 lg:grid-cols-[230px_minmax(0,1fr)]'>

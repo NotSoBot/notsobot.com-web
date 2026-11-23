@@ -8,6 +8,7 @@ import { useId, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { DialogError } from '@/components/ui/DialogError';
 import { Modal } from '@/components/ui/Modal';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Spinner } from '@/components/ui/Spinner';
@@ -410,7 +411,7 @@ function AddProxiesDialog({ data, onClose }: {data: AdminIdentities, onClose: ()
         </label>
 
         {(bulk.isError) ? (
-          <p role='alert' className='mt-4 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-fg'>{errorMessage(bulk.error, 'Couldn’t read the list.')}</p>
+          <DialogError className='mt-4'>{errorMessage(bulk.error, 'Couldn’t read the list.')}</DialogError>
         ) : null}
 
         {(preview) ? <BulkResults result={preview}/> : null}

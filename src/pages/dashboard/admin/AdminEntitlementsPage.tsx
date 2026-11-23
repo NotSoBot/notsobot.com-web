@@ -6,9 +6,9 @@ import { Crown } from 'lucide-react';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useSearchParamState, useStepBackFromEmptyPage } from '@/hooks/useSearchParamState';
-import { EntitlementProviders } from '@/lib/api';
+import { EntitlementProviders, type AdminEntitlement } from '@/lib/api';
 import { ADMIN_PAGE_SIZE, errorMessage, useAdminEntitlementsQuery } from '@/lib/api/dashboardQueries';
-import { cn } from '@/lib/utils';
+import { cn, toDate } from '@/lib/utils';
 
 import { ENTITLEMENT_PROVIDERS, ENTITLEMENT_TIERS, entitlementProviderLabel, entitlementStatus, entitlementTierLabel } from '../premium';
 import { DashboardHeader, EmptyState, ErrorPanel, Skeleton } from '../ui';
@@ -55,6 +55,7 @@ export function AdminEntitlementsPage() {
     fetching: isFetching && isPlaceholderData,
   };
   const filtered = !!(validUserId || provider || premiumType !== null || active !== null);
+  const filterUser = (id: string) => update({user_id: id});
 
   return (
     <>
@@ -116,7 +117,12 @@ export function AdminEntitlementsPage() {
       ) : (
         <>
           <Pagination {...pagination} className='mt-0 mb-4'/>
-          <div className={cn('card overflow-x-auto transition-opacity', isPlaceholderData && 'opacity-60')}>
+          {/* phones: one stacked row per entitlement like the Users and Servers lists, the table is wider than the screen
+              and left the source, the dates and the id off it */}
+          <ul className={cn('card divide-y divide-line transition-opacity sm:hidden', isPlaceholderData && 'opacity-60')}>
+            {items.map((entitlement) => <EntitlementCard key={entitlement.id} entitlement={entitlement} onFilterUser={filterUser}/>)}
+          </ul>
+          <div className={cn('card hidden overflow-x-auto transition-opacity sm:block', isPlaceholderData && 'opacity-60')}>
             <table className='w-full min-w-[860px] text-left text-sm'>
               <thead className='border-b border-line text-xs text-subtle uppercase'>
                 <tr>
@@ -135,18 +141,7 @@ export function AdminEntitlementsPage() {
                   return (
                     <tr key={entitlement.id} className='align-middle hover:bg-surface-2'>
                       <td className='px-4 py-3'>
-                        {(entitlement.user) ? (
-                          // the name opens the user, the funnel narrows the list to them (like Voices and Reports)
-                          <div className='flex min-w-0 items-center gap-1'>
-                            <div className='min-w-0'><UserCell user={entitlement.user} to={adminUserPath(entitlement.user.id)}/></div>
-                            <FilterButton label='Show only this user’s entitlements' onClick={() => update({user_id: entitlement.user?.id ?? null})}/>
-                          </div>
-                        ) : (entitlement.guild_id) ? (
-                          <div className='text-xs text-muted'>
-                            Server
-                            <CopyableValue value={entitlement.guild_id} truncate={0} className='mt-0.5'/>
-                          </div>
-                        ) : <UserCell user={null}/>}
+                        <EntitlementOwner entitlement={entitlement} onFilterUser={filterUser}/>
                       </td>
                       <td className='px-4 py-3'>
                         <div className='font-medium whitespace-nowrap text-white'>{entitlementTierLabel(entitlement)}</div>
@@ -186,6 +181,75 @@ export function AdminEntitlementsPage() {
         </>
       )}
     </>
+  );
+}
+
+
+type EntitlementProps = {
+  entitlement: AdminEntitlement,
+  onFilterUser: (userId: string) => void,
+};
+
+// whose it is: the user, or the server's id for one that only has a server
+function EntitlementOwner({ entitlement, onFilterUser }: EntitlementProps) {
+  const { user } = entitlement;
+  if (user) {
+    return (
+      // the name opens the user, the funnel narrows the list to them (like Voices and Reports)
+      <div className='flex min-w-0 items-center gap-1'>
+        <div className='min-w-0'><UserCell user={user} to={adminUserPath(user.id)}/></div>
+        <FilterButton label='Show only this user’s entitlements' onClick={() => onFilterUser(user.id)}/>
+      </div>
+    );
+  }
+  if (entitlement.guild_id) {
+    return (
+      <div className='text-xs text-muted'>
+        Server
+        <CopyableValue value={entitlement.guild_id} truncate={0} className='mt-0.5'/>
+      </div>
+    );
+  }
+  return <UserCell user={null}/>;
+}
+
+
+// The same entitlement below sm, stacked: whose it is, the tier and its state, where it came from, then its dates and id
+function EntitlementCard({ entitlement, onFilterUser }: EntitlementProps) {
+  const status = entitlementStatus(entitlement);
+  const started = entitlement.starts_at ?? entitlement.created_at;
+  // there's no column heading here, so the dates say which they are, in the tense they're in
+  const now = Date.now();
+  const isStarted = started !== null && toDate(started).getTime() <= now;
+  const isEnded = entitlement.ends_at !== null && toDate(entitlement.ends_at).getTime() < now;
+  return (
+    <li className='px-4 py-3 text-sm'>
+      <EntitlementOwner entitlement={entitlement} onFilterUser={onFilterUser}/>
+      <div className='mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1'>
+        <span className='font-medium text-white'>{entitlementTierLabel(entitlement)}</span>
+        <Chip tone={status.tone}>{status.label}</Chip>
+        {(entitlement.premium_type === null) ? <span className='font-mono text-xs text-subtle' title='SKU'>{entitlement.sku_id}</span> : null}
+      </div>
+      <div className='mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-subtle'>
+        <Chip tone={(entitlement.provider === EntitlementProviders.MANUAL) ? 'brand' : 'neutral'}>
+          {entitlementProviderLabel(entitlement.provider)}
+        </Chip>
+        {(entitlement.granted_by) ? (
+          <span className='inline-flex min-w-0 items-center gap-1'>
+            by <CopyableValue value={entitlement.granted_by} truncate={0}/>
+          </span>
+        ) : (entitlement.external_id) ? (
+          <span className='inline-flex min-w-0' title='Discord entitlement ID'>
+            <CopyableValue value={entitlement.external_id} truncate={0}/>
+          </span>
+        ) : null}
+      </div>
+      <div className='mt-2 text-xs text-subtle'>
+        {(started !== null) ? <>{(isStarted) ? 'Started' : 'Starts'} <ExactDate value={started}/> • </> : null}
+        {(entitlement.ends_at !== null) ? <>{(isEnded) ? 'Ended' : 'Ends'} <ExactDate value={entitlement.ends_at}/></> : 'Never ends'}
+      </div>
+      <CopyableValue value={entitlement.id} truncate={0} className='mt-1 max-w-full'/>
+    </li>
   );
 }
 

@@ -184,6 +184,34 @@ export function BulkAddIdentitiesDialog({ data, onClose }: {data: AdminIdentitie
     setFailed({});
   };
 
+  // a line's name and proxy fields, the same ones in the table and in the stacked rows below sm
+  const nameInput = (row: Row) => (
+    <input
+      {...NO_AUTOFILL}
+      aria-label={`Name for line ${row.line}`}
+      className='input h-8 py-1 font-mono text-xs'
+      value={row.name}
+      onChange={(event) => edit(() => setNames((current) => ({...current, [row.key]: event.target.value})))}
+      disabled={sending}
+    />
+  );
+  const proxySelect = (row: Row) => (
+    <select
+      aria-label={`Proxy for line ${row.line}`}
+      className={cn('input h-8 py-1 font-mono text-xs', !row.picked && 'text-muted')}
+      value={row.proxy?.id ?? ''}
+      onChange={(event) => edit(() => setPicks((current) => ({...current, [row.key]: Number(event.target.value)})))}
+      disabled={sending}
+    >
+      {(!row.proxy) ? <option value='' hidden disabled/> : null}
+      {free.filter((proxy) => (pickedBy.get(proxy.id) ?? row.key) === row.key).map((proxy) => (
+        <option key={proxy.id} value={proxy.id}>
+          {proxyLabel(proxy)}{(proxy.labels.length) ? ` [${proxy.labels.join(', ')}]` : ''}
+        </option>
+      ))}
+    </select>
+  );
+
   return (
     <Modal labelledBy={titleId} onClose={() => !sending && onClose()} className='max-w-4xl'>
       <div className='p-5 sm:p-6'>
@@ -244,7 +272,33 @@ export function BulkAddIdentitiesDialog({ data, onClose }: {data: AdminIdentitie
 
         {(rows.length) ? (
           <div className='mt-4 max-h-80 overflow-auto rounded-md border border-line bg-deep'>
-            <table className='w-full min-w-[640px] text-left text-xs'>
+            {/* phones: each line stacked with its name and proxy under it, the table is wider than the dialog and they
+                scrolled off it */}
+            <ul className='divide-y divide-line text-xs sm:hidden'>
+              {rows.map((row) => (
+                <li key={`${row.key}-${row.line}`} className={cn('px-3 py-2', row.error && 'bg-danger/5')}>
+                  <div className='flex gap-2'>
+                    <span className='shrink-0 text-subtle tabular-nums'>line {row.line}</span>
+                    <div className='min-w-0'>
+                      {(row.login) ? (
+                        <>
+                          <span className='block truncate font-mono text-fg'>{row.login.username}</span>
+                          <span className='block text-subtle'>{extrasText(row.login)}</span>
+                        </>
+                      ) : null}
+                      {(row.error) ? <span className='block text-danger-text'>{row.error}</span> : null}
+                    </div>
+                  </div>
+                  {(row.login) ? (
+                    <div className='mt-1.5 grid gap-1.5'>
+                      {nameInput(row)}
+                      {proxySelect(row)}
+                    </div>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+            <table className='hidden w-full min-w-[640px] text-left text-xs sm:table'>
               <thead className='sticky top-0 border-b border-line bg-deep text-subtle'>
                 <tr>
                   <th scope='col' className='w-10 px-3 py-2 font-medium'>Line</th>
@@ -267,34 +321,10 @@ export function BulkAddIdentitiesDialog({ data, onClose }: {data: AdminIdentitie
                       {(row.error) ? <span className='block text-danger-text'>{row.error}</span> : null}
                     </td>
                     <td className='px-2 py-1.5'>
-                      {(row.login) ? (
-                        <input
-                          {...NO_AUTOFILL}
-                          aria-label={`Name for line ${row.line}`}
-                          className='input h-8 py-1 font-mono text-xs'
-                          value={row.name}
-                          onChange={(event) => edit(() => setNames((current) => ({...current, [row.key]: event.target.value})))}
-                          disabled={sending}
-                        />
-                      ) : null}
+                      {(row.login) ? nameInput(row) : null}
                     </td>
                     <td className='px-3 py-1.5'>
-                      {(row.login) ? (
-                        <select
-                          aria-label={`Proxy for line ${row.line}`}
-                          className={cn('input h-8 py-1 font-mono text-xs', !row.picked && 'text-muted')}
-                          value={row.proxy?.id ?? ''}
-                          onChange={(event) => edit(() => setPicks((current) => ({...current, [row.key]: Number(event.target.value)})))}
-                          disabled={sending}
-                        >
-                          {(!row.proxy) ? <option value='' hidden disabled/> : null}
-                          {free.filter((proxy) => (pickedBy.get(proxy.id) ?? row.key) === row.key).map((proxy) => (
-                            <option key={proxy.id} value={proxy.id}>
-                              {proxyLabel(proxy)}{(proxy.labels.length) ? ` [${proxy.labels.join(', ')}]` : ''}
-                            </option>
-                          ))}
-                        </select>
-                      ) : null}
+                      {(row.login) ? proxySelect(row) : null}
                     </td>
                   </tr>
                 ))}

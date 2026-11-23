@@ -415,7 +415,7 @@ function MediaManager({ assets, selected, selectedIndex, manage, onUploaded, chi
           </button>
         ) : (
           <div className='flex flex-wrap items-center gap-2'>
-            <button type='button' className='btn btn-secondary btn-sm' disabled={busy || full} title={(full) ? t('tag_media.max_files', {max: TAG_DIRECTORY_ASSETS_MAX}) : undefined} onClick={() => input.current?.click()}>
+            <button type='button' className='btn btn-secondary btn-sm' disabled={busy || full} onClick={() => input.current?.click()}>
               {(uploading) ? <Spinner className='size-3.5'/> : <ImagePlus className='size-3.5'/>}
               {t((uploading) ? 'tag_media.uploading' : 'tag_media.add')}
             </button>
@@ -456,6 +456,8 @@ function MediaManager({ assets, selected, selectedIndex, manage, onUploaded, chi
             ) : null}
           </div>
         )}
+        {/* why Add is off, said here: a disabled button's `title` never shows on touch */}
+        {(full) ? <p className='mt-2 text-xs text-subtle'>{t('tag_media.max_files', {max: TAG_DIRECTORY_ASSETS_MAX})}</p> : null}
         {(manage.staff && selected && confirmingRemove === selected.id) ? (
           <Suspense fallback={null}>
             <RemovalConfirm

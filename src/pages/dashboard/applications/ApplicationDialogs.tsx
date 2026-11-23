@@ -3,6 +3,7 @@ import { useId, useState, type ReactNode } from 'react';
 
 import { Chip } from '@/components/ui/Chip';
 import { CopyButton } from '@/components/ui/CopyButton';
+import { DialogError } from '@/components/ui/DialogError';
 import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
 import { useI18n } from '@/i18n';
@@ -89,7 +90,7 @@ export function ApplicationNameDialog({ title, initialName = '', submitLabel, pe
         </Field>
 
         {(error) ? (
-          <p role='alert' className='mt-4 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-fg'>{error}</p>
+          <DialogError className='mt-4'>{error}</DialogError>
         ) : null}
 
         <div className='mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>

@@ -40,7 +40,7 @@ export const Tags: Record<keyof typeof English, string> = {
   'tags.add_tag': 'Adicionar tag',
   'tags.login_to_add': 'Entre para adicionar',
   'tags.remove_confirm': 'Remover?',
-  'tags.report_discard_description': 'Sua denúncia ainda não foi enviada. Se você fechar agora, vai perder o que escreveu.',
+  'tags.report_discard_description': 'O que você escreveu ainda não foi enviado. Se você fechar agora, vai perder o texto.',
 
   'tags.directory.description': 'Explore e adicione tags personalizadas ao seu servidor.',
   'tags.directory.available_one': '{count} tag disponível.',

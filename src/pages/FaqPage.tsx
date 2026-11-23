@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, NavigationType, useLocation, useNavigationType, useSearchParams } from 'react-router';
 
+import { PageHero } from '@/components/ui/PageHero';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Spinner } from '@/components/ui/Spinner';
 import { Routes } from '@/config';
@@ -111,34 +112,28 @@ export function FaqPage() {
 
   return (
     <>
-      <div className='border-b border-line bg-surface'>
-        <div className='container-page py-10 sm:py-12'>
-          <div className='mb-3 flex items-center gap-2 text-sm font-medium text-brand-text'>
-            <MessageCircleQuestion className='size-4'/>
-            {t('faq.badge')}
-          </div>
-          <h1 className='mb-2 text-3xl font-bold text-white sm:text-4xl'>{t('faq.title')}</h1>
-          <p className='mb-6 max-w-2xl text-muted'>
-            {t('faq.description')}
+      <PageHero
+        badge={<><MessageCircleQuestion className='size-4'/>{t('faq.badge')}</>}
+        title={t('faq.title')}
+        description={t('faq.description')}
+      >
+        <SearchInput
+          size='lg'
+          className='max-w-2xl'
+          value={query}
+          onValueChange={(value) => {
+            setQuery(value);
+            setCollapsed(new Set());
+          }}
+          placeholder={t('faq.search_placeholder')}
+          aria-label={t('faq.search_label')}
+        />
+        {(needle) ? (
+          <p className='mt-2 text-sm text-muted' aria-live='polite'>
+            {plural('faq.results', matches.length, {query: query.trim()})}
           </p>
-          <SearchInput
-            size='lg'
-            className='max-w-2xl'
-            value={query}
-            onValueChange={(value) => {
-              setQuery(value);
-              setCollapsed(new Set());
-            }}
-            placeholder={t('faq.search_placeholder')}
-            aria-label={t('faq.search_label')}
-          />
-          {(needle) ? (
-            <p className='mt-2 text-sm text-muted' aria-live='polite'>
-              {plural('faq.results', matches.length, {query: query.trim()})}
-            </p>
-          ) : null}
-        </div>
-      </div>
+        ) : null}
+      </PageHero>
 
       {(!ready) ? (
         <div className='container-page flex min-h-[50vh] items-center justify-center py-10'>

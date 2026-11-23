@@ -11,6 +11,7 @@ import { Link } from 'react-router';
 import { isOwner, useAuth } from '@/auth';
 import { CopyButton } from '@/components/ui/CopyButton';
 import { DetailModalHeader, DetailModalStrip } from '@/components/ui/DetailModal';
+import { DialogError } from '@/components/ui/DialogError';
 import { Modal } from '@/components/ui/Modal';
 import { SearchInput } from '@/components/ui/SearchInput';
 
@@ -1477,7 +1478,7 @@ function MediaDialog({ flag, onClose }: {flag: ContentFlag, onClose: () => void}
               <Spinner className='size-4'/> {(state.job && MEDIA_JOB_LABELS[state.job]) || 'Fetching media...'}
             </div>
           ) : (state.status === 'error') ? (
-            <p role='alert' className='rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-fg'>{state.message}</p>
+            <DialogError>{state.message}</DialogError>
           ) : (
             <div className={cn((frames.length > 0) && 'grid gap-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]')}>
               <div className='relative overflow-hidden rounded-md'>
@@ -1607,7 +1608,7 @@ function KeptFramesDialog({ flag, onClose }: {flag: ContentFlag, onClose: () => 
               <Spinner className='size-4'/> Loading frames...
             </div>
           ) : (state.status === 'error') ? (
-            <p role='alert' className='rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-fg'>{state.message}</p>
+            <DialogError>{state.message}</DialogError>
           ) : (
             <div className='relative'>
               <ul className={cn('grid max-h-[65vh] gap-2 overflow-y-auto', (frames.length > 1) && 'sm:grid-cols-2')}>
@@ -1683,9 +1684,9 @@ function FlagPromptDialog({ flag, onClose }: {flag: ContentFlag, onClose: () => 
         <p className='mt-3 rounded-md border border-line bg-deep px-3 py-2 font-mono text-sm whitespace-pre-wrap break-words text-fg'>{flag.query}</p>
 
         {(mutation.isError) ? (
-          <p role='alert' className='mt-4 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-fg'>
+          <DialogError className='mt-4'>
             {errorMessage(mutation.error, 'Couldn’t flag the prompt.')}
-          </p>
+          </DialogError>
         ) : null}
 
         <div className='mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
@@ -1829,7 +1830,7 @@ function ReportFlagDialog({ flag, notes, onClose }: {flag: ContentFlag, notes?: 
         ) : null}
 
         {(error) ? (
-          <p role='alert' className='mt-4 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-fg'>{error}</p>
+          <DialogError className='mt-4'>{error}</DialogError>
         ) : null}
 
         <div className='mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>

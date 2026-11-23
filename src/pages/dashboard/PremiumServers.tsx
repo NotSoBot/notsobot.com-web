@@ -9,6 +9,7 @@ import { Link } from 'react-router';
 import { useAuth } from '@/auth';
 import { Chip } from '@/components/ui/Chip';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { DialogError } from '@/components/ui/DialogError';
 import { Modal } from '@/components/ui/Modal';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Spinner } from '@/components/ui/Spinner';
@@ -330,9 +331,9 @@ function AddServerDialog({ taken, onClose }: {taken: Array<string>, onClose: () 
         </p>
 
         {(put.isError) ? (
-          <p role='alert' className='mt-4 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-fg'>
+          <DialogError className='mt-4'>
             {errorMessage(put.error, t('pservers.give_error'))}
-          </p>
+          </DialogError>
         ) : null}
 
         <div className='mt-4'>

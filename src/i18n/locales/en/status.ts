@@ -87,7 +87,7 @@ export const Status = {
   'status.show_all': 'Show all {count}',
   'status.hide_totals': 'Hide all totals',
   'status.show_totals': 'Show all totals ({count})',
-  'status.totals_note': 'Most of these are cache sizes summed across shards. Hover a number for exactly what it counts.',
+  'status.totals_note': 'Most of these are cache sizes summed across shards. The info icon next to each one says exactly what it counts.',
   'voice_status.title': 'Voice Status',
   'voice_status.online': 'Online',
   'voice_status.draining': 'Draining',

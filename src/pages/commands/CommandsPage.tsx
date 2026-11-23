@@ -3,6 +3,7 @@ import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, use
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 
 import { FiltersButton } from '@/components/ui/FiltersButton';
+import { PageHero } from '@/components/ui/PageHero';
 import { PrefixSunsetNotice } from '@/components/ui/PrefixSunsetNotice';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Routes } from '@/config';
@@ -227,20 +228,16 @@ export function CommandsPage() {
 
   return (
     <>
-      <div className='border-b border-line bg-surface'>
-        <div className='container-page flex flex-col gap-1 py-6 sm:flex-row sm:items-end sm:justify-between'>
-          <div>
-            <h1 className='mb-2 text-3xl text-white'>{t('nav.commands')}</h1>
-            <p className='text-muted'>{t('commands.description')}</p>
-          </div>
-          {(entries.length) ? (
-            <p className='text-sm text-subtle tabular-nums'>
-              {plural('commands.total', entries.length)}
-              {(weekTotal) ? <> • {rich('commands.week_uses', {b: (chunk) => <span className='text-muted'>{chunk}</span>}, {count: formatCompact(weekTotal)})}</> : null}
-            </p>
-          ) : null}
-        </div>
-      </div>
+      <PageHero
+        title={t('nav.commands')}
+        description={t('commands.description')}
+        aside={(entries.length) ? (
+          <p className='text-sm text-subtle tabular-nums'>
+            {plural('commands.total', entries.length)}
+            {(weekTotal) ? <> • {rich('commands.week_uses', {b: (chunk) => <span className='text-muted'>{chunk}</span>}, {count: formatCompact(weekTotal)})}</> : null}
+          </p>
+        ) : null}
+      />
 
       <div className='container-page py-8'>
         {(missing) ? (

@@ -6456,7 +6456,55 @@ route('GET', '/commands/stats', () => mockCommands.flatMap((command, index) => c
 }))));
 
 
-const MOCK_PUBLIC_PATHS = ['/tags/directory', '/reports/anonymous', '/commands', '/commands/stats', '/info/voice'];
+// `GET /home`, picked like `views/home.py`: every command with a result that isn't audio, shown as its first named
+// variant, the hero's by prefix name when the input fits a slider. made-up totals
+const MOCK_HERO_COMMANDS = ['magik', 'deepfry', 'swirl', 'jpeg', 'pixelate', 'explode'];
+const MOCK_VARIANT_ORDER: Record<number, number> = {1: 0, 0: 1, 2: 2, 3: 3, 4: 4};
+
+route('GET', '/home', (_match, { query }) => {
+  const language = query.get('language');
+  const media = ({ height, mimetype, url, width }: {height: number, mimetype: string, url: string, width: number}) => ({height, mimetype, url, width});
+  type MockShowcase = {after: ReturnType<typeof media>, id: string, name: string, type: number};
+  const showcases: Array<MockShowcase> = [];
+  // the first command with each prefix name, null when its preview doesn't fit a slider
+  const hero = new Map<string, MockShowcase & {before: ReturnType<typeof media>, example: string | null} | null>();
+  let commands = 0;
+  for (const command of [ ...mockCommands ].sort((a, b) => (a.id < b.id) ? -1 : 1)) {
+    const variants = command.metadata
+      .filter((metadata) => command.enabled && metadata.enabled)
+      .sort((a, b) => MOCK_VARIANT_ORDER[a.type] - MOCK_VARIANT_ORDER[b.type])
+      .map((metadata) => ({metadata, name: mockLocalized(metadata.name, metadata.name_localizations, language)}));
+    if (!variants.length) {
+      continue;
+    }
+    commands++;
+    const variant = variants.find((item) => item.name);
+    const after = command.media.find((item) => item.type === 0);
+    if (!variant || !after || after.mimetype.startsWith('audio/') || command.metadata.some((metadata) => metadata.name.startsWith('media-iv-flag-'))) {
+      continue;
+    }
+    const showcase = {after: media(after), id: command.id, name: variant.name, type: variant.metadata.type};
+    showcases.push(showcase);
+    const prefixName = variants.find((item) => item.metadata.type === 0)?.name;
+    const inputs = command.media.filter((item) => item.type === 1);
+    const before = (inputs.length === 1) ? inputs[0] : null;
+    const ratio = after.width / (after.height || 1);
+    const fits = !!before && before.mimetype.startsWith('image/') && after.mimetype.startsWith('image/') && !!before.height && !!after.height &&
+      Math.abs(before.width / before.height - ratio) / ratio <= 0.05;
+    if (prefixName && MOCK_HERO_COMMANDS.includes(prefixName) && !hero.has(prefixName)) {
+      hero.set(prefixName, (before && fits) ? {...showcase, before: media(before), example: command.preview_example} : null);
+    }
+  }
+  const heroes = MOCK_HERO_COMMANDS.flatMap((name) => hero.get(name) ?? []);
+  return {
+    counts: {commands, guilds: 1_286_519, users: 55_684_219},
+    hero: heroes,
+    showcases: showcases.filter((showcase) => !heroes.some((item) => item.id === showcase.id)),
+  };
+});
+
+
+const MOCK_PUBLIC_PATHS = ['/tags/directory', '/reports/anonymous', '/commands', '/commands/stats', '/home', '/info/voice'];
 
 export function installDashboardMocks(): void {
   const realFetch = window.fetch.bind(window);

@@ -30,6 +30,13 @@ const SEARCH_TEXT_PARAMS = ['q', 'lookup'];
 const ID_SEGMENT_PATTERN = /^\d{5,}$/;
 const ID_PLACEHOLDER = ':id';
 
+// a dashboard filter that picks out someone or something (a member, a server, a tag, a command, a report, a staff
+// label or prompt hash) says whose page it is, like the ids taken out of its path. filters that only say how the page
+// is used (`sort`, `status`, `type`, `within`) stay. any name ending in `_id`, and any value that's an id, goes too,
+// so a filter added later doesn't slip through
+const ID_PARAMS: ReadonlySet<string> = new Set(['command', 'label', 'owner', 'prompt_hash', 'report', 'server', 'tag', 'what']);
+const ID_PARAM_SUFFIX = '_id';
+
 
 function toSegments(path: string): Array<string> {
   return path.split('/').filter(Boolean);
@@ -174,6 +181,14 @@ export function cleanUrl(raw: string, origin: string, arrival: boolean): {langua
   } else {
     for (const name of SEARCH_TEXT_PARAMS) {
       url.searchParams.delete(name);
+    }
+    if (isUnder(path, Routes.DASHBOARD)) {
+      const idParams = [...url.searchParams].filter(([name, value]) => {
+        return ID_PARAMS.has(name) || name.endsWith(ID_PARAM_SUFFIX) || ID_SEGMENT_PATTERN.test(value);
+      }).map(([name]) => name);
+      for (const name of idParams) {
+        url.searchParams.delete(name);
+      }
     }
     if (arrival) {
       addSource(url.searchParams);

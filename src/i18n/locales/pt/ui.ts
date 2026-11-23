@@ -69,7 +69,7 @@ export const Ui: Record<keyof typeof English, string> = {
   'report.reason.stolen': 'Conteúdo roubado',
   'report.reason.nsfw': 'NSFW sem a marca de NSFW',
   'report.reason.other': 'Outra coisa',
-  'report.anonymous_unavailable': 'Denunciar sem entrar não está disponível agora. Entre para enviar.',
+  'report.anonymous_unavailable': 'Enviar sem entrar não está disponível agora. Entre para enviar.',
   'report.send_error': 'Não foi possível enviar.',
   'report.own_tag': 'Você não pode denunciar sua própria tag.',
   'report.captcha_failed': 'O captcha expirou ou falhou. Tente de novo.',

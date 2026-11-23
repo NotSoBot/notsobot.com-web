@@ -4,6 +4,7 @@ import { Link } from 'react-router';
 
 import { useAuth } from '@/auth';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { DialogError } from '@/components/ui/DialogError';
 import { CharCounter } from '@/components/ui/form';
 import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
@@ -221,7 +222,7 @@ export function ReportDialog({ subject, onClose }: {subject: ReportSubject, onCl
           </div>
 
           {(create.isError) ? (
-            <p role='alert' className='mt-4 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-fg'>{reportErrorMessage(create.error)}</p>
+            <DialogError className='mt-4'>{reportErrorMessage(create.error)}</DialogError>
           ) : null}
 
           {/* always there, empty or not: the captcha finishes on its own, and the buttons shouldn't move under the pointer when it does */}

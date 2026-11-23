@@ -9,6 +9,7 @@ import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type R
 import { useSearchParams } from 'react-router';
 
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { DialogError } from '@/components/ui/DialogError';
 import { Modal } from '@/components/ui/Modal';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Spinner } from '@/components/ui/Spinner';
@@ -852,9 +853,9 @@ function IdentityModal({ identity, data, now, onClose }: {identity: Identity, da
         ) : null}
 
         {(patch.isError && !panel) ? (
-          <p role='alert' className='mt-4 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-fg'>
+          <DialogError className='mt-4'>
             {errorMessage(patch.error, 'Couldn’t update the identity.')}
-          </p>
+          </DialogError>
         ) : null}
 
         <div className='mt-6 flex flex-wrap gap-2'>
@@ -1448,9 +1449,9 @@ function AddIdentityDialog({ data, onShowProxies, onClose, onAdded }: {
         </label>
 
         {(create.isError) ? (
-          <p role='alert' className='mt-4 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-fg'>
+          <DialogError className='mt-4'>
             {errorMessage(create.error, 'Couldn’t add the identity.')}
-          </p>
+          </DialogError>
         ) : null}
 
         <div className='mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>

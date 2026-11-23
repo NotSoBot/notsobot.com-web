@@ -4,6 +4,7 @@ import { Link, NavigationType, useLocation, useNavigationType, useSearchParams }
 
 import { FiltersButton } from '@/components/ui/FiltersButton';
 import { Markdown } from '@/components/ui/Markdown';
+import { PageHero } from '@/components/ui/PageHero';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Segmented } from '@/components/ui/Segmented';
 import { Routes } from '@/config';
@@ -135,52 +136,50 @@ export function ChangelogPage() {
 
   return (
     <>
-      <div className='border-b border-line bg-surface'>
-        <div className='container-page py-10 sm:py-12'>
-          <div className='mb-3 flex items-center gap-2 text-sm font-medium text-brand-text'>
-            <History className='size-4'/>
-            {t('changelog.badge')}
-          </div>
-          <h1 className='mb-2 text-3xl font-bold text-white sm:text-4xl'>{t('page.CHANGELOG')}</h1>
-          <p className='mb-6 max-w-2xl text-muted'>
+      <PageHero
+        badge={<><History className='size-4'/>{t('changelog.badge')}</>}
+        title={t('page.CHANGELOG')}
+        description={(
+          <>
             {t('changelog.description')}
             {(language === DEFAULT_LANGUAGE) ? null : <> {t('changelog.english_only')}</>}
-          </p>
-          <div className='flex max-w-2xl gap-2'>
-            <SearchInput
-              className='min-w-0 flex-1'
-              value={query}
-              onValueChange={setQuery}
-              placeholder={t('changelog.search_placeholder')}
-              aria-label={t('changelog.search_label')}
-            />
-            <FiltersButton open={filtersOpen} onToggle={() => setFiltersOpen((value) => !value)} active={activeFilters} controls='changelog-filters'/>
-          </div>
-          <div id='changelog-filters' hidden={!filtersOpen} className='mt-3 max-w-2xl rounded-lg border border-line bg-deep/60 p-4'>
-            <div className='flex flex-wrap items-center gap-3'>
-              <div className='-mx-4 max-w-[calc(100%+2rem)] overflow-x-auto px-4 sm:mx-0 sm:max-w-full sm:px-0'>
-                <div className='w-max'>
-                  <Segmented label={t('changelog.show_changes')} value={filter} options={FILTER_OPTIONS.map((option) => ({value: option.value, label: t(option.label)}))} onChange={(value) => setFilter(value as KindFilter)}/>
-                </div>
-              </div>
-              <label className='flex items-center gap-2 text-sm text-muted'>
-                {t('changelog.up_to')}
-                <select value={until} onChange={(event) => setUntil(event.target.value)} className='input w-auto py-2.5'>
-                  <option value=''>{t('changelog.all_dates')}</option>
-                  {CHANGELOG.map((day) => (
-                    <option key={day.date} value={day.date}>{formats.fullDay.format(parseDay(day.date))}</option>
-                  ))}
-                </select>
-              </label>
-            </div>
-          </div>
-          {(needle) ? (
-            <p className='mt-3 text-sm text-muted' aria-live='polite'>
-              {plural('changelog.results', matchCount, {query: shownQuery})}
-            </p>
-          ) : null}
+          </>
+        )}
+      >
+        <div className='flex max-w-2xl gap-2'>
+          <SearchInput
+            className='min-w-0 flex-1'
+            value={query}
+            onValueChange={setQuery}
+            placeholder={t('changelog.search_placeholder')}
+            aria-label={t('changelog.search_label')}
+          />
+          <FiltersButton open={filtersOpen} onToggle={() => setFiltersOpen((value) => !value)} active={activeFilters} controls='changelog-filters'/>
         </div>
-      </div>
+        <div id='changelog-filters' hidden={!filtersOpen} className='mt-3 max-w-2xl rounded-lg border border-line bg-deep/60 p-4'>
+          <div className='flex flex-wrap items-center gap-3'>
+            <div className='-mx-4 max-w-[calc(100%+2rem)] overflow-x-auto px-4 sm:mx-0 sm:max-w-full sm:px-0'>
+              <div className='w-max'>
+                <Segmented label={t('changelog.show_changes')} value={filter} options={FILTER_OPTIONS.map((option) => ({value: option.value, label: t(option.label)}))} onChange={(value) => setFilter(value as KindFilter)}/>
+              </div>
+            </div>
+            <label className='flex items-center gap-2 text-sm text-muted'>
+              {t('changelog.up_to')}
+              <select value={until} onChange={(event) => setUntil(event.target.value)} className='input w-auto py-2.5'>
+                <option value=''>{t('changelog.all_dates')}</option>
+                {CHANGELOG.map((day) => (
+                  <option key={day.date} value={day.date}>{formats.fullDay.format(parseDay(day.date))}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </div>
+        {(needle) ? (
+          <p className='mt-3 text-sm text-muted' aria-live='polite'>
+            {plural('changelog.results', matchCount, {query: shownQuery})}
+          </p>
+        ) : null}
+      </PageHero>
 
       <div className='container-page py-10'>
         <ol className='space-y-10'>

@@ -2,6 +2,7 @@ import { Ban, Trash2 } from 'lucide-react';
 import { useId, useState } from 'react';
 
 import { isOwner, useAuth } from '@/auth';
+import { DialogError } from '@/components/ui/DialogError';
 import { Markdown } from '@/components/ui/Markdown';
 import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
@@ -250,7 +251,7 @@ export function DeleteDirectoryTagFlow({ item, onClose }: {item: AdminTagDirecto
           ) : null}
 
           {(error) ? (
-            <p role='alert' className='mt-4 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-fg'>{error}</p>
+            <DialogError className='mt-4'>{error}</DialogError>
           ) : null}
 
           <div className='mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>

@@ -2,6 +2,7 @@ import { MessageSquareWarning, Trash2 } from 'lucide-react';
 import { useId, useState } from 'react';
 
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { DialogError } from '@/components/ui/DialogError';
 import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
@@ -197,9 +198,9 @@ export function WarnUserDialog({ user, defaultReason = '', onClose }: {user: Adm
         </div>
 
         {(mutation.isError) ? (
-          <p role='alert' className='mt-4 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-fg'>
+          <DialogError className='mt-4'>
             {errorMessage(mutation.error, 'Couldn’t warn the user.')}
-          </p>
+          </DialogError>
         ) : null}
 
         <div className='mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>

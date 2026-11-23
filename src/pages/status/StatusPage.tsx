@@ -3,6 +3,7 @@ import { memo, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMou
 import { useSearchParams } from 'react-router';
 
 import { SearchInput } from '@/components/ui/SearchInput';
+import { InfoTip } from '@/components/ui/Tooltip';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { usePersistentState } from '@/hooks/usePersistentState';
 import { translate, useI18n, type TranslationKey } from '@/i18n';
@@ -57,28 +58,37 @@ function newestReport(data: InfoDiscord): number | null {
   return newest;
 }
 
+// when a response is from: the api's own clock (`timestamp`), or the newest report in it for an api that doesn't send
+// one yet. null when it has neither
+function responseTime(data: InfoDiscord): number | null {
+  const time = (data.timestamp) ? Date.parse(data.timestamp) : NaN;
+  return (Number.isFinite(time)) ? time : newestReport(data);
+}
+
 // The time the page judges reports against (dead clusters, the verdict, the healthy count, "reported 5s ago"). Not the
-// visitor's clock, a wrong one called every cluster dead or none: it's the newest report in the response, plus how
+// visitor's clock, a wrong one called every cluster dead or none: it's the api's clock in the response, plus how
 // long this browser has been looking at that same one. The second part is only a difference of the visitor's clock,
-// and it's what still lets every cluster go dead when they all stop reporting at once (the newest report stops moving
-// then). A response without a usable time falls back to the visitor's clock
+// and it's what still lets every cluster go dead while requests fail. The api's clock keeps moving when every
+// cluster stops reporting at once, so a page opened during that reads it right away; going by the newest report
+// (an api without `timestamp`) reads "normal" until this browser has watched it not move for CLUSTER_DEAD_AFTER.
+// A response without a usable time falls back to the visitor's clock
 function useReportClock(data: InfoDiscord | undefined): number {
   // ticks on its own: react-query doesn't re-render for failed polls or identical data, so going by renders
   // would never mark a cluster dead during an outage
   const now = useNow(NOW_TICK);
-  const newest = useMemo(() => (data) ? newestReport(data) : null, [data]);
-  // when this browser first saw that newest report
-  const [ seen, setSeen ] = useState<{report: number, at: number} | null>(null);
+  const time = useMemo(() => (data) ? responseTime(data) : null, [data]);
+  // when this browser first saw that response's time
+  const [ seen, setSeen ] = useState<{time: number, at: number} | null>(null);
   useEffect(() => {
-    if (newest !== null) {
-      setSeen({report: newest, at: Date.now()});
+    if (time !== null) {
+      setSeen({time, at: Date.now()});
     }
-  }, [newest]);
-  if (newest === null) {
+  }, [time]);
+  if (time === null) {
     return now;
   }
   // `now` is up to a tick behind `seen.at`, hence the max
-  return newest + ((seen?.report === newest) ? Math.max(0, now - seen.at) : 0);
+  return time + ((seen?.time === time) ? Math.max(0, now - seen.at) : 0);
 }
 
 
@@ -679,8 +689,12 @@ function CounterGroups({ counts, variant }: {counts: ShardCounts, variant: 'pane
 function CounterTile({ counter, value, variant }: {counter: Counter, value: number, variant: 'panel' | 'result'}) {
   const { t } = useI18n();
   return (
-    <div title={`${formatNumber(value)} — ${t(`counter.${counter.key}.note`)}`} className='min-w-0 cursor-help rounded-md bg-deep px-3 py-2'>
-      <dt className='truncate text-xs text-muted'>{t(`counter.${counter.key}`)}</dt>
+    <div className='min-w-0 rounded-md bg-deep px-3 py-2'>
+      <dt className='flex items-center gap-1 text-xs text-muted'>
+        <span className='truncate'>{t(`counter.${counter.key}`)}</span>
+        {/* what the number measures, and the exact one (the totals are shortened). an ⓘ since `title` never shows on touch */}
+        <InfoTip text={`${formatNumber(value)} — ${t(`counter.${counter.key}.note`)}`}/>
+      </dt>
       <dd className={cn('font-semibold text-white tabular-nums', (variant === 'panel') ? 'text-base' : 'text-lg')}>
         {(variant === 'panel') ? formatCompact(value) : formatNumber(value)}
       </dd>

@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'reac
 
 import { stripMarkdown } from '@/components/ui/Markdown';
 import { Modal } from '@/components/ui/Modal';
+import { PageHero } from '@/components/ui/PageHero';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Spinner } from '@/components/ui/Spinner';
 import { UserAvatar } from '@/components/ui/UserAvatar';
@@ -154,16 +155,16 @@ export function TagDirectoryPage() {
   };
 
   return (
-    <div className='container-page py-8'>
-      <header className='mb-8'>
-        <h1 className='mb-2 text-4xl font-bold text-white'>{t('page.TAG_DIRECTORY')}</h1>
-        <p className='text-muted'>
-          {t('tags.directory.description')}
-          {(data && !isFiltered) ? ` ${plural('tags.directory.available', count)}` : null}
-        </p>
-      </header>
-
-      <div className='mb-8'>
+    <>
+      <PageHero
+        title={t('page.TAG_DIRECTORY')}
+        description={(
+          <>
+            {t('tags.directory.description')}
+            {(data && !isFiltered) ? ` ${plural('tags.directory.available', count)}` : null}
+          </>
+        )}
+      >
         <SearchInput
           size='lg'
           value={query}
@@ -230,54 +231,56 @@ export function TagDirectoryPage() {
             </button>
           </div>
         ) : null}
+      </PageHero>
+
+      <div className='container-page py-8'>
+        {(isPending) ? (
+          <TagGridSkeleton/>
+        ) : (isError && !items.length) ? (
+          <div className='card flex flex-col items-center gap-3 p-12 text-center'>
+            <p className='text-muted'>{t('tags.directory.load_error')}</p>
+            <button type='button' className='btn btn-secondary' onClick={() => refetch()}>{t('common.retry')}</button>
+          </div>
+        ) : (!items.length) ? (
+          <div className='card p-12 text-center'>
+            <Search className='mx-auto mb-4 size-16 text-subtle'/>
+            <h2 className='mb-2 text-xl text-white'>{t('tags.directory.empty_title')}</h2>
+            <p className='text-muted'>{t('tags.directory.empty_description')}</p>
+          </div>
+        ) : (
+          <>
+            <ul className={cn('grid gap-4 transition-opacity md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4', isPlaceholderData && 'opacity-60')}>
+              {items.map((item) => <TagCard key={item.id} item={item} search={location.search} period={sort.period}/>)}
+            </ul>
+
+            {/* a failed page keeps the ones already loaded and says so here, the button retries it. While the old
+                results stand in for new filters (`isPlaceholderData`) there's no next page of the new ones to load yet */}
+            {(hasNextPage) ? (
+              <div className='mt-8 flex flex-col items-center gap-2' data-state={(isFetchingNextPage) ? 'loading' : (isFetchNextPageError) ? 'error' : 'idle'}>
+                <button type='button' className='btn btn-secondary' disabled={isFetchingNextPage || isPlaceholderData} onClick={() => fetchNextPage()}>
+                  {isFetchingNextPage ? <Spinner className='size-4'/> : null}
+                  {t(isFetchingNextPage ? 'common.loading' : (isFetchNextPageError) ? 'common.retry' : 'common.load_more')}
+                </button>
+                {(isFetchNextPageError && !isFetchingNextPage) ? <p role='alert' className='text-sm text-danger-text'>{t('tags.directory.load_error')}</p> : null}
+              </div>
+            ) : null}
+          </>
+        )}
+
+        {(tagId) ? (
+          <TagDetailModal
+            tagId={tagId}
+            initialItem={(tagIndex !== -1) ? items[tagIndex] : undefined}
+            previousId={(0 < tagIndex) ? items[tagIndex - 1].id : null}
+            nextId={(tagIndex !== -1 && tagIndex + 1 < items.length) ? items[tagIndex + 1].id : null}
+            onNavigate={openTag}
+            onClose={closeTag}
+          />
+        ) : null}
+
+        {(nsfwNoticeOpen) ? <NsfwNoticeDialog onClose={() => setNsfwNoticeOpen(false)}/> : null}
       </div>
-
-      {(isPending) ? (
-        <TagGridSkeleton/>
-      ) : (isError && !items.length) ? (
-        <div className='card flex flex-col items-center gap-3 p-12 text-center'>
-          <p className='text-muted'>{t('tags.directory.load_error')}</p>
-          <button type='button' className='btn btn-secondary' onClick={() => refetch()}>{t('common.retry')}</button>
-        </div>
-      ) : (!items.length) ? (
-        <div className='card p-12 text-center'>
-          <Search className='mx-auto mb-4 size-16 text-subtle'/>
-          <h2 className='mb-2 text-xl text-white'>{t('tags.directory.empty_title')}</h2>
-          <p className='text-muted'>{t('tags.directory.empty_description')}</p>
-        </div>
-      ) : (
-        <>
-          <ul className={cn('grid gap-4 transition-opacity md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4', isPlaceholderData && 'opacity-60')}>
-            {items.map((item) => <TagCard key={item.id} item={item} search={location.search} period={sort.period}/>)}
-          </ul>
-
-          {/* a failed page keeps the ones already loaded and says so here, the button retries it. While the old
-              results stand in for new filters (`isPlaceholderData`) there's no next page of the new ones to load yet */}
-          {(hasNextPage) ? (
-            <div className='mt-8 flex flex-col items-center gap-2' data-state={(isFetchingNextPage) ? 'loading' : (isFetchNextPageError) ? 'error' : 'idle'}>
-              <button type='button' className='btn btn-secondary' disabled={isFetchingNextPage || isPlaceholderData} onClick={() => fetchNextPage()}>
-                {isFetchingNextPage ? <Spinner className='size-4'/> : null}
-                {t(isFetchingNextPage ? 'common.loading' : (isFetchNextPageError) ? 'common.retry' : 'common.load_more')}
-              </button>
-              {(isFetchNextPageError && !isFetchingNextPage) ? <p role='alert' className='text-sm text-danger-text'>{t('tags.directory.load_error')}</p> : null}
-            </div>
-          ) : null}
-        </>
-      )}
-
-      {(tagId) ? (
-        <TagDetailModal
-          tagId={tagId}
-          initialItem={(tagIndex !== -1) ? items[tagIndex] : undefined}
-          previousId={(0 < tagIndex) ? items[tagIndex - 1].id : null}
-          nextId={(tagIndex !== -1 && tagIndex + 1 < items.length) ? items[tagIndex + 1].id : null}
-          onNavigate={openTag}
-          onClose={closeTag}
-        />
-      ) : null}
-
-      {(nsfwNoticeOpen) ? <NsfwNoticeDialog onClose={() => setNsfwNoticeOpen(false)}/> : null}
-    </div>
+    </>
   );
 }
 
@@ -353,7 +356,8 @@ function TagCard({ item, search, period }: {item: TagDirectoryItem, search: stri
 }
 
 
-// "All" plus one pill per category; scrolls sideways on small screens instead of wrapping into a tall block
+// "All" plus one pill per category; scrolls sideways on small screens instead of wrapping into a tall block.
+// Filled like the inputs around them, the page's header band is the cards' color
 function CategoryFilter({ value, onChange }: {value: string | null, onChange: (param: string | null) => void}) {
   const { t } = useI18n();
   const options = [{param: null, label: 'common.all' as const}, ...TAG_DIRECTORY_CATEGORY_OPTIONS];
@@ -369,7 +373,7 @@ function CategoryFilter({ value, onChange }: {value: string | null, onChange: (p
             onClick={() => onChange(option.param)}
             className={cn(
               'shrink-0 cursor-pointer rounded-full border px-3 py-1 text-sm transition-colors',
-              (selected) ? 'border-brand bg-brand text-white' : 'border-line bg-surface text-muted hover:border-brand hover:text-white',
+              (selected) ? 'border-brand bg-brand text-white' : 'border-line bg-deep text-muted hover:border-brand hover:text-white',
             )}
           >
             {t(option.label)}

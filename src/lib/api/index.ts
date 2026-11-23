@@ -126,6 +126,7 @@ import type {
   GuildLogger,
   GuildRule,
   GuildRuleInput,
+  Home,
   InfoDiscord,
   InfoVoice,
   JobResponse,
@@ -213,6 +214,30 @@ export const api = {
       signal,
       query: {since: since?.toISOString()},
     });
+  },
+
+  // the home page's tiles (names in `language`) and totals, instead of the whole command list and discord info
+  fetchHome: async (language: Language, signal?: AbortSignal): Promise<Home> => {
+    try {
+      return await apiRequest<Home>(ApiEndpoints.HOME, {
+        auth: false,
+        signal,
+        query: {language: (language === DEFAULT_LANGUAGE) ? undefined : language},
+      });
+    } catch (error) {
+      // an api from before `/home` existed has no such route: the two big requests the page used to make, put
+      // together here the same way. the totals are left out (a dash) when only `/info/discord` fails
+      if (!(error instanceof ApiRequestError) || error.status !== 404) {
+        throw error;
+      }
+      const [ { buildHome }, commands, info ] = await Promise.all([
+        import('./homeFallback'),
+        api.fetchCommands(language, signal),
+        api.fetchInfoDiscord(signal).catch(() => null),
+      ]);
+      signal?.throwIfAborted();
+      return buildHome(commands, info);
+    }
   },
 
   fetchInfoDiscord: (signal?: AbortSignal) => {

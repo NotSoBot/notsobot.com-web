@@ -142,6 +142,45 @@ export interface CommandMetadata {
 export type CommandPremium = 'premium' | 'premium_plus' | 'premium_server';
 
 
+// `GET /home`: what the home page shows. `showcases` are every command with a preview result that isn't audio (the
+// gallery, shuffled by the page), `hero` the slider's ones in their order (left out of `showcases`)
+export interface Home {
+  counts: {
+    // commands with a variant the bot still offers
+    commands: number,
+    // null while no cluster has reported
+    guilds: number | null,
+    users: number | null,
+  },
+  hero: Array<HomeHeroShowcase>,
+  showcases: Array<HomeShowcase>,
+}
+
+// a preview's result or its input, the fields of a `CommandMedia` the page uses
+export interface HomeMedia {
+  height: number,
+  mimetype: string,
+  url: string,
+  width: number,
+}
+
+// shown as its first variant (slash, then prefix, then context menus), whose page is the plain /commands/:commandId.
+// `name` is translated into the requested language like `GET /commands`
+export interface HomeShowcase {
+  after: HomeMedia,
+  id: string,
+  name: string,
+  type: CommandType,
+}
+
+// an image result over its single image input of about the same shape
+export interface HomeHeroShowcase extends HomeShowcase {
+  before: HomeMedia,
+  // what the preview shows, as typed without the prefix
+  example: string | null,
+}
+
+
 // `GET /commands/stats`: usage per (command id, command type), optionally since a timestamp
 export interface CommandStat {
   count: number,
@@ -154,6 +193,9 @@ export interface CommandStat {
 
 export interface InfoDiscord {
   clusters: Array<InfoDiscordCluster>,
+  // the api's clock when it read this (ISO, at most ~5s before the response): what each cluster's `last_refresh` is
+  // judged against. missing from an api older than 2026-11-22
+  timestamp?: string,
   shard_count: number,
   shards_per_cluster: number,
 }

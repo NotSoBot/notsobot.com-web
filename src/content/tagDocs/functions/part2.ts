@@ -244,11 +244,11 @@ export const TAG_DOC_FUNCTIONS_PART2: Array<TagDocFunction> = [
     id: 'IMAGE_INTERROGATE',
     names: ['identify', 'interrogate'],
     category: 'ai',
-    summary: 'Describes an image with AI, outputting a short text prompt of what it shows.',
+    summary: 'Describes an image in detail with AI, outputting a few sentences about what it shows.',
     syntax: '{identify:image?}',
     args: [IMAGE_ARG],
     examples: [
-      {code: '{identify}', result: 'A description of the last image in chat, e.g. "a cat sitting on a laptop keyboard"'},
+      {code: '{identify}', result: 'A description of the last image in chat, e.g. "A gray cat sitting on a laptop keyboard on a wooden desk..."'},
       {code: '{identify:{avatar}}', result: 'A description of your avatar'},
     ],
     notes: [

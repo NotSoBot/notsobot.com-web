@@ -11,13 +11,12 @@ import { Segmented } from '@/components/ui/Segmented';
 import { Routes } from '@/config';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useI18n } from '@/i18n';
-import { CommandMediaTypes, CommandTypes, type Command, type CommandMedia } from '@/lib/api';
-import { useCommandsQuery, useInfoDiscordQuery } from '@/lib/api/queries';
-import { enabledCommandVariants } from '@/lib/commandAvailability';
-import { compareCommandTypes } from '@/lib/commandPaths';
+import { CommandTypes, type HomeMedia, type HomeShowcase } from '@/lib/api';
+import { useHomeQuery } from '@/lib/api/queries';
+import { commandPath } from '@/lib/commandPaths';
 import { cn, displayLocale, formatCompact, shuffle } from '@/lib/utils';
 
-import { commandPath, PREFIXES } from './commands/commandMeta';
+import { PREFIXES } from './commands/commandMeta';
 
 
 // what the gallery doesn't show, `home.features.<key>.title` / `.description`, two rows of four on wide screens
@@ -31,53 +30,36 @@ const STEPS: Array<{icon: LucideIcon, key: 'post' | 'run' | 'result'}> = [
   {icon: Sparkles, key: 'result'},
 ];
 
-// the hero's before/after slider picks from these (by prefix name), in this order, when their preview fits a slider
-const HERO_COMMANDS = ['magik', 'deepfry', 'swirl', 'jpeg', 'pixelate', 'explode'];
 const GALLERY_SIZE = 8;
 // phones show the first two rows, so the feature list isn't three screens down. the other tiles aren't rendered there
 // rather than hidden: a hidden <video autoPlay> still downloads
 const GALLERY_PHONE_SIZE = 4;
 
-// a command's real preview from the api (the same media the commands page shows)
+// a command's real preview from the api (the same media the commands page shows). `GET /home` picks them: every command
+// with a result that isn't audio (no flag overlays), and the hero slider's (magik, deepfry, swirl, ... when their
+// input and result fit a slider)
 interface Showcase {
-  after: CommandMedia,
-  // the single input when there's exactly one, which is what the slider needs
-  before: CommandMedia | null,
-  command: Command,
-  example: string | null,
+  after: HomeMedia,
+  id: string,
+  // as it's run, `/media-iv-distort magik`
   name: string,
   path: string,
 }
 
-function buildShowcases(commands: Array<Command>): Array<Showcase> {
-  return commands.flatMap((command) => {
-    const after = command.media.find((media) => media.type === CommandMediaTypes.AFTER);
+interface HeroShowcase extends Showcase {
+  before: HomeMedia,
+  example: string | null,
+}
+
+function toShowcase(showcase: HomeShowcase): Showcase {
+  return {
+    after: showcase.after,
+    id: showcase.id,
     // shown as its slash command when it has one, prefix commands are ending
-    const [ variant ] = enabledCommandVariants(command).sort((a, b) => compareCommandTypes(a.type, b.type));
-    if (!after || !variant || after.mimetype.startsWith('audio/') || isFlagOverlay(command)) {
-      return [];
-    }
-    const inputs = command.media.filter((media) => media.type === CommandMediaTypes.BEFORE);
-    return [{
-      after,
-      before: (inputs.length === 1) ? inputs[0] : null,
-      command,
-      example: command.preview_example,
-      name: `${PREFIXES[variant.type]}${variant.name}`,
-      path: commandPath(command, variant.type),
-    }];
-  });
-}
-
-// the ~200 country flag overlays (`/media-iv-flag-asia east japan`, `.overlay japan`) are a quarter of all commands and
-// would fill the gallery with near-identical tiles. matched on the english slash name, `name` is translated
-function isFlagOverlay(command: Command): boolean {
-  return command.metadata.some((metadata) => (metadata.default_name ?? metadata.name).startsWith('media-iv-flag-'));
-}
-
-// HERO_COMMANDS are picked by the prefix name, the slash one shown is often longer (`/media-iv magik`)
-function prefixName(command: Command): string | undefined {
-  return enabledCommandVariants(command).find((metadata) => metadata.type === CommandTypes.PREFIXED)?.name;
+    name: `${PREFIXES[showcase.type]}${showcase.name}`,
+    // the api picks the command's first variant, which is its plain /commands/:commandId
+    path: commandPath(showcase.id, showcase.type, [ showcase.type ]),
+  };
 }
 
 // the slider's tabs only name the effect (`/media-iv-distort magik` → `magik`), the "made with" line under it has the
@@ -86,31 +68,18 @@ function effectName(name: string): string {
   return name.split(' ').pop() ?? name;
 }
 
-// an image result over an image input of about the same shape, like the commands page's slider
-function fitsSlider(showcase: Showcase): showcase is Showcase & {before: CommandMedia} {
-  const { after, before } = showcase;
-  if (!before || !before.mimetype.startsWith('image/') || !after.mimetype.startsWith('image/') || !before.height || !after.height) {
-    return false;
-  }
-  const ratio = after.width / after.height;
-  return Math.abs(before.width / before.height - ratio) / ratio <= 0.05;
-}
-
 
 export function HomePage() {
   const { t, language } = useI18n();
-  const commands = useCommandsQuery(language);
+  const home = useHomeQuery(language);
 
   const { sliders, showcases } = useMemo(() => {
-    const showcases = buildShowcases(commands.data ?? []);
-    const sliders = HERO_COMMANDS
-      .map((name) => showcases.find((showcase) => prefixName(showcase.command) === name))
-      .filter((showcase): showcase is Showcase & {before: CommandMedia} => !!showcase && fitsSlider(showcase));
-    // the ones the slider doesn't already show first, so the gallery adds something. shuffled once per load so a
-    // refresh shows other commands
-    const rest = shuffle(showcases.filter((showcase) => !sliders.includes(showcase as Showcase & {before: CommandMedia})));
+    const sliders: Array<HeroShowcase> = (home.data?.hero ?? []).map((item) => ({...toShowcase(item), before: item.before, example: item.example}));
+    // the ones the slider doesn't already show first (the api leaves those out of `showcases`), so the gallery adds
+    // something. shuffled once per load so a refresh shows other commands
+    const rest = shuffle((home.data?.showcases ?? []).map(toShowcase));
     return {sliders, showcases: [ ...rest, ...sliders ]};
-  }, [commands.data]);
+  }, [home.data]);
   // "show other commands" walks this one order a visible page at a time, wrapping at the end, so nothing repeats
   // until every showcase has had its turn. tailwind's `md`: the grid is four columns from there, two below it.
   // `wide` is false on the worker and while its page hydrates, which is fine: the commands (so the tiles) only arrive
@@ -120,7 +89,7 @@ export function HomePage() {
   const [ galleryOffset, setGalleryOffset ] = useState(0);
   const gallery = Array.from({length: Math.min(step, showcases.length)}, (_, index) => showcases[(galleryOffset + index) % showcases.length]);
   // the slider (or its placeholder while the commands load) sits beside the headline on large screens
-  const hasSlider = commands.isPending || sliders.length > 0;
+  const hasSlider = home.isPending || sliders.length > 0;
   const collator = new Intl.Collator(displayLocale());
   const features = [ ...FEATURES ].sort((a, b) => collator.compare(t(`home.features.${a}.title`), t(`home.features.${b}.title`)));
   const [ quarantineDismissed, setQuarantineDismissed ] = useQuarantineNoticeDismissed();
@@ -157,7 +126,7 @@ export function HomePage() {
               </Link>
             </div>
           </div>
-          {(commands.isPending) ? (
+          {(home.isPending) ? (
             <div aria-hidden className='mx-auto mt-10 aspect-square w-full max-w-xs animate-pulse rounded-lg bg-surface-2 sm:mt-14 lg:mt-0'/>
           ) : (sliders.length) ? (
             <HeroComparison showcases={sliders}/>
@@ -176,7 +145,7 @@ export function HomePage() {
             <ul className='grid grid-cols-2 gap-3 md:grid-cols-4'>
               {gallery.map((showcase, index) => (
                 // the class only matters for the moment between a window getting narrower and `wide` hearing of it
-                <li key={showcase.command.id} className={cn(GALLERY_PHONE_SIZE <= index && 'max-md:hidden')}>
+                <li key={showcase.id} className={cn(GALLERY_PHONE_SIZE <= index && 'max-md:hidden')}>
                   <GalleryTile showcase={showcase}/>
                 </li>
               ))}
@@ -250,14 +219,14 @@ export function HomePage() {
 
 
 // drag between an effect's input and its result, with a switch for the other effects
-function HeroComparison({ showcases }: {showcases: Array<Showcase & {before: CommandMedia}>}) {
+function HeroComparison({ showcases }: {showcases: Array<HeroShowcase>}) {
   const { t, rich } = useI18n();
-  const [ selected, setSelected ] = useState(showcases[0].command.id);
-  const showcase = showcases.find((item) => item.command.id === selected) ?? showcases[0];
+  const [ selected, setSelected ] = useState(showcases[0].id);
+  const showcase = showcases.find((item) => item.id === selected) ?? showcases[0];
   return (
     <div className='mt-10 space-y-3 sm:mt-14 lg:mt-0'>
       <ImageComparison
-        key={showcase.command.id}
+        key={showcase.id}
         before={showcase.before.url}
         after={showcase.after.url}
         aspectRatio={showcase.after.width / showcase.after.height}
@@ -268,8 +237,8 @@ function HeroComparison({ showcases }: {showcases: Array<Showcase & {before: Com
           <div className='mx-auto w-max'>
             <Segmented
               label={t('home.compare.label')}
-              value={showcase.command.id}
-              options={showcases.map((item) => ({value: item.command.id, label: effectName(item.name)}))}
+              value={showcase.id}
+              options={showcases.map((item) => ({value: item.id, label: effectName(item.name)}))}
               onChange={setSelected}
             />
           </div>
@@ -309,32 +278,18 @@ function GalleryTile({ showcase }: {showcase: Showcase}) {
 
 function LiveStats() {
   const { t, language } = useI18n();
-  const { data: info, isError: infoFailed } = useInfoDiscordQuery({poll: false});
-  const { data: commands, isError: commandsFailed } = useCommandsQuery(language);
-
-  const totals = useMemo(() => {
-    if (!info) {
-      return null;
-    }
-    let guilds = 0;
-    let users = 0;
-    for (const cluster of info.clusters) {
-      for (const shard of cluster.shards) {
-        guilds += shard.counts.guilds;
-        users += shard.counts.users;
-      }
-    }
-    return {guilds, users};
-  }, [info]);
-
-  const commandCount = commands?.filter((command) => enabledCommandVariants(command).length).length;
+  // the same query as the page's, asked once
+  const { data, isError } = useHomeQuery(language);
+  const counts = data?.counts;
+  // no cluster has reported yet, those two aren't coming either
+  const discordMissing = !!counts && (counts.guilds === null || counts.users === null);
 
   // `failed` is its request giving up: a number that isn't coming gets a dash instead of loading forever
   const stats = [
     // floored with a plus (`1.2M+`) like the status page's, so the two never disagree about the same count
-    {label: t('home.stats.servers'), value: (totals) ? formatCompact(totals.guilds) : null, failed: infoFailed},
-    {label: t('home.stats.users'), value: (totals) ? formatCompact(totals.users) : null, failed: infoFailed},
-    {label: t('home.stats.commands'), value: (commandCount) ? commandCount.toLocaleString(displayLocale()) : null, failed: commandsFailed},
+    {label: t('home.stats.servers'), value: (counts?.guilds != null) ? formatCompact(counts.guilds) : null, failed: isError || discordMissing},
+    {label: t('home.stats.users'), value: (counts?.users != null) ? formatCompact(counts.users) : null, failed: isError || discordMissing},
+    {label: t('home.stats.commands'), value: (counts?.commands) ? counts.commands.toLocaleString(displayLocale()) : null, failed: isError},
   ];
 
   return (

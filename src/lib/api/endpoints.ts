@@ -6,6 +6,7 @@ export const ApiEndpoints = Object.freeze({
   COMMANDS_STATS: '/commands/stats',
   HELP_DISCORD_BOT: '/help/discord/bot',
   HELP_DISCORD_SERVER: '/help/discord/server',
+  HOME: '/home',
   INFO_DISCORD: '/info/discord',
   INFO_VOICE: '/info/voice',
   JOB: (jobId: string) => `/jobs/${jobId}`,
