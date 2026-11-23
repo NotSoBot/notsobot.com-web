@@ -26,6 +26,7 @@ export const Ui = {
   'ui.prefix_sunset.description': 'Discord requires bots to use slash commands, so commands typed with a prefix (like <code>.magik</code>) end on that day. Type <code>/</code> in Discord to pick a slash command instead.',
   'ui.prefix_sunset.description_ended': 'Discord requires bots to use slash commands, so commands typed with a prefix (like <code>.magik</code>) have ended. Type <code>/</code> in Discord to pick a slash command instead.',
   'ui.prefix_sunset.mention': 'Mentioning the bot instead of a prefix keeps working: <code>@NotSoBot magik</code>.',
+  'ui.prefix_sunset.silent_on': 'Until {date} the bot answers a prefix command with how to run it instead, after that it won\'t reply to them at all.',
   'quarantine.title': 'NotSoBot’s quarantine has been lifted, and tags are back!',
   'quarantine.intro': 'On October 14th, Discord lifted NotSoBot’s quarantine, so it can be added to servers and used in DMs again. The tag system is back on too, with one big change: tags can no longer show media from outside links. To show an image or video in a tag, upload it with <code>{attach}</code> first, then use <code>$FILE_1</code> as the URL in your embed or component. Discord’s own images, like avatars, emojis, and server icons, can still be used directly. Check out the <docs>tag documentation</docs> for examples, and the new <directory>tag directory</directory> for official verified tags. For questions, join our <support>support server</support>.',
   'quarantine.what_happened': 'What happened',

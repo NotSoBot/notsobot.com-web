@@ -8,6 +8,9 @@ import { CollapsibleNotice, useNoticeDismissed } from './CollapsibleNotice';
 // Mentioning the bot keeps working (Discord still sends messages that mention it). Same day as the bot's
 // `PREFIX_COMMANDS_END` (notsobot.ts utils/tools.ts).
 export const PREFIX_COMMANDS_END = Date.UTC(2027, 0, 1);
+// for a month after that the bot answers a prefix command with how else to run it, from this day on with nothing
+// (the bot's `PREFIX_COMMANDS_SILENT`)
+export const PREFIX_COMMANDS_SILENT = Date.UTC(2027, 1, 1);
 
 const STORAGE_DISMISSED = 'notice:prefix-sunset-dismissed';
 
@@ -16,8 +19,8 @@ export function prefixCommandsEnded(): boolean {
 }
 
 // the day in the page's language. utc, or the americas would read December 31
-export function formatPrefixCommandsEnd(): string {
-  return formatDate(PREFIX_COMMANDS_END, {year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC'});
+export function formatPrefixCommandsEnd(timestamp: number = PREFIX_COMMANDS_END): string {
+  return formatDate(timestamp, {year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC'});
 }
 
 
@@ -40,6 +43,9 @@ export function PrefixSunsetNotice({ className }: {className?: string}) {
     >
       <p>{rich((ended) ? 'ui.prefix_sunset.description_ended' : 'ui.prefix_sunset.description', {code})}</p>
       <p className='mt-2'>{rich('ui.prefix_sunset.mention', {code})}</p>
+      {(Date.now() < PREFIX_COMMANDS_SILENT) ? (
+        <p className='mt-2'>{t('ui.prefix_sunset.silent_on', {date: formatPrefixCommandsEnd(PREFIX_COMMANDS_SILENT)})}</p>
+      ) : null}
     </CollapsibleNotice>
   );
 }
