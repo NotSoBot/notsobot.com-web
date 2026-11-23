@@ -9,6 +9,7 @@ export const Commands: Record<keyof typeof English, string> = {
   'category.SEARCH': 'Búsqueda',
   'category.AUDIO': 'Audio',
   'category.FUN': 'Diversión',
+  'category.FAKE': 'Capturas falsas',
   'category.GAMES': 'Juegos',
   'category.INFO': 'Información',
   'category.MODERATION': 'Moderación',
