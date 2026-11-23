@@ -28,6 +28,28 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 
 export const CHANGELOG: Array<ChangelogDay> = [
   {
+    date: '2026-11-23',
+    title: 'More download sites',
+    items: [
+      {kind: 'new', text: 'Downloads from Telegram public posts, Snapchat Spotlight and Stories, DeviantArt, pixiv (animated works come out as GIFs) and catbox albums.'},
+      {kind: 'new', text: 'Links wrapped by Google (redirects, image results, AMP and short links), t.co, EmbedEZ, kkclip and cobalt.tools download the post behind them.'},
+      {kind: 'improved', text: 'More TikTok, Instagram, Pinterest and MediaFire links download: `pin.it` short links, TikTok links with the post id in the query, `m.instagram.com` and `instagr.am`, expired MediaFire direct links, and MediaFire folders as galleries. Profile, live and search pages say so straight away instead of failing after a long wait.'},
+      {kind: 'improved', text: 'Discord message links used as media say what\'s wrong when they can\'t be used: you can\'t see that channel, NotSoBot isn\'t in that server, the message is gone, or it has no media.'},
+      {kind: 'improved', text: 'Downloads start about half a second sooner and skip an extra page fetch, and a post already downloaded for one command or upload limit is reused for the others.'},
+      {kind: 'improved', text: '`.sentencemix` says what went wrong (no words heard, too long, unreadable media) instead of an unknown error.'},
+      {kind: 'improved', text: 'Face expression effects say when the face service is turned off, and large photos are shrunk instead of failing.'},
+      {kind: 'improved', text: 'Google image search works for searches in other languages.'},
+      {kind: 'fixed', text: '`tts play` failing for anything longer than about 6 seconds of speech over the music.'},
+      {kind: 'fixed', text: '`.sentencemix` breaking on a rest before a word, very short pitched or stretched pieces, and stretched words in mp3s.'},
+      {kind: 'fixed', text: 'Animated WebPs with a rotation in their EXIF failing in `.togif` and other effects, or playing upside down.'},
+      {kind: 'fixed', text: '`.spin3d` failing on images 1 pixel wide or tall.'},
+      {kind: 'fixed', text: 'Jobs that ran out of time saying they were "terminated unexpectedly" a minute later instead of timing out.'},
+      {kind: 'fixed', text: 'Slash commands that Discord had already shown as failed ("The application did not respond") still running afterwards.'},
+      {kind: 'fixed', text: 'Non-admins and custom prefixes not working for 30 seconds when a server\'s settings failed to load once.'},
+      {kind: 'fixed', text: 'Message links and quotes in slash commands checking your permissions in the wrong channel.'},
+    ],
+  },
+  {
     date: '2026-11-22',
     title: 'Fixes everywhere and a friendlier dashboard',
     items: [

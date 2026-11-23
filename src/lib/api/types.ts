@@ -2367,6 +2367,8 @@ export interface MeReportsPage {
 export interface ReportPatch {
   status?: ReportStatus,
   notes?: string | null,
+  // false for Undo: the change goes in the reporter's thread without a DM (default true)
+  notify?: boolean,
 }
 
 // the reporter can only reopen their report

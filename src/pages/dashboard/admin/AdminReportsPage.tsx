@@ -100,7 +100,8 @@ const STATUS_KEYS: Record<number, string> = {
 
 // The undo button on the toast after a report's status changes, putting it back to `previous`, like the content flags'.
 // Uses `mutateAsync` since the report has usually left the list (and the modal may be closed) by the time it's clicked,
-// and `mutate`'s callbacks don't run then. Notes saved with the change stay. None for a status this page doesn't know
+// and `mutate`'s callbacks don't run then. Notes saved with the change stay. `notify: false` keeps the reporter from
+// being DMed again (the verdict was already sent). None for a status this page doesn't know
 function useUndoStatusAction(): (reportId: string, previous: number) => ToastAction | undefined {
   const toast = useToast();
   const mutation = usePatchAdminReportMutation();
@@ -112,7 +113,7 @@ function useUndoStatusAction(): (reportId: string, previous: number) => ToastAct
     return {
       label: 'Undo',
       onClick: () => {
-        mutation.mutateAsync({reportId, patch: {status: status.value}}).then(
+        mutation.mutateAsync({reportId, patch: {notify: false, status: status.value}}).then(
           () => toast(`Report ${reportId}: back to ${status.label.toLowerCase()}`),
           (error) => toast(errorMessage(error), 'error'),
         );
@@ -375,7 +376,8 @@ function ReportDetails({ report, onFilterReporter, onFilterTarget, navigation, o
 
   // A status change carries unsaved notes along, so "write a note, click Resolve" is one step. `mutateAsync` rather than
   // `mutate`'s callbacks, which don't run once the modal's closed: closing it mid-save dropped the toast, or the error
-  const setStatus = (value: ReportStatus) => {
+  // `viaKey` when a shortcut key gave the verdict: only those move on to the next report
+  const setStatus = (value: ReportStatus, viaKey = false) => {
     const previous = report.status;
     const patch: ReportPatch = {status: value};
     if (notesDirty) {
@@ -387,8 +389,8 @@ function ReportDetails({ report, onFilterReporter, onFilterTarget, navigation, o
           setNotes(updated.notes ?? '');
         }
         toast(`Report ${report.id}: ${(value === ReportStatuses.OPEN) ? 'reopened' : statusInfo(value).label.toLowerCase()}`, 'success', undoAction(report.id, previous));
-        // with shortcuts on a verdict moves on to the next report, however it was given (key or button)
-        if (value in STATUS_KEYS) {
+        // with shortcuts on a verdict given with a key moves on to the next report, a button click stays on this one
+        if (viaKey && value in STATUS_KEYS) {
           shortcuts.advance();
         }
       },
@@ -398,8 +400,8 @@ function ReportDetails({ report, onFilterReporter, onFilterTarget, navigation, o
   // a key only does what its button would: nothing for the status the report is already in (that slot is Reopen)
   const shortcuts = useReviewShortcuts({
     keys: {
-      [REVIEW_KEYS.resolve]: (report.status === ReportStatuses.RESOLVED) ? undefined : () => setStatus(ReportStatuses.RESOLVED),
-      [REVIEW_KEYS.dismiss]: (report.status === ReportStatuses.DISMISSED) ? undefined : () => setStatus(ReportStatuses.DISMISSED),
+      [REVIEW_KEYS.resolve]: (report.status === ReportStatuses.RESOLVED) ? undefined : () => setStatus(ReportStatuses.RESOLVED, true),
+      [REVIEW_KEYS.dismiss]: (report.status === ReportStatuses.DISMISSED) ? undefined : () => setStatus(ReportStatuses.DISMISSED, true),
     },
     pending: mutation.isPending,
     held,

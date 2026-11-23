@@ -730,7 +730,8 @@ function ContentFlagDetails({ flag, onReport, navigation }: {
 
   // `mutateAsync` rather than `mutate`'s callbacks, which don't run once this has unmounted: closing the modal while
   // it's saving would otherwise drop the toast (and its undo), or worse an error, so it looked like it went through
-  const setStatus = (value: ContentFlagStatus, match?: MatchSelection) => {
+  // `viaKey` when a shortcut key gave the verdict: only those move on to the next flag
+  const setStatus = (value: ContentFlagStatus, match?: MatchSelection, viaKey = false) => {
     const others = match?.others ?? 0;
     const previous = flag.status;
     const patch: ContentFlagPatch = {status: value, match_sha256: match?.sha256 || undefined, match_pdq: match?.pdq || undefined};
@@ -751,8 +752,9 @@ function ContentFlagDetails({ flag, onReport, navigation }: {
           'success',
           (others) ? undefined : undoAction(flag.id, previous),
         );
-        // with shortcuts on a verdict moves on to the next flag, however it was given (key or button)
-        if (value in STATUS_KEYS) {
+        // with shortcuts on a verdict given with a key moves on to the next flag. A button click stays on this one, the
+        // mouse is usually there because someone's still reading it
+        if (viaKey && value in STATUS_KEYS) {
           shortcuts.advance();
         }
       },
@@ -760,7 +762,7 @@ function ContentFlagDetails({ flag, onReport, navigation }: {
     );
   };
   // confirming or dismissing looks for other pending flags of the same media first, and offers to change those too
-  const setStatusWithMatches = async (value: ContentFlagStatus) => {
+  const setStatusWithMatches = async (value: ContentFlagStatus, viaKey = false) => {
     setCheckingMatches(value);
     let found: ContentFlagMatches;
     try {
@@ -779,7 +781,7 @@ function ContentFlagDetails({ flag, onReport, navigation }: {
     if ((found.sha256?.pending ?? 0) + (found.pdq?.pending ?? 0)) {
       setMatches({status: value, found});
     } else {
-      setStatus(value);
+      setStatus(value, undefined, viaKey);
     }
   };
   const translate = () => {
@@ -822,13 +824,13 @@ function ContentFlagDetails({ flag, onReport, navigation }: {
   const held = changingStatus || translation.isPending || notesDirty;
   useHoldModalNavigation(held);
   // reporting goes through a dialog so the uploader can be blocked in the same step
-  const changeStatus = (value: ContentFlagStatus) => (value === ContentFlagStatuses.REPORTED) ? onReport((notesDirty) ? notes.trim() || null : undefined) :
-    (MATCHABLE_STATUSES.includes(value)) ? setStatusWithMatches(value) : setStatus(value);
+  const changeStatus = (value: ContentFlagStatus, viaKey = false) => (value === ContentFlagStatuses.REPORTED) ? onReport((notesDirty) ? notes.trim() || null : undefined) :
+    (MATCHABLE_STATUSES.includes(value)) ? setStatusWithMatches(value, viaKey) : setStatus(value, undefined, viaKey);
   // a key only does what its button would: nothing for the status the flag is already in (that slot is Mark pending)
   const shortcuts = useReviewShortcuts({
     keys: {
-      [REVIEW_KEYS.confirm]: (flag.status === ContentFlagStatuses.CONFIRMED) ? undefined : () => changeStatus(ContentFlagStatuses.CONFIRMED),
-      [REVIEW_KEYS.dismiss]: (flag.status === ContentFlagStatuses.DISMISSED) ? undefined : () => changeStatus(ContentFlagStatuses.DISMISSED),
+      [REVIEW_KEYS.confirm]: (flag.status === ContentFlagStatuses.CONFIRMED) ? undefined : () => changeStatus(ContentFlagStatuses.CONFIRMED, true),
+      [REVIEW_KEYS.dismiss]: (flag.status === ContentFlagStatuses.DISMISSED) ? undefined : () => changeStatus(ContentFlagStatuses.DISMISSED, true),
     },
     pending: changingStatus,
     held,

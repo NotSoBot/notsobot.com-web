@@ -345,13 +345,14 @@ function DirectoryTagDetails({ item, navigation, onDelete }: {
     }
   };
 
-  const setVerified = (verified: number, label: string) => {
+  // `viaKey` when a shortcut key gave the verdict: only those move on to the next listing
+  const setVerified = (verified: number, label: string, viaKey = false) => {
     const previous = item.verified;
     mutation.mutate({tagId: item.id, verified}, {
       onSuccess: () => {
         toast(`${item.title || tag.name}: ${label}`, 'success', undoAction(item.id, item.title || tag.name, previous));
-        // with shortcuts on a verdict moves on to the next listing, however it was given (key or button)
-        if (VERIFY_ACTIONS[verified]?.key) {
+        // with shortcuts on a verdict given with a key moves on to the next listing, a button click stays on this one
+        if (viaKey && VERIFY_ACTIONS[verified]?.key) {
           shortcuts.advance();
         }
       },
@@ -368,7 +369,7 @@ function DirectoryTagDetails({ item, navigation, onDelete }: {
   // and no verifying a listing that's missing something
   const shortcutFor = (verified: number) => {
     const action = VERIFY_ACTIONS[verified];
-    return (item.verified === verified || (verified === TagDirectoryVerificationStates.VERIFIED && missing)) ? undefined : () => setVerified(verified, action.toast);
+    return (item.verified === verified || (verified === TagDirectoryVerificationStates.VERIFIED && missing)) ? undefined : () => setVerified(verified, action.toast, true);
   };
   const shortcuts = useReviewShortcuts({
     keys: {

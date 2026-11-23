@@ -24,9 +24,10 @@ const REVIEW_KEY_PAUSE = 400;
 // buttons are disabled then too) and for a moment after the modal went to another item (`REVIEW_KEY_PAUSE`): a quick
 // answer opens the next one at once, and a second press of the same key meant for the last one would land on an
 // item nobody has read yet.
-// With shortcuts on, a verdict that went through calls `advance()` and the modal steps to the next item: once its
-// request is done, and only if nothing holds the modal on this one by then (`held`, what the item passes to
-// `useHoldModalNavigation`; a note saved along with the verdict no longer does).
+// With shortcuts on, a verdict given with a key that went through calls `advance()` (a button click doesn't, the item
+// stays open) and the modal steps to the next item: once its request is done, and only if nothing holds the modal on
+// this one by then (`held`, what the item passes to `useHoldModalNavigation`; a note saved along with the verdict no
+// longer does).
 export function useReviewShortcuts({ keys, pending, held }: {
   keys: Record<string, (() => void) | undefined>,
   pending: boolean,
