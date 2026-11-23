@@ -245,11 +245,15 @@ export const TAG_DOC_FUNCTIONS_PART2: Array<TagDocFunction> = [
     names: ['identify', 'interrogate'],
     category: 'ai',
     summary: 'Describes an image in detail with AI, outputting a few sentences about what it shows.',
-    syntax: '{identify:image?}',
-    args: [IMAGE_ARG],
+    syntax: '{identify:image?[|model]}',
+    args: [
+      IMAGE_ARG,
+      {name: 'model', description: '`florence` (default) for a detailed description, or `clip` for the old CLIP Interrogator: a short caption followed by art-style tags, made for image generation prompts, and faster (case-insensitive). Only treated as the model if the last `|` part is one of these; otherwise it stays part of the image argument.', optional: true},
+    ],
     examples: [
       {code: '{identify}', result: 'A description of the last image in chat, e.g. "A gray cat sitting on a laptop keyboard on a wooden desk..."'},
       {code: '{identify:{avatar}}', result: 'A description of your avatar'},
+      {code: '{identify:|clip}', result: 'A prompt for the last image in chat, e.g. "a cat sitting on a laptop keyboard, by greg rutkowski, trending on artstation, ..."'},
     ],
     notes: [
       'Counts as a network request.',

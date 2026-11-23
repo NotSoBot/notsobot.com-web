@@ -31,6 +31,9 @@ export const CHANGELOG: Array<ChangelogDay> = [
     date: '2026-11-23',
     title: 'More download sites',
     items: [
+      {kind: 'new', text: '`.interrogate -model clip`, `/tools ml interrogate model` and the **TagScript:** `{identify:image|clip}` bring back the old CLIP Interrogator: a short caption followed by art-style tags, made for image generation prompts.'},
+      {kind: 'new', text: '`.music stop` and `/music stop` stop the music without NotSoBot leaving the voice channel. Like `music leave` it asks first: clear the queue, or keep it paused for `music resume`.'},
+      {kind: 'new', text: '`.tts stop` and `/tts stop` stop what `tts play` is saying over the music, and its reply has a Stop button while it talks. You can stop your own, DJs can stop anyone\'s (anyone can with DJ mode off).'},
       {kind: 'new', text: 'Downloads from Telegram public posts, Snapchat Spotlight and Stories, DeviantArt, pixiv (animated works come out as GIFs) and catbox albums.'},
       {kind: 'new', text: 'Links wrapped by Google (redirects, image results, AMP and short links), t.co, EmbedEZ, kkclip and cobalt.tools download the post behind them.'},
       {kind: 'improved', text: 'More TikTok, Instagram, Pinterest and MediaFire links download: `pin.it` short links, TikTok links with the post id in the query, `m.instagram.com` and `instagr.am`, expired MediaFire direct links, and MediaFire folders as galleries. Profile, live and search pages say so straight away instead of failing after a long wait.'},
