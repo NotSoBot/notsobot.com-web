@@ -203,10 +203,13 @@ export const MEDIASCRIPT_SPANISH_2: TagDocsTranslation['mediaScriptCommands'] = 
     },
   },
   lucia: {
-    summary: 'Crea un aviso de "Play with Lucia" de GTA 6 pidiendo el texto, en mayúsculas como en el juego.',
+    summary: 'Crea un aviso de "Play with Lucia" de GTA 6 con el texto debajo, y tu propio título, nombre y retrato.',
     args: {
       MEDIA_KEY: NEW_IMAGE,
-      TEXT: 'hasta 200 caracteres',
+      TITLE: ONLY_BY_NAME + ': el titular, dibujado en mayúsculas (hasta 50 caracteres, entre comillas si tiene espacios)',
+      NAME: ONLY_BY_NAME + ': quién "will appreciate this" (hasta 32 caracteres)',
+      PORTRAIT: ONLY_BY_NAME + ': una imagen o un vídeo para el retrato en lugar de Lucia (sus partes transparentes muestran el rosa del recuadro), una imagen animada o un vídeo hacen que toda la tarjeta se mueva',
+      TEXT: 'hasta 200 caracteres, dibujado tal como está escrito',
     },
   },
   neon: {

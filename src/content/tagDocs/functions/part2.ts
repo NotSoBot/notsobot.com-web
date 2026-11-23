@@ -248,12 +248,13 @@ export const TAG_DOC_FUNCTIONS_PART2: Array<TagDocFunction> = [
     syntax: '{identify:image?[|model]}',
     args: [
       IMAGE_ARG,
-      {name: 'model', description: '`florence` (default) for a detailed description, or `clip` for the old CLIP Interrogator: a short caption followed by art-style tags, made for image generation prompts, and faster (case-insensitive). Only treated as the model if the last `|` part is one of these; otherwise it stays part of the image argument.', optional: true},
+      {name: 'model', description: 'Florence-2: `florence` (default) for a detailed paragraph, `florence-medium` for 2-3 sentences or `florence-short` for one sentence (the shorter, the faster). The old CLIP Interrogator, for image generation prompts and faster: `clip` for a short caption followed by art-style tags, `clip-classic` for "caption, medium by artist, trending, movement, flavors", or `clip-negative` for the phrases least like the image (a negative prompt). Case-insensitive, `_` works instead of `-`. Only treated as the model if the last `|` part is one of these; otherwise it stays part of the image argument.', optional: true},
     ],
     examples: [
       {code: '{identify}', result: 'A description of the last image in chat, e.g. "A gray cat sitting on a laptop keyboard on a wooden desk..."'},
       {code: '{identify:{avatar}}', result: 'A description of your avatar'},
       {code: '{identify:|clip}', result: 'A prompt for the last image in chat, e.g. "a cat sitting on a laptop keyboard, by greg rutkowski, trending on artstation, ..."'},
+      {code: '{identify:{avatar}|florence-short}', result: 'One sentence about your avatar'},
     ],
     notes: [
       'Counts as a network request.',

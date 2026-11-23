@@ -187,12 +187,13 @@ export const FUNCTIONS_PORTUGUESE_2: TagDocsTranslation['functions'] = {
     summary: 'Descreve uma imagem em detalhe com IA, retornando algumas frases sobre o que ela mostra.',
     args: {
       image: IMAGE,
-      model: '`florence` (padrão) para uma descrição detalhada, ou `clip` para o antigo CLIP Interrogator: uma legenda curta seguida de tags de estilo artístico, feita para prompts de geração de imagens, e mais rápida (sem diferenciar maiúsculas). Só conta como modelo se a última parte depois de `|` for um destes; caso contrário, continua fazendo parte do argumento de imagem.',
+      model: 'Florence-2: `florence` (padrão) para um parágrafo detalhado, `florence-medium` para 2-3 frases ou `florence-short` para uma frase (quanto mais curto, mais rápido). O antigo CLIP Interrogator, para prompts de geração de imagens e mais rápido: `clip` para uma legenda curta seguida de tags de estilo artístico, `clip-classic` para "legenda, meio por artista, tendência, movimento, sabores" ou `clip-negative` para as frases que menos se parecem com a imagem (um prompt negativo). Sem diferenciar maiúsculas, `_` funciona no lugar de `-`. Só conta como modelo se a última parte depois de `|` for um destes; caso contrário, continua fazendo parte do argumento de imagem.',
     },
     results: [
       'Uma descrição da última imagem do chat, ex.: "A gray cat sitting on a laptop keyboard on a wooden desk..."',
       'Uma descrição do seu avatar',
       'Um prompt para a última imagem do chat, ex.: "a cat sitting on a laptop keyboard, by greg rutkowski, trending on artstation, ..."',
+      'Uma frase sobre o seu avatar',
     ],
     notes: [
       'Conta como uma requisição de rede.',

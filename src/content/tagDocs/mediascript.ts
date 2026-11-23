@@ -1455,11 +1455,14 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
   {
     name: 'lucia',
     category: 'generate',
-    summary: 'Makes a "Play with Lucia" prompt from GTA 6 asking for the text, in caps like the game.',
+    summary: 'Makes a "Play with Lucia" prompt from GTA 6 with the text under it, and your own title, name and portrait.',
     syntax: 'lucia MEDIA_KEY ...TEXT',
     args: [
       media('the name for the new image'),
-      {name: 'TEXT', rest: true, description: 'up to 200 characters'},
+      {name: 'TITLE', default: 'PLAY WITH LUCIA', description: 'only by name: the headline, drawn in caps (up to 50 characters, in quotes when it has spaces)'},
+      {name: 'NAME', default: 'Lucia', description: 'only by name: who "will appreciate this" (up to 32 characters)'},
+      {name: 'PORTRAIT', description: 'only by name: an image or video media for the portrait instead of Lucia (see-through parts show the square\'s pink), an animated image or a video makes the whole card move'},
+      {name: 'TEXT', rest: true, description: 'up to 200 characters, drawn as written'},
     ],
   },
   {
