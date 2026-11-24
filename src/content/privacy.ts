@@ -3,13 +3,13 @@ import type { LegalDocument } from './legal';
 export const PRIVACY_POLICY: LegalDocument = {
   title: "Privacy Policy",
   effective: "October 13, 2026",
-  lastUpdated: "November 22, 2026",
+  lastUpdated: "November 24, 2026",
   intro: "This Privacy Policy explains what information NotSoBot collects, why, who it's shared with, how long it's kept, and how You can get a copy of it or have it deleted.",
   sections: [
     {
       title: "Section 1 - Who We Are",
       blocks: [
-        {type: 'paragraph', text: "NotSoBot is operated by NotSoCompany, 254 Chapman Rd, Ste 208 #8692 Newark, Delaware 19702 (\"We\", \"Us\" or \"Our\"). This policy covers the NotSoBot Discord application, the website at notsobot.com, and the NotSoBot API (together, the \"Service\"). Words that are capitalized and not defined here have the meaning given in Our Terms of Service."},
+        {type: 'paragraph', text: "NotSoBot is operated by Not So LLC (doing business as NotSoCompany), a Delaware limited liability company, 254 Chapman Rd, Ste 208 #8692 Newark, Delaware 19702 (\"We\", \"Us\" or \"Our\"). This policy covers the NotSoBot Discord application, the website at notsobot.com, and the NotSoBot API (together, the \"Service\"). Words that are capitalized and not defined here have the meaning given in Our Terms of Service."},
         {type: 'paragraph', text: "Discord's own privacy policy covers how Discord handles your data. This policy only covers what NotSoBot does."},
       ],
     },

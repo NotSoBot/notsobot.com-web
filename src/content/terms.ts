@@ -3,7 +3,7 @@ import type { LegalDocument } from './legal';
 export const TERMS_OF_SERVICE: LegalDocument = {
   title: "Terms of Service",
   effective: "November 12, 2026",
-  lastUpdated: "November 22, 2026",
+  lastUpdated: "November 24, 2026",
   intro: "Please read these Terms of Service carefully before using NotSoBot. They explain what you can and can't do with the Service, what we store when you use it, and how to reach us.",
   sections: [
     {
@@ -11,7 +11,7 @@ export const TERMS_OF_SERVICE: LegalDocument = {
       blocks: [
         {type: 'paragraph', text: "For the purposes of these Terms:"},
         {type: 'list', items: [
-          "\"Company\", \"We\", \"Us\" or \"Our\" refers to NotSoCompany, 254 Chapman Rd, Ste 208 #8692 Newark, Delaware 19702.",
+          "\"Company\", \"We\", \"Us\" or \"Our\" refers to Not So LLC (doing business as NotSoCompany), a Delaware limited liability company, 254 Chapman Rd, Ste 208 #8692 Newark, Delaware 19702.",
           "\"Service\" refers to NotSoBot, including the NotSoBot Discord application (its slash commands, prefixed commands, context menu commands and user-installed commands), the website at notsobot.com, and the NotSoBot API.",
           "\"Discord\" refers to Discord Inc. and the Discord platform through which most of the Service is used.",
           "\"Your Content\" means anything You provide to the Service, including command text, prompts, attachments, URLs, tags, reminders, reports and audio samples.",
