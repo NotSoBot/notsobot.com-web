@@ -56,6 +56,8 @@ export const Settings: Record<keyof typeof English, string> = {
   'settings.autoembed.description': 'Cuando el único enlace de un mensaje tuyo es a una publicación, el bot publica su vídeo o sus imágenes, como .dl. En tus MD con NotSoBot y en servidores donde está NotSoBot y que lo permiten, los sitios de auto-embed del propio servidor van primero.',
   'settings.autoembed.text': 'Incluir el texto de la publicación',
   'settings.autoembed.text_hint': 'Publica el autor y la descripción encima del vídeo o las imágenes, cuando el sitio los da.',
+  'settings.autoembed.screenshot': 'Dibujar las publicaciones de solo texto como una captura',
+  'settings.autoembed.screenshot_hint': 'Una publicación sin imagen ni vídeo se dibuja como una captura de la publicación, en vez de publicarse como texto. En X, Bluesky, Threads y Reddit. Necesita el texto de la publicación encendido.',
   'settings.autoembed.premium': 'El auto-embed de tus propios enlaces necesita NotSoPremium.',
   'settings.autoembed.premium_link': 'Ver premium',
   'settings.search.title': 'Búsqueda',

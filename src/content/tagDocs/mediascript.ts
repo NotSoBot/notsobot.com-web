@@ -456,7 +456,7 @@ export const MEDIASCRIPT_GUIDE: Array<TagDocGuideSection> = [
       '`ffmpeg KEY ...OPTIONS` takes FFmpeg\'s own output options: `-vf`, `-af`, `-filter_complex`, `-map`, `-c:v`, `-c:a`, `-crf`, `-qp`, `-preset` and more. KEY is input `0`, and `-i OTHERKEY` adds another media key as input `1`, `2`... (up to 4). The result keeps KEY\'s format and goes back into KEY. Most FFmpeg filters work, including `geq`, `displace`, `haldclut`, `curves`, `rubberband` and `frei0r` (with its built-in plugins like `mirr0r` and `gateweave`). Filters that read or write files on their own, like `movie`, `amovie` and `sendcmd`, are blocked, so load files with `load` or `loadcube` and pass them in.',
       '`reexport KEY AMOUNT LENGTH CODE` takes the first LENGTH seconds, runs CODE on it as `KEYx`, then runs CODE again on that result, AMOUNT times, and joins every export in order (backwards if AMOUNT is negative). Exports that come out longer than LENGTH are cut back unless you add `NO_TRIM=true`. Every export\'s audio is matched to its video before joining, so the result stays in sync. `idx` is the export number, for commands that take equations.',
       'Pitch shifting is `multipitch KEY SEMITONES`: `multipitch clip 7` is up a fifth, and `multipitch clip 0,7,12` mixes a chord the same way the multipitch program does (with `--no-normalize`). When the pitch has to be part of one `ffmpeg` filter graph, for example chained with other audio filters, use `rubberband=pitch=2^(SEMITONES/12)` there instead, and for a chord split the audio with `asplit`, shift each copy and mix them back with `amix=N:normalize=0` (see the examples). A hue shift is `hue=h=DEGREES`. ImageMagick\'s `-modulate 100,100,X` turns the hue by about `(X-100)*1.8` degrees; if the colors come out mirrored, flip the sign.',
-      'Downloaded programs (4orm) and shell commands can\'t run in MediaScript; `.veg` projects play back with `loadveg` and `vegrender`, Movie Maker `.wlmp` projects with `loadwlmp` and `wlmprender`, AVS Video Editor `.vep` projects with `loadvep` and `veprender`. The table shows what to use instead. Limits: up to 100 `ffmpeg` runs per script, each output at most 10 minutes and 2048x2048, and every `ffmpeg` inside `reexport` counts once per export.',
+      'Downloaded programs (4orm) and shell commands can\'t run in MediaScript; `.veg` projects play back with `loadveg` and `vegrender`, Movie Maker `.wlmp` projects with `loadwlmp` and `wlmprender`, AVS Video Editor `.vep` projects with `loadvep` and `veprender`, KineMaster `.kine` projects with `loadkine` and `kinerender`. The table shows what to use instead. Limits: up to 100 `ffmpeg` runs per script, each output at most 10 minutes and 2048x2048, and every `ffmpeg` inside `reexport` counts once per export.',
     ].join('\n\n'),
     table: {
       columns: ['In a {sh:} tag', 'In MediaScript'],
@@ -686,6 +686,36 @@ export const MEDIASCRIPT_GUIDE: Array<TagDocGuideSection> = [
   },
 
   {
+    id: 'ms-kinemaster',
+    title: 'KineMaster projects (.kine)',
+    body: [
+      '`loadkine URL KINE_KEY` reads a KineMaster project, and `kinerender MEDIA_KEY KINE_KEY` plays it back with every video, picture and sound in it replaced by your media. KineMaster is a video editor for Android and iOS, and a `.kine` is the project it shares: a zip of the project and its media. Only the project is read, the media in it are replaced by yours. KineMaster itself never runs: the features in the table are rebuilt with ffmpeg, and everything not in the table is skipped.',
+      'Limits: projects up to 64mb (and within the script\'s download limit), 4 per script. The render is at most 10 minutes long, scaled down to fit 1280x720, and counts as one `ffmpeg` run, sharing its time limit.',
+    ].join('\n\n'),
+    table: {
+      columns: ['KineMaster feature', 'Played back', 'How'],
+      rows: [
+        ['Main track clips', 'Yes', 'In order, with their trim, speed and speed ramps, reverse, flip, rotation, crop/zoom and vignette'],
+        ['Transitions', 'Yes', 'Crossfade and KineMaster\'s built-in transitions (wipes, slides, splits, 3D flips, tiles and the rest), timed like the app, and the project\'s fade in and out'],
+        ['Sound', 'Yes', 'Each clip\'s pitch, volume and volume envelope, the voice changer, equalizer, reverb, compressor and pan settings, audio clips (looped ones too) and the project\'s audio fades'],
+        ['Video and image layers', 'Yes', 'With their position, size, turn, opacity, every blend mode, keyframe animation, motion tracking, crop and shape masks, chroma key, and the in, out and overall animations'],
+        ['Text layers', 'Yes', 'In the project\'s font (KineMaster\'s built-in ones and its free store fonts), with outline, glow, shadow, background, bold, italic, underline and spacing, moved like any layer'],
+        ['Stickers and handwriting', 'Yes', 'KineMaster\'s built-in stickers and 142 of its free store sticker packs (still and animated), and handwriting with its draw-in animation'],
+        ['Adjustments', 'Yes', 'Every slider (brightness, contrast, saturation, vibrance, hue, highlights, shadows, gain, lift, gamma, temperature) done with KineMaster\'s own math, animated on layers'],
+        ['Color filters', 'Yes', 'KineMaster\'s 90 built-in color filters and the 100 in its free store packs, from their LUTs; animated on video and image layers (a clip keeps its first, like in KineMaster)'],
+        ['Asset store effects', 'Yes', 'Nearly all of the free ones, with their settings, keyframes and moving boxes: blurs and lights (Gaussian Blur, Motion Blur, Focus Blur 2.0, Light Flare, Glitter...), glitches (VHS Rewind, Digital Crash, Pixel Slip, Prismatic...), styles (Cartoon, Sketch 2.0, Ascii Art, Halftone Pop, Mosaic...), masks and warps (Shaped Mask, Swirl 2.0, Mirror, Transform, Spiral, VR 360...) and the animation packs (In, Out and Overall Animation, Swing, Shake, Slide, 3D Flip, Layout...)'],
+        ['Not rebuilt', 'No', 'Clip graphics, Premium store effects, Mobile Phone Screen, Shattered Glass and Good Vibes, effects that only change see-through parts (Chrono Trail, Long Shadows 2, Contours), a few animation pack items, letter by letter text, layer masks between layers, split screen, noise reduction and AI voice. They\'re skipped'],
+      ],
+    },
+    examples: [
+      {
+        code: '{mediascript:load {iv} logo\nloadkine https://cdn.nsb.gg/assets/samples/preview2.kine p2\nkinerender logo p2\nrender logo}',
+        result: 'The KineMaster project rebuilt with the last image or video in every clip.',
+      },
+    ],
+  },
+
+  {
     id: 'ms-examples',
     title: 'Worked examples',
     body: 'A few complete tags that combine several commands. Copy one into `.tag create` and tweak it.',
@@ -864,6 +894,42 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
       'Rebuilt: the main video line\'s clips at their times (start points, speed, mute), the audio lines, volume envelopes, the Hue, Twirl, Wave, Ripple and Mirror effects, guessed Saturation and Flip effects, and the audio Rate. Overlays (PiP), text, transitions and other effects are skipped. The full list is in the AVS Video Editor projects section.',
       'Keeps the project\'s own size, scaled down to fit 1280x720, at most 10 minutes. Counts toward the `ffmpeg` limit and has to finish within the script\'s time limit.',
       'Outside of tags, the bot has the same thing as the `.vep` command (the .vep attached or its url first, then the media) and `/media-aiv vep`.',
+    ],
+  },
+  {
+    name: 'loadkine',
+    category: 'io',
+    summary: 'Loads a KineMaster project (.kine) for `kinerender`.',
+    syntax: 'loadkine URL KINE_KEY',
+    args: [
+      {name: 'URL', description: 'link to the `.kine` file, or `FILE_1`, `FILE_2`... for files attached to the tag'},
+      {name: 'KINE_KEY', description: 'name to use it by, any name like a media key'},
+    ],
+    examples: [
+      {code: '{mediascript:loadkine https://cdn.nsb.gg/assets/samples/preview2.kine p2\nload {iv} logo\nkinerender logo p2\nrender logo}', result: 'Plays back the project with the last image or video.'},
+    ],
+    notes: [
+      'Files up to 64mb (or the script\'s download limit, if that\'s smaller), at most 4 per script, and they count toward the script\'s download limit.',
+      'Kine keys are separate from media keys. Loading the same link into the same key again (like inside `reexport`) is skipped.',
+      'Only the project is read, not the media zipped in with it. See the KineMaster projects section for what is rebuilt.',
+    ],
+  },
+  {
+    name: 'kinerender',
+    category: 'compose',
+    summary: 'Plays back a KineMaster project with every one of its videos, pictures and sounds replaced by your media.',
+    syntax: 'kinerender MEDIA_KEY KINE_KEY',
+    args: [
+      media(),
+      {name: 'KINE_KEY', description: 'a project from `loadkine`'},
+    ],
+    examples: [
+      {code: '{mediascript:load {iv} logo\nloadkine https://cdn.nsb.gg/assets/samples/preview2.kine p2\nkinerender logo p2\nrender logo}', result: 'The project rebuilt with the last image or video in every clip.'},
+    ],
+    notes: [
+      'Rebuilt: the main track\'s clips (trim, speed and speed ramps, reverse, flip, rotation, crop/zoom, vignette) and transitions, the sound (pitch, volume, envelopes, voice changer, equalizer, reverb, audio clips and fades), video and image layers (position, size, turn, opacity, blend modes, keyframes, motion tracking, masks, chroma key and animations), text layers, stickers and handwriting, every adjustment slider, KineMaster\'s 90 built-in color filters and the 100 from its free store packs, and nearly all of the free asset store effects. Clip graphics, Premium store effects and a few others are skipped. The full list is in the KineMaster projects section.',
+      'Scaled down to fit 1280x720, at most 10 minutes. Counts toward the `ffmpeg` limit and has to finish within the script\'s time limit.',
+      'Outside of tags, the bot has the same thing as the `.kine` command (the .kine attached or its url first, then the media) and `/media-aiv kine`.',
     ],
   },
   {

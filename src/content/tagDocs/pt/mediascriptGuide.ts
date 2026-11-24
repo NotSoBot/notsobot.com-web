@@ -260,7 +260,7 @@ export const MEDIASCRIPT_GUIDE_PORTUGUESE: TagDocsTranslation['mediaScriptGuide'
       '`ffmpeg KEY ...OPTIONS` recebe as próprias opções de saída do FFmpeg: `-vf`, `-af`, `-filter_complex`, `-map`, `-c:v`, `-c:a`, `-crf`, `-qp`, `-preset` e mais. KEY é a entrada `0`, e `-i OTHERKEY` adiciona outra chave de mídia como entrada `1`, `2`... (até 4). O resultado mantém o formato de KEY e volta para KEY. A maioria dos filtros do FFmpeg funciona, incluindo `geq`, `displace`, `haldclut`, `curves`, `rubberband` e `frei0r` (com os plugins embutidos como `mirr0r` e `gateweave`). Filtros que leem ou escrevem arquivos por conta própria, como `movie`, `amovie` e `sendcmd`, são bloqueados, então carregue os arquivos com `load` ou `loadcube` e passe-os como entrada.',
       '`reexport KEY AMOUNT LENGTH CODE` pega os primeiros LENGTH segundos, executa CODE neles como `KEYx`, depois executa CODE de novo sobre esse resultado, AMOUNT vezes, e junta todas as exportações em ordem (de trás para frente se AMOUNT for negativo). Exportações que saem mais longas que LENGTH são cortadas, a não ser que você adicione `NO_TRIM=true`. O áudio de cada exportação é ajustado ao vídeo dela antes de juntar, então o resultado continua sincronizado. `idx` é o número da exportação, para comandos que recebem equações.',
       'Mudar o tom é `multipitch KEY SEMITONES`: `multipitch clip 7` sobe uma quinta, e `multipitch clip 0,7,12` mixa um acorde do mesmo jeito que o programa multipitch (com `--no-normalize`). Quando o tom precisa fazer parte de um único grafo de filtros do `ffmpeg`, por exemplo encadeado com outros filtros de áudio, use ali `rubberband=pitch=2^(SEMITONES/12)`, e para um acorde divida o áudio com `asplit`, mude o tom de cada cópia e mixe de volta com `amix=N:normalize=0` (veja os exemplos). Uma mudança de matiz é `hue=h=DEGREES`. O `-modulate 100,100,X` do ImageMagick gira o matiz em cerca de `(X-100)*1.8` graus; se as cores saírem espelhadas, inverta o sinal.',
-      'Programas baixados (4orm) e comandos de shell não podem rodar no MediaScript; projetos `.veg` são reproduzidos com `loadveg` e `vegrender`, projetos `.wlmp` do Movie Maker com `loadwlmp` e `wlmprender`, e projetos `.vep` do AVS Video Editor com `loadvep` e `veprender`. A tabela mostra o que usar no lugar. Limites: até 100 execuções de `ffmpeg` por script, cada saída com no máximo 10 minutos e 2048x2048, e cada `ffmpeg` dentro de `reexport` conta uma vez por exportação.',
+      'Programas baixados (4orm) e comandos de shell não podem rodar no MediaScript; projetos `.veg` são reproduzidos com `loadveg` e `vegrender`, projetos `.wlmp` do Movie Maker com `loadwlmp` e `wlmprender`, projetos `.vep` do AVS Video Editor com `loadvep` e `veprender`, e projetos `.kine` do KineMaster com `loadkine` e `kinerender`. A tabela mostra o que usar no lugar. Limites: até 100 execuções de `ffmpeg` por script, cada saída com no máximo 10 minutos e 2048x2048, e cada `ffmpeg` dentro de `reexport` conta uma vez por exportação.',
     ].join('\n\n'),
     table: {
       columns: ['Numa tag com {sh:}', 'No MediaScript'],
@@ -447,6 +447,32 @@ export const MEDIASCRIPT_GUIDE_PORTUGUESE: TagDocsTranslation['mediaScriptGuide'
     },
     results: [
       'O projeto do AVS Video Editor anexado reconstruído com a última imagem ou vídeo em cada clipe.',
+    ],
+  },
+
+  'ms-kinemaster': {
+    title: 'Projetos do KineMaster (.kine)',
+    body: [
+      '`loadkine URL KINE_KEY` lê um projeto do KineMaster, e `kinerender MEDIA_KEY KINE_KEY` o reproduz com cada vídeo, imagem e som dele substituído pela sua mídia. O KineMaster é um editor de vídeo para Android e iOS, e um `.kine` é o projeto que ele compartilha: um zip do projeto e da mídia dele. Só o projeto é lido, a mídia que vem nele é substituída pela sua. O KineMaster em si nunca roda: o que está na tabela é reconstruído com ffmpeg, e tudo o que não está na tabela é pulado.',
+      'Limites: projetos de até 64mb (e dentro do limite de download do script), 4 por script. O render tem no máximo 10 minutos, reduzido para caber em 1280x720, e conta como uma execução de `ffmpeg`, compartilhando o limite de tempo dela.',
+    ].join('\n\n'),
+    table: {
+      columns: ['Recurso do KineMaster', 'Reproduzido', 'Como'],
+      rows: [
+        ['Clipes da trilha principal', 'Sim', 'Em ordem, com o corte de início e fim, velocidade e rampas de velocidade, reprodução invertida, espelhamento, giro, enquadramento/zoom e vinheta'],
+        ['Transições', 'Sim', 'A dissolução cruzada e as transições embutidas do KineMaster (cortinas, deslizes, divisões, giros 3D, mosaicos e as outras), no tempo do app, e o fade de entrada e saída do projeto'],
+        ['Som', 'Sim', 'O tom, o volume e o envelope de volume de cada clipe, os ajustes de modulador de voz, equalizador, reverberação, compressor e pan, os clipes de áudio (os em loop também) e os fades de áudio do projeto'],
+        ['Camadas de vídeo e imagem', 'Sim', 'Com posição, tamanho, giro, opacidade, todos os modos de mesclagem, animação por keyframes, rastreamento de movimento, cortes e máscaras com forma, chroma key, e as animações de entrada, saída e contínuas'],
+        ['Camadas de texto', 'Sim', 'Na fonte do projeto (as embutidas do KineMaster e as grátis da loja dele), com contorno, brilho, sombra, fundo, negrito, itálico, sublinhado e espaçamento, movidas como qualquer camada'],
+        ['Stickers e escrita à mão', 'Sim', 'Os stickers embutidos do KineMaster e 142 dos pacotes de stickers grátis da loja dele (parados e animados), e a escrita à mão com a animação de traçado'],
+        ['Ajustes', 'Sim', 'Todos os controles (brilho, contraste, saturação, vibração, matiz, realces, sombras, ganho, elevação, gama, temperatura) com as contas do próprio KineMaster, animados nas camadas'],
+        ['Filtros de cor', 'Sim', 'Os 90 filtros de cor embutidos do KineMaster e os 100 dos pacotes grátis da loja, a partir dos LUTs deles; animados nas camadas de vídeo e imagem (um clipe fica com o primeiro, como no KineMaster)'],
+        ['Efeitos da loja de recursos', 'Sim', 'Quase todos os grátis, com os ajustes, keyframes e caixas em movimento: desfoques e luzes (Gaussian Blur, Motion Blur, Focus Blur 2.0, Light Flare, Glitter...), falhas (VHS Rewind, Digital Crash, Pixel Slip, Prismatic...), estilos (Cartoon, Sketch 2.0, Ascii Art, Halftone Pop, Mosaic...), máscaras e distorções (Shaped Mask, Swirl 2.0, Mirror, Transform, Spiral, VR 360...) e os pacotes de animação (In, Out e Overall Animation, Swing, Shake, Slide, 3D Flip, Layout...)'],
+        ['Não reconstruído', 'Não', 'Os gráficos de clipe, os efeitos Premium da loja, Mobile Phone Screen, Shattered Glass e Good Vibes, os efeitos que só mudam as partes transparentes (Chrono Trail, Long Shadows 2, Contours), alguns itens dos pacotes de animação, o texto letra por letra, as máscaras entre camadas, a tela dividida, a redução de ruído e a voz com IA. São pulados'],
+      ],
+    },
+    results: [
+      'O projeto do KineMaster reconstruído com a última imagem ou vídeo em cada clipe.',
     ],
   },
 

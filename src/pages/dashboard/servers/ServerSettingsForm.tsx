@@ -52,6 +52,7 @@ function savedValues(guild: UserGuild): Values {
     auto_embed: guild.settings.auto_embed ?? [],
     auto_embed_gallery: guild.settings.auto_embed_gallery ?? null,
     auto_embed_members: guild.settings.auto_embed_members ?? true,
+    auto_embed_screenshot: guild.settings.auto_embed_screenshot ?? false,
     auto_embed_text: guild.settings.auto_embed_text ?? true,
     locale: guild.locale,
     timezone: guild.timezone,
@@ -352,13 +353,21 @@ export function ServerSettingsForm({ guild, group, onDirtyChange }: {guild: User
                   />
                 ))}
               </div>
-              <div className='border-t border-line pt-3'>
+              <div className='space-y-3 border-t border-line pt-3'>
                 <Toggle
                   label={t('ssettings.autoembed.text')}
                   description={t('ssettings.autoembed.text_hint')}
                   checked={!!values.auto_embed_text}
                   disabled={!editable}
                   onChange={(value) => draft.set('auto_embed_text', value)}
+                />
+                <Toggle
+                  label={t('ssettings.autoembed.screenshot')}
+                  description={t('ssettings.autoembed.screenshot_hint')}
+                  // it replaces the text reply, so it's shown off (and can't be changed) while the text is off
+                  checked={values.auto_embed_screenshot === true && !!values.auto_embed_text}
+                  disabled={!editable || !values.auto_embed_text}
+                  onChange={(value) => draft.set('auto_embed_screenshot', value)}
                 />
               </div>
               <Field label={t('ssettings.autoembed.gallery')} hint={t('ssettings.autoembed.gallery_hint')}>

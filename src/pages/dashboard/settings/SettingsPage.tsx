@@ -355,7 +355,7 @@ function DisplaySection({ settings, onDirtyChange }: SectionProps) {
 // until they have it, like the bot's command
 function AutoEmbedSection({ settings, onDirtyChange }: SectionProps) {
   const { t } = useI18n();
-  const section = useSettingsSection('settings.autoembed.title', settings, ['auto_embed', 'auto_embed_text'], onDirtyChange);
+  const section = useSettingsSection('settings.autoembed.title', settings, ['auto_embed', 'auto_embed_screenshot', 'auto_embed_text'], onDirtyChange);
   const sites = section.values.auto_embed ?? [];
   const premium = useHasPremium();
   return (
@@ -372,12 +372,20 @@ function AutoEmbedSection({ settings, onDirtyChange }: SectionProps) {
             />
           ))}
         </div>
-        <div className='border-t border-line pt-3'>
+        <div className='space-y-3 border-t border-line pt-3'>
           <Toggle
             label={t('settings.autoembed.text')}
             description={t('settings.autoembed.text_hint')}
             checked={section.values.auto_embed_text !== false}
             onChange={(value) => section.set('auto_embed_text', value)}
+          />
+          <Toggle
+            label={t('settings.autoembed.screenshot')}
+            description={t('settings.autoembed.screenshot_hint')}
+            // it replaces the text reply, so it's shown off (and can't be changed) while the text is off
+            checked={section.values.auto_embed_screenshot === true && section.values.auto_embed_text !== false}
+            disabled={section.values.auto_embed_text === false}
+            onChange={(value) => section.set('auto_embed_screenshot', value)}
           />
         </div>
         {(!premium) ? <PremiumNotice>{t('settings.autoembed.premium')}</PremiumNotice> : null}

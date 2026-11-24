@@ -631,6 +631,9 @@ export interface UserSettings {
   // the sites their own links get auto-embedded for (a premium perk, any tier), sorted, empty: off. only in servers that
   // allow it (`GuildSettings.auto_embed_members`), a server's own auto-embed sites go first
   auto_embed: Array<GuildAutoEmbedSite>,
+  // their auto-embeds draw a post that's only text as a screenshot of the post, not as its text (off by default, only
+  // with `auto_embed_text` on)
+  auto_embed_screenshot?: boolean,
   // their auto-embeds post the post's text and author above the media too (on by default)
   auto_embed_text: boolean,
   application_command_response_type: number,
@@ -1444,6 +1447,9 @@ export interface GuildSettings {
   // members with premium can auto-embed their own links (`UserSettings.auto_embed`) for the sites the server doesn't,
   // on unless the server turned it off, no premium slot needed
   auto_embed_members: boolean,
+  // auto-embeds draw a post that's only text as a screenshot of the post, not as its text (off by default, only with
+  // `auto_embed_text` on)
+  auto_embed_screenshot?: boolean,
   // auto-embeds post the post's text and author above the media too (on by default)
   auto_embed_text: boolean,
   // seconds of a member's messages the bot's `ban` deletes when the moderator doesn't pick, 0: none
@@ -1626,6 +1632,8 @@ export interface UserGuildPatch {
   auto_embed_gallery?: number | null,
   // null resets it to on
   auto_embed_members?: boolean | null,
+  // null resets it to off
+  auto_embed_screenshot?: boolean | null,
   // null resets it to on
   auto_embed_text?: boolean | null,
   // seconds (0 to 7 days), null resets it to 1 day

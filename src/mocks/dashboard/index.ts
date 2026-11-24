@@ -4220,6 +4220,9 @@ function applyAutoEmbed(detail: {settings: UserGuild['settings']}, body: Record<
   if ('auto_embed_members' in body) {
     detail.settings.auto_embed_members = body.auto_embed_members !== false;
   }
+  if ('auto_embed_screenshot' in body) {
+    detail.settings.auto_embed_screenshot = body.auto_embed_screenshot === true;
+  }
   if ('auto_embed_text' in body) {
     detail.settings.auto_embed_text = body.auto_embed_text !== false;
   }

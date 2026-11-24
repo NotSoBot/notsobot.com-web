@@ -120,6 +120,36 @@ export const MEDIASCRIPT_PORTUGUESE_1: TagDocsTranslation['mediaScriptCommands']
       'Fora das tags, o bot tem a mesma coisa no comando `.vep` (primeiro o .vep anexado ou a URL dele, depois a mídia) e no `/media-aiv vep`.',
     ],
   },
+  loadkine: {
+    summary: 'Carrega um projeto do KineMaster (.kine) para o `kinerender`.',
+    args: {
+      URL: ATTACHED_FILES('.kine'),
+      KINE_KEY: KEY_NAME,
+    },
+    results: [
+      'Reproduz o projeto com a última imagem ou vídeo.',
+    ],
+    notes: [
+      'Arquivos de até 64mb (ou o limite de download do script, se for menor), no máximo 4 por script, e eles contam para o limite de download do script.',
+      'Chaves de kine são separadas das chaves de mídia. Carregar o mesmo link na mesma chave de novo (como dentro de `reexport`) é pulado.',
+      'Só o projeto é lido, não a mídia que vem no zip com ele. Veja a seção de projetos do KineMaster para saber o que é reconstruído.',
+    ],
+  },
+  kinerender: {
+    summary: 'Reproduz um projeto do KineMaster com cada um dos vídeos, imagens e sons dele substituído pela sua mídia.',
+    args: {
+      MEDIA_KEY: MEDIA,
+      KINE_KEY: 'um projeto do `loadkine`',
+    },
+    results: [
+      'O projeto reconstruído com a última imagem ou vídeo em cada clipe.',
+    ],
+    notes: [
+      'Reconstruído: os clipes da trilha principal (corte de início e fim, velocidade e rampas de velocidade, reprodução invertida, espelhamento, giro, enquadramento/zoom, vinheta) e as transições, o som (tom, volume, envelopes, modulador de voz, equalizador, reverberação, clipes de áudio e fades), as camadas de vídeo e imagem (posição, tamanho, giro, opacidade, modos de mesclagem, keyframes, rastreamento de movimento, máscaras, chroma key e animações), as camadas de texto, os stickers e a escrita à mão, todos os controles de ajuste, os 90 filtros de cor embutidos do KineMaster e os 100 dos pacotes grátis da loja, e quase todos os efeitos grátis da loja de recursos. Os gráficos de clipe, os efeitos Premium da loja e alguns outros são pulados. A lista completa está na seção de projetos do KineMaster.',
+      'Reduzido para caber em 1280x720, no máximo 10 minutos. Conta para o limite de `ffmpeg` e precisa terminar dentro do limite de tempo do script.',
+      'Fora das tags, o bot tem a mesma coisa no comando `.kine` (primeiro o .kine anexado ou a URL dele, depois a mídia) e no `/media-aiv kine`.',
+    ],
+  },
   loadxyt: {
     summary: 'Carrega um modelo de filtro, fx, moldura, sticker ou texto do VivaVideo (.xyt) para o `xytrender`.',
     args: {

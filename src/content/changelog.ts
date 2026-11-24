@@ -28,6 +28,14 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 
 export const CHANGELOG: Array<ChangelogDay> = [
   {
+    date: '2026-11-24',
+    title: 'KineMaster projects',
+    items: [
+      {kind: 'new', text: '`.kine` (`.kinemaster`) and `/media-aiv kine`: attach a KineMaster project (the `.kine` file the app shares, or give its link) with your media and NotSoBot plays it back with your media in every clip. Rebuilt: the main track\'s clips (trim, speed and speed ramps, reverse, flip, rotation, crop and zoom, vignette) and KineMaster\'s built-in transitions, the sound (pitch, volume, envelopes, voice changer, equalizer, reverb, compressor, pan, looped audio and fades), video and image layers (position, size, turn, opacity, every blend mode, keyframes, motion tracking, crop and shape masks, chroma key, and the in, out and overall animations), text layers in the project\'s fonts, KineMaster\'s built-in stickers and 142 free sticker packs, handwriting, every adjustment slider, KineMaster\'s 90 built-in color filters and the 100 from its free store packs, and nearly all of the free asset store effects (blurs, glitches, styles, masks, warps and the animation packs). Clip graphics, Premium store effects and a few others are skipped. Projects up to 64 MB. **MediaScript:** `loadkine` and `kinerender` do the same with a media key (the project from a link or `FILE_n`).'},
+      {kind: 'improved', text: '`.quote` looks like Discord does today: its current dark and light themes, the gg sans font, Discord\'s own sizes and spacing for names, replies, markdown, images, embeds and components, and a member\'s display name style (font and effect) on their name.'},
+    ],
+  },
+  {
     date: '2026-11-23',
     title: 'More download sites',
     items: [
@@ -38,12 +46,13 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'new', text: '`.mastodon` draws the post the way Mastodon 4.x servers show it, which is nearly all of them: a rounded-square avatar, a star for favorites, and a line of boosts, quotes and favorites. `-layout new` (the `layout` option on slash) draws Mastodon 5.0\'s page instead, the only one that shows `-replies`.'},
       {kind: 'new', text: '`.postshot <link>` (`/screenshot post`, also `.pshot`) draws a real post from its link, like a screenshot of it: X, Bluesky, Threads, Mastodon, Truth Social, Reddit, Instagram and Facebook. Only how it looks can be picked (`-dark`, `-light`, `-layout`), never its text, counts or author. A video shows as one frame, and only the first picture of a post is drawn.'},
       {kind: 'new', text: '`.tweet`, `.bluesky`, `.threads`, `.mastodon` and `.truth` take `-quote <link>` (the `quote` option on slash) to show a real post quoted under yours.'},
+      {kind: 'new', text: 'Auto-embed can draw text-only posts as a screenshot of the post, like `.postshot`, instead of posting their text: `/server set auto-embed screenshot:true` (or `.set autoembed -screenshot on`, or the dashboard) for a server, and `/settings set auto-embed screenshot:true` for your own links. It works on X, Bluesky, Threads and Reddit, while the post\'s text is on (`text:true`, the default). Posts with a picture or video are shown as before.'},
       {kind: 'new', text: '`.ytcomment` (`/fake ytcomment`, also `.ytc`) makes a YouTube comment: `-likes`, `-replies`, `-heart` for the creator\'s heart, `-pinned`, `-creator` for the creator\'s own comment, `-edited`, `-verified`, `-light`, and `-from <channel handle>` to copy a real channel. Reply to a message with text to get a two-comment thread.'},
       {kind: 'new', text: '`.steamreview` (`/fake steam`) makes a Steam review: `-no` for Not Recommended, `-hours 4,812.5`, `-game <name or app id>` (searches Steam as you type in the slash command), `-helpful`, `-funny`, `-products`, and `-from <steam profile>` to copy a real profile.'},
       {kind: 'new', text: '`.twitch` (`/fake twitch`) makes a Twitch chat message with emotes (Kappa, LUL, KEKW and about 150 more), `-badges mod sub vip`, `-color`, `-highlight`, `-first`, `/me`, and `-from <login>` to copy a real chatter\'s name and color.'},
       {kind: 'new', text: '`.greentext` (`/fake greentext`, also `.gt`) makes a 4chan post: lines starting with `>` go green, `-board` picks the colors and post numbers, plus `-name`, `-tripcode`, `-subject`, `-number`, `-op` and an image. Reply to a message with text to draw both posts, yours quoting theirs.'},
       {kind: 'new', text: '`.tiktok` (`/fake tiktok`) makes a TikTok comment (`-likes`, `-replies`, `-creator`, `-verified`, `-dark`, `-from <handle>`), or with `-sticker` the "Reply to comment" bubble over an image you attach.'},
-      {kind: 'new', text: '`.redditpost` (`/fake-feed reddit`, also `.rpost`) makes a Reddit comment, or a post with `-title`: `-subreddit`, `-flair`, `-upvotes` (negatives work), `-comments`, `-light`, and `-layout old` for the old.reddit.com look (the `layout` option on slash).'},
+      {kind: 'new', text: '`.redditpost` (`/fake-feed reddit`, also `.rpost`) makes a Reddit comment, or a post with `-title`: `-subreddit`, `-flair`, `-upvotes` (negatives work), `-comments`, `-light`, and `-layout old` for the old.reddit.com look (the `layout` option on slash), which is light unless you add `-dark` for its night mode.'},
       {kind: 'new', text: '`.facebook`, `.linkedin` and `.instagram` (`/fake-feed facebook`, `linkedin`, `instagram`) make feed posts. LinkedIn gives everyone a made-up job headline unless you set `-headline`. Instagram draws a post when there\'s a picture and a comment when there isn\'t. On these three and Reddit, `-from` takes a @mention or any name typed as is.'},
       {kind: 'new', text: '`.facebook` and `.linkedin` take `-layout old` for the look those sites used to have: a line of counts above labelled Like, Comment and Share buttons (Repost and Send too on LinkedIn). It works with `-dark`, and on slash it\'s the `layout` option beside `theme`.'},
       {kind: 'new', text: 'The `from` option of `/fake-post tweet`, `truth` and `bluesky` suggests who to post as while you type: members of the server, the accounts you used before, ones already looked up and a few well known ones, each labelled Discord, X or Truth Social. Any other mention or handle still works.'},
@@ -75,6 +84,7 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'fixed', text: 'Non-admins and custom prefixes not working for 30 seconds when a server\'s settings failed to load once.'},
       {kind: 'fixed', text: 'Message links and quotes in slash commands checking your permissions in the wrong channel.'},
       {kind: 'fixed', text: 'Wrapped links (Google, t.co, EmbedEZ, cobalt) to a post\'s second or later photo downloading the first one.'},
+      {kind: 'fixed', text: '`.reddit` (`/search reddit`) failing for everyone since Reddit stopped answering its old search. It reads Reddit\'s search page now, so results show only what that page has: no post text, downvotes or upvote ratio.'},
     ],
   },
   {

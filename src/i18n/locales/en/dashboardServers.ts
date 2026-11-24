@@ -252,6 +252,8 @@ export const DashboardServers = {
   'ssettings.autoembed.premium': 'Auto-embed only works on premium servers.',
   'ssettings.autoembed.text': 'Include the post’s text',
   'ssettings.autoembed.text_hint': 'Posts the author and caption above the video or images, when the site gives them.',
+  'ssettings.autoembed.screenshot': 'Draw text-only posts as a screenshot',
+  'ssettings.autoembed.screenshot_hint': 'A post with no picture or video is drawn like a screenshot of the post, not posted as plain text. On X, Bluesky, Threads and Reddit. Needs the post’s text turned on.',
   'ssettings.autoembed.gallery': 'Posts with several images or videos',
   'ssettings.autoembed.gallery_hint': 'How auto-embeds show them, over each poster’s own setting.',
   'ssettings.autoembed.gallery_poster': 'Each poster’s setting',

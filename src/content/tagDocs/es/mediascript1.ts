@@ -118,6 +118,36 @@ export const MEDIASCRIPT_SPANISH_1: TagDocsTranslation['mediaScriptCommands'] = 
       'Fuera de los tags, el bot tiene lo mismo con el comando `.vep` (primero el .vep adjunto o su URL, y luego la multimedia) y con `/media-aiv vep`.',
     ],
   },
+  loadkine: {
+    summary: 'Carga un proyecto de KineMaster (.kine) para `kinerender`.',
+    args: {
+      URL: 'enlace al archivo `.kine`, o `FILE_1`, `FILE_2`... para archivos adjuntos al tag',
+      KINE_KEY: 'el nombre con el que usarlo, cualquier nombre como el de una clave de multimedia',
+    },
+    results: [
+      'Reproduce el proyecto con la última imagen o vídeo.',
+    ],
+    notes: [
+      'Archivos de hasta 64mb (o el límite de descarga del script, si es menor), como mucho 4 por script, y cuentan para el límite de descarga del script.',
+      'Las claves de kine son independientes de las claves de multimedia. Volver a cargar el mismo enlace en la misma clave (como dentro de `reexport`) se omite.',
+      'Solo se lee el proyecto, no la multimedia que lleva dentro del zip. Mira la sección de proyectos de KineMaster para saber qué se reconstruye.',
+    ],
+  },
+  kinerender: {
+    summary: 'Reproduce un proyecto de KineMaster con cada uno de sus vídeos, imágenes y sonidos sustituido por tu multimedia.',
+    args: {
+      MEDIA_KEY: MEDIA,
+      KINE_KEY: 'un proyecto de `loadkine`',
+    },
+    results: [
+      'El proyecto reconstruido con la última imagen o vídeo en cada clip.',
+    ],
+    notes: [
+      'Se reconstruye: los clips de la pista principal (recorte de inicio y fin, velocidad y rampas de velocidad, reproducción inversa, volteo, giro, encuadre/zoom, viñeta) y las transiciones, el sonido (tono, volumen, envolventes, cambio de voz, ecualizador, reverberación, clips de audio y fundidos), las capas de vídeo e imagen (posición, tamaño, giro, opacidad, modos de fusión, fotogramas clave, seguimiento de movimiento, máscaras, croma y animaciones), las capas de texto, los stickers y la escritura a mano, todos los controles de ajuste, los 90 filtros de color integrados de KineMaster y los 100 de sus paquetes gratis de la tienda, y casi todos los efectos gratis de la tienda de recursos. Los gráficos de clip, los efectos Premium de la tienda y algunos otros se omiten. La lista completa está en la sección de proyectos de KineMaster.',
+      'Reducido para caber en 1280x720, como mucho 10 minutos. Cuenta para el límite de `ffmpeg` y tiene que terminar dentro del límite de tiempo del script.',
+      'Fuera de los tags, el bot tiene lo mismo con el comando `.kine` (primero el .kine adjunto o su URL, y luego la multimedia) y con `/media-aiv kine`.',
+    ],
+  },
   loadxyt: {
     summary: 'Carga una plantilla de filtro, fx, marco, sticker o texto de VivaVideo (.xyt) para `xytrender`.',
     args: {

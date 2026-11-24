@@ -254,6 +254,8 @@ export const DashboardServers: Record<keyof typeof English, string> = {
   'ssettings.autoembed.premium': 'El auto-embed solo funciona en servidores premium.',
   'ssettings.autoembed.text': 'Incluir el texto de la publicación',
   'ssettings.autoembed.text_hint': 'Publica el autor y la descripción encima del vídeo o las imágenes, cuando el sitio los da.',
+  'ssettings.autoembed.screenshot': 'Dibujar las publicaciones de solo texto como una captura',
+  'ssettings.autoembed.screenshot_hint': 'Una publicación sin imagen ni vídeo se dibuja como una captura de la publicación, en vez de publicarse como texto. En X, Bluesky, Threads y Reddit. Necesita el texto de la publicación encendido.',
   'ssettings.autoembed.gallery': 'Publicaciones con varias imágenes o vídeos',
   'ssettings.autoembed.gallery_hint': 'Cómo las muestran los auto-embeds, por encima del ajuste de quien publica.',
   'ssettings.autoembed.gallery_poster': 'Ajuste de quien publica',
