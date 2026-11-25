@@ -24,6 +24,8 @@ export const Pages: PageDescriptions = Object.freeze({
   DASHBOARD_COMMANDS: DASHBOARD_DESCRIPTION,
   DASHBOARD_FILES: DASHBOARD_DESCRIPTION,
   DASHBOARD_FONTS: DASHBOARD_DESCRIPTION,
+  EDITOR: 'Apila efectos sobre una imagen, GIF, vídeo o audio, mira cada cambio y luego renderízalo a calidad completa.',
+  EDITOR_DOCUMENT: 'Apila efectos sobre una imagen, GIF, vídeo o audio, mira cada cambio y luego renderízalo a calidad completa.',
   DASHBOARD_AI_MEMORY: DASHBOARD_DESCRIPTION,
   DASHBOARD_REMINDERS: DASHBOARD_DESCRIPTION,
   DASHBOARD_REPORTS: DASHBOARD_DESCRIPTION,

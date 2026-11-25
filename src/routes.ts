@@ -48,6 +48,9 @@ export const Routes = Object.freeze({
   DASHBOARD_OWNER_IDENTITIES: '/dashboard/owner/identities',
   DASHBOARD_OWNER_STATS: '/dashboard/owner/stats',
   DASHBOARD_OWNER_VOICE_NODES: '/dashboard/owner/voice-nodes',
+  // the media editor, behind login. a document's id in the path so a reload keeps it
+  EDITOR: '/editor',
+  EDITOR_DOCUMENT: '/editor/:documentId',
   FAQ: '/faq',
   FOXBOT: '/foxbot',
   INVITE: '/invite',

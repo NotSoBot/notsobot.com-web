@@ -115,6 +115,29 @@ export const routes: Array<RouteObject> = [
       {
         element: <RequireAuth/>,
         children: [
+          // the media editor (src/editor), full width under the navbar. its strings come with the dashboard's.
+          // NotSoBot owners only until it rolls out to everyone
+          {
+            element: <RequireStaff owner/>,
+            children: [
+              {
+                path: Routes.EDITOR,
+                lazy: async () => {
+                  const [ editor ] = await Promise.all([ import('@/editor/hosts/web'), loadDashboardText() ]);
+                  return {Component: editor.WebEditorPage};
+                },
+                handle: PAGES.EDITOR,
+              },
+              {
+                path: Routes.EDITOR_DOCUMENT,
+                lazy: async () => {
+                  const [ editor ] = await Promise.all([ import('@/editor/hosts/web'), loadDashboardText() ]);
+                  return {Component: editor.WebEditorPage};
+                },
+                handle: PAGES.EDITOR_DOCUMENT,
+              },
+            ],
+          },
           {
             path: Routes.DASHBOARD,
             // the dashboard's own strings come with it, every page under it renders after both are in

@@ -5,6 +5,7 @@ import { Settings } from './settings';
 import { DashboardTags } from './dashboardTags';
 import { DashboardContent } from './dashboardContent';
 import { DashboardServers } from './dashboardServers';
+import { Editor } from './editor';
 
 
 export const SpanishDashboard: DashboardTranslations = Object.freeze({
@@ -13,4 +14,5 @@ export const SpanishDashboard: DashboardTranslations = Object.freeze({
   ...DashboardTags,
   ...DashboardContent,
   ...DashboardServers,
+  ...Editor,
 });

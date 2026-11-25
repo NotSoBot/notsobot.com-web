@@ -69,6 +69,8 @@ import {
 } from '@/lib/api/types';
 import { toDate } from '@/lib/utils';
 
+import { registerEditorMocks } from './editor';
+
 import {
   adminUserEntries,
   createApplications,
@@ -6505,6 +6507,9 @@ route('GET', '/home', (_match, { query }) => {
     showcases: showcases.filter((showcase) => !heroes.some((item) => item.id === showcase.id)),
   };
 });
+
+
+registerEditorMocks(route, (status, code, message, metadata) => new MockError(status, code, message, metadata));
 
 
 const MOCK_PUBLIC_PATHS = ['/tags/directory', '/reports/anonymous', '/commands', '/commands/stats', '/home', '/info/voice'];
