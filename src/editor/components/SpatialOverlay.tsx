@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 
 import { useI18n } from '@/i18n';
 import { cn } from '@/lib/utils';
@@ -65,13 +65,16 @@ type TextHandle = 'move' | 'left' | 'right' | 'corner';
 // Text's box on the preview, as the render lays it out: wrapped and centered in `width` (a fraction of the media's
 // width), letters `size` of the width tall, the box centered on the position. Drag it to move it, its sides to change
 // how wide it wraps, a corner to scale the text. `+`/`-` resize it from the keyboard, arrows move it
-function PointTool({ step, param, onParam, label, resizeLabel, widthLabel }: {
+function PointTool({ step, param, onParam, label, resizeLabel, widthLabel, editLabel, editHint, maxTextLength }: {
   step: EditorStep,
   param: string,
   onParam: (name: string, value: unknown) => void,
   label: string,
   resizeLabel: string,
   widthLabel: string,
+  editLabel: string,
+  editHint: string,
+  maxTextLength: number,
 }) {
   const [ containerRef, width ] = useElementWidth<HTMLDivElement>();
   const point = step.params[param] as EditorPoint;
@@ -80,7 +83,39 @@ function PointTool({ step, param, onParam, label, resizeLabel, widthLabel }: {
   const boxWidth = (typeof step.params.width === 'number') ? step.params.width : 0.9;
   const color = (typeof step.params.color === 'string') ? step.params.color : '#ffffff';
   const resizable = 'size' in step.params || step.effect === 'text';
-  const dragRef = useRef<{handle: TextHandle, dx: number, dy: number, distance: number, size: number} | null>(null);
+  const dragRef = useRef<{handle: TextHandle, dx: number, dy: number, height: number, size: number} | null>(null);
+  // double-click edits the text right on the preview, Escape puts back what it was
+  const [ editing, setEditing ] = useState(false);
+  const originalRef = useRef('');
+  const editorRef = useRef<HTMLTextAreaElement>(null);
+
+  useLayoutEffect(() => {
+    const editor = editorRef.current;
+    if (!editing || !editor) {
+      return;
+    }
+    // grows with its lines, like the box it replaced
+    editor.style.height = '0px';
+    editor.style.height = `${editor.scrollHeight}px`;
+  }, [editing, text, size, width, boxWidth]);
+
+  const startEditing = () => {
+    if (!('text' in step.params)) {
+      return;
+    }
+    originalRef.current = text;
+    setEditing(true);
+    requestAnimationFrame(() => {
+      editorRef.current?.focus();
+      editorRef.current?.select();
+    });
+  };
+  const textStyle = {
+    color,
+    fontSize: Math.max(8, size * width),
+    lineHeight: 1.1,
+    WebkitTextStroke: '1px #000',
+  };
 
   const start = (handle: TextHandle) => (event: PointerEvent<HTMLElement>) => {
     const container = containerRef.current;
@@ -88,12 +123,16 @@ function PointTool({ step, param, onParam, label, resizeLabel, widthLabel }: {
       return;
     }
     event.stopPropagation();
+    // no text selection or native drag starts under the pointer (it flashes over the preview while drawing)
+    event.preventDefault();
+    // keeps keyboard nudging working after a click (preventing the press also stops it taking focus)
+    (event.currentTarget as HTMLElement | SVGElement).focus?.();
     event.currentTarget.setPointerCapture(event.pointerId);
     const at = fractionOf(event, container);
     const rect = container.getBoundingClientRect();
-    // the corner scales by how far the pointer is from the center, in pixels so it's the same both ways
-    const distance = Math.hypot((at.x - point.x) * rect.width, (at.y - point.y) * rect.height);
-    dragRef.current = {handle, dx: point.x - at.x, dy: point.y - at.y, distance: Math.max(distance, 1), size};
+    // a corner's height comes from how far it is from the center vertically, the box grows with the letters' size
+    const height = Math.abs(at.y - point.y) * rect.height;
+    dragRef.current = {handle, dx: point.x - at.x, dy: point.y - at.y, height: Math.max(height, 4), size};
   };
   const move = (event: PointerEvent<HTMLElement>) => {
     const container = containerRef.current;
@@ -105,9 +144,12 @@ function PointTool({ step, param, onParam, label, resizeLabel, widthLabel }: {
     if (drag.handle === 'move') {
       onParam(param, {x: roundFraction(at.x + drag.dx), y: roundFraction(at.y + drag.dy)});
     } else if (drag.handle === 'corner') {
+      // a corner is the box's width and height at once: across sets where it wraps (the box stays centered), up/down
+      // scales the letters, which is what makes the box taller or shorter
       const rect = container.getBoundingClientRect();
-      const distance = Math.hypot((at.x - point.x) * rect.width, (at.y - point.y) * rect.height);
-      onParam('size', Math.round(clamp(drag.size * (distance / drag.distance), 0.02, 1) * 1000) / 1000);
+      const height = Math.abs(at.y - point.y) * rect.height;
+      onParam('width', Math.round(clamp(Math.abs(at.x - point.x) * 2, 0.1, 1) * 1000) / 1000);
+      onParam('size', Math.round(clamp(drag.size * (height / drag.height), 0.02, 1) * 1000) / 1000);
     } else {
       // the box stays centered on the position, a side sets half its width
       onParam('width', Math.round(clamp(Math.abs(at.x - point.x) * 2, 0.1, 1) * 1000) / 1000);
@@ -143,21 +185,58 @@ function PointTool({ step, param, onParam, label, resizeLabel, widthLabel }: {
         className='absolute -translate-x-1/2 -translate-y-1/2'
         style={{left: `${point.x * 100}%`, top: `${point.y * 100}%`, width: `${boxWidth * 100}%`}}
       >
-        <button
-          type='button'
-          aria-label={label}
-          {...handlers('move')}
-          onKeyDown={onKeyDown}
-          className='block w-full cursor-move touch-none rounded border-2 border-dashed border-white/90 px-1 text-center font-bold break-words whitespace-pre-wrap shadow-[0_0_0_1px_rgba(0,0,0,0.6)] focus-visible:outline-2 focus-visible:outline-brand'
-          style={{
-            color,
-            fontSize: Math.max(8, size * width),
-            lineHeight: 1.1,
-            WebkitTextStroke: '1px #000',
-          }}
-        >
-          {text || ' '}
-        </button>
+        {(editing) ? (
+          <textarea
+            ref={editorRef}
+            value={text}
+            aria-label={editLabel}
+            maxLength={maxTextLength}
+            rows={1}
+            onChange={(event) => onParam('text', event.target.value)}
+            onBlur={() => {
+              setEditing(false);
+              // the api won't take empty text, an emptied box goes back to what it was
+              if (!text.trim()) {
+                onParam('text', originalRef.current);
+              }
+            }}
+            onKeyDown={(event) => {
+              event.stopPropagation();
+              if (event.key === 'Escape') {
+                event.preventDefault();
+                onParam('text', originalRef.current);
+                setEditing(false);
+              } else if (event.key === 'Enter' && !event.shiftKey) {
+                // Enter finishes, Shift+Enter is a new line
+                event.preventDefault();
+                event.currentTarget.blur();
+              }
+            }}
+            className='block w-full resize-none overflow-hidden rounded border-2 border-solid border-brand bg-black/30 px-1 text-center font-bold break-words whitespace-pre-wrap outline-none'
+            style={textStyle}
+          />
+        ) : (
+          <button
+            type='button'
+            aria-label={label}
+            title={editHint}
+            {...handlers('move')}
+            onDoubleClick={startEditing}
+            onKeyDown={(event) => {
+              // Enter (or F2) edits the text from the keyboard
+              if ((event.key === 'Enter' || event.key === 'F2') && 'text' in step.params) {
+                event.preventDefault();
+                startEditing();
+                return;
+              }
+              onKeyDown(event);
+            }}
+            className='block w-full cursor-move touch-none rounded border-2 border-dashed border-white/90 px-1 text-center font-bold break-words whitespace-pre-wrap shadow-[0_0_0_1px_rgba(0,0,0,0.6)] focus-visible:outline-2 focus-visible:outline-brand'
+            style={textStyle}
+          >
+            {text || ' '}
+          </button>
+        )}
         {(resizable) ? (
           <>
             {(['left', 'right'] as const).map((side) => (
@@ -225,6 +304,10 @@ function BoxTool({ step, param, onChange, label, dim }: {
       return;
     }
     event.stopPropagation();
+    // no text selection or native drag starts under the pointer (it flashes over the preview while drawing)
+    event.preventDefault();
+    // keeps keyboard nudging working after a click (preventing the press also stops it taking focus)
+    (event.currentTarget as HTMLElement | SVGElement).focus?.();
     event.currentTarget.setPointerCapture(event.pointerId);
     dragRef.current = {handle, start: fractionOf(event, container), box};
   };
@@ -321,6 +404,10 @@ function StrokesTool({ step, param, onChange, pen, aspect, maxStrokes, maxPoints
     if (full || event.button !== 0) {
       return;
     }
+    // no text selection or native drag starts under the pointer (it flashes over the preview while drawing)
+    event.preventDefault();
+    // keeps keyboard nudging working after a click (preventing the press also stops it taking focus)
+    (event.currentTarget as HTMLElement | SVGElement).focus?.();
     event.currentTarget.setPointerCapture(event.pointerId);
     setCurrent({color: pen.color, width: pen.width, points: [pointOf(event)]});
   };
@@ -383,7 +470,7 @@ function StrokesTool({ step, param, onChange, pen, aspect, maxStrokes, maxPoints
 }
 
 
-export function SpatialOverlay({ tool, step, effectName, onChange, pen, aspect, maxStrokes, maxPoints }: {
+export function SpatialOverlay({ tool, step, effectName, onChange, pen, aspect, maxStrokes, maxPoints, maxTextLength }: {
   tool: SpatialTool,
   step: EditorStep,
   effectName: string,
@@ -393,6 +480,7 @@ export function SpatialOverlay({ tool, step, effectName, onChange, pen, aspect, 
   aspect: number,
   maxStrokes: number,
   maxPoints: number,
+  maxTextLength: number,
 }) {
   const { t } = useI18n();
   const label = t('editor.settings', {name: effectName});
@@ -406,6 +494,9 @@ export function SpatialOverlay({ tool, step, effectName, onChange, pen, aspect, 
           label={label}
           resizeLabel={t('editor.preview.text_resize')}
           widthLabel={t('editor.preview.text_width')}
+          editLabel={t('editor.preview.text_edit_label')}
+          editHint={t('editor.preview.text_edit_hint')}
+          maxTextLength={maxTextLength}
         />
       );
     case 'box':

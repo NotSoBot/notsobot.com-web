@@ -7,11 +7,13 @@ import { intlLocale, useI18n } from '@/i18n';
 import { cn } from '@/lib/utils';
 
 import type { EditorHost } from '../api';
-import type { EditorDocument, EditorDocumentSummary, EditorTemplate } from '../types';
+import type { EditorDocument, EditorDocumentSummary, EditorGenerator, EditorTemplate } from '../types';
+import { useCatalogue } from '../useCatalogue';
+import { GeneratorDialog, GeneratorGrid } from './Generators';
 import { TemplateBanner, TemplateList } from './Templates';
 
 
-// The web host's way in: a file (dropped or picked), a link, or one of their recent edits
+// The way in: a file (dropped or picked), a link, something a generator makes, or one of their recent edits
 export function StartScreen({ host, onOpen, initialUrl, activityInstanceId, template, effectNames }: {
   host: EditorHost,
   onOpen: (document: EditorDocument | EditorDocumentSummary) => void,
@@ -34,6 +36,10 @@ export function StartScreen({ host, onOpen, initialUrl, activityInstanceId, temp
   const [ deleting, setDeleting ] = useState<EditorDocumentSummary | null>(null);
   const [ deletePending, setDeletePending ] = useState(false);
   const startedRef = useRef(false);
+  // the catalogue's generators, fetched once per page load (the editor reuses it)
+  const { catalogue } = useCatalogue(host);
+  const generators = catalogue?.generators ?? [];
+  const [ generating, setGenerating ] = useState<EditorGenerator | null>(null);
 
   useEffect(() => {
     if (activityInstanceId) {
@@ -159,6 +165,32 @@ export function StartScreen({ host, onOpen, initialUrl, activityInstanceId, temp
         </div>
       </form>
       {(error) ? <p role='alert' className='-mt-5 text-sm text-danger-text'>{error}</p> : null}
+
+      {(generators.length) ? (
+        <section className='flex flex-col gap-3'>
+          <div className='flex flex-col gap-1'>
+            <h2 className='font-display text-lg font-bold text-white'>{t('editor.generate.title')}</h2>
+            <p className='text-sm text-muted'>{t('editor.generate.description')}</p>
+          </div>
+          <GeneratorGrid generators={generators} disabled={uploading} onPick={setGenerating}/>
+        </section>
+      ) : null}
+      {(generating) ? (
+        <GeneratorDialog
+          generator={generating}
+          onClose={() => setGenerating(null)}
+          onMake={async (params) => {
+            try {
+              const document = await host.api.generateDocument({generator: generating.id, params, activityInstanceId, templateCode: template?.code});
+              setGenerating(null);
+              onOpen(document);
+              return null;
+            } catch (failure) {
+              return host.errorOf(failure)?.message || t('editor.generate.error');
+            }
+          }}
+        />
+      ) : null}
 
       {(!activityInstanceId) ? (
       <section className='flex flex-col gap-3'>

@@ -1,5 +1,6 @@
 // The media editor's routes for the dev mocks (`VITE_DASHBOARD_MOCKS=true`). The catalogue is the real one (exported
-// from notsobot.api's `catalogue_payload()`), tiles use the commands page mock previews where there's one. Nothing is
+// from notsobot.api's `catalogue_payload()`, its thumbnails from the live `/commands` AFTER media), tiles use the commands
+// page mock previews where there's one. Nothing is
 // rendered: a preview answers `pending` once, then the unedited proxy, and a render finishes after a few polls with the
 // proxy as its file. A version mismatch answers 409 like the api.
 
@@ -22,7 +23,8 @@ function catalogue(): EditorCatalogue {
   const data = structuredClone(catalogueJson) as unknown as EditorCatalogue;
   for (const effect of data.effects) {
     const after = (effect.command_id) ? MOCK_COMMAND_PREVIEWS[effect.command_id]?.media.find((item) => item.type === 0) : undefined;
-    effect.thumbnail = (after) ? {url: after.url, mimetype: after.mimetype, width: after.width, height: after.height, duration: after.duration} : null;
+    // the commands page mocks where there's one, otherwise the fixture's (the live command's AFTER on cdn.nsb.gg)
+    effect.thumbnail = (after) ? {url: after.url, mimetype: after.mimetype, width: after.width, height: after.height, duration: after.duration} : effect.thumbnail;
   }
   return data;
 }
@@ -181,6 +183,34 @@ export function registerEditorMocks(route: Route, error: MakeError): void {
       };
       image.src = url;
     }
+    return document;
+  });
+
+  // a generator's media: its preview image stands in for what it makes, a blank canvas is drawn for real
+  route('POST', '/editor/documents/generate', (_, { body }) => {
+    const generator = catalogue().generators?.find((item) => item.id === body.generator);
+    if (!generator) {
+      throw error(400, 50001, `Unknown generator '${String(body.generator)}'`);
+    }
+    const params = (body.params ?? {}) as Record<string, unknown>;
+    let url = generator.thumbnail?.url ?? SAMPLE;
+    let width = generator.thumbnail?.width ?? 512;
+    let height = generator.thumbnail?.height ?? 512;
+    if (generator.id === 'canvas') {
+      width = Number(params.width ?? 1024);
+      height = Number(params.height ?? 1024);
+      const canvas = window.document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext('2d')!;
+      context.fillStyle = String(params.color ?? '#ffffff');
+      context.fillRect(0, 0, width, height);
+      url = canvas.toDataURL('image/png');
+    }
+    nextId += 1;
+    const id = String(nextId);
+    const document = makeDocument(id, url, generator.id, 'image/png', width, height);
+    documents.set(id, document);
     return document;
   });
 

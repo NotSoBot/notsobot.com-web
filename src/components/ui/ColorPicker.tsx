@@ -1,13 +1,14 @@
 import { Pipette } from 'lucide-react';
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
 import { useI18n } from '@/i18n';
-import { COLOR_FORMATS, formatColor, hsvaToRgba, parseColor, rgbaToHsva, toHex, type ColorFormat, type Hsva } from '@/lib/color';
+import { COLOR_FORMATS, formatColor, hslToRgba, hsvaToRgba, parseColor, rgbaToHsl, rgbaToHsva, toHex, type ColorFormat, type Hsva, type Rgba } from '@/lib/color';
 import { cn } from '@/lib/utils';
 
 
 // Our own color picker, the browser's (`<input type=color>`) can't be styled and looks different everywhere. A swatch
-// button opens a panel under it (not a popup, it sits in narrow sidebars and Discord's Activity frame): a
+// button opens a floating panel by it (in a portal, fixed: nothing under it moves, a scrolling sidebar can't clip it): a
 // saturation/brightness square, hue and opacity sliders, one box that reads any color pasted into it, presets and the
 // screen eyedropper where the browser has one. `value` is `#rrggbb`, or `#rrggbbaa` with `alpha`
 
@@ -15,6 +16,9 @@ import { cn } from '@/lib/utils';
 const PRESETS = ['#ffffff', '#000000', '#ff3b30', '#ff9500', '#ffcc00', '#34c759', '#00c7be', '#007aff', '#af52de', '#ff2d55'];
 const FORMAT_KEY = 'colorPicker:format';
 const CHECKERBOARD = 'repeating-conic-gradient(#808080 0% 25%, #c0c0c0 0% 50%) 50% / 10px 10px';
+const PANEL_WIDTH = 288;
+// from the window's edges and the swatch
+const PANEL_GAP = 8;
 
 interface EyeDropperResult { sRGBHex: string }
 interface EyeDropperConstructor { new (): {open: () => Promise<EyeDropperResult>} }
@@ -98,6 +102,63 @@ function Slider({ label, value, maximum, step, background, thumb, onChange, valu
 }
 
 
+// One channel's number (R, H°, A%…), its letter under it. ↑/↓ nudge it (Shift by 10), out of range is clamped, and a
+// whole color pasted into it (`#ff0000`, `rgb(...)`, a name) is used as that color
+function ChannelInput({ label, name, value, maximum, onChange, onPasteColor }: {
+  label: string,
+  name: string,
+  value: number,
+  maximum: number,
+  onChange: (value: number) => void,
+  onPasteColor: (text: string) => boolean,
+}) {
+  const id = useId();
+  const [ draft, setDraft ] = useState<string | null>(null);
+  const set = (next: number) => onChange(Math.min(Math.max(Math.round(next), 0), maximum));
+  return (
+    <div className='flex min-w-0 flex-col items-center gap-0.5'>
+      <input
+        id={id}
+        value={draft ?? String(value)}
+        inputMode='numeric'
+        autoComplete='off'
+        spellCheck={false}
+        aria-label={name}
+        onFocus={(event) => event.target.select()}
+        onChange={(event) => {
+          const text = event.target.value;
+          setDraft(text);
+          if (/^\d{1,3}$/.test(text.trim())) {
+            set(Number(text));
+          }
+        }}
+        onPaste={(event) => {
+          const text = event.clipboardData.getData('text');
+          // more than a number: a whole color
+          if (!/^\s*\d{1,3}\s*$/.test(text) && onPasteColor(text)) {
+            event.preventDefault();
+            setDraft(null);
+          }
+        }}
+        onBlur={() => setDraft(null)}
+        onKeyDown={(event) => {
+          const step = (event.shiftKey) ? 10 : 1;
+          if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+            event.preventDefault();
+            setDraft(null);
+            set(value + ((event.key === 'ArrowUp') ? step : -step));
+          } else if (event.key === 'Enter') {
+            event.currentTarget.blur();
+          }
+        }}
+        className='h-9 w-full min-w-0 rounded-md border border-line-strong bg-surface px-1 text-center font-mono text-[13px] text-fg tabular-nums outline-none focus:border-brand'
+      />
+      <label htmlFor={id} aria-hidden className='font-mono text-[11px] text-subtle'>{label}</label>
+    </div>
+  );
+}
+
+
 export function ColorPicker({ value, onChange, label, alpha = false, children }: {
   value: string,
   onChange: (value: string) => void,
@@ -112,7 +173,48 @@ export function ColorPicker({ value, onChange, label, alpha = false, children }:
   const inputId = useId();
   const formatId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const [ open, setOpen ] = useState(false);
+  const [ position, setPosition ] = useState<{top: number, left: number} | null>(null);
+
+  // right-aligned under the swatch, above it when there's no room below, kept inside the window. Follows scrolling
+  // (any scroll container, so capture) and resizes while open
+  useLayoutEffect(() => {
+    if (!open) {
+      setPosition(null);
+      return;
+    }
+    let frame = 0;
+    const place = () => {
+      const trigger = triggerRef.current?.getBoundingClientRect();
+      if (!trigger) {
+        return;
+      }
+      const height = panelRef.current?.offsetHeight ?? 0;
+      const width = Math.min(PANEL_WIDTH, window.innerWidth - PANEL_GAP * 2);
+      const left = Math.min(Math.max(trigger.right - width, PANEL_GAP), window.innerWidth - width - PANEL_GAP);
+      const below = trigger.bottom + PANEL_GAP;
+      const top = (below + height + PANEL_GAP <= window.innerHeight || trigger.top - PANEL_GAP - height < PANEL_GAP)
+        ? Math.min(below, Math.max(window.innerHeight - height - PANEL_GAP, PANEL_GAP))
+        : trigger.top - PANEL_GAP - height;
+      setPosition({top, left});
+    };
+    const schedule = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(place);
+    };
+    place();
+    // once more after the panel has a height to measure
+    schedule();
+    window.addEventListener('resize', schedule);
+    window.addEventListener('scroll', schedule, true);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('resize', schedule);
+      window.removeEventListener('scroll', schedule, true);
+    };
+  }, [open, alpha]);
   const [ format, setFormatState ] = useState<ColorFormat>(readFormat);
   // the box while it's being typed in, null shows the color in the picked format
   const [ text, setText ] = useState<string | null>(null);
@@ -137,7 +239,9 @@ export function ColorPicker({ value, onChange, label, alpha = false, children }:
       return;
     }
     const onPointerDown = (event: globalThis.PointerEvent) => {
-      if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      // the panel is portalled out of the root, a click in it is still inside
+      if (!rootRef.current?.contains(target) && !panelRef.current?.contains(target)) {
         setOpen(false);
       }
     };
@@ -166,6 +270,10 @@ export function ColorPicker({ value, onChange, label, alpha = false, children }:
     emit({...next, h: (next.s) ? next.h : hsva.h});
     return true;
   };
+  const emitRgb = (next: Rgba) => {
+    const converted = rgbaToHsva(next);
+    emit({...converted, h: (converted.s) ? converted.h : hsva.h});
+  };
   const setFormat = (next: ColorFormat) => {
     setFormatState(next);
     setText(null);
@@ -175,6 +283,25 @@ export function ColorPicker({ value, onChange, label, alpha = false, children }:
       // private window or blocked storage, the format is only remembered for this picker
     }
   };
+
+  // RGB and HSL as separate numbers. HSL's hue comes from the picker's own state, a grey has none of its own
+  const [ , hslSaturation, hslLightness ] = rgbaToHsl(rgba);
+  const setHsl = (h: number, saturation: number, lightness: number) => {
+    const next = rgbaToHsva(hslToRgba(h, saturation, lightness, hsva.a));
+    emit({...next, h: (next.s) ? next.h : h});
+  };
+  const alphaChannel = {key: 'a', name: t('ui.color.channel.a'), label: 'A', value: Math.round(hsva.a * 100), maximum: 100, set: (value: number) => emit({...hsva, a: value / 100})};
+  const channels = (format === 'hsl') ? [
+    {key: 'h', name: t('ui.color.channel.h'), label: 'H°', value: Math.round(hsva.h), maximum: 359, set: (value: number) => setHsl(value, hslSaturation, hslLightness)},
+    {key: 's', name: t('ui.color.channel.s'), label: 'S%', value: hslSaturation, maximum: 100, set: (value: number) => setHsl(hsva.h, value, hslLightness)},
+    {key: 'l', name: t('ui.color.channel.l'), label: 'L%', value: hslLightness, maximum: 100, set: (value: number) => setHsl(hsva.h, hslSaturation, value)},
+    ...((alpha) ? [alphaChannel] : []),
+  ] : [
+    {key: 'r', name: t('ui.color.channel.r'), label: 'R', value: rgba.r, maximum: 255, set: (value: number) => emitRgb({...rgba, r: value})},
+    {key: 'g', name: t('ui.color.channel.g'), label: 'G', value: rgba.g, maximum: 255, set: (value: number) => emitRgb({...rgba, g: value})},
+    {key: 'b', name: t('ui.color.channel.b'), label: 'B', value: rgba.b, maximum: 255, set: (value: number) => emitRgb({...rgba, b: value})},
+    ...((alpha) ? [alphaChannel] : []),
+  ];
 
   const hueColor = `hsl(${Math.round(hsva.h)}, 100%, 50%)`;
   const solid = toHex({...rgba, a: 1}, false);
@@ -195,6 +322,7 @@ export function ColorPicker({ value, onChange, label, alpha = false, children }:
         <span className='text-[13px] text-muted'>{label}</span>
         {children}
         <button
+          ref={triggerRef}
           type='button'
           aria-expanded={open}
           aria-controls={panelId}
@@ -212,8 +340,23 @@ export function ColorPicker({ value, onChange, label, alpha = false, children }:
         </button>
       </div>
 
-      {(open) ? (
-        <div id={panelId} className='flex flex-col gap-3 rounded-lg border border-line-strong bg-deep p-3'>
+      {(open) ? createPortal(
+        <div
+          ref={panelRef}
+          id={panelId}
+          role='dialog'
+          aria-label={label}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') {
+              event.stopPropagation();
+              setOpen(false);
+              triggerRef.current?.focus();
+            }
+          }}
+          className='fixed z-[60] flex flex-col gap-3 rounded-xl border border-line-strong bg-deep p-3 shadow-[0_12px_32px_rgba(0,0,0,0.5)]'
+          // hidden until it's measured and placed, so it never shows at the wrong spot for a frame
+          style={{top: position?.top ?? 0, left: position?.left ?? 0, width: Math.min(PANEL_WIDTH, window.innerWidth - PANEL_GAP * 2), visibility: (position) ? 'visible' : 'hidden'}}
+        >
           <div
             role='slider'
             tabIndex={0}
@@ -265,7 +408,7 @@ export function ColorPicker({ value, onChange, label, alpha = false, children }:
             />
           ) : null}
 
-          <div className='flex gap-2'>
+          <div className='flex items-start gap-2'>
             <label htmlFor={formatId} className='sr-only'>{t('ui.color.format')}</label>
             <select
               id={formatId}
@@ -275,37 +418,57 @@ export function ColorPicker({ value, onChange, label, alpha = false, children }:
             >
               {COLOR_FORMATS.map((item) => <option key={item} value={item}>{t(`ui.color.formats.${item}`)}</option>)}
             </select>
-            <label htmlFor={inputId} className='sr-only'>{t('ui.color.value')}</label>
-            <input
-              id={inputId}
-              value={text ?? formatColor(rgba, format, alpha)}
-              spellCheck={false}
-              autoComplete='off'
-              aria-invalid={invalid}
-              aria-describedby={`${inputId}-hint`}
-              onChange={(event) => {
-                setText(event.target.value);
-                // any format works whatever's picked, it applies as soon as it reads as a color
-                setInvalid(!emitText(event.target.value) && Boolean(event.target.value.trim()));
-              }}
-              onFocus={(event) => event.target.select()}
-              onBlur={() => {
-                setText(null);
-                setInvalid(false);
-              }}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  event.preventDefault();
-                  event.currentTarget.blur();
-                }
-              }}
-              className={cn(
-                'h-9 min-w-0 flex-1 rounded-md border bg-surface px-2 font-mono text-[13px] text-fg outline-none',
-                (invalid) ? 'border-danger focus:border-danger' : 'border-line-strong focus:border-brand',
-              )}
-            />
+            {(format === 'rgb' || format === 'hsl') ? (
+              // one box per channel, labeled under it: the numbers people actually change
+              <div className='grid min-w-0 flex-1 gap-1.5' style={{gridTemplateColumns: `repeat(${channels.length}, minmax(0, 1fr))`}}>
+                {channels.map((channel) => (
+                  <ChannelInput
+                    key={channel.key}
+                    label={channel.label}
+                    name={channel.name}
+                    value={channel.value}
+                    maximum={channel.maximum}
+                    onChange={channel.set}
+                    onPasteColor={emitText}
+                  />
+                ))}
+              </div>
+            ) : (
+              <>
+                <label htmlFor={inputId} className='sr-only'>{t('ui.color.value')}</label>
+                <input
+                  id={inputId}
+                  value={text ?? formatColor(rgba, format, alpha)}
+                  spellCheck={false}
+                  autoComplete='off'
+                  inputMode={(format === 'int') ? 'numeric' : undefined}
+                  aria-invalid={invalid}
+                  aria-describedby={`${inputId}-hint`}
+                  onChange={(event) => {
+                    setText(event.target.value);
+                    // any format works whatever's picked, it applies as soon as it reads as a color
+                    setInvalid(!emitText(event.target.value) && Boolean(event.target.value.trim()));
+                  }}
+                  onFocus={(event) => event.target.select()}
+                  onBlur={() => {
+                    setText(null);
+                    setInvalid(false);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      event.currentTarget.blur();
+                    }
+                  }}
+                  className={cn(
+                    'h-9 min-w-0 flex-1 rounded-md border bg-surface px-2 font-mono text-[13px] text-fg outline-none',
+                    (invalid) ? 'border-danger focus:border-danger' : 'border-line-strong focus:border-brand',
+                  )}
+                />
+              </>
+            )}
           </div>
-          <p id={`${inputId}-hint`} className={cn('-mt-1.5 text-xs', (invalid) ? 'text-danger-text' : 'text-subtle')}>
+          <p id={`${inputId}-hint`} className={cn('-mt-1 text-xs', (invalid) ? 'text-danger-text' : 'text-subtle')}>
             {(invalid) ? t('ui.color.invalid') : t('ui.color.hint')}
           </p>
 
@@ -337,7 +500,8 @@ export function ColorPicker({ value, onChange, label, alpha = false, children }:
               </button>
             ) : null}
           </div>
-        </div>
+        </div>,
+        document.body,
       ) : null}
     </div>
   );

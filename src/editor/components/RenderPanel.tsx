@@ -45,13 +45,16 @@ function resultOf(job: EditorJob): RenderState {
 
 // The full quality render: the whole stack on the original, a normal job on the user's tier queue. Polled through
 // `/jobs/<id>` like a command. Only the newest one counts, a new render or leaving the document drops the old poll
-export function RenderPanel({ host, documentId, formats, sourceKind, disabled }: {
+export function RenderPanel({ host, documentId, formats, sourceKind, empty, waitForSave }: {
   host: EditorHost,
   documentId: string,
   // the document's `render_formats`, the picker is left out without any
   formats: Array<string>,
   sourceKind: string,
-  disabled: boolean,
+  // no visible steps: the only time it's off, and the only time its hint shows (it never comes and goes while editing)
+  empty: boolean,
+  // the last edits saved, a render started mid-save waits for them instead of the button switching off on every edit
+  waitForSave: () => Promise<boolean>,
 }) {
   const { t, rich } = useI18n();
   const formatId = useId();
@@ -72,6 +75,15 @@ export function RenderPanel({ host, documentId, formats, sourceKind, disabled }:
   const start = async () => {
     const run = ++runRef.current;
     setState({status: 'running', job: null});
+    if (!(await waitForSave())) {
+      if (run === runRef.current) {
+        setState({status: 'failed', message: t('editor.render.unsaved')});
+      }
+      return;
+    }
+    if (run !== runRef.current) {
+      return;
+    }
     announce('started');
     try {
       let job = await host.api.render(documentId, (formats.includes(format)) ? format : undefined);
@@ -112,7 +124,7 @@ export function RenderPanel({ host, documentId, formats, sourceKind, disabled }:
       {(formats.length) ? (
         <div className='flex items-center gap-2'>
           <label htmlFor={formatId} className='shrink-0 text-[13px] text-muted'>{t('editor.render.format')}</label>
-          <select id={formatId} value={format} disabled={running} onChange={(event) => setFormat(event.target.value)} className={SELECT}>
+          <select id={formatId} value={(formats.includes(format)) ? format : ''} disabled={running} onChange={(event) => setFormat(event.target.value)} className={SELECT}>
             <option value=''>{t('editor.render.format_auto')}</option>
             {formats.map((mimetype) => (
               <option key={mimetype} value={mimetype}>
@@ -122,11 +134,11 @@ export function RenderPanel({ host, documentId, formats, sourceKind, disabled }:
           </select>
         </div>
       ) : null}
-      <button type='button' className='btn btn-primary min-h-11 w-full' disabled={disabled || running} onClick={() => void start()}>
+      <button type='button' className='btn btn-primary min-h-11 w-full' disabled={empty || running} onClick={() => void start()}>
         {(running) ? <Spinner className='size-4 border-white/40 border-t-white'/> : null}
         {(running) ? ((queued) ? t('editor.render.queued') : t('editor.render.rendering')) : t('editor.render')}
       </button>
-      {(disabled) ? <p className='text-xs text-subtle'>{t('editor.render.empty')}</p> : null}
+      {(empty) ? <p className='text-xs text-subtle'>{t('editor.render.empty')}</p> : null}
       <p className='text-xs leading-relaxed text-muted'>
         {rich('editor.render.limits', {premium: (chunk) => <a href={host.premiumUrl} onClick={external(host.premiumUrl)} className='text-brand-text underline hover:text-white'>{chunk}</a>})}
       </p>

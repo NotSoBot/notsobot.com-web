@@ -14,11 +14,12 @@ import { SpatialOverlay, type PenSettings } from './SpatialOverlay';
 const ZOOMS = [1, 1.5, 2, 3, 4];
 
 
-export function PreviewStage({ state, pen, maxStrokes, maxPoints }: {
+export function PreviewStage({ state, pen, maxStrokes, maxPoints, maxTextLength }: {
   state: EditorDocumentState,
   pen: PenSettings,
   maxStrokes: number,
   maxPoints: number,
+  maxTextLength: number,
 }) {
   const { t } = useI18n();
   const [ showOriginal, setShowOriginal ] = useState(false);
@@ -92,8 +93,8 @@ export function PreviewStage({ state, pen, maxStrokes, maxPoints }: {
   const aspect = (shown && shown.width && shown.height) ? shown.height / shown.width : 1;
 
   return (
-    <section aria-label={t('editor.preview')} className='flex min-h-[420px] min-w-0 flex-col gap-3.5 bg-deep p-4 sm:p-5 lg:min-h-full'>
-      <div className='flex flex-wrap items-center gap-2'>
+    <section aria-label={t('editor.preview')} className='flex min-h-[420px] min-w-0 flex-col gap-3.5 bg-deep p-4 select-none sm:p-5 lg:min-h-full'>
+      <div className='flex min-h-9 flex-wrap items-center gap-2'>
         {(proxy) ? (
           <span className='rounded-md bg-surface px-2 py-1 font-mono text-xs text-muted'>
             {t('editor.preview.size', {width: proxy.width || '?', height: proxy.height || '?'})}
@@ -102,7 +103,8 @@ export function PreviewStage({ state, pen, maxStrokes, maxPoints }: {
         <span
           role='status'
           className={cn(
-            'inline-flex items-center gap-1.5 text-[13px]',
+            // one line, it changes on every edit and mustn't change the row's height (the preview under it would jump)
+            'inline-flex items-center gap-1.5 text-[13px] whitespace-nowrap',
             (statusTone === 'success') ? 'text-success-text' : (statusTone === 'danger') ? 'text-danger-text' : (statusTone === 'warning') ? 'text-warning' : 'text-muted',
           )}
         >
@@ -173,6 +175,7 @@ export function PreviewStage({ state, pen, maxStrokes, maxPoints }: {
                   aspect={aspect}
                   maxStrokes={maxStrokes}
                   maxPoints={maxPoints}
+                  maxTextLength={maxTextLength}
                 />
               ) : null}
               {(stoppedAt && !showOriginal) ? (

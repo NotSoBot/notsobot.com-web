@@ -11,7 +11,8 @@ export function newStepId(): string {
 }
 
 
-export function defaultParams(effect: EditorEffect): Record<string, unknown> {
+// an effect's or a generator's
+export function defaultParams(effect: {params: Array<EditorParam>}): Record<string, unknown> {
   const params: Record<string, unknown> = {};
   for (const param of effect.params) {
     params[param.name] = structuredClone(param.default);

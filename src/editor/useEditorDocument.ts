@@ -19,6 +19,8 @@ const COALESCE_WINDOW = 800;
 const MAX_HISTORY = 50;
 // animated media with more frames than this preview one frame at a time until play is pressed (the api's frame mode)
 export const FRAME_MODE_MIN_FRAMES = 48;
+// how long a render waits for the last edits to save before giving up
+const SAVE_WAIT_LIMIT = 15 * 1000;
 // rooms: a dragged param is sent at most this often, its lock renewed this often and dropped this long after the last move
 const ROOM_PARAM_INTERVAL = 120;
 const ROOM_LOCK_RENEW = 4000;
@@ -60,6 +62,8 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
   const [ , setHistoryVersion ] = useState(0);
   const [ selectedId, setSelectedId ] = useState<string | null>(null);
   const [ saveState, setSaveState ] = useState<SaveState>('saved');
+  const saveStateRef = useRef<SaveState>('saved');
+  saveStateRef.current = saveState;
   const [ stepError, setStepError ] = useState<StepError | null>(null);
   // the server changed it under us (someone else's edit), the stack was reloaded
   const [ reloaded, setReloaded ] = useState(false);
@@ -565,6 +569,22 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
   }, [documentId, room, runPreview]);
 
   // who else holds a step's soft lock (they're dragging it), null when it's free or it's ours
+  // Resolves once every edit is saved (true), or the save failed or took too long (false). The render waits on it, so
+  // its button doesn't have to be turned off while each stroke or slider move saves
+  const whenSaved = useCallback(async (): Promise<boolean> => {
+    const deadline = Date.now() + SAVE_WAIT_LIMIT;
+    while (Date.now() < deadline) {
+      if (saveStateRef.current === 'saved') {
+        return true;
+      }
+      if (saveStateRef.current === 'error') {
+        return false;
+      }
+      await new Promise((resolve) => window.setTimeout(resolve, 100));
+    }
+    return false;
+  }, []);
+
   const lockedBy = useCallback((stepId: string): RoomMember | null => {
     const userId = locks[stepId];
     if (!room || !userId || userId === room.you) {
@@ -598,6 +618,7 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
     selectedStep,
     selectedTool,
     saveState,
+    whenSaved,
     stepError,
     reloaded,
     canUndo: historyRef.current.past.length > 0,

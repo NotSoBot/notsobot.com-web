@@ -162,7 +162,7 @@ export function EditorApp({ host, documentId, catalogue }: {host: EditorHost, do
           <EffectPicker effects={catalogue.effects} kind={pickerKind} hasAudio={hasAudio && pickerKind !== 'image'} onAdd={addEffect}/>
         </div>
         <div className='order-1 min-w-0 flex-1 bg-deep lg:order-2 lg:overflow-y-auto'>
-          <PreviewStage state={state} pen={pen} maxStrokes={catalogue.limits.max_strokes} maxPoints={catalogue.limits.max_stroke_points}/>
+          <PreviewStage state={state} pen={pen} maxStrokes={catalogue.limits.max_strokes} maxPoints={catalogue.limits.max_stroke_points} maxTextLength={catalogue.limits.max_text_length}/>
         </div>
         <aside aria-label={t('editor.edits')} className='order-2 flex w-full shrink-0 flex-col gap-3 border-line bg-surface p-4 lg:order-3 lg:min-h-0 lg:w-[320px] lg:border-l xl:w-[360px]'>
           {/* the steps and their settings scroll, Render stays at the bottom */}
@@ -190,7 +190,8 @@ export function EditorApp({ host, documentId, catalogue }: {host: EditorHost, do
             documentId={document.id}
             formats={document.render_formats ?? []}
             sourceKind={document.source_meta.kind}
-            disabled={!state.steps.some((step) => !step.hidden) || state.saveState !== 'saved'}
+            empty={!state.steps.some((step) => !step.hidden)}
+            waitForSave={state.whenSaved}
           />
         </aside>
       </div>

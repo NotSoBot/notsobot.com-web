@@ -78,6 +78,15 @@ export function createEditorApi(request: EditorRequest) {
       // a big upload takes longer than the usual 15s
       return request<EditorDocument>('/editor/documents', {method: 'POST', body: form, timeout: 120 * 1000});
     },
+    // a document whose source a generator makes (the api waits for it, up to ~40s on a busy queue)
+    generateDocument: (input: {generator: string, params: Record<string, unknown>, activityInstanceId?: string, templateCode?: string}) => request<EditorDocument>(
+      '/editor/documents/generate',
+      {
+        method: 'POST',
+        body: {generator: input.generator, params: input.params, activity_instance_id: input.activityInstanceId, template_code: input.templateCode},
+        timeout: 60 * 1000,
+      },
+    ),
     document: (documentId: string, signal?: AbortSignal) => request<EditorDocument>(`/editor/documents/${pathId(documentId)}`, {signal}),
     saveSteps: (documentId: string, steps: Array<EditorStep>, version: number) => request<EditorDocument>(
       `/editor/documents/${pathId(documentId)}`,

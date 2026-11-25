@@ -16,6 +16,9 @@ const TAB_LABELS: Record<EditorGroup, TranslationKey> = {
   text: 'editor.tab.text',
   draw: 'editor.tab.draw',
   audio: 'editor.tab.audio',
+  animate: 'editor.tab.animate',
+  faces: 'editor.tab.faces',
+  frames: 'editor.tab.frames',
 };
 
 
@@ -98,7 +101,7 @@ export function EffectPicker({ effects, kind, hasAudio, onAdd }: {
 }) {
   const { t } = useI18n();
   const [ query, setQuery ] = useState('');
-  const groups: Array<EditorGroup> = ['effects', 'adjust', 'text', 'draw', 'audio'];
+  const groups: Array<EditorGroup> = ['effects', 'adjust', 'animate', 'text', 'faces', 'frames', 'draw', 'audio'];
   const usable = useMemo(() => effects.filter((effect) => effectFits(effect, kind, hasAudio)), [effects, kind, hasAudio]);
   const enabledGroups = groups.filter((group) => usable.some((effect) => effect.group === group));
   const [ tab, setTab ] = useState<EditorGroup>(() => enabledGroups[0] ?? 'effects');
@@ -115,7 +118,8 @@ export function EffectPicker({ effects, kind, hasAudio, onAdd }: {
   return (
     <section aria-label={t('editor.tabs')} className='flex min-w-0 flex-col gap-3.5'>
       <SearchInput size='sm' value={query} onValueChange={setQuery} placeholder={t('editor.search')} aria-label={t('editor.search')}/>
-      <div role='group' aria-label={t('editor.tabs')} className='flex gap-1 rounded-lg bg-deep p-1'>
+      {/* eight groups: two rows of four, every label fits a narrow sidebar */}
+      <div role='group' aria-label={t('editor.tabs')} className='grid grid-cols-4 gap-1 rounded-lg bg-deep p-1'>
         {groups.map((group) => {
           const enabled = enabledGroups.includes(group);
           const selected = !search && tab === group;
@@ -130,7 +134,7 @@ export function EffectPicker({ effects, kind, hasAudio, onAdd }: {
                 setQuery('');
               }}
               className={cn(
-                'min-h-9 flex-1 rounded-md px-1 text-[13px] font-semibold transition-colors',
+                'min-h-9 min-w-0 truncate rounded-md px-1 text-[13px] font-semibold transition-colors',
                 (selected) ? 'bg-brand text-white' : (enabled) ? 'text-muted hover:text-fg' : 'cursor-not-allowed text-[#72767d]',
               )}
             >

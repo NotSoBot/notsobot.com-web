@@ -2,7 +2,7 @@
 // site's /editor page and the Discord Activity.
 
 export type EditorMediaKind = 'audio' | 'image' | 'video';
-export type EditorGroup = 'effects' | 'adjust' | 'text' | 'draw' | 'audio';
+export type EditorGroup = 'effects' | 'adjust' | 'text' | 'draw' | 'audio' | 'animate' | 'faces' | 'frames';
 // `time`: seconds into the media as the steps before it left it (Trim, Still Frame)
 export type EditorParamKind = 'boolean' | 'choice' | 'color' | 'integer' | 'number' | 'text' | 'point' | 'box' | 'strokes' | 'time';
 
@@ -42,8 +42,22 @@ export interface EditorEffect {
   thumbnail: EditorThumbnail | null,
 }
 
+// makes a document's starting media from its params (the start screen's "Make one"), not a step
+export interface EditorGenerator {
+  id: string,
+  name: string,
+  kind: EditorMediaKind,
+  params: Array<EditorParam>,
+  // the text's lines are separate lines on the media (neon, tombstone)
+  multiline: boolean,
+  command_id: string | null,
+  thumbnail: EditorThumbnail | null,
+}
+
 export interface EditorCatalogue {
   effects: Array<EditorEffect>,
+  // absent from an api before them
+  generators?: Array<EditorGenerator>,
   groups: Array<EditorGroup>,
   limits: {max_stroke_points: number, max_strokes: number, max_text_length: number},
   version: number,

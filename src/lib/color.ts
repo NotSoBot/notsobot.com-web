@@ -161,7 +161,21 @@ export function hsvaToRgba({ h, s, v, a }: Hsva): Rgba {
 }
 
 
-function rgbaToHsl({ r, g, b }: Rgba): [number, number, number] {
+export function hslToRgba(h: number, s: number, l: number, a: number = 1): Rgba {
+  // h 0-360, s and l 0-100
+  const saturation = clamp(s, 0, 100) / 100;
+  const lightness = clamp(l, 0, 100) / 100;
+  const chroma = (1 - Math.abs(2 * lightness - 1)) * saturation;
+  const hue = ((h % 360) + 360) % 360;
+  const x = chroma * (1 - Math.abs(((hue / 60) % 2) - 1));
+  const m = lightness - chroma / 2;
+  const [ r, g, b ] = (hue < 60) ? [chroma, x, 0] : (hue < 120) ? [x, chroma, 0] : (hue < 180) ? [0, chroma, x]
+    : (hue < 240) ? [0, x, chroma] : (hue < 300) ? [x, 0, chroma] : [chroma, 0, x];
+  return {r: byte((r + m) * 255), g: byte((g + m) * 255), b: byte((b + m) * 255), a};
+}
+
+
+export function rgbaToHsl({ r, g, b }: Rgba): [number, number, number] {
   const [ rr, gg, bb ] = [r / 255, g / 255, b / 255];
   const max = Math.max(rr, gg, bb);
   const min = Math.min(rr, gg, bb);
