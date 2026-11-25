@@ -686,6 +686,37 @@ function setPageHeaders(headers: Headers, etag: string | null): Headers {
 }
 
 
+// The Discord Activity's page (activity.html, src/activity.tsx). Its url mapping in the developer portal is `/` →
+// `<site>/activity`, so everything it loads through Discord's proxy arrives under /activity: the page itself, and its
+// bundles as /activity/assets/*, which are the site's own /assets/*. Discord frames it, so unlike every other page it
+// may be framed, by Discord only
+const ACTIVITY_FRAME_POLICY = 'frame-ancestors https://discord.com https://*.discord.com https://*.discordsays.com; object-src \'none\'; base-uri \'self\'';
+
+async function serveActivity(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+  const rest = url.pathname.replace(/^\/activity/, '');
+  if (rest.startsWith('/assets/') || rest === '/favicon.svg') {
+    return env.ASSETS.fetch(new Request(new URL(rest + url.search, url), request));
+  }
+  // vite's dev server has it as /activity.html, static assets serves it as /activity (and redirects the .html)
+  let page = await env.ASSETS.fetch(new Request(new URL('/activity.html', url)));
+  if (page.status !== 200) {
+    page = await env.ASSETS.fetch(new Request(new URL('/activity', url)));
+  }
+  if (!page.ok) {
+    return page;
+  }
+  const headers = new Headers(page.headers);
+  headers.set('cache-control', 'no-cache');
+  headers.set('content-security-policy', ACTIVITY_FRAME_POLICY);
+  headers.delete('x-frame-options');
+  headers.set('x-content-type-options', 'nosniff');
+  headers.set('referrer-policy', 'strict-origin-when-cross-origin');
+  headers.set('strict-transport-security', STRICT_TRANSPORT_SECURITY);
+  return new Response((request.method === 'HEAD') ? null : page.body, {headers, status: 200});
+}
+
+
 // the html for one of the site's pages (or the not-found page) with its metatags filled in, or a file from static assets
 async function renderPage(request: Request, env: Env, context: ExecutionContext | null): Promise<Response> {
   const url = new URL(request.url);
@@ -875,6 +906,10 @@ for (const host of [...SITE_HOSTS, ...LOCAL_HOSTS]) {
 
   site.route('/sitemap.xml', [HttpMethods.GET, HttpMethods.HEAD], (event) => {
     return new Response(renderSitemap(getEnv(event)), {headers: {'content-type': 'application/xml; charset=utf-8', 'cache-control': 'public, max-age=3600'}});
+  }, {priority: 1});
+
+  site.route(['/activity', '/activity/:path...'], [HttpMethods.GET, HttpMethods.HEAD], (event) => {
+    return serveActivity(event.request, getEnv(event));
   }, {priority: 1});
 
   // every other path, the routes above win by priority (a catch-all listing every method would otherwise sort first)

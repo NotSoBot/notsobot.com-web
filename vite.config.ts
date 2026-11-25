@@ -78,6 +78,11 @@ export default defineConfig(({ command, mode }) => {
       client: {
         build: {
           rolldownOptions: {
+            // the site, and the Discord Activity's page (the worker serves it under /activity)
+            input: {
+              main: fileURLToPath(new URL('./index.html', import.meta.url)),
+              activity: fileURLToPath(new URL('./activity.html', import.meta.url)),
+            },
             output: {
               // an icon more than one page uses was a chunk of its own, a third of all the chunks at a few hundred
               // bytes each. they're two files now: the ones the first load already needed (shared with the entry),

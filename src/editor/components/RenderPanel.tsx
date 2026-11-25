@@ -44,9 +44,13 @@ export function RenderPanel({ host, documentId, disabled }: {host: EditorHost, d
     setState({status: 'idle'});
   }, [documentId]);
 
+  // the activity's room hears about it: the stack is locked for everyone while it runs
+  const announce = (status: 'started' | 'done' | 'failed', url?: string) => host.room?.render(status, url);
+
   const start = async () => {
     const run = ++runRef.current;
     setState({status: 'running', job: null});
+    announce('started');
     try {
       let job = await host.api.render(documentId);
       while (!JOB_DONE.has(job.status)) {
@@ -57,13 +61,24 @@ export function RenderPanel({ host, documentId, disabled }: {host: EditorHost, d
         await new Promise((resolve) => window.setTimeout(resolve, JOB_POLL));
         job = await host.api.job(job.id);
       }
+      const result = resultOf(job);
+      announce((result.status === 'done') ? 'done' : 'failed', (result.status === 'done') ? result.url : undefined);
       if (run === runRef.current) {
-        setState(resultOf(job));
+        setState(result);
       }
     } catch (error) {
+      announce('failed');
       if (run === runRef.current) {
         setState({status: 'failed', message: host.errorOf(error)?.message ?? ''});
       }
+    }
+  };
+
+  // inside Discord a plain link can't leave the activity, the host opens it through the sdk
+  const external = (url: string) => (event: React.MouseEvent) => {
+    if (host.openExternal) {
+      event.preventDefault();
+      host.openExternal(url);
     }
   };
 
@@ -78,13 +93,13 @@ export function RenderPanel({ host, documentId, disabled }: {host: EditorHost, d
       </button>
       {(disabled) ? <p className='text-xs text-subtle'>{t('editor.render.empty')}</p> : null}
       <p className='text-xs leading-relaxed text-muted'>
-        {rich('editor.render.limits', {premium: (chunk) => <a href={host.premiumUrl} className='text-brand-text underline hover:text-white'>{chunk}</a>})}
+        {rich('editor.render.limits', {premium: (chunk) => <a href={host.premiumUrl} onClick={external(host.premiumUrl)} className='text-brand-text underline hover:text-white'>{chunk}</a>})}
       </p>
       {(state.status === 'done') ? (
         <div role='status' className='flex flex-col gap-2 rounded-lg border border-success/50 bg-success/10 p-3'>
           <p className='text-sm font-semibold text-success-text'>{t('editor.render.done')}</p>
           <div className='flex flex-wrap items-center gap-2'>
-            <a href={state.url} download={state.filename || true} target='_blank' rel='noreferrer' className='btn btn-secondary btn-sm'>
+            <a href={state.url} download={state.filename || true} target='_blank' rel='noreferrer' onClick={external(state.url)} className='btn btn-secondary btn-sm'>
               <Download aria-hidden className='size-4'/>{t('editor.render.download')}
             </a>
             <CopyButton value={state.url} label={t('editor.render.copy')}/>

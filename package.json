@@ -19,6 +19,7 @@
     "preview:worker": "npm run build && wrangler dev"
   },
   "dependencies": {
+    "@discord/embedded-app-sdk": "^2.5.0",
     "@fontsource-variable/bricolage-grotesque": "^5.3.0",
     "@fontsource-variable/figtree": "^5.3.0",
     "@fontsource-variable/jetbrains-mono": "^5.3.0",

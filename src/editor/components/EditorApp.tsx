@@ -101,6 +101,20 @@ export function EditorApp({ host, documentId, catalogue }: {host: EditorHost, do
           <h1 className='truncate text-sm font-semibold text-white'>{document.source.filename}</h1>
           <span className='rounded-full border border-line-strong bg-surface px-2 py-0.5 font-mono text-xs whitespace-nowrap text-muted'>{mediaChip(meta, (count) => plural('editor.chip.frames', count))}</span>
         </div>
+        {(state.room) ? (
+          <div role='group' aria-label={t('editor.room.members')} className='flex -space-x-2'>
+            {state.members.slice(0, 6).map((member) => (
+              (member.avatar_url) ? (
+                <img key={member.user_id} src={member.avatar_url} alt={member.username} title={member.username} className='size-7 rounded-full border-2 border-deep bg-surface'/>
+              ) : (
+                <span key={member.user_id} role='img' aria-label={member.username} title={member.username} className='flex size-7 items-center justify-center rounded-full border-2 border-deep bg-brand text-xs font-bold text-white'>
+                  {member.username.charAt(0).toUpperCase()}
+                </span>
+              )
+            ))}
+          </div>
+        ) : null}
+        {(state.room && state.roomStatus !== 'open') ? <span role='status' className='text-xs text-warning'>{t('editor.room.reconnecting')}</span> : null}
         <span role='status' className={cn('text-xs', (state.saveState === 'error') ? 'text-danger-text' : 'text-subtle')}>{saveLabel}</span>
         <div className='flex items-center gap-1'>
           <button type='button' aria-label={t('editor.undo')} title={t('editor.undo')} disabled={!state.canUndo} onClick={undo} className='flex size-10 items-center justify-center rounded-lg text-fg hover:bg-surface disabled:cursor-not-allowed disabled:opacity-40'>
@@ -112,10 +126,18 @@ export function EditorApp({ host, documentId, catalogue }: {host: EditorHost, do
         </div>
       </div>
 
+      {(state.renderLocked) ? (
+        <p role='status' className='border-b border-warning/40 bg-warning/10 px-5 py-2 text-sm text-warning'>
+          {t('editor.room.rendering', {name: state.renderingMember?.username ?? t('editor.room.someone')})}
+        </p>
+      ) : null}
+
       {(state.reloaded) ? (
         <p role='status' className='border-b border-warning/40 bg-warning/10 px-5 py-2 text-sm text-warning'>{t('editor.reloaded')}</p>
       ) : null}
 
+      {/* another person's final render locks the stack for everyone in the activity until it's done */}
+      <fieldset disabled={state.renderLocked} className='contents'>
       <div className='flex flex-1 flex-col lg:flex-row'>
         <div className='order-3 w-full shrink-0 border-line bg-surface p-4 lg:order-1 lg:w-[300px] lg:border-r xl:w-[340px]'>
           <EffectPicker effects={catalogue.effects} kind={meta.kind} hasAudio={hasAudio} onAdd={addEffect}/>
@@ -148,6 +170,7 @@ export function EditorApp({ host, documentId, catalogue }: {host: EditorHost, do
           />
         </aside>
       </div>
+      </fieldset>
     </div>
   );
 }

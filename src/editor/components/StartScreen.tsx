@@ -11,11 +11,13 @@ import type { EditorDocument, EditorDocumentSummary } from '../types';
 
 
 // The web host's way in: a file (dropped or picked), a link, or one of their recent edits
-export function StartScreen({ host, onOpen, initialUrl }: {
+export function StartScreen({ host, onOpen, initialUrl, activityInstanceId }: {
   host: EditorHost,
   onOpen: (document: EditorDocument | EditorDocumentSummary) => void,
   // `?url=`, from a link like the bot's "edit on the web", opened right away
   initialUrl?: string | null,
+  // the Activity: the document is the instance's (shared with everyone in it), and personal recents aren't shown
+  activityInstanceId?: string,
 }) {
   const { t, plural, language } = useI18n();
   const inputId = useId();
@@ -30,6 +32,9 @@ export function StartScreen({ host, onOpen, initialUrl }: {
   const startedRef = useRef(false);
 
   useEffect(() => {
+    if (activityInstanceId) {
+      return;
+    }
     let alive = true;
     host.api.documents().then((result) => {
       if (alive) {
@@ -43,13 +48,13 @@ export function StartScreen({ host, onOpen, initialUrl }: {
     return () => {
       alive = false;
     };
-  }, [host]);
+  }, [activityInstanceId, host]);
 
   const open = async (input: {file?: File, url?: string}) => {
     setUploading(true);
     setError(null);
     try {
-      onOpen(await host.api.createDocument(input));
+      onOpen(await host.api.createDocument({...input, activityInstanceId}));
     } catch (failure) {
       setError(host.errorOf(failure)?.message || t('editor.start.upload_error'));
       setUploading(false);
@@ -149,6 +154,7 @@ export function StartScreen({ host, onOpen, initialUrl }: {
       </form>
       {(error) ? <p role='alert' className='-mt-5 text-sm text-danger-text'>{error}</p> : null}
 
+      {(!activityInstanceId) ? (
       <section className='flex flex-col gap-3'>
         <h2 className='font-display text-lg font-bold text-white'>{t('editor.start.recent')}</h2>
         {(recent === null) ? (
@@ -187,6 +193,7 @@ export function StartScreen({ host, onOpen, initialUrl }: {
           </ul>
         )}
       </section>
+      ) : null}
 
       {(deleting) ? (
         <ConfirmDialog

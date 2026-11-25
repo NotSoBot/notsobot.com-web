@@ -27,7 +27,7 @@ export function PreviewStage({ state, pen, maxStrokes, maxPoints }: {
 
   const proxyFailed = document.proxy_status === 'failed';
   const selectedEffect = (selectedStep) ? effectsById.get(selectedStep.effect) : undefined;
-  const placing = Boolean(selectedTool && selectedStep && !showOriginal);
+  const placing = Boolean(selectedTool && selectedStep && !showOriginal && !state.lockedBy(selectedStep.id) && !state.renderLocked);
 
   // what's on screen: the original, the latest preview, or (frame mode, scrubbing) the proxy seeked to the frame
   // until that frame's preview arrives

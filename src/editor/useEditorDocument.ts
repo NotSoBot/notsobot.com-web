@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { EditorErrorCodes, type EditorApiError, type EditorHost } from './api';
+import type { RoomMember, RoomOp, RoomStatus } from './room';
 import { spatialTool } from './stack';
 import type { EditorCatalogue, EditorDocument, EditorPreview, EditorPreviewMode, EditorStep } from './types';
 
@@ -18,6 +19,12 @@ const COALESCE_WINDOW = 800;
 const MAX_HISTORY = 50;
 // animated media with more frames than this preview one frame at a time until play is pressed (the api's frame mode)
 export const FRAME_MODE_MIN_FRAMES = 48;
+// rooms: a dragged param is sent at most this often, its lock renewed this often and dropped this long after the last move
+const ROOM_PARAM_INTERVAL = 120;
+const ROOM_LOCK_RENEW = 4000;
+const ROOM_LOCK_RELEASE = 1500;
+// a document from the room asks for a preview after this long without another one
+const ROOM_PREVIEW_DELAY = 200;
 
 
 export type SaveState = 'saved' | 'saving' | 'error';
@@ -72,6 +79,19 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
   const dirtyRef = useRef(false);
   const previewAbortRef = useRef<AbortController | null>(null);
   const frameTimerRef = useRef<number | null>(null);
+
+  // ---- the activity's room (host.room), null on the web ----
+  const room = host.room ?? null;
+  const [ roomStatus, setRoomStatus ] = useState<RoomStatus | null>(room?.status ?? null);
+  const [ members, setMembers ] = useState<Array<RoomMember>>(room?.members ?? []);
+  const [ locks, setLocks ] = useState<Record<string, string>>(room?.locks ?? {});
+  // someone else is rendering, the stack is locked for everyone until it ends
+  const [ rendering, setRendering ] = useState<string | null>(null);
+  // ops sent and not yet seen back, the room's documents don't replace the stack until they're all in
+  const pendingOpsRef = useRef(new Set<string>());
+  const paramTimersRef = useRef(new Map<string, {timer: number, value: unknown}>());
+  const lockTimersRef = useRef(new Map<string, {renewed: number, release: number}>());
+  const roomPreviewTimerRef = useRef<number | null>(null);
 
   const effectsById = useMemo(() => new Map((catalogue?.effects ?? []).map((effect) => [effect.id, effect])), [catalogue]);
 
@@ -295,7 +315,59 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
 
   // ---- editing ----
 
-  const commit = useCallback((next: Array<EditorStep>, coalesceKey?: string) => {
+  const sendOp = useCallback((op: RoomOp) => {
+    if (room) {
+      pendingOpsRef.current.add(room.sendOp(op));
+      // the render (and "saved") waits until the room has every op from here
+      setSaveState('saving');
+    }
+  }, [room]);
+
+  // a dragged param goes out at most every ROOM_PARAM_INTERVAL (the last value always), and its step is soft-locked
+  // while it moves so nobody else changes it at the same time
+  const sendParam = useCallback((stepId: string, name: string, value: unknown) => {
+    if (!room) {
+      return;
+    }
+    const key = `${stepId}:${name}`;
+    const waiting = paramTimersRef.current.get(key);
+    if (waiting) {
+      waiting.value = value;
+    } else {
+      sendOp({op: 'set_param', step_id: stepId, name, value});
+      const entry = {value: undefined as unknown, timer: 0};
+      entry.timer = window.setTimeout(() => {
+        paramTimersRef.current.delete(key);
+        if (entry.value !== undefined) {
+          sendOp({op: 'set_param', step_id: stepId, name, value: entry.value});
+        } else if (!pendingOpsRef.current.size && !paramTimersRef.current.size && documentRef.current) {
+          // nothing more to send and the room's document already came (it waited on this timer): take it now
+          stepsRef.current = documentRef.current.steps;
+          setSteps(documentRef.current.steps);
+          setSaveState('saved');
+        }
+      }, ROOM_PARAM_INTERVAL);
+      paramTimersRef.current.set(key, entry);
+    }
+
+    const now = Date.now();
+    const lock = lockTimersRef.current.get(stepId);
+    if (!lock || now - lock.renewed > ROOM_LOCK_RENEW) {
+      room.lock(stepId);
+    }
+    if (lock) {
+      window.clearTimeout(lock.release);
+    }
+    lockTimersRef.current.set(stepId, {
+      renewed: (!lock || now - lock.renewed > ROOM_LOCK_RENEW) ? now : lock.renewed,
+      release: window.setTimeout(() => {
+        lockTimersRef.current.delete(stepId);
+        room.unlock(stepId);
+      }, ROOM_LOCK_RELEASE),
+    });
+  }, [room, sendOp]);
+
+  const commit = useCallback((next: Array<EditorStep>, coalesceKey?: string, op?: RoomOp) => {
     const now = Date.now();
     const last = lastHistoryRef.current;
     const coalesce = Boolean(coalesceKey && last && last.key === coalesceKey && now - last.at < COALESCE_WINDOW);
@@ -307,16 +379,27 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
     stepsRef.current = next;
     setSteps(next);
     setReloaded(false);
+    if (room) {
+      // set_param goes through `sendParam` (throttled), everything else at once
+      if (op && op.op !== 'set_param') {
+        sendOp(op);
+      }
+      return;
+    }
     scheduleSave();
-  }, [scheduleSave]);
+  }, [room, scheduleSave, sendOp]);
 
   const restore = useCallback((next: Array<EditorStep>) => {
     stepsRef.current = next;
     setSteps(next);
     lastHistoryRef.current = null;
     setHistoryVersion((value) => value + 1);
+    if (room) {
+      sendOp({op: 'replace', steps: next});
+      return;
+    }
     scheduleSave();
-  }, [scheduleSave]);
+  }, [room, scheduleSave, sendOp]);
 
   const undo = useCallback(() => {
     const { past, future } = historyRef.current;
@@ -337,17 +420,18 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
   }, [restore]);
 
   const addStep = useCallback((step: EditorStep) => {
-    commit([...stepsRef.current, step]);
+    commit([...stepsRef.current, step], undefined, {op: 'add', step});
     setSelectedId(step.id);
   }, [commit]);
 
   const removeStep = useCallback((stepId: string) => {
-    commit(stepsRef.current.filter((step) => step.id !== stepId));
+    commit(stepsRef.current.filter((step) => step.id !== stepId), undefined, {op: 'remove', step_id: stepId});
     setSelectedId((current) => (current === stepId) ? null : current);
   }, [commit]);
 
   const toggleStep = useCallback((stepId: string) => {
-    commit(stepsRef.current.map((step) => (step.id === stepId) ? {...step, hidden: !step.hidden} : step));
+    const hidden = !stepsRef.current.find((step) => step.id === stepId)?.hidden;
+    commit(stepsRef.current.map((step) => (step.id === stepId) ? {...step, hidden} : step), undefined, {op: 'toggle', step_id: stepId, hidden});
   }, [commit]);
 
   const moveStep = useCallback((stepId: string, to: number) => {
@@ -362,15 +446,130 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
     }
     const [ step ] = items.splice(from, 1);
     items.splice(target, 0, step);
-    commit(items);
+    commit(items, undefined, {op: 'move', step_id: stepId, to: target});
   }, [commit]);
 
   const setParam = useCallback((stepId: string, name: string, value: unknown) => {
     commit(
       stepsRef.current.map((step) => (step.id === stepId) ? {...step, params: {...step.params, [name]: value}} : step),
       `${stepId}:${name}`,
+      {op: 'set_param', step_id: stepId, name, value},
     );
-  }, [commit]);
+    sendParam(stepId, name, value);
+  }, [commit, sendParam]);
+
+  // ---- room events ----
+
+  useEffect(() => {
+    if (!room) {
+      return;
+    }
+    const previewSoon = () => {
+      if (roomPreviewTimerRef.current !== null) {
+        window.clearTimeout(roomPreviewTimerRef.current);
+      }
+      roomPreviewTimerRef.current = window.setTimeout(() => {
+        roomPreviewTimerRef.current = null;
+        void runPreview();
+      }, ROOM_PREVIEW_DELAY);
+    };
+    const takeDocument = (next: EditorDocument) => {
+      if (next.id !== documentId) {
+        return;
+      }
+      // a change made while joining can come again after `ready`, an older or the same version is already here
+      if (documentRef.current?.id === next.id && next.version <= documentRef.current.version) {
+        return;
+      }
+      documentRef.current = next;
+      setDocument(next);
+      // our own ops still on their way would be undone by this older stack, the last one's document has them all
+      if (!pendingOpsRef.current.size && !paramTimersRef.current.size) {
+        stepsRef.current = next.steps;
+        setSteps(next.steps);
+        setSaveState('saved');
+      }
+      previewSoon();
+    };
+    const unsubscribeStatus = room.onStatus((status) => {
+      setRoomStatus(status);
+      if (status !== 'open') {
+        // whatever was in flight is resent or lost, the next document is the truth either way
+        pendingOpsRef.current.clear();
+        setSaveState('saved');
+      }
+    });
+    const unsubscribe = room.subscribe((event) => {
+      switch (event.t) {
+        case 'ready': {
+          setMembers(event.members);
+          setLocks(event.locks);
+          if (event.document) {
+            takeDocument(event.document);
+          }
+          break;
+        }
+        case 'document': {
+          if (event.op_id) {
+            pendingOpsRef.current.delete(event.op_id);
+          }
+          takeDocument(event.document);
+          setStepError(null);
+          break;
+        }
+        case 'error': {
+          if (event.op_id) {
+            pendingOpsRef.current.delete(event.op_id);
+          }
+          setStepError({index: (typeof event.index === 'number') ? event.index : null, message: event.message});
+          // a refused op (its step's gone, a bad value): back to what the room has
+          if (!pendingOpsRef.current.size && documentRef.current) {
+            stepsRef.current = documentRef.current.steps;
+            setSteps(documentRef.current.steps);
+            setSaveState('saved');
+          }
+          break;
+        }
+        case 'members':
+          setMembers(event.members);
+          break;
+        case 'lock':
+        case 'unlock':
+          setLocks({...room.locks});
+          break;
+        case 'render':
+          if (event.user_id !== room.you) {
+            setRendering((event.status === 'started') ? event.user_id : null);
+          }
+          break;
+        default:
+          break;
+      }
+    });
+    return () => {
+      unsubscribe();
+      unsubscribeStatus();
+      for (const { timer } of paramTimersRef.current.values()) {
+        window.clearTimeout(timer);
+      }
+      paramTimersRef.current.clear();
+      for (const [ stepId, { release } ] of lockTimersRef.current) {
+        window.clearTimeout(release);
+        room.unlock(stepId);
+      }
+      lockTimersRef.current.clear();
+    };
+  }, [documentId, room, runPreview]);
+
+  // who else holds a step's soft lock (they're dragging it), null when it's free or it's ours
+  const lockedBy = useCallback((stepId: string): RoomMember | null => {
+    const userId = locks[stepId];
+    if (!room || !userId || userId === room.you) {
+      return null;
+    }
+    return members.find((member) => member.user_id === userId) ?? {user_id: userId, username: userId, avatar_url: null};
+  }, [locks, members, room]);
+  const renderingMember = (rendering) ? (members.find((member) => member.user_id === rendering) ?? null) : null;
 
   // ---- playback / frames ----
 
@@ -417,6 +616,13 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
     playing,
     setPlaying,
     retryPreview: runPreview,
+    room,
+    roomStatus,
+    members,
+    lockedBy,
+    // someone else's render locks the stack until it's done
+    renderLocked: Boolean(rendering),
+    renderingMember,
   };
 }
 

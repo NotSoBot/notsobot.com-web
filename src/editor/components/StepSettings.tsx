@@ -189,11 +189,15 @@ export function StepSettings({ state, effect, step, pen, setPen, maxStrokes, dur
   const { t } = useI18n();
   const set = (name: string) => (value: unknown) => state.setParam(step.id, name, value);
   const timeParams = effect.params.filter((param) => param.optional && param.kind === 'number');
+  const lockedBy = state.lockedBy(step.id);
   const shown = effect.params.filter((param) => !timeParams.includes(param));
 
   return (
     <section aria-label={t('editor.settings', {name: effect.name})} className='flex flex-col gap-3 rounded-[10px] border border-line-strong bg-bg p-3.5'>
       <h3 className='text-sm font-bold text-white'>{effect.name}</h3>
+      {(lockedBy) ? <p role='status' className='text-xs text-warning'>{t('editor.room.adjusting', {name: lockedBy.username})}</p> : null}
+      {/* someone else is dragging it in the activity: their soft lock, it's theirs until they let go */}
+      <fieldset disabled={Boolean(lockedBy)} className='contents'>
       {(effect.temporal) ? (
         <p className='flex gap-1.5 text-xs text-subtle'><Timer aria-hidden className='mt-px size-3.5 shrink-0'/>{t('editor.settings.temporal')}</p>
       ) : null}
@@ -273,6 +277,7 @@ export function StepSettings({ state, effect, step, pen, setPen, maxStrokes, dur
           ))}
         </div>
       ) : null}
+      </fieldset>
     </section>
   );
 }

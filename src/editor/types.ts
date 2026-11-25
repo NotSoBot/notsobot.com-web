@@ -170,4 +170,6 @@ export interface EditorActivityContext {
   channel_id: string,
   users: Array<string>,
   launch: Record<string, unknown> | null,
+  // the instance's shared document, null until someone picks the media
+  document_id: string | null,
 }

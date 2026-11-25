@@ -37,6 +37,7 @@ export function StepList({ state }: {state: EditorDocumentState}) {
         const selected = step.id === selectedId;
         const failed = stepError?.index === index;
         const summary = summarize(effect, step);
+        const lockedBy = state.lockedBy(step.id);
         return (
           <li
             key={step.id}
@@ -86,10 +87,12 @@ export function StepList({ state }: {state: EditorDocumentState}) {
               </span>
               {(summary) ? <span className='truncate font-mono text-xs text-muted'>{summary}</span> : null}
               {(failed && stepError) ? <span className='text-xs text-danger-text'>{t('editor.step.error', {message: stepError.message})}</span> : null}
+              {(lockedBy) ? <span className='text-xs text-warning'>{t('editor.room.adjusting', {name: lockedBy.username})}</span> : null}
             </button>
             <button
               type='button'
               aria-label={(step.hidden) ? t('editor.step.show', {name}) : t('editor.step.hide', {name})}
+              disabled={Boolean(lockedBy)}
               onClick={() => state.toggleStep(step.id)}
               className='flex size-9 shrink-0 items-center justify-center rounded-md text-muted hover:bg-surface hover:text-fg'
             >
@@ -98,6 +101,7 @@ export function StepList({ state }: {state: EditorDocumentState}) {
             <button
               type='button'
               aria-label={t('editor.step.remove', {name})}
+              disabled={Boolean(lockedBy)}
               onClick={() => state.removeStep(step.id)}
               className='flex size-9 shrink-0 items-center justify-center rounded-md text-muted hover:bg-surface hover:text-danger-text'
             >

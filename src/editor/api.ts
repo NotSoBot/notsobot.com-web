@@ -1,3 +1,4 @@
+import type { EditorRoom } from './room';
 import type {
   EditorActivityContext,
   EditorCatalogue,
@@ -26,6 +27,8 @@ export type EditorRequest = <T>(path: string, options?: {
 export const EditorErrorCodes = Object.freeze({
   UNKNOWN_EDITOR_DOCUMENT: 10043,
   UNKNOWN_ACTIVITY_INSTANCE: 10042,
+  // a room op naming a step someone else removed, the op is dropped
+  UNKNOWN_EDITOR_STEP: 10044,
   EDITOR_DOCUMENT_VERSION_MISMATCH: 50053,
   EDITOR_INVALID_STEP: 50054,
   SERVICE_BUSY: 90008,
@@ -97,6 +100,10 @@ export interface EditorHost {
   onLeave?: () => void,
   // `share`: the Activity's share-to-channel, absent on the web
   share?: (url: string) => Promise<void>,
+  // links leaving the editor (download, premium): the Activity has to ask Discord to open them
+  openExternal?: (url: string) => void,
+  // the Activity's shared room, every change goes through it
+  room?: EditorRoom,
   // the premium page link for the limits note
   premiumUrl: string,
 }
