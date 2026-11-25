@@ -48,6 +48,7 @@ import type {
   ContentFlagAutoReviewFilter,
   ContentFlagMatches,
   ContentFlagPatch,
+  NcmecReportRequest,
   ContentFlagType,
   ContentFlagsPage,
   GuildLLMKnowledge,
@@ -2551,6 +2552,39 @@ export function usePatchAdminContentFlagMutation() {
     onSettled: () => Promise.all([
       queryClient.invalidateQueries({queryKey: listKey}),
       // the per-user counts change with the status
+      queryClient.invalidateQueries({queryKey: [...queryKeys.admin(token), 'users']}),
+    ]),
+  });
+}
+
+
+export function useAdminNcmecQuery(enabled = true) {
+  const { token } = useAuth();
+  return useQuery({
+    queryKey: [...queryKeys.admin(token), 'ncmec'],
+    queryFn: ({ signal }) => api.fetchAdminNcmec(signal),
+    enabled,
+  });
+}
+
+export function useCheckAdminNcmecMutation() {
+  return useMutation({mutationFn: () => api.checkAdminNcmec()});
+}
+
+// "Report to NCMEC": the flag comes back with its filing (and reported status), the user with their hold and block
+export function useReportContentFlagNcmecMutation() {
+  const { token } = useAuth();
+  const queryClient = useQueryClient();
+  const listKey = [...queryKeys.admin(token), 'content-flags'];
+  return useMutation({
+    mutationFn: ({ flagId, body }: {flagId: string, body: NcmecReportRequest}) => api.reportAdminContentFlagNcmec(flagId, body),
+    onSuccess: ({ flag }) => {
+      queryClient.setQueryData([...queryKeys.admin(token), 'content-flag', flag.id], flag);
+    },
+    // the hold and block happen before the report is sent, so they're there even when NCMEC refused it
+    onSettled: () => Promise.all([
+      queryClient.invalidateQueries({queryKey: listKey}),
+      queryClient.invalidateQueries({queryKey: [...queryKeys.admin(token), 'content-flag']}),
       queryClient.invalidateQueries({queryKey: [...queryKeys.admin(token), 'users']}),
     ]),
   });

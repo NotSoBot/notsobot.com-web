@@ -182,6 +182,10 @@ export function cleanUrl(raw: string, origin: string, arrival: boolean): {langua
     for (const name of SEARCH_TEXT_PARAMS) {
       url.searchParams.delete(name);
     }
+    // the bot's "edit on the web" links carry the media's url, signed discord attachment links from any channel
+    if (isUnder(path, Routes.EDITOR)) {
+      url.searchParams.delete('url');
+    }
     if (isUnder(path, Routes.DASHBOARD)) {
       const idParams = [...url.searchParams].filter(([name, value]) => {
         return ID_PARAMS.has(name) || name.endsWith(ID_PARAM_SUFFIX) || ID_SEGMENT_PATTERN.test(value);

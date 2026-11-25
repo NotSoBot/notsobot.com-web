@@ -1,12 +1,14 @@
-import { CircleAlert, Download, Share2 } from 'lucide-react';
+import { Check, CircleAlert, Download, Link, Share2, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
-import { CopyButton } from '@/components/ui/CopyButton';
 import { Spinner } from '@/components/ui/Spinner';
+import { useCopied } from '@/hooks/useCopied';
 import { useI18n } from '@/i18n';
+import { cn } from '@/lib/utils';
 
 import type { EditorHost } from '../api';
 import type { EditorJob } from '../types';
+import { isAudioMimetype, isVideoMimetype } from './media';
 
 
 const JOB_POLL = 1500;
@@ -15,7 +17,7 @@ const JOB_DONE = new Set<EditorJob['status']>(['finished', 'failed', 'stopped', 
 type RenderState =
   | {status: 'idle'}
   | {status: 'running', job: EditorJob | null}
-  | {status: 'done', url: string, filename: string}
+  | {status: 'done', url: string, filename: string, mimetype: string}
   | {status: 'failed', message: string};
 
 
@@ -28,7 +30,7 @@ function resultOf(job: EditorJob): RenderState {
   if (!url) {
     return {status: 'failed', message: ''};
   }
-  return {status: 'done', url, filename: item?.storage?.filename ?? ''};
+  return {status: 'done', url, filename: item?.storage?.filename ?? '', mimetype: item?.file?.mimetype ?? ''};
 }
 
 
@@ -86,7 +88,7 @@ export function RenderPanel({ host, documentId, disabled }: {host: EditorHost, d
   const queued = running && state.job?.status === 'queued';
 
   return (
-    <div className='flex flex-col gap-2 border-t border-line-strong pt-3.5'>
+    <div className='flex shrink-0 flex-col gap-2 border-t border-line-strong pt-3.5'>
       <button type='button' className='btn btn-primary min-h-11 w-full' disabled={disabled || running} onClick={() => void start()}>
         {(running) ? <Spinner className='size-4 border-white/40 border-t-white'/> : null}
         {(running) ? ((queued) ? t('editor.render.queued') : t('editor.render.rendering')) : t('editor.render')}
@@ -96,20 +98,7 @@ export function RenderPanel({ host, documentId, disabled }: {host: EditorHost, d
         {rich('editor.render.limits', {premium: (chunk) => <a href={host.premiumUrl} onClick={external(host.premiumUrl)} className='text-brand-text underline hover:text-white'>{chunk}</a>})}
       </p>
       {(state.status === 'done') ? (
-        <div role='status' className='flex flex-col gap-2 rounded-lg border border-success/50 bg-success/10 p-3'>
-          <p className='text-sm font-semibold text-success-text'>{t('editor.render.done')}</p>
-          <div className='flex flex-wrap items-center gap-2'>
-            <a href={state.url} download={state.filename || true} target='_blank' rel='noreferrer' onClick={external(state.url)} className='btn btn-secondary btn-sm'>
-              <Download aria-hidden className='size-4'/>{t('editor.render.download')}
-            </a>
-            <CopyButton value={state.url} label={t('editor.render.copy')}/>
-            {(host.share) ? (
-              <button type='button' className='btn btn-secondary btn-sm' onClick={() => void host.share?.(state.url)}>
-                <Share2 aria-hidden className='size-4'/>{t('editor.render.share')}
-              </button>
-            ) : null}
-          </div>
-        </div>
+        <RenderResult host={host} url={state.url} filename={state.filename} mimetype={state.mimetype} onExternal={external}/>
       ) : null}
       {(state.status === 'failed') ? (
         <p role='alert' className='flex gap-1.5 text-sm text-danger-text'>
@@ -117,6 +106,104 @@ export function RenderPanel({ host, documentId, disabled }: {host: EditorHost, d
           {t('editor.render.failed')}{(state.message) ? `: ${state.message}` : null}
         </p>
       ) : null}
+    </div>
+  );
+}
+
+
+const ACTION = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60';
+
+
+// The finished render: what it looks like, then what to do with it. In the Activity sharing it to the channel comes
+// first (Discord's own dialog), downloading and copying the link are the two smaller ones under it
+function RenderResult({ host, url, filename, mimetype, onExternal }: {
+  host: EditorHost,
+  url: string,
+  filename: string,
+  mimetype: string,
+  onExternal: (url: string) => (event: React.MouseEvent) => void,
+}) {
+  const { t } = useI18n();
+  const { copied, copy } = useCopied();
+  const [ copyFailed, setCopyFailed ] = useState(false);
+  const [ sharing, setSharing ] = useState(false);
+  const [ shareError, setShareError ] = useState<string | null>(null);
+  const extension = (mimetype.split('/')[1] || url.split('.').pop() || '').toUpperCase();
+
+  const onCopy = async () => {
+    const worked = await copy(url);
+    setCopyFailed(!worked);
+    if (!worked) {
+      window.setTimeout(() => setCopyFailed(false), 2000);
+    }
+  };
+
+  const onShare = async () => {
+    if (!host.share) {
+      return;
+    }
+    setSharing(true);
+    setShareError(null);
+    try {
+      await host.share(url);
+    } catch (error) {
+      // the api's reason (too big, discord refused it), or the sdk's own message
+      const message = host.errorOf(error)?.message ?? ((error instanceof Error) ? error.message : '');
+      setShareError(message);
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  return (
+    <div role='status' className='flex flex-col gap-3 rounded-xl border border-success/40 bg-success/10 p-3'>
+      <div className='flex items-center gap-3'>
+        <div className='flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-deep'>
+          {(isVideoMimetype(mimetype)) ? (
+            <video src={url} muted playsInline preload='metadata' className='size-full object-cover'/>
+          ) : (isAudioMimetype(mimetype)) ? (
+            <span className='font-mono text-[10px] text-muted'>{extension}</span>
+          ) : (
+            <img src={url} alt='' className='size-full object-cover'/>
+          )}
+        </div>
+        <div className='flex min-w-0 flex-col'>
+          <p className='flex items-center gap-1.5 text-sm font-semibold text-success-text'>
+            <Check aria-hidden className='size-4 shrink-0'/>{t('editor.render.done')}
+          </p>
+          <p className='truncate font-mono text-xs text-muted'>{[filename, extension].filter(Boolean).join(' · ')}</p>
+        </div>
+      </div>
+
+      {(host.share) ? (
+        <button type='button' disabled={sharing} onClick={() => void onShare()} className={cn(ACTION, 'w-full bg-brand text-white hover:bg-brand-hover')}>
+          {(sharing) ? <Spinner className='size-4 border-white/40 border-t-white'/> : <Share2 aria-hidden className='size-4'/>}
+          {(sharing) ? t('editor.render.sharing') : t('editor.render.share')}
+        </button>
+      ) : null}
+      {(shareError !== null) ? (
+        <p role='alert' className='-mt-1 flex gap-1.5 text-xs text-danger-text'>
+          <CircleAlert aria-hidden className='mt-px size-3.5 shrink-0'/>
+          {t('editor.render.share_failed')}{(shareError) ? `: ${shareError}` : null}
+        </p>
+      ) : null}
+
+      <div className='grid grid-cols-2 gap-2'>
+        <a
+          href={url}
+          download={filename || true}
+          target='_blank'
+          rel='noreferrer'
+          onClick={onExternal(url)}
+          className={cn(ACTION, (host.share) ? 'bg-surface-3 text-fg hover:bg-[#4f545c]' : 'bg-brand text-white hover:bg-brand-hover')}
+        >
+          <Download aria-hidden className='size-4'/>{t('editor.render.download')}
+        </a>
+        <button type='button' onClick={() => void onCopy()} className={cn(ACTION, 'bg-surface-3 text-fg hover:bg-[#4f545c]')}>
+          {(copyFailed) ? <X aria-hidden className='size-4 text-danger-text'/> : (copied) ? <Check aria-hidden className='size-4 text-success-text'/> : <Link aria-hidden className='size-4'/>}
+          {(copyFailed) ? t('editor.render.copy_failed') : (copied) ? t('editor.render.copied') : t('editor.render.copy')}
+        </button>
+      </div>
     </div>
   );
 }

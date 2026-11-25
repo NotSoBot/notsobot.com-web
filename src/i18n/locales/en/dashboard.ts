@@ -79,6 +79,7 @@ export const Dashboard = {
   'area.tags': 'Removing members’ tags',
   'area.read_only_staff': 'Only bot owners can change a server’s settings.',
   'area.read_only': 'You need the {permission} permission in this server to change this.',
+  'area.hidden': 'Only people with {manage} or {timeout} in this server can see this.',
   'duration.minutes_one': '{count} minute',
   'duration.minutes_other': '{count} minutes',
   'duration.hours_one': '{count} hour',

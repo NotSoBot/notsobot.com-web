@@ -52,7 +52,7 @@ export function PreviewStage({ state, pen, maxStrokes, maxPoints }: {
   const aspect = (shown && shown.width && shown.height) ? shown.height / shown.width : 1;
 
   return (
-    <section aria-label={t('editor.preview')} className='flex min-h-[420px] min-w-0 flex-col gap-3.5 bg-deep p-4 sm:p-5 lg:sticky lg:top-0 lg:min-h-[min(100dvh,760px)]'>
+    <section aria-label={t('editor.preview')} className='flex min-h-[420px] min-w-0 flex-col gap-3.5 bg-deep p-4 sm:p-5 lg:min-h-full'>
       <div className='flex flex-wrap items-center gap-2'>
         {(proxy) ? (
           <span className='rounded-md bg-surface px-2 py-1 font-mono text-xs text-muted'>

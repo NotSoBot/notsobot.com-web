@@ -537,6 +537,10 @@ export const ApiErrorCodes = {
   UNKNOWN_CREDIT_TRANSACTION: 10040,
   // a staff grant's Take back was already sent (another tab, a double click)
   CREDIT_GRANT_ALREADY_REVERSED: 50052,
+  // a legal hold on them: "Delete my data" and their other deletes are refused
+  USER_DATA_ON_HOLD: 50055,
+  // the flag already has a finished CyberTipline report, or one is being filed right now
+  CONTENT_FLAG_ALREADY_REPORTED: 50056,
   CREDITS_LIMIT: 30033,
   UNKNOWN_VOICE_NODE: 10031,
   UNKNOWN_MUSIC_QUEUE_ITEM: 10030,
@@ -1550,6 +1554,9 @@ export interface UserGuild {
   rules: Array<GuildRule>,
   settings: GuildSettings,
   timezone: string | null,
+  // false for a member without Manage Server or Timeout Members: `loggers`, `rules` and the auto-warn settings came
+  // empty because they can't see them. Missing (the admin payload, an older api) is visible
+  moderation_visible?: boolean,
 }
 
 // owner only: the server's settings and its tags. Logger webhook URLs, tag variables/blobs and the content of
@@ -1805,7 +1812,17 @@ export interface AdminTagDirectoryPage {
   items: Array<AdminTagDirectoryItem>,
 }
 
-export interface AdminUser extends AdminUserRef {
+// staff's legal hold while an investigation is open: nothing of theirs can be deleted and their content flags' kept
+// frames stop expiring. Staff only, the user is never told. Left out by an api from before it existed
+export interface AdminLegalHold {
+  legal_hold?: boolean,
+  legal_hold_by?: string | null,
+  legal_hold_on?: string | null,
+  // staff only, like a case reference or NCMEC report number
+  legal_hold_reason?: string | null,
+}
+
+export interface AdminUser extends AdminUserRef, AdminLegalHold {
   blocked: boolean,
   blocked_reason: string | null,
   blocked_until: string | null,
@@ -1821,6 +1838,9 @@ export interface AdminUserPatch {
   // owner only; the OWNER bit can't be changed from the dashboard
   flags?: number,
   premium_type?: number,
+  // anyone on staff can place one, only owners lift it
+  legal_hold?: boolean,
+  legal_hold_reason?: string | null,
 }
 
 export interface AdminUserContentFlags {
@@ -2136,6 +2156,8 @@ export interface ContentFlag {
   // until the model review applies a verdict or a reviewer confirms/dismisses it, 7 days at most. Never for child safety
   frames_kept?: boolean,
   guild_id: string | null,
+  // its newest CyberTipline filing, left out by an api from before it existed
+  ncmec_report?: NcmecReportSummary | null,
   id: string,
   message_id: string | null,
   mimetype: string | null,
@@ -2169,7 +2191,50 @@ export interface ContentFlag {
 
 // the flag's user, with what the page needs to block them: `flags` (`UserFlags`) since owners can't be blocked and
 // moderators can only be blocked by owners
-export interface ContentFlagUser extends AdminUserRef {
+// a CyberTipline filing (`POST /admin/content-flags/<id>/ncmec`), the flag's newest one. `report_id` is NCMEC's,
+// null when it failed before NCMEC opened it. A 'test' one went to NCMEC's test environment, not a real report
+export interface NcmecReportSummary {
+  created: string,
+  created_by: string,
+  environment: 'production' | 'test',
+  error: string | null,
+  files: number,
+  finished: string | null,
+  id: string,
+  report_id: string | null,
+  status: 'submitting' | 'finished' | 'failed',
+}
+
+export interface NcmecStatus {
+  configured: boolean,
+  environment: 'production' | 'test',
+  incident_types: Array<string>,
+  // env vars the api is missing
+  missing: Array<string>,
+  reporter_email: string | null,
+  // only from `POST /admin/ncmec/check`
+  check?: {ok: boolean, description: string},
+}
+
+export interface NcmecReportRequest {
+  incident_type: string,
+  // a person here viewed the whole of the flagged frames
+  file_viewed: boolean,
+  generative_ai: boolean,
+  include_input_image: boolean,
+  escalate?: string | null,
+  related_reports?: string | null,
+  notes?: string | null,
+  block: boolean,
+  block_reason?: string | null,
+}
+
+export interface NcmecReportResult {
+  flag: ContentFlag,
+  report: NcmecReportSummary,
+}
+
+export interface ContentFlagUser extends AdminUserRef, AdminLegalHold {
   blocked: boolean,
   blocked_reason: string | null,
   blocked_until: string | null,

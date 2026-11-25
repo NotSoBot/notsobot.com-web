@@ -1,4 +1,4 @@
-import { Ban, ChevronDown, ChevronRight, Clock, Flag, type LucideIcon, MessageSquareWarning, Pencil, ShieldCheck, SquareTerminal, Tags, Trash2, Users } from 'lucide-react';
+import { Ban, ChevronDown, ChevronRight, Clock, Flag, Lock, LockOpen, type LucideIcon, MessageSquareWarning, Pencil, ShieldCheck, SquareTerminal, Tags, Trash2, Users } from 'lucide-react';
 import { useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 
@@ -20,6 +20,7 @@ import { adminTagsPath, adminUserPath, BLOCKED_FILTERS, Chip, ContentFlagTiles, 
 import { AdminModalFooter, AdminTagModal, LinkedItemModal, useOpenListItem } from './AdminTagModal';
 import { BlockUserDialog, BlockedUntilLine, canBlockUser } from './BlockUserDialog';
 import { DeleteUserTagsDialog } from './DeleteUserTagsDialog';
+import { canToggleLegalHold, LegalHoldDialog, LegalHoldNotice, legalHoldTitle } from './LegalHoldDialog';
 import { EditUserDialog } from './EditUserDialog';
 import { UserWarningsSection } from './UserWarnings';
 
@@ -295,6 +296,7 @@ function UserDetails({ entry, navigation }: {
   const canDeleteTags = canBlock && viewerIsOwner;
   const cantDeleteTagsReason = (canDeleteTags) ? null : cantBlockReason ?? 'Only bot owners can delete all of a user’s tags.';
   const [ blocking, setBlocking ] = useState(false);
+  const [ holding, setHolding ] = useState(false);
   const [ deletingTags, setDeletingTags ] = useState(false);
   const [ editing, setEditing ] = useState(false);
   const name = userDisplayTag(user);
@@ -329,6 +331,7 @@ function UserDetails({ entry, navigation }: {
 
       <div className='px-4 pt-4 pb-5 sm:border-t sm:border-line sm:px-6'>
         {(user.blocked) ? <div className='mb-5 [&>div]:w-full'><BlockedNotice reason={user.blocked_reason} until={user.blocked_until}/></div> : null}
+        {(user.legal_hold) ? <div className='mb-5 [&>div]:w-full'><LegalHoldNotice hold={user}/></div> : null}
 
         {/* side by side from sm up so both fill two rows of tiles: the flag counts by status on the left, commands and
             reports on the right once there's room, then what they have across the bottom. Stacked below that */}
@@ -396,6 +399,16 @@ function UserDetails({ entry, navigation }: {
           {(user.blocked) ? <ShieldCheck aria-hidden className='hidden size-4 shrink-0 sm:block'/> : <Ban aria-hidden className='hidden size-4 shrink-0 sm:block'/>}
           <span className='truncate'>{(user.blocked) ? 'Unblock' : 'Block'}</span>
         </button>
+        <button
+          type='button'
+          className={cn(ACTION, 'btn-secondary', user.legal_hold && 'text-warning')}
+          disabled={!canToggleLegalHold(user, viewerIsOwner)}
+          title={legalHoldTitle(user, viewerIsOwner)}
+          onClick={() => setHolding(true)}
+        >
+          {(user.legal_hold) ? <LockOpen aria-hidden className='hidden size-4 shrink-0 sm:block'/> : <Lock aria-hidden className='hidden size-4 shrink-0 sm:block'/>}
+          <span className='truncate'>{(user.legal_hold) ? 'Lift hold' : 'Hold'}</span>
+        </button>
         <button type='button' className={cn(ACTION, DANGER_TINT)} disabled={!canDeleteTags} title={cantDeleteTagsReason ?? undefined} onClick={() => setDeletingTags(true)}>
           <Trash2 aria-hidden className='hidden size-4 shrink-0 sm:block'/>
           <span className='truncate sm:hidden'>Delete</span>
@@ -406,6 +419,7 @@ function UserDetails({ entry, navigation }: {
       {(blocking) ? (
         <BlockUserDialog user={user} blocked={user.blocked} blockedReason={user.blocked_reason} blockedUntil={user.blocked_until} onClose={() => setBlocking(false)}/>
       ) : null}
+      {(holding) ? <LegalHoldDialog user={user} hold={user} onClose={() => setHolding(false)}/> : null}
       {(editing) ? <EditUserDialog user={user} onClose={() => setEditing(false)}/> : null}
       {(deletingTags) ? <DeleteUserTagsDialog user={user} onClose={() => setDeletingTags(false)}/> : null}
     </div>

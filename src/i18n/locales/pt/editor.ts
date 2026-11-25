@@ -102,6 +102,10 @@ export const Editor: Record<keyof typeof English, string> = {
   'editor.render.download': 'Baixar',
   'editor.render.copy': 'Copiar link',
   'editor.render.share': 'Compartilhar no canal',
+  'editor.render.sharing': 'Abrindo o Discord…',
+  'editor.render.share_failed': 'Não foi possível compartilhar',
+  'editor.render.copied': 'Link copiado',
+  'editor.render.copy_failed': 'Não foi possível copiar',
   'editor.render.failed': 'O render falhou',
 
   'editor.load_error': 'Esta edição não existe ou expirou.',

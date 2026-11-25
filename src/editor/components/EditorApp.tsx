@@ -90,7 +90,9 @@ export function EditorApp({ host, documentId, catalogue }: {host: EditorHost, do
   const saveLabel = (state.saveState === 'saving') ? t('editor.save.saving') : (state.saveState === 'error') ? t('editor.save.error') : t('editor.save.saved');
 
   return (
-    <div className='flex min-h-[calc(100dvh-4rem)] flex-col bg-bg text-fg'>
+    // on wide screens the editor is the window's height (under the site's navbar on the web) and each column scrolls on
+    // its own, so a long effect list never pushes Render out of reach. narrow screens scroll as one page
+    <div className={cn('flex flex-col bg-bg text-fg', (host.fullscreen) ? 'min-h-dvh lg:h-dvh' : 'min-h-[calc(100dvh-4rem)] lg:h-[calc(100dvh-4rem-1px)]')}>
       <div className='flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line-strong bg-deep px-4 py-2.5 sm:px-5'>
         {(host.onLeave) ? (
           <button type='button' onClick={host.onLeave} className='inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-muted hover:bg-surface hover:text-fg'>
@@ -138,14 +140,16 @@ export function EditorApp({ host, documentId, catalogue }: {host: EditorHost, do
 
       {/* another person's final render locks the stack for everyone in the activity until it's done */}
       <fieldset disabled={state.renderLocked} className='contents'>
-      <div className='flex flex-1 flex-col lg:flex-row'>
-        <div className='order-3 w-full shrink-0 border-line bg-surface p-4 lg:order-1 lg:w-[300px] lg:border-r xl:w-[340px]'>
+      <div className='flex flex-1 flex-col lg:min-h-0 lg:flex-row'>
+        <div className='order-3 w-full shrink-0 border-line bg-surface p-4 lg:order-1 lg:w-[300px] lg:overflow-y-auto lg:border-r xl:w-[340px]'>
           <EffectPicker effects={catalogue.effects} kind={meta.kind} hasAudio={hasAudio} onAdd={addEffect}/>
         </div>
-        <div className='order-1 min-w-0 flex-1 bg-deep lg:order-2'>
+        <div className='order-1 min-w-0 flex-1 bg-deep lg:order-2 lg:overflow-y-auto'>
           <PreviewStage state={state} pen={pen} maxStrokes={catalogue.limits.max_strokes} maxPoints={catalogue.limits.max_stroke_points}/>
         </div>
-        <aside aria-label={t('editor.edits')} className='order-2 flex w-full shrink-0 flex-col gap-3 border-line bg-surface p-4 lg:order-3 lg:w-[320px] lg:border-l xl:w-[360px]'>
+        <aside aria-label={t('editor.edits')} className='order-2 flex w-full shrink-0 flex-col gap-3 border-line bg-surface p-4 lg:order-3 lg:min-h-0 lg:w-[320px] lg:border-l xl:w-[360px]'>
+          {/* the steps and their settings scroll, Render stays at the bottom */}
+          <div className='flex flex-col gap-3 lg:min-h-0 lg:flex-1 lg:overflow-y-auto'>
           <div className='flex items-baseline justify-between'>
             <h2 className='font-display text-lg font-bold text-white'>{t('editor.edits')}</h2>
             <span className='font-mono text-xs text-muted'>{state.steps.length}</span>
@@ -162,7 +166,7 @@ export function EditorApp({ host, documentId, catalogue }: {host: EditorHost, do
               duration={(meta.kind === 'video' && meta.mimetype.startsWith('video/')) ? meta.duration : 0}
             />
           ) : null}
-          <div className='flex-1'/>
+          </div>
           <RenderPanel
             host={host}
             documentId={document.id}

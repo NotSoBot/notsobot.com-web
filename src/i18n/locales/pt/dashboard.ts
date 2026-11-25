@@ -81,6 +81,7 @@ export const Dashboard: Record<keyof typeof English, string> = {
   'area.tags': 'Remover tags dos membros',
   'area.read_only_staff': 'Só os donos do bot podem mudar as configurações de um servidor.',
   'area.read_only': 'Você precisa da permissão {permission} neste servidor para mudar isto.',
+  'area.hidden': 'Só quem tem {manage} ou {timeout} neste servidor pode ver isto.',
   'duration.minutes_one': '{count} minuto',
   'duration.minutes_other': '{count} minutos',
   'duration.hours_one': '{count} hora',

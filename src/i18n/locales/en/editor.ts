@@ -101,6 +101,10 @@ export const Editor = {
   'editor.render.download': 'Download',
   'editor.render.copy': 'Copy link',
   'editor.render.share': 'Share to channel',
+  'editor.render.sharing': 'Opening Discord…',
+  'editor.render.share_failed': 'Couldn’t share it',
+  'editor.render.copied': 'Link copied',
+  'editor.render.copy_failed': 'Couldn’t copy',
   'editor.render.failed': 'The render failed',
 
   'editor.load_error': 'This edit doesn’t exist or has expired.',

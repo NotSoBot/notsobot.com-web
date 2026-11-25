@@ -3,6 +3,7 @@ import { createBrowserRouter, matchRoutes, Navigate, type HydrationState, type R
 import { RequireAuth, RequireStaff } from '@/auth';
 import { BotInviteRedirect, ExternalRedirect } from '@/components/ExternalRedirect';
 import { SiteLayout } from '@/components/layout/SiteLayout';
+import { RequireEditorAccess } from '@/editor/hosts/access';
 import { Routes, Urls } from '@/config';
 import { loadTagDocs } from '@/content/tagDocs/load';
 import type { TagDocsView } from '@/content/tagDocs/localize';
@@ -116,9 +117,9 @@ export const routes: Array<RouteObject> = [
         element: <RequireAuth/>,
         children: [
           // the media editor (src/editor), full width under the navbar. its strings come with the dashboard's.
-          // NotSoBot owners only until it rolls out to everyone
+          // whoever the api says it's open to (owners until its EDITOR_PUBLIC)
           {
-            element: <RequireStaff owner/>,
+            element: <RequireEditorAccess/>,
             children: [
               {
                 path: Routes.EDITOR,

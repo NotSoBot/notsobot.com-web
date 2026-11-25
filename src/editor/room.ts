@@ -60,10 +60,12 @@ export class EditorRoom {
   private reconnectTimer: number | null = null;
   private attempt = 0;
   private stopped = false;
-  // ops sent before the socket opened (or while it reconnects), sent once it's ready
-  private queue: Array<string> = [];
 
   constructor(private readonly url: string, private readonly token: string) {}
+
+  get isOpen(): boolean {
+    return this.status === 'open' && this.socket?.readyState === WebSocket.OPEN;
+  }
 
   connect(): void {
     this.stopped = false;
@@ -107,11 +109,10 @@ export class EditorRoom {
   }
 
   private send(message: Record<string, unknown>): void {
-    const text = JSON.stringify(message);
-    if (this.status === 'open' && this.socket?.readyState === WebSocket.OPEN) {
-      this.socket.send(text);
-    } else if (message.op !== 'lock' && message.op !== 'unlock') {
-      this.queue.push(text);
+    // nothing is queued while it's not open: the editor saves over http meanwhile (`isOpen`), an op sent later would
+    // apply the same change twice
+    if (this.isOpen) {
+      this.socket!.send(JSON.stringify(message));
     }
   }
 
@@ -184,11 +185,6 @@ export class EditorRoom {
         this.locks = event.locks;
         this.setStatus('open');
         this.pingTimer = window.setInterval(() => this.send({op: 'ping'}), PING_INTERVAL);
-        const queued = this.queue;
-        this.queue = [];
-        for (const text of queued) {
-          this.socket?.send(text);
-        }
         break;
       }
       case 'members': {

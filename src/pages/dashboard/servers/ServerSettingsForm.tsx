@@ -22,7 +22,7 @@ import { useMediaFontChoices } from '../fonts/SavedFontsPanel';
 import { PersonalityHint } from '../settings/PersonalityHint';
 import { useDraft } from '../settings/useDraft';
 import { CharCounter, Field, HelpDisclosure, InlineError, Panel, SaveBar, Toggle } from '../ui';
-import { banCleanChoices, useReadOnlyMessage, warningsExpireChoices, warningsWindowChoices } from './guildMeta';
+import { banCleanChoices, hiddenModerationMessage, isModerationHidden, useReadOnlyMessage, warningsExpireChoices, warningsWindowChoices } from './guildMeta';
 import { PremiumNote } from './MusicSection';
 import { useDirtyGroups, type SettingsGroup } from './useDirtyGroups';
 import { WarningActionsEditor, warningActionsError } from './WarningActionsEditor';
@@ -283,19 +283,25 @@ export function ServerSettingsForm({ guild, group, onDirtyChange }: {guild: User
               <Field label={t('ssettings.expire')} hint={t('ssettings.expire_hint')}>
                 {(props) => <ChoiceSelect {...props} noneLabel={t('ssettings.never_default')} choices={warningsExpireChoices(values.warnings_expire)} value={values.warnings_expire} onChange={(value) => draft.set('warnings_expire', value)}/>}
               </Field>
-              <WarningActionsEditor
-                value={warningActions}
-                onChange={(value) => draft.set('warnings_actions', value)}
-                disabled={!editable}
-              />
-              <WarningAutoEditor
-                value={warningAuto}
-                onChange={(value) => draft.set('warnings_auto', value)}
-                exempt={values.warnings_auto_exempt}
-                onExemptChange={(value) => draft.set('warnings_auto_exempt', value)}
-                guildId={guild.id}
-                disabled={!editable}
-              />
+              {(isModerationHidden(guild)) ? (
+                <p className='text-sm text-subtle md:col-span-2'>{hiddenModerationMessage()}</p>
+              ) : (
+                <>
+                  <WarningActionsEditor
+                    value={warningActions}
+                    onChange={(value) => draft.set('warnings_actions', value)}
+                    disabled={!editable}
+                  />
+                  <WarningAutoEditor
+                    value={warningAuto}
+                    onChange={(value) => draft.set('warnings_auto', value)}
+                    exempt={values.warnings_auto_exempt}
+                    onExemptChange={(value) => draft.set('warnings_auto_exempt', value)}
+                    guildId={guild.id}
+                    disabled={!editable}
+                  />
+                </>
+              )}
             </>
           ) : null}
         </fieldset>

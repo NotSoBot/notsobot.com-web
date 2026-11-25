@@ -123,4 +123,5 @@ export const Settings: Record<keyof typeof English, string> = {
   'data.delete.confirm': 'Borrar todo',
   'data.delete.phrase': 'borrar mis datos',
   'data.delete.error': 'No se pudieron borrar tus datos.',
+  'data.delete.on_hold': 'Tus datos no se pueden borrar en este momento.',
 };

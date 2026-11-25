@@ -7,6 +7,7 @@ export const Layout = {
   'nav.premium': 'Premium',
   'nav.status': 'Status',
   'nav.changelog': 'Changelog',
+  'nav.editor': 'Editor',
   'nav.faq': 'FAQ',
   'nav.open_menu': 'Open menu',
   'nav.close_menu': 'Close menu',

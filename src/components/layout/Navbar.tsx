@@ -9,7 +9,7 @@ import { useI18n } from '@/i18n';
 import { cn } from '@/lib/utils';
 
 import { AuthControls } from './AuthControls';
-import { NAV_LINKS } from './navLinks';
+import { useNavLinks } from './navLinks';
 
 
 // the logo run through every media iv effect that keeps its transparency (see assets/logos/effects/README.md)
@@ -46,6 +46,7 @@ function takeLogoEffect(previous?: string): string {
 
 export function Navbar() {
   const { t } = useI18n();
+  const links = useNavLinks();
   const [ mobileOpen, setMobileOpen ] = useState(false);
   const location = useLocation();
   const menuButtonRef = useRef<HTMLButtonElement>(null);
@@ -93,7 +94,7 @@ export function Navbar() {
 
         <div className='ml-auto flex items-center gap-5'>
           <ul className='hidden items-center gap-5 md:flex'>
-            {NAV_LINKS.map((link) => (
+            {links.map((link) => (
               <li key={link.to}>
                 <NavLink
                   to={link.to}
@@ -111,7 +112,7 @@ export function Navbar() {
       {(mobileOpen) ? (
         <div ref={menuRef} className='animate-fade-in border-t border-line md:hidden'>
           <ul className='container-page flex flex-col gap-1 py-3'>
-            {NAV_LINKS.map((link) => (
+            {links.map((link) => (
               <li key={link.to}>
                 <NavLink
                   to={link.to}

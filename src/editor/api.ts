@@ -44,6 +44,16 @@ export interface EditorApiError {
 }
 
 
+// an id put into an api path. Ids come from the url (`/editor/:documentId`, which react router decodes, so `..%2F`
+// arrives as `../`) and from the activity's `?instance_id=`, never let one walk to another endpoint with the user's token
+export function pathId(value: string): string {
+  if (!/^[\w-]+$/.test(value)) {
+    throw new Error('Invalid id');
+  }
+  return value;
+}
+
+
 export function createEditorApi(request: EditorRequest) {
   return {
     effects: () => request<EditorCatalogue>('/editor/effects'),
@@ -62,14 +72,14 @@ export function createEditorApi(request: EditorRequest) {
       // a big upload takes longer than the usual 15s
       return request<EditorDocument>('/editor/documents', {method: 'POST', body: form, timeout: 120 * 1000});
     },
-    document: (documentId: string, signal?: AbortSignal) => request<EditorDocument>(`/editor/documents/${documentId}`, {signal}),
+    document: (documentId: string, signal?: AbortSignal) => request<EditorDocument>(`/editor/documents/${pathId(documentId)}`, {signal}),
     saveSteps: (documentId: string, steps: Array<EditorStep>, version: number) => request<EditorDocument>(
-      `/editor/documents/${documentId}`,
+      `/editor/documents/${pathId(documentId)}`,
       {method: 'PATCH', body: {steps, version}, headers: {'if-match': String(version)}},
     ),
-    deleteDocument: (documentId: string) => request<void>(`/editor/documents/${documentId}`, {method: 'DELETE'}),
+    deleteDocument: (documentId: string) => request<void>(`/editor/documents/${pathId(documentId)}`, {method: 'DELETE'}),
     preview: (documentId: string, options: {mode: EditorPreviewMode, frame?: number, upto?: number}, signal?: AbortSignal) => request<EditorPreview>(
-      `/editor/documents/${documentId}/previews`,
+      `/editor/documents/${pathId(documentId)}/previews`,
       {
         method: 'POST',
         body: {mode: (options.mode === 'frame') ? 'frame' : 'clip', frame: options.frame ?? 0, upto: options.upto},
@@ -79,12 +89,18 @@ export function createEditorApi(request: EditorRequest) {
       },
     ),
     previewStatus: (documentId: string, previewId: string, signal?: AbortSignal) => request<EditorPreview>(
-      `/editor/documents/${documentId}/previews/${previewId}`,
+      `/editor/documents/${pathId(documentId)}/previews/${pathId(previewId)}`,
       {signal},
     ),
-    render: (documentId: string) => request<EditorJob>(`/editor/documents/${documentId}/render`, {method: 'POST', timeout: 30 * 1000}),
-    job: (jobId: string) => request<EditorJob>(`/jobs/${jobId}`),
-    activity: (instanceId: string) => request<EditorActivityContext>(`/editor/activity/${instanceId}`),
+    render: (documentId: string) => request<EditorJob>(`/editor/documents/${pathId(documentId)}/render`, {method: 'POST', timeout: 30 * 1000}),
+    job: (jobId: string) => request<EditorJob>(`/jobs/${pathId(jobId)}`),
+    // a render put on Discord's cdn with the user's own Discord token (the Activity's share dialog only takes those)
+    shareAttachment: (url: string, accessToken: string) => request<{url: string}>('/editor/share', {
+      method: 'POST',
+      body: {url, access_token: accessToken},
+      timeout: 60 * 1000,
+    }),
+    activity: (instanceId: string) => request<EditorActivityContext>(`/editor/activity/${pathId(instanceId)}`),
   };
 }
 
@@ -106,4 +122,6 @@ export interface EditorHost {
   room?: EditorRoom,
   // the premium page link for the limits note
   premiumUrl: string,
+  // the editor is the whole window (the Activity), not a page under the site's navbar
+  fullscreen?: boolean,
 }

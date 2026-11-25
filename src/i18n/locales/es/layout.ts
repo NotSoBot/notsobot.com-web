@@ -9,6 +9,7 @@ export const Layout: Record<keyof typeof English, string> = {
   'nav.premium': 'Premium',
   'nav.status': 'Estado',
   'nav.changelog': 'Novedades',
+  'nav.editor': 'Editor',
   'nav.faq': 'Preguntas',
   'nav.open_menu': 'Abrir menú',
   'nav.close_menu': 'Cerrar menú',

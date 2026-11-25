@@ -19,7 +19,7 @@ import {
 import { cn, formatDate, formatNumber, snowflakeTimestamp } from '@/lib/utils';
 
 import { LOCALE_CHOICES, TIMEZONE_CHOICES } from '../settings/settingsChoices';
-import { dashboardServerPath, SERVER_TAB_GROUPS, type ServerTab } from './guildMeta';
+import { dashboardServerPath, isModerationHidden, SERVER_TAB_GROUPS, type ServerTab } from './guildMeta';
 
 
 type HomeGroup = (typeof SERVER_TAB_GROUPS)[number]['id'];
@@ -37,6 +37,8 @@ export function ServerHome({ guild, onOpen }: {guild: UserGuild, onOpen?: (tab: 
   const staff = useGuildScope() === 'admin';
   const moderator = guild.editable.moderation || staff;
   const manager = guild.editable.settings || staff;
+  // a member without Manage Server or Timeout Members gets the rules and loggers empty, no count for them
+  const seesModeration = !isModerationHidden(guild);
   // reminders are people's private notes, staff only get a count of them
   const reminderCount = guild.editable.reminders && !staff;
   const commands = useGuildCommandStatsQuery(guild.id, 30, manager);
@@ -77,8 +79,8 @@ export function ServerHome({ guild, onOpen }: {guild: UserGuild, onOpen?: (tab: 
       // what's waiting on a moderator comes first
       (moderator) ? <HomeRow key='reports' label={t('shome.reports')} value={count(reports.data?.count, reports.isError)} tone='text-danger-text' {...open('reports')}/> : null,
       (moderator) ? <HomeRow key='warnings' label={t('shome.warnings')} value={count(warnings.data?.active, warnings.isError)} tone='text-warning' {...open('warnings')}/> : null,
-      <HomeRow key='block' label={t('shome.block_rules')} value={count(blockRules)} {...open('rules')}/>,
-      <HomeRow key='allow' label={t('shome.allow_rules')} value={count(allowRules)} {...open('rules')}/>,
+      (seesModeration) ? <HomeRow key='block' label={t('shome.block_rules')} value={count(blockRules)} {...open('rules')}/> : null,
+      (seesModeration) ? <HomeRow key='allow' label={t('shome.allow_rules')} value={count(allowRules)} {...open('rules')}/> : null,
     ],
     features: [
       <HomeRow key='personality' label={t('shome.personality')} value={t((guild.settings.ml_llm_personality) ? 'shome.custom' : 'shome.default')} {...open('notsoai')}/>,
@@ -92,7 +94,7 @@ export function ServerHome({ guild, onOpen }: {guild: UserGuild, onOpen?: (tab: 
       <HomeRow key='language' label={t('shome.language')} value={language} {...open('settings')}/>,
       <HomeRow key='timezone' label={t('shome.timezone')} value={timezone} {...open('settings')}/>,
       <HomeRow key='prefixes' label={t('shome.prefixes')} value={count(guild.prefixes.length)} {...open('settings')}/>,
-      <HomeRow key='loggers' label={t('shome.loggers')} value={count(guild.loggers.length)} {...open('settings')}/>,
+      (seesModeration) ? <HomeRow key='loggers' label={t('shome.loggers')} value={count(guild.loggers.length)} {...open('settings')}/> : null,
       <HomeRow
         key='credits'
         label={t('shome.credits')}

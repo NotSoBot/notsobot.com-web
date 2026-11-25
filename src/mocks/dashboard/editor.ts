@@ -69,7 +69,12 @@ export function registerEditorMocks(route: Route, error: MakeError): void {
     return document;
   };
 
-  route('GET', '/editor/effects', () => catalogue());
+  // `__dashboardMocks.owner(false)` (then reload) shows a non-owner: the editor isn't open to them yet, unless
+  // `sessionStorage.setItem('dashboardMocks:editorPublic', '1')` (then reload) has it open to everyone like EDITOR_PUBLIC
+  route('GET', '/editor/effects', () => ({
+    ...catalogue(),
+    access: (sessionStorage.getItem('dashboardMocks:editorPublic')) ? 'everyone' : 'owners',
+  }));
 
   route('GET', '/editor/documents', () => ({
     documents: [...documents.values()].sort((a, b) => b.updated.localeCompare(a.updated)),

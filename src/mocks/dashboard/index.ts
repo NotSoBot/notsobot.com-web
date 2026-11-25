@@ -1258,11 +1258,22 @@ function throwGuildsError() {
 
 function guildDetail(guildId: string) {
   const entry = findGuild(guildId);
-  return {
+  const editable = guildEditable(entry.summary);
+  // like the api: a member without Manage Server or Timeout Members gets the loggers, rules and auto-warn empty
+  const moderationVisible = editable.settings || editable.moderation;
+  const detail = (moderationVisible) ? entry.detail : {
     ...entry.detail,
+    disabled_logger_events: 0,
+    loggers: [],
+    rules: [],
+    settings: {...entry.detail.settings, warnings_actions: [], warnings_auto: [], warnings_auto_exempt: null},
+  };
+  return {
+    ...detail,
     owner: entry.summary.owner,
     permissions: entry.summary.permissions,
-    editable: guildEditable(entry.summary),
+    editable,
+    moderation_visible: moderationVisible,
     premium_server: guildPremiumServer(guildId),
   };
 }
@@ -2074,6 +2085,21 @@ route('PATCH', '/admin/users/(\\d+)', ([ , userId ], { body }) => {
   if (typeof body.premium_type === 'number') {
     user.premium_type = body.premium_type;
   }
+  // like the api: staff place a legal hold, only owners lift it (the mock viewer is an owner)
+  if (body.legal_hold === true && !user.legal_hold) {
+    user.legal_hold = true;
+    user.legal_hold_by = mockUser.id;
+    user.legal_hold_on = new Date().toISOString();
+  }
+  if (body.legal_hold === true && body.legal_hold_reason !== undefined) {
+    user.legal_hold_reason = (body.legal_hold_reason as string | null) || null;
+  }
+  if (body.legal_hold === false) {
+    user.legal_hold = false;
+    user.legal_hold_by = null;
+    user.legal_hold_on = null;
+    user.legal_hold_reason = null;
+  }
   return user;
 });
 
@@ -2559,6 +2585,74 @@ route('DELETE', '/jobs/([0-9a-f-]+)', ([ , jobId ]) => {
   if (!mediaJobs.delete(jobId)) {
     throw new MockError(404, ApiErrorCodes.UNKNOWN_JOB, 'Unknown Job');
   }
+});
+
+// mirrors the NCMEC routes on NCMEC's test environment: hold, block, then a filing with a made-up report id
+const NCMEC_MOCK_STATUS = {
+  configured: true,
+  environment: 'test',
+  incident_types: [
+    'Child Pornography (possession, manufacture, and distribution)',
+    'Child Sex Trafficking',
+    'Child Sex Tourism',
+    'Child Sexual Molestation',
+    'Misleading Domain Name',
+    'Misleading Words or Digital Images on the Internet',
+    'Online Enticement of Children for Sexual Acts',
+    'Unsolicited Obscene Material Sent to a Child',
+  ],
+  missing: [] as Array<string>,
+  reporter_email: 'reports@example.com',
+};
+
+route('GET', '/admin/ncmec', () => {
+  requireStaff();
+  return NCMEC_MOCK_STATUS;
+});
+
+route('POST', '/admin/ncmec/check', () => {
+  requireStaff();
+  return {...NCMEC_MOCK_STATUS, check: {ok: true, description: 'Remote User : mock, Remote Ip : 127.0.0.1'}};
+});
+
+route('POST', '/admin/content-flags/(\\d+)/ncmec', ([ , flagId ], { body }) => {
+  requireStaff();
+  const flag = state.contentFlags.find((other) => other.id === flagId);
+  if (!flag) {
+    throw new MockError(404, 10000, 'Unknown Content Flag');
+  }
+  if (flag.ncmec_report?.status === 'finished' && flag.ncmec_report.environment === 'production') {
+    throw new MockError(409, ApiErrorCodes.CONTENT_FLAG_ALREADY_REPORTED, 'This flag was already reported to NCMEC');
+  }
+  const now = new Date().toISOString();
+  const user = state.adminUsers.find((other) => other.id === flag.user_id);
+  for (const target of [user, flag.user]) {
+    if (!target) {
+      continue;
+    }
+    target.legal_hold = true;
+    target.legal_hold_on = target.legal_hold_on ?? now;
+    target.legal_hold_reason = target.legal_hold_reason ?? `NCMEC report being filed for content flag #${flag.id}`;
+    if (body.block && !target.blocked) {
+      target.blocked = true;
+      target.blocked_reason = (body.block_reason as string | null) || null;
+      target.blocked_until = null;
+    }
+  }
+  const report = {
+    created: now,
+    created_by: mockUser.id,
+    environment: 'test' as const,
+    error: null,
+    files: (flag.frames_kept ? 2 : 0) + ((body.include_input_image && flag.source_url) ? 1 : 0),
+    finished: now,
+    id: String(Date.now()),
+    report_id: String(4564654 + Math.floor(Math.random() * 1000)),
+    status: 'finished' as const,
+  };
+  flag.ncmec_report = report;
+  flag.notes = [flag.notes, `NCMEC CyberTipline report ${report.report_id} (TEST environment)`].filter(Boolean).join('\n');
+  return {flag, report};
 });
 
 route('PATCH', '/admin/content-flags/(\\d+)', ([ , flagId ], { body }) => {
@@ -6512,7 +6606,7 @@ route('GET', '/home', (_match, { query }) => {
 registerEditorMocks(route, (status, code, message, metadata) => new MockError(status, code, message, metadata));
 
 
-const MOCK_PUBLIC_PATHS = ['/tags/directory', '/reports/anonymous', '/commands', '/commands/stats', '/home', '/info/voice'];
+const MOCK_PUBLIC_PATHS = ['/tags/directory', '/reports/anonymous', '/commands', '/commands/stats', '/home', '/info/voice', '/editor/effects'];
 
 export function installDashboardMocks(): void {
   const realFetch = window.fetch.bind(window);

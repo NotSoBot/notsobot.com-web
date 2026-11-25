@@ -28,6 +28,13 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 
 export const CHANGELOG: Array<ChangelogDay> = [
   {
+    date: '2026-11-25',
+    title: 'Server settings for moderators only',
+    items: [
+      {kind: 'fixed', text: 'A server\'s dashboard page no longer shows its rules, loggers and auto-warn settings to members without Manage Server or Timeout Members, it says only moderators can see them.'},
+    ],
+  },
+  {
     date: '2026-11-24',
     title: 'KineMaster projects',
     items: [

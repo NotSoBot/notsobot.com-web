@@ -64,6 +64,9 @@ import type {
   ContentFlagKeptFrames,
   ContentFlagMatches,
   ContentFlagPatch,
+  NcmecReportRequest,
+  NcmecReportResult,
+  NcmecStatus,
   ContentFlagSuggestionsAccepted,
   ContentFlagType,
   ContentFlagsPage,
@@ -1319,6 +1322,19 @@ export const api = {
 
   patchAdminContentFlag: (flagId: string, body: ContentFlagPatch) => {
     return apiRequest<ContentFlag>(ApiEndpoints.ADMIN_CONTENT_FLAG(flagId), {method: 'PATCH', body});
+  },
+
+  // owner only: legal hold, block (optional), then a CyberTipline report with the flag's frames
+  reportAdminContentFlagNcmec: (flagId: string, body: NcmecReportRequest) => {
+    return apiRequest<NcmecReportResult>(ApiEndpoints.ADMIN_CONTENT_FLAG_NCMEC(flagId), {method: 'POST', body});
+  },
+
+  fetchAdminNcmec: (signal?: AbortSignal) => {
+    return apiRequest<NcmecStatus>(ApiEndpoints.ADMIN_NCMEC, {signal});
+  },
+
+  checkAdminNcmec: () => {
+    return apiRequest<NcmecStatus>(ApiEndpoints.ADMIN_NCMEC_CHECK, {method: 'POST'});
   },
 
   // turns a media flag into a text flag on its prompt, dropping the media's hashes (can't be undone)

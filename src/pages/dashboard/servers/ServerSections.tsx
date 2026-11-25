@@ -25,6 +25,8 @@ import {
   LOGGER_IGNORE_TYPES,
   MAX_LOGGER_IGNORED,
   RULE_TARGET_TYPES,
+  hiddenModerationMessage,
+  isModerationHidden,
   loggerIgnoresRoles,
   loggerTypeLabel,
   useReadOnlyMessage,
@@ -576,7 +578,9 @@ export function RulesSection({ guild }: {guild: UserGuild}) {
     >
       <AdminBypassToggle guild={guild} edit={edit}/>
       <PrefixPermissionsSelect guild={guild} edit={edit}/>
-      {(sortedRules.length) ? (
+      {(isModerationHidden(guild)) ? (
+        <EmptyState icon={<Lock className='size-6'/>} title={hiddenModerationMessage()}/>
+      ) : (sortedRules.length) ? (
         <div className='mb-3 space-y-3'>
           <div className='flex gap-2'>
             <SearchInput
@@ -621,7 +625,7 @@ export function RulesSection({ guild }: {guild: UserGuild}) {
           </p>
         </div>
       ) : null}
-      {(rules.length) ? (
+      {(isModerationHidden(guild)) ? null : (rules.length) ? (
         <ul className='divide-y divide-line rounded-md border border-line'>
           {rules.map((rule) => {
             const bypassKey = `${rule.id}:bypass`;
@@ -852,7 +856,9 @@ export function LoggersSection({ guild }: {guild: UserGuild}) {
       description={t('loggers.description')}
       readOnly={(editable) ? undefined : readOnlyMessage('loggers')}
     >
-      {(loggers.length) ? (
+      {(isModerationHidden(guild)) ? (
+        <EmptyState icon={<Lock className='size-6'/>} title={hiddenModerationMessage()}/>
+      ) : (loggers.length) ? (
         <ul className='divide-y divide-line rounded-md border border-line'>
           {loggers.map((logger) => {
             const key = `${logger.type}:${logger.channel_id}`;

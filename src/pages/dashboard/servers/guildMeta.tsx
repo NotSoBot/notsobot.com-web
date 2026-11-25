@@ -2,7 +2,7 @@ import { AlarmClock, AtSign, AudioLines, ChartColumn, Coins, Hash, LayoutDashboa
 
 import { DASHBOARD_SERVER_TABS, Routes } from '@/config';
 import { translate, translatePlural, useI18n, type TranslationKey } from '@/i18n';
-import type { GuildEditableArea } from '@/lib/api';
+import type { GuildEditableArea, UserGuild } from '@/lib/api';
 import { useGuildScope } from '@/lib/api/dashboardQueries';
 import { discordChannelUrl, discordGuildUrl } from '@/lib/utils';
 
@@ -82,6 +82,16 @@ export function useReadOnlyMessage(): (area: GuildEditableArea) => string {
   const staff = useGuildScope() === 'admin';
   const { t } = useI18n();
   return (area) => (staff) ? t('area.read_only_staff') : t('area.read_only', {permission: AREA_PERMISSION[area]});
+}
+
+
+// the loggers, rules and auto-warn settings, which a member without Manage Server or Timeout Members gets empty
+export function isModerationHidden(guild: UserGuild): boolean {
+  return guild.moderation_visible === false;
+}
+
+export function hiddenModerationMessage(): string {
+  return translate('area.hidden', {manage: AREA_PERMISSION.settings, timeout: AREA_PERMISSION.moderation});
 }
 
 

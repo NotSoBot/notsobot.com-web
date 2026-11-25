@@ -1,4 +1,5 @@
 import { Routes } from '@/config';
+import { useEditorAccess } from '@/editor/hosts/access';
 import type { TranslationKey } from '@/i18n';
 
 
@@ -12,3 +13,15 @@ export const NAV_LINKS: ReadonlyArray<{to: string, label: TranslationKey, also?:
   {to: Routes.CHANGELOG, label: 'nav.changelog'},
   {to: Routes.FAQ, label: 'nav.faq'},
 ];
+
+
+export type NavLinkItem = (typeof NAV_LINKS)[number];
+
+// the site's links, plus the media editor's after Commands for whoever it's open to
+export function useNavLinks(): ReadonlyArray<NavLinkItem> {
+  const { allowed } = useEditorAccess();
+  if (!allowed) {
+    return NAV_LINKS;
+  }
+  return [NAV_LINKS[0], {to: Routes.EDITOR, label: 'nav.editor'}, ...NAV_LINKS.slice(1)];
+}

@@ -123,4 +123,5 @@ export const Settings: Record<keyof typeof English, string> = {
   'data.delete.confirm': 'Excluir tudo',
   'data.delete.phrase': 'excluir meus dados',
   'data.delete.error': 'Não foi possível excluir seus dados.',
+  'data.delete.on_hold': 'Seus dados não podem ser excluídos agora.',
 };

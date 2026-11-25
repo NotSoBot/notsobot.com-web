@@ -4,7 +4,7 @@
 // api fetches it, so the reviewer's browser never touches the source), blurred until revealed and never for
 // child safety flags.
 
-import { AlertTriangle, ArrowUpRight, Ban, Check, CircleHelp, Clock, CloudOff, Eye, Flag, ImageOff, Info, Languages, type LucideIcon, MessageSquareWarning, X } from 'lucide-react';
+import { AlertTriangle, ArrowUpRight, Ban, Check, CircleHelp, Clock, CloudOff, Eye, Flag, ImageOff, Info, Languages, type LucideIcon, MessageSquareWarning, ShieldAlert, X } from 'lucide-react';
 import { Fragment, type ReactNode, useEffect, useId, useRef, useState } from 'react';
 import { Link } from 'react-router';
 
@@ -43,6 +43,7 @@ import { DashboardHeader, EmptyState, ErrorPanel, Skeleton, Toggle } from '../ui
 import { AdminModalFooter, AdminTagModal, LinkedItemModal, REVIEW_KEYS, ReviewShortcutsToggle, useHoldModalNavigation, useOpenListItem, useReviewShortcuts } from './AdminTagModal';
 import { adminServerPath, adminUserPath, Chip, CopyableValue, DETAIL_LIST_STACKED, DetailList, ExactDate, FiltersButton, Pagination, selectAllScope, UserCell } from './adminUi';
 import { BLOCK_REASON_MAX, BlockDurationSelect, blockedUntilFromSeconds, canBlockUser } from './BlockUserDialog';
+import { NcmecReportDialog, NcmecReportLine } from './NcmecReportDialog';
 import { UserModerationButtons } from './UserModerationButtons';
 
 
@@ -695,6 +696,11 @@ function ContentFlagDetails({ flag, onReport, navigation }: {
 }) {
   const toast = useToast();
   const { user } = flag;
+  const { user: me } = useAuth();
+  const viewerIsOwner = isOwner(me);
+  const [ reportingNcmec, setReportingNcmec ] = useState(false);
+  // a real report is filed once; test ones (and failed ones) can be sent again
+  const ncmecFiled = flag.ncmec_report?.status === 'finished' && flag.ncmec_report.environment === 'production';
   const mutation = usePatchAdminContentFlagMutation();
   const translation = useTranslateAdminContentFlagMutation();
   const [ notes, setNotes ] = useState(flag.notes ?? '');
@@ -897,6 +903,19 @@ function ContentFlagDetails({ flag, onReport, navigation }: {
           {(user) ? <UserModerationButtons user={user} defaultReason={flagBlockReason(flag)} className='ml-auto'/> : null}
         </div>
         {(user?.blocked && user.blocked_reason) ? <p className='mt-1 text-xs break-words text-subtle'>Blocked for: {user.blocked_reason}</p> : null}
+        {/* owners file the CyberTipline report from here: legal hold, block, then the report with everything we have */}
+        {(flag.ncmec_report || viewerIsOwner) ? (
+          <div className='mt-2 flex flex-wrap items-center gap-2'>
+            {(flag.ncmec_report) ? <NcmecReportLine report={flag.ncmec_report}/> : null}
+            {(viewerIsOwner && !ncmecFiled) ? (
+              <button type='button' className='btn btn-danger btn-sm ml-auto' onClick={() => setReportingNcmec(true)} title='Legal hold, block, and a CyberTipline report with everything on this flag'>
+                <ShieldAlert aria-hidden className='size-4'/>
+                Report to NCMEC
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+        {(reportingNcmec) ? <NcmecReportDialog flag={flag} onClose={() => setReportingNcmec(false)}/> : null}
       </DetailModalStrip>
 
       <div className='px-4 pt-4 pb-5 sm:px-6'>

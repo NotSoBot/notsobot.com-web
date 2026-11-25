@@ -316,7 +316,7 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
   // ---- editing ----
 
   const sendOp = useCallback((op: RoomOp) => {
-    if (room) {
+    if (room?.isOpen) {
       pendingOpsRef.current.add(room.sendOp(op));
       // the render (and "saved") waits until the room has every op from here
       setSaveState('saving');
@@ -326,7 +326,7 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
   // a dragged param goes out at most every ROOM_PARAM_INTERVAL (the last value always), and its step is soft-locked
   // while it moves so nobody else changes it at the same time
   const sendParam = useCallback((stepId: string, name: string, value: unknown) => {
-    if (!room) {
+    if (!room?.isOpen) {
       return;
     }
     const key = `${stepId}:${name}`;
@@ -379,7 +379,9 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
     stepsRef.current = next;
     setSteps(next);
     setReloaded(false);
-    if (room) {
+    // in an activity the room applies it, while its socket isn't open (connecting, nginx refusing the upgrade) it's
+    // saved over http like the web, which the api announces to the room too
+    if (room?.isOpen) {
       // set_param goes through `sendParam` (throttled), everything else at once
       if (op && op.op !== 'set_param') {
         sendOp(op);
@@ -394,7 +396,7 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
     setSteps(next);
     lastHistoryRef.current = null;
     setHistoryVersion((value) => value + 1);
-    if (room) {
+    if (room?.isOpen) {
       sendOp({op: 'replace', steps: next});
       return;
     }
@@ -493,8 +495,9 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
     };
     const unsubscribeStatus = room.onStatus((status) => {
       setRoomStatus(status);
-      if (status !== 'open') {
-        // whatever was in flight is resent or lost, the next document is the truth either way
+      if (status !== 'open' && pendingOpsRef.current.size) {
+        // ops in flight are lost with the socket, the next document (or the http save from here on) is the truth.
+        // only then, an http save running now keeps its own state
         pendingOpsRef.current.clear();
         setSaveState('saved');
       }

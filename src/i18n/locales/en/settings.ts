@@ -121,4 +121,5 @@ export const Settings = {
   'data.delete.confirm': 'Delete everything',
   'data.delete.phrase': 'delete my data',
   'data.delete.error': 'Couldn’t delete your data.',
+  'data.delete.on_hold': 'Your data can’t be deleted right now.',
 } as const;

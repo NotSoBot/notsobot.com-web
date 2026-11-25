@@ -5,7 +5,7 @@ import { FullPageMessage } from '@/components/ui/FullPageMessage';
 import { Spinner } from '@/components/ui/Spinner';
 import { useI18n } from '@/i18n';
 
-import { createEditorApi, EditorErrorCodes, type EditorApiError, type EditorHost, type EditorRequest } from '../api';
+import { createEditorApi, EditorErrorCodes, pathId, type EditorApiError, type EditorHost, type EditorRequest } from '../api';
 import { EditorApp } from '../components/EditorApp';
 import { StartScreen } from '../components/StartScreen';
 import { EditorRoom } from '../room';
@@ -98,9 +98,17 @@ function clientIdFromHost(): string | null {
 }
 
 
+// the startup steps, a failure names the one it stopped at
+type Step = 'sdk' | 'ready' | 'authorize' | 'login' | 'authenticate' | 'context' | 'document';
+
 type Phase =
   | {kind: 'loading'}
-  | {kind: 'failed', message: 'editor.activity.not_in_discord' | 'editor.activity.failed' | 'editor.activity.not_ready' | 'editor.activity.denied'}
+  | {
+    kind: 'failed',
+    message: 'editor.activity.not_in_discord' | 'editor.activity.failed' | 'editor.activity.not_ready' | 'editor.activity.denied',
+    // what went wrong, shown small under the message (only owners can get this far while it rolls out)
+    detail?: string,
+  }
   | {kind: 'start', host: EditorHost, instanceId: string}
   | {kind: 'editor', host: EditorHost, documentId: string};
 
@@ -131,11 +139,12 @@ export function ActivityApp() {
   useEffect(() => {
     let alive = true;
     let room: EditorRoom | null = null;
-    const fail = (message: Extract<Phase, {kind: 'failed'}>['message']) => {
+    const fail = (message: Extract<Phase, {kind: 'failed'}>['message'], detail?: string) => {
       if (alive) {
-        setPhase({kind: 'failed', message});
+        setPhase({kind: 'failed', message, detail});
       }
     };
+    let step: Step = 'sdk';
 
     (async () => {
       const clientId = clientIdFromHost();
@@ -151,11 +160,13 @@ export function ActivityApp() {
       }
 
       try {
+        step = 'ready';
         await sdk.ready();
         // media urls from the api (previews, tiles, renders) are cdn.nsb.gg's, the iframe can only load them through
         // the `/cdn` mapping. this rewrites them as they're set on img/video elements too
         patchUrlMappings(URL_MAPPINGS, {patchSrcAttributes: true});
 
+        step = 'authorize';
         const { code } = await sdk.commands.authorize({
           client_id: clientId,
           response_type: 'code',
@@ -163,17 +174,20 @@ export function ActivityApp() {
           prompt: 'none',
           scope: SCOPES,
         });
+        step = 'login';
         const auth = await createActivityRequest(() => null)<{token: string, access_token: string}>('/auth/activity', {
           method: 'POST',
           body: {code},
         });
         tokenRef.current = auth.token;
+        step = 'authenticate';
         await sdk.commands.authenticate({access_token: auth.access_token});
 
         const instanceId = sdk.instanceId;
+        step = 'context';
         const context = await api.activity(instanceId);
 
-        room = new EditorRoom(`${(window.location.protocol === 'https:') ? 'wss:' : 'ws:'}//${window.location.host}${API_BASE}/editor/rooms/${instanceId}`, auth.token);
+        room = new EditorRoom(`${(window.location.protocol === 'https:') ? 'wss:' : 'ws:'}//${window.location.host}${API_BASE}/editor/rooms/${pathId(instanceId)}`, auth.token);
         room.onStatus((status) => {
           if (status === 'denied') {
             fail('editor.activity.denied');
@@ -186,9 +200,12 @@ export function ActivityApp() {
           errorOf: activityErrorOf,
           room,
           premiumUrl: PREMIUM_URL,
-          // the user posts it themselves through Discord's own dialog, the bot never posts in their channel
+          fullscreen: true,
+          // the user posts it themselves through Discord's own dialog, the bot never posts in their channel. the dialog
+          // only takes Discord cdn urls, so the render goes onto Discord's cdn first (the api uploads it with their token)
           share: async (url) => {
-            await sdk.commands.openShareMomentDialog({mediaUrl: url});
+            const uploaded = await api.shareAttachment(url, auth.access_token);
+            await sdk.commands.openShareMomentDialog({mediaUrl: uploaded.url});
           },
           openExternal: (url) => {
             void sdk.commands.openExternalLink({url});
@@ -197,6 +214,7 @@ export function ActivityApp() {
 
         let documentId = context.document_id;
         const mediaUrl = (typeof context.launch?.media_url === 'string') ? context.launch.media_url : null;
+        step = 'document';
         if (!documentId && mediaUrl) {
           // opened from Edit Media/Edit Avatar: that media, as the instance's document (or the one someone else just made)
           documentId = (await api.createDocument({url: mediaUrl, activityInstanceId: instanceId})).id;
@@ -217,14 +235,20 @@ export function ActivityApp() {
         });
       } catch (error) {
         const apiError = activityErrorOf(error);
-        if (apiError?.status === 403) {
+        // the api's status/code/message, or the sdk's own error (its `code` and `message`)
+        const raw = error as {code?: unknown, message?: unknown} | null;
+        const detail = (apiError)
+          ? `${step}: ${apiError.status}${(apiError.code !== null) ? ` (${apiError.code})` : ''} ${apiError.message}`
+          : `${step}: ${(raw && raw.code !== undefined) ? `(${String(raw.code)}) ` : ''}${String(raw?.message ?? error)}`;
+        console.error('[editor activity] startup failed', step, error);
+        if (apiError?.status === 403 && step === 'context') {
           // owner-only while it rolls out (and a user who left the activity)
-          return fail('editor.activity.not_ready');
+          return fail('editor.activity.not_ready', detail);
         }
         if (apiError?.code === EditorErrorCodes.UNKNOWN_ACTIVITY_INSTANCE) {
-          return fail('editor.activity.denied');
+          return fail('editor.activity.denied', detail);
         }
-        return fail('editor.activity.failed');
+        return fail('editor.activity.failed', detail);
       }
     })();
 
@@ -238,7 +262,11 @@ export function ActivityApp() {
     case 'loading':
       return <FullPageMessage title={t('editor.activity.loading')}><Spinner/></FullPageMessage>;
     case 'failed':
-      return <FullPageMessage title={t(phase.message)}/>;
+      return (
+        <FullPageMessage title={t(phase.message)}>
+          {(phase.detail) ? <p className='max-w-xl font-mono text-xs break-words text-subtle'>{phase.detail}</p> : null}
+        </FullPageMessage>
+      );
     case 'start':
       return (
         <StartScreen
