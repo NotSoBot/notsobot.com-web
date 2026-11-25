@@ -1,4 +1,5 @@
 import { DiscordSDK, Platform, patchUrlMappings } from '@discord/embedded-app-sdk';
+import { User, Users } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 import { FullPageMessage } from '@/components/ui/FullPageMessage';
@@ -8,8 +9,8 @@ import { useI18n } from '@/i18n';
 import { createEditorApi, EditorErrorCodes, pathId, type EditorApiError, type EditorHost, type EditorRequest } from '../api';
 import { EditorApp } from '../components/EditorApp';
 import { StartScreen } from '../components/StartScreen';
-import { EditorRoom } from '../room';
-import type { EditorTemplate } from '../types';
+import { EditorRoom, ROOM_MAX_EDITORS, type RoomMember } from '../room';
+import type { EditorDocument, EditorTemplate } from '../types';
 import { useCatalogue } from '../useCatalogue';
 
 
@@ -114,8 +115,11 @@ type Phase =
     // what went wrong, shown small under the message (only owners can get this far while it rolls out)
     detail?: string,
   }
-  | {kind: 'start', host: EditorHost, instanceId: string, template: EditorTemplate | null}
-  | {kind: 'editor', host: EditorHost, documentId: string};
+  // the start screen: `together` makes the instance's document (everyone's), `solo` one of their own
+  | {kind: 'start', instanceId: string, template: EditorTemplate | null, mode: 'together' | 'solo'}
+  // a group edit is running: join it, or start their own (with the media they launched on, if any)
+  | {kind: 'choose', groupDocumentId: string, mediaUrl: string | null, templateCode: string | null, full?: boolean}
+  | {kind: 'editor', documentId: string, solo: boolean};
 
 
 function ActivityEditor({ host, documentId }: {host: EditorHost, documentId: string}) {
@@ -138,12 +142,27 @@ function ActivityEditor({ host, documentId }: {host: EditorHost, documentId: str
 export function ActivityApp() {
   const { t } = useI18n();
   const [ phase, setPhase ] = useState<Phase>({kind: 'loading'});
+  // the phase as of the last render, for the room's listener (set up once at startup)
+  const phaseRef = useMemo(() => ({current: phase}), []);
+  phaseRef.current = phase;
+  // the group's host (the room) and a solo document's (no room: its edits must never reach the group's), set at startup
+  const [ hosts, setHosts ] = useState<{
+    group: EditorHost,
+    solo: EditorHost,
+    startSolo: (mediaUrl: string | null, templateCode: string | null) => Promise<void>,
+    // into the group's document, if there's room in it (`ROOM_MAX_EDITORS`): the choose screen, full, when there isn't
+    enterGroup: (documentId: string) => Promise<void>,
+  } | null>(null);
   const tokenRef = useMemo(() => ({current: null as string | null}), []);
   const api = useMemo(() => createEditorApi(createActivityRequest(() => tokenRef.current)), [tokenRef]);
 
   useEffect(() => {
     let alive = true;
     let room: EditorRoom | null = null;
+    let groupHost: EditorHost;
+    let soloHost: EditorHost;
+    let startSolo: (mediaUrl: string | null, templateCode: string | null) => Promise<void>;
+    let enterGroup: (documentId: string) => Promise<void>;
     const fail = (message: Extract<Phase, {kind: 'failed'}>['message'], detail?: string) => {
       if (alive) {
         setPhase({kind: 'failed', message, detail});
@@ -200,14 +219,14 @@ export function ActivityApp() {
         });
         room.connect();
 
-        const host: EditorHost = {
+        const baseHost: EditorHost = {
           api,
           errorOf: activityErrorOf,
-          room,
           premiumUrl: PREMIUM_URL,
           templateUrl: (code) => `${SITE_URL}/editor/template/${code}`,
           // Discord's share dialog: a link in chat that launches the activity on the template (`custom_id`, read back
           // from `sdk.customId` below). The message is ours, the link's preview is Discord's
+          shareTemplateInChat: true,
           shareTemplate: async (template) => {
             await sdk.commands.shareLink({
               // what it is and where it's from, Discord puts the activity's link card under it. a locked one's
@@ -230,8 +249,49 @@ export function ActivityApp() {
             void sdk.commands.openExternalLink({url});
           },
         };
+        // a document of their own: its source and saved steps again, without the instance
+        const copyToSolo = async (document: EditorDocument) => {
+          const copy = await api.createDocument({url: document.source.urls.cdn});
+          const saved = (document.steps.length) ? await api.saveSteps(copy.id, document.steps, copy.version) : copy;
+          // their spot in the group edit is someone else's to take now
+          void room?.setEditing(false);
+          setPhase({kind: 'editor', documentId: saved.id, solo: true});
+        };
+        // the group's: the running one, or theirs becomes it when there's none (the room moves everyone waiting to it)
+        const toGroup = async (document: EditorDocument) => {
+          const latest = await api.activity(instanceId);
+          if (latest.document_id) {
+            await enterGroup(latest.document_id);
+            return;
+          }
+          const group = await api.createDocument({url: document.source.urls.cdn, activityInstanceId: instanceId});
+          // someone else's may have won the race, theirs is the group's then and the steps stay with them
+          const saved = (group.id !== document.id && !group.steps.length && document.steps.length)
+            ? await api.saveSteps(group.id, document.steps, group.version)
+            : group;
+          await enterGroup(saved.id);
+        };
+        enterGroup = async (documentId: string) => {
+          if (await room!.setEditing(true) === 'full') {
+            setPhase({kind: 'choose', groupDocumentId: documentId, mediaUrl: null, templateCode: null, full: true});
+            return;
+          }
+          setPhase({kind: 'editor', documentId, solo: false});
+        };
+        groupHost = {...baseHost, room, switchSession: {kind: 'copy', run: copyToSolo}};
+        soloHost = {...baseHost, switchSession: {kind: 'group', run: toGroup}};
+        startSolo = async (mediaUrl: string | null, templateCode: string | null) => {
+          if (!mediaUrl) {
+            setPhase({kind: 'start', instanceId, template: (templateCode) ? await api.template(templateCode).catch(() => null) : null, mode: 'solo'});
+            return;
+          }
+          const document = await api.createDocument({url: mediaUrl, templateCode: templateCode ?? undefined})
+            .catch(() => api.createDocument({url: mediaUrl}));
+          setPhase({kind: 'editor', documentId: document.id, solo: true});
+        };
 
-        let documentId = context.document_id;
+        const groupDocumentId = context.document_id;
+        let documentId: string | null = null;
         const mediaUrl = (typeof context.launch?.media_url === 'string') ? context.launch.media_url : null;
         // `/editor template:<link>`: its steps go on the launched media, or on whatever's picked on the start screen
         // `/editor template:` (the bot's launch), or a template link someone shared in chat (`shareLink`'s custom id)
@@ -239,8 +299,35 @@ export function ActivityApp() {
         const templateCode = (typeof context.launch?.template_code === 'string') ? context.launch.template_code
           : (sharedCode && /^[A-Za-z]{1,12}$/.test(sharedCode)) ? sharedCode : null;
         step = 'document';
-        if (!documentId && mediaUrl) {
-          // opened from Edit Media/Edit Avatar: that media, as the instance's document (or the one someone else just made)
+        // someone else in the activity makes the group's document: everyone waiting to edit together moves to it
+        room.subscribe((event) => {
+          if (!alive) {
+            return;
+          }
+          // the start screen in together mode follows the group's document when someone makes it
+          const current = phaseRef.current;
+          if (event.t === 'document' && current.kind === 'start' && current.mode === 'together') {
+            void enterGroup(event.document.id);
+          }
+          // lost their spot (a reconnect found it full meanwhile): back to the choice, their work's in the group's
+          if (event.t === 'editing' && event.full) {
+            setPhase((current) => (current.kind === 'editor' && !current.solo)
+              ? {kind: 'choose', groupDocumentId: current.documentId, mediaUrl: null, templateCode: null, full: true}
+              : current);
+          }
+        });
+
+        if (groupDocumentId) {
+          // a group edit's running: join it or start their own (with what they launched on), their pick
+          if (alive) {
+            setHosts({group: groupHost, solo: soloHost, startSolo, enterGroup});
+            setPhase({kind: 'choose', groupDocumentId, mediaUrl, templateCode});
+          }
+          return;
+        }
+        if (mediaUrl) {
+          // opened from Edit Media/Edit Avatar with nothing running: that media, as the group's document (or the one
+          // someone else just made)
           const create = (withTemplate: boolean) => api.createDocument({
             url: mediaUrl,
             activityInstanceId: instanceId,
@@ -259,17 +346,12 @@ export function ActivityApp() {
         if (!alive) {
           return;
         }
+        setHosts({group: groupHost, solo: soloHost, startSolo, enterGroup});
         if (documentId) {
-          setPhase({kind: 'editor', host, documentId});
+          await enterGroup(documentId);
           return;
         }
-        setPhase({kind: 'start', host, instanceId, template});
-        // someone else in the activity picks the media first: everyone moves to it
-        room.subscribe((event) => {
-          if (alive && event.t === 'document') {
-            setPhase((current) => (current.kind === 'start') ? {kind: 'editor', host, documentId: event.document.id} : current);
-          }
-        });
+        setPhase({kind: 'start', instanceId, template, mode: 'together'});
       } catch (error) {
         const apiError = activityErrorOf(error);
         // the api's status/code/message, or the sdk's own error (its `code` and `message`)
@@ -305,15 +387,128 @@ export function ActivityApp() {
         </FullPageMessage>
       );
     case 'start':
+      if (!hosts) {
+        return <FullPageMessage><Spinner/></FullPageMessage>;
+      }
       return (
         <StartScreen
-          host={phase.host}
+          host={(phase.mode === 'solo') ? hosts.solo : hosts.group}
           activityInstanceId={phase.instanceId}
           template={phase.template}
-          onOpen={(document) => setPhase({kind: 'editor', host: phase.host, documentId: document.id})}
+          mode={{value: phase.mode, onChange: (mode) => setPhase({...phase, mode})}}
+          onOpen={(document) => (phase.mode === 'solo')
+            ? setPhase({kind: 'editor', documentId: document.id, solo: true})
+            : void hosts.enterGroup(document.id)}
+        />
+      );
+    case 'choose':
+      if (!hosts) {
+        return <FullPageMessage><Spinner/></FullPageMessage>;
+      }
+      return (
+        <ChooseSession
+          room={hosts.group.room ?? null}
+          full={Boolean(phase.full)}
+          onJoin={() => hosts.enterGroup(phase.groupDocumentId)}
+          onSolo={() => hosts.startSolo(phase.mediaUrl, phase.templateCode)}
         />
       );
     case 'editor':
-      return <ActivityEditor host={phase.host} documentId={phase.documentId}/>;
+      if (!hosts) {
+        return <FullPageMessage><Spinner/></FullPageMessage>;
+      }
+      return <ActivityEditor host={(phase.solo) ? hosts.solo : hosts.group} documentId={phase.documentId}/>;
   }
+}
+
+
+// Someone's already editing together: join them, or start a document of their own (nobody else sees it). Who's in the
+// activity comes from the room
+function ChooseSession({ room, full, onJoin, onSolo }: {
+  room: EditorRoom | null,
+  // the last try to join found it full
+  full: boolean,
+  onJoin: () => Promise<void>,
+  onSolo: () => Promise<void>,
+}) {
+  const { t } = useI18n();
+  const [ members, setMembers ] = useState<Array<RoomMember>>(() => room?.members ?? []);
+  const [ pending, setPending ] = useState(false);
+  const [ error, setError ] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!room) {
+      return;
+    }
+    setMembers(room.members);
+    return room.subscribe((event) => {
+      if (event.t === 'members' || event.t === 'ready') {
+        setMembers(event.members);
+      }
+    });
+  }, [room]);
+
+  const editors = members.filter((member) => member.editing);
+  // full by the room's count too, someone leaving opens it again without another try
+  const isFull = editors.length >= ROOM_MAX_EDITORS || (full && !members.length);
+  const shown = (editors.length) ? editors : members;
+  const names = shown.slice(0, 3).map((member) => member.username).join(', ');
+  return (
+    <FullPageMessage title={t('editor.session.running')}>
+      <div className='flex w-full max-w-sm flex-col items-center gap-4'>
+        {(members.length) ? (
+          <div className='flex flex-col items-center gap-2'>
+            <div className='flex -space-x-2'>
+              {shown.slice(0, 5).map((member) => (
+                (member.avatar_url) ? (
+                  <img key={member.user_id} src={member.avatar_url} alt='' className='size-9 rounded-full border-2 border-bg'/>
+                ) : (
+                  <span key={member.user_id} className='flex size-9 items-center justify-center rounded-full border-2 border-bg bg-surface-3 text-xs font-bold text-fg'>
+                    {member.username.slice(0, 1).toUpperCase()}
+                  </span>
+                )
+              ))}
+            </div>
+            <p className='text-sm text-muted'>
+              {(shown.length > 3) ? t('editor.session.people_more', {names, count: shown.length - 3}) : names}
+            </p>
+            <p className={(isFull) ? 'text-sm font-semibold text-warning' : 'text-xs text-subtle'}>
+              {(isFull) ? t('editor.session.full', {limit: ROOM_MAX_EDITORS}) : t('editor.session.editing_count', {count: editors.length, limit: ROOM_MAX_EDITORS})}
+            </p>
+          </div>
+        ) : null}
+        <button
+          type='button'
+          className='btn btn-primary w-full'
+          disabled={pending || isFull}
+          onClick={async () => {
+            setPending(true);
+            await onJoin();
+            setPending(false);
+          }}
+        >
+          <Users aria-hidden className='size-4'/>{t('editor.session.join')}
+        </button>
+        <button
+          type='button'
+          className='btn btn-secondary w-full'
+          disabled={pending}
+          onClick={async () => {
+            setPending(true);
+            setError(null);
+            try {
+              await onSolo();
+            } catch {
+              setError(t('editor.session.failed'));
+              setPending(false);
+            }
+          }}
+        >
+          {(pending) ? <Spinner className='size-4'/> : <User aria-hidden className='size-4'/>}{t('editor.session.own')}
+        </button>
+        <p className='text-center text-xs text-subtle'>{t('editor.session.own_hint')}</p>
+        {(error) ? <p role='alert' className='text-sm text-danger-text'>{error}</p> : null}
+      </div>
+    </FullPageMessage>
+  );
 }

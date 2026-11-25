@@ -1,4 +1,4 @@
-import { FileUp, Trash2 } from 'lucide-react';
+import { FileUp, Trash2, User, Users } from 'lucide-react';
 import { useEffect, useId, useRef, useState, type DragEvent, type FormEvent } from 'react';
 
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -14,7 +14,7 @@ import { TemplateBanner, TemplateList, templateNeedsPassword } from './Templates
 
 
 // The way in: a file (dropped or picked), a link, something a generator makes, or one of their recent edits
-export function StartScreen({ host, onOpen, initialUrl, activityInstanceId, template, effectNames }: {
+export function StartScreen({ host, onOpen, initialUrl, activityInstanceId: instanceId, template, effectNames, mode }: {
   host: EditorHost,
   onOpen: (document: EditorDocument | EditorDocumentSummary) => void,
   // `?url=`, from a link like the bot's "edit on the web", opened right away
@@ -24,8 +24,13 @@ export function StartScreen({ host, onOpen, initialUrl, activityInstanceId, temp
   // a shared template (`/editor/template/<code>`, or the Activity's launch): the picked file starts with its steps
   template?: EditorTemplate | null,
   effectNames?: Map<string, string>,
+  // the Activity: edit together (the instance's document, everyone in it edits it) or just me (a document of their own,
+  // nobody else sees it). Absent on the web, where every document is your own
+  mode?: {value: 'together' | 'solo', onChange: (value: 'together' | 'solo') => void},
 }) {
   const { t, plural, language } = useI18n();
+  // just me: made like on the web, without the instance (its room never sees it)
+  const activityInstanceId = (mode?.value === 'solo') ? undefined : instanceId;
   // a locked template once its password's checked: its steps, and the password the new document is made with
   const [ unlocked, setUnlocked ] = useState<{template: EditorTemplate, password: string} | null>(null);
   const shownTemplate = (unlocked && unlocked.template.code === template?.code) ? unlocked.template : (template ?? null);
@@ -48,7 +53,7 @@ export function StartScreen({ host, onOpen, initialUrl, activityInstanceId, temp
   const [ generating, setGenerating ] = useState<EditorGenerator | null>(null);
 
   useEffect(() => {
-    if (activityInstanceId) {
+    if (instanceId) {
       return;
     }
     let alive = true;
@@ -64,7 +69,7 @@ export function StartScreen({ host, onOpen, initialUrl, activityInstanceId, temp
     return () => {
       alive = false;
     };
-  }, [activityInstanceId, host]);
+  }, [instanceId, host]);
 
   const open = async (input: {file?: File, url?: string}) => {
     setUploading(true);
@@ -110,6 +115,30 @@ export function StartScreen({ host, onOpen, initialUrl, activityInstanceId, temp
         <h1 className='font-display text-3xl font-bold text-white sm:text-4xl'>{t('editor.title')}</h1>
         <p className='text-muted'>{t('editor.start.description')}</p>
       </header>
+
+      {(mode) ? (
+        <div className='flex flex-col gap-2'>
+          <div role='radiogroup' aria-label={t('editor.session.mode')} className='grid grid-cols-2 gap-1 rounded-lg bg-deep p-1'>
+            {(['together', 'solo'] as const).map((value) => (
+              <button
+                key={value}
+                type='button'
+                role='radio'
+                aria-checked={mode.value === value}
+                onClick={() => mode.onChange(value)}
+                className={cn(
+                  'flex min-h-10 items-center justify-center gap-2 rounded-md px-2 text-sm font-semibold transition-colors',
+                  (mode.value === value) ? 'bg-brand text-white' : 'text-muted hover:text-fg',
+                )}
+              >
+                {(value === 'together') ? <Users aria-hidden className='size-4'/> : <User aria-hidden className='size-4'/>}
+                {(value === 'together') ? t('editor.session.together') : t('editor.session.solo')}
+              </button>
+            ))}
+          </div>
+          <p className='text-xs text-subtle'>{(mode.value === 'together') ? t('editor.session.together_hint') : t('editor.session.solo_hint')}</p>
+        </div>
+      ) : null}
 
       {(shownTemplate) ? (
         <TemplateBanner host={host} template={shownTemplate} effectNames={effectNames} onUnlocked={(next, password) => setUnlocked({template: next, password})}/>
@@ -204,7 +233,7 @@ export function StartScreen({ host, onOpen, initialUrl, activityInstanceId, temp
         />
       ) : null}
 
-      {(!activityInstanceId) ? (
+      {(!instanceId) ? (
       <section className='flex flex-col gap-3'>
         <h2 className='font-display text-lg font-bold text-white'>{t('editor.start.recent')}</h2>
         {(recent === null) ? (
@@ -245,7 +274,7 @@ export function StartScreen({ host, onOpen, initialUrl, activityInstanceId, temp
       </section>
       ) : null}
 
-      {(!activityInstanceId) ? <TemplateList host={host}/> : null}
+      {(!instanceId) ? <TemplateList host={host}/> : null}
 
       {(deleting) ? (
         <ConfirmDialog

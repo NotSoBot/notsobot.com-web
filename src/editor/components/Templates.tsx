@@ -243,8 +243,8 @@ export function TemplateList({ host }: {host: EditorHost}) {
               {(share) ? (
                 <button
                   type='button'
-                  aria-label={t('editor.template.share')}
-                  title={t('editor.template.share')}
+                  aria-label={(host.shareTemplateInChat) ? t('editor.template.share') : t('editor.template.share_device')}
+                  title={(host.shareTemplateInChat) ? t('editor.template.share') : t('editor.template.share_device')}
                   onClick={() => void share(template).catch(() => undefined)}
                   className='flex size-10 shrink-0 items-center justify-center rounded-md text-muted hover:bg-surface-3 hover:text-fg'
                 >

@@ -7,6 +7,22 @@
     <!-- the Discord Activity's page (src/activity.tsx): the media editor inside Discord. the worker serves it under
          /activity, the url mapping Discord's proxy loads -->
     <title>NotSoBot Editor</title>
+    <style>
+      /* Discord's own header and the phone's notch/home bar sit over the activity on mobile: Discord gives their sizes
+         as --discord-safe-area-inset-*, env() is the fallback (iOS, and testing outside Discord). The editor is laid out
+         inside what's left, --editor-height is that height for its full-height layout */
+      :root {
+        --sait: var(--discord-safe-area-inset-top, env(safe-area-inset-top, 0px));
+        --saib: var(--discord-safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+        --sail: var(--discord-safe-area-inset-left, env(safe-area-inset-left, 0px));
+        --sair: var(--discord-safe-area-inset-right, env(safe-area-inset-right, 0px));
+        --editor-height: calc(100dvh - var(--sait) - var(--saib));
+      }
+      body {
+        padding: var(--sait) var(--sair) var(--saib) var(--sail);
+        box-sizing: border-box;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>

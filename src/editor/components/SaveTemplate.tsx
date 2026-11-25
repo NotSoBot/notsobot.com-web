@@ -99,7 +99,7 @@ export function TemplateShareActions({ host, template }: {host: EditorHost, temp
           }}
         >
           {(sharing) ? <Spinner className='size-4'/> : <Share2 aria-hidden className='size-4'/>}
-          {t('editor.template.share')}
+          {(host.shareTemplateInChat) ? t('editor.template.share') : t('editor.template.share_device')}
         </button>
       ) : null}
       {(shareError) ? <p role='alert' className='text-xs text-danger-text'>{shareError}</p> : null}

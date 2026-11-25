@@ -175,6 +175,12 @@ export interface EditorHost {
   // "Share in chat": the Activity's Discord share dialog (a link that opens the Activity on the template), or the
   // device's share sheet on the web where there is one. Absent: copying the link is the only way
   shareTemplate?: (template: EditorTemplate) => Promise<void>,
+  // the share goes to a Discord chat ("Share in chat", the Activity), not the device's share sheet ("Share")
+  shareTemplateInChat?: boolean,
   // the editor is the whole window (the Activity), not a page under the site's navbar
   fullscreen?: boolean,
+  // the Activity's switch between the group's document and a document of your own: `copy` makes your own from this
+  // one ("Make my own copy"), `group` goes to (or becomes) the group's ("Edit with the group"). `document` has the
+  // saved steps
+  switchSession?: {kind: 'copy' | 'group', run: (document: EditorDocument) => Promise<void>},
 }

@@ -9,7 +9,14 @@ export interface RoomMember {
   user_id: string,
   username: string,
   avatar_url: string | null,
+  // editing the group's document (not only in the activity)
+  editing?: boolean,
 }
+
+// people editing the group's document at once (the api's `ROOM_MAX_EDITORS`, it enforces it)
+export const ROOM_MAX_EDITORS = 10;
+// how long joining the group edit waits for the room before going ahead (saves over http still check the cap)
+const EDITING_WAIT = 8000;
 
 export type RoomOp =
   | {op: 'add', step: EditorStep, index?: number}
@@ -26,6 +33,8 @@ export type RoomEvent =
   | {t: 'lock', step_id: string, user_id: string}
   | {t: 'unlock', step_id: string, user_id: string}
   | {t: 'members', members: Array<RoomMember>}
+  // the answer to `editing`: `full` when the group edit had no room for them
+  | {t: 'editing', value: boolean, full?: boolean}
   | {t: 'render', user_id: string, status: 'started' | 'done' | 'failed', url?: string}
   | {t: 'pong'};
 
@@ -60,6 +69,9 @@ export class EditorRoom {
   private reconnectTimer: number | null = null;
   private attempt = 0;
   private stopped = false;
+  // editing the group's document, asked for again after every reconnect (a new socket starts as not editing)
+  private wantEditing = false;
+  private editingWaiters: Array<(result: 'ok' | 'full') => void> = [];
 
   constructor(private readonly url: string, private readonly token: string) {}
 
@@ -102,6 +114,32 @@ export class EditorRoom {
 
   unlock(stepId: string): void {
     this.send({op: 'unlock', step_id: stepId});
+  }
+
+  // start (or stop) editing the group's document: 'full' when `ROOM_MAX_EDITORS` others already are. Before the room's
+  // open it's sent once it is, and given up on after EDITING_WAIT (going ahead, the api still checks saves)
+  setEditing(value: boolean): Promise<'ok' | 'full'> {
+    this.wantEditing = value;
+    if (!value) {
+      this.send({op: 'editing', value: false});
+      return Promise.resolve('ok');
+    }
+    return new Promise((resolve) => {
+      let done = false;
+      const finish = (result: 'ok' | 'full') => {
+        if (!done) {
+          done = true;
+          resolve(result);
+        }
+      };
+      this.editingWaiters.push(finish);
+      window.setTimeout(() => finish('ok'), EDITING_WAIT);
+      this.send({op: 'editing', value: true});
+    });
+  }
+
+  get editingCount(): number {
+    return this.members.filter((member) => member.editing).length;
   }
 
   render(status: 'started' | 'done' | 'failed', url?: string): void {
@@ -185,10 +223,24 @@ export class EditorRoom {
         this.locks = event.locks;
         this.setStatus('open');
         this.pingTimer = window.setInterval(() => this.send({op: 'ping'}), PING_INTERVAL);
+        if (this.wantEditing) {
+          this.send({op: 'editing', value: true});
+        }
         break;
       }
       case 'members': {
         this.members = event.members;
+        break;
+      }
+      case 'editing': {
+        if (event.full) {
+          this.wantEditing = false;
+        }
+        const waiters = this.editingWaiters;
+        this.editingWaiters = [];
+        for (const waiter of waiters) {
+          waiter((event.full) ? 'full' : 'ok');
+        }
         break;
       }
       case 'lock': {

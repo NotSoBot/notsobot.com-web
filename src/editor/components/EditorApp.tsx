@@ -1,4 +1,4 @@
-import { ArrowLeft, Redo2, Undo2 } from 'lucide-react';
+import { ArrowLeft, Copy, Redo2, Undo2, Users } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 import { FullPageMessage } from '@/components/ui/FullPageMessage';
@@ -17,6 +17,46 @@ import { SaveTemplateButton } from './SaveTemplate';
 import { StepList } from './StepList';
 import { StepSettings, type TimeContext } from './StepSettings';
 import type { PenSettings } from './SpatialOverlay';
+
+
+// the Activity's "Make my own copy" / "Edit with the group": waits for the last edits to save, so the copy has them
+function SessionSwitchButton({ host, state }: {host: EditorHost, state: ReturnType<typeof useEditorDocument>}) {
+  const { t } = useI18n();
+  const [ pending, setPending ] = useState(false);
+  const [ error, setError ] = useState<string | null>(null);
+  const session = host.switchSession!;
+  const label = (session.kind === 'copy') ? t('editor.session.copy') : t('editor.session.group');
+  return (
+    <>
+      <button
+        type='button'
+        disabled={pending || !state.document}
+        title={error ?? label}
+        aria-label={label}
+        onClick={async () => {
+          setPending(true);
+          setError(null);
+          try {
+            if (!await state.whenSaved()) {
+              throw new Error(t('editor.render.unsaved'));
+            }
+            await session.run({...state.document!, steps: state.steps});
+          } catch (failure) {
+            setError(host.errorOf(failure)?.message || ((failure instanceof Error) ? failure.message : t('editor.session.failed')));
+            setPending(false);
+          }
+        }}
+        className={cn(
+          'inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2.5 text-sm font-semibold hover:bg-surface disabled:cursor-not-allowed disabled:opacity-40',
+          (error) ? 'text-danger-text' : 'text-muted hover:text-fg',
+        )}
+      >
+        {(pending) ? <Spinner className='size-4'/> : (session.kind === 'copy') ? <Copy aria-hidden className='size-4'/> : <Users aria-hidden className='size-4'/>}
+        <span className='hidden sm:inline'>{label}</span>
+      </button>
+    </>
+  );
+}
 
 
 function mediaChip(
@@ -107,7 +147,7 @@ export function EditorApp({ host, documentId, catalogue }: {host: EditorHost, do
   return (
     // on wide screens the editor is the window's height (under the site's navbar on the web) and each column scrolls on
     // its own, so a long effect list never pushes Render out of reach. narrow screens scroll as one page
-    <div className={cn('flex flex-col bg-bg text-fg', (host.fullscreen) ? 'min-h-dvh lg:h-dvh' : 'min-h-[calc(100dvh-4rem)] lg:h-[calc(100dvh-4rem-1px)]')}>
+    <div className={cn('flex flex-col bg-bg text-fg', (host.fullscreen) ? 'min-h-[var(--editor-height,100dvh)] lg:h-[var(--editor-height,100dvh)]' : 'min-h-[calc(100dvh-4rem)] lg:h-[calc(100dvh-4rem-1px)]')}>
       <div className='flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line-strong bg-deep px-4 py-2.5 sm:px-5'>
         {(host.onLeave) ? (
           <button type='button' onClick={host.onLeave} className='inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-muted hover:bg-surface hover:text-fg'>
@@ -135,6 +175,7 @@ export function EditorApp({ host, documentId, catalogue }: {host: EditorHost, do
         <span role='status' className={cn('text-xs', (state.saveState === 'error') ? 'text-danger-text' : 'text-subtle')}>{saveLabel}</span>
         <div className='flex items-center gap-1'>
           {/* the saved steps are what a template copies, so not while a change is still saving */}
+          {(host.switchSession) ? <SessionSwitchButton host={host} state={state}/> : null}
           <SaveTemplateButton host={host} documentId={document.id} disabled={!state.steps.length || state.saveState !== 'saved'}/>
           <button type='button' aria-label={t('editor.undo')} title={t('editor.undo')} disabled={!state.canUndo} onClick={undo} className='flex size-10 items-center justify-center rounded-lg text-fg hover:bg-surface disabled:cursor-not-allowed disabled:opacity-40'>
             <Undo2 aria-hidden className='size-5'/>
