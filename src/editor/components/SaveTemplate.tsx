@@ -1,4 +1,4 @@
-import { BookmarkPlus, Check, Link, X } from 'lucide-react';
+import { BookmarkPlus, Check, Eye, EyeOff, Link, Lock, Share2, X } from 'lucide-react';
 import { useId, useState } from 'react';
 
 import { DialogError } from '@/components/ui/DialogError';
@@ -12,28 +12,125 @@ import type { EditorTemplate } from '../types';
 
 
 const MAX_NAME_LENGTH = 64;
+export const MIN_PASSWORD_LENGTH = 4;
+export const MAX_PASSWORD_LENGTH = 64;
 
 
-// "Save as template": the document's saved steps under a name, then its share link. Unlisted, only people with the link
-// find it
+// a password box with show/hide, for locking a template and for unlocking one
+export function PasswordInput({ id, value, onChange, autoComplete, placeholder, autoFocus }: {
+  id: string,
+  value: string,
+  onChange: (value: string) => void,
+  autoComplete: 'new-password' | 'current-password',
+  placeholder?: string,
+  autoFocus?: boolean,
+}) {
+  const { t } = useI18n();
+  const [ shown, setShown ] = useState(false);
+  return (
+    <div className='flex gap-2'>
+      <input
+        id={id}
+        type={(shown) ? 'text' : 'password'}
+        value={value}
+        maxLength={MAX_PASSWORD_LENGTH}
+        autoComplete={autoComplete}
+        placeholder={placeholder}
+        // outside a modal too (a locked template's banner)
+        autoFocus={autoFocus}
+        data-autofocus={autoFocus || undefined}
+        onChange={(event) => onChange(event.target.value)}
+        className='input min-w-0 flex-1'
+      />
+      <button
+        type='button'
+        aria-label={(shown) ? t('editor.template.password_hide') : t('editor.template.password_show')}
+        aria-pressed={shown}
+        onClick={() => setShown((value) => !value)}
+        className='flex size-10 shrink-0 items-center justify-center rounded-md border border-line-strong text-muted hover:bg-surface-3 hover:text-fg'
+      >
+        {(shown) ? <EyeOff aria-hidden className='size-4'/> : <Eye aria-hidden className='size-4'/>}
+      </button>
+    </div>
+  );
+}
+
+
+// Copy link and, where the host has it, Share in chat. The template's saved, these only pass its link on
+export function TemplateShareActions({ host, template }: {host: EditorHost, template: EditorTemplate}) {
+  const { t } = useI18n();
+  const { copied, copy } = useCopied();
+  const [ copyFailed, setCopyFailed ] = useState(false);
+  const [ sharing, setSharing ] = useState(false);
+  const [ shareError, setShareError ] = useState<string | null>(null);
+  const url = host.templateUrl(template.code);
+  const share = host.shareTemplate;
+  return (
+    <div className='flex flex-col gap-2'>
+      <div className='flex gap-2'>
+        <input readOnly value={url} onFocus={(event) => event.target.select()} aria-label={t('editor.template.link')} className='input min-w-0 flex-1 font-mono text-xs'/>
+        <button
+          type='button'
+          className='btn btn-secondary shrink-0'
+          onClick={async () => {
+            const worked = await copy(url);
+            setCopyFailed(!worked);
+          }}
+        >
+          {(copyFailed) ? <X aria-hidden className='size-4 text-danger-text'/> : (copied) ? <Check aria-hidden className='size-4 text-success-text'/> : <Link aria-hidden className='size-4'/>}
+          {(copyFailed) ? t('editor.template.copy_failed') : (copied) ? t('editor.template.copied') : t('editor.template.copy')}
+        </button>
+      </div>
+      {(share) ? (
+        <button
+          type='button'
+          disabled={sharing}
+          className='btn btn-secondary w-full'
+          onClick={async () => {
+            setSharing(true);
+            setShareError(null);
+            try {
+              await share(template);
+            } catch (error) {
+              setShareError((error instanceof Error && error.message) ? error.message : t('editor.template.share_failed'));
+            } finally {
+              setSharing(false);
+            }
+          }}
+        >
+          {(sharing) ? <Spinner className='size-4'/> : <Share2 aria-hidden className='size-4'/>}
+          {t('editor.template.share')}
+        </button>
+      ) : null}
+      {(shareError) ? <p role='alert' className='text-xs text-danger-text'>{shareError}</p> : null}
+      {(template.locked) ? (
+        <p className='flex gap-1.5 text-xs text-subtle'><Lock aria-hidden className='mt-px size-3.5 shrink-0'/>{t('editor.template.locked_note')}</p>
+      ) : null}
+    </div>
+  );
+}
+
+
+// "Save as template": the document's saved steps under a name, optionally locked with a password, then its share link.
+// Unlisted, only people with the link find it (and with a lock, only those who also have the password see its steps)
 function SaveTemplateDialog({ host, documentId, onClose }: {host: EditorHost, documentId: string, onClose: () => void}) {
   const { t } = useI18n();
   const titleId = useId();
   const inputId = useId();
+  const passwordId = useId();
   const [ name, setName ] = useState('');
+  const [ password, setPassword ] = useState('');
   const [ pending, setPending ] = useState(false);
   const [ error, setError ] = useState<string | null>(null);
   const [ saved, setSaved ] = useState<EditorTemplate | null>(null);
-  const { copied, copy } = useCopied();
-  const [ copyFailed, setCopyFailed ] = useState(false);
 
-  const url = (saved) ? host.templateUrl(saved.code) : '';
+  const passwordShort = Boolean(password) && password.length < MIN_PASSWORD_LENGTH;
 
   const save = async () => {
     setPending(true);
     setError(null);
     try {
-      setSaved(await host.api.createTemplate(documentId, name.trim()));
+      setSaved(await host.api.createTemplate(documentId, name.trim(), password || undefined));
     } catch (failure) {
       setError(host.errorOf(failure)?.message || t('editor.template.error'));
     } finally {
@@ -49,7 +146,7 @@ function SaveTemplateDialog({ host, documentId, onClose }: {host: EditorHost, do
           event.preventDefault();
           if (saved) {
             onClose();
-          } else if (name.trim() && !pending) {
+          } else if (name.trim() && !passwordShort && !pending) {
             void save();
           }
         }}
@@ -57,21 +154,8 @@ function SaveTemplateDialog({ host, documentId, onClose }: {host: EditorHost, do
         <h2 id={titleId} className='pr-10 text-lg font-semibold text-white'>{t('editor.template.save_title')}</h2>
         {(saved) ? (
           <div className='mt-3 flex flex-col gap-2'>
-            <p className='text-sm text-muted'>{t('editor.template.saved')}</p>
-            <div className='flex gap-2'>
-              <input readOnly value={url} onFocus={(event) => event.target.select()} className='input min-w-0 flex-1 font-mono text-xs'/>
-              <button
-                type='button'
-                className='btn btn-secondary shrink-0'
-                onClick={async () => {
-                  const worked = await copy(url);
-                  setCopyFailed(!worked);
-                }}
-              >
-                {(copyFailed) ? <X aria-hidden className='size-4 text-danger-text'/> : (copied) ? <Check aria-hidden className='size-4 text-success-text'/> : <Link aria-hidden className='size-4'/>}
-                {(copyFailed) ? t('editor.template.copy_failed') : (copied) ? t('editor.template.copied') : t('editor.template.copy')}
-              </button>
-            </div>
+            <p className='text-sm text-muted'>{(saved.locked) ? t('editor.template.saved_locked') : t('editor.template.saved')}</p>
+            <TemplateShareActions host={host} template={saved}/>
           </div>
         ) : (
           <>
@@ -89,6 +173,15 @@ function SaveTemplateDialog({ host, documentId, onClose }: {host: EditorHost, do
                 className='input'
               />
             </div>
+            <div className='mt-4'>
+              <label htmlFor={passwordId} className='mb-1.5 flex items-center gap-1.5 text-sm text-muted'>
+                <Lock aria-hidden className='size-3.5'/>{t('editor.template.password')}
+              </label>
+              <PasswordInput id={passwordId} value={password} onChange={setPassword} autoComplete='new-password' placeholder={t('editor.template.password_placeholder')}/>
+              <p className={(passwordShort) ? 'mt-1.5 text-xs text-danger-text' : 'mt-1.5 text-xs text-subtle'}>
+                {(passwordShort) ? t('editor.template.password_short', {count: MIN_PASSWORD_LENGTH}) : t('editor.template.password_hint')}
+              </p>
+            </div>
           </>
         )}
 
@@ -100,7 +193,7 @@ function SaveTemplateDialog({ host, documentId, onClose }: {host: EditorHost, do
           ) : (
             <>
               <button type='button' className='btn btn-secondary' onClick={onClose} disabled={pending}>{t('common.cancel')}</button>
-              <button type='submit' className='btn btn-primary' disabled={!name.trim() || pending}>
+              <button type='submit' className='btn btn-primary' disabled={!name.trim() || passwordShort || pending}>
                 {(pending) ? <Spinner className='size-4 border-white/40 border-t-white'/> : null}
                 {t('editor.template.create')}
               </button>

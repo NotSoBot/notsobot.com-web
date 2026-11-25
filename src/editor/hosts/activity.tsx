@@ -24,6 +24,9 @@ import { useCatalogue } from '../useCatalogue';
 const API_BASE = '/.proxy/api';
 const URL_MAPPINGS = [{prefix: '/cdn', target: 'cdn.nsb.gg'}];
 const SITE_URL = 'https://notsobot.com';
+// a shared template link's `custom_id` (`template:<code>`)
+const TEMPLATE_CUSTOM_ID = 'template:';
+
 const PREMIUM_URL = `${SITE_URL}/premium`;
 const SCOPES: Array<'identify' | 'guilds'> = ['identify', 'guilds'];
 
@@ -203,6 +206,18 @@ export function ActivityApp() {
           room,
           premiumUrl: PREMIUM_URL,
           templateUrl: (code) => `${SITE_URL}/editor/template/${code}`,
+          // Discord's share dialog: a link in chat that launches the activity on the template (`custom_id`, read back
+          // from `sdk.customId` below). The message is ours, the link's preview is Discord's
+          shareTemplate: async (template) => {
+            await sdk.commands.shareLink({
+              // what it is and where it's from, Discord puts the activity's link card under it. a locked one's
+              // password is never in it
+              message: (template.locked)
+                ? t('editor.template.share_message_locked', {name: template.name})
+                : t('editor.template.share_message', {name: template.name}),
+              custom_id: `${TEMPLATE_CUSTOM_ID}${template.code}`,
+            });
+          },
           fullscreen: true,
           // the user posts it themselves through Discord's own dialog, the bot never posts in their channel. the dialog
           // only takes Discord cdn urls, so the render goes onto Discord's cdn first (the api uploads it with their token).
@@ -219,7 +234,10 @@ export function ActivityApp() {
         let documentId = context.document_id;
         const mediaUrl = (typeof context.launch?.media_url === 'string') ? context.launch.media_url : null;
         // `/editor template:<link>`: its steps go on the launched media, or on whatever's picked on the start screen
-        const templateCode = (typeof context.launch?.template_code === 'string') ? context.launch.template_code : null;
+        // `/editor template:` (the bot's launch), or a template link someone shared in chat (`shareLink`'s custom id)
+        const sharedCode = (sdk.customId?.startsWith(TEMPLATE_CUSTOM_ID)) ? sdk.customId.slice(TEMPLATE_CUSTOM_ID.length) : null;
+        const templateCode = (typeof context.launch?.template_code === 'string') ? context.launch.template_code
+          : (sharedCode && /^[A-Za-z]{1,12}$/.test(sharedCode)) ? sharedCode : null;
         step = 'document';
         if (!documentId && mediaUrl) {
           // opened from Edit Media/Edit Avatar: that media, as the instance's document (or the one someone else just made)

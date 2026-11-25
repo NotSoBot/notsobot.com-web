@@ -26,6 +26,7 @@ import { Layout as SpanishLayout } from '../src/i18n/locales/es/layout';
 import { Layout as PortugueseLayout } from '../src/i18n/locales/pt/layout';
 import { Tags as SpanishTags } from '../src/i18n/locales/es/tags';
 import { Tags as PortugueseTags } from '../src/i18n/locales/pt/tags';
+import type { EditorCatalogue, EditorTemplate } from '../src/editor/types';
 import { DASHBOARD_SERVER_TABS, Routes, TAG_ADD_PARAM, TAG_ADD_VALUE } from '../src/routes';
 import { PAGE_ALIASES, PAGES, pageTitle, SITE_NAME, type PageKey, type PageMeta } from '../src/seo';
 import { localizedPage } from '../src/seoTranslations';
@@ -146,6 +147,10 @@ type DiscordContainer = {type: 17, accent_color: number, components: Array<Disco
 // the option, so the embed shows the id to paste into it (`/tag show` also suggests tags linked in the channel)
 const TAG_GET_COMMAND_ID = 'tag.add';
 const TAG_SHOW_COMMAND_ID = 'tag.show';
+// the bot's `/editor` (notsobot.ts src/commands/interactions/slash/editor.ts), its `template` option takes the code
+const EDITOR_COMMAND_ID = 'editor';
+// a template link's code (notsobot.ts src/utils/editoractivity.ts TEMPLATE_CODE)
+const EDITOR_TEMPLATE_CODE = /^[A-Za-z]{1,12}$/;
 
 // discord drops the whole component embed past this, the og tags are used instead
 const COMPONENT_EMBED_MAX_BYTES = 3000;
@@ -186,6 +191,11 @@ interface EmbedText {
   usage: {prefix: string, mention: string, slash: string, userApp: string, messageApp: string, userMenu: string, messageMenu: string},
   commandFallback: (type: string) => string,
   commandSiteName: string,
+  // `editor` is a mention or code
+  templateHowTo: (editor: string, code: string) => string,
+  effects: (count: number) => string,
+  openEditor: string,
+  templateSiteName: string,
 }
 
 function countOf(language: Language, count: number, one: string, other: string): string {
@@ -250,6 +260,10 @@ const EMBED_TEXT: Readonly<Record<Language, EmbedText>> = {
     },
     commandFallback: (type) => `A NotSoBot ${type.toLowerCase()}.`,
     commandSiteName: `${SITE_NAME} Commands`,
+    templateHowTo: (editor, code) => `-# Run ${editor} with \`${code}\` as the template, or`,
+    effects: (count) => countOf(Languages.ENGLISH, count, 'effect', 'effects'),
+    openEditor: 'Open in Editor',
+    templateSiteName: `${SITE_NAME} Media Editor`,
   },
   [Languages.SPANISH]: {
     ...tagLabels(SpanishTags),
@@ -277,6 +291,10 @@ const EMBED_TEXT: Readonly<Record<Language, EmbedText>> = {
     },
     commandFallback: (type) => `Un ${type.charAt(0).toLowerCase()}${type.slice(1)} de ${SITE_NAME}.`,
     commandSiteName: `Comandos de ${SITE_NAME}`,
+    templateHowTo: (editor, code) => `-# Usa ${editor} con \`${code}\` como plantilla, o`,
+    effects: (count) => countOf(Languages.SPANISH, count, 'efecto', 'efectos'),
+    openEditor: 'Abrir en el editor',
+    templateSiteName: `Editor multimedia de ${SITE_NAME}`,
   },
   [Languages.PORTUGUESE]: {
     ...tagLabels(PortugueseTags),
@@ -304,6 +322,10 @@ const EMBED_TEXT: Readonly<Record<Language, EmbedText>> = {
     },
     commandFallback: (type) => `Um ${type.charAt(0).toLowerCase()}${type.slice(1)} do ${SITE_NAME}.`,
     commandSiteName: `Comandos do ${SITE_NAME}`,
+    templateHowTo: (editor, code) => `-# Use ${editor} com \`${code}\` como modelo, ou`,
+    effects: (count) => countOf(Languages.PORTUGUESE, count, 'efeito', 'efeitos'),
+    openEditor: 'Abrir no editor',
+    templateSiteName: `Editor de mídia do ${SITE_NAME}`,
   },
 };
 
@@ -423,6 +445,74 @@ function tagEmbed(
     siteName: words.tagSiteName,
     image,
     components,
+  };
+}
+
+
+// a shared template, null for a bad or unknown code (or while the api only answers logged in)
+async function fetchEditorTemplate(env: Env, code: string): Promise<EditorTemplate | null> {
+  if (!EDITOR_TEMPLATE_CODE.test(code)) {
+    return null;
+  }
+  return fetchApi<EditorTemplate>(env, `/editor/templates/${code}`, {}, 60);
+}
+
+
+// a template's effects in order, by their names in the catalogue (english, it has no translations). its id when the
+// catalogue didn't load or no longer has it
+function templateEffectNames(template: EditorTemplate, catalogue: EditorCatalogue | null): Array<string> {
+  const names = new Map((catalogue?.effects ?? []).map((effect) => [ effect.id, effect.name ]));
+  return template.steps.filter((step) => !step.hidden).map((step) => names.get(step.effect) ?? step.effect);
+}
+
+
+// like a directory tag's: name, effects, stats, then how to use it in discord beside a button that opens it on the site.
+// the thumbnail is the first effect's preview from the commands page, the template itself has no media
+function templateEmbed(
+  env: Env,
+  language: Language,
+  template: EditorTemplate,
+  catalogue: EditorCatalogue | null,
+  editorMention: string | null,
+): Embed {
+  const words = EMBED_TEXT[language];
+  const name = template.name.trim();
+  const effects = templateEffectNames(template, catalogue);
+  const stats = [ words.effects(effects.length), words.uses(template.uses), words.by(template.user.username) ];
+  const effectList = truncate(effects.join(' → '), EMBED_DESCRIPTION_MAX_LENGTH);
+
+  const firstVisible = template.steps.find((step) => !step.hidden);
+  const thumbnail = catalogue?.effects.find((effect) => effect.id === firstVisible?.effect)?.thumbnail;
+  const image = (thumbnail?.mimetype.startsWith('image/')) ? thumbnail.url : null;
+
+  const text: Array<DiscordTextDisplay> = [{type: 10, content: `## ${escapeMarkdown(name)}`}];
+  if (effectList) {
+    text.push({type: 10, content: escapeMarkdown(effectList)});
+  }
+  text.push({type: 10, content: `-# ${escapeMarkdown(stats.join(' • '))}`});
+
+  const openUrl = new URL(languagePath(language, Routes.EDITOR_TEMPLATE.replace(':templateCode', template.code)), `https://${env.SITE_DOMAIN}`);
+  openUrl.searchParams.set(SOURCE_CODE_PARAM, encodeSource('embed-template'));
+
+  return {
+    meta: {
+      title: name,
+      description: [ effectList || null, stats.join(' • ') ].filter(Boolean).join('\n\n'),
+    },
+    siteName: words.templateSiteName,
+    image,
+    components: {
+      type: 17,
+      accent_color: EMBED_ACCENT_COLOR,
+      components: [
+        ...((image) ? [{type: 9, components: text, accessory: {type: 11, media: {url: image}}} as const] : text),
+        {
+          type: 9,
+          components: [{type: 10, content: words.templateHowTo(editorMention ?? '`/editor`', template.code)}],
+          accessory: {type: 2, style: 5, label: words.openEditor, url: openUrl.toString()},
+        },
+      ],
+    },
   };
 }
 
@@ -753,6 +843,15 @@ async function renderPage(request: Request, env: Env, context: ExecutionContext 
           tagGet: slashCommandMention(commands?.find((command) => command.id === TAG_GET_COMMAND_ID)),
           tagShow: slashCommandMention(commands?.find((command) => command.id === TAG_SHOW_COMMAND_ID)),
         });
+      }
+    } else if (page?.meta === PAGES.EDITOR_TEMPLATE) {
+      const [ template, catalogue, commands ] = await Promise.all([
+        fetchEditorTemplate(env, segments[3] ?? ''),
+        fetchApi<EditorCatalogue>(env, '/editor/effects', {}, 300),
+        fetchCommands(env, context, language),
+      ]);
+      if (template) {
+        embed = templateEmbed(env, language, template, catalogue, slashCommandMention(commands?.find((command) => command.id === EDITOR_COMMAND_ID)));
       }
     } else if (page?.meta === PAGES.COMMAND || page?.meta === PAGES.COMMAND_TYPE) {
       let commandId = segments[2] ?? '';

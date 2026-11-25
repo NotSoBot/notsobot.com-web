@@ -210,4 +210,6 @@ export interface EditorTemplate {
   created: number,
   user: {id: string, username: string, avatar_url: string | null},
   is_owner: boolean,
+  // password-locked: its steps are empty for anyone else until it's unlocked
+  locked: boolean,
 }

@@ -10,7 +10,7 @@ import type { EditorHost } from '../api';
 import type { EditorDocument, EditorDocumentSummary, EditorGenerator, EditorTemplate } from '../types';
 import { useCatalogue } from '../useCatalogue';
 import { GeneratorDialog, GeneratorGrid } from './Generators';
-import { TemplateBanner, TemplateList } from './Templates';
+import { TemplateBanner, TemplateList, templateNeedsPassword } from './Templates';
 
 
 // The way in: a file (dropped or picked), a link, something a generator makes, or one of their recent edits
@@ -26,6 +26,12 @@ export function StartScreen({ host, onOpen, initialUrl, activityInstanceId, temp
   effectNames?: Map<string, string>,
 }) {
   const { t, plural, language } = useI18n();
+  // a locked template once its password's checked: its steps, and the password the new document is made with
+  const [ unlocked, setUnlocked ] = useState<{template: EditorTemplate, password: string} | null>(null);
+  const shownTemplate = (unlocked && unlocked.template.code === template?.code) ? unlocked.template : (template ?? null);
+  const templatePassword = (unlocked && unlocked.template.code === template?.code) ? unlocked.password : undefined;
+  // a locked one has to be unlocked first, a file picked before then would start without its steps
+  const waitingForPassword = Boolean(shownTemplate && templateNeedsPassword(shownTemplate));
   const inputId = useId();
   const fileRef = useRef<HTMLInputElement>(null);
   const [ url, setUrl ] = useState(initialUrl ?? '');
@@ -64,7 +70,7 @@ export function StartScreen({ host, onOpen, initialUrl, activityInstanceId, temp
     setUploading(true);
     setError(null);
     try {
-      onOpen(await host.api.createDocument({...input, activityInstanceId, templateCode: template?.code}));
+      onOpen(await host.api.createDocument({...input, activityInstanceId, templateCode: template?.code, templatePassword}));
     } catch (failure) {
       setError(host.errorOf(failure)?.message || t('editor.start.upload_error'));
       setUploading(false);
@@ -105,8 +111,13 @@ export function StartScreen({ host, onOpen, initialUrl, activityInstanceId, temp
         <p className='text-muted'>{t('editor.start.description')}</p>
       </header>
 
-      {(template) ? <TemplateBanner template={template} effectNames={effectNames}/> : null}
+      {(shownTemplate) ? (
+        <TemplateBanner host={host} template={shownTemplate} effectNames={effectNames} onUnlocked={(next, password) => setUnlocked({template: next, password})}/>
+      ) : null}
 
+      {/* a locked template waits for its password, a file picked before then would start without its steps */}
+      {(waitingForPassword) ? <p className='-mt-4 text-sm text-warning'>{t('editor.template.unlock_first')}</p> : null}
+      <fieldset disabled={waitingForPassword} className={cn('flex flex-col gap-8', (waitingForPassword) && 'pointer-events-none opacity-50')}>
       <div
         onDragOver={(event) => {
           event.preventDefault();
@@ -164,6 +175,7 @@ export function StartScreen({ host, onOpen, initialUrl, activityInstanceId, temp
           <button type='submit' className='btn btn-secondary' disabled={uploading || !url.trim()}>{t('editor.start.open')}</button>
         </div>
       </form>
+      </fieldset>
       {(error) ? <p role='alert' className='-mt-5 text-sm text-danger-text'>{error}</p> : null}
 
       {(generators.length) ? (
@@ -172,7 +184,7 @@ export function StartScreen({ host, onOpen, initialUrl, activityInstanceId, temp
             <h2 className='font-display text-lg font-bold text-white'>{t('editor.generate.title')}</h2>
             <p className='text-sm text-muted'>{t('editor.generate.description')}</p>
           </div>
-          <GeneratorGrid generators={generators} disabled={uploading} onPick={setGenerating}/>
+          <GeneratorGrid generators={generators} disabled={uploading || waitingForPassword} onPick={setGenerating}/>
         </section>
       ) : null}
       {(generating) ? (
@@ -181,7 +193,7 @@ export function StartScreen({ host, onOpen, initialUrl, activityInstanceId, temp
           onClose={() => setGenerating(null)}
           onMake={async (params) => {
             try {
-              const document = await host.api.generateDocument({generator: generating.id, params, activityInstanceId, templateCode: template?.code});
+              const document = await host.api.generateDocument({generator: generating.id, params, activityInstanceId, templateCode: template?.code, templatePassword});
               setGenerating(null);
               onOpen(document);
               return null;

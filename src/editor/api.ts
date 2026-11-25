@@ -31,6 +31,9 @@ export const EditorErrorCodes = Object.freeze({
   // a room op naming a step someone else removed, the op is dropped
   UNKNOWN_EDITOR_STEP: 10044,
   UNKNOWN_EDITOR_TEMPLATE: 10045,
+  // a locked template needs its password, or it was the wrong one (5 wrong a minute, then a 429)
+  EDITOR_TEMPLATE_LOCKED: 50057,
+  EDITOR_TEMPLATE_PASSWORD_INVALID: 50058,
   EDITOR_DOCUMENT_VERSION_MISMATCH: 50053,
   EDITOR_INVALID_STEP: 50054,
   SERVICE_BUSY: 90008,
@@ -60,11 +63,14 @@ export function createEditorApi(request: EditorRequest) {
   return {
     effects: () => request<EditorCatalogue>('/editor/effects'),
     documents: () => request<{documents: Array<EditorDocumentSummary>}>('/editor/documents'),
-    createDocument: (input: {file?: File, url?: string, activityInstanceId?: string, templateCode?: string}) => {
+    createDocument: (input: {file?: File, url?: string, activityInstanceId?: string, templateCode?: string, templatePassword?: string}) => {
       const form = new FormData();
-      // the new document starts with the template's steps
+      // the new document starts with the template's steps (a locked one's need its password)
       if (input.templateCode) {
         form.append('template_code', input.templateCode);
+      }
+      if (input.templatePassword) {
+        form.append('template_password', input.templatePassword);
       }
       if (input.file) {
         form.append('file', input.file);
@@ -79,11 +85,17 @@ export function createEditorApi(request: EditorRequest) {
       return request<EditorDocument>('/editor/documents', {method: 'POST', body: form, timeout: 120 * 1000});
     },
     // a document whose source a generator makes (the api waits for it, up to ~40s on a busy queue)
-    generateDocument: (input: {generator: string, params: Record<string, unknown>, activityInstanceId?: string, templateCode?: string}) => request<EditorDocument>(
+    generateDocument: (input: {generator: string, params: Record<string, unknown>, activityInstanceId?: string, templateCode?: string, templatePassword?: string}) => request<EditorDocument>(
       '/editor/documents/generate',
       {
         method: 'POST',
-        body: {generator: input.generator, params: input.params, activity_instance_id: input.activityInstanceId, template_code: input.templateCode},
+        body: {
+          generator: input.generator,
+          params: input.params,
+          activity_instance_id: input.activityInstanceId,
+          template_code: input.templateCode,
+          template_password: input.templatePassword,
+        },
         timeout: 60 * 1000,
       },
     ),
@@ -120,7 +132,20 @@ export function createEditorApi(request: EditorRequest) {
       timeout: 60 * 1000,
     }),
     activity: (instanceId: string) => request<EditorActivityContext>(`/editor/activity/${pathId(instanceId)}`),
-    createTemplate: (documentId: string, name: string) => request<EditorTemplate>('/editor/templates', {method: 'POST', body: {document_id: documentId, name}}),
+    createTemplate: (documentId: string, name: string, password?: string) => request<EditorTemplate>(
+      '/editor/templates',
+      {method: 'POST', body: {document_id: documentId, name, password: password || undefined}},
+    ),
+    // a locked template's steps (the password is checked, wrong ones are limited)
+    unlockTemplate: (templateCode: string, password: string) => request<EditorTemplate>(
+      `/editor/templates/${pathId(templateCode)}/unlock`,
+      {method: 'POST', body: {password}},
+    ),
+    // the owner locks it (a new password) or takes the lock off (null)
+    setTemplatePassword: (templateCode: string, password: string | null) => request<EditorTemplate>(
+      `/editor/templates/${pathId(templateCode)}`,
+      {method: 'PATCH', body: {password}},
+    ),
     templates: () => request<{templates: Array<EditorTemplate>}>('/editor/templates'),
     template: (templateCode: string) => request<EditorTemplate>(`/editor/templates/${pathId(templateCode)}`),
     deleteTemplate: (templateCode: string) => request<void>(`/editor/templates/${pathId(templateCode)}`, {method: 'DELETE'}),
@@ -147,6 +172,9 @@ export interface EditorHost {
   premiumUrl: string,
   // a template's share link, always the site's (`https://notsobot.com/editor/template/<code>`), even from inside Discord
   templateUrl: (templateCode: string) => string,
+  // "Share in chat": the Activity's Discord share dialog (a link that opens the Activity on the template), or the
+  // device's share sheet on the web where there is one. Absent: copying the link is the only way
+  shareTemplate?: (template: EditorTemplate) => Promise<void>,
   // the editor is the whole window (the Activity), not a page under the site's navbar
   fullscreen?: boolean,
 }

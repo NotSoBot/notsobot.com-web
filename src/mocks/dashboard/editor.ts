@@ -106,6 +106,7 @@ export function registerEditorMocks(route: Route, error: MakeError): void {
     created: Date.now() - 3 * DAY,
     user: {id: '2', username: 'someone', avatar_url: 'https://cdn.discordapp.com/embed/avatars/1.png'},
     is_owner: false,
+    locked: false,
   });
 
   templates.set('NHYoGRFBvGb', {
@@ -117,6 +118,7 @@ export function registerEditorMocks(route: Route, error: MakeError): void {
     created: Date.now() - DAY,
     user: {id: '1', username: 'mockuser', avatar_url: 'https://cdn.discordapp.com/embed/avatars/0.png'},
     is_owner: true,
+    locked: false,
   });
 
   // its proxy like the api's: 15 fps
@@ -125,6 +127,36 @@ export function registerEditorMocks(route: Route, error: MakeError): void {
   video.proxy = {...video.proxy!, framecount: 90, fps: 15, duration: 6};
   video.render_formats = ['video/mp4', 'video/webm', 'image/gif', 'image/webp'];
   documents.set(video.id, video);
+
+  // locked, someone else's: `/editor/template/NHYoGRFBvGc`, password `hunter22`
+  templates.set('NHYoGRFBvGc', {
+    code: 'NHYoGRFBvGc',
+    name: 'Secret sauce',
+    steps: [{id: 'tpl4', effect: 'vaporwave', hidden: false, params: {}}],
+    catalogue_version: 2,
+    uses: 3,
+    created: Date.now() - 2 * DAY,
+    user: {id: '2', username: 'someone', avatar_url: 'https://cdn.discordapp.com/embed/avatars/1.png'},
+    is_owner: false,
+    locked: true,
+  });
+  // mock only: the api keeps an scrypt hash, never the password
+  const passwords = new Map<string, string>([['NHYoGRFBvGc', 'hunter22']]);
+  // a locked template's steps go to its owner or after `/unlock`, like the api's `to_dict`
+  const view = (template: EditorTemplate, unlocked = false): EditorTemplate => (
+    (template.locked && !template.is_owner && !unlocked) ? {...template, steps: []} : template
+  );
+  const checkPassword = (template: EditorTemplate, password: unknown) => {
+    if (!template.locked || template.is_owner) {
+      return;
+    }
+    if (!password) {
+      throw error(403, 50057, 'This template is locked, it needs its password');
+    }
+    if (password !== passwords.get(template.code)) {
+      throw error(403, 50058, 'That isn\'t the password');
+    }
+  };
 
   const findTemplate = (code: string): EditorTemplate => {
     const template = templates.get(code);
@@ -168,6 +200,7 @@ export function registerEditorMocks(route: Route, error: MakeError): void {
     const templateCode = body.template_code as string | undefined;
     if (templateCode) {
       const template = findTemplate(templateCode);
+      checkPassword(template, body.template_password);
       document.steps = structuredClone(template.steps);
       template.uses += 1;
     }
@@ -262,12 +295,37 @@ export function registerEditorMocks(route: Route, error: MakeError): void {
       created: Date.now(),
       user: {id: '1', username: 'you', avatar_url: 'https://cdn.discordapp.com/embed/avatars/0.png'},
       is_owner: true,
+      locked: Boolean(body.password),
     };
+    if (body.password) {
+      passwords.set(template.code, String(body.password));
+    }
     templates.set(template.code, template);
     return template;
   });
 
-  route('GET', '/editor/templates/([A-Za-z]+)', (match) => findTemplate(match[1]));
+  route('GET', '/editor/templates/([A-Za-z]+)', (match) => view(findTemplate(match[1])));
+
+  route('POST', '/editor/templates/([A-Za-z]+)/unlock', (match, { body }) => {
+    const template = findTemplate(match[1]);
+    checkPassword(template, body.password);
+    return view(template, true);
+  });
+
+  route('PATCH', '/editor/templates/([A-Za-z]+)', (match, { body }) => {
+    const template = findTemplate(match[1]);
+    if (!template.is_owner) {
+      throw error(404, 10045, 'Unknown Editor Template');
+    }
+    const password = body.password as string | null;
+    template.locked = Boolean(password);
+    if (password) {
+      passwords.set(template.code, password);
+    } else {
+      passwords.delete(template.code);
+    }
+    return template;
+  });
 
   route('DELETE', '/editor/templates/([A-Za-z]+)', (match) => {
     if (!findTemplate(match[1]).is_owner) {

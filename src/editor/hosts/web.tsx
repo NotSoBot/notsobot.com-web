@@ -51,6 +51,18 @@ export function WebEditorPage() {
     premiumUrl,
     // without the language prefix, whoever opens it gets the site in their own
     templateUrl: (code) => `${window.location.origin}${Routes.EDITOR_TEMPLATE.replace(':templateCode', code)}`,
+    // the device's share sheet (phones, mostly), there's no Discord chat to post in from the site
+    shareTemplate: (typeof navigator !== 'undefined' && typeof navigator.share === 'function') ? async (template) => {
+      const url = `${window.location.origin}${Routes.EDITOR_TEMPLATE.replace(':templateCode', template.code)}`;
+      try {
+        await navigator.share({title: template.name, text: `${template.name}, a NotSoBot editor template`, url});
+      } catch (error) {
+        // closing the share sheet isn't a failure
+        if (!(error instanceof DOMException && error.name === 'AbortError')) {
+          throw error;
+        }
+      }
+    } : undefined,
   }), [navigate, premiumUrl]);
   const { catalogue, error, retry } = useCatalogue(host);
   const template = useTemplate(host, templateCode);
