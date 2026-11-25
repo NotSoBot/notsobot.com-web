@@ -60,66 +60,121 @@ function nudgeOf(event: KeyboardEvent): EditorPoint | null {
 }
 
 
-function PointTool({ step, param, onChange, label }: {
+type TextHandle = 'move' | 'left' | 'right' | 'corner';
+
+// Text's box on the preview, as the render lays it out: wrapped and centered in `width` (a fraction of the media's
+// width), letters `size` of the width tall, the box centered on the position. Drag it to move it, its sides to change
+// how wide it wraps, a corner to scale the text. `+`/`-` resize it from the keyboard, arrows move it
+function PointTool({ step, param, onParam, label, resizeLabel, widthLabel }: {
   step: EditorStep,
   param: string,
-  onChange: (value: EditorPoint) => void,
+  onParam: (name: string, value: unknown) => void,
   label: string,
+  resizeLabel: string,
+  widthLabel: string,
 }) {
   const [ containerRef, width ] = useElementWidth<HTMLDivElement>();
   const point = step.params[param] as EditorPoint;
   const text = String(step.params.text ?? '');
   const size = (typeof step.params.size === 'number') ? step.params.size : 0.08;
+  const boxWidth = (typeof step.params.width === 'number') ? step.params.width : 0.9;
   const color = (typeof step.params.color === 'string') ? step.params.color : '#ffffff';
-  const dragRef = useRef<{dx: number, dy: number} | null>(null);
+  const resizable = 'size' in step.params || step.effect === 'text';
+  const dragRef = useRef<{handle: TextHandle, dx: number, dy: number, distance: number, size: number} | null>(null);
 
-  const onPointerDown = (event: PointerEvent<HTMLButtonElement>) => {
+  const start = (handle: TextHandle) => (event: PointerEvent<HTMLElement>) => {
     const container = containerRef.current;
     if (!container) {
       return;
     }
+    event.stopPropagation();
     event.currentTarget.setPointerCapture(event.pointerId);
     const at = fractionOf(event, container);
-    dragRef.current = {dx: point.x - at.x, dy: point.y - at.y};
+    const rect = container.getBoundingClientRect();
+    // the corner scales by how far the pointer is from the center, in pixels so it's the same both ways
+    const distance = Math.hypot((at.x - point.x) * rect.width, (at.y - point.y) * rect.height);
+    dragRef.current = {handle, dx: point.x - at.x, dy: point.y - at.y, distance: Math.max(distance, 1), size};
   };
-  const onPointerMove = (event: PointerEvent<HTMLButtonElement>) => {
+  const move = (event: PointerEvent<HTMLElement>) => {
     const container = containerRef.current;
-    if (!dragRef.current || !container) {
+    const drag = dragRef.current;
+    if (!drag || !container) {
       return;
     }
     const at = fractionOf(event, container);
-    onChange({x: roundFraction(at.x + dragRef.current.dx), y: roundFraction(at.y + dragRef.current.dy)});
+    if (drag.handle === 'move') {
+      onParam(param, {x: roundFraction(at.x + drag.dx), y: roundFraction(at.y + drag.dy)});
+    } else if (drag.handle === 'corner') {
+      const rect = container.getBoundingClientRect();
+      const distance = Math.hypot((at.x - point.x) * rect.width, (at.y - point.y) * rect.height);
+      onParam('size', Math.round(clamp(drag.size * (distance / drag.distance), 0.02, 1) * 1000) / 1000);
+    } else {
+      // the box stays centered on the position, a side sets half its width
+      onParam('width', Math.round(clamp(Math.abs(at.x - point.x) * 2, 0.1, 1) * 1000) / 1000);
+    }
+  };
+  const end = () => {
+    dragRef.current = null;
   };
   const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
     const nudge = nudgeOf(event);
     if (nudge) {
       event.preventDefault();
-      onChange({x: roundFraction(point.x + nudge.x), y: roundFraction(point.y + nudge.y)});
+      onParam(param, {x: roundFraction(point.x + nudge.x), y: roundFraction(point.y + nudge.y)});
+      return;
+    }
+    if (resizable && (event.key === '+' || event.key === '=' || event.key === '-' || event.key === '_')) {
+      event.preventDefault();
+      const factor = (event.key === '-' || event.key === '_') ? 1 / 1.1 : 1.1;
+      onParam('size', Math.round(clamp(size * factor, 0.02, 1) * 1000) / 1000);
     }
   };
+  const handlers = (handle: TextHandle) => ({
+    onPointerDown: start(handle),
+    onPointerMove: move,
+    onPointerUp: end,
+    onPointerCancel: end,
+  });
+  const HANDLE = 'absolute touch-none rounded-sm border border-black/60 bg-white shadow';
 
   return (
     <div ref={containerRef} className='absolute inset-0'>
-      <button
-        type='button'
-        aria-label={label}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={() => (dragRef.current = null)}
-        onPointerCancel={() => (dragRef.current = null)}
-        onKeyDown={onKeyDown}
-        className='absolute -translate-x-1/2 -translate-y-1/2 cursor-move touch-none rounded border-2 border-dashed border-white/90 px-1 font-bold whitespace-nowrap shadow-[0_0_0_1px_rgba(0,0,0,0.6)] focus-visible:outline-2 focus-visible:outline-brand'
-        style={{
-          left: `${point.x * 100}%`,
-          top: `${point.y * 100}%`,
-          color,
-          fontSize: Math.max(10, size * width),
-          lineHeight: 1.1,
-          WebkitTextStroke: '1px #000',
-        }}
+      <div
+        className='absolute -translate-x-1/2 -translate-y-1/2'
+        style={{left: `${point.x * 100}%`, top: `${point.y * 100}%`, width: `${boxWidth * 100}%`}}
       >
-        {text || ' '}
-      </button>
+        <button
+          type='button'
+          aria-label={label}
+          {...handlers('move')}
+          onKeyDown={onKeyDown}
+          className='block w-full cursor-move touch-none rounded border-2 border-dashed border-white/90 px-1 text-center font-bold break-words whitespace-pre-wrap shadow-[0_0_0_1px_rgba(0,0,0,0.6)] focus-visible:outline-2 focus-visible:outline-brand'
+          style={{
+            color,
+            fontSize: Math.max(8, size * width),
+            lineHeight: 1.1,
+            WebkitTextStroke: '1px #000',
+          }}
+        >
+          {text || ' '}
+        </button>
+        {(resizable) ? (
+          <>
+            {(['left', 'right'] as const).map((side) => (
+              <span
+                key={side}
+                role='presentation'
+                title={widthLabel}
+                {...handlers(side)}
+                className={cn(HANDLE, 'top-1/2 h-6 w-2.5 -translate-y-1/2 cursor-ew-resize', (side === 'left') ? '-left-1.5' : '-right-1.5')}
+              />
+            ))}
+            {(['-top-2 -left-2 cursor-nwse-resize', '-top-2 -right-2 cursor-nesw-resize', '-bottom-2 -left-2 cursor-nesw-resize', '-right-2 -bottom-2 cursor-nwse-resize']).map((place) => (
+              <span key={place} role='presentation' title={resizeLabel} {...handlers('corner')} className={cn(HANDLE, 'size-3.5', place)}/>
+            ))}
+          </>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -343,7 +398,16 @@ export function SpatialOverlay({ tool, step, effectName, onChange, pen, aspect, 
   const label = t('editor.settings', {name: effectName});
   switch (tool.kind) {
     case 'point':
-      return <PointTool step={step} param={tool.param} onChange={(value) => onChange(tool.param, value)} label={label}/>;
+      return (
+        <PointTool
+          step={step}
+          param={tool.param}
+          onParam={onChange}
+          label={label}
+          resizeLabel={t('editor.preview.text_resize')}
+          widthLabel={t('editor.preview.text_width')}
+        />
+      );
     case 'box':
       return <BoxTool step={step} param={tool.param} onChange={(value) => onChange(tool.param, value)} label={label} dim={step.effect === 'crop'}/>;
     case 'strokes':

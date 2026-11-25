@@ -1,5 +1,5 @@
-import { Columns2, Pause, Play, RotateCw } from 'lucide-react';
-import { useState } from 'react';
+import { Columns2, Pause, Play, RotateCw, ZoomIn, ZoomOut } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 
 import { Spinner } from '@/components/ui/Spinner';
 import { useI18n } from '@/i18n';
@@ -8,6 +8,10 @@ import { cn } from '@/lib/utils';
 import { FRAME_MODE_MIN_FRAMES, type EditorDocumentState } from '../useEditorDocument';
 import { isAudioMimetype, isVideoMimetype, MediaView } from './media';
 import { SpatialOverlay, type PenSettings } from './SpatialOverlay';
+
+
+// how big the preview can be made, to draw or place things more precisely. 1 is fitted to the stage
+const ZOOMS = [1, 1.5, 2, 3, 4];
 
 
 export function PreviewStage({ state, pen, maxStrokes, maxPoints }: {
@@ -20,6 +24,42 @@ export function PreviewStage({ state, pen, maxStrokes, maxPoints }: {
   const [ showOriginal, setShowOriginal ] = useState(false);
   const { document, preview, previewState, previewError, mode, animated, frame, selectedStep, selectedTool, effectsById } = state;
   const proxy = document?.proxy ?? null;
+  const [ zoom, setZoom ] = useState(1);
+  // the fitted (100%) width, zooming scales from it
+  const [ fitWidth, setFitWidth ] = useState(0);
+  const figureRef = useRef<HTMLElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const figure = figureRef.current;
+    if (!figure || zoom !== 1) {
+      return;
+    }
+    const observer = new ResizeObserver(() => setFitWidth(figure.getBoundingClientRect().width));
+    observer.observe(figure);
+    return () => observer.disconnect();
+  }, [zoom, document?.id]);
+
+  // a trackpad pinch (or ctrl + scroll) zooms the preview, not the page. not passive, so the page's own zoom is stopped
+  useEffect(() => {
+    const element = scrollRef.current;
+    if (!element) {
+      return;
+    }
+    const onWheel = (event: WheelEvent) => {
+      if (!event.ctrlKey && !event.metaKey) {
+        return;
+      }
+      event.preventDefault();
+      setZoom((current) => Math.min(Math.max(Math.round(current * Math.exp(-event.deltaY * 0.01) * 100) / 100, ZOOMS[0]), ZOOMS[ZOOMS.length - 1]));
+    };
+    element.addEventListener('wheel', onWheel, {passive: false});
+    return () => element.removeEventListener('wheel', onWheel);
+  }, [document?.id]);
+
+  const zoomBy = (direction: 1 | -1) => setZoom((current) => (direction === 1)
+    ? ZOOMS.find((level) => level > current + 0.001) ?? current
+    : [...ZOOMS].reverse().find((level) => level < current - 0.001) ?? current);
 
   if (!document) {
     return null;
@@ -75,6 +115,19 @@ export function PreviewStage({ state, pen, maxStrokes, maxPoints }: {
           </button>
         ) : null}
         <span className='flex-1'/>
+        {(shown && !isAudioMimetype(shown.mimetype)) ? (
+          <div role='group' aria-label={t('editor.preview.zoom')} className='inline-flex items-center rounded-lg border border-line-strong'>
+            <button type='button' aria-label={t('editor.preview.zoom_out')} title={t('editor.preview.zoom_out')} disabled={zoom <= ZOOMS[0]} onClick={() => zoomBy(-1)} className='flex size-9 items-center justify-center rounded-l-lg text-muted hover:bg-surface hover:text-fg disabled:opacity-40'>
+              <ZoomOut aria-hidden className='size-4'/>
+            </button>
+            <button type='button' title={t('editor.preview.zoom_reset')} onClick={() => setZoom(1)} className='min-h-9 min-w-14 px-1 font-mono text-xs text-fg tabular-nums hover:bg-surface'>
+              {Math.round(zoom * 100)}%
+            </button>
+            <button type='button' aria-label={t('editor.preview.zoom_in')} title={t('editor.preview.zoom_in')} disabled={zoom >= ZOOMS[ZOOMS.length - 1]} onClick={() => zoomBy(1)} className='flex size-9 items-center justify-center rounded-r-lg text-muted hover:bg-surface hover:text-fg disabled:opacity-40'>
+              <ZoomIn aria-hidden className='size-4'/>
+            </button>
+          </div>
+        ) : null}
         <button
           type='button'
           aria-pressed={showOriginal}
@@ -89,7 +142,7 @@ export function PreviewStage({ state, pen, maxStrokes, maxPoints }: {
         <p className='text-xs text-subtle'>{t('editor.preview.before_step', {name: selectedEffect.name})}</p>
       ) : null}
 
-      <div className='flex flex-1 items-center justify-center'>
+      <div ref={scrollRef} className={cn('flex flex-1 justify-center', (zoom > 1) ? 'max-h-[min(70vh,720px)] items-start overflow-auto' : 'items-center')}>
         {(shown) ? (
           (isAudioMimetype(shown.mimetype)) ? (
             <div className='flex w-full flex-col items-center gap-3 rounded-lg bg-surface p-6'>
@@ -97,14 +150,18 @@ export function PreviewStage({ state, pen, maxStrokes, maxPoints }: {
               <MediaView key={shown.url} url={shown.url} mimetype={shown.mimetype} alt={t('editor.preview.audio')}/>
             </div>
           ) : (
-            <figure className='relative m-0 inline-block max-w-full overflow-hidden rounded-md shadow-[0_8px_24px_rgba(0,0,0,0.35)]'>
+            <figure
+              ref={figureRef}
+              className={cn('relative m-0 shrink-0 overflow-hidden rounded-md shadow-[0_8px_24px_rgba(0,0,0,0.35)]', (zoom > 1) ? 'block' : 'inline-block max-w-full')}
+            >
               <MediaView
                 key={shown.url}
                 url={shown.url}
                 mimetype={shown.mimetype}
                 alt={(showOriginal) ? t('editor.preview.original') : t('editor.preview')}
                 seekTo={seekTo}
-                className='block h-auto max-h-[min(62vh,640px)] w-auto max-w-full select-none'
+                className={cn('block h-auto select-none', (zoom > 1 && fitWidth) ? 'max-w-none' : 'max-h-[min(62vh,640px)] w-auto max-w-full')}
+                style={(zoom > 1 && fitWidth) ? {width: Math.round(fitWidth * zoom)} : undefined}
               />
               {(placing && selectedTool && selectedStep && selectedEffect) ? (
                 <SpatialOverlay

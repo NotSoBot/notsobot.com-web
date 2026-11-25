@@ -39,7 +39,7 @@ function webErrorOf(error: unknown): EditorApiError | null {
 
 export function WebEditorPage() {
   const { t } = useI18n();
-  const { documentId, templateId } = useParams();
+  const { documentId, templateCode } = useParams();
   const navigate = useNavigate();
   const [ searchParams ] = useSearchParams();
   const premiumUrl = useHref(Routes.PREMIUM);
@@ -50,17 +50,17 @@ export function WebEditorPage() {
     onLeave: () => navigate(Routes.EDITOR),
     premiumUrl,
     // without the language prefix, whoever opens it gets the site in their own
-    templateUrl: (templateId) => `${window.location.origin}${Routes.EDITOR_TEMPLATE.replace(':templateId', templateId)}`,
+    templateUrl: (code) => `${window.location.origin}${Routes.EDITOR_TEMPLATE.replace(':templateCode', code)}`,
   }), [navigate, premiumUrl]);
   const { catalogue, error, retry } = useCatalogue(host);
-  const template = useTemplate(host, templateId);
+  const template = useTemplate(host, templateCode);
   const effectNames = useMemo(() => new Map((catalogue?.effects ?? []).map((effect) => [effect.id, effect.name])), [catalogue]);
 
   if (!documentId) {
-    if (templateId && template.status === 'loading') {
+    if (templateCode && template.status === 'loading') {
       return <FullPageMessage><Spinner/></FullPageMessage>;
     }
-    if (templateId && template.status === 'missing') {
+    if (templateCode && template.status === 'missing') {
       return (
         <FullPageMessage title={t('editor.template.not_found')}>
           <button type='button' className='btn btn-secondary' onClick={() => navigate(Routes.EDITOR)}>{t('editor.back')}</button>
@@ -101,17 +101,17 @@ type TemplateState =
   | {status: 'none' | 'loading' | 'missing'}
   | {status: 'ready', template: EditorTemplate};
 
-// `/editor/t/<id>`'s template, `missing` when it was deleted (or the id isn't one)
-function useTemplate(host: EditorHost, templateId: string | undefined): TemplateState {
-  const [ state, setState ] = useState<TemplateState>({status: (templateId) ? 'loading' : 'none'});
+// `/editor/template/<code>`'s template, `missing` when it was deleted (or the code isn't one)
+function useTemplate(host: EditorHost, templateCode: string | undefined): TemplateState {
+  const [ state, setState ] = useState<TemplateState>({status: (templateCode) ? 'loading' : 'none'});
   useEffect(() => {
-    if (!templateId) {
+    if (!templateCode) {
       setState({status: 'none'});
       return;
     }
     let alive = true;
     setState({status: 'loading'});
-    host.api.template(templateId).then((template) => {
+    host.api.template(templateCode).then((template) => {
       if (alive) {
         setState({status: 'ready', template});
       }
@@ -123,6 +123,6 @@ function useTemplate(host: EditorHost, templateId: string | undefined): Template
     return () => {
       alive = false;
     };
-  }, [host, templateId]);
+  }, [host, templateCode]);
   return state;
 }

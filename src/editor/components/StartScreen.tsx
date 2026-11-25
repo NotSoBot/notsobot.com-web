@@ -19,7 +19,7 @@ export function StartScreen({ host, onOpen, initialUrl, activityInstanceId, temp
   initialUrl?: string | null,
   // the Activity: the document is the instance's (shared with everyone in it), and personal recents aren't shown
   activityInstanceId?: string,
-  // a shared template (`/editor/t/<id>`, or the Activity's launch): the picked file starts with its steps
+  // a shared template (`/editor/template/<code>`, or the Activity's launch): the picked file starts with its steps
   template?: EditorTemplate | null,
   effectNames?: Map<string, string>,
 }) {
@@ -58,7 +58,7 @@ export function StartScreen({ host, onOpen, initialUrl, activityInstanceId, temp
     setUploading(true);
     setError(null);
     try {
-      onOpen(await host.api.createDocument({...input, activityInstanceId, templateId: template?.id}));
+      onOpen(await host.api.createDocument({...input, activityInstanceId, templateCode: template?.code}));
     } catch (failure) {
       setError(host.errorOf(failure)?.message || t('editor.start.upload_error'));
       setUploading(false);

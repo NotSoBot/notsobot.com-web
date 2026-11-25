@@ -202,7 +202,7 @@ export function ActivityApp() {
           errorOf: activityErrorOf,
           room,
           premiumUrl: PREMIUM_URL,
-          templateUrl: (templateId) => `${SITE_URL}/editor/t/${templateId}`,
+          templateUrl: (code) => `${SITE_URL}/editor/template/${code}`,
           fullscreen: true,
           // the user posts it themselves through Discord's own dialog, the bot never posts in their channel. the dialog
           // only takes Discord cdn urls, so the render goes onto Discord's cdn first (the api uploads it with their token).
@@ -219,25 +219,25 @@ export function ActivityApp() {
         let documentId = context.document_id;
         const mediaUrl = (typeof context.launch?.media_url === 'string') ? context.launch.media_url : null;
         // `/editor template:<link>`: its steps go on the launched media, or on whatever's picked on the start screen
-        const templateId = (typeof context.launch?.template_id === 'string') ? context.launch.template_id : null;
+        const templateCode = (typeof context.launch?.template_code === 'string') ? context.launch.template_code : null;
         step = 'document';
         if (!documentId && mediaUrl) {
           // opened from Edit Media/Edit Avatar: that media, as the instance's document (or the one someone else just made)
           const create = (withTemplate: boolean) => api.createDocument({
             url: mediaUrl,
             activityInstanceId: instanceId,
-            templateId: (withTemplate && templateId) ? templateId : undefined,
+            templateCode: (withTemplate && templateCode) ? templateCode : undefined,
           });
           // the launch keeps the template id unchecked, one deleted since just opens the media without it
           documentId = (await create(true).catch((error) => {
-            if (templateId && activityErrorOf(error)?.code === EditorErrorCodes.UNKNOWN_EDITOR_TEMPLATE) {
+            if (templateCode && activityErrorOf(error)?.code === EditorErrorCodes.UNKNOWN_EDITOR_TEMPLATE) {
               return create(false);
             }
             throw error;
           })).id;
         }
         // a template that's gone just leaves the start screen without one
-        const template = (!documentId && templateId) ? await api.template(templateId).catch(() => null) : null;
+        const template = (!documentId && templateCode) ? await api.template(templateCode).catch(() => null) : null;
         if (!alive) {
           return;
         }

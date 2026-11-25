@@ -1,6 +1,7 @@
 import { Crosshair, Image as ImageIcon, Scissors, Shuffle, Sparkles, Timer, Undo2, Trash2 } from 'lucide-react';
 import { useId } from 'react';
 
+import { ColorPicker } from '@/components/ui/ColorPicker';
 import { CharCounter, Toggle } from '@/components/ui/form';
 import { useI18n } from '@/i18n';
 import { cn } from '@/lib/utils';
@@ -33,6 +34,9 @@ function NumberControl({ param, value, onChange }: {param: EditorParam, value: n
   const minimum = param.minimum ?? 0;
   const maximum = param.maximum ?? 100;
   const isSeed = param.name === 'seed';
+  // a fraction of the width is shown and typed as a percentage of it
+  const percent = param.unit === 'width';
+  const shown = (percent) ? Math.round(value * 1000) / 10 : value;
   const set = (next: number) => {
     if (!Number.isFinite(next)) {
       return;
@@ -43,17 +47,22 @@ function NumberControl({ param, value, onChange }: {param: EditorParam, value: n
   return (
     <div className='flex flex-col gap-1.5'>
       <div className='flex items-center justify-between gap-2'>
-        <label htmlFor={id} className='text-[13px] text-muted'>{paramLabel(param)}</label>
-        <input
-          type='number'
-          aria-label={paramLabel(param)}
-          value={value}
-          min={minimum}
-          max={maximum}
-          step={sliderStep(param)}
-          onChange={(event) => set(Number(event.target.value))}
-          className='h-8 w-24 rounded-md border border-line-strong bg-deep px-2 text-right font-mono text-[13px] text-fg tabular-nums outline-none focus:border-brand'
-        />
+        <label htmlFor={id} className='text-[13px] text-muted'>
+          {paramLabel(param)}{(percent) ? <span className='text-subtle'> · {t('editor.settings.of_width')}</span> : null}
+        </label>
+        <span className='flex items-center gap-1'>
+          <input
+            type='number'
+            aria-label={(percent) ? `${paramLabel(param)} (${t('editor.settings.of_width')})` : paramLabel(param)}
+            value={shown}
+            min={(percent) ? minimum * 100 : minimum}
+            max={(percent) ? maximum * 100 : maximum}
+            step={(percent) ? 1 : sliderStep(param)}
+            onChange={(event) => set((percent) ? Number(event.target.value) / 100 : Number(event.target.value))}
+            className='h-8 w-20 rounded-md border border-line-strong bg-deep px-2 text-right font-mono text-[13px] text-fg tabular-nums outline-none focus:border-brand'
+          />
+          {(percent) ? <span aria-hidden className='font-mono text-[13px] text-muted'>%</span> : null}
+        </span>
       </div>
       <div className='flex items-center gap-2'>
         <input
@@ -209,14 +218,12 @@ function DrawControls({ strokes, onChange, pen, setPen, maxStrokes }: {
   maxStrokes: number,
 }) {
   const { t } = useI18n();
-  const colorId = useId();
   return (
     <div className='flex flex-col gap-3'>
       <p className='text-[13px] text-muted'>{t('editor.settings.draw')}</p>
       <div className='flex flex-wrap items-end gap-3'>
-        <div className='flex flex-col gap-1.5'>
-          <label htmlFor={colorId} className='text-[13px] text-muted'>{t('editor.settings.pen_color')}</label>
-          <input id={colorId} type='color' value={pen.color.slice(0, 7)} onChange={(event) => setPen({...pen, color: event.target.value})} className='h-10 w-14 cursor-pointer rounded-lg border border-line-strong bg-deep p-1'/>
+        <div className='min-w-0 flex-1 basis-full'>
+          <ColorPicker label={t('editor.settings.pen_color')} value={pen.color} onChange={(color) => setPen({...pen, color})} alpha/>
         </div>
         <div role='radiogroup' aria-label={t('editor.settings.pen_width')} className='flex gap-1 rounded-lg border border-line-strong bg-deep p-1'>
           {PEN_WIDTHS.map((width) => (
@@ -320,12 +327,7 @@ export function StepSettings({ state, effect, step, pen, setPen, maxStrokes, dur
               </label>
             );
           case 'color':
-            return (
-              <label key={param.name} className='flex items-center justify-between gap-2 text-[13px] text-muted'>
-                {paramLabel(param)}
-                <input type='color' value={String(value).slice(0, 7)} onChange={(event) => set(param.name)(event.target.value)} className='h-10 w-14 cursor-pointer rounded-lg border border-line-strong bg-deep p-1'/>
-              </label>
-            );
+            return <ColorPicker key={param.name} label={paramLabel(param)} value={String(value ?? param.default)} onChange={set(param.name)}/>;
           case 'text': {
             const text = String(value ?? '');
             const max = param.max_length ?? 200;

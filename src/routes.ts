@@ -52,7 +52,7 @@ export const Routes = Object.freeze({
   EDITOR: '/editor',
   EDITOR_DOCUMENT: '/editor/:documentId',
   // a shared template's link, the start screen with it applied to whatever's picked
-  EDITOR_TEMPLATE: '/editor/t/:templateId',
+  EDITOR_TEMPLATE: '/editor/template/:templateCode',
   FAQ: '/faq',
   FOXBOT: '/foxbot',
   INVITE: '/invite',

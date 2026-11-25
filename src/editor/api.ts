@@ -60,11 +60,11 @@ export function createEditorApi(request: EditorRequest) {
   return {
     effects: () => request<EditorCatalogue>('/editor/effects'),
     documents: () => request<{documents: Array<EditorDocumentSummary>}>('/editor/documents'),
-    createDocument: (input: {file?: File, url?: string, activityInstanceId?: string, templateId?: string}) => {
+    createDocument: (input: {file?: File, url?: string, activityInstanceId?: string, templateCode?: string}) => {
       const form = new FormData();
       // the new document starts with the template's steps
-      if (input.templateId) {
-        form.append('template_id', input.templateId);
+      if (input.templateCode) {
+        form.append('template_code', input.templateCode);
       }
       if (input.file) {
         form.append('file', input.file);
@@ -113,8 +113,8 @@ export function createEditorApi(request: EditorRequest) {
     activity: (instanceId: string) => request<EditorActivityContext>(`/editor/activity/${pathId(instanceId)}`),
     createTemplate: (documentId: string, name: string) => request<EditorTemplate>('/editor/templates', {method: 'POST', body: {document_id: documentId, name}}),
     templates: () => request<{templates: Array<EditorTemplate>}>('/editor/templates'),
-    template: (templateId: string) => request<EditorTemplate>(`/editor/templates/${pathId(templateId)}`),
-    deleteTemplate: (templateId: string) => request<void>(`/editor/templates/${pathId(templateId)}`, {method: 'DELETE'}),
+    template: (templateCode: string) => request<EditorTemplate>(`/editor/templates/${pathId(templateCode)}`),
+    deleteTemplate: (templateCode: string) => request<void>(`/editor/templates/${pathId(templateCode)}`, {method: 'DELETE'}),
   };
 }
 
@@ -136,8 +136,8 @@ export interface EditorHost {
   room?: EditorRoom,
   // the premium page link for the limits note
   premiumUrl: string,
-  // a template's share link, always the site's (`https://notsobot.com/editor/t/<id>`), even from inside Discord
-  templateUrl: (templateId: string) => string,
+  // a template's share link, always the site's (`https://notsobot.com/editor/template/<code>`), even from inside Discord
+  templateUrl: (templateCode: string) => string,
   // the editor is the whole window (the Activity), not a page under the site's navbar
   fullscreen?: boolean,
 }

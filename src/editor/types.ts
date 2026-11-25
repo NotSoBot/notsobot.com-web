@@ -16,6 +16,8 @@ export interface EditorParam {
   max_length?: number,
   // null is allowed (a video's text START/END), the step then leaves it out
   optional?: boolean,
+  // `width`: a fraction of the media's width, shown as a percentage of it (Text's size and box)
+  unit?: 'width',
 }
 
 export interface EditorThumbnail {
@@ -182,9 +184,10 @@ export interface EditorActivityContext {
 }
 
 
-// a document's steps without its media, shared by link (`/editor/t/<id>`), applied to someone's own file
+// a document's steps without its media, shared by link (`/editor/template/<code>`), applied to someone's own file
 export interface EditorTemplate {
-  id: string,
+  // the link's letters (`/editor/template/<code>`): its id in base 52, Instagram style
+  code: string,
   name: string,
   steps: Array<EditorStep>,
   catalogue_version: number,

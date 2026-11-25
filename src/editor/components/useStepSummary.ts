@@ -34,7 +34,7 @@ export function useStepSummary() {
         case 'number':
         case 'integer': {
           if (typeof value === 'number' && value !== param.default) {
-            parts.push(`${name} ${formatValue(value)}`);
+            parts.push((param.unit === 'width') ? `${name} ${formatValue(Math.round(value * 1000) / 10)}%` : `${name} ${formatValue(value)}`);
           }
           break;
         }

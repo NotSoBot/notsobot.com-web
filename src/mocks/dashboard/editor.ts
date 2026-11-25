@@ -42,6 +42,18 @@ function renderFormats(kind: string, mimetype: string): Array<string> {
 }
 
 
+// the api's `encode_shortcode`: an id in base 52, A-Z then a-z
+function shortcode(value: bigint): string {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+  let text = '';
+  do {
+    text = alphabet[Number(value % 52n)] + text;
+    value /= 52n;
+  } while (value > 0n);
+  return text;
+}
+
+
 function makeDocument(id: string, url: string, filename: string, mimetype: string, width: number, height: number): EditorDocument {
   const kind = (mimetype.startsWith('audio/')) ? 'audio' : (mimetype.startsWith('video/') || mimetype === 'image/gif') ? 'video' : 'image';
   const media = {url, width, height, framecount: 1, fps: 0, duration: 0, mimetype};
@@ -79,9 +91,9 @@ export function registerEditorMocks(route: Route, error: MakeError): void {
     steps: [{id: 'sample1', effect: 'deepfry', hidden: false, params: {scale: 25, keep_transparency: true}}],
   });
 
-  // someone else's, so `/editor/t/1900000000000000002` shows the shared view (no delete, not in your list)
-  templates.set('1900000000000000002', {
-    id: '1900000000000000002',
+  // someone else's, so `/editor/template/NHYoGRFBvGa` shows the shared view (no delete, not in your list)
+  templates.set('NHYoGRFBvGa', {
+    code: 'NHYoGRFBvGa',
     name: 'Crunchy caption',
     steps: [
       {id: 'tpl1', effect: 'deepfry', hidden: false, params: {scale: 25, keep_transparency: true}},
@@ -94,8 +106,8 @@ export function registerEditorMocks(route: Route, error: MakeError): void {
     is_owner: false,
   });
 
-  templates.set('1900000000000000003', {
-    id: '1900000000000000003',
+  templates.set('NHYoGRFBvGb', {
+    code: 'NHYoGRFBvGb',
     name: 'Deep fried',
     steps: [{id: 'tpl3', effect: 'deepfry', hidden: false, params: {scale: 25, keep_transparency: true}}],
     catalogue_version: 1,
@@ -112,8 +124,8 @@ export function registerEditorMocks(route: Route, error: MakeError): void {
   video.render_formats = ['video/mp4', 'video/webm', 'image/gif', 'image/webp'];
   documents.set(video.id, video);
 
-  const findTemplate = (templateId: string): EditorTemplate => {
-    const template = templates.get(templateId);
+  const findTemplate = (code: string): EditorTemplate => {
+    const template = templates.get(code);
     if (!template) {
       throw error(404, 10045, 'Unknown Editor Template');
     }
@@ -151,9 +163,9 @@ export function registerEditorMocks(route: Route, error: MakeError): void {
     const mimetype = file?.type || 'image/png';
     const filename = (file?.name ?? link!.split('/').pop() ?? 'media').replace(/\.[^.]+$/, '');
     const document = makeDocument(id, url, filename, mimetype, 512, 512);
-    const templateId = body.template_id as string | undefined;
-    if (templateId) {
-      const template = findTemplate(templateId);
+    const templateCode = body.template_code as string | undefined;
+    if (templateCode) {
+      const template = findTemplate(templateCode);
       document.steps = structuredClone(template.steps);
       template.uses += 1;
     }
@@ -212,7 +224,7 @@ export function registerEditorMocks(route: Route, error: MakeError): void {
     }
     nextId += 1;
     const template: EditorTemplate = {
-      id: String(nextId),
+      code: shortcode(BigInt(nextId)),
       name: name.slice(0, 64),
       steps: structuredClone(document.steps),
       catalogue_version: document.catalogue_version,
@@ -221,13 +233,13 @@ export function registerEditorMocks(route: Route, error: MakeError): void {
       user: {id: '1', username: 'you', avatar_url: 'https://cdn.discordapp.com/embed/avatars/0.png'},
       is_owner: true,
     };
-    templates.set(template.id, template);
+    templates.set(template.code, template);
     return template;
   });
 
-  route('GET', '/editor/templates/(\\d+)', (match) => findTemplate(match[1]));
+  route('GET', '/editor/templates/([A-Za-z]+)', (match) => findTemplate(match[1]));
 
-  route('DELETE', '/editor/templates/(\\d+)', (match) => {
+  route('DELETE', '/editor/templates/([A-Za-z]+)', (match) => {
     if (!findTemplate(match[1]).is_owner) {
       throw error(403, 20001, 'Not your template');
     }

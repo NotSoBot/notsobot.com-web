@@ -27,7 +27,7 @@ function SaveTemplateDialog({ host, documentId, onClose }: {host: EditorHost, do
   const { copied, copy } = useCopied();
   const [ copyFailed, setCopyFailed ] = useState(false);
 
-  const url = (saved) ? host.templateUrl(saved.id) : '';
+  const url = (saved) ? host.templateUrl(saved.code) : '';
 
   const save = async () => {
     setPending(true);

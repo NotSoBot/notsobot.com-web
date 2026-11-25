@@ -85,7 +85,7 @@ export function TemplateList({ host }: {host: EditorHost}) {
       ) : (
         <ul className='flex flex-col gap-2'>
           {templates.map((template) => (
-            <li key={template.id} className='flex items-center gap-2 rounded-lg border border-line-strong bg-surface p-2 pl-3'>
+            <li key={template.code} className='flex items-center gap-2 rounded-lg border border-line-strong bg-surface p-2 pl-3'>
               <Layers aria-hidden className='size-4 shrink-0 text-brand-text'/>
               <span className='flex min-w-0 flex-1 flex-col'>
                 <span className='truncate text-sm font-semibold text-white'>{template.name}</span>
@@ -93,7 +93,7 @@ export function TemplateList({ host }: {host: EditorHost}) {
                   {plural('editor.start.steps', template.steps.length)} · {plural('editor.template.uses', template.uses)}
                 </span>
               </span>
-              <CopyTemplateLink url={host.templateUrl(template.id)}/>
+              <CopyTemplateLink url={host.templateUrl(template.code)}/>
               <button
                 type='button'
                 aria-label={t('editor.template.delete', {name: template.name})}
@@ -115,8 +115,8 @@ export function TemplateList({ host }: {host: EditorHost}) {
           onConfirm={async () => {
             setPending(true);
             try {
-              await host.api.deleteTemplate(deleting.id);
-              setTemplates((items) => (items ?? []).filter((item) => item.id !== deleting.id));
+              await host.api.deleteTemplate(deleting.code);
+              setTemplates((items) => (items ?? []).filter((item) => item.code !== deleting.code));
               setDeleting(null);
             } finally {
               setPending(false);
