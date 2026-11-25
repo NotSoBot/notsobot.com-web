@@ -29,7 +29,9 @@ const SITE_URL = 'https://notsobot.com';
 const TEMPLATE_CUSTOM_ID = 'template:';
 
 const PREMIUM_URL = `${SITE_URL}/premium`;
-const SCOPES: Array<'identify' | 'guilds'> = ['identify', 'guilds'];
+// only who they are (Discord's "Access your username, avatar and banner"): the api checks the instance and the server
+// with the bot's token, nothing needs their server list
+const SCOPES: Array<'identify'> = ['identify'];
 
 
 class ActivityRequestError extends Error {
