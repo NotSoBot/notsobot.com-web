@@ -64,6 +64,12 @@ export const Editor = {
   'editor.settings.start': 'Start (seconds)',
   'editor.settings.end': 'End (seconds)',
   'editor.settings.whole_clip': 'Whole clip',
+  'editor.settings.still_note': 'Keeps one frame as a picture. Everything after this works on a still image.',
+  'editor.settings.trim_keeps': 'Keeps {start} to {end} ({length})',
+  'editor.settings.use_current': 'Use current frame',
+  'editor.settings.frame_number': 'frame {frame}',
+  'editor.settings.to_end': 'To the end',
+  'editor.settings.seconds': 'seconds',
   'editor.settings.shuffle': 'Shuffle',
 
   'editor.preview': 'Preview',
@@ -81,6 +87,7 @@ export const Editor = {
   'editor.preview.pause': 'Back to frames',
   'editor.preview.frame': 'Frame',
   'editor.preview.stopped': 'Press play to see {name}',
+  'editor.preview.cut': 'This frame is cut by {name}',
   'editor.preview.before_step': 'Showing what goes into {name}',
   'editor.preview.audio': 'Audio preview',
 

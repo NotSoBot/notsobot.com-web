@@ -3,7 +3,8 @@
 
 export type EditorMediaKind = 'audio' | 'image' | 'video';
 export type EditorGroup = 'effects' | 'adjust' | 'text' | 'draw' | 'audio';
-export type EditorParamKind = 'boolean' | 'choice' | 'color' | 'integer' | 'number' | 'text' | 'point' | 'box' | 'strokes';
+// `time`: seconds into the media as the steps before it left it (Trim, Still Frame)
+export type EditorParamKind = 'boolean' | 'choice' | 'color' | 'integer' | 'number' | 'text' | 'point' | 'box' | 'strokes' | 'time';
 
 export interface EditorParam {
   name: string,
@@ -139,6 +140,8 @@ interface EditorPreviewBase {
   frame?: number | null,
   // frame mode stopped before this effect, it needs playback to be seen
   stopped_at?: string | null,
+  // a Trim cut the scrubbed frame away (`stopped_at` is the Trim), not a step that moves
+  stopped_cut?: boolean,
   version?: number,
 }
 

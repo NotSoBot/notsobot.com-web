@@ -7,7 +7,7 @@ import { useI18n } from '@/i18n';
 import { cn } from '@/lib/utils';
 
 import type { EditorHost } from '../api';
-import { newStep } from '../stack';
+import { newStep, stackKind, stepTimeline } from '../stack';
 import type { EditorCatalogue, EditorEffect } from '../types';
 import { useEditorDocument } from '../useEditorDocument';
 import { EffectPicker } from './EffectPicker';
@@ -15,7 +15,7 @@ import { PreviewStage } from './PreviewStage';
 import { RenderPanel } from './RenderPanel';
 import { SaveTemplateButton } from './SaveTemplate';
 import { StepList } from './StepList';
-import { StepSettings } from './StepSettings';
+import { StepSettings, type TimeContext } from './StepSettings';
 import type { PenSettings } from './SpatialOverlay';
 
 
@@ -84,8 +84,22 @@ export function EditorApp({ host, documentId, catalogue }: {host: EditorHost, do
   }
 
   const meta = document.source_meta;
-  // gifs and other animated images have no sound, videos usually do
-  const hasAudio = meta.kind === 'audio' || (meta.kind === 'video' && meta.mimetype.startsWith('video/'));
+  // recorded since 2026-11-25, before that: gifs and other animated images have no sound, videos usually do
+  const hasAudio = meta.kind === 'audio' || (meta.kind === 'video' && (meta.audio ?? meta.mimetype.startsWith('video/')));
+  // after a Still Frame it's an image, only image effects can follow
+  const pickerKind = stackKind(meta.kind, state.steps);
+  const proxy = document.proxy;
+  // a gif's own probe can lack these, its proxy (a video) has them
+  const sourceDuration = meta.duration || proxy?.duration || 0;
+  const sourceFps = meta.fps || proxy?.fps || 0;
+  const timeline = (selectedStep) ? stepTimeline(state.steps, selectedStep.id, sourceDuration) : null;
+  // the scrubbed frame (frame previews only) on the selected step's clip, for "Use current frame"
+  const scrubbed = (state.mode === 'frame' && proxy?.fps) ? state.frame / proxy.fps - (timeline?.offset ?? 0) : null;
+  const time: TimeContext | null = (timeline) ? {
+    duration: timeline.duration,
+    fps: sourceFps,
+    current: (scrubbed !== null && 0 <= scrubbed && scrubbed < timeline.duration) ? Math.round(scrubbed * 1000) / 1000 : null,
+  } : null;
   const selectedEffect = (selectedStep) ? effectsById.get(selectedStep.effect) : undefined;
   const addEffect = (effect: EditorEffect) => state.addStep(newStep(effect));
   const saveLabel = (state.saveState === 'saving') ? t('editor.save.saving') : (state.saveState === 'error') ? t('editor.save.error') : t('editor.save.saved');
@@ -145,7 +159,7 @@ export function EditorApp({ host, documentId, catalogue }: {host: EditorHost, do
       <fieldset disabled={state.renderLocked} className='contents'>
       <div className='flex flex-1 flex-col lg:min-h-0 lg:flex-row'>
         <div className='order-3 w-full shrink-0 border-line bg-surface p-4 lg:order-1 lg:w-[300px] lg:overflow-y-auto lg:border-r xl:w-[340px]'>
-          <EffectPicker effects={catalogue.effects} kind={meta.kind} hasAudio={hasAudio} onAdd={addEffect}/>
+          <EffectPicker effects={catalogue.effects} kind={pickerKind} hasAudio={hasAudio && pickerKind !== 'image'} onAdd={addEffect}/>
         </div>
         <div className='order-1 min-w-0 flex-1 bg-deep lg:order-2 lg:overflow-y-auto'>
           <PreviewStage state={state} pen={pen} maxStrokes={catalogue.limits.max_strokes} maxPoints={catalogue.limits.max_stroke_points}/>
@@ -167,6 +181,7 @@ export function EditorApp({ host, documentId, catalogue }: {host: EditorHost, do
               setPen={setPen}
               maxStrokes={catalogue.limits.max_strokes}
               duration={(meta.kind === 'video' && meta.mimetype.startsWith('video/')) ? meta.duration : 0}
+              time={time}
             />
           ) : null}
           </div>

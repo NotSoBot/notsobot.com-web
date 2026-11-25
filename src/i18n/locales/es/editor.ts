@@ -65,6 +65,12 @@ export const Editor: Record<keyof typeof English, string> = {
   'editor.settings.start': 'Inicio (segundos)',
   'editor.settings.end': 'Fin (segundos)',
   'editor.settings.whole_clip': 'Todo el clip',
+  'editor.settings.still_note': 'Conserva un fotograma como imagen. Todo lo que venga después trabaja sobre una imagen fija.',
+  'editor.settings.trim_keeps': 'Conserva de {start} a {end} ({length})',
+  'editor.settings.use_current': 'Usar fotograma actual',
+  'editor.settings.frame_number': 'fotograma {frame}',
+  'editor.settings.to_end': 'Hasta el final',
+  'editor.settings.seconds': 'segundos',
   'editor.settings.shuffle': 'Aleatorio',
 
   'editor.preview': 'Vista previa',
@@ -82,6 +88,7 @@ export const Editor: Record<keyof typeof English, string> = {
   'editor.preview.pause': 'Volver a fotogramas',
   'editor.preview.frame': 'Fotograma',
   'editor.preview.stopped': 'Pulsa reproducir para ver {name}',
+  'editor.preview.cut': '{name} recorta este fotograma',
   'editor.preview.before_step': 'Mostrando lo que entra en {name}',
   'editor.preview.audio': 'Vista previa del audio',
 

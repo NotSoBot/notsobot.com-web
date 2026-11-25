@@ -38,6 +38,13 @@ export function useStepSummary() {
           }
           break;
         }
+        case 'time': {
+          // a Trim's start of 0 is the default, its end only when one's set
+          if (typeof value === 'number' && value !== param.default) {
+            parts.push(`${name} ${formatValue(value)}s`);
+          }
+          break;
+        }
         case 'boolean': {
           if (value !== param.default) {
             parts.push(`${name} ${(value) ? t('editor.summary.on') : t('editor.summary.off')}`);

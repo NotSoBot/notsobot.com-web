@@ -120,7 +120,7 @@ export function PreviewStage({ state, pen, maxStrokes, maxPoints }: {
               ) : null}
               {(stoppedAt && !showOriginal) ? (
                 <figcaption className='absolute inset-x-0 bottom-0 bg-black/70 px-3 py-1.5 text-center text-[13px] text-white'>
-                  {t('editor.preview.stopped', {name: stoppedAt})}
+                  {(preview?.stopped_cut) ? t('editor.preview.cut', {name: stoppedAt}) : t('editor.preview.stopped', {name: stoppedAt})}
                 </figcaption>
               ) : null}
             </figure>

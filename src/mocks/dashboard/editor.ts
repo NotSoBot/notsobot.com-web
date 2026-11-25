@@ -13,6 +13,8 @@ type Route = (method: string, pattern: string, handler: (match: RegExpMatchArray
 type MakeError = (status: number, code: number, message: string, metadata?: Record<string, unknown>) => Error;
 
 const SAMPLE = new URL('./command-media/b1.png', import.meta.url).href;
+// 6s, 30 fps, 512x800, no sound: enough frames for frame previews (Trim, Still Frame)
+const SAMPLE_VIDEO = new URL('./command-media/media.aiv.manipulation.adhd.mp4', import.meta.url).href;
 const DAY = 24 * 60 * 60 * 1000;
 
 
@@ -103,6 +105,13 @@ export function registerEditorMocks(route: Route, error: MakeError): void {
     is_owner: true,
   });
 
+  // its proxy like the api's: 15 fps
+  const video = makeDocument('1900000000000000004', SAMPLE_VIDEO, 'adhd', 'video/mp4', 512, 800);
+  video.source_meta = {...video.source_meta, framecount: 180, fps: 30, duration: 6, audio: false};
+  video.proxy = {...video.proxy!, framecount: 90, fps: 15, duration: 6};
+  video.render_formats = ['video/mp4', 'video/webm', 'image/gif', 'image/webp'];
+  documents.set(video.id, video);
+
   const findTemplate = (templateId: string): EditorTemplate => {
     const template = templates.get(templateId);
     if (!template) {
@@ -176,6 +185,10 @@ export function registerEditorMocks(route: Route, error: MakeError): void {
       throw error(400, 50054, 'Text needs some text', {index: textless, param: 'text', message: 'Text needs some text'});
     }
     document.steps = steps;
+    // the api's `render_formats(source_meta, steps)`: a Still Frame makes it an image
+    const still = steps.some((step) => !step.hidden && step.effect === 'still');
+    document.render_formats = (still) ? renderFormats('image', 'image/png') : renderFormats(document.source_meta.kind, document.source_meta.mimetype)
+      .filter((mimetype) => document.source_meta.audio !== false || !mimetype.startsWith('audio/') || document.source_meta.kind === 'audio');
     document.version += 1;
     document.updated = new Date().toISOString();
     return document;

@@ -65,6 +65,12 @@ export const Editor: Record<keyof typeof English, string> = {
   'editor.settings.start': 'Início (segundos)',
   'editor.settings.end': 'Fim (segundos)',
   'editor.settings.whole_clip': 'O clipe todo',
+  'editor.settings.still_note': 'Mantém um quadro como imagem. Tudo o que vier depois trabalha sobre uma imagem estática.',
+  'editor.settings.trim_keeps': 'Mantém de {start} a {end} ({length})',
+  'editor.settings.use_current': 'Usar quadro atual',
+  'editor.settings.frame_number': 'quadro {frame}',
+  'editor.settings.to_end': 'Até o fim',
+  'editor.settings.seconds': 'segundos',
   'editor.settings.shuffle': 'Aleatório',
 
   'editor.preview': 'Prévia',
@@ -82,6 +88,7 @@ export const Editor: Record<keyof typeof English, string> = {
   'editor.preview.pause': 'Voltar aos quadros',
   'editor.preview.frame': 'Quadro',
   'editor.preview.stopped': 'Aperte reproduzir para ver {name}',
+  'editor.preview.cut': '{name} corta este quadro',
   'editor.preview.before_step': 'Mostrando o que entra em {name}',
   'editor.preview.audio': 'Prévia do áudio',
 

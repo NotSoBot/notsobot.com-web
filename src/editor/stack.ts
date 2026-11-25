@@ -71,3 +71,60 @@ export function clamp(value: number, minimum: number, maximum: number): number {
 export function roundFraction(value: number): number {
   return Math.round(clamp(value, 0, 1) * 10000) / 10000;
 }
+
+
+export const TRIM_EFFECT_ID = 'trim';
+export const STILL_EFFECT_ID = 'still';
+
+
+// a visible Still Frame: from it on the media is a still image
+export function hasStill(steps: Array<EditorStep>): boolean {
+  return steps.some((step) => !step.hidden && step.effect === STILL_EFFECT_ID);
+}
+
+
+// what the media is at the end of the stack, what the effect picker offers next (a Still Frame makes it an image, so
+// nothing that moves or plays sound can follow it, the api refuses those)
+export function stackKind(sourceKind: EditorMediaKind, steps: Array<EditorStep>): EditorMediaKind {
+  return (sourceKind === 'video' && hasStill(steps)) ? 'image' : sourceKind;
+}
+
+
+export interface StepTimeline {
+  // seconds, the clip's length as the Trims before this step left it
+  duration: number,
+  // where this clip starts in the source
+  offset: number,
+}
+
+
+// The clip a step's times are on: the visible Trims before it cut the source down. `null` past a Still Frame (it's an
+// image from there)
+export function stepTimeline(steps: Array<EditorStep>, stepId: string, sourceDuration: number): StepTimeline | null {
+  let offset = 0;
+  let duration = sourceDuration;
+  for (const step of steps) {
+    if (step.id === stepId) {
+      return {duration: Math.max(duration, 0), offset};
+    }
+    if (step.hidden) {
+      continue;
+    }
+    if (step.effect === STILL_EFFECT_ID) {
+      return null;
+    }
+    if (step.effect === TRIM_EFFECT_ID) {
+      const start = Math.min(Number(step.params.start ?? 0), duration);
+      const end = (typeof step.params.end === 'number') ? Math.min(step.params.end, duration) : duration;
+      offset += start;
+      duration = Math.max(end - start, 0);
+    }
+  }
+  return null;
+}
+
+
+// `1.5` -> `1.50s`, the length of a Trim and its times
+export function formatSeconds(value: number): string {
+  return `${value.toFixed(2)}s`;
+}

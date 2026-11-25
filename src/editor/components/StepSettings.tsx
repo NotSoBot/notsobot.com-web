@@ -1,11 +1,11 @@
-import { Shuffle, Sparkles, Timer, Undo2, Trash2 } from 'lucide-react';
+import { Crosshair, Image as ImageIcon, Scissors, Shuffle, Sparkles, Timer, Undo2, Trash2 } from 'lucide-react';
 import { useId } from 'react';
 
 import { CharCounter, Toggle } from '@/components/ui/form';
 import { useI18n } from '@/i18n';
 import { cn } from '@/lib/utils';
 
-import { paramLabel } from '../stack';
+import { formatSeconds, paramLabel, STILL_EFFECT_ID, TRIM_EFFECT_ID } from '../stack';
 import type { EditorEffect, EditorParam, EditorStep, EditorStroke } from '../types';
 import type { EditorDocumentState } from '../useEditorDocument';
 import type { PenSettings } from './SpatialOverlay';
@@ -119,6 +119,88 @@ function OptionalTimeControl({ param, value, onChange, maximum }: {
 }
 
 
+// a Trim/Still Frame time: what it's on, and the scrubber's moment on that clip
+export interface TimeContext {
+  // seconds, the clip as the Trims before the step left it
+  duration: number,
+  // the source's frame rate, for frame numbers and one-frame slider steps (0: unknown)
+  fps: number,
+  // the scrubbed frame's time on this step's clip, null when there's no scrubber or it's outside the clip
+  current: number | null,
+}
+
+
+function TimeControl({ param, value, onChange, context }: {
+  param: EditorParam,
+  value: number | null,
+  onChange: (value: number | null) => void,
+  context: TimeContext,
+}) {
+  const { t } = useI18n();
+  const id = useId();
+  const maximum = (context.duration > 0) ? context.duration : (param.maximum ?? 600);
+  const shown = Math.min(value ?? maximum, maximum);
+  const step = (context.fps > 0) ? 1 / context.fps : 0.01;
+  const set = (next: number) => {
+    if (Number.isFinite(next)) {
+      onChange(Math.round(Math.min(Math.max(next, 0), maximum) * 1000) / 1000);
+    }
+  };
+  const frame = (context.fps > 0) ? Math.min(Math.round(shown * context.fps), Math.max(Math.round(maximum * context.fps) - 1, 0)) + 1 : null;
+  const SMALL = 'inline-flex min-h-8 items-center gap-1 rounded-md px-2 text-xs font-semibold text-brand-text hover:bg-surface-3 hover:text-white disabled:cursor-not-allowed disabled:opacity-50';
+  return (
+    <div className='flex flex-col gap-1.5'>
+      <div className='flex items-center justify-between gap-2'>
+        <label htmlFor={id} className='text-[13px] text-muted'>{paramLabel(param)}</label>
+        <input
+          type='number'
+          aria-label={`${paramLabel(param)} (${t('editor.settings.seconds')})`}
+          value={value ?? ''}
+          min={0}
+          max={maximum}
+          step={0.01}
+          // the line under the slider says "To the end", the box is too narrow for it
+          placeholder={(param.optional) ? '–' : undefined}
+          onChange={(event) => {
+            if (!event.target.value) {
+              if (param.optional) {
+                onChange(null);
+              }
+              return;
+            }
+            set(Number(event.target.value));
+          }}
+          className='h-8 w-24 rounded-md border border-line-strong bg-deep px-2 text-right font-mono text-[13px] text-fg tabular-nums outline-none focus:border-brand'
+        />
+      </div>
+      <input
+        id={id}
+        type='range'
+        min={0}
+        max={maximum}
+        step={step}
+        value={shown}
+        onChange={(event) => set(Number(event.target.value))}
+        className='min-w-0 flex-1 accent-brand'
+      />
+      <div className='flex flex-wrap items-center gap-x-2 text-xs text-subtle'>
+        <span className='font-mono tabular-nums'>
+          {(value === null && param.optional) ? t('editor.settings.to_end') : formatSeconds(shown)}
+          {(frame !== null && value !== null) ? ` · ${t('editor.settings.frame_number', {frame})}` : null}
+        </span>
+        <span className='flex-1'/>
+        <button type='button' disabled={context.current === null} onClick={() => context.current !== null && set(context.current)} className={SMALL}>
+          <Crosshair aria-hidden className='size-3.5'/>{t('editor.settings.use_current')}
+        </button>
+        {(param.optional && value !== null) ? (
+          <button type='button' onClick={() => onChange(null)} className={SMALL}>{t('editor.settings.to_end')}</button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+
 function DrawControls({ strokes, onChange, pen, setPen, maxStrokes }: {
   strokes: Array<EditorStroke>,
   onChange: (value: Array<EditorStroke>) => void,
@@ -176,7 +258,7 @@ function DrawControls({ strokes, onChange, pen, setPen, maxStrokes }: {
 }
 
 
-export function StepSettings({ state, effect, step, pen, setPen, maxStrokes, duration }: {
+export function StepSettings({ state, effect, step, pen, setPen, maxStrokes, duration, time }: {
   state: EditorDocumentState,
   effect: EditorEffect,
   step: EditorStep,
@@ -185,6 +267,8 @@ export function StepSettings({ state, effect, step, pen, setPen, maxStrokes, dur
   maxStrokes: number,
   // seconds, a video's length for text START/END (0: not a video, those are left out)
   duration: number,
+  // Trim and Still Frame's clip, null where the step has none (after a Still Frame)
+  time: TimeContext | null,
 }) {
   const { t } = useI18n();
   const set = (name: string) => (value: unknown) => state.setParam(step.id, name, value);
@@ -204,6 +288,19 @@ export function StepSettings({ state, effect, step, pen, setPen, maxStrokes, dur
       {(effect.ml) ? (
         <p className='flex gap-1.5 text-xs text-subtle'><Sparkles aria-hidden className='mt-px size-3.5 shrink-0'/>{t('editor.settings.ml')}</p>
       ) : null}
+      {(effect.id === STILL_EFFECT_ID) ? (
+        <p className='flex gap-1.5 text-xs text-subtle'><ImageIcon aria-hidden className='mt-px size-3.5 shrink-0'/>{t('editor.settings.still_note')}</p>
+      ) : null}
+      {(effect.id === TRIM_EFFECT_ID && time) ? (() => {
+        const start = Math.min(Number(step.params.start ?? 0), time.duration);
+        const end = (typeof step.params.end === 'number') ? Math.min(step.params.end, time.duration) : time.duration;
+        return (
+          <p className='flex gap-1.5 text-xs text-subtle'>
+            <Scissors aria-hidden className='mt-px size-3.5 shrink-0'/>
+            {t('editor.settings.trim_keeps', {start: formatSeconds(start), end: formatSeconds(end), length: formatSeconds(Math.max(end - start, 0))})}
+          </p>
+        );
+      })() : null}
       {(!effect.params.length) ? <p className='text-[13px] text-muted'>{t('editor.settings.none')}</p> : null}
       {shown.map((param) => {
         const value = step.params[param.name];
@@ -245,6 +342,16 @@ export function StepSettings({ state, effect, step, pen, setPen, maxStrokes, dur
               </label>
             );
           }
+          case 'time':
+            return (
+              <TimeControl
+                key={param.name}
+                param={param}
+                value={(typeof value === 'number') ? value : null}
+                onChange={set(param.name)}
+                context={time ?? {duration: 0, fps: 0, current: null}}
+              />
+            );
           case 'point':
             return <p key={param.name} className='text-[13px] text-muted'>{t('editor.settings.place_point')}</p>;
           case 'box':
