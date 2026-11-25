@@ -26,6 +26,7 @@ export const Pages: PageDescriptions = Object.freeze({
   DASHBOARD_FONTS: DASHBOARD_DESCRIPTION,
   EDITOR: 'Empilhe efeitos em uma imagem, GIF, vídeo ou áudio, veja cada mudança e depois renderize em qualidade total.',
   EDITOR_DOCUMENT: 'Empilhe efeitos em uma imagem, GIF, vídeo ou áudio, veja cada mudança e depois renderize em qualidade total.',
+  EDITOR_TEMPLATE: 'Aplique um conjunto compartilhado de efeitos do editor do NotSoBot à sua própria imagem, GIF, vídeo ou áudio.',
   DASHBOARD_AI_MEMORY: DASHBOARD_DESCRIPTION,
   DASHBOARD_REMINDERS: DASHBOARD_DESCRIPTION,
   DASHBOARD_REPORTS: DASHBOARD_DESCRIPTION,

@@ -58,6 +58,7 @@ export const Layout: Record<keyof typeof English, string> = {
   'page.DASHBOARD_FONTS': 'Suas fontes',
   'page.EDITOR': 'Editor de mídia',
   'page.EDITOR_DOCUMENT': 'Editor de mídia',
+  'page.EDITOR_TEMPLATE': 'Modelo do editor',
   'page.DASHBOARD_AI_MEMORY': 'Memória da IA',
   'page.DASHBOARD_REMINDERS': 'Seus lembretes',
   'page.DASHBOARD_REPORTS': 'Suas denúncias',

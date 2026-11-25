@@ -7,17 +7,21 @@ import { intlLocale, useI18n } from '@/i18n';
 import { cn } from '@/lib/utils';
 
 import type { EditorHost } from '../api';
-import type { EditorDocument, EditorDocumentSummary } from '../types';
+import type { EditorDocument, EditorDocumentSummary, EditorTemplate } from '../types';
+import { TemplateBanner, TemplateList } from './Templates';
 
 
 // The web host's way in: a file (dropped or picked), a link, or one of their recent edits
-export function StartScreen({ host, onOpen, initialUrl, activityInstanceId }: {
+export function StartScreen({ host, onOpen, initialUrl, activityInstanceId, template, effectNames }: {
   host: EditorHost,
   onOpen: (document: EditorDocument | EditorDocumentSummary) => void,
   // `?url=`, from a link like the bot's "edit on the web", opened right away
   initialUrl?: string | null,
   // the Activity: the document is the instance's (shared with everyone in it), and personal recents aren't shown
   activityInstanceId?: string,
+  // a shared template (`/editor/t/<id>`, or the Activity's launch): the picked file starts with its steps
+  template?: EditorTemplate | null,
+  effectNames?: Map<string, string>,
 }) {
   const { t, plural, language } = useI18n();
   const inputId = useId();
@@ -54,7 +58,7 @@ export function StartScreen({ host, onOpen, initialUrl, activityInstanceId }: {
     setUploading(true);
     setError(null);
     try {
-      onOpen(await host.api.createDocument({...input, activityInstanceId}));
+      onOpen(await host.api.createDocument({...input, activityInstanceId, templateId: template?.id}));
     } catch (failure) {
       setError(host.errorOf(failure)?.message || t('editor.start.upload_error'));
       setUploading(false);
@@ -94,6 +98,8 @@ export function StartScreen({ host, onOpen, initialUrl, activityInstanceId }: {
         <h1 className='font-display text-3xl font-bold text-white sm:text-4xl'>{t('editor.title')}</h1>
         <p className='text-muted'>{t('editor.start.description')}</p>
       </header>
+
+      {(template) ? <TemplateBanner template={template} effectNames={effectNames}/> : null}
 
       <div
         onDragOver={(event) => {
@@ -194,6 +200,8 @@ export function StartScreen({ host, onOpen, initialUrl, activityInstanceId }: {
         )}
       </section>
       ) : null}
+
+      {(!activityInstanceId) ? <TemplateList host={host}/> : null}
 
       {(deleting) ? (
         <ConfirmDialog

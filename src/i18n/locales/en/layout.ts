@@ -56,6 +56,7 @@ export const Layout = {
   'page.DASHBOARD_FONTS': 'Your Fonts',
   'page.EDITOR': 'Media Editor',
   'page.EDITOR_DOCUMENT': 'Media Editor',
+  'page.EDITOR_TEMPLATE': 'Editor Template',
   'page.DASHBOARD_AI_MEMORY': 'AI Memory',
   'page.DASHBOARD_REMINDERS': 'Your Reminders',
   'page.DASHBOARD_REPORTS': 'Your Reports',

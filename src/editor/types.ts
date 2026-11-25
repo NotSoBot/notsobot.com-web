@@ -95,6 +95,8 @@ export interface EditorSourceMeta {
   fps: number,
   duration: number,
   mimetype: string,
+  // has an audio stream (absent on documents made before it was recorded)
+  audio?: boolean,
 }
 
 export interface EditorSourceFile {
@@ -115,6 +117,8 @@ export interface EditorDocument {
   proxy_status: EditorProxyStatus,
   source: EditorSourceFile,
   source_meta: EditorSourceMeta,
+  // what the render can be converted to (`render`'s `mimetype`), absent from an api before it
+  render_formats?: Array<string>,
   activity_instance_id: string | null,
   guild_id: string | null,
   is_owner: boolean,
@@ -125,7 +129,7 @@ export interface EditorDocument {
 }
 
 // the list (`GET /editor/documents`) doesn't say how the proxy is doing
-export type EditorDocumentSummary = Omit<EditorDocument, 'proxy_status' | 'is_owner'>;
+export type EditorDocumentSummary = Omit<EditorDocument, 'proxy_status' | 'is_owner' | 'render_formats'>;
 
 export type EditorPreviewMode = 'clip' | 'frame' | 'still';
 
@@ -172,4 +176,18 @@ export interface EditorActivityContext {
   launch: Record<string, unknown> | null,
   // the instance's shared document, null until someone picks the media
   document_id: string | null,
+}
+
+
+// a document's steps without its media, shared by link (`/editor/t/<id>`), applied to someone's own file
+export interface EditorTemplate {
+  id: string,
+  name: string,
+  steps: Array<EditorStep>,
+  catalogue_version: number,
+  uses: number,
+  // unix ms
+  created: number,
+  user: {id: string, username: string, avatar_url: string | null},
+  is_owner: boolean,
 }

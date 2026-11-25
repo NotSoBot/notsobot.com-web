@@ -3,7 +3,7 @@
 // rendered: a preview answers `pending` once, then the unedited proxy, and a render finishes after a few polls with the
 // proxy as its file. A version mismatch answers 409 like the api.
 
-import type { EditorCatalogue, EditorDocument, EditorJob, EditorStep } from '@/editor/types';
+import type { EditorCatalogue, EditorDocument, EditorJob, EditorStep, EditorTemplate } from '@/editor/types';
 
 import { MOCK_COMMAND_PREVIEWS } from './commandPreviews';
 import catalogueJson from './editorCatalogue.json';
@@ -26,6 +26,20 @@ function catalogue(): EditorCatalogue {
 }
 
 
+// the api's `render_formats()` (catalogue.py): a mock video is treated as having sound
+function renderFormats(kind: string, mimetype: string): Array<string> {
+  if (kind === 'audio') {
+    return ['audio/mp3', 'audio/ogg', 'audio/wav', 'audio/flac'];
+  }
+  if (kind === 'video') {
+    return (mimetype.startsWith('image/'))
+      ? ['image/gif', 'image/webp', 'video/mp4', 'video/webm']
+      : ['video/mp4', 'video/webm', 'image/gif', 'image/webp', 'audio/mp3'];
+  }
+  return ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+}
+
+
 function makeDocument(id: string, url: string, filename: string, mimetype: string, width: number, height: number): EditorDocument {
   const kind = (mimetype.startsWith('audio/')) ? 'audio' : (mimetype.startsWith('video/') || mimetype === 'image/gif') ? 'video' : 'image';
   const media = {url, width, height, framecount: 1, fps: 0, duration: 0, mimetype};
@@ -38,7 +52,8 @@ function makeDocument(id: string, url: string, filename: string, mimetype: strin
     proxy: media,
     proxy_status: 'ready',
     source: {id: `${id}0`, filename, urls: {cdn: url, vanity: url}},
-    source_meta: {kind, width, height, framecount: 1, fps: 0, duration: 0, mimetype},
+    source_meta: {kind, width, height, framecount: 1, fps: 0, duration: 0, mimetype, audio: kind !== 'image'},
+    render_formats: renderFormats(kind, mimetype),
     activity_instance_id: null,
     guild_id: null,
     is_owner: true,
@@ -53,13 +68,48 @@ function makeDocument(id: string, url: string, filename: string, mimetype: strin
 export function registerEditorMocks(route: Route, error: MakeError): void {
   const documents = new Map<string, EditorDocument>();
   const previews = new Map<string, {documentId: string, polled: boolean}>();
-  const jobs = new Map<string, {url: string, filename: string, polls: number}>();
+  const jobs = new Map<string, {url: string, filename: string, mimetype: string, polls: number}>();
+  const templates = new Map<string, EditorTemplate>();
   let nextId = 2_000_000_000_000_000;
 
   documents.set('1900000000000000001', {
     ...makeDocument('1900000000000000001', SAMPLE, 'b1', 'image/png', 512, 512),
     steps: [{id: 'sample1', effect: 'deepfry', hidden: false, params: {scale: 25, keep_transparency: true}}],
   });
+
+  // someone else's, so `/editor/t/1900000000000000002` shows the shared view (no delete, not in your list)
+  templates.set('1900000000000000002', {
+    id: '1900000000000000002',
+    name: 'Crunchy caption',
+    steps: [
+      {id: 'tpl1', effect: 'deepfry', hidden: false, params: {scale: 25, keep_transparency: true}},
+      {id: 'tpl2', effect: 'text', hidden: false, params: {text: 'when the', position: {x: 0.5, y: 0.12}, size: 0.1, color: '#ffffff', start: null, end: null}},
+    ],
+    catalogue_version: 1,
+    uses: 12,
+    created: Date.now() - 3 * DAY,
+    user: {id: '2', username: 'someone', avatar_url: 'https://cdn.discordapp.com/embed/avatars/1.png'},
+    is_owner: false,
+  });
+
+  templates.set('1900000000000000003', {
+    id: '1900000000000000003',
+    name: 'Deep fried',
+    steps: [{id: 'tpl3', effect: 'deepfry', hidden: false, params: {scale: 25, keep_transparency: true}}],
+    catalogue_version: 1,
+    uses: 1,
+    created: Date.now() - DAY,
+    user: {id: '1', username: 'mockuser', avatar_url: 'https://cdn.discordapp.com/embed/avatars/0.png'},
+    is_owner: true,
+  });
+
+  const findTemplate = (templateId: string): EditorTemplate => {
+    const template = templates.get(templateId);
+    if (!template) {
+      throw error(404, 10045, 'Unknown Editor Template');
+    }
+    return template;
+  };
 
   const find = (documentId: string): EditorDocument => {
     const document = documents.get(documentId);
@@ -92,6 +142,12 @@ export function registerEditorMocks(route: Route, error: MakeError): void {
     const mimetype = file?.type || 'image/png';
     const filename = (file?.name ?? link!.split('/').pop() ?? 'media').replace(/\.[^.]+$/, '');
     const document = makeDocument(id, url, filename, mimetype, 512, 512);
+    const templateId = body.template_id as string | undefined;
+    if (templateId) {
+      const template = findTemplate(templateId);
+      document.steps = structuredClone(template.steps);
+      template.uses += 1;
+    }
     documents.set(id, document);
     // the real size once the browser has it, the api probes it on upload
     if (mimetype.startsWith('image/')) {
@@ -131,6 +187,41 @@ export function registerEditorMocks(route: Route, error: MakeError): void {
     return undefined;
   });
 
+  route('GET', '/editor/templates', () => ({
+    templates: [...templates.values()].filter((template) => template.is_owner).sort((a, b) => b.created - a.created),
+  }));
+
+  route('POST', '/editor/templates', (_, { body }) => {
+    const document = find(String(body.document_id));
+    const name = String(body.name ?? '').trim();
+    if (!name) {
+      throw error(400, 50035, 'Invalid Form Body', {errors: {name: [{message: 'A name is required'}]}});
+    }
+    nextId += 1;
+    const template: EditorTemplate = {
+      id: String(nextId),
+      name: name.slice(0, 64),
+      steps: structuredClone(document.steps),
+      catalogue_version: document.catalogue_version,
+      uses: 0,
+      created: Date.now(),
+      user: {id: '1', username: 'you', avatar_url: 'https://cdn.discordapp.com/embed/avatars/0.png'},
+      is_owner: true,
+    };
+    templates.set(template.id, template);
+    return template;
+  });
+
+  route('GET', '/editor/templates/(\\d+)', (match) => findTemplate(match[1]));
+
+  route('DELETE', '/editor/templates/(\\d+)', (match) => {
+    if (!findTemplate(match[1]).is_owner) {
+      throw error(403, 20001, 'Not your template');
+    }
+    templates.delete(match[1]);
+    return undefined;
+  });
+
   route('POST', '/editor/documents/(\\d+)/previews', (match, { body }) => {
     find(match[1]);
     const previewId = Math.random().toString(36).slice(2, 12);
@@ -151,10 +242,15 @@ export function registerEditorMocks(route: Route, error: MakeError): void {
     return {status: 'done', cached: false, preview_id: match[2], mode: 'still', frame: null, stopped_at: null, version: document.version, ...document.proxy};
   });
 
-  route('POST', '/editor/documents/(\\d+)/render', (match) => {
+  route('POST', '/editor/documents/(\\d+)/render', (match, { body }) => {
     const document = find(match[1]);
+    const mimetype = body.mimetype as string | undefined;
+    if (mimetype !== undefined && !document.render_formats?.includes(mimetype)) {
+      throw error(400, 50001, 'This media can\'t be rendered as that format');
+    }
     const jobId = Math.random().toString(36).slice(2, 14);
-    jobs.set(jobId, {url: document.proxy!.url, filename: document.source.filename, polls: 0});
+    // nothing is converted, the result only says it was (the proxy as its file)
+    jobs.set(jobId, {url: document.proxy!.url, filename: document.source.filename, mimetype: mimetype ?? document.source_meta.mimetype, polls: 0});
     return {id: jobId, status: 'queued', position: 2, stage: null, result: {error: null, error_code: null, response: null, took: 0}} satisfies EditorJob;
   });
 
@@ -172,7 +268,7 @@ export function registerEditorMocks(route: Route, error: MakeError): void {
       status: 'finished',
       position: 0,
       stage: null,
-      result: {error: null, error_code: null, took: 1234, response: {items: [{storage: {urls: {cdn: job.url, vanity: job.url}, filename: job.filename}}]}},
+      result: {error: null, error_code: null, took: 1234, response: {items: [{storage: {urls: {cdn: job.url, vanity: job.url}, filename: job.filename}, file: {mimetype: job.mimetype}}]}},
     } satisfies EditorJob;
   });
 }

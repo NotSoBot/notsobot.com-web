@@ -13,6 +13,7 @@ import { useEditorDocument } from '../useEditorDocument';
 import { EffectPicker } from './EffectPicker';
 import { PreviewStage } from './PreviewStage';
 import { RenderPanel } from './RenderPanel';
+import { SaveTemplateButton } from './SaveTemplate';
 import { StepList } from './StepList';
 import { StepSettings } from './StepSettings';
 import type { PenSettings } from './SpatialOverlay';
@@ -119,6 +120,8 @@ export function EditorApp({ host, documentId, catalogue }: {host: EditorHost, do
         {(state.room && state.roomStatus !== 'open') ? <span role='status' className='text-xs text-warning'>{t('editor.room.reconnecting')}</span> : null}
         <span role='status' className={cn('text-xs', (state.saveState === 'error') ? 'text-danger-text' : 'text-subtle')}>{saveLabel}</span>
         <div className='flex items-center gap-1'>
+          {/* the saved steps are what a template copies, so not while a change is still saving */}
+          <SaveTemplateButton host={host} documentId={document.id} disabled={!state.steps.length || state.saveState !== 'saved'}/>
           <button type='button' aria-label={t('editor.undo')} title={t('editor.undo')} disabled={!state.canUndo} onClick={undo} className='flex size-10 items-center justify-center rounded-lg text-fg hover:bg-surface disabled:cursor-not-allowed disabled:opacity-40'>
             <Undo2 aria-hidden className='size-5'/>
           </button>
@@ -170,6 +173,8 @@ export function EditorApp({ host, documentId, catalogue }: {host: EditorHost, do
           <RenderPanel
             host={host}
             documentId={document.id}
+            formats={document.render_formats ?? []}
+            sourceKind={document.source_meta.kind}
             disabled={!state.steps.some((step) => !step.hidden) || state.saveState !== 'saved'}
           />
         </aside>

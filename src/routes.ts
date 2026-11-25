@@ -51,6 +51,8 @@ export const Routes = Object.freeze({
   // the media editor, behind login. a document's id in the path so a reload keeps it
   EDITOR: '/editor',
   EDITOR_DOCUMENT: '/editor/:documentId',
+  // a shared template's link, the start screen with it applied to whatever's picked
+  EDITOR_TEMPLATE: '/editor/t/:templateId',
   FAQ: '/faq',
   FOXBOT: '/foxbot',
   INVITE: '/invite',

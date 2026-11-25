@@ -9,6 +9,7 @@ import { createEditorApi, EditorErrorCodes, pathId, type EditorApiError, type Ed
 import { EditorApp } from '../components/EditorApp';
 import { StartScreen } from '../components/StartScreen';
 import { EditorRoom } from '../room';
+import type { EditorTemplate } from '../types';
 import { useCatalogue } from '../useCatalogue';
 
 
@@ -22,7 +23,8 @@ import { useCatalogue } from '../useCatalogue';
 // requests through Discord's proxy, the `/api` url mapping
 const API_BASE = '/.proxy/api';
 const URL_MAPPINGS = [{prefix: '/cdn', target: 'cdn.nsb.gg'}];
-const PREMIUM_URL = 'https://notsobot.com/premium';
+const SITE_URL = 'https://notsobot.com';
+const PREMIUM_URL = `${SITE_URL}/premium`;
 const SCOPES: Array<'identify' | 'guilds'> = ['identify', 'guilds'];
 
 
@@ -109,7 +111,7 @@ type Phase =
     // what went wrong, shown small under the message (only owners can get this far while it rolls out)
     detail?: string,
   }
-  | {kind: 'start', host: EditorHost, instanceId: string}
+  | {kind: 'start', host: EditorHost, instanceId: string, template: EditorTemplate | null}
   | {kind: 'editor', host: EditorHost, documentId: string};
 
 
@@ -200,6 +202,7 @@ export function ActivityApp() {
           errorOf: activityErrorOf,
           room,
           premiumUrl: PREMIUM_URL,
+          templateUrl: (templateId) => `${SITE_URL}/editor/t/${templateId}`,
           fullscreen: true,
           // the user posts it themselves through Discord's own dialog, the bot never posts in their channel. the dialog
           // only takes Discord cdn urls, so the render goes onto Discord's cdn first (the api uploads it with their token).
@@ -215,11 +218,26 @@ export function ActivityApp() {
 
         let documentId = context.document_id;
         const mediaUrl = (typeof context.launch?.media_url === 'string') ? context.launch.media_url : null;
+        // `/editor template:<link>`: its steps go on the launched media, or on whatever's picked on the start screen
+        const templateId = (typeof context.launch?.template_id === 'string') ? context.launch.template_id : null;
         step = 'document';
         if (!documentId && mediaUrl) {
           // opened from Edit Media/Edit Avatar: that media, as the instance's document (or the one someone else just made)
-          documentId = (await api.createDocument({url: mediaUrl, activityInstanceId: instanceId})).id;
+          const create = (withTemplate: boolean) => api.createDocument({
+            url: mediaUrl,
+            activityInstanceId: instanceId,
+            templateId: (withTemplate && templateId) ? templateId : undefined,
+          });
+          // the launch keeps the template id unchecked, one deleted since just opens the media without it
+          documentId = (await create(true).catch((error) => {
+            if (templateId && activityErrorOf(error)?.code === EditorErrorCodes.UNKNOWN_EDITOR_TEMPLATE) {
+              return create(false);
+            }
+            throw error;
+          })).id;
         }
+        // a template that's gone just leaves the start screen without one
+        const template = (!documentId && templateId) ? await api.template(templateId).catch(() => null) : null;
         if (!alive) {
           return;
         }
@@ -227,7 +245,7 @@ export function ActivityApp() {
           setPhase({kind: 'editor', host, documentId});
           return;
         }
-        setPhase({kind: 'start', host, instanceId});
+        setPhase({kind: 'start', host, instanceId, template});
         // someone else in the activity picks the media first: everyone moves to it
         room.subscribe((event) => {
           if (alive && event.t === 'document') {
@@ -273,6 +291,7 @@ export function ActivityApp() {
         <StartScreen
           host={phase.host}
           activityInstanceId={phase.instanceId}
+          template={phase.template}
           onOpen={(document) => setPhase({kind: 'editor', host: phase.host, documentId: document.id})}
         />
       );

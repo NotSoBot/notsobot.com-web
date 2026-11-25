@@ -1,5 +1,5 @@
 import { Check, CircleAlert, Download, Link, Share2, X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 
 import { Spinner } from '@/components/ui/Spinner';
 import { useCopied } from '@/hooks/useCopied';
@@ -13,6 +13,15 @@ import { isAudioMimetype, isVideoMimetype } from './media';
 
 const JOB_POLL = 1500;
 const JOB_DONE = new Set<EditorJob['status']>(['finished', 'failed', 'stopped', 'canceled']);
+const SELECT = 'h-10 w-full rounded-lg border border-line-strong bg-deep px-2.5 text-sm text-fg outline-none focus:border-brand disabled:opacity-60';
+
+// `audio/mp3` → MP3, the names people know a format by (WebP and WebM aren't all capitals)
+const FORMAT_NAMES: Record<string, string> = {webp: 'WebP', webm: 'WebM', mpeg: 'MP3', 'x-wav': 'WAV'};
+
+function formatName(mimetype: string): string {
+  const subtype = (mimetype.split('/')[1] || mimetype).toLowerCase();
+  return FORMAT_NAMES[subtype] ?? subtype.toUpperCase();
+}
 
 type RenderState =
   | {status: 'idle'}
@@ -36,14 +45,25 @@ function resultOf(job: EditorJob): RenderState {
 
 // The full quality render: the whole stack on the original, a normal job on the user's tier queue. Polled through
 // `/jobs/<id>` like a command. Only the newest one counts, a new render or leaving the document drops the old poll
-export function RenderPanel({ host, documentId, disabled }: {host: EditorHost, documentId: string, disabled: boolean}) {
+export function RenderPanel({ host, documentId, formats, sourceKind, disabled }: {
+  host: EditorHost,
+  documentId: string,
+  // the document's `render_formats`, the picker is left out without any
+  formats: Array<string>,
+  sourceKind: string,
+  disabled: boolean,
+}) {
   const { t, rich } = useI18n();
+  const formatId = useId();
   const [ state, setState ] = useState<RenderState>({status: 'idle'});
+  // '' is automatic: whatever the stack makes, no `convert`
+  const [ format, setFormat ] = useState('');
   const runRef = useRef(0);
 
   useEffect(() => {
     runRef.current += 1;
     setState({status: 'idle'});
+    setFormat('');
   }, [documentId]);
 
   // the activity's room hears about it: the stack is locked for everyone while it runs
@@ -54,7 +74,7 @@ export function RenderPanel({ host, documentId, disabled }: {host: EditorHost, d
     setState({status: 'running', job: null});
     announce('started');
     try {
-      let job = await host.api.render(documentId);
+      let job = await host.api.render(documentId, (formats.includes(format)) ? format : undefined);
       while (!JOB_DONE.has(job.status)) {
         if (run !== runRef.current) {
           return;
@@ -89,6 +109,19 @@ export function RenderPanel({ host, documentId, disabled }: {host: EditorHost, d
 
   return (
     <div className='flex shrink-0 flex-col gap-2 border-t border-line-strong pt-3.5'>
+      {(formats.length) ? (
+        <div className='flex items-center gap-2'>
+          <label htmlFor={formatId} className='shrink-0 text-[13px] text-muted'>{t('editor.render.format')}</label>
+          <select id={formatId} value={format} disabled={running} onChange={(event) => setFormat(event.target.value)} className={SELECT}>
+            <option value=''>{t('editor.render.format_auto')}</option>
+            {formats.map((mimetype) => (
+              <option key={mimetype} value={mimetype}>
+                {(sourceKind !== 'audio' && mimetype.startsWith('audio/')) ? t('editor.render.format_audio_only', {format: formatName(mimetype)}) : formatName(mimetype)}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
       <button type='button' className='btn btn-primary min-h-11 w-full' disabled={disabled || running} onClick={() => void start()}>
         {(running) ? <Spinner className='size-4 border-white/40 border-t-white'/> : null}
         {(running) ? ((queued) ? t('editor.render.queued') : t('editor.render.rendering')) : t('editor.render')}
@@ -128,7 +161,7 @@ function RenderResult({ host, url, filename, mimetype, onExternal }: {
   const [ copyFailed, setCopyFailed ] = useState(false);
   const [ sharing, setSharing ] = useState(false);
   const [ shareError, setShareError ] = useState<string | null>(null);
-  const extension = (mimetype.split('/')[1] || url.split('.').pop() || '').toUpperCase();
+  const extension = (mimetype) ? formatName(mimetype) : (url.split('.').pop() || '').toUpperCase();
 
   const onCopy = async () => {
     const worked = await copy(url);

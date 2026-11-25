@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useHref, useNavigate, useParams, useSearchParams } from 'react-router';
 
 import { FullPageMessage } from '@/components/ui/FullPageMessage';
@@ -8,6 +8,7 @@ import { useI18n } from '@/i18n';
 import { apiRequest, ApiRequestError } from '@/lib/api';
 
 import { createEditorApi, type EditorApiError, type EditorHost, type EditorRequest } from '../api';
+import type { EditorTemplate } from '../types';
 import { EditorApp } from '../components/EditorApp';
 import { StartScreen } from '../components/StartScreen';
 import { useCatalogue } from '../useCatalogue';
@@ -38,7 +39,7 @@ function webErrorOf(error: unknown): EditorApiError | null {
 
 export function WebEditorPage() {
   const { t } = useI18n();
-  const { documentId } = useParams();
+  const { documentId, templateId } = useParams();
   const navigate = useNavigate();
   const [ searchParams ] = useSearchParams();
   const premiumUrl = useHref(Routes.PREMIUM);
@@ -48,14 +49,30 @@ export function WebEditorPage() {
     errorOf: webErrorOf,
     onLeave: () => navigate(Routes.EDITOR),
     premiumUrl,
+    // without the language prefix, whoever opens it gets the site in their own
+    templateUrl: (templateId) => `${window.location.origin}${Routes.EDITOR_TEMPLATE.replace(':templateId', templateId)}`,
   }), [navigate, premiumUrl]);
   const { catalogue, error, retry } = useCatalogue(host);
+  const template = useTemplate(host, templateId);
+  const effectNames = useMemo(() => new Map((catalogue?.effects ?? []).map((effect) => [effect.id, effect.name])), [catalogue]);
 
   if (!documentId) {
+    if (templateId && template.status === 'loading') {
+      return <FullPageMessage><Spinner/></FullPageMessage>;
+    }
+    if (templateId && template.status === 'missing') {
+      return (
+        <FullPageMessage title={t('editor.template.not_found')}>
+          <button type='button' className='btn btn-secondary' onClick={() => navigate(Routes.EDITOR)}>{t('editor.back')}</button>
+        </FullPageMessage>
+      );
+    }
     return (
       <StartScreen
         host={host}
         initialUrl={searchParams.get('url')}
+        template={(template.status === 'ready') ? template.template : null}
+        effectNames={effectNames}
         // the link is used up once it's opened, a reload of the document shouldn't upload it again
         onOpen={(document) => navigate(Routes.EDITOR_DOCUMENT.replace(':documentId', document.id))}
       />
@@ -77,4 +94,35 @@ export function WebEditorPage() {
     );
   }
   return <EditorApp key={documentId} host={host} documentId={documentId} catalogue={catalogue}/>;
+}
+
+
+type TemplateState =
+  | {status: 'none' | 'loading' | 'missing'}
+  | {status: 'ready', template: EditorTemplate};
+
+// `/editor/t/<id>`'s template, `missing` when it was deleted (or the id isn't one)
+function useTemplate(host: EditorHost, templateId: string | undefined): TemplateState {
+  const [ state, setState ] = useState<TemplateState>({status: (templateId) ? 'loading' : 'none'});
+  useEffect(() => {
+    if (!templateId) {
+      setState({status: 'none'});
+      return;
+    }
+    let alive = true;
+    setState({status: 'loading'});
+    host.api.template(templateId).then((template) => {
+      if (alive) {
+        setState({status: 'ready', template});
+      }
+    }).catch(() => {
+      if (alive) {
+        setState({status: 'missing'});
+      }
+    });
+    return () => {
+      alive = false;
+    };
+  }, [host, templateId]);
+  return state;
 }

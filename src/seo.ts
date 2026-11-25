@@ -81,6 +81,7 @@ export const PAGES: Readonly<Record<keyof typeof Routes, PageMeta>> = Object.fre
   DASHBOARD_OWNER_VOICE_NODES: {title: 'Voice Nodes', description: ADMIN_DESCRIPTION},
   EDITOR: {title: 'Media Editor', description: 'Stack effects on an image, GIF, video or audio file, preview every change, then render it at full quality.'},
   EDITOR_DOCUMENT: {title: 'Media Editor', description: 'Stack effects on an image, GIF, video or audio file, preview every change, then render it at full quality.'},
+  EDITOR_TEMPLATE: {title: 'Editor Template', description: 'Apply a shared set of NotSoBot editor effects to your own image, GIF, video or audio.'},
   FAQ: {
     title: 'FAQ',
     description: 'Answers to common NotSoBot questions: adding the bot, running commands, changing the prefix, limiting it to certain channels, premium and your data.',

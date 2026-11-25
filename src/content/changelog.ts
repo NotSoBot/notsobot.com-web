@@ -29,9 +29,13 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: Array<ChangelogDay> = [
   {
     date: '2026-11-25',
-    title: 'Server settings for moderators only',
+    title: 'Media editor',
     items: [
+      {kind: 'new', text: 'The media editor at notsobot.com/editor: open an image, GIF or video (upload it, drop it in or paste a link) and stack effects, captions, text, crops, blurred or pixelated areas and drawings on it. Previews update as you go, steps can be reordered, hidden and undone, and Render makes a full-quality file to download or copy a link to, in the same format or converted (like a GIF to MP4, or a video to MP3).'},
+      {kind: 'new', text: 'The media editor is a Discord Activity too: press Launch on NotSoBot, use `/editor` (with an optional attachment or link), or use Edit Media or Edit Avatar on a message or person to open it in Discord. Everyone in the Activity edits the same media together, and the result can be shared to the channel.'},
+      {kind: 'new', text: 'Editor templates: Save as template gives you a link (`notsobot.com/editor/t/...`) that starts any media with the same edits. Only people you send it to can see it, and `/editor template:` takes it in Discord.'},
       {kind: 'fixed', text: 'A server\'s dashboard page no longer shows its rules, loggers and auto-warn settings to members without Manage Server or Timeout Members, it says only moderators can see them.'},
+      {kind: 'fixed', text: '`.download` on a post with several media shows the size, dimensions and time again next to the page number, which had replaced them.'},
     ],
   },
   {

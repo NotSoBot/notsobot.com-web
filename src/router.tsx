@@ -130,6 +130,14 @@ export const routes: Array<RouteObject> = [
                 handle: PAGES.EDITOR,
               },
               {
+                path: Routes.EDITOR_TEMPLATE,
+                lazy: async () => {
+                  const [ editor ] = await Promise.all([ import('@/editor/hosts/web'), loadDashboardText() ]);
+                  return {Component: editor.WebEditorPage};
+                },
+                handle: PAGES.EDITOR_TEMPLATE,
+              },
+              {
                 path: Routes.EDITOR_DOCUMENT,
                 lazy: async () => {
                   const [ editor ] = await Promise.all([ import('@/editor/hosts/web'), loadDashboardText() ]);

@@ -8,6 +8,7 @@ import type {
   EditorPreview,
   EditorPreviewMode,
   EditorStep,
+  EditorTemplate,
 } from './types';
 
 
@@ -29,6 +30,7 @@ export const EditorErrorCodes = Object.freeze({
   UNKNOWN_ACTIVITY_INSTANCE: 10042,
   // a room op naming a step someone else removed, the op is dropped
   UNKNOWN_EDITOR_STEP: 10044,
+  UNKNOWN_EDITOR_TEMPLATE: 10045,
   EDITOR_DOCUMENT_VERSION_MISMATCH: 50053,
   EDITOR_INVALID_STEP: 50054,
   SERVICE_BUSY: 90008,
@@ -58,8 +60,12 @@ export function createEditorApi(request: EditorRequest) {
   return {
     effects: () => request<EditorCatalogue>('/editor/effects'),
     documents: () => request<{documents: Array<EditorDocumentSummary>}>('/editor/documents'),
-    createDocument: (input: {file?: File, url?: string, activityInstanceId?: string}) => {
+    createDocument: (input: {file?: File, url?: string, activityInstanceId?: string, templateId?: string}) => {
       const form = new FormData();
+      // the new document starts with the template's steps
+      if (input.templateId) {
+        form.append('template_id', input.templateId);
+      }
       if (input.file) {
         form.append('file', input.file);
       }
@@ -92,7 +98,11 @@ export function createEditorApi(request: EditorRequest) {
       `/editor/documents/${pathId(documentId)}/previews/${pathId(previewId)}`,
       {signal},
     ),
-    render: (documentId: string) => request<EditorJob>(`/editor/documents/${pathId(documentId)}/render`, {method: 'POST', timeout: 30 * 1000}),
+    // `mimetype`: one of the document's `render_formats`, none keeps whatever the stack makes
+    render: (documentId: string, mimetype?: string) => request<EditorJob>(
+      `/editor/documents/${pathId(documentId)}/render`,
+      {method: 'POST', body: (mimetype) ? {mimetype} : undefined, timeout: 30 * 1000},
+    ),
     job: (jobId: string) => request<EditorJob>(`/jobs/${pathId(jobId)}`),
     // a render put on Discord's cdn with the user's own Discord token (the Activity's share dialog only takes those)
     shareAttachment: (url: string, accessToken: string) => request<{url: string}>('/editor/share', {
@@ -101,6 +111,10 @@ export function createEditorApi(request: EditorRequest) {
       timeout: 60 * 1000,
     }),
     activity: (instanceId: string) => request<EditorActivityContext>(`/editor/activity/${pathId(instanceId)}`),
+    createTemplate: (documentId: string, name: string) => request<EditorTemplate>('/editor/templates', {method: 'POST', body: {document_id: documentId, name}}),
+    templates: () => request<{templates: Array<EditorTemplate>}>('/editor/templates'),
+    template: (templateId: string) => request<EditorTemplate>(`/editor/templates/${pathId(templateId)}`),
+    deleteTemplate: (templateId: string) => request<void>(`/editor/templates/${pathId(templateId)}`, {method: 'DELETE'}),
   };
 }
 
@@ -122,6 +136,8 @@ export interface EditorHost {
   room?: EditorRoom,
   // the premium page link for the limits note
   premiumUrl: string,
+  // a template's share link, always the site's (`https://notsobot.com/editor/t/<id>`), even from inside Discord
+  templateUrl: (templateId: string) => string,
   // the editor is the whole window (the Activity), not a page under the site's navbar
   fullscreen?: boolean,
 }
