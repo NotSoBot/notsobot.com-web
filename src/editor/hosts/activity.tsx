@@ -1,4 +1,4 @@
-import { DiscordSDK, patchUrlMappings } from '@discord/embedded-app-sdk';
+import { DiscordSDK, Platform, patchUrlMappings } from '@discord/embedded-app-sdk';
 import { useEffect, useMemo, useState } from 'react';
 
 import { FullPageMessage } from '@/components/ui/FullPageMessage';
@@ -202,8 +202,9 @@ export function ActivityApp() {
           premiumUrl: PREMIUM_URL,
           fullscreen: true,
           // the user posts it themselves through Discord's own dialog, the bot never posts in their channel. the dialog
-          // only takes Discord cdn urls, so the render goes onto Discord's cdn first (the api uploads it with their token)
-          share: async (url) => {
+          // only takes Discord cdn urls, so the render goes onto Discord's cdn first (the api uploads it with their token).
+          // Discord only has the dialog on desktop and web, phones get Download and Copy link without it
+          share: (sdk.platform === Platform.MOBILE) ? undefined : async (url) => {
             const uploaded = await api.shareAttachment(url, auth.access_token);
             await sdk.commands.openShareMomentDialog({mediaUrl: uploaded.url});
           },
