@@ -3,7 +3,7 @@ import type { LegalDocument } from './legal';
 export const TERMS_OF_SERVICE: LegalDocument = {
   title: "Terms of Service",
   effective: "November 12, 2026",
-  lastUpdated: "November 24, 2026",
+  lastUpdated: "November 25, 2026",
   intro: "Please read these Terms of Service carefully before using NotSoBot. They explain what you can and can't do with the Service, what we store when you use it, and how to reach us.",
   sections: [
     {
@@ -60,7 +60,7 @@ export const TERMS_OF_SERVICE: LegalDocument = {
       title: "Section 5 - AI Features",
       blocks: [
         {type: 'paragraph', text: "Some commands use artificial intelligence to generate text, images, audio, transcriptions, translations and descriptions of media. AI output can be wrong, offensive or misleading. Don't rely on it for medical, legal, financial or safety decisions, and check anything important yourself."},
-        {type: 'paragraph', text: "AI providers only receive data when You use an AI feature: the ai command, a tag that uses AI, or voice cloning. The prompt, any media You provide, and any messages You reply to with the ai command are sent to the company that runs the AI model being used, only to generate Your result. Our Privacy Policy lists these companies. They handle it under their own terms and privacy policies. Other AI features, such as image generation and transcription, run on Our own servers. We do not use Discord message content to train machine learning or AI models."},
+        {type: 'paragraph', text: "AI providers only receive data when You use an AI feature (the ai command, a tag that uses AI, or voice cloning), and when a safety flag is reviewed by AI (Section 7). The prompt, any media You provide, and any messages You reply to with the ai command are sent to the company that runs the AI model being used, only to generate Your result. Our Privacy Policy lists these companies. They handle it under their own terms and privacy policies. Other AI features, such as image generation and transcription, run on Our own servers. We do not use Discord message content to train machine learning or AI models."},
         {type: 'paragraph', text: "Voice cloning creates a voice from the audio You provide that only You can use through the Service. Voices cloned from November 15, 2026 are made on Our own servers, and their audio is not sent to anyone else unless You choose to clone or move a voice to fish.audio, which then receives its audio. Older voices were made by fish.audio (ElevenLabs for voices cloned before October 21, 2026), which received their audio. We keep the audio clips a voice is made from, so You can change them and so the voice can be moved to another cloning service. You may only clone your own voice, or a voice whose owner has given You explicit permission. Deleting a cloned voice also deletes it from the cloning service it was made with, along with its audio clips."},
       ],
     },
@@ -79,11 +79,12 @@ export const TERMS_OF_SERVICE: LegalDocument = {
           "Reminders: reminder text, times, and the channel and message they belong to.",
           "Reports You send with the report command, including the text, the server, channel and message IDs involved, and Our review notes.",
           "Uploaded files: files You ask NotSoBot to host, their file names, sizes, dimensions and a file hash (BLAKE2b).",
+          "Media editor: a copy of the file You open in the editor, your edits, preview copies, and for the Discord Activity, the Activity, server and channel it was opened in and who launched it.",
           "AI requests: the prompt, including any messages You replied to with the ai command, along with the instructions, model, generated response, any error and token counts.",
           "Cloned voices: the voice's name, what is needed to use the voice (a short list of numbers describing how it sounds, or for an older voice the ID of the voice stored at fish.audio or ElevenLabs), and the speech from the audio clips it was made from.",
           "Saved fonts: the font files You (or a server's members) save to use by name, with their names, original file names, sizes, a file hash (SHA-256), who saved them and a preview image.",
           "Purchases: premium entitlements and subscription status received from Discord. Payments are processed by Discord, and We never see your payment details.",
-          "Website and API use: if You log in to notsobot.com, a Discord OAuth2 access and refresh token with the scopes You approved, your login sessions and their browser user agent, and request logs including the IP address, user agent, path and response time.",
+          "Website and API use: if You log in to notsobot.com, a Discord OAuth2 access and refresh token with the scopes You approved, your login sessions and their browser user agent, and request logs including the IP address, user agent, path and response time. The Discord Activity's login is saved the same way, but its Discord token isn't stored.",
           "Safety records: information about content flagged by Our automated safety systems, described in Section 7.",
         ]},
         {type: 'paragraph', text: "We do not read or store messages that aren't directed at NotSoBot. NotSoBot only reads other messages when a command You run needs them. Recent messages read to find an image or build a word cloud are only used to complete that command and are not saved. Messages You reply to with the ai command are sent to the AI provider and stored as part of that AI request."},
@@ -101,8 +102,8 @@ export const TERMS_OF_SERVICE: LegalDocument = {
           "a cryptographic hash (SHA-256) and a perceptual hash (PDQ) of the media",
           "the safety scores and the action taken",
         ]},
-        {type: 'paragraph', text: "We don't keep flagged media itself. So a flag can be reviewed, We keep up to 8 of its flagged frames as small images for up to 26 hours, or up to 7 days while it waits for Our team, and delete them once the flag is decided; frames are never kept for flags about child safety. Hashes can't be turned back into the original media, and We use them to recognize and block the same media if it's uploaded again."},
-        {type: 'paragraph', text: "Flags may be reviewed by Our team, who may view the kept frames, or fetch the flagged media again from the URL it came from while reviewing. That copy is only shown to the reviewer and is not kept. Flags may also be reviewed first by an AI model (Anthropic's Claude), which is sent the kept frames, the flagged media or the text, the command, the prompt and the safety scores but not who or where it came from; only its highly confident decisions are applied without a person looking, and flags about child safety are only reviewed by Our team. Flags found to be mistaken are dismissed. If a review confirms content that breaks these Terms or the law, We may block the users or servers involved, report the content to Discord, and report it to law enforcement or other authorities when the law requires it or when We believe it's needed to protect someone's safety. Flag records are kept to prevent repeat abuse, and for as long as the law requires for content We report."},
+        {type: 'paragraph', text: "We don't keep flagged media itself. So a flag can be reviewed, We keep up to 8 of its flagged frames as small images for up to 26 hours, or up to 7 days while it waits for Our team, and delete them once the flag is decided, unless the account is under a legal hold; frames are never kept for flags about child safety. Hashes can't be turned back into the original media, and We use them to recognize and block the same media if it's uploaded again."},
+        {type: 'paragraph', text: "Flags may be reviewed by Our team, who may view the kept frames, or fetch the flagged media again from the URL it came from while reviewing. That copy is only shown to the reviewer and is not kept. Flags may also be reviewed first by an AI model (Anthropic's Claude), which is sent the kept frames, the flagged media or the text, the command, the prompt and the safety scores but not who or where it came from; only its highly confident decisions are applied without a person looking, and flags about child safety are only reviewed by Our team. Flags found to be mistaken are dismissed. If a review confirms content that breaks these Terms or the law, We may block the users or servers involved, report the content to Discord, and report it to law enforcement or other authorities when the law requires it or when We believe it's needed to protect someone's safety. Apparent child sexual abuse material is reported to the National Center for Missing & Exploited Children (NCMEC), as US law requires, along with the account's details, the IP addresses of its recent website logins, where the content came from and the kept frames, as Our Privacy Policy describes. Flag records are kept to prevent repeat abuse, and for as long as the law requires for content We report."},
       ],
     },
     {
@@ -111,12 +112,14 @@ export const TERMS_OF_SERVICE: LegalDocument = {
         {type: 'list', items: [
           "Links between your command messages and NotSoBot's replies are deleted after 14 days of inactivity.",
           "Temporary files are deleted automatically when they expire.",
+          "Media editor documents are deleted 14 days after their last edit (28 with premium), and their preview copies after a day or two.",
           "AI requests, including any messages You replied to, are deleted after 30 days.",
           "Tags, reminders, cloned voices and saved fonts are deleted when You delete them. A server's saved fonts are deleted with the server's data.",
           "Server settings are kept if NotSoBot is removed from a server, so they still apply if it is added back. A server owner can ask Us to delete them.",
+          "If We place a legal hold on an account, for example while We report it to the authorities, its data is kept past the times above and can't be deleted until the hold is lifted, and We keep copies of what's changed or deleted while it lasts. We may not tell You.",
           "Other data is kept while You use the Service, and deleted when You ask Us to delete it or when We no longer need it to provide the Service.",
         ]},
-        {type: 'paragraph', text: "You can ask Us for a copy of your data, or to delete it, by using the report command or emailing privacy@notsocompany.com from the address linked to your request. We'll delete it within 30 days, except data We must keep for legal reasons, to deal with abuse, or for safety records under Section 7. Deleting your data may remove your tags, settings and premium perks."},
+        {type: 'paragraph', text: "You can ask Us for a copy of your data, or to delete it, by using the report command or emailing privacy@notsocompany.com from the address linked to your request. We'll delete it within 30 days, except data We must keep for legal reasons (including while an account is under a legal hold), to deal with abuse, or for safety records under Section 7. Deleting your data may remove your tags, settings and premium perks."},
         {type: 'paragraph', text: "If We learn that data from the Service was accessed without authorization, We will notify Discord and affected users as required by the Discord Developer Terms of Service and applicable law."},
       ],
     },

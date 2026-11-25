@@ -2446,6 +2446,9 @@ route('GET', '/admin/content-flags', (_match, { query }) => {
         case 'failed': return !!review?.error;
         case 'applied': return !!review && !review.error && review.applied;
         case 'suggested': return !!review && !review.error && !review.applied;
+        case 'escalate':
+        case 'confirm':
+        case 'dismiss': return !!review && !review.error && review.decision === autoReview;
         default: return true;
       }
     })

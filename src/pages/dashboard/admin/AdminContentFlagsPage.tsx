@@ -81,6 +81,9 @@ const AUTO_REVIEW_OPTIONS = [
   {value: 'hash', label: 'Hash match (auto-confirmed)'},
   {value: 'applied', label: 'Haiku: applied'},
   {value: 'suggested', label: 'Haiku: suggestion only'},
+  {value: 'escalate', label: 'Haiku: escalate'},
+  {value: 'confirm', label: 'Haiku: confirm'},
+  {value: 'dismiss', label: 'Haiku: dismiss'},
   {value: 'failed', label: 'Haiku: couldn’t review'},
   {value: 'none', label: 'Haiku: not reviewed'},
 ] as const;

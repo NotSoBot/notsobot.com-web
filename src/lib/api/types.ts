@@ -2112,8 +2112,9 @@ export const ContentFlagActions = ['blocked', 'replaced', 'logged', 'not_hosted'
 export const ContentFlagQueryTypes = ['prompt', 'mediascript'] as const;
 export type ContentFlagQueryType = (typeof ContentFlagQueryTypes)[number];
 // `GET /admin/content-flags?auto_review=`: the hourly model review `applied` the status, only `suggested` one, `failed`
-// (no media, fetch failed, refused), or `none` hasn't reviewed it
-export const ContentFlagAutoReviewFilters = ['applied', 'suggested', 'failed', 'none'] as const;
+// (no media, fetch failed, refused), or `none` hasn't reviewed it. `confirm`, `dismiss` and `escalate` are its verdict,
+// applied or not
+export const ContentFlagAutoReviewFilters = ['applied', 'suggested', 'escalate', 'confirm', 'dismiss', 'failed', 'none'] as const;
 export type ContentFlagAutoReviewFilter = (typeof ContentFlagAutoReviewFilters)[number];
 
 // the hourly model review's verdict, or `error` when it couldn't review the flag. `applied` means it set `status`
