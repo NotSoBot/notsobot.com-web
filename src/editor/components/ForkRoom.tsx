@@ -42,7 +42,7 @@ function ForkDialog({ host, state, onClose }: {host: EditorHost, state: ReturnTy
   };
 
   return (
-    <Modal labelledBy={titleId} onClose={() => !pending && onClose()} className='max-w-md'>
+    <Modal anchor='top' labelledBy={titleId} onClose={() => !pending && onClose()} className='max-w-md'>
       <form
         className='flex flex-col gap-4 p-5 sm:p-6'
         onSubmit={(event) => {

@@ -1,4 +1,4 @@
-import { ChevronRight, Flag, Wand2, type LucideIcon } from 'lucide-react';
+import { ChevronRight, Gamepad2, Wand2, type LucideIcon } from 'lucide-react';
 
 import { useI18n } from '@/i18n';
 import { cn } from '@/lib/utils';
@@ -26,10 +26,10 @@ export function ModeChoice({ onEdit, onGame, notice }: {onEdit: () => void, onGa
           onClick={onEdit}
         />
         <ChoiceCard
-          icon={Flag}
+          icon={Gamepad2}
           accent='bg-success/20 text-success-text'
-          title={t('games.choice.flag_title')}
-          description={t('games.choice.flag_description')}
+          title={t('games.choice.games_title')}
+          description={t('games.choice.games_description')}
           onClick={onGame}
         />
       </div>

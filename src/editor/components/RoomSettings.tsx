@@ -27,7 +27,7 @@ export function roomSettingsReady(mode: LobbyMode, password: string, keepsPasswo
 
 
 // Just me / Everyone / Password, the room's name and its password: the start screen's and Fork's
-export function RoomSettingsFields({ mode, onModeChange, name, onNameChange, password, onPasswordChange, watchOnly, onWatchOnlyChange, modes = LOBBY_MODES, keepsPassword = false, modeHint, watchOnlyHint }: {
+export function RoomSettingsFields({ mode, onModeChange, name, onNameChange, password, onPasswordChange, watchOnly, onWatchOnlyChange, modes = LOBBY_MODES, keepsPassword = false, modeHint, watchOnlyHint, namePlaceholder }: {
   // the choices shown, a room's own settings leave out Just me
   modes?: ReadonlyArray<LobbyMode>,
   // a password room's settings: an empty password keeps the one it has
@@ -44,6 +44,7 @@ export function RoomSettingsFields({ mode, onModeChange, name, onNameChange, pas
   // other wording for another kind of room (the Activity's game rooms)
   modeHint?: (mode: LobbyMode) => string,
   watchOnlyHint?: string,
+  namePlaceholder?: string,
 }) {
   const { t } = useI18n();
   const nameId = useId();
@@ -78,7 +79,7 @@ export function RoomSettingsFields({ mode, onModeChange, name, onNameChange, pas
             value={name}
             maxLength={MAX_ROOM_NAME_LENGTH}
             autoComplete='off'
-            placeholder={t('editor.session.room_name_placeholder')}
+            placeholder={namePlaceholder ?? t('editor.session.room_name_placeholder')}
             onChange={(event) => onNameChange(event.target.value)}
             className='input'
           />

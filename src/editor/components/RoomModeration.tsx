@@ -88,7 +88,7 @@ export function RoomSettingsDialog({ room, documentId, name: currentName, locked
   const ready = roomSettingsReady(mode, password, keepsPassword);
 
   return (
-    <Modal labelledBy={titleId} onClose={() => !pending && onClose()} className='max-w-md'>
+    <Modal anchor='top' labelledBy={titleId} onClose={() => !pending && onClose()} className='max-w-md'>
       <form
         className='flex flex-col gap-4 p-5 sm:p-6'
         onSubmit={async (event) => {

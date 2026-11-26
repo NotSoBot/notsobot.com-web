@@ -6,11 +6,11 @@ export const Games: Record<keyof typeof English, string> = {
   'games.choice.description': 'Cada persona en la actividad elige por su cuenta, y puedes cambiar cuando quieras.',
   'games.choice.edit_title': 'Editar multimedia',
   'games.choice.edit_description': 'Apila efectos sobre una imagen, GIF, vídeo o sonido, solo o en una sala con otras personas.',
-  'games.choice.flag_title': 'Juego de banderas',
-  'games.choice.flag_description': 'Nombra banderas contra el reloj en una sala con otros, o mira una. Responde antes de las pistas para sumar más.',
+  'games.choice.games_title': 'Juegos',
+  'games.choice.games_description': 'Juega en salas con otros, o mira. Por ahora Flag Guesser, pronto habrá más juegos.',
   'games.choice.back': 'Modos',
 
-  'games.flag.title': 'Juego de banderas',
+  'games.flag.title': 'Flag Guesser',
   'games.flag.joining': 'Entrando al juego…',
   'games.flag.reconnecting': 'Se perdió la conexión, reconectando…',
   'games.flag.denied': 'No puedes unirte a este juego, ya no estás en la actividad.',
@@ -100,9 +100,9 @@ export const Games: Record<keyof typeof English, string> = {
   'games.flag.play_again': 'Jugar otra vez',
   'games.flag.waiting_host_again': 'Esperando a que {name} empiece otra partida',
 
-  // the flag game's rooms
+  // Flag Guesser's rooms
   'games.rooms.back': 'Salas',
-  'games.rooms.title': 'Salas del juego de banderas',
+  'games.rooms.title': 'Salas de Flag Guesser',
   'games.rooms.description': 'Todos los que usan la Actividad en este servidor ven estas salas. Juega en una, mira una o crea la tuya.',
   'games.rooms.new': 'Nueva sala',
   'games.rooms.new_title': 'Nueva sala de juego',
@@ -126,6 +126,7 @@ export const Games: Record<keyof typeof English, string> = {
   'games.rooms.play': 'Jugar',
   'games.rooms.mode_public_hint': 'Cualquiera en la Actividad puede jugar o mirar.',
   'games.rooms.mode_password_hint': 'Solo quien tenga la contraseña puede jugar o mirar.',
+  'games.rooms.name_placeholder': 'Si lo dejas vacío, lleva tu nombre',
   'games.rooms.watch_only_hint': 'Quien entre desde ahora solo mira. Tú y quienes ya están jugando siguen jugando.',
   'games.rooms.password_title': 'Esta sala tiene contraseña',
   'games.rooms.password_description': 'Escribe la contraseña de {name}.',
@@ -149,4 +150,14 @@ export const Games: Record<keyof typeof English, string> = {
   'games.rooms.kick_title': '¿Sacar a {name}?',
   'games.rooms.kick_description': 'Sale de esta sala y no puede volver a entrar.',
   'games.rooms.kick_confirm': 'Sacar',
+
+  // the Activity's Games tab (src/activity-games/GamesTab.tsx)
+  'games.tab.title': 'Juegos',
+  'games.tab.description': 'Elige un juego y luego juega o mira en una de sus salas.',
+  'games.tab.flag_description': 'Nombra banderas contra el reloj. Responde antes de las pistas para sumar más.',
+  'games.tab.rooms_open_one': '{count} sala abierta',
+  'games.tab.rooms_open_other': '{count} salas abiertas',
+  'games.tab.people_in_one': '{count} persona dentro',
+  'games.tab.people_in_other': '{count} personas dentro',
+  'games.tab.more_soon': 'Vienen más juegos.',
 };

@@ -1,10 +1,11 @@
-import { DiscordSDK, Platform, patchUrlMappings } from '@discord/embedded-app-sdk';
+import { DiscordSDK, Platform, RPCErrorCodes, patchUrlMappings } from '@discord/embedded-app-sdk';
 import { useEffect, useMemo, useState } from 'react';
 
 import { ArrowLeft } from 'lucide-react';
 
 import { ActivityFlagGame } from '@/activity-games/FlagGame';
 import { GameRooms } from '@/activity-games/GameRooms';
+import { GamesTab } from '@/activity-games/GamesTab';
 import { ModeChoice } from '@/activity-games/ModeChoice';
 import { createGameRoomsApi } from '@/activity-games/rooms';
 import { FullPageMessage } from '@/components/ui/FullPageMessage';
@@ -17,6 +18,7 @@ import { INVITE_CUSTOM_ID, type RoomInviteKind, type RoomInviter } from '../invi
 import { LobbyList } from '../components/LobbyList';
 import { StartScreen, type LobbyMode } from '../components/StartScreen';
 import { EditorRoom, type EditingResult } from '../room';
+import { PipView, useCompactLayout, type LayoutSubscriber } from './pip';
 import type { EditorDocument, EditorLobby, EditorTemplate } from '../types';
 import { useCatalogue } from '../useCatalogue';
 import { inviteScreen, launchInviteCode, launchScreen, type ActivityLaunchScreen } from './activityLaunch';
@@ -25,8 +27,10 @@ import { inviteScreen, launchInviteCode, launchScreen, type ActivityLaunchScreen
 // The media editor as a Discord Activity (activity.html). Discord loads it through its proxy with the url mapping
 // `/` → `<site>/activity`, so the page can only reach the outside through other mappings: `/api` → notsobot.api and
 // `/cdn` → cdn.nsb.gg (both set in the developer portal). Flow:
-// sdk ready → authorize (a code) → `POST /auth/activity` (our user token, kept in memory: storage inside Discord's
-// iframe can't be relied on) → sdk authenticate → the instance's launch context and lobbies → its room.
+// sdk ready → `POST /auth/activity` with no code (our user token from who Discord's proxy signed onto the request, no
+// consent screen; kept in memory: storage inside Discord's iframe can't be relied on) → the instance's launch context
+// and lobbies → its room. If that sign-in fails: authorize (a code) → `POST /auth/activity {code}` → sdk authenticate,
+// as before. Otherwise the sdk is only `authenticate`d once a command needs it (`ensureSdkAuth` below).
 // A channel's activity has any number of group edits ("lobbies", up to MAX_INSTANCE_LOBBIES), each up to
 // ROOM_MAX_EDITORS editors and optionally locked with a password, plus solo edits nobody else sees
 
@@ -116,8 +120,24 @@ function clientIdFromHost(): string | null {
 }
 
 
-// the startup steps, a failure names the one it stopped at
-type Step = 'sdk' | 'ready' | 'authorize' | 'login' | 'authenticate' | 'context';
+// the startup steps, a failure names the one it stopped at. `signin` is the one from the proxy headers, `authorize` →
+// `login` → `authenticate` only run when it fails
+type Step = 'sdk' | 'ready' | 'signin' | 'authorize' | 'login' | 'authenticate' | 'context';
+
+// `POST /auth/activity`: `access_token` (Discord's, for the sdk's `authenticate` and the share upload) only with a code
+interface ActivityLogin {
+  token: string,
+  access_token?: string,
+}
+
+// what Discord's rpc answers a command the sdk isn't `authenticate`d for ("Not authenticated or invalid scope"), or
+// one whose token it no longer takes
+const SDK_AUTH_ERRORS: ReadonlySet<number> = new Set([RPCErrorCodes.INVALID_PERMISSIONS, RPCErrorCodes.INVALID_TOKEN]);
+
+function isSdkAuthError(error: unknown): boolean {
+  const code = (error as {code?: unknown} | null)?.code;
+  return typeof code === 'number' && SDK_AUTH_ERRORS.has(code);
+}
 
 type Phase =
   | {kind: 'loading'}
@@ -133,6 +153,8 @@ type Phase =
   // (./activityLaunch), and where both room lists go back to. `notice`: an invite that couldn't be opened
   | {kind: 'choice', notice?: string}
   // the flag game's rooms, and one being played or watched
+  // the Games tab (every game the Activity has), and Flag Guesser's rooms
+  | {kind: 'games_tab'}
   | {kind: 'games', notice?: string}
   | {kind: 'game', gameId: string, watch: boolean}
   // a new edit: who it's for (just me, everyone, everyone with the password) and its media
@@ -185,6 +207,10 @@ function screenPhase(screen: ActivityLaunchScreen, notice?: string): Phase {
     case 'start':
       return {kind: 'start', mode: 'public'};
     case 'games':
+      // `/games` opens on the Games tab, a game invite that couldn't be opened on its game's rooms (with why)
+      return (notice) ? {kind: 'games', notice} : {kind: 'games_tab'};
+    case 'flag_guesser':
+      // Open in Activity on the in-chat Flag Guesser: straight to its rooms
       return {kind: 'games', notice};
     case 'editor':
       return {kind: 'lobbies', notice};
@@ -211,6 +237,9 @@ export function ActivityApp() {
   const [ setup, setSetup ] = useState<ActivitySetup | null>(null);
   const tokenRef = useMemo(() => ({current: null as string | null}), []);
   const api = useMemo(() => createEditorApi(createActivityRequest(() => tokenRef.current)), [tokenRef]);
+  // discord's layout mode once the sdk can be asked, and whether that (or the window's size) makes it the compact view
+  const [ layoutSubscriber, setLayoutSubscriber ] = useState<LayoutSubscriber | null>(null);
+  const compact = useCompactLayout(layoutSubscriber);
   // the flag game's rooms in this instance's server (or dm)
   const gameInstanceId = setup?.instanceId ?? null;
   const gamesApi = useMemo(() => createGameRoomsApi(createActivityRequest(() => tokenRef.current), gameInstanceId ?? 'none'), [gameInstanceId, tokenRef]);
@@ -245,29 +274,89 @@ export function ActivityApp() {
         // the `/cdn` mapping. this rewrites them as they're set on img/video elements too
         patchUrlMappings(URL_MAPPINGS, {patchSrcAttributes: true});
 
-        step = 'authorize';
-        const { code } = await sdk.commands.authorize({
-          client_id: clientId,
-          response_type: 'code',
-          state: '',
-          prompt: 'none',
-          scope: SCOPES,
-        });
-        step = 'login';
-        const auth = await createActivityRequest(() => null)<{token: string, access_token: string}>('/auth/activity', {
-          method: 'POST',
-          body: {code},
-        });
-        tokenRef.current = auth.token;
-        step = 'authenticate';
-        await sdk.commands.authenticate({access_token: auth.access_token});
+        const login = createActivityRequest(() => null);
+        // `authorize` (the consent screen the first time, `prompt: 'none'` skips it after that) + the code exchange +
+        // `authenticate`, once: what startup always did before the header sign-in, now only when that sign-in fails or
+        // something needs an authenticated sdk (Discord's access token for the share upload, a command answering
+        // "not authenticated"). One that fails is forgotten, the next try asks again
+        let sdkAuth: Promise<Required<ActivityLogin>> | null = null;
+        const ensureSdkAuth = (): Promise<Required<ActivityLogin>> => {
+          if (!sdkAuth) {
+            const pending = (async () => {
+              step = 'authorize';
+              const { code } = await sdk.commands.authorize({
+                client_id: clientId,
+                response_type: 'code',
+                state: '',
+                prompt: 'none',
+                scope: SCOPES,
+              });
+              step = 'login';
+              const auth = await login<ActivityLogin>('/auth/activity', {method: 'POST', body: {code}});
+              if (!auth.access_token) {
+                throw new Error('no access token');
+              }
+              step = 'authenticate';
+              await sdk.commands.authenticate({access_token: auth.access_token});
+              return {token: auth.token, access_token: auth.access_token};
+            })();
+            sdkAuth = pending;
+            pending.catch(() => {
+              if (sdkAuth === pending) {
+                sdkAuth = null;
+              }
+            });
+          }
+          return sdkAuth;
+        };
+        // a command that may need an authenticated sdk: Discord doesn't say which do, so it runs as is first and once
+        // more after `ensureSdkAuth` only when it's turned away for that (the consent screen comes with the feature,
+        // never at launch)
+        const withSdkAuth = async <T, >(command: () => Promise<T>): Promise<T> => {
+          try {
+            return await command();
+          } catch (error) {
+            if (!isSdkAuthError(error)) {
+              throw error;
+            }
+            await ensureSdkAuth();
+            return await command();
+          }
+        };
 
-        const instanceId = sdk.instanceId;
+        // who Discord's proxy signed onto the request (activity-plan.md "Sign-in from the proxy headers"), with their
+        // language for the api's own text. Turned away (unsigned, expired, Proxy Authentication off) → the old
+        // `authorize` sign-in. No answer at all, or a block, is the startup's failure
+        step = 'signin';
+        let token: string;
+        try {
+          ({ token } = await login<ActivityLogin>('/auth/activity', {method: 'POST', body: {locale: navigator.language || undefined}}));
+        } catch (error) {
+          if (!(error instanceof ActivityRequestError) || error.body?.error === 'blocked') {
+            throw error;
+          }
+          console.warn('[editor activity] header sign-in refused, authorizing instead', error.status, error.code);
+          ({ token } = await ensureSdkAuth());
+        }
+        tokenRef.current = token;
+        // shown small when they tab out (the corner window or a call's grid): the compact view (./pip)
+        const layoutSdk = sdk;
+        setLayoutSubscriber(() => (listener: (layoutMode: number) => void) => {
+          const handler = (event: {layout_mode: number}) => listener(event.layout_mode);
+          layoutSdk.subscribe('ACTIVITY_LAYOUT_MODE_UPDATE', handler).catch(() => undefined);
+          return () => {
+            layoutSdk.unsubscribe('ACTIVITY_LAYOUT_MODE_UPDATE', handler).catch(() => undefined);
+          };
+        });
+
         step = 'context';
-        const context = await api.activity(instanceId);
+        // an App Channel has no instance (`instanceId` is empty, every viewer has their own session): the api works out
+        // the channel from what Discord's proxy signs onto the request, and its stand-in id is used like an instance's
+        const context = (sdk.instanceId) ? await api.activity(sdk.instanceId) : await api.appChannel();
+        const instanceId = context.instance_id;
 
         // the Activity's one socket (activity-plan.md "One Activity socket"): the editor's rooms and the flag game
-        room = new EditorRoom(`${(window.location.protocol === 'https:') ? 'wss:' : 'ws:'}//${window.location.host}${API_BASE}/activity/${pathId(instanceId)}/socket`, auth.token);
+        room = new EditorRoom(`${(window.location.protocol === 'https:') ? 'wss:' : 'ws:'}//${window.location.host}${API_BASE}/activity/${pathId(instanceId)}/socket`, token);
         room.onStatus((status) => {
           if (status === 'denied') {
             fail('editor.activity.denied');
@@ -296,35 +385,37 @@ export function ActivityApp() {
             if (result?.posted) {
               return 'posted';
             }
-            await sdk.commands.shareLink({
+            await withSdkAuth(() => sdk.commands.shareLink({
               // a locked one's password is never in it
               message: (template.locked)
                 ? t('editor.template.share_message_locked', {name: template.name, url: `${SITE_URL}/editor/template/${template.code}`})
                 : t('editor.template.share_message', {name: template.name, url: `${SITE_URL}/editor/template/${template.code}`}),
               custom_id: `${TEMPLATE_CUSTOM_ID}${template.code}`,
-            });
+            }));
             return 'dialog';
           },
           fullscreen: true,
           // the bot posts the file itself (who made it, its effects, an Edit button) where they could post it themselves.
           // Otherwise their own post through Discord's dialog: the render goes onto Discord's cdn first (the api uploads
-          // it with their token), the dialog only takes Discord cdn urls. That dialog is desktop/web only (Discord's
-          // docs), phones share the activity link with the render's link in the message instead
+          // it with their Discord token, so this is where a header sign-in asks for one), the dialog only takes Discord cdn
+          // urls. That dialog is desktop/web only (Discord's docs), phones share the activity link with the render's link
+          // in the message instead
           share: async (url, filename, documentId) => {
             const result = await api.activityPost(instanceId, {kind: 'render', url, filename, document_id: documentId, locale: language}).catch(() => null);
             if (result?.posted) {
               return 'posted';
             }
-            const uploaded = await api.shareAttachment(url, auth.access_token, filename);
+            const { access_token } = await ensureSdkAuth();
+            const uploaded = await api.shareAttachment(url, access_token, filename);
             if (sdk.platform === Platform.MOBILE) {
-              await sdk.commands.shareLink({message: t('editor.render.share_message', {url: uploaded.url})});
+              await withSdkAuth(() => sdk.commands.shareLink({message: t('editor.render.share_message', {url: uploaded.url})}));
             } else {
-              await sdk.commands.openShareMomentDialog({mediaUrl: uploaded.url});
+              await withSdkAuth(() => sdk.commands.openShareMomentDialog({mediaUrl: uploaded.url}));
             }
             return 'dialog';
           },
           openExternal: (url) => {
-            void sdk.commands.openExternalLink({url});
+            withSdkAuth(() => sdk.commands.openExternalLink({url})).catch((error) => console.warn('[editor activity] openExternalLink failed', error));
           },
         };
         // back to the lobby list, their spot in a lobby is someone else's to take now
@@ -370,10 +461,10 @@ export function ActivityApp() {
           kind,
           create: () => api.invites.create(instanceId, kind, roomId),
           shareLink: async (code) => {
-            const shared = await sdk.commands.shareLink({
+            const shared = await withSdkAuth(() => sdk.commands.shareLink({
               message: (kind === 'game') ? t('editor.invite.share_message_game') : t('editor.invite.share_message_editor'),
               custom_id: `${INVITE_CUSTOM_ID}${code}`,
-            });
+            }));
             return (shared.didSendMessage) ? 'sent' : (shared.didCopyLink) ? 'copied' : 'none';
           },
           post: (code) => api.activityPost(instanceId, {kind: 'invite', invite_code: code, locale: language}),
@@ -479,87 +570,104 @@ export function ActivityApp() {
   if (!setup) {
     return <FullPageMessage><Spinner/></FullPageMessage>;
   }
-  switch (phase.kind) {
-    case 'choice':
-      return (
-        <ModeChoice
-          notice={phase.notice}
-          // the running lobbies when there are any (as of startup), otherwise a new edit
-          onEdit={() => setPhase((setup.lobbies.length) ? {kind: 'lobbies'} : {kind: 'start', mode: 'public'})}
-          onGame={() => setPhase({kind: 'games'})}
-        />
-      );
-    case 'games':
-      return (
-        <GameRooms
-          api={gamesApi}
-          room={setup.room}
-          errorOf={activityErrorOf}
-          notice={phase.notice}
-          onOpen={(gameId, watch) => setPhase({kind: 'game', gameId, watch})}
-          onBack={() => setPhase({kind: 'choice'})}
-        />
-      );
-    case 'game':
-      return (
-        <ActivityFlagGame
-          key={phase.gameId}
-          room={setup.room}
-          gameId={phase.gameId}
-          apiBase={API_BASE}
-          token={tokenRef.current ?? ''}
-          watch={phase.watch}
-          inviter={setup.inviter('game', phase.gameId)}
-          onLeave={(notice) => setPhase({kind: 'games', notice})}
-        />
-      );
-    case 'lobbies':
-      return (
-        <>
-          <div className='mx-auto w-full max-w-3xl px-4 pt-3 -mb-8 sm:-mb-12'>
-            <button type='button' onClick={() => setPhase({kind: 'choice'})} className='-ml-2 inline-flex min-h-10 w-fit items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-muted hover:bg-surface hover:text-fg'>
-              <ArrowLeft aria-hidden className='size-4'/>{t('games.choice.back')}
-            </button>
-          </div>
-          <LobbyList
-            host={setup.group}
-            room={setup.room}
-            instanceId={setup.instanceId}
-            initial={setup.lobbies}
+  const screen = (() => {
+    switch (phase.kind) {
+      case 'choice':
+        return (
+          <ModeChoice
             notice={phase.notice}
-            onJoin={setup.enterLobby}
-            onNew={() => setPhase({kind: 'start', mode: 'public'})}
+            // the running lobbies when there are any (as of startup), otherwise a new edit
+            onEdit={() => setPhase((setup.lobbies.length) ? {kind: 'lobbies'} : {kind: 'start', mode: 'public'})}
+            onGame={() => setPhase({kind: 'games_tab'})}
           />
-        </>
-      );
-    case 'start':
-      return (
-        <StartScreen
-          key={phase.mode === 'solo' ? 'solo' : 'group'}
-          host={(phase.mode === 'solo') ? setup.solo : setup.group}
-          activityInstanceId={setup.instanceId}
-          template={setup.template}
-          suggestedUrl={setup.mediaUrl}
-          launchSurface={setup.surface}
-          onSuggestedDismiss={() => setSetup((current) => (current) ? {...current, mediaUrl: null} : current)}
-          onBack={{label: t('editor.session.lobbies'), run: () => setPhase({kind: 'lobbies'})}}
-          mode={{value: phase.mode, onChange: (mode) => setPhase({kind: 'start', mode})}}
-          // their own new lobby (its maker never needs its password)
-          onOpen={async (document, opened) => {
-            // the launch's template, or one tried from the start screen's hub panel
-            const fill = Boolean((setup.template || opened?.template) && 'steps' in document && document.steps.some((step) => step.inputs));
-            if (phase.mode === 'solo') {
-              setPhase({kind: 'editor', documentId: document.id, solo: true, fill});
-              return;
-            }
-            const { result, message } = await setup.enterLobby(document.id, undefined, fill);
-            if (result !== 'ok') {
-              setPhase({kind: 'lobbies', notice: message || t('editor.session.failed')});
-            }
-          }}
-        />
-      );
-    case 'editor':
-      return <ActivityEditor host={(phase.solo) ? setup.solo : setup.group} documentId={phase.documentId} fill={phase.fill}/>;
-  }
+        );
+      case 'games_tab':
+        return (
+          <GamesTab
+            api={gamesApi}
+            room={setup.room}
+            onFlagGuesser={() => setPhase({kind: 'games'})}
+            onBack={() => setPhase({kind: 'choice'})}
+          />
+        );
+      case 'games':
+        return (
+          <GameRooms
+            api={gamesApi}
+            room={setup.room}
+            errorOf={activityErrorOf}
+            notice={phase.notice}
+            onOpen={(gameId, watch) => setPhase({kind: 'game', gameId, watch})}
+            onBack={() => setPhase({kind: 'games_tab'})}
+          />
+        );
+      case 'game':
+        return (
+          <ActivityFlagGame
+            key={phase.gameId}
+            room={setup.room}
+            gameId={phase.gameId}
+            apiBase={API_BASE}
+            token={tokenRef.current ?? ''}
+            watch={phase.watch}
+            inviter={setup.inviter('game', phase.gameId)}
+            onLeave={(notice) => setPhase({kind: 'games', notice})}
+          />
+        );
+      case 'lobbies':
+        return (
+          <>
+            <div className='mx-auto w-full max-w-3xl px-4 pt-3 -mb-8 sm:-mb-12'>
+              <button type='button' onClick={() => setPhase({kind: 'choice'})} className='-ml-2 inline-flex min-h-10 w-fit items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-muted hover:bg-surface hover:text-fg'>
+                <ArrowLeft aria-hidden className='size-4'/>{t('games.choice.back')}
+              </button>
+            </div>
+            <LobbyList
+              host={setup.group}
+              room={setup.room}
+              instanceId={setup.instanceId}
+              initial={setup.lobbies}
+              notice={phase.notice}
+              onJoin={setup.enterLobby}
+              onNew={() => setPhase({kind: 'start', mode: 'public'})}
+            />
+          </>
+        );
+      case 'start':
+        return (
+          <StartScreen
+            key={phase.mode === 'solo' ? 'solo' : 'group'}
+            host={(phase.mode === 'solo') ? setup.solo : setup.group}
+            activityInstanceId={setup.instanceId}
+            template={setup.template}
+            suggestedUrl={setup.mediaUrl}
+            launchSurface={setup.surface}
+            onSuggestedDismiss={() => setSetup((current) => (current) ? {...current, mediaUrl: null} : current)}
+            onBack={{label: t('editor.session.lobbies'), run: () => setPhase({kind: 'lobbies'})}}
+            mode={{value: phase.mode, onChange: (mode) => setPhase({kind: 'start', mode})}}
+            // their own new lobby (its maker never needs its password)
+            onOpen={async (document, opened) => {
+              // the launch's template, or one tried from the start screen's hub panel
+              const fill = Boolean((setup.template || opened?.template) && 'steps' in document && document.steps.some((step) => step.inputs));
+              if (phase.mode === 'solo') {
+                setPhase({kind: 'editor', documentId: document.id, solo: true, fill});
+                return;
+              }
+              const { result, message } = await setup.enterLobby(document.id, undefined, fill);
+              if (result !== 'ok') {
+                setPhase({kind: 'lobbies', notice: message || t('editor.session.failed')});
+              }
+            }}
+          />
+        );
+      case 'editor':
+        return <ActivityEditor host={(phase.solo) ? setup.solo : setup.group} documentId={phase.documentId} fill={phase.fill}/>;
+    }
+  })();
+  return (
+    <>
+      {screen}
+      {(compact) ? <PipView/> : null}
+    </>
+  );
 }

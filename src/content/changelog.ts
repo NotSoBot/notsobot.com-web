@@ -29,12 +29,12 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: Array<ChangelogDay> = [
   {
     date: '2026-11-26',
-    title: 'Template Hub, flag game and /games',
+    title: 'Template Hub, Flag Guesser and /games',
     items: [
       {kind: 'new', text: 'The Template Hub at notsobot.com/editor/hub: browse and search media editor templates people published, filter them by what they work on, their effects or whether they ask for something, and sort by popular, trending or new. Try one on your own media, copy its MediaScript line for a tag, or report it. Publish your own from Your templates or the editor\'s Templates list: its text, drawings and a sample render are checked before it\'s public. In the Activity the hub opens from the start screen.'},
-      {kind: 'new', text: 'A flag game in the Activity: pick Flag game when it opens, then play or watch in a room like the editor\'s. Rooms can have a password or be watch-only, their creator can rename them, remove people and close them, and anyone can watch a game without answering. Everyone gets the same flag against the clock, typed or from four choices, and answering before the hints scores more.'},
-      {kind: 'new', text: 'Room invites in the Activity: Invite in a media editor room or a flag game room shares a link or posts it in the channel, and it opens the Activity straight into that room. Invited people get into a password room without the password, people removed from the room stay out, and an invite lasts 24 hours.'},
-      {kind: 'new', text: '`/games` opens the Activity straight on its game rooms (just the flag game for now), and its Join button does too. `/editor` with nothing attached now opens straight on the editor\'s rooms, while the Launch button still lets you pick between the two.'},
+      {kind: 'new', text: 'Flag Guesser in the Activity: open Games, pick Flag Guesser, then play or watch in a room like the editor\'s. Rooms can have a password or be watch-only, their creator can rename them, remove people and close them, and anyone can watch a game without answering. Everyone gets the same flag against the clock, typed or from four choices, and answering before the hints scores more.'},
+      {kind: 'new', text: 'Room invites in the Activity: Invite in a media editor room or a Flag Guesser room shares a link or posts it in the channel, and it opens the Activity straight into that room. Invited people get into a password room without the password, people removed from the room stay out, and an invite lasts 24 hours.'},
+      {kind: 'new', text: '`/games` is one group now: `/games play` opens the Activity straight on its Games tab (just Flag Guesser for now), and its Join button does too. `/game flag` moved to `/games flag-guesser`, the in-chat Flag Guesser, and its messages have an Open in Activity button that opens its rooms. `/editor` with nothing attached now opens straight on the editor\'s rooms, while the Launch button still lets you pick between the two.'},
       {kind: 'new', text: 'Watch-only rooms in the media editor Activity: the room\'s creator is the only one who changes it, everyone else watches live and can Fork their own copy. It can be picked when making a room or turned on and off in its settings.'},
       {kind: 'new', text: 'Lucia Card in the media editor: put your media on a "Play with Lucia" card as its portrait (a GIF or video makes the card move), as a step on anything or from Make one with a portrait you upload right there.'},
       {kind: 'new', text: '31 more effects in the media editor, from MediaScript actions that had none: like Derain, Waves, Flies, Draw Objects, Curves, Gradient Map, Color Corrector, Swap RGB, Scale, Fit, Pad, Offset, Set FPS, Shuffle, Harmonize and the vocoder chord and melody.'},
@@ -48,8 +48,13 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'improved', text: 'Sharing from the editor Activity posts the actual render in the channel (with who made it, its effects and an Edit button), and shared templates post a card with their effects, an example and a Try it button, wherever you could post that yourself.'},
       {kind: 'improved', text: 'Opening the editor from Edit Media or Edit Avatar shows that media or avatar big with a Start editing button, instead of only filling in its link.'},
       {kind: 'improved', text: 'Pinch with two fingers to resize an overlay or any box in the media editor on phones.'},
+      {kind: 'improved', text: 'Dialogs in the media editor and Flag Guesser, like Edit Media, room settings, Fork and New room, stay in place when picking Just me, Everyone or Password, instead of jumping as fields show and hide.'},
+      {kind: 'improved', text: 'The Activity opens without asking you to authorize NotSoBot first. It only asks if sharing through Discord needs it.'},
+      {kind: 'improved', text: 'Tabbing out of the Activity shows a small view in Discord\'s corner window: the room\'s latest preview, or the current flag with your score in Flag Guesser.'},
+      {kind: 'improved', text: 'KineMaster projects play much closer to the app: GIFs move, solid colour clips and clip backgrounds (colour or blur) are drawn, SVG sticker colours, title sticker fonts, perspective corners and effects, outlines, shadows and glows on video and image layers apply, main track sounds fade at cuts and crossfade under transitions, and volume levels follow the app\'s loudness curve.'},
       {kind: 'fixed', text: '`.help` no longer shows a preview of the links in a command\'s examples.'},
       {kind: 'fixed', text: 'Fork, Render and Save template in the media editor right after a change no longer use the steps from before it.'},
+      {kind: 'fixed', text: 'KineMaster projects show pictures placed on the main track (phone photos the right way up), end where the main track ends instead of running on with the music, and draw Word Swap text at its real size. Projects made on iPhone or in older versions of the app line up like they do in KineMaster.'},
     ],
   },
   {

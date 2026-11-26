@@ -5,11 +5,11 @@ export const Games = {
   'games.choice.description': 'Everyone in the activity picks for themselves, and you can switch any time.',
   'games.choice.edit_title': 'Edit media',
   'games.choice.edit_description': 'Stack effects on a picture, GIF, video or sound, on your own or in a room with others.',
-  'games.choice.flag_title': 'Flag game',
-  'games.choice.flag_description': 'Name flags against the clock in a room with others, or watch one. Answer before the hints to score more.',
+  'games.choice.games_title': 'Games',
+  'games.choice.games_description': 'Play together in rooms, or watch. Flag Guesser for now, more games soon.',
   'games.choice.back': 'Modes',
 
-  'games.flag.title': 'Flag game',
+  'games.flag.title': 'Flag Guesser',
   'games.flag.joining': 'Joining the game…',
   'games.flag.reconnecting': 'Connection lost, reconnecting…',
   'games.flag.denied': 'You can’t join this game, you’re not in the activity anymore.',
@@ -99,9 +99,9 @@ export const Games = {
   'games.flag.play_again': 'Play again',
   'games.flag.waiting_host_again': 'Waiting for {name} to start another game',
 
-  // the flag game's rooms
+  // Flag Guesser's rooms
   'games.rooms.back': 'Rooms',
-  'games.rooms.title': 'Flag game rooms',
+  'games.rooms.title': 'Flag Guesser rooms',
   'games.rooms.description': 'Everyone using the Activity in this server sees these rooms. Play in one, watch one, or make your own.',
   'games.rooms.new': 'New room',
   'games.rooms.new_title': 'New game room',
@@ -125,6 +125,7 @@ export const Games = {
   'games.rooms.play': 'Play',
   'games.rooms.mode_public_hint': 'Anyone in the Activity can play or watch.',
   'games.rooms.mode_password_hint': 'Only people with the password can play or watch.',
+  'games.rooms.name_placeholder': 'Your name’s room if you leave it empty',
   'games.rooms.watch_only_hint': 'Anyone who joins from now on only watches. You and whoever’s already playing keep playing.',
   'games.rooms.password_title': 'This room has a password',
   'games.rooms.password_description': 'Enter the password for {name}.',
@@ -148,4 +149,14 @@ export const Games = {
   'games.rooms.kick_title': 'Remove {name}?',
   'games.rooms.kick_description': 'They leave this room and can’t come back into it.',
   'games.rooms.kick_confirm': 'Remove',
+
+  // the Activity's Games tab (src/activity-games/GamesTab.tsx)
+  'games.tab.title': 'Games',
+  'games.tab.description': 'Pick a game, then play or watch in one of its rooms.',
+  'games.tab.flag_description': 'Name flags against the clock. Answer before the hints to score more.',
+  'games.tab.rooms_open_one': '{count} room open',
+  'games.tab.rooms_open_other': '{count} rooms open',
+  'games.tab.people_in_one': '{count} person in them',
+  'games.tab.people_in_other': '{count} people in them',
+  'games.tab.more_soon': 'More games are coming.',
 };

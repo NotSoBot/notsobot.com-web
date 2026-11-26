@@ -82,7 +82,7 @@ function LaunchMediaDialog({ url, surface, uploading, error, blocked, settings, 
   const avatar = surface === 'edit_avatar';
   const filename = fileNameOfUrl(url);
   return (
-    <Modal labelledBy={titleId} onClose={() => !uploading && onDismiss()} className='max-w-lg'>
+    <Modal anchor='top' labelledBy={titleId} onClose={() => !uploading && onDismiss()} className='max-w-lg'>
       <div className='flex max-h-[90dvh] flex-col gap-4 overflow-y-auto p-5 sm:p-6'>
         <div>
           <h2 id={titleId} className='pr-10 text-lg font-semibold text-white'>

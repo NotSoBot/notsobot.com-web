@@ -112,7 +112,7 @@ export function Finished({ connection, game, you, onLeave }: {connection: FlagGa
             </p>
           )}
           <button type='button' className='btn btn-ghost min-h-11' onClick={onLeave}>
-            <ArrowLeft aria-hidden className='size-4'/>{t('games.choice.back')}
+            <ArrowLeft aria-hidden className='size-4'/>{t('games.rooms.back')}
           </button>
         </div>
       </div>

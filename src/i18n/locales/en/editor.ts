@@ -407,6 +407,19 @@ export const Editor = {
   'editor.invite.failed': 'Couldn’t make an invite. Try again.',
   'editor.invite.done': 'Done',
   'editor.invite.share_message_editor': 'Join my room in NotSoBot',
-  'editor.invite.share_message_game': 'Join my flag game in NotSoBot',
+  'editor.invite.share_message_game': 'Join my Flag Guesser game in NotSoBot',
   'editor.invite.open_failed': 'That invite couldn’t be opened.',
+
+  // the small window when they tab out of the Activity (src/editor/hosts/pip.tsx)
+  'editor.pip.editing': 'Editing',
+  'editor.pip.watching': 'Watching',
+  'editor.pip.people_one': '{count} here',
+  'editor.pip.people_other': '{count} here',
+  'editor.pip.game_lobby': 'Waiting to start',
+  'editor.pip.game_over': 'Game over',
+  'editor.pip.game_round': 'Flag {number}/{total}',
+  'editor.pip.points_one': '{count} point',
+  'editor.pip.points_other': '{count} points',
+  'editor.pip.rank': '#{rank} of {total}',
+  'editor.pip.idle': 'Click to come back',
 };

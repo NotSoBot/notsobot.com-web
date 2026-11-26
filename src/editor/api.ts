@@ -187,6 +187,8 @@ export function createEditorApi(request: EditorRequest) {
     // the visible steps as mediascript: `lines` on the key `media`, and `tag`, a whole tag running them on `{iv}`
     mediascript: (documentId: string) => request<{lines: Array<string>, tag: string, line_count: number, max_lines: number}>(`/editor/documents/${pathId(documentId)}/mediascript`),
     activity: (instanceId: string) => request<EditorActivityContext>(`/editor/activity/${pathId(instanceId)}`),
+    // opened in an App Channel (no instance there): the same context, `instance_id` is the channel's stand-in for the rest
+    appChannel: () => request<EditorActivityContext>('/editor/app-channel'),
     createTemplate: (documentId: string, name: string, password?: string) => request<EditorTemplate>(
       '/editor/templates',
       {method: 'POST', body: {document_id: documentId, name, password: password || undefined}},

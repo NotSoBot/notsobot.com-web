@@ -27,11 +27,14 @@ export function openModalCount(): number {
 // A field marked `data-autofocus` gets the focus on open, on devices with a keyboard (see below).
 // `stickyClose` keeps the close button at the top of the window while scrolling on phones, for a modal whose header
 // sticks there too (at `-top-12`, this window's top padding on phones).
-export function Modal({ labelledBy, onClose, className, stickyClose = false, children }: {
+export function Modal({ labelledBy, onClose, className, stickyClose = false, anchor = 'center', children }: {
   labelledBy: string,
   onClose: () => void,
   className?: string,
   stickyClose?: boolean,
+  // `top`: held at the top of the window, for a dialog whose content grows and shrinks while it's open (a choice that
+  // shows more fields): centred, every change would move the whole thing under the finger. It only grows downward
+  anchor?: 'center' | 'top',
   children: ReactNode,
 }) {
   const { t } = useI18n();
@@ -110,7 +113,8 @@ export function Modal({ labelledBy, onClose, className, stickyClose = false, chi
           aria-modal='true'
           aria-labelledby={labelledBy}
           className={cn(
-            'relative my-auto w-full max-w-4xl animate-modal-in rounded-xl border border-line-strong bg-bg shadow-2xl shadow-black/60',
+            'relative w-full max-w-4xl animate-modal-in rounded-xl border border-line-strong bg-bg shadow-2xl shadow-black/60',
+            (anchor === 'center') && 'my-auto',
             className,
           )}
         >

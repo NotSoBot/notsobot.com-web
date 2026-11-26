@@ -10,11 +10,12 @@ import { RoomInviteButton } from '@/editor/components/RoomInvite';
 import type { RoomInviter } from '@/editor/invites';
 import type { EditorRoom } from '@/editor/room';
 import { useI18n, type TranslationKey } from '@/i18n';
+import { usePublishPipStatus } from '@/editor/hosts/pip';
 
 import { RoomFlagGame, type FlagGameConnection } from './connection';
 import { Finished } from './Finished';
 import { GameRoomFields, type RoomMode } from './GameRooms';
-import { useGameSnapshot } from './hooks';
+import { rankedPlayers, useFlagImage, useGameSnapshot } from './hooks';
 import { Lobby } from './Lobby';
 import { GameCloseCodes, ROOM_PASSWORD_MIN, type GameState } from './protocol';
 import { Reveal } from './Reveal';
@@ -45,6 +46,21 @@ export function FlagGame({ connection, inviter, onLeave }: {connection: FlagGame
   const game = snapshot.game;
   const isHost = Boolean(snapshot.you && game?.host_id === snapshot.you);
   const isCreator = Boolean(snapshot.you && game?.room.creator.user_id === snapshot.you);
+  // the Activity's small window when they tab out (editor/hosts/pip.tsx): the room, its round, the flag and their score
+  const pipFlag = useFlagImage(connection, game?.round?.flag_url ?? null).src;
+  const ranked = (game) ? rankedPlayers(game) : [];
+  const you = ranked.find((player) => player.user_id === snapshot.you) ?? null;
+  usePublishPipStatus((game) ? {
+    kind: 'game',
+    title: game.room.name ?? t('games.flag.title'),
+    phase: game.phase,
+    round: (game.round) ? {number: game.round.number, total: game.round.total} : null,
+    score: you?.score ?? null,
+    rank: (you) ? ranked.indexOf(you) + 1 : null,
+    players: ranked.length,
+    watching: game.you_watch,
+    flagUrl: pipFlag,
+  } : null);
 
   // removed or closed: back to the room list, saying why (anything else stays on its own screen)
   useEffect(() => {
@@ -170,7 +186,7 @@ function RoomSettingsDialog({ connection, game, onClose }: {connection: FlagGame
   const keepsPassword = game.room.locked;
   const ready = mode === 'public' || (keepsPassword && !password) || ROOM_PASSWORD_MIN <= password.length;
   return (
-    <Modal labelledBy={titleId} onClose={onClose} className='max-w-md'>
+    <Modal anchor='top' labelledBy={titleId} onClose={onClose} className='max-w-md'>
       <form
         className='flex flex-col gap-4 p-5 sm:p-6'
         onSubmit={(event) => {

@@ -407,6 +407,19 @@ export const Editor: Record<keyof typeof English, string> = {
   'editor.invite.failed': 'Não foi possível criar o convite. Tente de novo.',
   'editor.invite.done': 'Pronto',
   'editor.invite.share_message_editor': 'Entre na minha sala no NotSoBot',
-  'editor.invite.share_message_game': 'Entre no meu jogo das bandeiras no NotSoBot',
+  'editor.invite.share_message_game': 'Entre na minha partida de Flag Guesser no NotSoBot',
   'editor.invite.open_failed': 'Não foi possível abrir esse convite.',
+
+  // the small window when they tab out of the Activity (src/editor/hosts/pip.tsx)
+  'editor.pip.editing': 'Editando',
+  'editor.pip.watching': 'Assistindo',
+  'editor.pip.people_one': '{count} aqui',
+  'editor.pip.people_other': '{count} aqui',
+  'editor.pip.game_lobby': 'Esperando para começar',
+  'editor.pip.game_over': 'Partida encerrada',
+  'editor.pip.game_round': 'Bandeira {number}/{total}',
+  'editor.pip.points_one': '{count} ponto',
+  'editor.pip.points_other': '{count} pontos',
+  'editor.pip.rank': '{rank}º de {total}',
+  'editor.pip.idle': 'Clique para voltar',
 };

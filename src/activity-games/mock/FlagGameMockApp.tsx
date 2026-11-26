@@ -6,10 +6,12 @@ import type { RoomEvent, RoomStatus } from '@/editor/room';
 
 import { FlagGame } from '../FlagGame';
 import { GameRooms, type GameRoomsFeed } from '../GameRooms';
+import { GamesTab } from '../GamesTab';
 import { ModeChoice } from '../ModeChoice';
 import type { GameRoomSummary } from '../protocol';
 import type { GameRoomsApi } from '../rooms';
 import { FakeFlagGame } from './FakeFlagGame';
+import { PipView, useCompactLayout } from '@/editor/hosts/pip';
 
 
 const MOCK_ROOMS: Array<GameRoomSummary> = [
@@ -68,7 +70,7 @@ class MockRoomsFeed implements GameRoomsFeed {
 
 // Dev mocks only (`/activity?mockGame=1` on the `VITE_DASHBOARD_MOCKS=true` dev server, see src/activity.tsx): the mode
 // choice, the room list and the flag game against FakeFlagGame, no Discord or api. `&host=0` makes a bot the host (the
-// read-only settings), `&screen=rooms` opens on the room list, `&surface=games` (or `command`, `entry_point`, ...) on the
+// read-only settings), `&screen=tab` opens on the Games tab, `&screen=rooms` on the room list, `&surface=games` (or `command`, `entry_point`, ...) on the
 // screen that launch would open on, the room header's Invite answers with a fake code (`&post=0`: posting refused), the
 // bar at the bottom drops the connection, has the bot host start or (on the room
 // list) has someone join the first room. A locked room's password is "hunter22"
@@ -77,12 +79,12 @@ export function FlagGameMockApp() {
   const youHost = params.get('host') !== '0';
   const first = params.get('screen');
   const surface = params.get('surface');
-  const [ screen, setScreen ] = useState<'choice' | 'rooms' | 'game' | 'editor'>(() => {
-    if (first === 'choice' || first === 'rooms' || surface === null) {
-      return (first === 'choice' || first === 'rooms') ? first : 'game';
+  const [ screen, setScreen ] = useState<'choice' | 'tab' | 'rooms' | 'game' | 'editor'>(() => {
+    if (first === 'choice' || first === 'tab' || first === 'rooms' || surface === null) {
+      return (first === 'choice' || first === 'tab' || first === 'rooms') ? first : 'game';
     }
     const launched = launchScreen(surface, false);
-    return (launched === 'games') ? 'rooms' : (launched === 'choice') ? 'choice' : 'editor';
+    return (launched === 'games') ? 'tab' : (launched === 'flag_guesser') ? 'rooms' : (launched === 'choice') ? 'choice' : 'editor';
   });
   const [ notice, setNotice ] = useState<string | null>(null);
   const [ watch, setWatch ] = useState(false);
@@ -108,15 +110,21 @@ export function FlagGameMockApp() {
     },
   }), [extra]);
 
+  // a window this small shows the Activity's compact view, like Discord's corner window
+  const compact = useCompactLayout(null);
+
   return (
     <>
+      {(compact) ? <PipView/> : null}
       {(screen === 'choice') ? (
-        <ModeChoice onEdit={() => setScreen('editor')} onGame={() => setScreen('rooms')}/>
+        <ModeChoice onEdit={() => setScreen('editor')} onGame={() => setScreen('tab')}/>
       ) : (screen === 'editor') ? (
         <div className='p-6 text-muted'>
           (mock) the editor would open here.{' '}
           <button type='button' className='text-brand-text underline' onClick={() => setScreen('choice')}>back</button>
         </div>
+      ) : (screen === 'tab') ? (
+        <GamesTab api={api} room={feed} onFlagGuesser={() => setScreen('rooms')} onBack={() => setScreen('choice')}/>
       ) : (screen === 'rooms') ? (
         <GameRooms
           api={api}
@@ -128,7 +136,7 @@ export function FlagGameMockApp() {
             setConnection(new FakeFlagGame({youHost, watch: asWatcher}));
             setScreen('game');
           }}
-          onBack={() => setScreen('choice')}
+          onBack={() => setScreen('tab')}
         />
       ) : (
         <FlagGame

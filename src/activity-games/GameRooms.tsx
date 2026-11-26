@@ -126,7 +126,7 @@ export function GameRooms({ api, room, errorOf, notice, onOpen, onBack }: {
     <div className='mx-auto flex min-h-[var(--editor-height,100dvh)] w-full max-w-3xl flex-col gap-4 px-4 pt-3 pb-[calc(1.5rem+var(--saib,0px))]'>
       <div className='flex items-center gap-2'>
         <button type='button' onClick={onBack} className='-ml-2 inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-muted hover:bg-surface hover:text-fg'>
-          <ArrowLeft aria-hidden className='size-4'/>{t('games.choice.back')}
+          <ArrowLeft aria-hidden className='size-4'/>{t('games.tab.title')}
         </button>
       </div>
       <header className='flex flex-wrap items-end justify-between gap-3'>
@@ -275,6 +275,7 @@ export function GameRoomFields({ mode, onModeChange, name, onNameChange, passwor
       keepsPassword={keepsPassword}
       modeHint={(value) => t(`games.rooms.mode_${(value === 'password') ? 'password' : 'public'}_hint`)}
       watchOnlyHint={t('games.rooms.watch_only_hint')}
+      namePlaceholder={t('games.rooms.name_placeholder')}
     />
   );
 }
@@ -297,7 +298,7 @@ function NewRoomDialog({ api, errorOf, onClose, onCreated }: {
   const ready = roomSettingsReady(mode, password);
 
   return (
-    <Modal labelledBy={titleId} onClose={onClose} className='max-w-md'>
+    <Modal anchor='top' labelledBy={titleId} onClose={onClose} className='max-w-md'>
       <form
         className='flex flex-col gap-4 p-5 sm:p-6'
         onSubmit={async (event) => {

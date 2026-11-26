@@ -5,11 +5,13 @@ import { INVITE_CUSTOM_ID, inviteCodeOf, type RoomInviteKind } from '../invites'
 // How the bot launched the Activity, the api's `launch.surface` (each person's own launch): Discord's app launcher or
 // Launch button (`entry_point`), Edit Media / Edit Avatar, `/editor` (`command`) and the Join on its launch message
 // (`join`), a shared template's post (`template_post`), `/games` (`games`) and the Join on its message (`games_join`),
-// and the Join on a room invite's post (`invite`, with `invite_code`)
-export type ActivityLaunchSurface = 'entry_point' | 'edit_media' | 'edit_avatar' | 'command' | 'join' | 'template_post' | 'games' | 'games_join' | 'invite';
+// the Join on a room invite's post (`invite`, with `invite_code`), and Open in Activity on the in-chat Flag Guesser
+// (`flag_guesser`)
+export type ActivityLaunchSurface = 'entry_point' | 'edit_media' | 'edit_avatar' | 'command' | 'join' | 'template_post' | 'games' | 'games_join' | 'invite' | 'flag_guesser';
 
-// the first screen after sign-in: a new edit, the game rooms, the editor's rooms or the mode choice
-export type ActivityLaunchScreen = 'start' | 'games' | 'editor' | 'choice';
+// the first screen after sign-in: a new edit, the Games tab (`games`), Flag Guesser's rooms, the editor's rooms or the
+// mode choice
+export type ActivityLaunchScreen = 'start' | 'games' | 'flag_guesser' | 'editor' | 'choice';
 
 
 // Something launched on (media or a template) is a new edit. `/games` opens on the game rooms, the editor's own launches
@@ -23,6 +25,8 @@ export function launchScreen(surface: string | null, launchedOn: boolean): Activ
     case 'games':
     case 'games_join':
       return 'games';
+    case 'flag_guesser':
+      return 'flag_guesser';
     case 'command':
     case 'join':
     case 'edit_media':

@@ -11,6 +11,7 @@ import { FormulaContext, valuesBefore, VALUE_EFFECT_ID, type FormulaContextValue
 import { addsAudio, newStep, stackKind, stepTimeline } from '../stack';
 import type { EditorCatalogue, EditorEffect, EditorTemplate } from '../types';
 import { useEditorDocument } from '../useEditorDocument';
+import { usePublishPipStatus } from '../hosts/pip';
 import { EffectPicker } from './EffectPicker';
 import { ForkButton } from './ForkRoom';
 import { LobbyPeople } from './LobbyPeople';
@@ -116,6 +117,16 @@ export function EditorApp({ host, documentId, catalogue, addEffectId = null, onE
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [onKeyDown]);
+  // the Activity's small window when they tab out (hosts/pip.tsx): this edit's name and latest preview
+  const pipPreview = state.preview;
+  usePublishPipStatus((state.document) ? {
+    kind: 'editor',
+    title: state.document.lobby_name || state.document.source.filename,
+    previewUrl: pipPreview?.url ?? null,
+    previewIsVideo: Boolean(pipPreview?.mimetype.startsWith('video/')),
+    people: (state.room) ? Math.max(1, state.editors.length) : 1,
+    watching: state.watching,
+  } : null);
 
   if (loadError) {
     return (
