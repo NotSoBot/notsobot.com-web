@@ -1,4 +1,4 @@
-import type { EditorEffect, EditorMediaKind, EditorParam, EditorStep } from './types';
+import type { EditorAsset, EditorEffect, EditorFileAccept, EditorMediaKind, EditorParam, EditorStep } from './types';
 
 
 // Pure helpers for the stack of steps: making a step from an effect, summaries, and which spatial tool a step has
@@ -85,7 +85,7 @@ export const ADD_AUDIO_EFFECT_ID = 'addaudio';
 // the api's `MAX_FILE_STEPS` and `file_step_allowed`: what can run on an uploaded file. A sound takes the audio effects,
 // an overlay every other one, never one placed on the preview, another file's, or a cut of its own
 export const MAX_FILE_STEPS = 10;
-const FILE_STEP_EXCLUDED = new Set(['overlay', 'addaudio', 'still', 'trim']);
+const FILE_STEP_EXCLUDED = new Set(['overlay', 'addaudio', 'still', 'trim', 'ffmpeg']);
 const FILE_STEP_EXCLUDED_KINDS = new Set(['point', 'box', 'strokes', 'media', 'steps']);
 
 export function fileStepAllowed(effect: EditorEffect, forAudio: boolean): boolean {
@@ -93,6 +93,56 @@ export function fileStepAllowed(effect: EditorEffect, forAudio: boolean): boolea
     return false;
   }
   return (effect.group === 'audio') === forAudio;
+}
+
+
+// ---- the 2026-11-26 second-file effects (Blend, Face Swap, Vocoder...): any effect with a `media` param ----
+
+// the effect's uploaded file param, undefined when it takes none
+export function fileParam(effect: EditorEffect | undefined): EditorParam | undefined {
+  return effect?.params.find((param) => param.kind === 'media');
+}
+
+
+// what its file can be (the api's `accepts`). A catalogue from before it: Add Audio a sound, the rest a picture or video
+export function fileAccepts(effect: EditorEffect): Array<EditorFileAccept> {
+  const accepts = fileParam(effect)?.accepts;
+  if (accepts?.length) {
+    return accepts;
+  }
+  return (effect.id === ADD_AUDIO_EFFECT_ID) ? ['sound'] : ['image', 'video'];
+}
+
+
+// its file is a sound (Add Audio, Vocoder, Append Audio): the effects on it are the audio ones
+export function fileForAudio(effect: EditorEffect): boolean {
+  return fileAccepts(effect).some((accept) => accept === 'sound' || accept === 'audio');
+}
+
+
+// the api's `asset_fits`: whether one of the edit's files is one `accepts` takes
+export function assetFits(asset: EditorAsset, accepts: Array<EditorFileAccept>): boolean {
+  if (accepts.includes('sound') && (asset.kind === 'audio' || Boolean(asset.audio))) {
+    return true;
+  }
+  return accepts.includes(asset.kind);
+}
+
+
+// the file picker's `accept` for them
+export function fileInputAccept(accepts: Array<EditorFileAccept>): string {
+  const types = new Set<string>();
+  for (const accept of accepts) {
+    if (accept === 'sound') {
+      types.add('audio/*').add('video/*');
+    } else if (accept === 'video') {
+      // gifs and animated webps are "videos" too
+      types.add('video/*').add('image/gif').add('image/webp');
+    } else {
+      types.add(`${accept}/*`);
+    }
+  }
+  return [...types].join(',');
 }
 
 

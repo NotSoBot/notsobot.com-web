@@ -3,7 +3,9 @@ import type { EditorDocument, EditorLobby, EditorStep } from './types';
 
 // The Activity's shared room (activity-plan.md "Rooms protocol"): one websocket per activity instance, every stack
 // change is an op the api applies in order and sends back to everyone as the whole document. Edits from here are
-// shown at once (optimistic), the api's document replaces them when it arrives
+// shown at once (optimistic), the api's document replaces them when it arrives.
+// The same socket carries the flag game (activity-plan.md "One Activity socket"): its `game_*` ops go out through
+// `sendMessage`, its `game.*` messages come back through `onGame` (src/activity-games/connection.ts reads them)
 
 export interface RoomMember {
   user_id: string,
@@ -68,8 +70,19 @@ export type RoomEvent =
   // the answer to your own `kick` / `close_lobby` / `delete_lobby`
   | {t: 'moderated', op: 'kick' | 'close_lobby' | 'delete_lobby' | 'room_settings', document_id: string, user_id?: string, error?: number, message?: string}
   // a room's creator renamed it or changed its password (who's in it stays in)
-  | {t: 'lobby_updated', document_id: string, name: string | null, locked: boolean}
-  | {t: 'pong'};
+  | {t: 'lobby_updated', document_id: string, name: string | null, locked: boolean, watch_only?: boolean}
+  // a game room in this activity's scope changed (made, closed, renamed, its phase or who's in it), the list refetches
+  | {t: 'game_rooms_changed'}
+  // `now`: the api's clock in ms (older apis sent none)
+  | {t: 'pong', now?: number};
+
+// a flag game message (`game.state`, `game.ready`, ...), for the one game this socket is in
+export interface RoomGameMessage {
+  t: string,
+  game_id?: string,
+  now?: number,
+  [key: string]: unknown,
+}
 
 export type RoomStatus = 'connecting' | 'open' | 'closed' | 'denied';
 
@@ -98,6 +111,10 @@ export class EditorRoom {
   private socket: WebSocket | null = null;
   private listeners = new Set<(event: RoomEvent) => void>();
   private statusListeners = new Set<(status: RoomStatus) => void>();
+  private gameListeners = new Set<(message: RoomGameMessage) => void>();
+  private pongListeners = new Set<(now: number, roundTrip: number) => void>();
+  // when each unanswered ping went out, oldest first (pongs come back in order)
+  private pingsSent: Array<number> = [];
   private pingTimer: number | null = null;
   private lockTimers = new Map<string, number>();
   private reconnectTimer: number | null = null;
@@ -108,8 +125,9 @@ export class EditorRoom {
   private cursorLast = 'null';
   private attempt = 0;
   private stopped = false;
-  // the lobby it's editing (and its password), asked for again after every reconnect (a new socket starts outside)
-  private wantEditing: {documentId: string, password?: string} | null = null;
+  // the lobby it's editing (and its password or invite), asked for again after every reconnect (a new socket starts
+  // outside)
+  private wantEditing: {documentId: string, password?: string, invite?: string} | null = null;
   private editingWaiters: Array<(result: EditingResult) => void> = [];
   // the lobby its ops change, what `sendOp` sends them to
   editingDocument: string | null = null;
@@ -140,9 +158,34 @@ export class EditorRoom {
     return () => this.listeners.delete(listener);
   }
 
+  // every status change: 'open' comes with each `ready`, so a non-open status then 'open' is a reconnect
   onStatus(listener: (status: RoomStatus) => void): () => void {
     this.statusListeners.add(listener);
     return () => this.statusListeners.delete(listener);
+  }
+
+  // the flag game's `game.*` messages (they never reach `subscribe`)
+  onGame(listener: (message: RoomGameMessage) => void): () => void {
+    this.gameListeners.add(listener);
+    return () => this.gameListeners.delete(listener);
+  }
+
+  // a pong with the api's clock, and the round trip of the ping it answers
+  onPong(listener: (now: number, roundTrip: number) => void): () => void {
+    this.pongListeners.add(listener);
+    return () => this.pongListeners.delete(listener);
+  }
+
+  // anything else for the api (the game's ops), false when it's not open: nothing is queued
+  sendMessage(message: Record<string, unknown>): boolean {
+    return this.send(message);
+  }
+
+  // a ping now (besides the one every PING_INTERVAL), for a fresh clock sample
+  ping(): void {
+    if (this.send({op: 'ping'})) {
+      this.pingsSent.push(Date.now());
+    }
   }
 
   // a stack op, its `op_id` comes back on the document (or error) it caused
@@ -161,10 +204,10 @@ export class EditorRoom {
     this.send({op: 'unlock', step_id: stepId});
   }
 
-  // join a lobby (its password for a locked one) or, null, leave it: 'full' at `ROOM_MAX_EDITORS`, 'locked'/'wrong'
-  // for a missing or wrong password. Before the room's open it's sent once it is, and given up on after EDITING_WAIT
-  // (going ahead, the api still checks saves)
-  setEditing(documentId: string | null, password?: string): Promise<EditingResult> {
+  // join a lobby (its password for a locked one, or an invite to it that they redeemed) or, null, leave it: 'full' at
+  // `ROOM_MAX_EDITORS`, 'locked'/'wrong' for a missing or wrong password. Before the room's open it's sent once it is,
+  // and given up on after EDITING_WAIT (going ahead, the api still checks saves)
+  setEditing(documentId: string | null, password?: string, invite?: string): Promise<EditingResult> {
     // the api hides their pointer when they change lobby
     this.cursorLast = 'null';
     if (documentId === null) {
@@ -173,7 +216,7 @@ export class EditorRoom {
       this.send({op: 'editing', document_id: null});
       return Promise.resolve({result: 'ok'});
     }
-    this.wantEditing = {documentId, password};
+    this.wantEditing = {documentId, password, invite};
     return new Promise((resolve) => {
       let done = false;
       const finish = (result: EditingResult) => {
@@ -187,7 +230,7 @@ export class EditorRoom {
       };
       this.editingWaiters.push(finish);
       window.setTimeout(() => finish({result: 'ok'}), EDITING_WAIT);
-      this.send({op: 'editing', document_id: documentId, password});
+      this.send({op: 'editing', document_id: documentId, password, invite});
     });
   }
 
@@ -241,13 +284,14 @@ export class EditorRoom {
   }
 
   // its creator's name and visibility for it: public, or a password room (no password keeps the one it has)
-  updateRoomSettings(documentId: string, settings: {name: string, mode: 'public' | 'password', password?: string}): Promise<ModerationResult> {
+  updateRoomSettings(documentId: string, settings: {name: string, mode: 'public' | 'password', password?: string, watchOnly?: boolean}): Promise<ModerationResult> {
     return this.moderate(`room_settings:${documentId}:`, {
       op: 'room_settings',
       document_id: documentId,
       name: settings.name.trim() || null,
       mode: settings.mode,
       password: settings.password || undefined,
+      watch_only: Boolean(settings.watchOnly),
     });
   }
 
@@ -273,12 +317,14 @@ export class EditorRoom {
     this.send({op: 'render', status, url});
   }
 
-  private send(message: Record<string, unknown>): void {
+  private send(message: Record<string, unknown>): boolean {
     // nothing is queued while it's not open: the editor saves over http meanwhile (`isOpen`), an op sent later would
     // apply the same change twice
     if (this.isOpen) {
       this.socket!.send(JSON.stringify(message));
+      return true;
     }
+    return false;
   }
 
   private setStatus(status: RoomStatus): void {
@@ -308,6 +354,8 @@ export class EditorRoom {
     this.cursorNext = null;
     // a new socket starts without a cursor showing
     this.cursorLast = 'null';
+    // pongs to the old socket's pings won't come
+    this.pingsSent = [];
   }
 
   private open(): void {
@@ -319,13 +367,19 @@ export class EditorRoom {
       socket.send(JSON.stringify({op: 'hello', token: this.token}));
     });
     socket.addEventListener('message', (message) => {
-      let event: RoomEvent;
+      let event: RoomEvent | RoomGameMessage;
       try {
         event = JSON.parse(String(message.data));
       } catch {
         return;
       }
-      this.handle(event);
+      if (typeof event?.t === 'string' && event.t.startsWith('game.')) {
+        for (const listener of this.gameListeners) {
+          listener(event as RoomGameMessage);
+        }
+        return;
+      }
+      this.handle(event as RoomEvent);
     });
     socket.addEventListener('close', (close) => {
       if (this.socket !== socket) {
@@ -357,14 +411,23 @@ export class EditorRoom {
         this.members = event.members;
         this.locks = event.locks;
         this.setStatus('open');
-        this.pingTimer = window.setInterval(() => this.send({op: 'ping'}), PING_INTERVAL);
+        this.pingTimer = window.setInterval(() => this.ping(), PING_INTERVAL);
         if (this.wantEditing) {
-          this.send({op: 'editing', document_id: this.wantEditing.documentId, password: this.wantEditing.password});
+          this.send({op: 'editing', document_id: this.wantEditing.documentId, password: this.wantEditing.password, invite: this.wantEditing.invite});
         }
         break;
       }
       case 'members': {
         this.members = event.members;
+        break;
+      }
+      case 'pong': {
+        const sentAt = this.pingsSent.shift();
+        if (typeof event.now === 'number' && sentAt !== undefined) {
+          for (const listener of this.pongListeners) {
+            listener(event.now, Date.now() - sentAt);
+          }
+        }
         break;
       }
       case 'kicked':

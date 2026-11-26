@@ -15,6 +15,7 @@ import { LoginPage } from '@/pages/auth/LoginPage';
 import { HomePage } from '@/pages/HomePage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { RouteErrorPage } from '@/pages/RouteErrorPage';
+import { AdminUserPeek } from '@/pages/dashboard/admin/AdminUserPeek';
 import { NOT_FOUND_PAGE, PAGES, type PageMeta } from '@/seo';
 
 
@@ -71,6 +72,14 @@ export const routes: Array<RouteObject> = [
         ],
       },
       {path: Routes.CHANGELOG, lazy: async () => ({Component: (await import('@/pages/ChangelogPage')).ChangelogPage}), handle: PAGES.CHANGELOG},
+      // the editor's template hub, public (logged out can browse). A static segment, it outranks the editor's
+      // `/editor/:documentId`. A template's view opens over the list, which stays mounted
+      {
+        path: Routes.EDITOR_HUB,
+        lazy: async () => ({Component: (await import('@/pages/hub/HubPage')).HubPage}),
+        handle: PAGES.EDITOR_HUB,
+        children: [{index: true}, {path: ':templateCode', handle: PAGES.EDITOR_HUB_ITEM}],
+      },
       {path: Routes.FAQ, lazy: async () => ({Component: (await import('@/pages/FaqPage')).FaqPage}), handle: PAGES.FAQ},
       {path: Routes.PREMIUM, lazy: async () => ({Component: (await import('@/pages/PremiumPage')).PremiumPage}), handle: PAGES.PREMIUM},
       {path: Routes.STATUS, lazy: async () => ({Component: (await import('@/pages/status/StatusPage')).StatusPage}), handle: PAGES.STATUS},
@@ -200,9 +209,9 @@ export const routes: Array<RouteObject> = [
               {path: Routes.DASHBOARD_REMINDERS, lazy: async () => ({Component: (await import('@/pages/dashboard/reminders/RemindersPage')).RemindersPage}), handle: PAGES.DASHBOARD_REMINDERS},
               {path: `${Routes.DASHBOARD_REPORTS}/:itemId?`, lazy: async () => ({Component: (await import('@/pages/dashboard/reports/ReportsPage')).ReportsPage}), handle: PAGES.DASHBOARD_REPORTS},
               {path: Routes.DASHBOARD_VOICES, lazy: async () => ({Component: (await import('@/pages/dashboard/voices/VoicesPage')).VoicesPage}), handle: PAGES.DASHBOARD_VOICES},
-              // NotSoBot staff only (owners and moderators)
+              // NotSoBot staff only (owners and moderators). `AdminUserPeek` opens a linked user over whichever page it's on
               {
-                element: <RequireStaff/>,
+                element: <RequireStaff><AdminUserPeek/></RequireStaff>,
                 children: [
                   {path: '/dashboard/admin', element: <Navigate to={Routes.DASHBOARD_ADMIN_TAGS} replace/>},
                   {path: `${Routes.DASHBOARD_ADMIN_APPLICATIONS}/:itemId?`, lazy: async () => ({Component: (await import('@/pages/dashboard/admin/AdminApplicationsPage')).AdminApplicationsPage}), handle: PAGES.DASHBOARD_ADMIN_APPLICATIONS},
@@ -218,7 +227,7 @@ export const routes: Array<RouteObject> = [
               },
               // NotSoBot owners only: everyone's purchase history, who can make API applications, the download identities, api-wide stats and the music nodes
               {
-                element: <RequireStaff owner/>,
+                element: <RequireStaff owner><AdminUserPeek/></RequireStaff>,
                 children: [
                   {path: Routes.DASHBOARD_OWNER_API_ACCESS, lazy: async () => ({Component: (await import('@/pages/dashboard/admin/OwnerApiAccessPage')).OwnerApiAccessPage}), handle: PAGES.DASHBOARD_OWNER_API_ACCESS},
                   {path: Routes.DASHBOARD_OWNER_CREDITS, lazy: async () => ({Component: (await import('@/pages/dashboard/admin/OwnerCreditsPage')).OwnerCreditsPage}), handle: PAGES.DASHBOARD_OWNER_CREDITS},

@@ -244,10 +244,17 @@ export function useI18n(): I18nContextValue {
   return useContext(I18nContext) ?? fallbackContext();
 }
 
+// the same object (and functions) while the language and dictionary are the same: the Activity has no provider, and a
+// new `t` every render made effects depending on it run again every render (lists refetching forever)
+let fallbackCache: {language: unknown, dictionary: unknown, value: I18nContextValue} | null = null;
+
 function fallbackContext(): I18nContextValue {
   const language = activeLanguage();
   const dictionary = activeDictionary();
-  return {
+  if (fallbackCache && fallbackCache.language === language && fallbackCache.dictionary === dictionary) {
+    return fallbackCache.value;
+  }
+  const value: I18nContextValue = {
     language,
     chosen: null,
     setLanguage: () => undefined,
@@ -256,4 +263,6 @@ function fallbackContext(): I18nContextValue {
     plural: (key, count, variables) => pluralWith(language, dictionary, key, count, variables),
     rich: (key, components, variables) => renderRich(translateWith(dictionary, key, variables), components),
   };
+  fallbackCache = {language, dictionary, value};
+  return value;
 }

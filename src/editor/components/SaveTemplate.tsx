@@ -1,5 +1,5 @@
 import { BookmarkPlus, Check, Eye, EyeOff, Link, Lock, Share2, X } from 'lucide-react';
-import { useId, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 
 import { DialogError } from '@/components/ui/DialogError';
 import { Modal } from '@/components/ui/Modal';
@@ -9,6 +9,8 @@ import { useI18n } from '@/i18n';
 
 import type { EditorHost } from '../api';
 import type { EditorTemplate } from '../types';
+import type { EditorDocumentState } from '../useEditorDocument';
+import { AskForInputs, inputCandidates } from './TemplateInputs';
 
 
 const MAX_NAME_LENGTH = 64;
@@ -57,12 +59,13 @@ export function PasswordInput({ id, value, onChange, autoComplete, placeholder, 
 
 
 // Copy link and, where the host has it, Share in chat. The template's saved, these only pass its link on
-export function TemplateShareActions({ host, template }: {host: EditorHost, template: EditorTemplate}) {
+export function TemplateShareActions({ host, template, exampleUrl }: {host: EditorHost, template: EditorTemplate, exampleUrl?: string | null}) {
   const { t } = useI18n();
   const { copied, copy } = useCopied();
   const [ copyFailed, setCopyFailed ] = useState(false);
   const [ sharing, setSharing ] = useState(false);
   const [ shareError, setShareError ] = useState<string | null>(null);
+  const [ posted, setPosted ] = useState(false);
   const url = host.templateUrl(template.code);
   const share = host.shareTemplate;
   return (
@@ -90,7 +93,7 @@ export function TemplateShareActions({ host, template }: {host: EditorHost, temp
             setSharing(true);
             setShareError(null);
             try {
-              await share(template);
+              setPosted(await share(template, exampleUrl) === 'posted');
             } catch (error) {
               setShareError((error instanceof Error && error.message) ? error.message : t('editor.template.share_failed'));
             } finally {
@@ -103,6 +106,7 @@ export function TemplateShareActions({ host, template }: {host: EditorHost, temp
         </button>
       ) : null}
       {(shareError) ? <p role='alert' className='text-xs text-danger-text'>{shareError}</p> : null}
+      {(posted) ? <p role='status' className='flex gap-1.5 text-xs text-success-text'><Check aria-hidden className='mt-px size-3.5 shrink-0'/>{t('editor.template.posted')}</p> : null}
       {(template.locked) ? (
         <p className='flex gap-1.5 text-xs text-subtle'><Lock aria-hidden className='mt-px size-3.5 shrink-0'/>{t('editor.template.locked_note')}</p>
       ) : null}
@@ -113,7 +117,13 @@ export function TemplateShareActions({ host, template }: {host: EditorHost, temp
 
 // "Save as template": the document's saved steps under a name, optionally locked with a password, then its share link.
 // Unlisted, only people with the link find it (and with a lock, only those who also have the password see its steps)
-function SaveTemplateDialog({ host, documentId, onClose }: {host: EditorHost, documentId: string, onClose: () => void}) {
+function SaveTemplateDialog({ host, state, documentId, exampleUrl, onClose }: {
+  host: EditorHost,
+  state?: EditorDocumentState,
+  documentId: string,
+  exampleUrl?: string | null,
+  onClose: () => void,
+}) {
   const { t } = useI18n();
   const titleId = useId();
   const inputId = useId();
@@ -123,6 +133,14 @@ function SaveTemplateDialog({ host, documentId, onClose }: {host: EditorHost, do
   const [ pending, setPending ] = useState(false);
   const [ error, setError ] = useState<string | null>(null);
   const [ saved, setSaved ] = useState<EditorTemplate | null>(null);
+  // what the template asks people for, as the steps ask now (candidate id -> question)
+  const candidates = useMemo(() => (state) ? inputCandidates(state.steps, state.effectsById) : [], [state]);
+  const [ asks, setAsks ] = useState<Record<string, string>>(() => Object.fromEntries(
+    candidates.filter((item) => item.step.inputs?.[item.param.name]).map((item) => [item.id, item.step.inputs![item.param.name]]),
+  ));
+  const emptyQuestion = Object.values(asks).some((question) => !question.trim());
+  // heavy AI effects can't be in a template yet (the api refuses them too)
+  const blocked = (state) ? state.steps.map((step) => state.effectsById.get(step.effect)).find((effect) => effect?.template_blocked) : undefined;
 
   const passwordShort = Boolean(password) && password.length < MIN_PASSWORD_LENGTH;
 
@@ -130,9 +148,28 @@ function SaveTemplateDialog({ host, documentId, onClose }: {host: EditorHost, do
     setPending(true);
     setError(null);
     try {
+      if (state) {
+        // the questions go on the steps first (they're what the template copies), then every edit has to be saved
+        const byStep: Record<string, Record<string, string> | undefined> = {};
+        for (const step of state.steps) {
+          byStep[step.id] = undefined;
+        }
+        for (const item of candidates) {
+          if (item.id in asks) {
+            byStep[item.step.id] = {...(byStep[item.step.id] ?? {}), [item.param.name]: asks[item.id].trim()};
+          }
+        }
+        const changed = state.steps.some((step) => JSON.stringify(step.inputs ?? null) !== JSON.stringify(byStep[step.id] ?? null));
+        if (changed) {
+          state.setStepInputs(byStep);
+        }
+        if (!await state.whenSaved()) {
+          throw new Error(t('editor.render.unsaved'));
+        }
+      }
       setSaved(await host.api.createTemplate(documentId, name.trim(), password || undefined));
     } catch (failure) {
-      setError(host.errorOf(failure)?.message || t('editor.template.error'));
+      setError(host.errorOf(failure)?.message || ((failure instanceof Error && failure.message) ? failure.message : t('editor.template.error')));
     } finally {
       setPending(false);
     }
@@ -146,7 +183,7 @@ function SaveTemplateDialog({ host, documentId, onClose }: {host: EditorHost, do
           event.preventDefault();
           if (saved) {
             onClose();
-          } else if (name.trim() && !passwordShort && !pending) {
+          } else if (name.trim() && !passwordShort && !emptyQuestion && !blocked && !pending) {
             void save();
           }
         }}
@@ -155,7 +192,7 @@ function SaveTemplateDialog({ host, documentId, onClose }: {host: EditorHost, do
         {(saved) ? (
           <div className='mt-3 flex flex-col gap-2'>
             <p className='text-sm text-muted'>{(saved.locked) ? t('editor.template.saved_locked') : t('editor.template.saved')}</p>
-            <TemplateShareActions host={host} template={saved}/>
+            <TemplateShareActions host={host} template={saved} exampleUrl={exampleUrl}/>
           </div>
         ) : (
           <>
@@ -182,6 +219,10 @@ function SaveTemplateDialog({ host, documentId, onClose }: {host: EditorHost, do
                 {(passwordShort) ? t('editor.template.password_short', {count: MIN_PASSWORD_LENGTH}) : t('editor.template.password_hint')}
               </p>
             </div>
+            <div className='mt-4'>
+              <AskForInputs candidates={candidates} value={asks} onChange={setAsks}/>
+            </div>
+            {(blocked) ? <p role='alert' className='mt-4 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-warning'>{t('editor.template.heavy_ai', {name: blocked.name})}</p> : null}
           </>
         )}
 
@@ -193,7 +234,7 @@ function SaveTemplateDialog({ host, documentId, onClose }: {host: EditorHost, do
           ) : (
             <>
               <button type='button' className='btn btn-secondary' onClick={onClose} disabled={pending}>{t('common.cancel')}</button>
-              <button type='submit' className='btn btn-primary' disabled={!name.trim() || passwordShort || pending}>
+              <button type='submit' className='btn btn-primary' disabled={!name.trim() || passwordShort || emptyQuestion || Boolean(blocked) || pending}>
                 {(pending) ? <Spinner className='size-4 border-white/40 border-t-white'/> : null}
                 {t('editor.template.create')}
               </button>
@@ -206,7 +247,14 @@ function SaveTemplateDialog({ host, documentId, onClose }: {host: EditorHost, do
 }
 
 
-export function SaveTemplateButton({ host, documentId, disabled }: {host: EditorHost, documentId: string, disabled: boolean}) {
+// `exampleUrl`: the current preview, the bot's post of the template shows it
+export function SaveTemplateButton({ host, state, documentId, exampleUrl, disabled }: {
+  host: EditorHost,
+  state?: EditorDocumentState,
+  documentId: string,
+  exampleUrl?: string | null,
+  disabled: boolean,
+}) {
   const { t } = useI18n();
   const [ open, setOpen ] = useState(false);
   return (
@@ -222,7 +270,7 @@ export function SaveTemplateButton({ host, documentId, disabled }: {host: Editor
         <BookmarkPlus aria-hidden className='size-4'/>
         <span className='hidden sm:inline'>{t('editor.template.save')}</span>
       </button>
-      {(open) ? <SaveTemplateDialog host={host} documentId={documentId} onClose={() => setOpen(false)}/> : null}
+      {(open) ? <SaveTemplateDialog host={host} state={state} documentId={documentId} exampleUrl={exampleUrl} onClose={() => setOpen(false)}/> : null}
     </>
   );
 }

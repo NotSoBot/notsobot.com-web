@@ -1,3 +1,5 @@
+import { hubApi } from './hub/api';
+import { createInvitesApi, type RoomInviter } from './invites';
 import type { EditorRoom } from './room';
 import type {
   EditorActivityContext,
@@ -32,6 +34,9 @@ export const EditorErrorCodes = Object.freeze({
   // a room op naming a step someone else removed, the op is dropped
   UNKNOWN_EDITOR_STEP: 10044,
   UNKNOWN_EDITOR_TEMPLATE: 10045,
+  // a room invite's room is gone (an editor lobby's is UNKNOWN_EDITOR_DOCUMENT), or the invite is unknown or expired
+  UNKNOWN_ACTIVITY_GAME_ROOM: 10046,
+  UNKNOWN_ACTIVITY_INVITE: 10047,
   // a locked template needs its password, or it was the wrong one (5 wrong a minute, then a 429)
   EDITOR_TEMPLATE_LOCKED: 50057,
   EDITOR_TEMPLATE_PASSWORD_INVALID: 50058,
@@ -64,7 +69,7 @@ export function createEditorApi(request: EditorRequest) {
   return {
     effects: () => request<EditorCatalogue>('/editor/effects'),
     documents: () => request<{documents: Array<EditorDocumentSummary>}>('/editor/documents'),
-    createDocument: (input: {file?: File, url?: string, activityInstanceId?: string, templateCode?: string, templatePassword?: string, lobbyPassword?: string, lobbyName?: string}) => {
+    createDocument: (input: {file?: File, url?: string, activityInstanceId?: string, templateCode?: string, templatePassword?: string, lobbyPassword?: string, lobbyName?: string, lobbyWatchOnly?: boolean}) => {
       const form = new FormData();
       // the new document starts with the template's steps (a locked one's need its password)
       if (input.templateCode) {
@@ -76,6 +81,9 @@ export function createEditorApi(request: EditorRequest) {
       // a password lobby, with `activityInstanceId`
       if (input.lobbyPassword) {
         form.append('lobby_password', input.lobbyPassword);
+      }
+      if (input.lobbyWatchOnly) {
+        form.append('lobby_watch_only', 'true');
       }
       if (input.lobbyName) {
         form.append('lobby_name', input.lobbyName);
@@ -93,7 +101,7 @@ export function createEditorApi(request: EditorRequest) {
       return request<EditorDocument>('/editor/documents', {method: 'POST', body: form, timeout: 120 * 1000});
     },
     // a document whose source a generator makes (the api waits for it, up to ~40s on a busy queue)
-    generateDocument: (input: {generator: string, params: Record<string, unknown>, activityInstanceId?: string, templateCode?: string, templatePassword?: string, lobbyPassword?: string, lobbyName?: string}) => request<EditorDocument>(
+    generateDocument: (input: {generator: string, params: Record<string, unknown>, activityInstanceId?: string, templateCode?: string, templatePassword?: string, lobbyPassword?: string, lobbyName?: string, lobbyWatchOnly?: boolean}) => request<EditorDocument>(
       '/editor/documents/generate',
       {
         method: 'POST',
@@ -105,6 +113,7 @@ export function createEditorApi(request: EditorRequest) {
           template_password: input.templatePassword,
           lobby_password: input.lobbyPassword,
           lobby_name: input.lobbyName,
+          lobby_watch_only: input.lobbyWatchOnly || undefined,
         },
         timeout: 60 * 1000,
       },
@@ -141,6 +150,11 @@ export function createEditorApi(request: EditorRequest) {
       body: {url, access_token: accessToken, filename},
       timeout: 60 * 1000,
     }),
+    // "Post in chat": the bot posts a render or a template card in the activity's channel, when they could post there
+    activityPost: (instanceId: string, body: ActivityPostBody) => request<{posted: boolean, reason?: string}>(
+      `/editor/activity/${pathId(instanceId)}/post`,
+      {method: 'POST', body, timeout: 60 * 1000},
+    ),
     // an overlay's file (a picture, gif or video) for the document, scanned like an upload
     uploadAsset: (documentId: string, input: {file?: File, url?: string}) => {
       const form = new FormData();
@@ -151,6 +165,19 @@ export function createEditorApi(request: EditorRequest) {
         form.append('url', input.url);
       }
       return request<EditorAsset>(`/editor/documents/${pathId(documentId)}/assets`, {method: 'POST', body: form, timeout: 120 * 1000});
+    },
+    // Replace media: a new source (a file or a link, scanned like an upload) under the same steps. `version`: the one the
+    // client has, a change meanwhile is a 409; a step that doesn't work on the new file is EDITOR_INVALID_STEP
+    replaceSource: (documentId: string, input: {file?: File, url?: string}, version: number) => {
+      const form = new FormData();
+      if (input.file) {
+        form.append('file', input.file);
+      }
+      if (input.url) {
+        form.append('url', input.url);
+      }
+      form.append('version', String(version));
+      return request<EditorDocument>(`/editor/documents/${pathId(documentId)}/source`, {method: 'PUT', body: form, timeout: 120 * 1000});
     },
     // a template's overlay files onto the document, before its steps are loaded onto it
     importTemplateAssets: (documentId: string, templateCode: string) => request<{assets: Array<EditorAsset>}>(
@@ -182,6 +209,10 @@ export function createEditorApi(request: EditorRequest) {
     }),
     template: (templateCode: string) => request<EditorTemplate>(`/editor/templates/${pathId(templateCode)}`),
     deleteTemplate: (templateCode: string) => request<void>(`/editor/templates/${pathId(templateCode)}`, {method: 'DELETE'}),
+    // the template hub: browse, publish, report (./hub/api.ts)
+    ...hubApi(request),
+    // room invites (./invites.ts): make one for a room they're in, open one they were sent
+    invites: createInvitesApi(request),
   };
 }
 
@@ -194,6 +225,25 @@ export interface RoomSettings {
   mode: 'solo' | 'public' | 'password',
   name: string,
   password: string,
+  // only its creator changes it
+  watchOnly?: boolean,
+}
+
+
+// `posted`: the bot posted it in the activity's channel, `dialog`: Discord's (or the device's) own share opened
+export type ShareOutcome = 'posted' | 'dialog';
+
+
+// `POST /editor/activity/<id>/post`: what the bot posts for them, `posted: false` with why when it can't. `invite`: a
+// room invite with a Join button (`invite_code`)
+export interface ActivityPostBody {
+  kind: 'render' | 'template' | 'invite',
+  document_id?: string,
+  template_code?: string,
+  invite_code?: string,
+  url?: string,
+  filename?: string,
+  locale?: string,
 }
 
 
@@ -205,9 +255,9 @@ export interface EditorHost {
   onLeave?: () => void,
   // the leave button's text, "New" when absent
   leaveLabel?: string,
-  // `share`: the Activity's share-to-channel, absent on the web
-  // `filename`: the document's file name, what it's called in chat
-  share?: (url: string, filename: string) => Promise<void>,
+  // `share`: the Activity's share-to-channel, absent on the web. `filename`: the document's file name, what it's called
+  // in chat. `posted`: the bot posted it in the channel ("Post in chat"), otherwise Discord's own dialog opened
+  share?: (url: string, filename: string, documentId: string) => Promise<ShareOutcome>,
   // links leaving the editor (download, premium): the Activity has to ask Discord to open them
   openExternal?: (url: string) => void,
   // the Activity's shared room, every change goes through it
@@ -218,7 +268,8 @@ export interface EditorHost {
   templateUrl: (templateCode: string) => string,
   // "Share in chat": the Activity's Discord share dialog (a link that opens the Activity on the template), or the
   // device's share sheet on the web where there is one. Absent: copying the link is the only way
-  shareTemplate?: (template: EditorTemplate) => Promise<void>,
+  // `exampleUrl`: something made with it (the current preview), shown in the bot's post
+  shareTemplate?: (template: EditorTemplate, exampleUrl?: string | null) => Promise<ShareOutcome>,
   // the share goes to a Discord chat ("Share in chat", the Activity), not the device's share sheet ("Share")
   shareTemplateInChat?: boolean,
   // the editor is the whole window (the Activity), not a page under the site's navbar
@@ -226,4 +277,9 @@ export interface EditorHost {
   // the Activity's Fork: this media and its steps (`document`, with the saved ones) as a new room with `settings`, or
   // their own edit for `solo`, then opens it
   fork?: (document: EditorDocument, settings: RoomSettings) => Promise<void>,
+  // the template hub's page (the site's `/editor/hub`). Absent in the Activity, where the start screen shows it as a
+  // panel and Try puts the template on the start screen. With a code: that template's view on it
+  openHub?: (templateCode?: string) => void,
+  // the Activity's group rooms: the header's Invite for this lobby (./invites.ts). Absent for solo edits and the web
+  inviter?: (documentId: string) => RoomInviter,
 }

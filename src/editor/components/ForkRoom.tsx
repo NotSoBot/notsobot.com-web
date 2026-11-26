@@ -20,6 +20,8 @@ function ForkDialog({ host, state, onClose }: {host: EditorHost, state: ReturnTy
   const [ mode, setMode ] = useState<LobbyMode>((document.locked) ? 'password' : 'public');
   const [ name, setName ] = useState(document.lobby_name ?? '');
   const [ password, setPassword ] = useState('');
+  // a fork of a watch-only room is one too unless they change it
+  const [ watchOnly, setWatchOnly ] = useState(Boolean(document.watch_only));
   const [ pending, setPending ] = useState(false);
   const [ error, setError ] = useState<string | null>(null);
   const ready = roomSettingsReady(mode, password);
@@ -32,7 +34,7 @@ function ForkDialog({ host, state, onClose }: {host: EditorHost, state: ReturnTy
       if (!await state.whenSaved()) {
         throw new Error(t('editor.render.unsaved'));
       }
-      await host.fork!({...document, steps: state.steps}, {mode, name, password});
+      await host.fork!({...document, steps: state.steps}, {mode, name, password, watchOnly});
     } catch (failure) {
       setError(host.errorOf(failure)?.message || ((failure instanceof Error) ? failure.message : t('editor.session.failed')));
       setPending(false);
@@ -54,7 +56,7 @@ function ForkDialog({ host, state, onClose }: {host: EditorHost, state: ReturnTy
           <h2 id={titleId} className='pr-10 text-lg font-semibold text-white'>{t('editor.fork.title')}</h2>
           <p className='mt-2 text-sm text-muted'>{plural('editor.fork.description', state.steps.length)}</p>
         </div>
-        <RoomSettingsFields mode={mode} onModeChange={setMode} name={name} onNameChange={setName} password={password} onPasswordChange={setPassword}/>
+        <RoomSettingsFields mode={mode} onModeChange={setMode} name={name} onNameChange={setName} password={password} onPasswordChange={setPassword} watchOnly={watchOnly} onWatchOnlyChange={setWatchOnly}/>
         {(error) ? <DialogError>{error}</DialogError> : null}
         <div className='flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
           <button type='button' className='btn btn-secondary' onClick={onClose} disabled={pending}>{t('common.cancel')}</button>

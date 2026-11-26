@@ -11,6 +11,7 @@ import { useI18n } from '@/i18n';
 import { EditorErrorCodes, type EditorHost } from '../api';
 import type { EditorTemplate } from '../types';
 import { MIN_PASSWORD_LENGTH, PasswordInput } from './SaveTemplate';
+import { HubStatusBadge, PublishButton } from '../hub/Publish';
 
 
 // true while a locked template's steps are still hidden from this viewer
@@ -102,6 +103,9 @@ export function TemplateBanner({ host, template, effectNames, onUnlocked }: {
           </li>
         ))}
       </ol>
+      {(template.inputs?.length) ? (
+        <p className='text-sm text-fg'>{t('editor.inputs.banner', {list: template.inputs.map((item) => item.label).join(', ')})}</p>
+      ) : null}
       <p className='text-sm text-muted'>{t('editor.template.pick')}</p>
     </section>
   );
@@ -227,18 +231,22 @@ export function TemplateList({ host }: {host: EditorHost}) {
       ) : (
         <ul className='flex flex-col gap-2'>
           {templates.map((template) => (
-            <li key={template.code} className='flex items-center gap-2 rounded-lg border border-line-strong bg-surface p-2 pl-3'>
+            <li key={template.code} className='flex flex-wrap items-center gap-2 rounded-lg border border-line-strong bg-surface p-2 pl-3'>
               {(template.locked) ? (
                 <Lock aria-label={t('editor.template.locked')} className='size-4 shrink-0 text-warning'/>
               ) : (
                 <Layers aria-hidden className='size-4 shrink-0 text-brand-text'/>
               )}
-              <span className='flex min-w-0 flex-1 flex-col'>
-                <span className='truncate text-sm font-semibold text-white'>{template.name}</span>
+              <span className='flex min-w-0 flex-1 flex-col max-sm:basis-[calc(100%-1.5rem)]'>
+                <span className='flex min-w-0 items-center gap-2'>
+                  <span className='truncate text-sm font-semibold text-white'>{template.name}</span>
+                  <HubStatusBadge template={template} className='shrink-0'/>
+                </span>
                 <span className='text-xs text-muted'>
                   {plural('editor.start.steps', template.steps.length)} · {plural('editor.template.uses', template.uses)}
                 </span>
               </span>
+              <PublishButton host={host} template={template} className='max-sm:ml-4' onChange={(saved) => setTemplates((items) => (items ?? []).map((item) => (item.code === saved.code) ? saved : item))}/>
               <CopyTemplateLink url={host.templateUrl(template.code)}/>
               {(share) ? (
                 <button

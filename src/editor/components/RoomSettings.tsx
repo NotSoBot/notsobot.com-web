@@ -1,4 +1,4 @@
-import { Lock, User, Users } from 'lucide-react';
+import { Eye, Lock, User, Users } from 'lucide-react';
 import { useId } from 'react';
 
 import { useI18n } from '@/i18n';
@@ -27,7 +27,7 @@ export function roomSettingsReady(mode: LobbyMode, password: string, keepsPasswo
 
 
 // Just me / Everyone / Password, the room's name and its password: the start screen's and Fork's
-export function RoomSettingsFields({ mode, onModeChange, name, onNameChange, password, onPasswordChange, modes = LOBBY_MODES, keepsPassword = false }: {
+export function RoomSettingsFields({ mode, onModeChange, name, onNameChange, password, onPasswordChange, watchOnly, onWatchOnlyChange, modes = LOBBY_MODES, keepsPassword = false, modeHint, watchOnlyHint }: {
   // the choices shown, a room's own settings leave out Just me
   modes?: ReadonlyArray<LobbyMode>,
   // a password room's settings: an empty password keeps the one it has
@@ -38,9 +38,16 @@ export function RoomSettingsFields({ mode, onModeChange, name, onNameChange, pas
   onNameChange: (value: string) => void,
   password: string,
   onPasswordChange: (value: string) => void,
+  // a room only its creator changes, everyone else watches (and can fork it). Absent: no switch
+  watchOnly?: boolean,
+  onWatchOnlyChange?: (value: boolean) => void,
+  // other wording for another kind of room (the Activity's game rooms)
+  modeHint?: (mode: LobbyMode) => string,
+  watchOnlyHint?: string,
 }) {
   const { t } = useI18n();
   const nameId = useId();
+  const watchId = useId();
   const passwordId = useId();
   return (
     <div className='flex flex-col gap-2'>
@@ -62,7 +69,7 @@ export function RoomSettingsFields({ mode, onModeChange, name, onNameChange, pas
           </button>
         ))}
       </div>
-      <p className='text-xs text-subtle'>{t(`editor.session.mode_${mode}_hint`, {limit: ROOM_MAX_EDITORS})}</p>
+      <p className='text-xs text-subtle'>{(modeHint) ? modeHint(mode) : t(`editor.session.mode_${mode}_hint`, {limit: ROOM_MAX_EDITORS})}</p>
       {(mode !== 'solo') ? (
         <div>
           <label htmlFor={nameId} className='mb-1.5 block text-sm text-muted'>{t('editor.session.room_name')}</label>
@@ -85,6 +92,15 @@ export function RoomSettingsFields({ mode, onModeChange, name, onNameChange, pas
             <p className='mt-1.5 text-xs text-danger-text'>{t('editor.template.password_short', {count: MIN_PASSWORD_LENGTH})}</p>
           ) : null}
         </div>
+      ) : null}
+      {(mode !== 'solo' && onWatchOnlyChange) ? (
+        <label htmlFor={watchId} className='flex cursor-pointer items-start gap-2.5 rounded-lg border border-line-strong p-2.5'>
+          <input id={watchId} type='checkbox' checked={Boolean(watchOnly)} onChange={(event) => onWatchOnlyChange(event.target.checked)} className='mt-0.5 size-4 accent-brand'/>
+          <span className='flex flex-col gap-0.5'>
+            <span className='flex items-center gap-1.5 text-sm font-semibold text-fg'><Eye aria-hidden className='size-4'/>{t('editor.room.watch_only')}</span>
+            <span className='text-xs text-subtle'>{watchOnlyHint ?? t('editor.room.watch_only_hint')}</span>
+          </span>
+        </label>
       ) : null}
     </div>
   );

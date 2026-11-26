@@ -11,6 +11,7 @@ import type { EditorHost } from '../api';
 import { defaultParams, newStepId } from '../stack';
 import type { EditorEffect, EditorStep, EditorTemplate } from '../types';
 import type { useEditorDocument } from '../useEditorDocument';
+import { HubStatusBadge, PublishButton } from '../hub/Publish';
 
 
 type EditorState = ReturnType<typeof useEditorDocument>;
@@ -22,12 +23,21 @@ function templateSteps(template: EditorTemplate, effectsById: Map<string, Editor
   const steps: Array<EditorStep> = [];
   for (const step of template.steps) {
     const effect = effectsById.get(step.effect);
-    if (!effect) {
+    // heavy AI effects stay out of templates (an old one saved before that rule loads without them)
+    if (!effect || effect.template_blocked) {
       continue;
     }
     const known = new Set(effect.params.map((param) => param.name));
     const params = Object.fromEntries(Object.entries(step.params ?? {}).filter(([ name ]) => known.has(name)));
-    steps.push({id: newStepId(), effect: effect.id, hidden: Boolean(step.hidden), params: {...defaultParams(effect), ...params}});
+    // its questions, for params it still has
+    const inputs = Object.fromEntries(Object.entries(step.inputs ?? {}).filter(([ name ]) => known.has(name)));
+    steps.push({
+      id: newStepId(),
+      effect: effect.id,
+      hidden: Boolean(step.hidden),
+      params: {...defaultParams(effect), ...params},
+      ...((Object.keys(inputs).length) ? {inputs} : {}),
+    });
   }
   return steps;
 }
@@ -76,7 +86,7 @@ function TemplatePickerDialog({ host, state, onLoad, onClose }: {
               const usable = templateSteps(template, state.effectsById);
               const names = usable.filter((step) => !step.hidden).map((step) => state.effectsById.get(step.effect)?.name ?? step.effect);
               return (
-                <li key={template.code}>
+                <li key={template.code} className='flex items-center gap-1.5'>
                   <button
                     type='button'
                     disabled={!usable.length}
@@ -93,19 +103,21 @@ function TemplatePickerDialog({ host, state, onLoad, onClose }: {
                       state.replaceSteps(usable);
                       onLoad(template);
                     }}
-                    className='flex min-h-14 w-full items-center gap-3 rounded-lg border border-line-strong bg-bg px-3 py-2 text-left hover:border-brand disabled:cursor-not-allowed disabled:opacity-50'
+                    className='flex min-h-14 w-full min-w-0 flex-1 items-center gap-3 rounded-lg border border-line-strong bg-bg px-3 py-2 text-left hover:border-brand disabled:cursor-not-allowed disabled:opacity-50'
                   >
                     <LayoutTemplate aria-hidden className='size-5 shrink-0 text-muted'/>
                     <span className='flex min-w-0 flex-1 flex-col'>
                       <span className='flex items-center gap-1.5 text-sm font-semibold text-white'>
                         <span className='truncate'>{template.name}</span>
                         {(template.locked) ? <Lock aria-label={t('editor.session.locked')} className='size-3.5 shrink-0 text-subtle'/> : null}
+                        <HubStatusBadge template={template} className='shrink-0'/>
                       </span>
                       <span className='truncate text-xs text-subtle'>
                         {plural('editor.templates.effects', usable.length)}{(names.length) ? ` · ${names.slice(0, 4).join(' → ')}` : ''}
                       </span>
                     </span>
                   </button>
+                  <PublishButton host={host} template={template} onChange={(saved) => setTemplates((items) => (items ?? []).map((item) => (item.code === saved.code) ? saved : item))}/>
                 </li>
               );
             })}

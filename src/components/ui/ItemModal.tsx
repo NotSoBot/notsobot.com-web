@@ -248,7 +248,7 @@ export function AdminTagModal({ labelledBy, previousId, nextId, onNavigate, onCl
 
   // A verdict's own hold lets go in the same update that asks for this, so `held` is read after it: whatever still
   // holds the modal then (unsaved edits, another request) keeps it on this item, and the ask is dropped, not kept
-  // for later
+  // for later. The same while a dialog is open over this one (a confirm, a user opened from it), like ← / →
   const [ advancing, setAdvancing ] = useState(false);
   useEffect(() => {
     if (!advancing) {
@@ -256,7 +256,7 @@ export function AdminTagModal({ labelledBy, previousId, nextId, onNavigate, onCl
     }
     setAdvancing(false);
     const { nextId, held } = navigation.current;
-    if (nextId && !held) {
+    if (nextId && !held && openModalCount() <= 1) {
       step.current(nextId);
     }
   }, [advancing]);

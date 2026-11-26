@@ -1229,11 +1229,12 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     name: 'template',
     category: 'flow',
     summary: 'Runs a media editor template\'s effects on the media, the same way the editor renders them.',
-    syntax: 'template MEDIA_KEY CODE PASSWORD=none',
+    syntax: 'template MEDIA_KEY CODE PASSWORD=none ...INPUT=value',
     args: [
       media(),
       {name: 'CODE', description: 'the template\'s code, the letters at the end of its link (`notsobot.com/editor/template/CODE`). The whole link works too'},
       {name: 'PASSWORD', default: 'none', description: 'a locked template\'s password'},
+      {name: 'INPUT', default: 'the template\'s own', description: 'what the template asks for, by name (its page lists them, like `YOUR_CAPTION`): text, numbers, colors, choices and true/false as they are, a file as a link'},
     ],
     examples: [
       {
@@ -1244,11 +1245,16 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
         code: '{mediascript:load {iv} a\nload {avatar} b\ntemplate a AbCd\ntemplate b AbCd\nrender a}',
         result: 'The same template on two media keys.',
       },
+      {
+        code: '{mediascript:load {iv} a\ntemplate a AbCd YOUR_CAPTION="{args}" FACE={avatar}\nrender a}',
+        result: 'A template that asks for a caption and a picture, filled with the tag\'s text and the user\'s avatar.',
+      },
     ],
     notes: [
       'Toward the 300 line limit it counts as every line its effects make, not as one line. A `template` line inside a loop counts once.',
       'Hidden steps are skipped. An effect whose settings changed since the template was saved uses its current ones.',
       'Variables it `set`s go away when it ends, like a function\'s. The media key keeps the changes.',
+      'Input names ignore case and underscores (`your_caption=` works). An input it doesn\'t ask for is an error that lists the ones it does.',
       'A password written in a tag can be read by anyone who sees the tag\'s code.',
     ],
   },

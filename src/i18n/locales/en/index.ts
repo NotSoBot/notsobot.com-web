@@ -14,6 +14,7 @@ import { Status } from './status';
 import { Ui } from './ui';
 import { Changelog } from './changelog';
 import { TagDocs } from './tagDocs';
+import { EditorHub } from './editorHub';
 
 
 export const English = Object.freeze({
@@ -30,4 +31,5 @@ export const English = Object.freeze({
   ...Ui,
   ...Changelog,
   ...TagDocs,
+  ...EditorHub,
 });

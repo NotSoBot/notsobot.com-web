@@ -1,10 +1,11 @@
-import { Shuffle } from 'lucide-react';
+import { Shuffle, Sigma } from 'lucide-react';
 import { useId } from 'react';
 
 import { ColorPicker } from '@/components/ui/ColorPicker';
 import { CharCounter, Toggle } from '@/components/ui/form';
 import { useI18n } from '@/i18n';
 
+import { evaluateFormula, isFormula, MAX_FORMULA_LENGTH, useFormulaContext } from '../formulas';
 import { paramLabel } from '../stack';
 import type { EditorParam } from '../types';
 
@@ -27,7 +28,78 @@ function sliderStep(param: EditorParam): number {
 }
 
 
-function NumberControl({ param, value, onChange }: {param: EditorParam, value: number, onChange: (value: number) => void}) {
+// A number setting that can also be a formula on values (`param.formula`, when a Value step comes before it): Σ switches
+// between the slider and the formula, which shows what it comes to now
+function FormulaNumberControl({ param, value, onChange }: {param: EditorParam, value: unknown, onChange: (value: unknown) => void}) {
+  const { t } = useI18n();
+  const id = useId();
+  const { values, range } = useFormulaContext();
+  // a Value step's number: its own range, not the catalogue's
+  const ranged = (range && param.name === 'number') ? {...param, minimum: range.minimum, maximum: range.maximum} : param;
+  const formula = isFormula(value);
+  const canSwitch = Boolean(param.formula) && (formula || values.size > 0);
+  const result = (formula) ? evaluateFormula(value.expr, values) : null;
+  const clamp = (number: number) => Math.min(Math.max(number, ranged.minimum ?? -Infinity), ranged.maximum ?? Infinity);
+  const toggle = (canSwitch) ? (
+    <button
+      type='button'
+      aria-pressed={formula}
+      title={(formula) ? t('editor.formula.off') : t('editor.formula.on')}
+      aria-label={(formula) ? t('editor.formula.off') : t('editor.formula.on')}
+      onClick={() => {
+        if (formula) {
+          onChange((result !== null) ? clamp(result) : param.default);
+        } else {
+          onChange({expr: [...values.keys()][0] ?? String(value ?? param.default)});
+        }
+      }}
+      className={(formula) ? 'flex size-8 items-center justify-center rounded-md bg-brand text-white' : 'flex size-8 items-center justify-center rounded-md border border-line-strong text-muted hover:text-fg'}
+    >
+      <Sigma aria-hidden className='size-4'/>
+    </button>
+  ) : null;
+  if (!formula) {
+    return <NumberControl param={ranged} value={Number(value ?? param.default)} onChange={onChange} extra={toggle}/>;
+  }
+  return (
+    <div className='flex flex-col gap-1.5'>
+      <div className='flex items-center justify-between gap-2'>
+        <label htmlFor={id} className='text-[13px] text-muted'>{paramLabel(param)}</label>
+        <span className='flex items-center gap-1.5'>
+          <span className={(result === null) ? 'font-mono text-[13px] text-danger-text' : 'font-mono text-[13px] text-fg tabular-nums'}>
+            {(result === null) ? t('editor.formula.invalid') : `= ${Math.round(clamp(result) * 1000) / 1000}`}
+          </span>
+          {toggle}
+        </span>
+      </div>
+      <input
+        id={id}
+        value={value.expr}
+        maxLength={MAX_FORMULA_LENGTH}
+        spellCheck={false}
+        autoComplete='off'
+        onChange={(event) => onChange({expr: event.target.value})}
+        className={`${INPUT} font-mono`}
+      />
+      <span className='flex flex-wrap gap-1'>
+        {[...values.keys()].map((name) => (
+          <button
+            key={name}
+            type='button'
+            onClick={() => onChange({expr: `${value.expr} ${name}`.trim()})}
+            className='rounded-md border border-line-strong px-1.5 py-0.5 font-mono text-xs text-muted hover:text-fg'
+          >
+            {name}
+          </button>
+        ))}
+        <span className='text-xs text-subtle'>{t('editor.formula.hint')}</span>
+      </span>
+    </div>
+  );
+}
+
+
+function NumberControl({ param, value, onChange, extra = null }: {param: EditorParam, value: number, onChange: (value: number) => void, extra?: React.ReactNode}) {
   const { t } = useI18n();
   const id = useId();
   const minimum = param.minimum ?? 0;
@@ -62,6 +134,7 @@ function NumberControl({ param, value, onChange }: {param: EditorParam, value: n
             className='h-8 w-20 rounded-md border border-line-strong bg-deep px-2 text-right font-mono text-[13px] text-fg tabular-nums outline-none focus:border-brand'
           />
           {(percent) ? <span aria-hidden className='font-mono text-[13px] text-muted'>%</span> : null}
+          {extra}
         </span>
       </div>
       <div className='flex items-center gap-2'>
@@ -95,7 +168,7 @@ export function SimpleParamControl({ param, value, onChange }: {param: EditorPar
   switch (param.kind) {
     case 'number':
     case 'integer':
-      return <NumberControl param={param} value={Number(value ?? param.default)} onChange={onChange}/>;
+      return <FormulaNumberControl param={param} value={value} onChange={onChange}/>;
     case 'boolean':
       return <Toggle checked={Boolean(value)} onChange={onChange} label={paramLabel(param)}/>;
     case 'choice':

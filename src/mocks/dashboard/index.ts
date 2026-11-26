@@ -2323,8 +2323,14 @@ route('GET', '/admin/users', (_match, { query }) => {
   requireStaff();
   const needle = (query.get('query') || '').toLowerCase();
   const sortBy = query.get('sort_by') || 'flags';
-  let entries = adminUserEntries(state.adminUsers, state.contentFlags, state.reports)
-    .filter((entry) => !needle || entry.user.username.toLowerCase().includes(needle) || entry.user.id === needle);
+  let entries = adminUserEntries(state.adminUsers, state.contentFlags, state.reports);
+  // `user_id` is that user and nothing else, whatever the search and filters say
+  const userId = query.get('user_id');
+  if (userId) {
+    const items = entries.filter((entry) => entry.user.id === userId);
+    return {count: items.length, items};
+  }
+  entries = entries.filter((entry) => !needle || entry.user.username.toLowerCase().includes(needle) || entry.user.id === needle);
   if (parseBool(query.get('only_flagged'))) {
     entries = entries.filter((entry) => entry.content_flags.total);
   }
@@ -6507,6 +6513,8 @@ const mockCommands = [
   mockCommand('ai', 'ai', 'AI', 'Talk to NotSoAI', 'premium_server', [0, 1]),
   mockCommand('voice.clone', 'tts voice create', 'AUDIO', 'Clone a voice for Text-to-Speech', null),
   mockCommand('tag.show', 'tag', 'TAGS', 'Show a tag', null, [0, 1]),
+  // slash only, it launches the Activity on its game rooms (nothing for the editor's "Try it")
+  mockCommand('games', 'games', 'GAMES', 'Play games together in the NotSoBot Activity', null, [1]),
   // the custom command fallback (`.<tagname>`): its prefixed variant has no name, the slash one does
   {
     ...mockCommand('tag.show.custom.command', '', 'TAGS', 'Execute a custom command tag', null),
@@ -6669,6 +6677,8 @@ registerEditorMocks(route, (status, code, message, metadata) => new MockError(st
 
 
 const MOCK_PUBLIC_PATHS = ['/tags/directory', '/reports/anonymous', '/commands', '/commands/stats', '/home', '/info/voice', '/editor/effects'];
+// the template hub's list and a template's view answer logged out too (its staff queue doesn't)
+const MOCK_PUBLIC_PATTERN = /^\/editor\/hub(\/(?!review$)[A-Za-z]+)?$/;
 
 export function installDashboardMocks(): void {
   const realFetch = window.fetch.bind(window);
@@ -6690,7 +6700,7 @@ export function installDashboardMocks(): void {
       init?.signal?.throwIfAborted();
       const headers = new Headers(init?.headers);
       // the public tag directory and anonymous reports are fetched without a token
-      if (!MOCK_PUBLIC_PATHS.includes(path) && headers.get('authorization') !== MOCK_TOKEN) {
+      if (!MOCK_PUBLIC_PATHS.includes(path) && !MOCK_PUBLIC_PATTERN.test(path) && headers.get('authorization') !== MOCK_TOKEN) {
         return json(401, {code: 0, message: '401: Unauthorized', status: 401});
       }
       let body: Record<string, unknown> = {};

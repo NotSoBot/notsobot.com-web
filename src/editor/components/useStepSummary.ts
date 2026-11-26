@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 
 import { useI18n } from '@/i18n';
 
+import { isFormula, VALUE_EFFECT_ID } from '../formulas';
 import type { EditorBox, EditorEffect, EditorPoint, EditorStep, EditorStroke } from '../types';
 
 
@@ -16,6 +17,11 @@ export function useStepSummary() {
   return useCallback((effect: EditorEffect | undefined, step: EditorStep): string => {
     if (!effect) {
       return '';
+    }
+    if (effect.id === VALUE_EFFECT_ID) {
+      // `crunch = 40 (0–80)`
+      const number = step.params.number;
+      return `${String(step.params.name ?? '')} = ${(isFormula(number)) ? number.expr : formatValue(Number(number))} (${formatValue(Number(step.params.minimum))}–${formatValue(Number(step.params.maximum))})`;
     }
     const parts: Array<string> = [];
     for (const param of effect.params) {
@@ -33,6 +39,10 @@ export function useStepSummary() {
         }
         case 'number':
         case 'integer': {
+          if (isFormula(value)) {
+            parts.push(`${name} = ${value.expr}`);
+            break;
+          }
           if (typeof value === 'number' && value !== param.default) {
             parts.push((param.unit === 'width') ? `${name} ${formatValue(Math.round(value * 1000) / 10)}%` : `${name} ${formatValue(value)}`);
           }

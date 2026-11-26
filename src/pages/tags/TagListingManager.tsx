@@ -34,6 +34,7 @@ import {
 import { adminTagDirectoryPath } from '@/lib/adminPaths';
 import { queryKeys } from '@/lib/api/queries';
 import { cn, formatDate, formatNumber } from '@/lib/utils';
+import { AdminUserPeek } from '@/pages/dashboard/admin/AdminUserPeek';
 
 import { CategorySelect, DescriptionEditor, tagContentAcknowledgement, useConfirmPress, verificationRequirement, VerificationWarning } from './tagDirectory';
 
@@ -682,18 +683,21 @@ export function ListingEditForm({ item, access, media, onDone, onDirtyChange, on
           </Field>
           {/* archiving a link that's in the content swaps it for the permanent one in the draft, saved with the listing */}
           {(admin.data) ? (
-            <Suspense fallback={null}>
-              <TagAssetsPanel
-                tagId={item.id}
-                assets={admin.data.tag.assets ?? []}
-                className=''
-                onArchived={(asset, sourceUrl) => {
-                  if (sourceUrl) {
-                    setContent((current) => current?.replaceAll(sourceUrl, asset.urls.cdn) ?? current);
-                  }
-                }}
-              />
-            </Suspense>
+            // outside the staff routes: who uploaded a file opens over this page too, keeping the edits here
+            <AdminUserPeek>
+              <Suspense fallback={null}>
+                <TagAssetsPanel
+                  tagId={item.id}
+                  assets={admin.data.tag.assets ?? []}
+                  className=''
+                  onArchived={(asset, sourceUrl) => {
+                    if (sourceUrl) {
+                      setContent((current) => current?.replaceAll(sourceUrl, asset.urls.cdn) ?? current);
+                    }
+                  }}
+                />
+              </Suspense>
+            </AdminUserPeek>
           ) : null}
         </>
       ) : (

@@ -13,6 +13,7 @@ import { errorMessage } from '@/lib/api/dashboardQueries';
 import { cn, decodeHash, displayLocale, formatDate, formatDateTime, formatMemory, formatNumber, toDate } from '@/lib/utils';
 
 import { ErrorPanel, InlineError, Panel, Skeleton } from '../../ui';
+import { usePageNavigationKey } from '../AdminUserPeek';
 
 
 // validated against the dark surface (dataviz palette check), each pair a chart uses is told apart by everyone.
@@ -79,6 +80,7 @@ export function StatsSection<T>({ id, title, accent, description, query, asOf, c
   // not while another window's numbers stand in, those are from an earlier request
   const from = asOf ?? ((isPlaceholderData) ? null : dataUpdatedAt || null);
   const location = useLocation();
+  const navigationKey = usePageNavigationKey();
   const loaded = data !== undefined;
   // loading: nothing yet, failed: nothing to show, stale: a refresh failed (the numbers shown are from before it),
   // refreshing: a refresh or another window on the way, ready: up to date
@@ -89,7 +91,7 @@ export function StatsSection<T>({ id, title, accent, description, query, asOf, c
     if (loaded && decodeHash(location.hash) === id) {
       document.getElementById(id)?.scrollIntoView({behavior: 'smooth', block: 'start'});
     }
-  }, [id, loaded, location.key]);
+  }, [id, loaded, navigationKey]);
 
   return (
     <section id={id} aria-label={title} className='scroll-mt-24' data-state={state}>

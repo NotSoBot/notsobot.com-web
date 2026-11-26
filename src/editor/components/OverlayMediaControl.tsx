@@ -5,8 +5,8 @@ import { Spinner } from '@/components/ui/Spinner';
 import { useI18n } from '@/i18n';
 import { cn } from '@/lib/utils';
 
-import { ADD_AUDIO_EFFECT_ID } from '../stack';
-import type { EditorAsset, EditorBox, EditorStep } from '../types';
+import { ADD_AUDIO_EFFECT_ID, assetFits, fileAccepts, fileForAudio, fileInputAccept } from '../stack';
+import type { EditorAsset, EditorBox, EditorFileAccept, EditorStep } from '../types';
 import type { EditorDocumentState } from '../useEditorDocument';
 import { FileSteps } from './FileSteps';
 
@@ -112,30 +112,38 @@ function AssetThumb({ asset, className }: {asset: EditorAsset, className?: strin
 }
 
 
-// a file that fits the step: an overlay's shows something, Add Audio's has sound
-function fitsStep(asset: EditorAsset, forAudio: boolean): boolean {
-  return (forAudio) ? (asset.kind === 'audio' || Boolean(asset.audio)) : asset.kind !== 'audio';
+// a file that fits the step: what its effect's file param accepts (an overlay's shows something, Add Audio's has sound)
+function fitsStep(asset: EditorAsset, accepts: Array<EditorFileAccept>): boolean {
+  return assetFits(asset, accepts);
 }
 
 
-// Overlay's or Add Audio's file: one already uploaded to this edit, a new upload, or a link. Picking an overlay sizes
-// its box to the file's shape
+// The file of an effect that takes one (Overlay, Add Audio, and since 2026-11-26 Blend, Face Swap, Vocoder...): one
+// already uploaded to this edit, a new upload, or a link. Only the files its `accepts` takes are offered. Picking one for
+// an effect placed in a box (Overlay, Green Screen Overlay) sizes the box to the file's shape
 export function OverlayMediaControl({ state, step, value }: {state: EditorDocumentState, step: EditorStep, value: string | null}) {
   const { t } = useI18n();
-  const forAudio = step.effect === ADD_AUDIO_EFFECT_ID;
+  const effect = state.effectsById.get(step.effect);
+  const isOverlay = step.effect === 'overlay';
+  const isAddAudio = step.effect === ADD_AUDIO_EFFECT_ID;
+  const accepts: Array<EditorFileAccept> = (effect) ? fileAccepts(effect) : (isAddAudio) ? ['sound'] : ['image', 'video'];
+  const forAudio = (effect) ? fileForAudio(effect) : isAddAudio;
+  const hasBox = Boolean(effect?.params.some((param) => param.kind === 'box'));
+  const videoOnly = accepts.length === 1 && accepts[0] === 'video';
+  const notFit = (forAudio) ? t('editor.audio.no_sound') : (isOverlay) ? t('editor.overlay.not_visual') : (videoOnly) ? t('editor.file.not_video') : t('editor.file.not_visual');
   const fileRef = useRef<HTMLInputElement>(null);
   const linkId = useId();
   const [ link, setLink ] = useState('');
   const [ pending, setPending ] = useState(false);
   const [ error, setError ] = useState<string | null>(null);
-  const assets = (state.document?.assets ?? []).filter((asset) => fitsStep(asset, forAudio));
+  const assets = (state.document?.assets ?? []).filter((asset) => fitsStep(asset, accepts));
   const current = assets.find((asset) => asset.id === value) ?? null;
   const meta = state.document?.source_meta;
   const mediaAspect = (meta?.height || 1) / (meta?.width || 1);
 
   const pick = (asset: EditorAsset) => {
     state.setParam(step.id, 'media', asset.id);
-    if (!forAudio) {
+    if (hasBox) {
       state.setParam(step.id, 'region', fittedBox(asset, mediaAspect));
     }
   };
@@ -144,9 +152,9 @@ export function OverlayMediaControl({ state, step, value }: {state: EditorDocume
     setError(null);
     try {
       const asset = await state.uploadAsset(input);
-      if (!fitsStep(asset, forAudio)) {
+      if (!fitsStep(asset, accepts)) {
         // it's this edit's file now, just not one this step can use
-        throw new Error((forAudio) ? t('editor.audio.no_sound') : t('editor.overlay.not_visual'));
+        throw new Error(notFit);
       }
       pick(asset);
       setLink('');
@@ -159,7 +167,7 @@ export function OverlayMediaControl({ state, step, value }: {state: EditorDocume
 
   return (
     <div className='flex flex-col gap-2.5'>
-      <span className='text-[13px] text-muted'>{(forAudio) ? t('editor.audio.file') : t('editor.overlay.file')}</span>
+      <span className='text-[13px] text-muted'>{(forAudio) ? t('editor.audio.file') : (isOverlay) ? t('editor.overlay.file') : t('editor.file.file')}</span>
       {(current) ? (
         <div className='flex items-center gap-2.5 rounded-lg border border-line-strong bg-deep p-2'>
           <AssetThumb asset={current} className='size-12 shrink-0 rounded'/>
@@ -172,7 +180,7 @@ export function OverlayMediaControl({ state, step, value }: {state: EditorDocume
           </span>
         </div>
       ) : (
-        <p className='text-xs text-subtle'>{(forAudio) ? t('editor.audio.pick_hint') : t('editor.overlay.pick_hint')}</p>
+        <p className='text-xs text-subtle'>{(forAudio) ? t('editor.audio.pick_hint') : (isOverlay) ? t('editor.overlay.pick_hint') : (videoOnly) ? t('editor.file.pick_hint_video') : t('editor.file.pick_hint')}</p>
       )}
       {(assets.length) ? (
         <div role='group' aria-label={t('editor.overlay.uploaded')} className='flex flex-wrap gap-1.5'>
@@ -194,7 +202,7 @@ export function OverlayMediaControl({ state, step, value }: {state: EditorDocume
       <input
         ref={fileRef}
         type='file'
-        accept={(forAudio) ? 'audio/*,video/*' : 'image/*,video/*'}
+        accept={fileInputAccept(accepts)}
         hidden
         onChange={(event) => {
           const file = event.target.files?.[0];
@@ -232,8 +240,8 @@ export function OverlayMediaControl({ state, step, value }: {state: EditorDocume
       </form>
       {(error) ? <p role='alert' className='text-xs text-danger-text'>{error}</p> : null}
       {(current && 0 < current.duration) ? <ClipRange state={state} step={step} duration={current.duration}/> : null}
-      {(current) ? <FileSteps state={state} step={step} asset={current} forAudio={forAudio}/> : null}
-      {(current && !forAudio) ? (
+      {(current) ? <FileSteps state={state} step={step} asset={current} forAudio={forAudio} generic={!isOverlay && !forAudio}/> : null}
+      {(current && hasBox) ? (
         <button
           type='button'
           className='btn btn-secondary w-full'
@@ -242,7 +250,8 @@ export function OverlayMediaControl({ state, step, value }: {state: EditorDocume
           <Ratio aria-hidden className='size-4'/>{t('editor.overlay.reshape')}
         </button>
       ) : null}
-      {(current) ? <p className='text-xs text-subtle'>{(forAudio) ? t('editor.audio.note') : t('editor.overlay.place')}</p> : null}
+      {(current && (isAddAudio || hasBox)) ? <p className='text-xs text-subtle'>{(isAddAudio) ? t('editor.audio.note') : t('editor.overlay.place')}</p> : null}
+      {(current && !forAudio && !hasBox && !videoOnly) ? <p className='text-xs text-subtle'>{t('editor.file.still_note')}</p> : null}
     </div>
   );
 }

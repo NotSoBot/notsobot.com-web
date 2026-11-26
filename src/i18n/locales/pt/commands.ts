@@ -77,6 +77,9 @@ export const Commands: Record<keyof typeof English, string> = {
   'commands.uses_this_week': 'usos nesta semana',
 
   'commands.drawer.see_premium': 'Ver o NotSoPremium',
+  'commands.drawer.try_editor': 'Testar no editor',
+  'commands.drawer.try_generator': 'Criar no editor',
+  'commands.drawer.try_hint': 'Teste {name} na sua própria mídia no editor web.',
   'commands.drawer.prefix_instead': 'Use como <slash>{slash}</slash> ou <code>{mention}</code> no lugar.',
   'commands.drawer.prefix_instead_mention': 'Use como <code>{mention}</code> no lugar.',
   'commands.drawer.uses': 'Usos nesta semana',

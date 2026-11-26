@@ -25,6 +25,8 @@ export const Pages: PageDescriptions = Object.freeze({
   DASHBOARD_FILES: DASHBOARD_DESCRIPTION,
   DASHBOARD_FONTS: DASHBOARD_DESCRIPTION,
   EDITOR: 'Empilhe efeitos em uma imagem, GIF, vídeo ou áudio, veja cada mudança e depois renderize em qualidade total.',
+  EDITOR_HUB: 'Explore os modelos do editor de mídia que as pessoas publicaram: efeitos para experimentar na sua própria imagem, GIF, vídeo ou áudio, ou usar numa tag com MediaScript.',
+  EDITOR_HUB_ITEM: 'Um modelo do editor de mídia para experimentar na sua própria imagem, GIF, vídeo ou áudio.',
   EDITOR_DOCUMENT: 'Empilhe efeitos em uma imagem, GIF, vídeo ou áudio, veja cada mudança e depois renderize em qualidade total.',
   EDITOR_TEMPLATE: 'Aplique um conjunto compartilhado de efeitos do editor do NotSoBot à sua própria imagem, GIF, vídeo ou áudio.',
   DASHBOARD_AI_MEMORY: DASHBOARD_DESCRIPTION,

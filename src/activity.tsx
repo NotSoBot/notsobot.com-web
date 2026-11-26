@@ -18,6 +18,13 @@ async function start(): Promise<void> {
   const language = languageFromLocale(navigator.language) ?? DEFAULT_LANGUAGE;
   setActiveLanguage(language, await loadDictionary(language));
   await loadDashboardText();
+  // dev mocks only: `/activity?mockGame=1` plays the flag game against an in-browser fake (no Discord, no api). The
+  // condition is static, production builds drop the import
+  if (import.meta.env.DEV && import.meta.env.VITE_DASHBOARD_MOCKS === 'true' && new URLSearchParams(window.location.search).has('mockGame')) {
+    const { FlagGameMockApp } = await import('@/activity-games/mock/FlagGameMockApp');
+    createRoot(document.getElementById('root')!).render(<StrictMode><FlagGameMockApp/></StrictMode>);
+    return;
+  }
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <ActivityApp/>

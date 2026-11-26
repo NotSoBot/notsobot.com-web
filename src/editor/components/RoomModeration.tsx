@@ -67,11 +67,12 @@ export function CloseRoomDialog({ room, documentId, name, onClose }: {
 
 
 // The room's creator changes its name and whether it needs a password, mid-room. Who's in it stays in
-export function RoomSettingsDialog({ room, documentId, name: currentName, locked, onClose }: {
+export function RoomSettingsDialog({ room, documentId, name: currentName, locked, watchOnly: currentWatchOnly, onClose }: {
   room: EditorRoom,
   documentId: string,
   name: string | null,
   locked: boolean,
+  watchOnly: boolean,
   onClose: () => void,
 }) {
   const { t } = useI18n();
@@ -79,6 +80,7 @@ export function RoomSettingsDialog({ room, documentId, name: currentName, locked
   const [ mode, setMode ] = useState<LobbyMode>((locked) ? 'password' : 'public');
   const [ name, setName ] = useState(currentName ?? '');
   const [ password, setPassword ] = useState('');
+  const [ watchOnly, setWatchOnly ] = useState(currentWatchOnly);
   const [ pending, setPending ] = useState(false);
   const [ error, setError ] = useState<string | null>(null);
   // a password room keeps its password when the box is left empty
@@ -96,7 +98,7 @@ export function RoomSettingsDialog({ room, documentId, name: currentName, locked
           }
           setPending(true);
           setError(null);
-          const result = await room.updateRoomSettings(documentId, {name, mode: (mode === 'password') ? 'password' : 'public', password});
+          const result = await room.updateRoomSettings(documentId, {name, mode: (mode === 'password') ? 'password' : 'public', password, watchOnly});
           setPending(false);
           if (result.ok) {
             onClose();
@@ -118,6 +120,8 @@ export function RoomSettingsDialog({ room, documentId, name: currentName, locked
           onNameChange={setName}
           password={password}
           onPasswordChange={setPassword}
+          watchOnly={watchOnly}
+          onWatchOnlyChange={setWatchOnly}
         />
         {(error) ? <DialogError>{error}</DialogError> : null}
         <div className='flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>

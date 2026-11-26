@@ -50,6 +50,10 @@ export const Routes = Object.freeze({
   DASHBOARD_OWNER_VOICE_NODES: '/dashboard/owner/voice-nodes',
   // the media editor, behind login. a document's id in the path so a reload keeps it
   EDITOR: '/editor',
+  // the template hub, public: published templates anyone can browse (a template's details open over the list). Before
+  // EDITOR_DOCUMENT, whose `:documentId` would match `hub` too (the worker takes the first match)
+  EDITOR_HUB: '/editor/hub',
+  EDITOR_HUB_ITEM: '/editor/hub/:templateCode',
   EDITOR_DOCUMENT: '/editor/:documentId',
   // a shared template's link, the start screen with it applied to whatever's picked
   EDITOR_TEMPLATE: '/editor/template/:templateCode',

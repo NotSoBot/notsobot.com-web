@@ -48,6 +48,8 @@ export function WebEditorPage() {
     api: createEditorApi(webRequest),
     errorOf: webErrorOf,
     onLeave: () => navigate(Routes.EDITOR),
+    // the template hub's page, or one template's view on it
+    openHub: (code) => navigate((code) ? Routes.EDITOR_HUB_ITEM.replace(':templateCode', code) : Routes.EDITOR_HUB),
     premiumUrl,
     // without the language prefix, whoever opens it gets the site in their own
     templateUrl: (code) => `${window.location.origin}${Routes.EDITOR_TEMPLATE.replace(':templateCode', code)}`,
@@ -62,6 +64,7 @@ export function WebEditorPage() {
           throw error;
         }
       }
+      return 'dialog';
     } : undefined,
   }), [navigate, premiumUrl]);
   const { catalogue, error, retry } = useCatalogue(host);
@@ -83,10 +86,23 @@ export function WebEditorPage() {
       <StartScreen
         host={host}
         initialUrl={searchParams.get('url')}
+        tryEffectId={searchParams.get('effect')}
+        tryGeneratorId={searchParams.get('generator')}
         template={(template.status === 'ready') ? template.template : null}
         effectNames={effectNames}
         // the link is used up once it's opened, a reload of the document shouldn't upload it again
-        onOpen={(document) => navigate(Routes.EDITOR_DOCUMENT.replace(':documentId', document.id))}
+        // Try it's effect goes on once the document's open (`?add=`, dropped after)
+        // a template's questions are asked once it's open (`?fill=1`, dropped after)
+        onOpen={(document) => {
+          const query = new URLSearchParams();
+          if (searchParams.get('effect')) {
+            query.set('add', searchParams.get('effect')!);
+          }
+          if (template.status === 'ready' && 'steps' in document && document.steps.some((step) => step.inputs)) {
+            query.set('fill', '1');
+          }
+          navigate(Routes.EDITOR_DOCUMENT.replace(':documentId', document.id) + ((query.size) ? `?${query}` : ''));
+        }}
       />
     );
   }
@@ -105,7 +121,18 @@ export function WebEditorPage() {
       </FullPageMessage>
     );
   }
-  return <EditorApp key={documentId} host={host} documentId={documentId} catalogue={catalogue}/>;
+  return (
+    <EditorApp
+      key={documentId}
+      host={host}
+      documentId={documentId}
+      catalogue={catalogue}
+      addEffectId={searchParams.get('add')}
+      onEffectAdded={() => navigate(Routes.EDITOR_DOCUMENT.replace(':documentId', documentId) + ((searchParams.get('fill')) ? '?fill=1' : ''), {replace: true})}
+      askInputs={searchParams.get('fill') === '1'}
+      onInputsAsked={() => navigate(Routes.EDITOR_DOCUMENT.replace(':documentId', documentId), {replace: true})}
+    />
+  );
 }
 
 

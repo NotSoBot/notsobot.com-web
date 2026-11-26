@@ -1169,6 +1169,8 @@ export const api = {
 
   fetchAdminUsers: (params: {
     query?: string,
+    // exactly this user, looked up by id: the search, filters and sort don't apply
+    userId?: string,
     sortBy?: AdminUsersSortBy,
     onlyFlagged?: boolean,
     // hours
@@ -1182,6 +1184,7 @@ export const api = {
       signal,
       query: {
         query: params.query || undefined,
+        user_id: params.userId,
         sort_by: params.sortBy,
         only_flagged: (params.onlyFlagged) ? true : undefined,
         flagged_within: params.flaggedWithin ?? undefined,

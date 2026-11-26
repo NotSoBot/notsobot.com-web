@@ -6,6 +6,7 @@ import { DashboardTags } from './dashboardTags';
 import { DashboardContent } from './dashboardContent';
 import { DashboardServers } from './dashboardServers';
 import { Editor } from './editor';
+import { Games } from './games';
 
 
 export const EnglishDashboard = Object.freeze({
@@ -15,4 +16,5 @@ export const EnglishDashboard = Object.freeze({
   ...DashboardContent,
   ...DashboardServers,
   ...Editor,
+  ...Games,
 });

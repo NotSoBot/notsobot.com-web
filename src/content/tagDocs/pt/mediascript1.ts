@@ -363,15 +363,18 @@ export const MEDIASCRIPT_PORTUGUESE_1: TagDocsTranslation['mediaScriptCommands']
     args: {
       CODE: 'o código do modelo, as letras no fim do link dele (`notsobot.com/editor/template/CODE`). O link inteiro também funciona',
       PASSWORD: 'a senha de um modelo bloqueado',
+      INPUT: 'o que o modelo pede, pelo nome (a página dele lista, como `YOUR_CAPTION`): texto, números, cores, opções e true/false como são, um arquivo como link',
     },
     results: [
       'A imagem ou o vídeo com todos os efeitos do modelo `AbCd`, em ordem.',
       'O mesmo modelo em duas chaves de mídia.',
+      'Um modelo que pede um texto e uma imagem, preenchidos com o texto da tag e o avatar do usuário.',
     ],
     notes: [
       'No limite de 300 linhas ele conta como todas as linhas que os efeitos geram, não como uma. Uma linha `template` dentro de um loop conta uma vez só.',
       'Passos ocultos são pulados. Um efeito cujas configurações mudaram desde que o modelo foi salvo usa as atuais.',
       'As variáveis que ele define com `set` somem quando termina, como as de uma função. A chave de mídia mantém as mudanças.',
+      'Os nomes das entradas ignoram maiúsculas e sublinhados (`your_caption=` funciona). Uma entrada que ele não pede é um erro que lista as que ele pede.',
       'Uma senha escrita numa tag pode ser lida por qualquer um que veja o código da tag.',
     ],
   },

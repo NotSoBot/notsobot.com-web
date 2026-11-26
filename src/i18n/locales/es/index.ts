@@ -13,6 +13,7 @@ import { Status } from './status';
 import { Ui } from './ui';
 import { Changelog } from './changelog';
 import { TagDocs } from './tagDocs';
+import { EditorHub } from './editorHub';
 
 
 export const Spanish: SiteTranslations = Object.freeze({
@@ -29,4 +30,5 @@ export const Spanish: SiteTranslations = Object.freeze({
   ...Ui,
   ...Changelog,
   ...TagDocs,
+  ...EditorHub,
 });

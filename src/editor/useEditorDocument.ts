@@ -329,7 +329,21 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
 
   // a dragged param goes out at most every ROOM_PARAM_INTERVAL (the last value always), and its step is soft-locked
   // while it moves so nobody else changes it at the same time
+  // a watch-only room's watchers: everyone but its creator. Their changes go nowhere (the api refuses them anyway)
+  const watching = Boolean(room && document?.watch_only && room.you && document.user_id !== room.you);
+  const watchingRef = useRef(watching);
+  watchingRef.current = watching;
+  useEffect(() => {
+    // made watch-only while they had a step open: its settings and handles go
+    if (watching) {
+      setSelectedId(null);
+    }
+  }, [watching]);
+
   const sendParam = useCallback((stepId: string, name: string, value: unknown) => {
+    if (watchingRef.current) {
+      return;
+    }
     if (!room?.isOpen) {
       return;
     }
@@ -372,6 +386,9 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
   }, [room, sendOp]);
 
   const commit = useCallback((next: Array<EditorStep>, coalesceKey?: string, op?: RoomOp) => {
+    if (watchingRef.current) {
+      return;
+    }
     const now = Date.now();
     const last = lastHistoryRef.current;
     const coalesce = Boolean(coalesceKey && last && last.key === coalesceKey && now - last.at < COALESCE_WINDOW);
@@ -396,6 +413,9 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
   }, [room, scheduleSave, sendOp]);
 
   const restore = useCallback((next: Array<EditorStep>) => {
+    if (watchingRef.current) {
+      return;
+    }
     stepsRef.current = next;
     setSteps(next);
     lastHistoryRef.current = null;
@@ -453,6 +473,19 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
   const replaceSteps = useCallback((next: Array<EditorStep>) => {
     commit(next, undefined, {op: 'replace', steps: next});
     setSelectedId(null);
+  }, [commit]);
+
+  // template inputs: which params each step asks people for (param -> question), the whole stack in one change
+  const setStepInputs = useCallback((inputs: Record<string, Record<string, string> | undefined>) => {
+    const next = stepsRef.current.map((step) => {
+      if (!(step.id in inputs)) {
+        return step;
+      }
+      const { inputs: _, ...rest } = step;
+      const asked = inputs[step.id];
+      return (asked && Object.keys(asked).length) ? {...rest, inputs: asked} : rest;
+    });
+    commit(next, undefined, {op: 'replace', steps: next});
   }, [commit]);
 
   const addStep = useCallback((step: EditorStep) => {
@@ -517,6 +550,10 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
       if (documentRef.current?.id === next.id && next.version <= documentRef.current.version) {
         return;
       }
+      if (documentRef.current && documentRef.current.source.id !== next.source.id) {
+        // someone replaced the media: the old one's preview and frame mean nothing now
+        resetForSource();
+      }
       documentRef.current = next;
       setDocument(next);
       // our own ops still on their way would be undone by this older stack, the last one's document has them all
@@ -572,7 +609,7 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
         case 'lobby_updated':
           // its name and lock, the steps and version are untouched
           if (event.document_id === documentId && documentRef.current) {
-            const next = {...documentRef.current, lobby_name: event.name, locked: event.locked};
+            const next = {...documentRef.current, lobby_name: event.name, locked: event.locked, watch_only: Boolean(event.watch_only)};
             documentRef.current = next;
             setDocument(next);
           }
@@ -609,10 +646,20 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
   // who else holds a step's soft lock (they're dragging it), null when it's free or it's ours
   // Resolves once every edit is saved (true), or the save failed or took too long (false). The render waits on it, so
   // its button doesn't have to be turned off while each stroke or slider move saves
+  // a new source (Replace media): back to its first frame, the old preview goes
+  const resetForSource = useCallback(() => {
+    setPreview(null);
+    setFrame(0);
+    requestRef.current = {...requestRef.current, frame: 0};
+  }, []);
+
   const whenSaved = useCallback(async (): Promise<boolean> => {
     const deadline = Date.now() + SAVE_WAIT_LIMIT;
     while (Date.now() < deadline) {
-      if (saveStateRef.current === 'saved') {
+      // the state only catches up on the next render: a change made just now has its save timer, its http save or
+      // its room ops pending already
+      const pending = saveTimerRef.current !== null || savingRef.current || pendingOpsRef.current.size > 0 || paramTimersRef.current.size > 0;
+      if (saveStateRef.current === 'saved' && !pending) {
         return true;
       }
       if (saveStateRef.current === 'error') {
@@ -622,6 +669,27 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
     }
     return false;
   }, []);
+
+  // Replace media: once every edit has saved, a new file under the same steps (the api refuses it when one of them
+  // can't run on it, with that step's index)
+  const replaceSource = useCallback(async (input: {file?: File, url?: string}): Promise<void> => {
+    const current = documentRef.current;
+    if (!current || watchingRef.current) {
+      return;
+    }
+    if (!await whenSaved()) {
+      throw new Error('unsaved');
+    }
+    const next = await api.replaceSource(current.id, input, documentRef.current!.version);
+    resetForSource();
+    documentRef.current = next;
+    stepsRef.current = next.steps;
+    setDocument(next);
+    setSteps(next.steps);
+    setStepError(null);
+    void runPreview();
+  }, [api, resetForSource, runPreview, whenSaved]);
+
 
   const lockedBy = useCallback((stepId: string): RoomMember | null => {
     const userId = locks[stepId];
@@ -663,14 +731,18 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
     whenSaved,
     stepError,
     reloaded,
-    canUndo: historyRef.current.past.length > 0,
-    canRedo: historyRef.current.future.length > 0,
+    canUndo: !watching && historyRef.current.past.length > 0,
+    canRedo: !watching && historyRef.current.future.length > 0,
+    // a watch-only room they didn't make: they watch, render and fork, nothing they do changes it
+    watching,
     undo,
     redo,
     addStep,
     replaceSteps,
+    setStepInputs,
     addAssets,
     uploadAsset,
+    replaceSource,
     removeStep,
     toggleStep,
     moveStep,

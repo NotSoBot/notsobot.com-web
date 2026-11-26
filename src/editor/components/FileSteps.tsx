@@ -14,11 +14,13 @@ import { SimpleParamControl } from './ParamControls';
 
 // Effects on an uploaded file before it's used (`file_steps`): Remove Background on a sticker, a sound reversed. The
 // whole list is the step's one param, every change sets it again (and the room syncs it like any param)
-export function FileSteps({ state, step, asset, forAudio }: {
+export function FileSteps({ state, step, asset, forAudio, generic = false }: {
   state: EditorDocumentState,
   step: EditorStep,
   asset: EditorAsset,
   forAudio: boolean,
+  // a picture or video that isn't an overlay's (Blend's, Face Swap's...): "the file" instead of "the overlay"
+  generic?: boolean,
 }) {
   const { t } = useI18n();
   const titleId = useId();
@@ -40,7 +42,7 @@ export function FileSteps({ state, step, asset, forAudio }: {
   return (
     <div className='flex flex-col gap-2 rounded-lg border border-line-strong p-2.5'>
       <span className='flex items-center justify-between text-[13px] text-muted'>
-        {(forAudio) ? t('editor.file_steps.title_audio') : t('editor.file_steps.title')}
+        {(forAudio) ? t('editor.file_steps.title_audio') : (generic) ? t('editor.file_steps.title_file') : t('editor.file_steps.title')}
         <span className='text-xs text-subtle'>{fileSteps.length}/{MAX_FILE_STEPS}</span>
       </span>
       {(fileSteps.length) ? (
@@ -84,7 +86,7 @@ export function FileSteps({ state, step, asset, forAudio }: {
           })}
         </ol>
       ) : (
-        <p className='text-xs text-subtle'>{(forAudio) ? t('editor.file_steps.empty_audio') : t('editor.file_steps.empty')}</p>
+        <p className='text-xs text-subtle'>{(forAudio) ? t('editor.file_steps.empty_audio') : (generic) ? t('editor.file_steps.empty_file') : t('editor.file_steps.empty')}</p>
       )}
       {(current && currentEffect) ? (
         <div className='flex flex-col gap-2.5 rounded-md bg-deep p-2.5'>
@@ -105,7 +107,7 @@ export function FileSteps({ state, step, asset, forAudio }: {
       {(picking) ? (
         <Modal labelledBy={titleId} onClose={() => setPicking(false)} className='max-w-lg'>
           <div className='flex max-h-[80vh] flex-col gap-3 overflow-y-auto p-5'>
-            <h2 id={titleId} className='pr-10 text-lg font-semibold text-white'>{(forAudio) ? t('editor.file_steps.pick_audio') : t('editor.file_steps.pick')}</h2>
+            <h2 id={titleId} className='pr-10 text-lg font-semibold text-white'>{(forAudio) ? t('editor.file_steps.pick_audio') : (generic) ? t('editor.file_steps.pick_file') : t('editor.file_steps.pick')}</h2>
             <EffectPicker
               effects={choices}
               kind={(forAudio) ? 'audio' : asset.kind}

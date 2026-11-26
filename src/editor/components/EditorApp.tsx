@@ -1,5 +1,5 @@
-import { ArrowLeft, Redo2, Undo2 } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { ArrowLeft, Eye, MessageCircleQuestion, Redo2, Undo2, X } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { FullPageMessage } from '@/components/ui/FullPageMessage';
 import { Spinner } from '@/components/ui/Spinner';
@@ -7,6 +7,7 @@ import { useI18n } from '@/i18n';
 import { cn } from '@/lib/utils';
 
 import type { EditorHost } from '../api';
+import { FormulaContext, valuesBefore, VALUE_EFFECT_ID, type FormulaContextValue } from '../formulas';
 import { addsAudio, newStep, stackKind, stepTimeline } from '../stack';
 import type { EditorCatalogue, EditorEffect, EditorTemplate } from '../types';
 import { useEditorDocument } from '../useEditorDocument';
@@ -15,9 +16,12 @@ import { ForkButton } from './ForkRoom';
 import { LobbyPeople } from './LobbyPeople';
 import { MediaScriptButton } from './MediaScriptCopy';
 import { PreviewStage } from './PreviewStage';
+import { ReplaceMediaButton } from './ReplaceMedia';
+import { RoomInviteButton } from './RoomInvite';
 import { RenderPanel } from './RenderPanel';
 import { CursorProvider } from './RoomCursors';
 import { SaveTemplateButton } from './SaveTemplate';
+import { askedInputs, FillInputsDialog } from './TemplateInputs';
 import { StepList } from './StepList';
 import { StepSettings, type TimeContext } from './StepSettings';
 import { SaveLoadedTemplateButton, TemplatesButton } from './TemplatePicker';
@@ -43,13 +47,51 @@ function mediaChip(
 
 
 // The editor itself, the same in both hosts. The host gives it the api and what's different about where it runs
-export function EditorApp({ host, documentId, catalogue }: {host: EditorHost, documentId: string, catalogue: EditorCatalogue}) {
+export function EditorApp({ host, documentId, catalogue, addEffectId = null, onEffectAdded, askInputs = false, onInputsAsked }: {
+  host: EditorHost,
+  documentId: string,
+  catalogue: EditorCatalogue,
+  // just started from a template: its questions are asked once the document's here (`FillInputsDialog`)
+  askInputs?: boolean,
+  onInputsAsked?: () => void,
+  // the commands page's Try it: this effect goes on once the document's here (only on one with no steps yet)
+  addEffectId?: string | null,
+  onEffectAdded?: () => void,
+}) {
   const { t, plural } = useI18n();
   const state = useEditorDocument(host, documentId, catalogue);
   const [ pen, setPen ] = useState<PenSettings>({color: '#ff3b3b', width: 0.01});
   // one of their templates they loaded here, "Save template" writes changes back into it
   const [ loadedTemplate, setLoadedTemplate ] = useState<EditorTemplate | null>(null);
   const { document, loadError, selectedStep, effectsById } = state;
+
+  // the template's questions: after starting from one, or loading one from Templates
+  const [ filling, setFilling ] = useState(false);
+  const askedRef = useRef(false);
+  useEffect(() => {
+    if (!askInputs || askedRef.current || !document) {
+      return;
+    }
+    askedRef.current = true;
+    if (askedInputs(document.steps, effectsById).length) {
+      setFilling(true);
+    }
+    onInputsAsked?.();
+  }, [askInputs, document, effectsById, onInputsAsked]);
+
+  const addedRef = useRef(false);
+  const { addStep } = state;
+  useEffect(() => {
+    if (!addEffectId || addedRef.current || !document) {
+      return;
+    }
+    addedRef.current = true;
+    const effect = effectsById.get(addEffectId);
+    if (effect && !document.steps.length) {
+      addStep(newStep(effect));
+    }
+    onEffectAdded?.();
+  }, [addEffectId, addStep, document, effectsById, onEffectAdded]);
 
   // ctrl/cmd+z and shift+ctrl/cmd+z (or ctrl+y), not while typing in a field
   const { undo, redo } = state;
@@ -108,6 +150,11 @@ export function EditorApp({ host, documentId, catalogue }: {host: EditorHost, do
     current: (scrubbed !== null && 0 <= scrubbed && scrubbed < timeline.duration) ? Math.round(scrubbed * 1000) / 1000 : null,
   } : null;
   const selectedEffect = (selectedStep) ? effectsById.get(selectedStep.effect) : undefined;
+  // the values the selected step's formulas can use, and a Value step's own range for its number
+  const formulaContext: FormulaContextValue = {
+    values: valuesBefore(state.steps, selectedStep?.id ?? null),
+    range: (selectedStep?.effect === VALUE_EFFECT_ID) ? {minimum: Number(selectedStep.params.minimum ?? 0), maximum: Number(selectedStep.params.maximum ?? 100)} : undefined,
+  };
   const addEffect = (effect: EditorEffect) => state.addStep(newStep(effect));
   const saveLabel = (state.saveState === 'saving') ? t('editor.save.saving') : (state.saveState === 'error') ? t('editor.save.error') : t('editor.save.saved');
 
@@ -125,17 +172,27 @@ export function EditorApp({ host, documentId, catalogue }: {host: EditorHost, do
         <div className='flex min-w-0 flex-[1_1_240px] items-center gap-2'>
           <h1 className='truncate text-sm font-semibold text-white'>{document.lobby_name || document.source.filename}</h1>
           <span className='rounded-full border border-line-strong bg-surface px-2 py-0.5 font-mono text-xs whitespace-nowrap text-muted'>{mediaChip(meta, (count) => plural('editor.chip.frames', count))}</span>
+          {(!state.watching) ? <ReplaceMediaButton state={state}/> : null}
         </div>
-        {(state.room) ? <LobbyPeople editors={state.editors} room={state.room} documentId={document.id} ownerId={document.user_id} roomName={document.lobby_name || document.source.filename} lobbyName={document.lobby_name ?? null} locked={Boolean(document.locked)}/> : null}
+        {(state.room) ? <LobbyPeople editors={state.editors} room={state.room} documentId={document.id} ownerId={document.user_id} roomName={document.lobby_name || document.source.filename} lobbyName={document.lobby_name ?? null} locked={Boolean(document.locked)} watchOnly={Boolean(document.watch_only)}/> : null}
         {(state.room && state.roomStatus !== 'open') ? <span role='status' className='text-xs text-warning'>{t('editor.room.reconnecting')}</span> : null}
         <span role='status' className={cn('text-xs', (state.saveState === 'error') ? 'text-danger-text' : 'text-subtle')}>{saveLabel}</span>
         <div className='flex items-center gap-1'>
+          {/* a group room's Invite (the Activity's, never a solo edit) */}
+          {(state.room && host.inviter) ? <RoomInviteButton inviter={host.inviter(document.id)}/> : null}
           {/* the saved steps are what a template copies, so not while a change is still saving */}
           {(host.fork) ? <ForkButton host={host} state={state}/> : null}
           <MediaScriptButton host={host} documentId={document.id} disabled={!state.steps.length || state.saveState !== 'saved'}/>
-          <TemplatesButton host={host} state={state} onLoad={setLoadedTemplate}/>
-          {(loadedTemplate) ? <SaveLoadedTemplateButton host={host} state={state} documentId={document.id} template={loadedTemplate}/> : null}
-          <SaveTemplateButton host={host} documentId={document.id} disabled={!state.steps.length || state.saveState !== 'saved'}/>
+          {(!state.watching) ? (
+            <TemplatesButton host={host} state={state} onLoad={(template) => {
+              setLoadedTemplate(template);
+              if (template.steps.some((step) => step.inputs && Object.keys(step.inputs).length)) {
+                setFilling(true);
+              }
+            }}/>
+          ) : null}
+          {(loadedTemplate && !state.watching) ? <SaveLoadedTemplateButton host={host} state={state} documentId={document.id} template={loadedTemplate}/> : null}
+          <SaveTemplateButton host={host} state={state} documentId={document.id} exampleUrl={(state.preview && !state.preview.unedited) ? state.preview.url : null} disabled={!state.steps.length || state.saveState !== 'saved'}/>
           <button type='button' aria-label={t('editor.undo')} title={t('editor.undo')} disabled={!state.canUndo} onClick={undo} className='flex size-10 items-center justify-center rounded-lg text-fg hover:bg-surface disabled:cursor-not-allowed disabled:opacity-40'>
             <Undo2 aria-hidden className='size-5'/>
           </button>
@@ -151,6 +208,14 @@ export function EditorApp({ host, documentId, catalogue }: {host: EditorHost, do
         </p>
       ) : null}
 
+      {(state.watching) ? (
+        <div role='status' className='flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-brand/40 bg-brand/10 px-5 py-2 text-sm text-fg'>
+          <Eye aria-hidden className='size-4 shrink-0 text-brand-text'/>
+          <span className='min-w-0 flex-1'>{t('editor.room.watching', {name: state.members.find((member) => member.user_id === document.user_id)?.username ?? t('editor.room.creator')})}</span>
+          {(host.fork) ? <ForkButton host={host} state={state}/> : null}
+        </div>
+      ) : null}
+
       {(state.reloaded) ? (
         <p role='status' className='border-b border-warning/40 bg-warning/10 px-5 py-2 text-sm text-warning'>{t('editor.reloaded')}</p>
       ) : null}
@@ -159,7 +224,10 @@ export function EditorApp({ host, documentId, catalogue }: {host: EditorHost, do
       <fieldset disabled={state.renderLocked} className='contents'>
       <div className='flex flex-1 flex-col lg:min-h-0 lg:flex-row'>
         <div className='order-3 w-full shrink-0 border-line bg-surface p-4 lg:order-1 lg:w-[300px] lg:overflow-y-auto lg:border-r xl:w-[340px]'>
+          {(state.watching) ? <p className='mb-3 text-xs text-subtle'>{t('editor.room.watching_picker')}</p> : null}
+          <fieldset disabled={state.watching} className={cn('contents', state.watching && '[&_button]:opacity-60')}>
           <EffectPicker effects={catalogue.effects} kind={pickerKind} hasAudio={hasAudio && pickerKind !== 'image'} onAdd={addEffect}/>
+          </fieldset>
         </div>
         <div className='order-1 min-w-0 flex-1 bg-deep lg:order-2 lg:overflow-y-auto'>
           <PreviewStage state={state} pen={pen} maxStrokes={catalogue.limits.max_strokes} maxPoints={catalogue.limits.max_stroke_points} maxTextLength={catalogue.limits.max_text_length}/>
@@ -171,8 +239,34 @@ export function EditorApp({ host, documentId, catalogue }: {host: EditorHost, do
             <h2 className='font-display text-lg font-bold text-white'>{t('editor.edits')}</h2>
             <span className='font-mono text-xs text-muted'>{state.steps.length}</span>
           </div>
+          <fieldset disabled={state.watching} className='contents'>
           <StepList state={state}/>
-          {(selectedStep && selectedEffect) ? (
+          </fieldset>
+          {(selectedStep?.inputs && Object.keys(selectedStep.inputs).length && !state.watching) ? (
+            <div className='flex flex-col gap-1.5 rounded-lg border border-brand/30 bg-brand/10 p-2.5'>
+              <span className='text-xs text-muted'>{t('editor.inputs.step_asks')}</span>
+              {Object.entries(selectedStep.inputs).map(([ name, question ]) => (
+                <span key={name} className='flex items-center gap-1.5 text-sm text-fg'>
+                  <MessageCircleQuestion aria-hidden className='size-3.5 shrink-0 text-brand-text'/>
+                  <span className='min-w-0 flex-1 truncate'>{question}</span>
+                  <button
+                    type='button'
+                    aria-label={t('editor.inputs.remove', {question})}
+                    title={t('editor.inputs.remove', {question})}
+                    onClick={() => {
+                      const { [name]: _, ...rest } = selectedStep.inputs!;
+                      state.setStepInputs({[selectedStep.id]: (Object.keys(rest).length) ? rest : undefined});
+                    }}
+                    className='flex size-7 items-center justify-center rounded text-muted hover:text-fg'
+                  >
+                    <X aria-hidden className='size-3.5'/>
+                  </button>
+                </span>
+              ))}
+            </div>
+          ) : null}
+          <FormulaContext.Provider value={formulaContext}>
+          {(selectedStep && selectedEffect && !state.watching) ? (
             <StepSettings
               state={state}
               effect={selectedEffect}
@@ -184,6 +278,7 @@ export function EditorApp({ host, documentId, catalogue }: {host: EditorHost, do
               time={time}
             />
           ) : null}
+          </FormulaContext.Provider>
           </div>
           <RenderPanel
             host={host}
@@ -197,6 +292,7 @@ export function EditorApp({ host, documentId, catalogue }: {host: EditorHost, do
         </aside>
       </div>
       </fieldset>
+      {(filling && !state.watching) ? <FillInputsDialog state={state} onClose={() => setFilling(false)}/> : null}
     </div>
     </CursorProvider>
   );

@@ -42,7 +42,7 @@ export function MemberFaces({ members, size = 'size-7', ring = 'border-deep' }: 
 
 // The header's "who's editing this": only this room's editors (others in the activity are in other rooms or choosing
 // one), tap for the whole list. Its creator and server moderators also remove people from it and close it here
-export function LobbyPeople({ editors, room, documentId, ownerId, roomName, lobbyName, locked }: {
+export function LobbyPeople({ editors, room, documentId, ownerId, roomName, lobbyName, locked, watchOnly = false }: {
   editors: Array<RoomMember>,
   room: EditorRoom,
   documentId: string,
@@ -51,6 +51,7 @@ export function LobbyPeople({ editors, room, documentId, ownerId, roomName, lobb
   // the room's own settings, for its creator's Room settings
   lobbyName: string | null,
   locked: boolean,
+  watchOnly?: boolean,
 }) {
   const { t } = useI18n();
   const you = room.you;
@@ -156,7 +157,7 @@ export function LobbyPeople({ editors, room, documentId, ownerId, roomName, lobb
           ) : null}
         </div>
       ) : null}
-      {(editing) ? <RoomSettingsDialog room={room} documentId={documentId} name={lobbyName} locked={locked} onClose={() => setEditing(false)}/> : null}
+      {(editing) ? <RoomSettingsDialog room={room} documentId={documentId} name={lobbyName} locked={locked} watchOnly={watchOnly} onClose={() => setEditing(false)}/> : null}
       {(closing) ? <CloseRoomDialog room={room} documentId={documentId} name={roomName} onClose={() => setClosing(false)}/> : null}
     </div>
   );

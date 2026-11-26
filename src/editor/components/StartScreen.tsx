@@ -1,30 +1,138 @@
-import { ArrowLeft, FileUp, Trash2 } from 'lucide-react';
-import { useEffect, useId, useRef, useState, type DragEvent, type FormEvent } from 'react';
+import { ArrowLeft, FileUp, ImageIcon, Music, Trash2, Wand2 } from 'lucide-react';
+import { useEffect, useId, useMemo, useRef, useState, type DragEvent, type FormEvent, type ReactNode } from 'react';
 
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { DialogError } from '@/components/ui/DialogError';
+import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
 import { intlLocale, useI18n } from '@/i18n';
 import { cn } from '@/lib/utils';
 
 import type { EditorHost } from '../api';
-import type { EditorDocument, EditorDocumentSummary, EditorGenerator, EditorTemplate } from '../types';
+import type { EditorDocument, EditorDocumentSummary, EditorGenerator, EditorTemplate, EditorThumbnail } from '../types';
 import { useCatalogue } from '../useCatalogue';
+import { defaultParams, newStep } from '../stack';
 import { GeneratorDialog, GeneratorGrid } from './Generators';
 import { RoomSettingsFields, roomSettingsReady, type LobbyMode } from './RoomSettings';
 import { TemplateBanner, TemplateList, templateNeedsPassword } from './Templates';
+import { HubEntry } from '../hub/HubEntry';
 
 
 export type { LobbyMode } from './RoomSettings';
 
 
 // The way in: a file (dropped or picked), a link, something a generator makes, or one of their recent edits
-export function StartScreen({ host, onOpen, initialUrl, suggestedUrl, onBack, activityInstanceId: instanceId, template, effectNames, mode }: {
+// the Try it effect's look, its commands page preview (a still frame of a video)
+function EffectThumb({ thumbnail }: {thumbnail: EditorThumbnail}) {
+  if (thumbnail.mimetype.startsWith('video/')) {
+    return <video src={thumbnail.url} muted autoPlay loop playsInline className='size-14 shrink-0 rounded-md bg-deep object-cover'/>;
+  }
+  if (thumbnail.mimetype.startsWith('audio/')) {
+    return <Music aria-hidden className='size-6 shrink-0 text-brand-text'/>;
+  }
+  return <img src={thumbnail.url} alt='' className='size-14 shrink-0 rounded-md bg-deep object-cover'/>;
+}
+
+
+// what a launch's media looks like from its link (Discord's attachment and avatar links keep their extension)
+function mediaKindOfUrl(url: string): 'image' | 'video' | 'audio' {
+  let path = url;
+  try {
+    path = new URL(url).pathname;
+  } catch {
+    // not a url, its text then
+  }
+  const extension = path.split('.').pop()?.toLowerCase() ?? '';
+  if (['mp4', 'webm', 'mov', 'm4v', 'mkv'].includes(extension)) {
+    return 'video';
+  }
+  if (['mp3', 'ogg', 'wav', 'flac', 'm4a', 'opus', 'aac'].includes(extension)) {
+    return 'audio';
+  }
+  return 'image';
+}
+
+
+function fileNameOfUrl(url: string): string {
+  try {
+    return decodeURIComponent(new URL(url).pathname.split('/').pop() || '');
+  } catch {
+    return '';
+  }
+}
+
+
+// The Activity opened from Edit Media / Edit Avatar: that media, big, with who the edit is for and one button to start.
+// "Pick something else" leaves the start screen as it is (the link stays in its box)
+function LaunchMediaDialog({ url, surface, uploading, error, blocked, settings, onStart, onDismiss }: {
+  url: string,
+  surface: string | null,
+  uploading: boolean,
+  error: string | null,
+  // a password room without its password yet, a locked template without its password
+  blocked: boolean,
+  settings: ReactNode,
+  onStart: () => void,
+  onDismiss: () => void,
+}) {
+  const { t } = useI18n();
+  const titleId = useId();
+  const [ broken, setBroken ] = useState(false);
+  const kind = mediaKindOfUrl(url);
+  const avatar = surface === 'edit_avatar';
+  const filename = fileNameOfUrl(url);
+  return (
+    <Modal labelledBy={titleId} onClose={() => !uploading && onDismiss()} className='max-w-lg'>
+      <div className='flex max-h-[90dvh] flex-col gap-4 overflow-y-auto p-5 sm:p-6'>
+        <div>
+          <h2 id={titleId} className='pr-10 text-lg font-semibold text-white'>
+            {(avatar) ? t('editor.launch.avatar_title') : t(`editor.launch.${kind}_title`)}
+          </h2>
+          <p className='mt-1 text-sm text-muted'>{(avatar) ? t('editor.launch.avatar_description') : t('editor.launch.media_description')}</p>
+        </div>
+        <div className={cn('flex items-center justify-center overflow-hidden rounded-xl border border-line-strong bg-deep', (avatar) ? 'mx-auto size-40 rounded-full' : 'max-h-[40dvh] min-h-32')}>
+          {(broken || kind === 'audio') ? (
+            <span className='flex flex-col items-center gap-2 p-6 text-subtle'>
+              {(kind === 'audio') ? <Music aria-hidden className='size-10'/> : <ImageIcon aria-hidden className='size-10'/>}
+              {(filename) ? <span className='max-w-full truncate font-mono text-xs'>{filename}</span> : null}
+            </span>
+          ) : (kind === 'video') ? (
+            <video src={url} muted autoPlay loop playsInline onError={() => setBroken(true)} className='max-h-[40dvh] w-full object-contain'/>
+          ) : (
+            <img src={url} alt='' onError={() => setBroken(true)} className={cn('object-contain', (avatar) ? 'size-full object-cover' : 'max-h-[40dvh] w-full')}/>
+          )}
+        </div>
+        {settings}
+        {(error) ? <DialogError>{error}</DialogError> : null}
+        <div className='flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
+          <button type='button' className='btn btn-secondary' onClick={onDismiss} disabled={uploading}>{t('editor.launch.other')}</button>
+          <button type='button' className='btn btn-primary' onClick={onStart} disabled={uploading || blocked} data-autofocus>
+            {(uploading) ? <Spinner className='size-4 border-white/40 border-t-white'/> : <Wand2 aria-hidden className='size-4'/>}
+            {(uploading) ? t('editor.launch.starting') : t('editor.launch.start')}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+
+export function StartScreen({ host, onOpen, initialUrl, suggestedUrl, launchSurface = null, onSuggestedDismiss, tryEffectId = null, tryGeneratorId = null, onBack, activityInstanceId: instanceId, template: templateProp, effectNames, mode }: {
   host: EditorHost,
-  onOpen: (document: EditorDocument | EditorDocumentSummary) => void,
+  // `opened.template`: it starts from a template (its questions are asked once it's open)
+  onOpen: (document: EditorDocument | EditorDocumentSummary, opened?: {template: boolean}) => void,
   // `?url=`, from a link like the bot's "edit on the web", opened right away
   initialUrl?: string | null,
-  // filled in but not opened: the Activity's Edit Media launch, opened once they've picked who it's for
+  // filled in but not opened: the Activity's Edit Media launch, shown in its own dialog until they start or dismiss it
   suggestedUrl?: string | null,
+  // how the Activity was launched (`edit_media`, `edit_avatar`, ...), the dialog's wording
+  launchSurface?: string | null,
+  // "Pick something else": the dialog doesn't come back (the start screen remounts when Just me is picked)
+  onSuggestedDismiss?: () => void,
+  // the commands page's Try it: an effect that goes on whatever's picked (`?effect=`), or a generator opened right
+  // away (`?generator=`)
+  tryEffectId?: string | null,
+  tryGeneratorId?: string | null,
   // back to where they came from (the Activity's lobby list)
   onBack?: {label: string, run: () => void},
   // the Activity: the document is the instance's (shared with everyone in it), and personal recents aren't shown
@@ -37,6 +145,9 @@ export function StartScreen({ host, onOpen, initialUrl, suggestedUrl, onBack, ac
   mode?: {value: LobbyMode, onChange: (value: LobbyMode) => void},
 }) {
   const { t, plural, language } = useI18n();
+  // one tried from the hub's panel (the Activity) wins over the launch's, until it's dropped
+  const [ hubTemplate, setHubTemplate ] = useState<EditorTemplate | null>(null);
+  const template = hubTemplate ?? templateProp ?? null;
   // just me: made like on the web, without the instance (its room never sees it)
   const activityInstanceId = (mode?.value === 'solo') ? undefined : instanceId;
   const [ lobbyPassword, setLobbyPassword ] = useState('');
@@ -46,6 +157,8 @@ export function StartScreen({ host, onOpen, initialUrl, suggestedUrl, onBack, ac
   const lobbyPasswordSent = (needsLobbyPassword && activityInstanceId) ? lobbyPassword : undefined;
   // a room's name (the api safety scans it), the file's name stands in when it's empty
   const [ lobbyName, setLobbyName ] = useState('');
+  const [ lobbyWatchOnly, setLobbyWatchOnly ] = useState(false);
+  const lobbyWatchOnlySent = Boolean(activityInstanceId && mode && mode.value !== 'solo' && lobbyWatchOnly);
   const lobbyNameSent = (activityInstanceId && lobbyName.trim()) ? lobbyName.trim() : undefined;
   // a locked template once its password's checked: its steps, and the password the new document is made with
   const [ unlocked, setUnlocked ] = useState<{template: EditorTemplate, password: string} | null>(null);
@@ -66,7 +179,23 @@ export function StartScreen({ host, onOpen, initialUrl, suggestedUrl, onBack, ac
   // the catalogue's generators, fetched once per page load (the editor reuses it)
   const { catalogue } = useCatalogue(host);
   const generators = catalogue?.generators ?? [];
+  // the effects' names for the template banner when the host doesn't pass them (the Activity)
+  const catalogueNames = useMemo(() => new Map((catalogue?.effects ?? []).map((effect) => [effect.id, effect.name])), [catalogue]);
   const [ generating, setGenerating ] = useState<EditorGenerator | null>(null);
+  const [ launchDialog, setLaunchDialog ] = useState(Boolean(suggestedUrl && !initialUrl));
+  const tryEffect = (tryEffectId) ? catalogue?.effects.find((effect) => effect.id === tryEffectId) ?? null : null;
+  // Try it on a generator: its dialog, once the catalogue's here
+  const triedGeneratorRef = useRef(false);
+  useEffect(() => {
+    if (!tryGeneratorId || triedGeneratorRef.current || !catalogue) {
+      return;
+    }
+    triedGeneratorRef.current = true;
+    const generator = catalogue.generators?.find((item) => item.id === tryGeneratorId);
+    if (generator) {
+      setGenerating(generator);
+    }
+  }, [catalogue, tryGeneratorId]);
 
   useEffect(() => {
     if (instanceId) {
@@ -91,7 +220,7 @@ export function StartScreen({ host, onOpen, initialUrl, suggestedUrl, onBack, ac
     setUploading(true);
     setError(null);
     try {
-      onOpen(await host.api.createDocument({...input, activityInstanceId, templateCode: template?.code, templatePassword, lobbyPassword: lobbyPasswordSent, lobbyName: lobbyNameSent}));
+      onOpen(await host.api.createDocument({...input, activityInstanceId, templateCode: template?.code, templatePassword, lobbyPassword: lobbyPasswordSent, lobbyName: lobbyNameSent, lobbyWatchOnly: lobbyWatchOnlySent}), {template: Boolean(template)});
     } catch (failure) {
       setError(host.errorOf(failure)?.message || t('editor.start.upload_error'));
       setUploading(false);
@@ -124,6 +253,18 @@ export function StartScreen({ host, onOpen, initialUrl, suggestedUrl, onBack, ac
   };
 
   const dateFormat = new Intl.DateTimeFormat(intlLocale(language), {dateStyle: 'medium'});
+  const roomSettings = (mode) ? (
+    <RoomSettingsFields
+      mode={mode.value}
+      onModeChange={mode.onChange}
+      name={lobbyName}
+      onNameChange={setLobbyName}
+      password={lobbyPassword}
+      onPasswordChange={setLobbyPassword}
+      watchOnly={lobbyWatchOnly}
+      onWatchOnlyChange={setLobbyWatchOnly}
+    />
+  ) : null;
 
   return (
     <div className='mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-10 sm:py-14'>
@@ -137,19 +278,34 @@ export function StartScreen({ host, onOpen, initialUrl, suggestedUrl, onBack, ac
         <p className='text-muted'>{t('editor.start.description')}</p>
       </header>
 
-      {(mode) ? (
-        <RoomSettingsFields
-          mode={mode.value}
-          onModeChange={mode.onChange}
-          name={lobbyName}
-          onNameChange={setLobbyName}
-          password={lobbyPassword}
-          onPasswordChange={setLobbyPassword}
+      {(mode && !launchDialog) ? roomSettings : null}
+
+      {(launchDialog && suggestedUrl) ? (
+        <LaunchMediaDialog
+          url={suggestedUrl}
+          surface={launchSurface}
+          uploading={uploading}
+          error={error}
+          blocked={lobbyPasswordShort || waitingForPassword}
+          settings={(mode) ? roomSettings : null}
+          onStart={() => void open({url: suggestedUrl})}
+          onDismiss={() => {
+            setLaunchDialog(false);
+            setError(null);
+            onSuggestedDismiss?.();
+          }}
         />
       ) : null}
 
+      {(tryEffect) ? (
+        <div className='flex items-center gap-3 rounded-xl border border-brand/40 bg-brand/10 p-3'>
+          {(tryEffect.thumbnail) ? <EffectThumb thumbnail={tryEffect.thumbnail}/> : <Wand2 aria-hidden className='size-6 shrink-0 text-brand-text'/>}
+          <p className='text-sm text-fg'>{t('editor.start.try_effect', {name: tryEffect.name})}</p>
+        </div>
+      ) : null}
+
       {(shownTemplate) ? (
-        <TemplateBanner host={host} template={shownTemplate} effectNames={effectNames} onUnlocked={(next, password) => setUnlocked({template: next, password})}/>
+        <TemplateBanner host={host} template={shownTemplate} effectNames={effectNames ?? catalogueNames} onUnlocked={(next, password) => setUnlocked({template: next, password})}/>
       ) : null}
 
       {/* a locked template waits for its password, a file picked before then would start without its steps */}
@@ -215,6 +371,9 @@ export function StartScreen({ host, onOpen, initialUrl, suggestedUrl, onBack, ac
       </fieldset>
       {(error) ? <p role='alert' className='-mt-5 text-sm text-danger-text'>{error}</p> : null}
 
+      {/* the template hub: its page on the site, a panel in the Activity whose Try puts the template here */}
+      <HubEntry host={host} picked={hubTemplate} onPick={setHubTemplate} onUnpick={() => setHubTemplate(null)} disabled={uploading}/>
+
       {(generators.length) ? (
         <section className='flex flex-col gap-3'>
           <div className='flex flex-col gap-1'>
@@ -228,11 +387,22 @@ export function StartScreen({ host, onOpen, initialUrl, suggestedUrl, onBack, ac
         <GeneratorDialog
           generator={generating}
           onClose={() => setGenerating(null)}
-          onMake={async (params) => {
+          onMake={async (params, portrait) => {
             try {
-              const document = await host.api.generateDocument({generator: generating.id, params, activityInstanceId, templateCode: template?.code, templatePassword, lobbyPassword: lobbyPasswordSent, lobbyName: lobbyNameSent});
+              const shared = {activityInstanceId, templateCode: template?.code, templatePassword, lobbyPassword: lobbyPasswordSent, lobbyName: lobbyNameSent, lobbyWatchOnly: lobbyWatchOnlySent};
+              const effect = (portrait && generating.portrait_effect) ? catalogue?.effects.find((item) => item.id === generating.portrait_effect) : undefined;
+              let document: EditorDocument;
+              if (portrait && effect) {
+                // the portrait is the source (an upload, scanned like one), the card is its first step: effects can go
+                // on the picture before it or on the whole card after it
+                const created = await host.api.createDocument({...portrait, ...shared});
+                const card = {...newStep(effect), params: {...defaultParams(effect), ...params}};
+                document = await host.api.saveSteps(created.id, [card, ...created.steps], created.version);
+              } else {
+                document = await host.api.generateDocument({generator: generating.id, params, ...shared});
+              }
               setGenerating(null);
-              onOpen(document);
+              onOpen(document, {template: Boolean(template)});
               return null;
             } catch (failure) {
               return host.errorOf(failure)?.message || t('editor.generate.error');

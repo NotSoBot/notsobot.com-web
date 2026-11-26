@@ -1,6 +1,8 @@
 // The media editor's api shapes (notsobot.api `views/editor.py`, `utilities/tools/editor`). Shared by both hosts: the
 // site's /editor page and the Discord Activity.
 
+import type { EditorTemplateHub } from './hub/types';
+
 export type EditorMediaKind = 'audio' | 'image' | 'video';
 // the picker's tabs (the api's `EffectGroups`), in its order
 export type EditorGroup = 'style' | 'distort' | 'animate' | 'text' | 'faces' | 'scenes' | 'adjust' | 'edit' | 'draw' | 'audio';
@@ -22,7 +24,14 @@ export interface EditorParam {
   // `width`: a fraction of the media's width, shown as a percentage of it (Text's size and box)
   // `percent`: a 0-1 fraction shown as a percentage (Overlay's opacity)
   unit?: 'width' | 'percent',
+  // a number setting that can be a formula on values (`{expr: 'crunch * 2'}`), the api's `formula_params`
+  formula?: boolean,
+  // a `media` param's: the uploaded files it takes (`sound`: anything with sound). Absent from an api before it
+  accepts?: Array<EditorFileAccept>,
 }
+
+// what a `media` param can take (the api's `FILE_ACCEPTS`, 2026-11-26)
+export type EditorFileAccept = 'image' | 'video' | 'audio' | 'sound';
 
 // a file uploaded to a document for its overlays (or carried over from a template): what an overlay step's `media` is
 export interface EditorAsset {
@@ -56,6 +65,8 @@ export interface EditorEffect {
   // moves or changes timing: can't be shown on one frame
   temporal: boolean,
   ml: boolean,
+  // heavy AI: works in the editor, can't be in a template yet
+  template_blocked?: boolean,
   command_id: string | null,
   // the commands page's after-preview of its command, null for a name-only tile
   thumbnail: EditorThumbnail | null,
@@ -71,6 +82,8 @@ export interface EditorGenerator {
   multiline: boolean,
   command_id: string | null,
   thumbnail: EditorThumbnail | null,
+  // takes a picture too (Lucia's portrait): it's uploaded as the source and starts with this effect
+  portrait_effect?: string | null,
 }
 
 export interface EditorCatalogue {
@@ -111,6 +124,18 @@ export interface EditorStep {
   effect: string,
   hidden: boolean,
   params: EditorParamValues,
+  // a template input: param name -> the question people are asked for it when the template's used
+  inputs?: Record<string, string>,
+}
+
+// one question a template asks (the api's `template_inputs`): `key` is its MediaScript name (`template ... KEY=value`)
+export interface EditorTemplateInput {
+  key: string,
+  label: string,
+  step_id: string,
+  param: string,
+  kind: string,
+  default: unknown,
 }
 
 export interface EditorMediaInfo {
@@ -159,6 +184,8 @@ export interface EditorDocument {
   guild_id: string | null,
   // a password room in the Activity
   locked?: boolean,
+  // a watch-only room: only its creator (`user_id`) changes it
+  watch_only?: boolean,
   // its overlays' files
   assets?: Array<EditorAsset>,
   // a room's name in the Activity (`lobby_name`), null for an unnamed one and everything else
@@ -217,6 +244,7 @@ export interface EditorActivityContext {
   guild_id: string | null,
   channel_id: string,
   users: Array<string>,
+  // the caller's own launch: `surface` (./hosts/activityLaunch's `ActivityLaunchSurface`), `media_url`, `template_code`
   launch: Record<string, unknown> | null,
   // its group edits (lobbies), newest first
   lobbies: Array<EditorLobby>,
@@ -238,6 +266,7 @@ export interface EditorLobby {
   editors: Array<{user_id: string, username: string, avatar_url: string | null, editing?: string | null}>,
   limit: number,
   locked: boolean,
+  watch_only?: boolean,
   preview: EditorMediaInfo | null,
   user_id: string,
   created: number,
@@ -260,4 +289,8 @@ export interface EditorTemplate {
   locked: boolean,
   // its overlays' files, loaded onto a document with its steps
   assets?: Array<EditorAsset>,
+  // what it asks people for when it's used
+  inputs?: Array<EditorTemplateInput>,
+  // where it stands on the template hub (its owner's view, absent from an api before the hub)
+  hub?: EditorTemplateHub,
 }

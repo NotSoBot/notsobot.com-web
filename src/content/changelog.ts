@@ -28,6 +28,31 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 
 export const CHANGELOG: Array<ChangelogDay> = [
   {
+    date: '2026-11-26',
+    title: 'Template Hub, flag game and /games',
+    items: [
+      {kind: 'new', text: 'The Template Hub at notsobot.com/editor/hub: browse and search media editor templates people published, filter them by what they work on, their effects or whether they ask for something, and sort by popular, trending or new. Try one on your own media, copy its MediaScript line for a tag, or report it. Publish your own from Your templates or the editor\'s Templates list: its text, drawings and a sample render are checked before it\'s public. In the Activity the hub opens from the start screen.'},
+      {kind: 'new', text: 'A flag game in the Activity: pick Flag game when it opens, then play or watch in a room like the editor\'s. Rooms can have a password or be watch-only, their creator can rename them, remove people and close them, and anyone can watch a game without answering. Everyone gets the same flag against the clock, typed or from four choices, and answering before the hints scores more.'},
+      {kind: 'new', text: 'Room invites in the Activity: Invite in a media editor room or a flag game room shares a link or posts it in the channel, and it opens the Activity straight into that room. Invited people get into a password room without the password, people removed from the room stay out, and an invite lasts 24 hours.'},
+      {kind: 'new', text: '`/games` opens the Activity straight on its game rooms (just the flag game for now), and its Join button does too. `/editor` with nothing attached now opens straight on the editor\'s rooms, while the Launch button still lets you pick between the two.'},
+      {kind: 'new', text: 'Watch-only rooms in the media editor Activity: the room\'s creator is the only one who changes it, everyone else watches live and can Fork their own copy. It can be picked when making a room or turned on and off in its settings.'},
+      {kind: 'new', text: 'Lucia Card in the media editor: put your media on a "Play with Lucia" card as its portrait (a GIF or video makes the card move), as a step on anything or from Make one with a portrait you upload right there.'},
+      {kind: 'new', text: '31 more effects in the media editor, from MediaScript actions that had none: like Derain, Waves, Flies, Draw Objects, Curves, Gradient Map, Color Corrector, Swap RGB, Scale, Fit, Pad, Offset, Set FPS, Shuffle, Harmonize and the vocoder chord and melody.'},
+      {kind: 'new', text: 'Effects that use a second file in the media editor: Blend, Green Screen, Side by Side, Watermark, Face Swap, Face Overlay, Mashup, Append Clip, Append Audio and Vocoder, plus Preset Overlay, Face Swap Preset and Sentence Mix. The file can be trimmed and given its own effects like an overlay.'},
+      {kind: 'new', text: 'An FFmpeg step in the media editor runs your own ffmpeg filters on the media, with the same limits as `.ffmpeg`.'},
+      {kind: 'new', text: 'Values in the media editor: a Value step names a number (like `crunch = 50`), and any number setting after it can be a formula on it, like `crunch * 2` or `min(crunch, 80)`. A template can ask people for the value, so one answer changes everything that uses it.'},
+      {kind: 'new', text: 'Template inputs: when saving a media editor template you can pick settings people are asked for when they use it, like their own caption or a picture for an overlay. Loading the template shows a short form to fill in.'},
+      {kind: 'new', text: '**MediaScript:** `template` takes a template\'s inputs by name, like `template a AbCd YOUR_CAPTION="hello" FACE={avatar}` (a file input takes a link).'},
+      {kind: 'new', text: 'Replace media in the media editor: swap the file you\'re editing for another one and keep all your effects, with positions and sizes following the new file\'s shape. An effect that can\'t work on the new file (like a sound effect on a picture) is named so you can remove or hide it first.'},
+      {kind: 'new', text: 'Try it in the editor on the commands page: commands the media editor has open it with that effect ready to go on your media, or with that template ready to fill in.'},
+      {kind: 'improved', text: 'Sharing from the editor Activity posts the actual render in the channel (with who made it, its effects and an Edit button), and shared templates post a card with their effects, an example and a Try it button, wherever you could post that yourself.'},
+      {kind: 'improved', text: 'Opening the editor from Edit Media or Edit Avatar shows that media or avatar big with a Start editing button, instead of only filling in its link.'},
+      {kind: 'improved', text: 'Pinch with two fingers to resize an overlay or any box in the media editor on phones.'},
+      {kind: 'fixed', text: '`.help` no longer shows a preview of the links in a command\'s examples.'},
+      {kind: 'fixed', text: 'Fork, Render and Save template in the media editor right after a change no longer use the steps from before it.'},
+    ],
+  },
+  {
     date: '2026-11-25',
     title: 'Media editor',
     items: [

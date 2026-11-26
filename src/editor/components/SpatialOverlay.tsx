@@ -107,7 +107,12 @@ function useNoTouchGestures<T extends Element>(ref: RefObject<T | null>, enabled
       }
     };
     element.addEventListener('touchstart', onTouchStart, {passive: false});
-    return () => element.removeEventListener('touchstart', onTouchStart);
+    // Safari's own pinch (page zoom) starts from `gesturestart`, a two-finger pinch on a box is ours
+    element.addEventListener('gesturestart', onTouchStart, {passive: false});
+    return () => {
+      element.removeEventListener('touchstart', onTouchStart);
+      element.removeEventListener('gesturestart', onTouchStart);
+    };
   }, [enabled, ref]);
 }
 
@@ -357,7 +362,10 @@ function BoxTool({ step, param, onChange, label, dim, fill }: {
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const box = step.params[param] as EditorBox;
-  const dragRef = useRef<{handle: BoxHandle, start: EditorPoint, box: EditorBox} | null>(null);
+  const dragRef = useRef<{pointerId: number, handle: BoxHandle, start: EditorPoint, box: EditorBox} | null>(null);
+  // every finger down on the tool (screen pixels), a second one while the box is held makes it a pinch
+  const pointersRef = useRef(new Map<number, {x: number, y: number}>());
+  const pinchRef = useRef<{ids: [number, number], distance: number, box: EditorBox} | null>(null);
   const selectionHold = useSelectionHold();
   useNoTouchGestures(containerRef);
 
@@ -386,32 +394,115 @@ function BoxTool({ step, param, onChange, label, dim, fill }: {
     return {x: roundFraction(left), y: roundFraction(top), width: roundFraction(right - left), height: roundFraction(bottom - top)};
   };
 
+  // the box at `scale` times its size when the pinch started, its shape kept, around the same center, inside the media
+  const scaled = (start: EditorBox, scale: number): EditorBox => {
+    const smallest = Math.min(Math.max(MIN_BOX / Math.max(start.width, 1e-6), MIN_BOX / Math.max(start.height, 1e-6)), 1);
+    const largest = Math.max(Math.min(1 / Math.max(start.width, 1e-6), 1 / Math.max(start.height, 1e-6)), smallest);
+    const factor = clamp(scale, smallest, largest);
+    const width = Math.min(start.width * factor, 1);
+    const height = Math.min(start.height * factor, 1);
+    const centerX = start.x + start.width / 2;
+    const centerY = start.y + start.height / 2;
+    return {
+      x: roundFraction(clamp(centerX - width / 2, 0, 1 - width)),
+      y: roundFraction(clamp(centerY - height / 2, 0, 1 - height)),
+      width: roundFraction(width),
+      height: roundFraction(height),
+    };
+  };
+
+  const distanceOf = (ids: [number, number]): number => {
+    const first = pointersRef.current.get(ids[0]);
+    const second = pointersRef.current.get(ids[1]);
+    return (first && second) ? Math.hypot(first.x - second.x, first.y - second.y) : 0;
+  };
+
+  // a second finger: the box (held by the first, or under this one) scales with the distance between them
+  const startPinch = (event: PointerEvent<HTMLElement>): boolean => {
+    const ids = [...pointersRef.current.keys()];
+    if (event.pointerType === 'mouse' || ids.length < 2 || pinchRef.current) {
+      return false;
+    }
+    const pair: [number, number] = [ids[0], ids[1]];
+    const distance = distanceOf(pair);
+    if (distance < 1) {
+      return false;
+    }
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    pinchRef.current = {ids: pair, distance, box: dragRef.current?.box ?? box};
+    dragRef.current = null;
+    selectionHold.hold();
+    return true;
+  };
+
   const start = (handle: BoxHandle) => (event: PointerEvent<HTMLElement>) => {
     const container = containerRef.current;
     if (!container) {
       return;
     }
     event.stopPropagation();
+    if (event.pointerType === 'mouse') {
+      // one mouse, nothing else can be down (a finger whose up never came is forgotten)
+      pointersRef.current.clear();
+    }
+    pointersRef.current.set(event.pointerId, {x: event.clientX, y: event.clientY});
+    if (startPinch(event)) {
+      return;
+    }
     // no text selection or native drag starts under the pointer (it flashes over the preview while drawing)
     event.preventDefault();
     // keeps keyboard nudging working after a click (preventing the press also stops it taking focus)
     (event.currentTarget as HTMLElement | SVGElement).focus?.();
     event.currentTarget.setPointerCapture(event.pointerId);
-    dragRef.current = {handle, start: fractionOf(event, container), box};
+    dragRef.current = {pointerId: event.pointerId, handle, start: fractionOf(event, container), box};
     selectionHold.hold();
+  };
+  // a finger on the media around the box: only a pinch's second finger, one alone does nothing (as before)
+  const down = (event: PointerEvent<HTMLElement>) => {
+    if (event.pointerType === 'mouse') {
+      return;
+    }
+    pointersRef.current.set(event.pointerId, {x: event.clientX, y: event.clientY});
+    if (dragRef.current) {
+      startPinch(event);
+    }
   };
   const move = (event: PointerEvent<HTMLElement>) => {
     const container = containerRef.current;
+    if (pointersRef.current.has(event.pointerId)) {
+      pointersRef.current.set(event.pointerId, {x: event.clientX, y: event.clientY});
+    }
+    const pinch = pinchRef.current;
+    if (pinch) {
+      if (pinch.ids.includes(event.pointerId)) {
+        onChange(scaled(pinch.box, distanceOf(pinch.ids) / pinch.distance));
+      }
+      return;
+    }
     const drag = dragRef.current;
-    if (!drag || !container) {
+    if (!drag || !container || drag.pointerId !== event.pointerId) {
       return;
     }
     const at = fractionOf(event, container);
     onChange(resize(drag.handle, drag.box, at.x - drag.start.x, at.y - drag.start.y));
   };
-  const end = () => {
+  const end = (event: PointerEvent<HTMLElement>) => {
+    // the box's own up and the container's (it bubbles) are the same finger
+    if (!pointersRef.current.delete(event.pointerId) && !dragRef.current && !pinchRef.current) {
+      return;
+    }
+    if (pinchRef.current) {
+      // lifting either finger ends it, the one still down doesn't turn into a drag
+      pinchRef.current = null;
+      dragRef.current = null;
+    } else if (dragRef.current && dragRef.current.pointerId !== event.pointerId) {
+      return;
+    }
     dragRef.current = null;
-    selectionHold.release();
+    if (!pointersRef.current.size) {
+      selectionHold.release();
+    }
   };
   const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
     const nudge = nudgeOf(event);
@@ -430,7 +521,7 @@ function BoxTool({ step, param, onChange, label, dim, fill }: {
   ];
 
   return (
-    <div ref={containerRef} className='absolute inset-0 touch-none select-none [-webkit-touch-callout:none]' onPointerMove={move} onPointerUp={end} onPointerCancel={end}>
+    <div ref={containerRef} className='absolute inset-0 touch-none select-none [-webkit-touch-callout:none]' onPointerDown={down} onPointerMove={move} onPointerUp={end} onPointerCancel={end}>
       {(dim) ? (
         <svg aria-hidden className='pointer-events-none absolute inset-0 size-full' viewBox='0 0 1 1' preserveAspectRatio='none'>
           <path
@@ -604,7 +695,8 @@ export function SpatialOverlay({ tool, step, effectName, onChange, pen, aspect, 
         />
       );
     case 'box': {
-      const asset = (step.effect === 'overlay') ? assets.find((item) => item.id === step.params.media) : undefined;
+      // a box with a file in it (Overlay, Green Screen Overlay) shows the file
+      const asset = (typeof step.params.media === 'string') ? assets.find((item) => item.id === step.params.media) : undefined;
       const fill = (asset) ? {url: asset.url, mimetype: asset.mimetype, opacity: Number(step.params.opacity ?? 1)} : null;
       return <BoxTool step={step} param={tool.param} onChange={(value) => onChange(tool.param, value)} label={label} dim={step.effect === 'crop'} fill={fill}/>;
     }

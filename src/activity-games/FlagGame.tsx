@@ -1,0 +1,234 @@
+import { ArrowLeft, Eye, Flag, Lock, Settings2, Square, Trash2, WifiOff, X } from 'lucide-react';
+import { useEffect, useId, useState } from 'react';
+
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { DialogError } from '@/components/ui/DialogError';
+import { FullPageMessage } from '@/components/ui/FullPageMessage';
+import { Modal } from '@/components/ui/Modal';
+import { Spinner } from '@/components/ui/Spinner';
+import { RoomInviteButton } from '@/editor/components/RoomInvite';
+import type { RoomInviter } from '@/editor/invites';
+import type { EditorRoom } from '@/editor/room';
+import { useI18n, type TranslationKey } from '@/i18n';
+
+import { RoomFlagGame, type FlagGameConnection } from './connection';
+import { Finished } from './Finished';
+import { GameRoomFields, type RoomMode } from './GameRooms';
+import { useGameSnapshot } from './hooks';
+import { Lobby } from './Lobby';
+import { GameCloseCodes, ROOM_PASSWORD_MIN, type GameState } from './protocol';
+import { Reveal } from './Reveal';
+import { Round } from './Round';
+
+
+// why a game ended for good (`game.closed`'s code), as the room list says it
+export function deniedMessageKey(closeCode: number | null): TranslationKey {
+  switch (closeCode) {
+    case GameCloseCodes.UNAUTHORIZED: return 'games.flag.denied_token';
+    case GameCloseCodes.KICKED: return 'games.rooms.kicked';
+    case GameCloseCodes.LOCKED: return 'games.rooms.locked_out';
+    case GameCloseCodes.ROOM_GONE: return 'games.rooms.closed';
+    default: return 'games.flag.denied';
+  }
+}
+
+
+// The Activity's flag game in one of its rooms (activity-plan.md "Flag game in the Activity"). The api runs it, this
+// shows its state: lobby → rounds with reveals between → final scores. Watchers see it all and answer nothing.
+// `inviter`: the header's Invite (anyone in the room makes one)
+export function FlagGame({ connection, inviter, onLeave }: {connection: FlagGameConnection, inviter?: RoomInviter, onLeave: (notice?: string) => void}) {
+  const { t } = useI18n();
+  const snapshot = useGameSnapshot(connection);
+  const [ ending, setEnding ] = useState(false);
+  const [ editing, setEditing ] = useState(false);
+  const [ closing, setClosing ] = useState(false);
+  const game = snapshot.game;
+  const isHost = Boolean(snapshot.you && game?.host_id === snapshot.you);
+  const isCreator = Boolean(snapshot.you && game?.room.creator.user_id === snapshot.you);
+
+  // removed or closed: back to the room list, saying why (anything else stays on its own screen)
+  useEffect(() => {
+    if (snapshot.status === 'denied' && (snapshot.closeCode === GameCloseCodes.KICKED || snapshot.closeCode === GameCloseCodes.ROOM_GONE || snapshot.closeCode === GameCloseCodes.LOCKED)) {
+      onLeave(t(deniedMessageKey(snapshot.closeCode)));
+    }
+  }, [snapshot.status, snapshot.closeCode, onLeave, t]);
+
+  if (snapshot.status === 'denied') {
+    return (
+      <FullPageMessage title={t(deniedMessageKey(snapshot.closeCode))}>
+        <button type='button' className='btn btn-secondary' onClick={() => onLeave()}>
+          <ArrowLeft aria-hidden className='size-4'/>{t('games.rooms.back')}
+        </button>
+      </FullPageMessage>
+    );
+  }
+
+  return (
+    <div className='flex min-h-[var(--editor-height,100dvh)] flex-col bg-bg text-fg'>
+      <header className='border-b border-line'>
+        <div className='mx-auto flex w-full max-w-5xl items-center gap-2 px-2 py-1.5'>
+          <button type='button' onClick={() => onLeave()} className='inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-muted hover:bg-surface hover:text-fg'>
+            <ArrowLeft aria-hidden className='size-4'/><span className='max-sm:sr-only'>{t('games.rooms.back')}</span>
+          </button>
+          <h1 className='flex min-w-0 flex-1 items-center justify-center gap-1.5 font-display text-base font-bold text-white'>
+            <Flag aria-hidden className='size-4 shrink-0 text-brand-text'/>
+            <span className='truncate'>{game?.room.name ?? t('games.flag.title')}</span>
+            {(game?.room.locked) ? <Lock aria-label={t('games.rooms.locked')} className='size-3.5 shrink-0 text-subtle'/> : null}
+            {(game?.room.watch_only) ? <Eye aria-label={t('games.rooms.watch_only')} className='size-3.5 shrink-0 text-subtle'/> : null}
+          </h1>
+          <span className='flex shrink-0 items-center'>
+            {(game && inviter) ? <RoomInviteButton inviter={inviter} compact/> : null}
+            {(isHost && (game?.phase === 'round' || game?.phase === 'reveal')) ? (
+              <button type='button' onClick={() => setEnding(true)} className='inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-danger-text hover:bg-surface'>
+                <Square aria-hidden className='size-3.5'/><span className='max-sm:sr-only'>{t('games.flag.end')}</span>
+              </button>
+            ) : null}
+            {(game && isCreator) ? (
+              <button type='button' aria-label={t('games.rooms.settings')} title={t('games.rooms.settings')} onClick={() => setEditing(true)} className='flex size-11 items-center justify-center rounded-lg text-muted hover:bg-surface hover:text-fg'>
+                <Settings2 aria-hidden className='size-4'/>
+              </button>
+            ) : null}
+            {(game && (isCreator || snapshot.moderator)) ? (
+              <button type='button' aria-label={t('games.rooms.close')} title={t('games.rooms.close')} onClick={() => setClosing(true)} className='flex size-11 items-center justify-center rounded-lg text-danger-text hover:bg-surface'>
+                <Trash2 aria-hidden className='size-4'/>
+              </button>
+            ) : null}
+          </span>
+        </div>
+      </header>
+
+      {(game && snapshot.status !== 'open') ? (
+        <p role='status' className='flex items-center justify-center gap-2 border-b border-warning/40 bg-warning/10 px-4 py-2 text-sm text-warning'>
+          <WifiOff aria-hidden className='size-4'/>{t('games.flag.reconnecting')}
+        </p>
+      ) : null}
+      {(snapshot.error) ? (
+        <div role='alert' className='flex items-center gap-2 border-b border-danger/40 bg-danger/10 px-4 py-2 text-sm text-danger-text'>
+          <span className='flex-1'>{snapshot.error}</span>
+          <button type='button' aria-label={t('ui.close')} onClick={() => connection.dismissError()} className='flex size-8 items-center justify-center rounded-md hover:bg-surface'>
+            <X aria-hidden className='size-4'/>
+          </button>
+        </div>
+      ) : null}
+
+      {(!game) ? (
+        <FullPageMessage title={t('games.flag.joining')}><Spinner/></FullPageMessage>
+      ) : (game.phase === 'lobby') ? (
+        <Lobby connection={connection} game={game} you={snapshot.you} moderator={snapshot.moderator}/>
+      ) : (game.phase === 'round' && game.round) ? (
+        <Round connection={connection} snapshot={snapshot} game={game} round={game.round}/>
+      ) : (game.phase === 'reveal' && game.reveal) ? (
+        <Reveal key={game.round?.flag_url ?? game.reveal.code} connection={connection} snapshot={snapshot} game={game} reveal={game.reveal}/>
+      ) : (game.phase === 'finished') ? (
+        <Finished connection={connection} game={game} you={snapshot.you} onLeave={() => onLeave()}/>
+      ) : (
+        <FullPageMessage><Spinner/></FullPageMessage>
+      )}
+
+      {(ending) ? (
+        <ConfirmDialog
+          title={t('games.flag.end_title')}
+          description={t('games.flag.end_description')}
+          confirmLabel={t('games.flag.end')}
+          tone='danger'
+          onConfirm={() => {
+            connection.end();
+            setEnding(false);
+          }}
+          onClose={() => setEnding(false)}
+        />
+      ) : null}
+      {(editing && game) ? <RoomSettingsDialog connection={connection} game={game} onClose={() => setEditing(false)}/> : null}
+      {(closing) ? (
+        <ConfirmDialog
+          title={t('games.rooms.close_title')}
+          description={t('games.rooms.close_description')}
+          confirmLabel={t('games.rooms.close')}
+          tone='danger'
+          onConfirm={() => {
+            connection.closeRoom();
+            setClosing(false);
+          }}
+          onClose={() => setClosing(false)}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+
+// the room's creator: its name, public or password (an empty password keeps the one it has), watch-only. Sent over the
+// socket, everyone's header updates from the `state` that follows
+function RoomSettingsDialog({ connection, game, onClose }: {connection: FlagGameConnection, game: GameState, onClose: () => void}) {
+  const { t } = useI18n();
+  const titleId = useId();
+  const [ mode, setMode ] = useState<RoomMode>((game.room.locked) ? 'password' : 'public');
+  const [ name, setName ] = useState(game.room.name ?? '');
+  const [ password, setPassword ] = useState('');
+  const [ watchOnly, setWatchOnly ] = useState(game.room.watch_only);
+  const [ error, setError ] = useState<string | null>(null);
+  const keepsPassword = game.room.locked;
+  const ready = mode === 'public' || (keepsPassword && !password) || ROOM_PASSWORD_MIN <= password.length;
+  return (
+    <Modal labelledBy={titleId} onClose={onClose} className='max-w-md'>
+      <form
+        className='flex flex-col gap-4 p-5 sm:p-6'
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (!ready) {
+            return;
+          }
+          const sent = connection.roomSettings({
+            name: name.trim() || null,
+            mode,
+            ...((mode === 'password' && password) ? {password} : {}),
+            watch_only: watchOnly,
+          });
+          if (sent) {
+            onClose();
+          } else {
+            setError(t('games.flag.reconnecting'));
+          }
+        }}
+      >
+        <h2 id={titleId} className='pr-10 text-lg font-semibold text-white'>{t('games.rooms.settings')}</h2>
+        <GameRoomFields
+          mode={mode}
+          onModeChange={setMode}
+          name={name}
+          onNameChange={setName}
+          password={password}
+          onPasswordChange={setPassword}
+          watchOnly={watchOnly}
+          onWatchOnlyChange={setWatchOnly}
+          keepsPassword={keepsPassword}
+        />
+        {(error) ? <DialogError>{error}</DialogError> : null}
+        <div className='flex justify-end gap-2'>
+          <button type='button' className='btn btn-secondary' onClick={onClose}>{t('common.cancel')}</button>
+          <button type='submit' className='btn btn-primary' disabled={!ready}>{t('games.rooms.save')}</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+
+// In the Activity: the game over the Activity's socket, joined while it's on screen (leaving it sends `game_leave`, the
+// api marks them away). `watch`: they joined to watch
+export function ActivityFlagGame({ room, gameId, apiBase, token, watch = false, inviter, onLeave }: {
+  room: EditorRoom,
+  gameId: string,
+  apiBase: string,
+  token: string,
+  watch?: boolean,
+  inviter?: RoomInviter,
+  onLeave: (notice?: string) => void,
+}) {
+  const [ connection ] = useState(() => new RoomFlagGame(room, gameId, apiBase, token, watch));
+  useEffect(() => {
+    connection.connect();
+    return () => connection.close();
+  }, [connection]);
+  return <FlagGame connection={connection} inviter={inviter} onLeave={onLeave}/>;
+}

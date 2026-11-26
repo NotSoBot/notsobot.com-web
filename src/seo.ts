@@ -80,6 +80,13 @@ export const PAGES: Readonly<Record<keyof typeof Routes, PageMeta>> = Object.fre
   DASHBOARD_OWNER_STATS: {title: 'Stats', description: ADMIN_DESCRIPTION},
   DASHBOARD_OWNER_VOICE_NODES: {title: 'Voice Nodes', description: ADMIN_DESCRIPTION},
   EDITOR: {title: 'Media Editor', description: 'Stack effects on an image, GIF, video or audio file, preview every change, then render it at full quality.'},
+  // before EDITOR_DOCUMENT: the worker tests these in order, and `/editor/hub` matches `/editor/:documentId` too
+  EDITOR_HUB: {
+    title: 'Template Hub',
+    description: 'Browse media editor templates people published: effects to try on your own image, GIF, video or audio, or run in a tag with MediaScript.',
+    index: true,
+  },
+  EDITOR_HUB_ITEM: {title: 'Template Hub', description: 'A media editor template to try on your own image, GIF, video or audio.'},
   EDITOR_DOCUMENT: {title: 'Media Editor', description: 'Stack effects on an image, GIF, video or audio file, preview every change, then render it at full quality.'},
   EDITOR_TEMPLATE: {title: 'Editor Template', description: 'Apply a shared set of NotSoBot editor effects to your own image, GIF, video or audio.'},
   FAQ: {

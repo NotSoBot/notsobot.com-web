@@ -1,14 +1,16 @@
-import { Crown, TriangleAlert, X } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { Crown, TriangleAlert, Wand2, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router';
 
+import { isOwner, useAuth } from '@/auth';
 import { formatPrefixCommandsEnd, prefixCommandsEnded } from '@/components/ui/PrefixSunsetNotice';
 import { Hint } from '@/components/ui/Tooltip';
 import { Routes } from '@/config';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { useI18n } from '@/i18n';
-import { CommandTypes, type CommandArgChoice, type CommandType } from '@/lib/api';
+import { apiRequest, CommandTypes, type CommandArgChoice, type CommandType } from '@/lib/api';
 import { cn, formatCompact, formatNumber } from '@/lib/utils';
 
 import { CategoryBadge, categoryStyle, CommandName, PremiumBadge } from './CommandCards';
@@ -127,6 +129,8 @@ export function CommandDrawer({ entry, type, siblings, entries, totalRanked, sta
                 </p>
               </div>
             ) : null}
+
+            <TryInEditor commandId={entry.command.id} name={metadata.name}/>
 
             <dl className='mt-4 grid grid-cols-2 gap-2'>
               <div className='rounded-md bg-deep px-3 py-2'>
@@ -380,6 +384,38 @@ function ArgChoices({ choices }: {choices: Array<CommandArgChoice>}) {
           {label}
         </span>
       ))}
+    </div>
+  );
+}
+
+
+// "Try it in the editor": a command the web editor has as an effect (it goes on whatever they pick) or a generator (its
+// dialog opens). Only while the editor is open to everyone (`GET /editor/effects`'s `access`, owners always)
+function TryInEditor({ commandId, name }: {commandId: string, name: string}) {
+  const { t } = useI18n();
+  const { user } = useAuth();
+  const query = useQuery({
+    queryKey: ['editor', 'effects', 'targets'],
+    queryFn: ({ signal }) => apiRequest<{access: 'everyone' | 'owners', effects: Array<{id: string, command_id: string | null}>, generators?: Array<{id: string, command_id: string | null}>}>('/editor/effects', {auth: false, signal}),
+    staleTime: 5 * 60 * 1000,
+  });
+  const data = query.data;
+  if (!data || (data.access !== 'everyone' && !isOwner(user))) {
+    return null;
+  }
+  const effect = data.effects.find((item) => item.command_id === commandId);
+  const generator = (effect) ? null : data.generators?.find((item) => item.command_id === commandId);
+  if (!effect && !generator) {
+    return null;
+  }
+  const to = (effect) ? `${Routes.EDITOR}?effect=${encodeURIComponent(effect.id)}` : `${Routes.EDITOR}?generator=${encodeURIComponent(generator!.id)}`;
+  return (
+    <div className='mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border border-brand/30 bg-brand/10 px-3 py-2.5'>
+      <Wand2 aria-hidden className='size-4 shrink-0 text-brand-text'/>
+      <p className='min-w-0 flex-1 text-sm text-muted'>{t('commands.drawer.try_hint', {name})}</p>
+      <Link to={to} className='btn btn-primary min-h-9 px-3 text-sm'>
+        {(effect) ? t('commands.drawer.try_editor') : t('commands.drawer.try_generator')}
+      </Link>
     </div>
   );
 }

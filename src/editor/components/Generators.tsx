@@ -1,5 +1,5 @@
-import { Sparkles } from 'lucide-react';
-import { useId, useState } from 'react';
+import { FileUp, Sparkles, X } from 'lucide-react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 
 import { ColorPicker } from '@/components/ui/ColorPicker';
 import { DialogError } from '@/components/ui/DialogError';
@@ -65,7 +65,7 @@ function GeneratorField({ param, multiline, value, onChange }: {
       return (
         <div className='flex flex-col gap-1.5'>
           <label htmlFor={id} className='flex justify-between gap-2 text-[13px] text-muted'>
-            {(multiline) ? t('editor.generate.lines') : t('editor.generate.text')}
+            {(param.name !== 'text') ? paramLabel(param) : (multiline) ? t('editor.generate.lines') : t('editor.generate.text')}
             <CharCounter length={text.length} max={max}/>
           </label>
           {(multiline) ? (
@@ -101,13 +101,94 @@ function GeneratorField({ param, multiline, value, onChange }: {
 
 
 // One generator's fields, then made into a new document (the dialog stays open, with the api's reason, if it can't be)
+export type GeneratorPortrait = {file: File} | {url: string};
+
+
+// A card's portrait (Lucia's): a picture, gif or video from the device or a link. Optional, the card has its own
+function PortraitField({ value, onChange }: {value: GeneratorPortrait | null, onChange: (value: GeneratorPortrait | null) => void}) {
+  const { t } = useI18n();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const linkId = useId();
+  const [ link, setLink ] = useState('');
+  const preview = useMemo(() => (value && 'file' in value) ? URL.createObjectURL(value.file) : (value) ? value.url : null, [value]);
+  useEffect(() => () => {
+    if (preview && value && 'file' in value) {
+      URL.revokeObjectURL(preview);
+    }
+  }, [preview, value]);
+  const isVideo = Boolean(value && 'file' in value && value.file.type.startsWith('video/'));
+  return (
+    <div className='flex flex-col gap-2 rounded-lg border border-line-strong p-2.5'>
+      <span className='text-sm text-muted'>{t('editor.generate.portrait')}</span>
+      {(value && preview) ? (
+        <div className='flex items-center gap-2.5'>
+          {(isVideo) ? (
+            <video src={preview} muted autoPlay loop playsInline className='size-14 shrink-0 rounded-md bg-deep object-cover'/>
+          ) : (
+            <img src={preview} alt='' className='size-14 shrink-0 rounded-md bg-deep object-cover'/>
+          )}
+          <span className='min-w-0 flex-1 truncate text-sm text-fg'>{('file' in value) ? value.file.name : value.url}</span>
+          <button type='button' aria-label={t('editor.generate.portrait_remove')} title={t('editor.generate.portrait_remove')} onClick={() => onChange(null)} className='flex size-9 items-center justify-center rounded-md text-muted hover:text-fg'>
+            <X aria-hidden className='size-4'/>
+          </button>
+        </div>
+      ) : (
+        <p className='text-xs text-subtle'>{t('editor.generate.portrait_hint')}</p>
+      )}
+      <input
+        ref={fileRef}
+        type='file'
+        accept='image/*,video/*'
+        hidden
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = '';
+          if (file) {
+            onChange({file});
+          }
+        }}
+      />
+      <div className='flex gap-1.5'>
+        <button type='button' className='btn btn-secondary min-h-9 shrink-0 px-3 text-sm' onClick={() => fileRef.current?.click()}>
+          <FileUp aria-hidden className='size-4'/>{t('editor.generate.portrait_upload')}
+        </button>
+        <label htmlFor={linkId} className='sr-only'>{t('editor.overlay.link')}</label>
+        <input
+          id={linkId}
+          type='url'
+          value={link}
+          placeholder={t('editor.overlay.link')}
+          onChange={(event) => setLink(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' && link.trim()) {
+              event.preventDefault();
+              onChange({url: link.trim()});
+              setLink('');
+            }
+          }}
+          onBlur={() => {
+            if (link.trim()) {
+              onChange({url: link.trim()});
+              setLink('');
+            }
+          }}
+          className='h-9 min-w-0 flex-1 rounded-md border border-line-strong bg-deep px-2.5 text-sm text-fg outline-none focus:border-brand'
+        />
+      </div>
+    </div>
+  );
+}
+
+
 export function GeneratorDialog({ generator, onClose, onMake }: {
   generator: EditorGenerator,
   onClose: () => void,
-  onMake: (params: Record<string, unknown>) => Promise<string | null>,
+  // `portrait`: the card's picture (generators with a `portrait_effect`), it becomes the source with that effect on it
+  onMake: (params: Record<string, unknown>, portrait: GeneratorPortrait | null) => Promise<string | null>,
 }) {
   const { t } = useI18n();
   const titleId = useId();
+  const [ portrait, setPortrait ] = useState<GeneratorPortrait | null>(null);
   const [ params, setParams ] = useState<Record<string, unknown>>(() => defaultParams(generator));
   const [ pending, setPending ] = useState(false);
   const [ error, setError ] = useState<string | null>(null);
@@ -126,7 +207,7 @@ export function GeneratorDialog({ generator, onClose, onMake }: {
           }
           setPending(true);
           setError(null);
-          const failure = await onMake(params);
+          const failure = await onMake(params, (generator.portrait_effect) ? portrait : null);
           if (failure !== null) {
             setError(failure);
             setPending(false);
@@ -149,6 +230,7 @@ export function GeneratorDialog({ generator, onClose, onMake }: {
             onChange={(value) => setParams((current) => ({...current, [param.name]: value}))}
           />
         ))}
+        {(generator.portrait_effect) ? <PortraitField value={portrait} onChange={setPortrait}/> : null}
         {(error) ? <DialogError>{error}</DialogError> : null}
         <div className='flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
           <button type='button' className='btn btn-secondary' onClick={onClose} disabled={pending}>{t('common.cancel')}</button>

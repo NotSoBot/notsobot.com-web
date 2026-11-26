@@ -221,6 +221,8 @@ export function StepSettings({ state, effect, step, pen, setPen, maxStrokes, dur
       {(effect.ml) ? (
         <p className='flex gap-1.5 text-xs text-subtle'><Sparkles aria-hidden className='mt-px size-3.5 shrink-0'/>{t('editor.settings.ml')}</p>
       ) : null}
+      {/* FFmpeg (2026-11-26): the `.ffmpeg` command's options, on this media only */}
+      {(effect.id === 'ffmpeg') ? <p className='text-xs text-subtle'>{t('editor.settings.ffmpeg_note')}</p> : null}
       {(effect.id === STILL_EFFECT_ID) ? (
         <p className='flex gap-1.5 text-xs text-subtle'><ImageIcon aria-hidden className='mt-px size-3.5 shrink-0'/>{t('editor.settings.still_note')}</p>
       ) : null}
@@ -263,7 +265,7 @@ export function StepSettings({ state, effect, step, pen, setPen, maxStrokes, dur
             return <p key={param.name} className='text-[13px] text-muted'>{t('editor.settings.place_point')}</p>;
           case 'box':
             // an overlay's own control says where to place it
-            return (effect.id === 'overlay') ? null : <p key={param.name} className='text-[13px] text-muted'>{t('editor.settings.place_box')}</p>;
+            return (effect.params.some((item) => item.kind === 'media')) ? null : <p key={param.name} className='text-[13px] text-muted'>{t('editor.settings.place_box')}</p>;
           case 'media':
             return <OverlayMediaControl key={param.name} state={state} step={step} value={(typeof value === 'string') ? value : null}/>;
           case 'strokes':

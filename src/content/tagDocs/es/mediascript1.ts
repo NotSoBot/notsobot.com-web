@@ -361,15 +361,18 @@ export const MEDIASCRIPT_SPANISH_1: TagDocsTranslation['mediaScriptCommands'] = 
     args: {
       CODE: 'el código de la plantilla, las letras al final de su enlace (`notsobot.com/editor/template/CODE`). El enlace completo también sirve',
       PASSWORD: 'la contraseña de una plantilla bloqueada',
+      INPUT: 'lo que pide la plantilla, por nombre (su página los lista, como `YOUR_CAPTION`): texto, números, colores, opciones y true/false tal cual, un archivo como enlace',
     },
     results: [
       'La imagen o el vídeo con todos los efectos de la plantilla `AbCd`, en orden.',
       'La misma plantilla sobre dos claves de multimedia.',
+      'Una plantilla que pide un texto y una imagen, rellenados con el texto de la etiqueta y el avatar del usuario.',
     ],
     notes: [
       'Para el límite de 300 líneas cuenta como todas las líneas que generan sus efectos, no como una. Una línea `template` dentro de un bucle cuenta una sola vez.',
       'Los pasos ocultos se omiten. Un efecto cuyos ajustes cambiaron desde que se guardó la plantilla usa los actuales.',
       'Las variables que define con `set` desaparecen al terminar, como las de una función. La clave de multimedia conserva los cambios.',
+      'Los nombres de las entradas ignoran mayúsculas y guiones bajos (`your_caption=` sirve). Una entrada que no pide es un error que lista las que sí pide.',
       'Una contraseña escrita en una etiqueta la puede leer cualquiera que vea el código de la etiqueta.',
     ],
   },

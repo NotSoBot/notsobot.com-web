@@ -75,6 +75,9 @@ export const Commands = {
   'commands.uses_this_week': 'uses this week',
 
   'commands.drawer.see_premium': 'See NotSoPremium',
+  'commands.drawer.try_editor': 'Try it in the editor',
+  'commands.drawer.try_generator': 'Make it with the editor',
+  'commands.drawer.try_hint': 'Try {name} on your own media in the web editor.',
   'commands.drawer.prefix_instead': 'Run this one as <slash>{slash}</slash> or <code>{mention}</code> instead.',
   'commands.drawer.prefix_instead_mention': 'Run this one as <code>{mention}</code> instead.',
   'commands.drawer.uses': 'Uses this week',

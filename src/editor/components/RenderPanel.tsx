@@ -145,7 +145,7 @@ export function RenderPanel({ host, documentId, documentFilename, formats, sourc
         {rich('editor.render.limits', {premium: (chunk) => <a href={host.premiumUrl} onClick={external(host.premiumUrl)} className='text-brand-text underline hover:text-white'>{chunk}</a>})}
       </p>
       {(state.status === 'done') ? (
-        <RenderResult host={host} url={state.url} filename={state.filename} shareName={documentFilename} mimetype={state.mimetype} onExternal={external}/>
+        <RenderResult host={host} documentId={documentId} url={state.url} filename={state.filename} shareName={documentFilename} mimetype={state.mimetype} onExternal={external}/>
       ) : null}
       {(state.status === 'failed') ? (
         <p role='alert' className='flex gap-1.5 text-sm text-danger-text'>
@@ -163,8 +163,9 @@ const ACTION = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-l
 
 // The finished render: what it looks like, then what to do with it. In the Activity sharing it to the channel comes
 // first (Discord's own dialog), downloading and copying the link are the two smaller ones under it
-function RenderResult({ host, url, filename, shareName, mimetype, onExternal }: {
+function RenderResult({ host, documentId, url, filename, shareName, mimetype, onExternal }: {
   host: EditorHost,
+  documentId: string,
   url: string,
   filename: string,
   // what a shared render is called in chat: the document's file name, not the render's storage name
@@ -177,6 +178,8 @@ function RenderResult({ host, url, filename, shareName, mimetype, onExternal }: 
   const [ copyFailed, setCopyFailed ] = useState(false);
   const [ sharing, setSharing ] = useState(false);
   const [ shareError, setShareError ] = useState<string | null>(null);
+  // the bot posted it in the channel (Discord's own dialog says nothing back)
+  const [ posted, setPosted ] = useState(false);
   const extension = (mimetype) ? formatName(mimetype) : (url.split('.').pop() || '').toUpperCase();
 
   const onCopy = async () => {
@@ -194,7 +197,7 @@ function RenderResult({ host, url, filename, shareName, mimetype, onExternal }: 
     setSharing(true);
     setShareError(null);
     try {
-      await host.share(url, shareName);
+      setPosted(await host.share(url, shareName, documentId) === 'posted');
     } catch (error) {
       // the api's reason (too big, discord refused it), or the sdk's own message
       const message = host.errorOf(error)?.message ?? ((error instanceof Error) ? error.message : '');
@@ -229,6 +232,11 @@ function RenderResult({ host, url, filename, shareName, mimetype, onExternal }: 
           {(sharing) ? <Spinner className='size-4 border-white/40 border-t-white'/> : <Share2 aria-hidden className='size-4'/>}
           {(sharing) ? t('editor.render.sharing') : t('editor.render.share')}
         </button>
+      ) : null}
+      {(posted) ? (
+        <p role='status' className='-mt-1 flex gap-1.5 text-xs text-success-text'>
+          <Check aria-hidden className='mt-px size-3.5 shrink-0'/>{t('editor.render.posted')}
+        </p>
       ) : null}
       {(shareError !== null) ? (
         <p role='alert' className='-mt-1 flex gap-1.5 text-xs text-danger-text'>

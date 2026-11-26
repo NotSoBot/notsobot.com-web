@@ -8,6 +8,7 @@ import type { EditorCatalogue, EditorDocument, EditorJob, EditorStep, EditorTemp
 
 import { MOCK_COMMAND_PREVIEWS } from './commandPreviews';
 import catalogueJson from './editorCatalogue.json';
+import { registerHubMocks } from './editorHub';
 
 
 type Route = (method: string, pattern: string, handler: (match: RegExpMatchArray, request: {method: string, query: URLSearchParams, body: Record<string, unknown>}) => unknown) => void;
@@ -181,6 +182,9 @@ export function registerEditorMocks(route: Route, error: MakeError): void {
     access: (sessionStorage.getItem('dashboardMocks:editorPublic')) ? 'everyone' : 'owners',
   }));
 
+  // the template hub: published samples, your templates in every hub state, publish/unpublish/report (./editorHub.ts)
+  registerHubMocks(route, error, templates, catalogue().effects);
+
   route('GET', '/editor/documents', () => ({
     documents: [...documents.values()].sort((a, b) => b.updated.localeCompare(a.updated)),
   }));
@@ -300,6 +304,40 @@ export function registerEditorMocks(route: Route, error: MakeError): void {
     return document;
   });
 
+  // Replace media: a new source under the same steps, an audio effect on a picture is refused like the api does
+  route('PUT', '/editor/documents/(\\d+)/source', (match, { body }) => {
+    const document = find(match[1]);
+    if (Number(body.version) !== document.version) {
+      throw error(409, 50053, 'This document was changed since you loaded it', {version: document.version});
+    }
+    const file = body.file as File | undefined;
+    const link = body.url as string | undefined;
+    if (!file && !link) {
+      throw error(400, 50014, 'A file or url is required');
+    }
+    const url = (file) ? URL.createObjectURL(file) : link!;
+    const mimetype = file?.type || 'image/png';
+    const filename = (file?.name ?? link!.split('/').pop() ?? 'media').replace(/\.[^.]+$/, '');
+    const fresh = makeDocument(document.id, url, filename, mimetype, 512, 512);
+    const kind = fresh.source_meta.kind;
+    const effects = new Map(catalogue().effects.map((effect) => [effect.id, effect]));
+    const bad = document.steps.findIndex((step) => !step.hidden && !effects.get(step.effect)?.kinds.includes(kind));
+    if (bad !== -1) {
+      const name = effects.get(document.steps[bad].effect)?.name ?? document.steps[bad].effect;
+      const message = `${name} doesn't work on ${(kind === 'audio') ? 'audio' : (kind === 'video') ? 'a video' : 'a picture or GIF'}, remove or hide it first`;
+      throw error(400, 50054, message, {index: bad, param: null, message});
+    }
+    Object.assign(document, {
+      proxy: fresh.proxy,
+      source: {...fresh.source, id: `${document.id}${document.version + 1}`},
+      source_meta: fresh.source_meta,
+      render_formats: fresh.render_formats,
+      version: document.version + 1,
+      updated: new Date().toISOString(),
+    });
+    return document;
+  });
+
   route('DELETE', '/editor/documents/(\\d+)', (match) => {
     find(match[1]);
     documents.delete(match[1]);
@@ -404,6 +442,39 @@ export function registerEditorMocks(route: Route, error: MakeError): void {
     // nothing is converted, the result only says it was (the proxy as its file)
     jobs.set(jobId, {url: document.proxy!.url, filename: document.source.filename, mimetype: mimetype ?? document.source_meta.mimetype, polls: 0});
     return {id: jobId, status: 'queued', position: 2, stage: null, result: {error: null, error_code: null, response: null, took: 0}} satisfies EditorJob;
+  });
+
+  // room invites (src/editor/invites.ts): a fake code for any room, redeemed into the sample document's lobby, and the
+  // Activity's posts always posted. Nothing here checks who's in a room
+  const invites = new Map<string, {kind: string, room_id: string}>();
+  route('POST', '/activity/invites', (_, { body }) => {
+    if ((body.kind !== 'editor' && body.kind !== 'game') || typeof body.room_id !== 'string') {
+      throw error(400, 50035, 'Invalid Form Body');
+    }
+    const code = `mock${Math.random().toString(36).slice(2, 10)}`;
+    invites.set(code, {kind: body.kind, room_id: body.room_id});
+    return {code, expires_at: Date.now() + DAY};
+  });
+  route('POST', '/activity/invites/([\\w-]+)/redeem', (match) => {
+    const invite = invites.get(match[1]);
+    if (!invite) {
+      throw error(404, 10047, 'Unknown Activity Invite');
+    }
+    const document = (invite.kind === 'editor') ? find(invite.room_id) : null;
+    return {
+      kind: invite.kind,
+      room_id: invite.room_id,
+      name: document?.lobby_name ?? null,
+      inviter: {user_id: '1', username: 'mockuser', avatar_url: 'https://cdn.discordapp.com/embed/avatars/0.png'},
+      locked: Boolean(document?.locked),
+      watch_only: Boolean(document?.watch_only),
+    };
+  });
+  route('POST', '/editor/activity/(\\d+)/post', (_, { body }) => {
+    if (body.kind === 'invite' && !invites.has(String(body.invite_code))) {
+      throw error(404, 10047, 'Unknown Activity Invite');
+    }
+    return {posted: true};
   });
 
   route('GET', '/jobs/([\\w-]+)', (match) => {

@@ -2269,13 +2269,14 @@ export interface AdminUsersFilters {
   page: number,
 }
 
-// one user's row by id (the search matches ids), for a link to one that isn't on the loaded page. Lives under the list
-// keys, so blocking/editing them refreshes it too
+// one user's row by id, for a link to one that isn't on the loaded page and for their modal over another admin page.
+// Lives under the list keys, so blocking/editing them refreshes it too
 export function useAdminUserEntryQuery(userId: string | null, enabled = true) {
   const { token } = useAuth();
   return useQuery({
     queryKey: queryKeys.adminUsers(token, {id: userId}),
-    queryFn: ({ signal }) => api.fetchAdminUsers({query: userId!, limit: 10}, signal),
+    // `userId` is a lookup by id, far quicker than searching for it. an api from before it ignores it and searches
+    queryFn: ({ signal }) => api.fetchAdminUsers({query: userId!, userId: userId!, limit: 10}, signal),
     select: (page) => page.items.find((entry) => entry.user.id === userId) ?? null,
     enabled: enabled && !!userId,
   });
@@ -2456,8 +2457,9 @@ export function useDeleteAdminUserTagsMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ userId, removal }: {userId: string, removal?: AdminRemoval}) => api.deleteAdminUserTags(userId, removal),
-    // both admin tag lists, and the public directory if any of them were listed
+    // both admin tag lists, the users' tag counts, and the public directory if any of them were listed
     onSettled: () => Promise.all([
+      queryClient.invalidateQueries({queryKey: [...queryKeys.admin(token), 'users']}),
       queryClient.invalidateQueries({queryKey: [...queryKeys.admin(token), 'all-tags']}),
       queryClient.invalidateQueries({queryKey: [...queryKeys.admin(token), 'tags']}),
       queryClient.invalidateQueries({queryKey: ['tags', 'directory']}),

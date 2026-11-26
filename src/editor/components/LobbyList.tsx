@@ -96,7 +96,7 @@ export function LobbyList({ host, room, instanceId, initial, notice, onJoin, onN
               return lobby;
             }
             const hide = event.locked && lobby.user_id !== room.you && !lobby.editors.some((editor) => editor.user_id === room.you);
-            return {...lobby, name: event.name, locked: event.locked, ...((hide) ? {filename: null, steps: [], preview: null} : {})};
+            return {...lobby, name: event.name, locked: event.locked, watch_only: Boolean(event.watch_only), ...((hide) ? {filename: null, steps: [], preview: null} : {})};
           }));
           refresh();
           break;
@@ -347,6 +347,7 @@ function LobbyCard({ lobby, editors, room, effectNames, onJoin }: {
           <p className='-mt-1 truncate text-xs text-subtle'>
             {t('editor.session.by', {name: lobby.creator.username})}
             {(lobby.name && lobby.filename && !lobby.locked) ? ` · ${lobby.filename}` : null}
+            {(lobby.watch_only) ? ` · ${t('editor.room.watch_only')}` : null}
           </p>
         ) : null}
         <p className='min-h-4 truncate text-xs text-subtle'>
