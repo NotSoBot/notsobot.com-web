@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 
 import { FRAME_MODE_MIN_FRAMES, type EditorDocumentState } from '../useEditorDocument';
 import { isAudioMimetype, isVideoMimetype, MediaView } from './media';
+import { PreviewCursors, usePreviewPointer } from './RoomCursors';
 import { SpatialOverlay, type PenSettings } from './SpatialOverlay';
 
 
@@ -30,6 +31,8 @@ export function PreviewStage({ state, pen, maxStrokes, maxPoints, maxTextLength 
   const [ fitWidth, setFitWidth ] = useState(0);
   const figureRef = useRef<HTMLElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  // the others in the lobby see where on the picture this pointer is
+  const previewPointer = usePreviewPointer();
 
   useEffect(() => {
     const figure = figureRef.current;
@@ -154,6 +157,7 @@ export function PreviewStage({ state, pen, maxStrokes, maxPoints, maxTextLength 
           ) : (
             <figure
               ref={figureRef}
+              {...previewPointer}
               className={cn('relative m-0 shrink-0 overflow-hidden rounded-md shadow-[0_8px_24px_rgba(0,0,0,0.35)]', (zoom > 1) ? 'block' : 'inline-block max-w-full')}
             >
               <MediaView
@@ -176,8 +180,10 @@ export function PreviewStage({ state, pen, maxStrokes, maxPoints, maxTextLength 
                   maxStrokes={maxStrokes}
                   maxPoints={maxPoints}
                   maxTextLength={maxTextLength}
+                  assets={document.assets}
                 />
               ) : null}
+              <PreviewCursors/>
               {(stoppedAt && !showOriginal) ? (
                 <figcaption className='absolute inset-x-0 bottom-0 bg-black/70 px-3 py-1.5 text-center text-[13px] text-white'>
                   {(preview?.stopped_cut) ? t('editor.preview.cut', {name: stoppedAt}) : t('editor.preview.stopped', {name: stoppedAt})}

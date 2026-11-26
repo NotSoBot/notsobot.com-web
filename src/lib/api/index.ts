@@ -64,6 +64,7 @@ import type {
   ContentFlagKeptFrames,
   ContentFlagMatches,
   ContentFlagPatch,
+  NcmecReportDetail,
   NcmecReportRequest,
   NcmecReportResult,
   NcmecStatus,
@@ -1335,6 +1336,15 @@ export const api = {
 
   checkAdminNcmec: () => {
     return apiRequest<NcmecStatus>(ApiEndpoints.ADMIN_NCMEC_CHECK, {method: 'POST'});
+  },
+
+  // a report attempt with its text, a draft's is what to paste into NCMEC's website
+  fetchAdminNcmecReport: (reportId: string, signal?: AbortSignal) => {
+    return apiRequest<NcmecReportDetail>(ApiEndpoints.ADMIN_NCMEC_REPORT(reportId), {signal});
+  },
+
+  fetchAdminNcmecReportFile: (reportId: string, index: number) => {
+    return apiRequest<Blob>(ApiEndpoints.ADMIN_NCMEC_REPORT_FILE(reportId, index), {responseType: 'blob', timeout: 60_000});
   },
 
   // turns a media flag into a text flag on its prompt, dropping the media's hashes (can't be undone)

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { EditorErrorCodes, type EditorApiError, type EditorHost } from './api';
 import type { RoomMember, RoomOp, RoomStatus } from './room';
 import { spatialTool } from './stack';
-import type { EditorCatalogue, EditorDocument, EditorPreview, EditorPreviewMode, EditorStep } from './types';
+import type { EditorAsset, EditorCatalogue, EditorDocument, EditorPreview, EditorPreviewMode, EditorStep } from './types';
 
 
 // How long the stack waits after the last change before saving (then previewing)
@@ -425,6 +425,36 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
     restore(future[0]);
   }, [restore]);
 
+  // files new to the document (an upload, a loaded template's), shown right away. The next document from the api has them
+  // too, they're on its row already
+  const addAssets = useCallback((assets: Array<EditorAsset>) => {
+    const current = documentRef.current;
+    if (!current) {
+      return;
+    }
+    const known = new Set((current.assets ?? []).map((asset) => asset.id));
+    const added = assets.filter((asset) => !known.has(asset.id));
+    if (!added.length) {
+      return;
+    }
+    const next = {...current, assets: [...(current.assets ?? []), ...added]};
+    documentRef.current = next;
+    setDocument(next);
+  }, []);
+
+  // an overlay's file, uploaded (a file or a link) and scanned by the api, then one of the document's assets
+  const uploadAsset = useCallback(async (input: {file?: File, url?: string}): Promise<EditorAsset> => {
+    const asset = await api.uploadAsset(documentId, input);
+    addAssets([asset]);
+    return asset;
+  }, [addAssets, api, documentId]);
+
+  // the whole stack at once (a template loaded onto it), one undo brings back what was there
+  const replaceSteps = useCallback((next: Array<EditorStep>) => {
+    commit(next, undefined, {op: 'replace', steps: next});
+    setSelectedId(null);
+  }, [commit]);
+
   const addStep = useCallback((step: EditorStep) => {
     commit([...stepsRef.current, step], undefined, {op: 'add', step});
     setSelectedId(step.id);
@@ -511,9 +541,8 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
         case 'ready': {
           setMembers(event.members);
           setLocks(event.locks);
-          if (event.document) {
-            takeDocument(event.document);
-          }
+          // a reconnect: what changed while the socket was down (the room only sends lobbies, not documents)
+          void api.document(documentId).then(takeDocument).catch(() => undefined);
           break;
         }
         case 'document': {
@@ -540,12 +569,21 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
         case 'members':
           setMembers(event.members);
           break;
+        case 'lobby_updated':
+          // its name and lock, the steps and version are untouched
+          if (event.document_id === documentId && documentRef.current) {
+            const next = {...documentRef.current, lobby_name: event.name, locked: event.locked};
+            documentRef.current = next;
+            setDocument(next);
+          }
+          break;
         case 'lock':
         case 'unlock':
           setLocks({...room.locks});
           break;
         case 'render':
-          if (event.user_id !== room.you) {
+          // another lobby's renders don't lock this one
+          if (event.user_id !== room.you && (!event.document_id || event.document_id === documentId)) {
             setRendering((event.status === 'started') ? event.user_id : null);
           }
           break;
@@ -566,7 +604,7 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
       }
       lockTimersRef.current.clear();
     };
-  }, [documentId, room, runPreview]);
+  }, [api, documentId, room, runPreview]);
 
   // who else holds a step's soft lock (they're dragging it), null when it's free or it's ours
   // Resolves once every edit is saved (true), or the save failed or took too long (false). The render waits on it, so
@@ -592,6 +630,8 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
     }
     return members.find((member) => member.user_id === userId) ?? {user_id: userId, username: userId, avatar_url: null};
   }, [locks, members, room]);
+  // who's editing this document (the lobby), everyone else in the activity is elsewhere
+  const editors = useMemo(() => members.filter((member) => member.editing === documentId), [documentId, members]);
   const renderingMember = (rendering) ? (members.find((member) => member.user_id === rendering) ?? null) : null;
 
   // ---- playback / frames ----
@@ -609,6 +649,8 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
   }, [runPreview]);
 
   return {
+    // the host's reading of an api error, for controls that call the api themselves (an overlay's upload)
+    errorOf: host.errorOf,
     document,
     loadError,
     steps,
@@ -626,6 +668,9 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
     undo,
     redo,
     addStep,
+    replaceSteps,
+    addAssets,
+    uploadAsset,
     removeStep,
     toggleStep,
     moveStep,
@@ -643,6 +688,7 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
     room,
     roomStatus,
     members,
+    editors,
     lockedBy,
     // someone else's render locks the stack until it's done
     renderLocked: Boolean(rendering),

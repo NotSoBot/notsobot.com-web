@@ -1,8 +1,7 @@
-import { Crosshair, Image as ImageIcon, Scissors, Shuffle, Sparkles, Timer, Undo2, Trash2 } from 'lucide-react';
+import { Crosshair, Image as ImageIcon, Scissors, Sparkles, Timer, Undo2, Trash2 } from 'lucide-react';
 import { useId } from 'react';
 
 import { ColorPicker } from '@/components/ui/ColorPicker';
-import { CharCounter, Toggle } from '@/components/ui/form';
 import { useI18n } from '@/i18n';
 import { cn } from '@/lib/utils';
 
@@ -10,84 +9,11 @@ import { formatSeconds, paramLabel, STILL_EFFECT_ID, TRIM_EFFECT_ID } from '../s
 import type { EditorEffect, EditorParam, EditorStep, EditorStroke } from '../types';
 import type { EditorDocumentState } from '../useEditorDocument';
 import type { PenSettings } from './SpatialOverlay';
+import { OverlayMediaControl } from './OverlayMediaControl';
+import { INPUT, SimpleParamControl } from './ParamControls';
 
 
-const INPUT = 'h-10 w-full rounded-lg border border-line-strong bg-deep px-2.5 text-sm text-fg outline-none focus:border-brand';
 const PEN_WIDTHS = [0.005, 0.01, 0.02, 0.04];
-
-
-// a slider's step: whole numbers for integers, about a hundredth of the range otherwise
-function sliderStep(param: EditorParam): number {
-  if (param.kind === 'integer') {
-    return 1;
-  }
-  const range = (param.maximum ?? 1) - (param.minimum ?? 0);
-  const raw = range / 100;
-  const magnitude = 10 ** Math.floor(Math.log10(raw));
-  return Math.max(magnitude, 0.0001);
-}
-
-
-function NumberControl({ param, value, onChange }: {param: EditorParam, value: number, onChange: (value: number) => void}) {
-  const { t } = useI18n();
-  const id = useId();
-  const minimum = param.minimum ?? 0;
-  const maximum = param.maximum ?? 100;
-  const isSeed = param.name === 'seed';
-  // a fraction of the width is shown and typed as a percentage of it
-  const percent = param.unit === 'width';
-  const shown = (percent) ? Math.round(value * 1000) / 10 : value;
-  const set = (next: number) => {
-    if (!Number.isFinite(next)) {
-      return;
-    }
-    const clamped = Math.min(Math.max(next, minimum), maximum);
-    onChange((param.kind === 'integer') ? Math.round(clamped) : Math.round(clamped * 10000) / 10000);
-  };
-  return (
-    <div className='flex flex-col gap-1.5'>
-      <div className='flex items-center justify-between gap-2'>
-        <label htmlFor={id} className='text-[13px] text-muted'>
-          {paramLabel(param)}{(percent) ? <span className='text-subtle'> · {t('editor.settings.of_width')}</span> : null}
-        </label>
-        <span className='flex items-center gap-1'>
-          <input
-            type='number'
-            aria-label={(percent) ? `${paramLabel(param)} (${t('editor.settings.of_width')})` : paramLabel(param)}
-            value={shown}
-            min={(percent) ? minimum * 100 : minimum}
-            max={(percent) ? maximum * 100 : maximum}
-            step={(percent) ? 1 : sliderStep(param)}
-            onChange={(event) => set((percent) ? Number(event.target.value) / 100 : Number(event.target.value))}
-            className='h-8 w-20 rounded-md border border-line-strong bg-deep px-2 text-right font-mono text-[13px] text-fg tabular-nums outline-none focus:border-brand'
-          />
-          {(percent) ? <span aria-hidden className='font-mono text-[13px] text-muted'>%</span> : null}
-        </span>
-      </div>
-      <div className='flex items-center gap-2'>
-        <input
-          id={id}
-          type='range'
-          min={minimum}
-          max={maximum}
-          step={sliderStep(param)}
-          value={value}
-          onChange={(event) => set(Number(event.target.value))}
-          className='min-w-0 flex-1 accent-brand'
-        />
-        {(isSeed) ? (
-          <button
-            type='button'
-            onClick={() => set(Math.floor(minimum + Math.random() * (Math.min(maximum, 1_000_000) - minimum + 1)))}
-            className='inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-line-strong px-2.5 text-[13px] font-semibold text-fg hover:bg-surface-3'
-          >
-            <Shuffle aria-hidden className='size-3.5'/>{t('editor.settings.shuffle')}
-          </button>
-        ) : null}
-      </div>
-    </div>
-  );
-}
 
 
 function OptionalTimeControl({ param, value, onChange, maximum }: {
@@ -314,37 +240,16 @@ export function StepSettings({ state, effect, step, pen, setPen, maxStrokes, dur
         switch (param.kind) {
           case 'number':
           case 'integer':
-            return <NumberControl key={param.name} param={param} value={Number(value ?? param.default)} onChange={set(param.name)}/>;
           case 'boolean':
-            return <Toggle key={param.name} checked={Boolean(value)} onChange={set(param.name)} label={paramLabel(param)}/>;
           case 'choice':
-            return (
-              <label key={param.name} className='flex flex-col gap-1.5 text-[13px] text-muted'>
-                {paramLabel(param)}
-                <select value={String(value)} onChange={(event) => set(param.name)(event.target.value)} className={INPUT}>
-                  {(param.choices ?? []).map((item) => <option key={item} value={item}>{item.charAt(0) + item.slice(1).toLowerCase()}</option>)}
-                </select>
-              </label>
-            );
           case 'color':
-            return <ColorPicker key={param.name} label={paramLabel(param)} value={String(value ?? param.default)} onChange={set(param.name)}/>;
-          case 'text': {
-            const text = String(value ?? '');
-            const max = param.max_length ?? 200;
-            return (
-              <label key={param.name} className='flex flex-col gap-1.5 text-[13px] text-muted'>
-                <span className='flex justify-between gap-2'>{paramLabel(param)}<CharCounter length={text.length} max={max}/></span>
-                <textarea
-                  rows={2}
-                  maxLength={max}
-                  value={text}
-                  onChange={(event) => set(param.name)(event.target.value)}
-                  className='min-h-10 w-full resize-y rounded-lg border border-line-strong bg-deep px-2.5 py-2 text-sm text-fg outline-none focus:border-brand'
-                />
-              </label>
-            );
-          }
+          case 'text':
+            return <SimpleParamControl key={param.name} param={param} value={value} onChange={set(param.name)}/>;
           case 'time':
+            // the part of an uploaded file that's used: the file's control shows it, against the file's length
+            if (param.name.startsWith('clip_')) {
+              return null;
+            }
             return (
               <TimeControl
                 key={param.name}
@@ -357,7 +262,10 @@ export function StepSettings({ state, effect, step, pen, setPen, maxStrokes, dur
           case 'point':
             return <p key={param.name} className='text-[13px] text-muted'>{t('editor.settings.place_point')}</p>;
           case 'box':
-            return <p key={param.name} className='text-[13px] text-muted'>{t('editor.settings.place_box')}</p>;
+            // an overlay's own control says where to place it
+            return (effect.id === 'overlay') ? null : <p key={param.name} className='text-[13px] text-muted'>{t('editor.settings.place_box')}</p>;
+          case 'media':
+            return <OverlayMediaControl key={param.name} state={state} step={step} value={(typeof value === 'string') ? value : null}/>;
           case 'strokes':
             return (
               <DrawControls

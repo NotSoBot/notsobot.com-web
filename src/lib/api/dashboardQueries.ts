@@ -2567,6 +2567,15 @@ export function useAdminNcmecQuery(enabled = true) {
   });
 }
 
+export function useAdminNcmecReportQuery(reportId: string | null) {
+  const { token } = useAuth();
+  return useQuery({
+    queryKey: [...queryKeys.admin(token), 'ncmec-report', reportId],
+    queryFn: ({ signal }) => api.fetchAdminNcmecReport(reportId!, signal),
+    enabled: !!reportId,
+  });
+}
+
 export function useCheckAdminNcmecMutation() {
   return useMutation({mutationFn: () => api.checkAdminNcmec()});
 }

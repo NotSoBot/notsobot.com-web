@@ -5,6 +5,7 @@ import { useI18n } from '@/i18n';
 import { cn } from '@/lib/utils';
 
 import type { EditorDocumentState } from '../useEditorDocument';
+import { StepCursors, useCursors } from './RoomCursors';
 import { useStepSummary } from './useStepSummary';
 
 
@@ -14,6 +15,7 @@ export function StepList({ state }: {state: EditorDocumentState}) {
   const { steps, effectsById, selectedId, stepError } = state;
   const [ dragging, setDragging ] = useState<string | null>(null);
   const [ over, setOver ] = useState<number | null>(null);
+  const cursors = useCursors();
 
   if (!steps.length) {
     return (
@@ -30,7 +32,7 @@ export function StepList({ state }: {state: EditorDocumentState}) {
   };
 
   return (
-    <ol className='flex flex-col gap-1.5'>
+    <ol className='flex flex-col gap-1.5' onPointerLeave={() => cursors?.send(null)}>
       {steps.map((step, index) => {
         const effect = effectsById.get(step.effect);
         const name = effect?.name ?? step.effect;
@@ -42,6 +44,7 @@ export function StepList({ state }: {state: EditorDocumentState}) {
           <li
             key={step.id}
             draggable
+            onPointerEnter={() => cursors?.send({at: 'step', step_id: step.id})}
             onDragStart={(event) => {
               setDragging(step.id);
               event.dataTransfer.effectAllowed = 'move';
@@ -89,6 +92,7 @@ export function StepList({ state }: {state: EditorDocumentState}) {
               {(failed && stepError) ? <span className='text-xs text-danger-text'>{t('editor.step.error', {message: stepError.message})}</span> : null}
               {(lockedBy) ? <span className='text-xs text-warning'>{t('editor.room.adjusting', {name: lockedBy.username})}</span> : null}
             </button>
+            <StepCursors stepId={step.id}/>
             <button
               type='button'
               aria-label={(step.hidden) ? t('editor.step.show', {name}) : t('editor.step.hide', {name})}

@@ -61,6 +61,13 @@ export function useStepSummary() {
           parts.push(plural('editor.summary.strokes', (value as Array<EditorStroke>).length));
           break;
         }
+        case 'steps': {
+          const count = (Array.isArray(value)) ? value.filter((item) => !(item as EditorStep).hidden).length : 0;
+          if (count) {
+            parts.push(plural('editor.summary.file_steps', count));
+          }
+          break;
+        }
         case 'box': {
           const box = value as EditorBox;
           parts.push(`${Math.round(box.width * 100)}×${Math.round(box.height * 100)}%`);

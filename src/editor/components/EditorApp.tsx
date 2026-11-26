@@ -1,4 +1,4 @@
-import { ArrowLeft, Copy, Redo2, Undo2, Users } from 'lucide-react';
+import { ArrowLeft, Redo2, Undo2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 import { FullPageMessage } from '@/components/ui/FullPageMessage';
@@ -7,56 +7,21 @@ import { useI18n } from '@/i18n';
 import { cn } from '@/lib/utils';
 
 import type { EditorHost } from '../api';
-import { newStep, stackKind, stepTimeline } from '../stack';
-import type { EditorCatalogue, EditorEffect } from '../types';
+import { addsAudio, newStep, stackKind, stepTimeline } from '../stack';
+import type { EditorCatalogue, EditorEffect, EditorTemplate } from '../types';
 import { useEditorDocument } from '../useEditorDocument';
 import { EffectPicker } from './EffectPicker';
+import { ForkButton } from './ForkRoom';
+import { LobbyPeople } from './LobbyPeople';
+import { MediaScriptButton } from './MediaScriptCopy';
 import { PreviewStage } from './PreviewStage';
 import { RenderPanel } from './RenderPanel';
+import { CursorProvider } from './RoomCursors';
 import { SaveTemplateButton } from './SaveTemplate';
 import { StepList } from './StepList';
 import { StepSettings, type TimeContext } from './StepSettings';
+import { SaveLoadedTemplateButton, TemplatesButton } from './TemplatePicker';
 import type { PenSettings } from './SpatialOverlay';
-
-
-// the Activity's "Make my own copy" / "Edit with the group": waits for the last edits to save, so the copy has them
-function SessionSwitchButton({ host, state }: {host: EditorHost, state: ReturnType<typeof useEditorDocument>}) {
-  const { t } = useI18n();
-  const [ pending, setPending ] = useState(false);
-  const [ error, setError ] = useState<string | null>(null);
-  const session = host.switchSession!;
-  const label = (session.kind === 'copy') ? t('editor.session.copy') : t('editor.session.group');
-  return (
-    <>
-      <button
-        type='button'
-        disabled={pending || !state.document}
-        title={error ?? label}
-        aria-label={label}
-        onClick={async () => {
-          setPending(true);
-          setError(null);
-          try {
-            if (!await state.whenSaved()) {
-              throw new Error(t('editor.render.unsaved'));
-            }
-            await session.run({...state.document!, steps: state.steps});
-          } catch (failure) {
-            setError(host.errorOf(failure)?.message || ((failure instanceof Error) ? failure.message : t('editor.session.failed')));
-            setPending(false);
-          }
-        }}
-        className={cn(
-          'inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2.5 text-sm font-semibold hover:bg-surface disabled:cursor-not-allowed disabled:opacity-40',
-          (error) ? 'text-danger-text' : 'text-muted hover:text-fg',
-        )}
-      >
-        {(pending) ? <Spinner className='size-4'/> : (session.kind === 'copy') ? <Copy aria-hidden className='size-4'/> : <Users aria-hidden className='size-4'/>}
-        <span className='hidden sm:inline'>{label}</span>
-      </button>
-    </>
-  );
-}
 
 
 function mediaChip(
@@ -82,6 +47,8 @@ export function EditorApp({ host, documentId, catalogue }: {host: EditorHost, do
   const { t, plural } = useI18n();
   const state = useEditorDocument(host, documentId, catalogue);
   const [ pen, setPen ] = useState<PenSettings>({color: '#ff3b3b', width: 0.01});
+  // one of their templates they loaded here, "Save template" writes changes back into it
+  const [ loadedTemplate, setLoadedTemplate ] = useState<EditorTemplate | null>(null);
   const { document, loadError, selectedStep, effectsById } = state;
 
   // ctrl/cmd+z and shift+ctrl/cmd+z (or ctrl+y), not while typing in a field
@@ -125,7 +92,7 @@ export function EditorApp({ host, documentId, catalogue }: {host: EditorHost, do
 
   const meta = document.source_meta;
   // recorded since 2026-11-25, before that: gifs and other animated images have no sound, videos usually do
-  const hasAudio = meta.kind === 'audio' || (meta.kind === 'video' && (meta.audio ?? meta.mimetype.startsWith('video/')));
+  const hasAudio = meta.kind === 'audio' || (meta.kind === 'video' && (meta.audio ?? meta.mimetype.startsWith('video/'))) || addsAudio(state.steps);
   // after a Still Frame it's an image, only image effects can follow
   const pickerKind = stackKind(meta.kind, state.steps);
   const proxy = document.proxy;
@@ -145,37 +112,29 @@ export function EditorApp({ host, documentId, catalogue }: {host: EditorHost, do
   const saveLabel = (state.saveState === 'saving') ? t('editor.save.saving') : (state.saveState === 'error') ? t('editor.save.error') : t('editor.save.saved');
 
   return (
-    // on wide screens the editor is the window's height (under the site's navbar on the web) and each column scrolls on
-    // its own, so a long effect list never pushes Render out of reach. narrow screens scroll as one page
+    <CursorProvider room={state.room ?? null} documentId={document.id} editors={state.editors}>
+    {/* on wide screens the editor is the window's height (under the site's navbar on the web) and each column scrolls on
+        its own, so a long effect list never pushes Render out of reach. narrow screens scroll as one page */}
     <div className={cn('flex flex-col bg-bg text-fg', (host.fullscreen) ? 'min-h-[var(--editor-height,100dvh)] lg:h-[var(--editor-height,100dvh)]' : 'min-h-[calc(100dvh-4rem)] lg:h-[calc(100dvh-4rem-1px)]')}>
       <div className='flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line-strong bg-deep px-4 py-2.5 sm:px-5'>
         {(host.onLeave) ? (
           <button type='button' onClick={host.onLeave} className='inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-muted hover:bg-surface hover:text-fg'>
-            <ArrowLeft aria-hidden className='size-4'/>{t('editor.new')}
+            <ArrowLeft aria-hidden className='size-4'/>{host.leaveLabel ?? t('editor.new')}
           </button>
         ) : null}
         <div className='flex min-w-0 flex-[1_1_240px] items-center gap-2'>
-          <h1 className='truncate text-sm font-semibold text-white'>{document.source.filename}</h1>
+          <h1 className='truncate text-sm font-semibold text-white'>{document.lobby_name || document.source.filename}</h1>
           <span className='rounded-full border border-line-strong bg-surface px-2 py-0.5 font-mono text-xs whitespace-nowrap text-muted'>{mediaChip(meta, (count) => plural('editor.chip.frames', count))}</span>
         </div>
-        {(state.room) ? (
-          <div role='group' aria-label={t('editor.room.members')} className='flex -space-x-2'>
-            {state.members.slice(0, 6).map((member) => (
-              (member.avatar_url) ? (
-                <img key={member.user_id} src={member.avatar_url} alt={member.username} title={member.username} className='size-7 rounded-full border-2 border-deep bg-surface'/>
-              ) : (
-                <span key={member.user_id} role='img' aria-label={member.username} title={member.username} className='flex size-7 items-center justify-center rounded-full border-2 border-deep bg-brand text-xs font-bold text-white'>
-                  {member.username.charAt(0).toUpperCase()}
-                </span>
-              )
-            ))}
-          </div>
-        ) : null}
+        {(state.room) ? <LobbyPeople editors={state.editors} room={state.room} documentId={document.id} ownerId={document.user_id} roomName={document.lobby_name || document.source.filename} lobbyName={document.lobby_name ?? null} locked={Boolean(document.locked)}/> : null}
         {(state.room && state.roomStatus !== 'open') ? <span role='status' className='text-xs text-warning'>{t('editor.room.reconnecting')}</span> : null}
         <span role='status' className={cn('text-xs', (state.saveState === 'error') ? 'text-danger-text' : 'text-subtle')}>{saveLabel}</span>
         <div className='flex items-center gap-1'>
           {/* the saved steps are what a template copies, so not while a change is still saving */}
-          {(host.switchSession) ? <SessionSwitchButton host={host} state={state}/> : null}
+          {(host.fork) ? <ForkButton host={host} state={state}/> : null}
+          <MediaScriptButton host={host} documentId={document.id} disabled={!state.steps.length || state.saveState !== 'saved'}/>
+          <TemplatesButton host={host} state={state} onLoad={setLoadedTemplate}/>
+          {(loadedTemplate) ? <SaveLoadedTemplateButton host={host} state={state} documentId={document.id} template={loadedTemplate}/> : null}
           <SaveTemplateButton host={host} documentId={document.id} disabled={!state.steps.length || state.saveState !== 'saved'}/>
           <button type='button' aria-label={t('editor.undo')} title={t('editor.undo')} disabled={!state.canUndo} onClick={undo} className='flex size-10 items-center justify-center rounded-lg text-fg hover:bg-surface disabled:cursor-not-allowed disabled:opacity-40'>
             <Undo2 aria-hidden className='size-5'/>
@@ -229,6 +188,7 @@ export function EditorApp({ host, documentId, catalogue }: {host: EditorHost, do
           <RenderPanel
             host={host}
             documentId={document.id}
+            documentFilename={document.source.filename}
             formats={document.render_formats ?? []}
             sourceKind={document.source_meta.kind}
             empty={!state.steps.some((step) => !step.hidden)}
@@ -238,5 +198,6 @@ export function EditorApp({ host, documentId, catalogue }: {host: EditorHost, do
       </div>
       </fieldset>
     </div>
+    </CursorProvider>
   );
 }

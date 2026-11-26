@@ -205,6 +205,18 @@ export const MEDIASCRIPT_PORTUGUESE_5: TagDocsTranslation['mediaScriptCommands']
       'A última imagem ou vídeo com um pop-up de conquista "touched grass" de 50G.',
     ],
   },
+  speechbubble: {
+    summary: 'O meme do balão de fala: um balão no topo com a ponta para baixo, ao lado do maior rosto.',
+    args: {
+      MEDIA_KEY: MEDIA,
+      DIRECTION: 'para onde a ponta aponta: AUTO ao lado do rosto, no lado com mais espaço; LEFT ou RIGHT do rosto; CENTER para baixo sobre a cabeça (sem rosto apontam para baixo naquele lado)',
+      TRANSPARENT: 'recorta o balão da mídia; false o desenha branco',
+    },
+    notes: ['Vídeos sempre recebem um balão branco, mp4 não pode ser transparente. Um balão recortado num JPEG volta como PNG.'],
+    results: [
+      'A última imagem ou vídeo com um balão de fala recortado no topo e a ponta para o lado direito do rosto.',
+    ],
+  },
   snapchat: {
     summary: 'Coloca uma legenda estilo Snapchat na mídia: texto branco numa barra preta semitransparente de largura inteira.',
     args: {
@@ -450,6 +462,22 @@ export const MEDIASCRIPT_PORTUGUESE_5: TagDocsTranslation['mediaScriptCommands']
       'Cada etiqueta é o nome do objeto e o quanto o detector tem certeza, os mesmos objetos em que o `cropauto` recorta. O mesmo tipo de objeto sempre tem a mesma cor.',
       'Nas animações olha-se a cada poucos quadros, os quadros intermediários mantêm as caixas do último.',
     ],
+  },
+  facebighead: {
+    summary: 'Deixa cada cabeça inteira maior, como um cabeçudo.',
+    args: {
+      MEDIA_KEY: MEDIA,
+      SIZE: 'quanto maiores as cabeças ficam',
+    },
+    notes: ['A cabeça inteira é escalada, então mantém as proporções, e um anel em volta dela a mistura de volta com o pescoço e o fundo. Cabeças em que nenhum rosto é encontrado, como anime, desenhos ou a parte de trás de uma cabeça, também recebem o efeito, e em GIFs e vídeos ele segue cada rosto.'],
+  },
+  facefilter: {
+    summary: 'Coloca um filtro de rosto estilo Snapchat em cada rosto.',
+    args: {
+      MEDIA_KEY: MEDIA,
+      FILTER: 'orelhas e nariz de cachorro, dálmata ou porco (os cachorros põem a língua para fora), orelhas de coração, uma coroa de flores ou uma peruca arco-íris',
+    },
+    notes: ['As orelhas, a coroa e a peruca ficam em cima da cabeça e giram com ela; o nariz e a língua vão no rosto. Cabeças em que nenhum rosto é encontrado, como anime, desenhos ou a parte de trás de uma cabeça, recebem as partes que vão na cabeça, e em GIFs e vídeos o filtro segue cada rosto.'],
   },
   facehalloweenhat: {
     summary: 'Coloca um chapéu de Halloween em cima de cada cabeça.',

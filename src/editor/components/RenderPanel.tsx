@@ -45,9 +45,11 @@ function resultOf(job: EditorJob): RenderState {
 
 // The full quality render: the whole stack on the original, a normal job on the user's tier queue. Polled through
 // `/jobs/<id>` like a command. Only the newest one counts, a new render or leaving the document drops the old poll
-export function RenderPanel({ host, documentId, formats, sourceKind, empty, waitForSave }: {
+export function RenderPanel({ host, documentId, documentFilename, formats, sourceKind, empty, waitForSave }: {
   host: EditorHost,
   documentId: string,
+  // the document's file name, a shared render keeps it (with the render's own extension)
+  documentFilename: string,
   // the document's `render_formats`, the picker is left out without any
   formats: Array<string>,
   sourceKind: string,
@@ -143,7 +145,7 @@ export function RenderPanel({ host, documentId, formats, sourceKind, empty, wait
         {rich('editor.render.limits', {premium: (chunk) => <a href={host.premiumUrl} onClick={external(host.premiumUrl)} className='text-brand-text underline hover:text-white'>{chunk}</a>})}
       </p>
       {(state.status === 'done') ? (
-        <RenderResult host={host} url={state.url} filename={state.filename} mimetype={state.mimetype} onExternal={external}/>
+        <RenderResult host={host} url={state.url} filename={state.filename} shareName={documentFilename} mimetype={state.mimetype} onExternal={external}/>
       ) : null}
       {(state.status === 'failed') ? (
         <p role='alert' className='flex gap-1.5 text-sm text-danger-text'>
@@ -161,10 +163,12 @@ const ACTION = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-l
 
 // The finished render: what it looks like, then what to do with it. In the Activity sharing it to the channel comes
 // first (Discord's own dialog), downloading and copying the link are the two smaller ones under it
-function RenderResult({ host, url, filename, mimetype, onExternal }: {
+function RenderResult({ host, url, filename, shareName, mimetype, onExternal }: {
   host: EditorHost,
   url: string,
   filename: string,
+  // what a shared render is called in chat: the document's file name, not the render's storage name
+  shareName: string,
   mimetype: string,
   onExternal: (url: string) => (event: React.MouseEvent) => void,
 }) {
@@ -190,7 +194,7 @@ function RenderResult({ host, url, filename, mimetype, onExternal }: {
     setSharing(true);
     setShareError(null);
     try {
-      await host.share(url);
+      await host.share(url, shareName);
     } catch (error) {
       // the api's reason (too big, discord refused it), or the sdk's own message
       const message = host.errorOf(error)?.message ?? ((error instanceof Error) ? error.message : '');

@@ -1,4 +1,4 @@
-import { Play, Sparkles } from 'lucide-react';
+import { Music, Play, Sparkles } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { SearchInput } from '@/components/ui/SearchInput';
@@ -7,19 +7,25 @@ import { cn } from '@/lib/utils';
 
 import { effectFits } from '../stack';
 import type { EditorEffect, EditorGroup, EditorMediaKind } from '../types';
-import { isVideoMimetype, prefersReducedMotion } from './media';
+import { isAudioMimetype, isVideoMimetype, prefersReducedMotion } from './media';
+import { TabDots, TileCursors, tilePointer, useCursors } from './RoomCursors';
 
 
 const TAB_LABELS: Record<EditorGroup, TranslationKey> = {
-  effects: 'editor.tab.effects',
-  adjust: 'editor.tab.adjust',
+  style: 'editor.tab.style',
+  distort: 'editor.tab.distort',
+  animate: 'editor.tab.animate',
   text: 'editor.tab.text',
+  faces: 'editor.tab.faces',
+  scenes: 'editor.tab.scenes',
+  adjust: 'editor.tab.adjust',
+  edit: 'editor.tab.edit',
   draw: 'editor.tab.draw',
   audio: 'editor.tab.audio',
-  animate: 'editor.tab.animate',
-  faces: 'editor.tab.faces',
-  frames: 'editor.tab.frames',
 };
+// by what someone's after: a look, a warp, motion, words, faces, a scene; then the plain adjustments and edits, things
+// placed on the preview, and sound
+const GROUPS: ReadonlyArray<EditorGroup> = ['style', 'distort', 'animate', 'text', 'faces', 'scenes', 'adjust', 'edit', 'draw', 'audio'];
 
 
 // A tile's picture: the effect's commands page preview (the same sample under every effect, so they compare). A video
@@ -50,6 +56,16 @@ function TileThumbnail({ effect, active }: {effect: EditorEffect, active: boolea
     );
   }
 
+  // an audio effect's preview is a sound, not a picture: its tile says so (it doesn't play on hover)
+  if (isAudioMimetype(thumbnail.mimetype)) {
+    return (
+      <div className='flex aspect-video flex-col items-center justify-center gap-1 rounded-md bg-deep px-2 text-center'>
+        <Music aria-hidden className='size-6 text-brand-text'/>
+        <span className='font-display text-[13px] font-bold text-fg'>{effect.name}</span>
+      </div>
+    );
+  }
+
   if (isVideoMimetype(thumbnail.mimetype)) {
     return (
       <div className='relative'>
@@ -64,8 +80,9 @@ function TileThumbnail({ effect, active }: {effect: EditorEffect, active: boolea
 }
 
 
-function EffectTile({ effect, onAdd }: {effect: EditorEffect, onAdd: (effect: EditorEffect) => void}) {
+function EffectTile({ effect, tab, onAdd }: {effect: EditorEffect, tab: string, onAdd: (effect: EditorEffect) => void}) {
   const { t } = useI18n();
+  const cursors = useCursors();
   const [ active, setActive ] = useState(false);
   const animated = Boolean(effect.thumbnail && isVideoMimetype(effect.thumbnail.mimetype));
   return (
@@ -76,8 +93,9 @@ function EffectTile({ effect, onAdd }: {effect: EditorEffect, onAdd: (effect: Ed
       onMouseLeave={() => setActive(false)}
       onFocus={() => setActive(true)}
       onBlur={() => setActive(false)}
+      {...tilePointer(cursors, tab, effect.id)}
       aria-label={t('editor.tile.add', {name: (animated) ? t('editor.tile.animated', {name: effect.name}) : effect.name})}
-      className='flex flex-col gap-1.5 rounded-[10px] border border-line-strong bg-bg p-1.5 text-left transition-colors hover:border-brand focus-visible:border-brand'
+      className='relative flex flex-col gap-1.5 rounded-[10px] border border-line-strong bg-bg p-1.5 text-left transition-colors hover:border-brand focus-visible:border-brand'
     >
       <TileThumbnail effect={effect} active={active}/>
       <span className='flex items-center gap-1.5 px-0.5 pb-0.5 text-[13px] font-semibold text-fg'>
@@ -88,12 +106,15 @@ function EffectTile({ effect, onAdd }: {effect: EditorEffect, onAdd: (effect: Ed
           </span>
         ) : null}
       </span>
+      <TileCursors tab={tab} effect={effect.id}/>
     </button>
   );
 }
 
 
-export function EffectPicker({ effects, kind, hasAudio, onAdd }: {
+export function EffectPicker({ effects, kind, hasAudio, onAdd, notes = true }: {
+  // the media's own notes (audio needs sound...), left out where they don't apply (a file's effects)
+  notes?: boolean,
   effects: Array<EditorEffect>,
   kind: EditorMediaKind,
   hasAudio: boolean,
@@ -101,12 +122,15 @@ export function EffectPicker({ effects, kind, hasAudio, onAdd }: {
 }) {
   const { t } = useI18n();
   const [ query, setQuery ] = useState('');
-  const groups: Array<EditorGroup> = ['effects', 'adjust', 'animate', 'text', 'faces', 'frames', 'draw', 'audio'];
+  const groups = GROUPS;
   const usable = useMemo(() => effects.filter((effect) => effectFits(effect, kind, hasAudio)), [effects, kind, hasAudio]);
   const enabledGroups = groups.filter((group) => usable.some((effect) => effect.group === group));
-  const [ tab, setTab ] = useState<EditorGroup>(() => enabledGroups[0] ?? 'effects');
+  const [ tab, setTab ] = useState<EditorGroup>(() => enabledGroups[0] ?? 'style');
+  const cursors = useCursors();
 
   const search = query.trim().toLowerCase();
+  // the page of tiles this is, for the others' pointers: a tile's spot only means something on the same page
+  const page = (search) ? 'search' : tab;
   const shown = (search)
     ? usable.filter((effect) => effect.name.toLowerCase().includes(search) || effect.id.includes(search))
     : usable.filter((effect) => effect.group === tab);
@@ -116,10 +140,10 @@ export function EffectPicker({ effects, kind, hasAudio, onAdd }: {
     : (!enabledGroups.includes('audio')) ? t('editor.tab.audio_off') : null;
 
   return (
-    <section aria-label={t('editor.tabs')} className='flex min-w-0 flex-col gap-3.5'>
+    <section aria-label={t('editor.tabs')} className='flex min-w-0 flex-col gap-3.5' onPointerLeave={() => cursors?.send(null)}>
       <SearchInput size='sm' value={query} onValueChange={setQuery} placeholder={t('editor.search')} aria-label={t('editor.search')}/>
-      {/* eight groups: two rows of four, every label fits a narrow sidebar */}
-      <div role='group' aria-label={t('editor.tabs')} className='grid grid-cols-4 gap-1 rounded-lg bg-deep p-1'>
+      {/* ten tabs: two rows of five, every label fits a narrow sidebar */}
+      <div role='group' aria-label={t('editor.tabs')} className='grid grid-cols-5 gap-1 rounded-lg bg-deep p-1'>
         {groups.map((group) => {
           const enabled = enabledGroups.includes(group);
           const selected = !search && tab === group;
@@ -132,21 +156,23 @@ export function EffectPicker({ effects, kind, hasAudio, onAdd }: {
               onClick={() => {
                 setTab(group);
                 setQuery('');
+                cursors?.send({at: 'picker', tab: group, effect: null});
               }}
               className={cn(
-                'min-h-9 min-w-0 truncate rounded-md px-1 text-[13px] font-semibold transition-colors',
+                'relative min-h-9 min-w-0 truncate rounded-md px-0.5 text-xs font-semibold transition-colors',
                 (selected) ? 'bg-brand text-white' : (enabled) ? 'text-muted hover:text-fg' : 'cursor-not-allowed text-[#72767d]',
               )}
             >
               {t(TAB_LABELS[group])}
+              <TabDots tab={group}/>
             </button>
           );
         })}
       </div>
-      {(disabledNote) ? <p className='-mt-1 text-xs text-subtle'>{disabledNote}</p> : null}
+      {(disabledNote && notes) ? <p className='-mt-1 text-xs text-subtle'>{disabledNote}</p> : null}
       {(shown.length) ? (
         <div className='grid grid-cols-2 gap-2.5'>
-          {shown.map((effect) => <EffectTile key={effect.id} effect={effect} onAdd={onAdd}/>)}
+          {shown.map((effect) => <EffectTile key={effect.id} effect={effect} tab={page} onAdd={onAdd}/>)}
         </div>
       ) : (
         <p className='text-[13px] text-muted'>{t('editor.no_match', {query})}</p>

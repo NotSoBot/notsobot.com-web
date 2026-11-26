@@ -2,9 +2,12 @@
 // site's /editor page and the Discord Activity.
 
 export type EditorMediaKind = 'audio' | 'image' | 'video';
-export type EditorGroup = 'effects' | 'adjust' | 'text' | 'draw' | 'audio' | 'animate' | 'faces' | 'frames';
+// the picker's tabs (the api's `EffectGroups`), in its order
+export type EditorGroup = 'style' | 'distort' | 'animate' | 'text' | 'faces' | 'scenes' | 'adjust' | 'edit' | 'draw' | 'audio';
 // `time`: seconds into the media as the steps before it left it (Trim, Still Frame)
-export type EditorParamKind = 'boolean' | 'choice' | 'color' | 'integer' | 'number' | 'text' | 'point' | 'box' | 'strokes' | 'time';
+// `media`: one of the document's uploaded files (`assets`) by id, an overlay's
+// `steps`: effects run on an uploaded file before it's used (an overlay's, Add Audio's)
+export type EditorParamKind = 'boolean' | 'choice' | 'color' | 'integer' | 'number' | 'text' | 'point' | 'box' | 'strokes' | 'time' | 'media' | 'steps';
 
 export interface EditorParam {
   name: string,
@@ -17,7 +20,23 @@ export interface EditorParam {
   // null is allowed (a video's text START/END), the step then leaves it out
   optional?: boolean,
   // `width`: a fraction of the media's width, shown as a percentage of it (Text's size and box)
-  unit?: 'width',
+  // `percent`: a 0-1 fraction shown as a percentage (Overlay's opacity)
+  unit?: 'width' | 'percent',
+}
+
+// a file uploaded to a document for its overlays (or carried over from a template): what an overlay step's `media` is
+export interface EditorAsset {
+  id: string,
+  url: string,
+  filename: string,
+  mimetype: string,
+  kind: EditorMediaKind,
+  width: number,
+  height: number,
+  framecount: number,
+  duration: number,
+  // has sound, what Add Audio takes
+  audio?: boolean,
 }
 
 export interface EditorThumbnail {
@@ -138,6 +157,12 @@ export interface EditorDocument {
   render_formats?: Array<string>,
   activity_instance_id: string | null,
   guild_id: string | null,
+  // a password room in the Activity
+  locked?: boolean,
+  // its overlays' files
+  assets?: Array<EditorAsset>,
+  // a room's name in the Activity (`lobby_name`), null for an unnamed one and everything else
+  lobby_name?: string | null,
   is_owner: boolean,
   can_edit: boolean,
   created: number,
@@ -193,8 +218,29 @@ export interface EditorActivityContext {
   channel_id: string,
   users: Array<string>,
   launch: Record<string, unknown> | null,
-  // the instance's shared document, null until someone picks the media
-  document_id: string | null,
+  // its group edits (lobbies), newest first
+  lobbies: Array<EditorLobby>,
+}
+
+
+// one group edit in an activity: a group document with up to `limit` editors. A locked one (password) shows no file
+// name, steps or picture until you're in, except to its creator
+export interface EditorLobby {
+  id: string,
+  // its creator's name for it (safety scanned), the file's name stands in without one
+  name: string | null,
+  filename: string | null,
+  // its creator, the room list searches by them
+  creator: {user_id: string, username: string, avatar_url: string | null},
+  kind: EditorMediaKind | null,
+  // effect ids, in order
+  steps: Array<string>,
+  editors: Array<{user_id: string, username: string, avatar_url: string | null, editing?: string | null}>,
+  limit: number,
+  locked: boolean,
+  preview: EditorMediaInfo | null,
+  user_id: string,
+  created: number,
 }
 
 
@@ -212,4 +258,6 @@ export interface EditorTemplate {
   is_owner: boolean,
   // password-locked: its steps are empty for anyone else until it's unlocked
   locked: boolean,
+  // its overlays' files, loaded onto a document with its steps
+  assets?: Array<EditorAsset>,
 }

@@ -358,6 +358,23 @@ export const MEDIASCRIPT_PORTUGUESE_1: TagDocsTranslation['mediaScriptCommands']
       'Funções podem chamar outras funções (e a si mesmas), até 8 níveis. Cada linha que elas executam conta para o limite de ações.',
     ],
   },
+  template: {
+    summary: 'Aplica os efeitos de um modelo do editor de mídia, do mesmo jeito que o editor renderiza.',
+    args: {
+      CODE: 'o código do modelo, as letras no fim do link dele (`notsobot.com/editor/template/CODE`). O link inteiro também funciona',
+      PASSWORD: 'a senha de um modelo bloqueado',
+    },
+    results: [
+      'A imagem ou o vídeo com todos os efeitos do modelo `AbCd`, em ordem.',
+      'O mesmo modelo em duas chaves de mídia.',
+    ],
+    notes: [
+      'No limite de 300 linhas ele conta como todas as linhas que os efeitos geram, não como uma. Uma linha `template` dentro de um loop conta uma vez só.',
+      'Passos ocultos são pulados. Um efeito cujas configurações mudaram desde que o modelo foi salvo usa as atuais.',
+      'As variáveis que ele define com `set` somem quando termina, como as de uma função. A chave de mídia mantém as mudanças.',
+      'Uma senha escrita numa tag pode ser lida por qualquer um que veja o código da tag.',
+    ],
+  },
   set: {
     summary: 'Guarda um número numa variável que você pode usar em equações seguintes.',
     args: {

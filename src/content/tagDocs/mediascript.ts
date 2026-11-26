@@ -1226,6 +1226,33 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     ],
   },
   {
+    name: 'template',
+    category: 'flow',
+    summary: 'Runs a media editor template\'s effects on the media, the same way the editor renders them.',
+    syntax: 'template MEDIA_KEY CODE PASSWORD=none',
+    args: [
+      media(),
+      {name: 'CODE', description: 'the template\'s code, the letters at the end of its link (`notsobot.com/editor/template/CODE`). The whole link works too'},
+      {name: 'PASSWORD', default: 'none', description: 'a locked template\'s password'},
+    ],
+    examples: [
+      {
+        code: '{mediascript:load {iv} a\ntemplate a AbCd\nrender a}',
+        result: 'The image or video with every effect of the template `AbCd`, in order.',
+      },
+      {
+        code: '{mediascript:load {iv} a\nload {avatar} b\ntemplate a AbCd\ntemplate b AbCd\nrender a}',
+        result: 'The same template on two media keys.',
+      },
+    ],
+    notes: [
+      'Toward the 300 line limit it counts as every line its effects make, not as one line. A `template` line inside a loop counts once.',
+      'Hidden steps are skipped. An effect whose settings changed since the template was saved uses its current ones.',
+      'Variables it `set`s go away when it ends, like a function\'s. The media key keeps the changes.',
+      'A password written in a tag can be read by anyone who sees the tag\'s code.',
+    ],
+  },
+  {
     name: 'set',
     category: 'flow',
     summary: 'Stores a number in a variable you can use in later equations.',
@@ -2552,6 +2579,22 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     ],
   },
   {
+    name: 'speechbubble',
+    aliases: ['overlayspeechbubble'],
+    category: 'compose',
+    summary: 'The speech bubble reaction meme: a bubble at the top with its tail pointing down beside the biggest face.',
+    syntax: 'speechbubble MEDIA_KEY DIRECTION=AUTO TRANSPARENT=true',
+    args: [
+      media(),
+      {name: 'DIRECTION', default: 'AUTO', range: 'AUTO, LEFT, CENTER, RIGHT', description: 'where the tail points: AUTO beside the face on the side with more room, LEFT or RIGHT of the face, CENTER straight down onto the head (without a face they point down at that side)'},
+      {name: 'TRANSPARENT', default: 'true', range: 'true, false', description: 'cut the bubble out of the media, false draws it white'},
+    ],
+    notes: ['Videos always get a white bubble, mp4s can\'t be see-through. A cut out bubble on a JPEG comes back as a PNG.'],
+    examples: [
+      {code: '{mediascript:load {iv} img\nspeechbubble img right\nrender img}', result: 'The last image or video with a speech bubble cut out of its top, the tail pointing at the right side of the face.'},
+    ],
+  },
+  {
     name: 'snapchat',
     category: 'compose',
     summary: 'Puts a Snapchat style caption on the media, white text on a see-through black bar across the width.',
@@ -2872,6 +2915,17 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
       {name: 'HAT', default: 'WITCH', range: 'WITCH, WITCH_BUCKLE, TOP_HAT'},
     ],
     notes: ['Sits on top of the head (big hair raises it) and turns with it. Heads without a face found, like anime, drawings or the back of a head, get one too, and on GIFs and videos it follows each face.'],
+  },
+  {
+    name: 'facefilter',
+    category: 'compose',
+    summary: 'Puts a Snapchat style face filter on every face.',
+    syntax: 'facefilter MEDIA_KEY FILTER=DOG',
+    args: [
+      media(),
+      {name: 'FILTER', default: 'DOG', range: 'DOG, DALMATIAN, HEARTS, PIG, FLOWERS, WIG', description: 'dog, dalmatian or pig ears and nose (the dogs stick their tongue out), heart ears, a flower crown or a rainbow wig'},
+    ],
+    notes: ['The ears, crown and wig sit on top of the head and turn with it, the nose and tongue go on the face. Heads without a face found, like anime, drawings or the back of a head, get the parts that go on the head, and on GIFs and videos the filter follows each face.'],
   },
   {
     name: 'facexmascap',
@@ -4575,6 +4629,18 @@ export const MEDIASCRIPT_COMMANDS: Array<TagDocMediaScriptCommand> = [
     examples: [
       {code: '{mediascript:load {video} clip\nfaceclown clip 1\nrender clip}', result: 'Clowns the face `drawfaces` numbers 1, on every frame, even when another face is bigger.'},
     ],
+  },
+  {
+    name: 'facebighead',
+    aliases: ['bighead'],
+    category: 'distort',
+    summary: 'Makes every head bigger as a whole, like a bobblehead.',
+    syntax: 'facebighead MEDIA_KEY SIZE=1.5',
+    args: [
+      media(),
+      {name: 'SIZE', default: '1.5', range: '1.1..3', description: 'how much bigger the heads get'},
+    ],
+    notes: ['The whole head is scaled so it keeps its proportions, a ring around it blends back into the neck and background. Heads without a face found, like anime, drawings or the back of a head, get it too, and on GIFs and videos it follows each face.'],
   },
   {
     name: 'facefat',

@@ -356,6 +356,23 @@ export const MEDIASCRIPT_SPANISH_1: TagDocsTranslation['mediaScriptCommands'] = 
       'Las funciones pueden llamar a otras funciones (y a sí mismas), hasta 8 niveles. Cada línea que ejecutan cuenta para el límite de acciones.',
     ],
   },
+  template: {
+    summary: 'Aplica los efectos de una plantilla del editor multimedia, igual que el editor al renderizarla.',
+    args: {
+      CODE: 'el código de la plantilla, las letras al final de su enlace (`notsobot.com/editor/template/CODE`). El enlace completo también sirve',
+      PASSWORD: 'la contraseña de una plantilla bloqueada',
+    },
+    results: [
+      'La imagen o el vídeo con todos los efectos de la plantilla `AbCd`, en orden.',
+      'La misma plantilla sobre dos claves de multimedia.',
+    ],
+    notes: [
+      'Para el límite de 300 líneas cuenta como todas las líneas que generan sus efectos, no como una. Una línea `template` dentro de un bucle cuenta una sola vez.',
+      'Los pasos ocultos se omiten. Un efecto cuyos ajustes cambiaron desde que se guardó la plantilla usa los actuales.',
+      'Las variables que define con `set` desaparecen al terminar, como las de una función. La clave de multimedia conserva los cambios.',
+      'Una contraseña escrita en una etiqueta la puede leer cualquiera que vea el código de la etiqueta.',
+    ],
+  },
   set: {
     summary: 'Guarda un número en una variable que puedes usar en ecuaciones posteriores.',
     args: {

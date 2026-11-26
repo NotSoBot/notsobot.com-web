@@ -1,10 +1,10 @@
-import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type RefObject } from 'react';
 
 import { useI18n } from '@/i18n';
 import { cn } from '@/lib/utils';
 
 import { clamp, roundFraction, type SpatialTool } from '../stack';
-import type { EditorBox, EditorPoint, EditorStep, EditorStroke } from '../types';
+import type { EditorAsset, EditorBox, EditorPoint, EditorStep, EditorStroke } from '../types';
 
 
 // The selected step's spatial param drawn over the preview (which shows what goes into that step), in fractions of
@@ -29,6 +29,86 @@ function fractionOf(event: {clientX: number, clientY: number}, element: HTMLElem
     x: roundFraction((event.clientX - rect.left) / Math.max(rect.width, 1)),
     y: roundFraction((event.clientY - rect.top) / Math.max(rect.height, 1)),
   };
+}
+
+
+// iOS doesn't let a prevented pointerdown stop its long-press text selection (it goes by touch events only), and over
+// the unselectable preview it selects the nearest text instead, like the Edits heading. While a gesture on the
+// overlay runs nothing on the page is selectable, and whatever got selected is cleared. Counted, two fingers or two
+// tools never undo each other's
+let selectionHolds = 0;
+let selectionBefore = {user: '', webkit: ''};
+
+const preventSelect = (event: Event) => event.preventDefault();
+
+function clearSelection() {
+  const selection = window.getSelection();
+  if (selection && !selection.isCollapsed) {
+    selection.removeAllRanges();
+  }
+}
+
+function holdSelection(): () => void {
+  const root = document.documentElement.style;
+  if (!selectionHolds) {
+    selectionBefore = {user: root.userSelect, webkit: root.webkitUserSelect};
+    root.userSelect = 'none';
+    root.webkitUserSelect = 'none';
+    document.addEventListener('selectstart', preventSelect);
+  }
+  selectionHolds += 1;
+  clearSelection();
+  let released = false;
+  return () => {
+    if (released) {
+      return;
+    }
+    released = true;
+    selectionHolds -= 1;
+    clearSelection();
+    if (!selectionHolds) {
+      root.userSelect = selectionBefore.user;
+      root.webkitUserSelect = selectionBefore.webkit;
+      document.removeEventListener('selectstart', preventSelect);
+    }
+  };
+}
+
+
+// a gesture's selection hold: `hold()` on pointerdown, `release()` on up/cancel, and on unmount (the step changed
+// mid-drag) it's let go too
+function useSelectionHold() {
+  const releaseRef = useRef<(() => void) | null>(null);
+  useEffect(() => () => releaseRef.current?.(), []);
+  return {
+    hold: () => {
+      releaseRef.current?.();
+      releaseRef.current = holdSelection();
+    },
+    release: () => {
+      releaseRef.current?.();
+      releaseRef.current = null;
+    },
+  };
+}
+
+
+// cancels a touch's own gestures (long-press selection, the callout, double-tap zoom) on an element where every touch
+// is a drag. React's touch listeners are passive, so it's a native one
+function useNoTouchGestures<T extends Element>(ref: RefObject<T | null>, enabled: boolean = true) {
+  useEffect(() => {
+    const element = ref.current;
+    if (!element || !enabled) {
+      return;
+    }
+    const onTouchStart = (event: Event) => {
+      if (event.cancelable) {
+        event.preventDefault();
+      }
+    };
+    element.addEventListener('touchstart', onTouchStart, {passive: false});
+    return () => element.removeEventListener('touchstart', onTouchStart);
+  }, [enabled, ref]);
 }
 
 
@@ -84,6 +164,8 @@ function PointTool({ step, param, onParam, label, resizeLabel, widthLabel, editL
   const color = (typeof step.params.color === 'string') ? step.params.color : '#ffffff';
   const resizable = 'size' in step.params || step.effect === 'text';
   const dragRef = useRef<{handle: TextHandle, dx: number, dy: number, height: number, size: number} | null>(null);
+  // no touch-gesture cancelling here: double-tapping the text edits it
+  const selectionHold = useSelectionHold();
   // double-click edits the text right on the preview, Escape puts back what it was
   const [ editing, setEditing ] = useState(false);
   const originalRef = useRef('');
@@ -133,6 +215,7 @@ function PointTool({ step, param, onParam, label, resizeLabel, widthLabel, editL
     // a corner's height comes from how far it is from the center vertically, the box grows with the letters' size
     const height = Math.abs(at.y - point.y) * rect.height;
     dragRef.current = {handle, dx: point.x - at.x, dy: point.y - at.y, height: Math.max(height, 4), size};
+    selectionHold.hold();
   };
   const move = (event: PointerEvent<HTMLElement>) => {
     const container = containerRef.current;
@@ -157,6 +240,7 @@ function PointTool({ step, param, onParam, label, resizeLabel, widthLabel, editL
   };
   const end = () => {
     dragRef.current = null;
+    selectionHold.release();
   };
   const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
     const nudge = nudgeOf(event);
@@ -261,17 +345,21 @@ function PointTool({ step, param, onParam, label, resizeLabel, widthLabel, editL
 
 type BoxHandle = 'move' | 'nw' | 'ne' | 'sw' | 'se';
 
-function BoxTool({ step, param, onChange, label, dim }: {
+function BoxTool({ step, param, onChange, label, dim, fill }: {
   step: EditorStep,
   param: string,
   onChange: (value: EditorBox) => void,
   label: string,
   // crop: darken what's cut away
   dim: boolean,
+  // an overlay's file, shown stretched to the box like the render does (the preview shows what goes into the step)
+  fill?: {url: string, mimetype: string, opacity: number} | null,
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const box = step.params[param] as EditorBox;
   const dragRef = useRef<{handle: BoxHandle, start: EditorPoint, box: EditorBox} | null>(null);
+  const selectionHold = useSelectionHold();
+  useNoTouchGestures(containerRef);
 
   const resize = (handle: BoxHandle, start: EditorBox, dx: number, dy: number): EditorBox => {
     if (handle === 'move') {
@@ -310,6 +398,7 @@ function BoxTool({ step, param, onChange, label, dim }: {
     (event.currentTarget as HTMLElement | SVGElement).focus?.();
     event.currentTarget.setPointerCapture(event.pointerId);
     dragRef.current = {handle, start: fractionOf(event, container), box};
+    selectionHold.hold();
   };
   const move = (event: PointerEvent<HTMLElement>) => {
     const container = containerRef.current;
@@ -322,6 +411,7 @@ function BoxTool({ step, param, onChange, label, dim }: {
   };
   const end = () => {
     dragRef.current = null;
+    selectionHold.release();
   };
   const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
     const nudge = nudgeOf(event);
@@ -340,7 +430,7 @@ function BoxTool({ step, param, onChange, label, dim }: {
   ];
 
   return (
-    <div ref={containerRef} className='absolute inset-0 touch-none' onPointerMove={move} onPointerUp={end} onPointerCancel={end}>
+    <div ref={containerRef} className='absolute inset-0 touch-none select-none [-webkit-touch-callout:none]' onPointerMove={move} onPointerUp={end} onPointerCancel={end}>
       {(dim) ? (
         <svg aria-hidden className='pointer-events-none absolute inset-0 size-full' viewBox='0 0 1 1' preserveAspectRatio='none'>
           <path
@@ -357,9 +447,17 @@ function BoxTool({ step, param, onChange, label, dim }: {
         onPointerMove={move}
         onPointerUp={end}
         onKeyDown={onKeyDown}
-        className='absolute cursor-move border-2 border-white shadow-[0_0_0_1px_rgba(0,0,0,0.6)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand'
+        className='absolute cursor-move overflow-hidden border-2 border-white shadow-[0_0_0_1px_rgba(0,0,0,0.6)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand'
         style={{left: `${box.x * 100}%`, top: `${box.y * 100}%`, width: `${box.width * 100}%`, height: `${box.height * 100}%`}}
-      />
+      >
+        {(fill) ? (
+          (fill.mimetype.startsWith('video/')) ? (
+            <video aria-hidden src={fill.url} muted autoPlay loop playsInline className='pointer-events-none size-full object-fill' style={{opacity: fill.opacity}}/>
+          ) : (
+            <img aria-hidden src={fill.url} alt='' draggable={false} className='pointer-events-none size-full object-fill' style={{opacity: fill.opacity}}/>
+          )
+        ) : null}
+      </button>
       {handles.map(({ handle, x, y, cursor }) => (
         <span
           key={handle}
@@ -394,6 +492,8 @@ function StrokesTool({ step, param, onChange, pen, aspect, maxStrokes, maxPoints
   const strokes = (step.params[param] as Array<EditorStroke>) ?? [];
   const [ current, setCurrent ] = useState<EditorStroke | null>(null);
   const full = maxStrokes <= strokes.length;
+  const selectionHold = useSelectionHold();
+  useNoTouchGestures(svgRef);
 
   const pointOf = (event: PointerEvent<SVGSVGElement>): [number, number] => {
     const at = fractionOf(event, event.currentTarget as unknown as HTMLElement);
@@ -410,6 +510,7 @@ function StrokesTool({ step, param, onChange, pen, aspect, maxStrokes, maxPoints
     (event.currentTarget as HTMLElement | SVGElement).focus?.();
     event.currentTarget.setPointerCapture(event.pointerId);
     setCurrent({color: pen.color, width: pen.width, points: [pointOf(event)]});
+    selectionHold.hold();
   };
   const onPointerMove = (event: PointerEvent<SVGSVGElement>) => {
     if (!current) {
@@ -427,6 +528,7 @@ function StrokesTool({ step, param, onChange, pen, aspect, maxStrokes, maxPoints
       onChange([...strokes, current]);
     }
     setCurrent(null);
+    selectionHold.release();
   };
 
   const height = 1000 * aspect;
@@ -442,7 +544,7 @@ function StrokesTool({ step, param, onChange, pen, aspect, maxStrokes, maxPoints
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
-      className={cn('absolute inset-0 size-full touch-none', (full) ? 'cursor-not-allowed' : 'cursor-crosshair')}
+      className={cn('absolute inset-0 size-full touch-none select-none [-webkit-touch-callout:none]', (full) ? 'cursor-not-allowed' : 'cursor-crosshair')}
     >
       {all.map((stroke, index) => (
         (stroke.points.length === 1) ? (
@@ -470,7 +572,9 @@ function StrokesTool({ step, param, onChange, pen, aspect, maxStrokes, maxPoints
 }
 
 
-export function SpatialOverlay({ tool, step, effectName, onChange, pen, aspect, maxStrokes, maxPoints, maxTextLength }: {
+export function SpatialOverlay({ tool, step, effectName, onChange, pen, aspect, maxStrokes, maxPoints, maxTextLength, assets = [] }: {
+  // the document's uploaded files, an overlay's is drawn in its box
+  assets?: Array<EditorAsset>,
   tool: SpatialTool,
   step: EditorStep,
   effectName: string,
@@ -499,8 +603,11 @@ export function SpatialOverlay({ tool, step, effectName, onChange, pen, aspect, 
           maxTextLength={maxTextLength}
         />
       );
-    case 'box':
-      return <BoxTool step={step} param={tool.param} onChange={(value) => onChange(tool.param, value)} label={label} dim={step.effect === 'crop'}/>;
+    case 'box': {
+      const asset = (step.effect === 'overlay') ? assets.find((item) => item.id === step.params.media) : undefined;
+      const fill = (asset) ? {url: asset.url, mimetype: asset.mimetype, opacity: Number(step.params.opacity ?? 1)} : null;
+      return <BoxTool step={step} param={tool.param} onChange={(value) => onChange(tool.param, value)} label={label} dim={step.effect === 'crop'} fill={fill}/>;
+    }
     case 'strokes':
       return (
         <StrokesTool

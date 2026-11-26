@@ -1,13 +1,13 @@
-import { CircleCheck, ShieldAlert } from 'lucide-react';
+import { CircleCheck, Copy, Download, FileText, ShieldAlert } from 'lucide-react';
 import { useId, useState, type ReactNode } from 'react';
 
 import { DialogError } from '@/components/ui/DialogError';
 import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
-import { ApiRequestError, type ContentFlag, type NcmecReportSummary } from '@/lib/api';
-import { useAdminNcmecQuery, useCheckAdminNcmecMutation, useReportContentFlagNcmecMutation } from '@/lib/api/dashboardQueries';
-import { cn } from '@/lib/utils';
+import { ApiRequestError, api, type ContentFlag, type NcmecReportDetail, type NcmecReportSummary } from '@/lib/api';
+import { useAdminNcmecQuery, useAdminNcmecReportQuery, useCheckAdminNcmecMutation, useReportContentFlagNcmecMutation } from '@/lib/api/dashboardQueries';
+import { cn, downloadBlob } from '@/lib/utils';
 
 import { UserCell } from './adminUi';
 import { BLOCK_REASON_MAX } from './BlockUserDialog';
@@ -15,6 +15,8 @@ import { BLOCK_REASON_MAX } from './BlockUserDialog';
 
 // what's DMed to them with the block: nothing about the report or an investigation
 const NCMEC_BLOCK_REASON = 'Breaking NotSoBot’s rules.';
+// where a draft is filed by hand while the api has no NCMEC credentials
+const NCMEC_WEBSITE_URL = 'https://report.cybertip.org/';
 
 // the api's own message: NCMEC's refusals come back as 502/503, which `errorMessage` turns into a generic one
 function ncmecErrorMessage(error: unknown): string {
@@ -61,8 +63,135 @@ function Field({ label, value, onChange, disabled, max, rows = 2, placeholder }:
   );
 }
 
+function formatBytes(size: number): string {
+  if (size < 1024) {
+    return `${size} B`;
+  }
+  if (size < 1024 * 1024) {
+    return `${(size / 1024).toFixed(1)} KB`;
+  }
+  return `${(size / 1024 / 1024).toFixed(1)} MB`;
+}
+
+// a drafted report: its text to paste into NCMEC's website form, and the saved files to attach there
+export function NcmecDraftView({ report }: {report: NcmecReportDetail}) {
+  const toast = useToast();
+  const textId = useId();
+  const [ downloading, setDownloading ] = useState<number | null>(null);
+  const [ fileError, setFileError ] = useState<string | null>(null);
+  const text = report.report_text ?? '';
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast('Copied the report text');
+    } catch {
+      toast('Couldn’t copy, select the text and copy it instead');
+    }
+  };
+
+  const downloadFile = async (index: number, filename: string) => {
+    setDownloading(index);
+    setFileError(null);
+    try {
+      downloadBlob(filename, await api.fetchAdminNcmecReportFile(report.id, index));
+    } catch (error) {
+      setFileError(ncmecErrorMessage(error));
+    } finally {
+      setDownloading(null);
+    }
+  };
+
+  return (
+    <div className='space-y-3' data-state='draft'>
+      <div className='rounded-md border border-warning/40 bg-warning/15 p-3 text-sm'>
+        <p className='font-semibold text-white'>Not sent to NCMEC yet.</p>
+        <p className='mt-1 text-muted'>
+          The hold is in place and everything is saved (draft #{report.id}). File it on{' '}
+          <a href={NCMEC_WEBSITE_URL} target='_blank' rel='noreferrer' className='text-white underline'>NCMEC’s CyberTipline form</a>{' '}
+          with the text below, attach the files, then mark the flag reported with the CyberTipline number.
+        </p>
+      </div>
+      {(report.error) ? <p className='text-sm break-words text-danger-text'>{report.error}</p> : null}
+      <div>
+        <div className='mb-1.5 flex items-center gap-2'>
+          <label htmlFor={textId} className='text-sm text-muted'>Report text</label>
+          <button type='button' className='btn btn-secondary btn-sm ml-auto' onClick={copy} disabled={!text}>
+            <Copy aria-hidden className='size-3.5'/>
+            Copy
+          </button>
+          <button
+            type='button'
+            className='btn btn-secondary btn-sm'
+            disabled={!text}
+            onClick={() => downloadBlob(`ncmec-draft-${report.id}-flag-${report.flag_id}.txt`, new Blob([text], {type: 'text/plain'}))}
+          >
+            <FileText aria-hidden className='size-3.5'/>
+            .txt
+          </button>
+        </div>
+        <textarea id={textId} readOnly value={text} rows={12} className='input font-mono text-xs' onFocus={(event) => event.target.select()}/>
+      </div>
+      <div>
+        <p className='mb-1.5 text-sm text-muted'>Files to attach ({report.evidence_files.length})</p>
+        {(report.evidence_files.length) ? (
+          <ul className='space-y-1.5'>
+            {report.evidence_files.map((file, index) => (
+              <li key={`${index}-${file.filename}`} className='flex items-center gap-2 text-sm'>
+                <span className='min-w-0 flex-1 truncate font-mono text-xs' title={`SHA-256 ${file.sha256}`}>{file.filename}</span>
+                <span className='shrink-0 text-xs text-subtle'>{formatBytes(file.size)}</span>
+                <button type='button' className='btn btn-secondary btn-sm shrink-0' disabled={downloading !== null} onClick={() => downloadFile(index, file.filename)}>
+                  {(downloading === index) ? <Spinner className='size-3.5'/> : <Download aria-hidden className='size-3.5'/>}
+                  Download
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className='text-sm text-subtle'>No files were saved: the frames had expired and the input image couldn’t be fetched.</p>
+        )}
+        {(fileError) ? <p className='mt-1.5 text-sm text-danger-text'>{fileError}</p> : null}
+      </div>
+    </div>
+  );
+}
+
+// the draft again later, from the flag's "View report" link
+function NcmecDraftDialog({ reportId, onClose }: {reportId: string, onClose: () => void}) {
+  const titleId = useId();
+  const query = useAdminNcmecReportQuery(reportId);
+  return (
+    <Modal labelledBy={titleId} onClose={onClose} className='max-w-xl'>
+      <div className='p-5 sm:p-6'>
+        <h2 id={titleId} className='flex items-center gap-2 pr-10 text-lg font-semibold text-white'>
+          <ShieldAlert aria-hidden className='size-5 text-danger-text'/>
+          NCMEC report draft #{reportId}
+        </h2>
+        <div className='mt-3'>
+          {(query.data) ? <NcmecDraftView report={query.data}/> : (query.isError) ? (
+            <DialogError>{ncmecErrorMessage(query.error)}</DialogError>
+          ) : <p className='text-sm text-muted'>Loading the draft…</p>}
+        </div>
+        <div className='mt-6 flex justify-end'>
+          <button type='button' className='btn btn-secondary' onClick={onClose}>Close</button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 export function NcmecReportLine({ report, className }: {report: NcmecReportSummary, className?: string}) {
+  const [ viewing, setViewing ] = useState(false);
   const test = report.environment !== 'production';
+  if (report.status === 'draft') {
+    return (
+      <div className={cn('flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-warning', className)}>
+        <span>NCMEC report drafted, not sent: file it on NCMEC’s website</span>
+        <button type='button' className='text-white underline' onClick={() => setViewing(true)}>View report</button>
+        {(viewing) ? <NcmecDraftDialog reportId={report.id} onClose={() => setViewing(false)}/> : null}
+      </div>
+    );
+  }
   if (report.status === 'finished') {
     return (
       <p className={cn('flex items-center gap-1.5 text-sm text-success-text', className)}>
@@ -102,7 +231,7 @@ export function NcmecReportDialog({ flag, onClose }: {flag: ContentFlag, onClose
   const [ notes, setNotes ] = useState('');
   const [ escalate, setEscalate ] = useState('');
   const [ confirmed, setConfirmed ] = useState(false);
-  const [ done, setDone ] = useState<NcmecReportSummary | null>(null);
+  const [ done, setDone ] = useState<NcmecReportDetail | null>(null);
 
   const configured = !!status.data?.configured;
   const production = status.data?.environment === 'production';
@@ -122,7 +251,9 @@ export function NcmecReportDialog({ flag, onClose }: {flag: ContentFlag, onClose
     }}, {
       onSuccess: ({ report: filed }) => {
         setDone(filed);
-        toast(`Filed CyberTipline report #${filed.report_id}${(filed.environment === 'production') ? '' : ' (test)'}`);
+        toast((filed.status === 'draft')
+          ? 'Saved and drafted: file the report on NCMEC’s website'
+          : `Filed CyberTipline report #${filed.report_id}${(filed.environment === 'production') ? '' : ' (test)'}`);
       },
     });
   };
@@ -134,7 +265,7 @@ export function NcmecReportDialog({ flag, onClose }: {flag: ContentFlag, onClose
         data-state={(pending) ? 'saving' : (report.isError) ? 'error' : (done) ? 'done' : 'idle'}
         onSubmit={(event) => {
           event.preventDefault();
-          if (!pending && !done && configured && confirmed) {
+          if (!pending && !done && !status.isPending && confirmed) {
             submit();
           }
         }}
@@ -151,7 +282,11 @@ export function NcmecReportDialog({ flag, onClose }: {flag: ContentFlag, onClose
             <p className='font-semibold text-white'>NCMEC reporting isn’t set up.</p>
             <p className='mt-1 text-muted'>
               The api needs {(status.data?.missing ?? []).join(', ') || 'its NCMEC settings'}. Credentials come from NCMEC once
-              Not So LLC is registered as an electronic service provider. Until then, report on NCMEC’s website.
+              Not So LLC is registered as an electronic service provider.
+            </p>
+            <p className='mt-1 text-muted'>
+              Until then this still places the hold{(block) ? ' and the block' : ''}, saves the files, and writes the report out
+              as text for you to file on NCMEC’s website. Nothing is sent.
             </p>
           </div>
         ) : (
@@ -188,7 +323,12 @@ export function NcmecReportDialog({ flag, onClose }: {flag: ContentFlag, onClose
           </ul>
         </div>
 
-        {(done) ? (
+        {(done?.status === 'draft') ? (
+          <div className='mt-4'>
+            <NcmecDraftView report={done}/>
+            <p className='mt-2 text-sm text-muted'>{(user) ? `${user.username} is on legal hold${(block) ? ' and blocked' : ''}.` : ''}</p>
+          </div>
+        ) : (done) ? (
           <div className='mt-4 rounded-md border border-line p-3'>
             <NcmecReportLine report={done}/>
             <p className='mt-1 text-sm text-muted'>{done.files} file(s) attached. {(user) ? `${user.username} is on legal hold${(block) ? ' and blocked' : ''}.` : ''}</p>
@@ -242,7 +382,7 @@ export function NcmecReportDialog({ flag, onClose }: {flag: ContentFlag, onClose
             />
 
             <div className='mt-4 rounded-md border border-danger/40 p-3'>
-              <Check checked={confirmed} onChange={setConfirmed} disabled={pending || !configured}>
+              <Check checked={confirmed} onChange={setConfirmed} disabled={pending || status.isPending}>
                 This is apparent child sexual exploitation and I’m reporting it to NCMEC
               </Check>
             </div>
@@ -258,9 +398,9 @@ export function NcmecReportDialog({ flag, onClose }: {flag: ContentFlag, onClose
         <div className='mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
           <button type='button' className='btn btn-secondary' onClick={onClose} disabled={pending}>{(done) ? 'Close' : 'Cancel'}</button>
           {(!done) ? (
-            <button type='submit' className='btn btn-danger' disabled={pending || !configured || !confirmed}>
+            <button type='submit' className='btn btn-danger' disabled={pending || status.isPending || !confirmed}>
               {(pending) ? <Spinner className='size-4 border-white/40 border-t-white'/> : null}
-              {(production) ? 'Report to NCMEC' : 'Send test report'}
+              {(!configured) ? 'Hold and draft report' : (production) ? 'Report to NCMEC' : 'Send test report'}
             </button>
           ) : null}
         </div>

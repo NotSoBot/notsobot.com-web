@@ -1,4 +1,4 @@
-import { FileUp, Trash2, User, Users } from 'lucide-react';
+import { ArrowLeft, FileUp, Trash2 } from 'lucide-react';
 import { useEffect, useId, useRef, useState, type DragEvent, type FormEvent } from 'react';
 
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -10,27 +10,43 @@ import type { EditorHost } from '../api';
 import type { EditorDocument, EditorDocumentSummary, EditorGenerator, EditorTemplate } from '../types';
 import { useCatalogue } from '../useCatalogue';
 import { GeneratorDialog, GeneratorGrid } from './Generators';
+import { RoomSettingsFields, roomSettingsReady, type LobbyMode } from './RoomSettings';
 import { TemplateBanner, TemplateList, templateNeedsPassword } from './Templates';
 
 
+export type { LobbyMode } from './RoomSettings';
+
+
 // The way in: a file (dropped or picked), a link, something a generator makes, or one of their recent edits
-export function StartScreen({ host, onOpen, initialUrl, activityInstanceId: instanceId, template, effectNames, mode }: {
+export function StartScreen({ host, onOpen, initialUrl, suggestedUrl, onBack, activityInstanceId: instanceId, template, effectNames, mode }: {
   host: EditorHost,
   onOpen: (document: EditorDocument | EditorDocumentSummary) => void,
   // `?url=`, from a link like the bot's "edit on the web", opened right away
   initialUrl?: string | null,
+  // filled in but not opened: the Activity's Edit Media launch, opened once they've picked who it's for
+  suggestedUrl?: string | null,
+  // back to where they came from (the Activity's lobby list)
+  onBack?: {label: string, run: () => void},
   // the Activity: the document is the instance's (shared with everyone in it), and personal recents aren't shown
   activityInstanceId?: string,
   // a shared template (`/editor/template/<code>`, or the Activity's launch): the picked file starts with its steps
   template?: EditorTemplate | null,
   effectNames?: Map<string, string>,
-  // the Activity: edit together (the instance's document, everyone in it edits it) or just me (a document of their own,
-  // nobody else sees it). Absent on the web, where every document is your own
-  mode?: {value: 'together' | 'solo', onChange: (value: 'together' | 'solo') => void},
+  // the Activity: who the new edit is for. Just me (a document of their own, nobody else sees it), everyone (a new lobby
+  // anyone in the activity can join) or everyone with the password. Absent on the web, where every document is your own
+  mode?: {value: LobbyMode, onChange: (value: LobbyMode) => void},
 }) {
   const { t, plural, language } = useI18n();
   // just me: made like on the web, without the instance (its room never sees it)
   const activityInstanceId = (mode?.value === 'solo') ? undefined : instanceId;
+  const [ lobbyPassword, setLobbyPassword ] = useState('');
+  const needsLobbyPassword = mode?.value === 'password';
+  const lobbyPasswordShort = !roomSettingsReady(mode?.value ?? 'solo', lobbyPassword);
+  // sent only for a password lobby
+  const lobbyPasswordSent = (needsLobbyPassword && activityInstanceId) ? lobbyPassword : undefined;
+  // a room's name (the api safety scans it), the file's name stands in when it's empty
+  const [ lobbyName, setLobbyName ] = useState('');
+  const lobbyNameSent = (activityInstanceId && lobbyName.trim()) ? lobbyName.trim() : undefined;
   // a locked template once its password's checked: its steps, and the password the new document is made with
   const [ unlocked, setUnlocked ] = useState<{template: EditorTemplate, password: string} | null>(null);
   const shownTemplate = (unlocked && unlocked.template.code === template?.code) ? unlocked.template : (template ?? null);
@@ -39,7 +55,7 @@ export function StartScreen({ host, onOpen, initialUrl, activityInstanceId: inst
   const waitingForPassword = Boolean(shownTemplate && templateNeedsPassword(shownTemplate));
   const inputId = useId();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [ url, setUrl ] = useState(initialUrl ?? '');
+  const [ url, setUrl ] = useState(initialUrl ?? suggestedUrl ?? '');
   const [ uploading, setUploading ] = useState(false);
   const [ error, setError ] = useState<string | null>(null);
   const [ dragOver, setDragOver ] = useState(false);
@@ -75,7 +91,7 @@ export function StartScreen({ host, onOpen, initialUrl, activityInstanceId: inst
     setUploading(true);
     setError(null);
     try {
-      onOpen(await host.api.createDocument({...input, activityInstanceId, templateCode: template?.code, templatePassword}));
+      onOpen(await host.api.createDocument({...input, activityInstanceId, templateCode: template?.code, templatePassword, lobbyPassword: lobbyPasswordSent, lobbyName: lobbyNameSent}));
     } catch (failure) {
       setError(host.errorOf(failure)?.message || t('editor.start.upload_error'));
       setUploading(false);
@@ -112,32 +128,24 @@ export function StartScreen({ host, onOpen, initialUrl, activityInstanceId: inst
   return (
     <div className='mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-10 sm:py-14'>
       <header className='flex flex-col gap-2'>
+        {(onBack) ? (
+          <button type='button' onClick={onBack.run} className='-ml-2 inline-flex min-h-10 w-fit items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-muted hover:bg-surface hover:text-fg'>
+            <ArrowLeft aria-hidden className='size-4'/>{onBack.label}
+          </button>
+        ) : null}
         <h1 className='font-display text-3xl font-bold text-white sm:text-4xl'>{t('editor.title')}</h1>
         <p className='text-muted'>{t('editor.start.description')}</p>
       </header>
 
       {(mode) ? (
-        <div className='flex flex-col gap-2'>
-          <div role='radiogroup' aria-label={t('editor.session.mode')} className='grid grid-cols-2 gap-1 rounded-lg bg-deep p-1'>
-            {(['together', 'solo'] as const).map((value) => (
-              <button
-                key={value}
-                type='button'
-                role='radio'
-                aria-checked={mode.value === value}
-                onClick={() => mode.onChange(value)}
-                className={cn(
-                  'flex min-h-10 items-center justify-center gap-2 rounded-md px-2 text-sm font-semibold transition-colors',
-                  (mode.value === value) ? 'bg-brand text-white' : 'text-muted hover:text-fg',
-                )}
-              >
-                {(value === 'together') ? <Users aria-hidden className='size-4'/> : <User aria-hidden className='size-4'/>}
-                {(value === 'together') ? t('editor.session.together') : t('editor.session.solo')}
-              </button>
-            ))}
-          </div>
-          <p className='text-xs text-subtle'>{(mode.value === 'together') ? t('editor.session.together_hint') : t('editor.session.solo_hint')}</p>
-        </div>
+        <RoomSettingsFields
+          mode={mode.value}
+          onModeChange={mode.onChange}
+          name={lobbyName}
+          onNameChange={setLobbyName}
+          password={lobbyPassword}
+          onPasswordChange={setLobbyPassword}
+        />
       ) : null}
 
       {(shownTemplate) ? (
@@ -146,7 +154,7 @@ export function StartScreen({ host, onOpen, initialUrl, activityInstanceId: inst
 
       {/* a locked template waits for its password, a file picked before then would start without its steps */}
       {(waitingForPassword) ? <p className='-mt-4 text-sm text-warning'>{t('editor.template.unlock_first')}</p> : null}
-      <fieldset disabled={waitingForPassword} className={cn('flex flex-col gap-8', (waitingForPassword) && 'pointer-events-none opacity-50')}>
+      <fieldset disabled={waitingForPassword || lobbyPasswordShort} className={cn('flex flex-col gap-8', (waitingForPassword || lobbyPasswordShort) && 'pointer-events-none opacity-50')}>
       <div
         onDragOver={(event) => {
           event.preventDefault();
@@ -222,7 +230,7 @@ export function StartScreen({ host, onOpen, initialUrl, activityInstanceId: inst
           onClose={() => setGenerating(null)}
           onMake={async (params) => {
             try {
-              const document = await host.api.generateDocument({generator: generating.id, params, activityInstanceId, templateCode: template?.code, templatePassword});
+              const document = await host.api.generateDocument({generator: generating.id, params, activityInstanceId, templateCode: template?.code, templatePassword, lobbyPassword: lobbyPasswordSent, lobbyName: lobbyNameSent});
               setGenerating(null);
               onOpen(document);
               return null;

@@ -2590,9 +2590,10 @@ route('DELETE', '/jobs/([0-9a-f-]+)', ([ , jobId ]) => {
   }
 });
 
-// mirrors the NCMEC routes on NCMEC's test environment: hold, block, then a filing with a made-up report id
+// mirrors the NCMEC routes. Like the api today it has no credentials, so a report is drafted (hold, block, saved files,
+// text to file by hand); flip `configured` to see a filing on NCMEC's test environment with a made-up report id
 const NCMEC_MOCK_STATUS = {
-  configured: true,
+  configured: false,
   environment: 'test',
   incident_types: [
     'Child Pornography (possession, manufacture, and distribution)',
@@ -2604,9 +2605,12 @@ const NCMEC_MOCK_STATUS = {
     'Online Enticement of Children for Sexual Acts',
     'Unsolicited Obscene Material Sent to a Child',
   ],
-  missing: [] as Array<string>,
-  reporter_email: 'reports@example.com',
+  missing: ['NCMEC_USERNAME', 'NCMEC_PASSWORD', 'NCMEC_REPORTER_EMAIL'] as Array<string>,
+  reporter_email: null as string | null,
 };
+const ncmecMockReports = new Map<string, Record<string, unknown>>();
+// a 1x1 jpeg, standing in for a saved frame
+const NCMEC_MOCK_JPEG = Uint8Array.from(atob('/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q=='), (char) => char.charCodeAt(0));
 
 route('GET', '/admin/ncmec', () => {
   requireStaff();
@@ -2642,20 +2646,67 @@ route('POST', '/admin/content-flags/(\\d+)/ncmec', ([ , flagId ], { body }) => {
       target.blocked_until = null;
     }
   }
+  const files = (flag.frames_kept ? 2 : 0) + ((body.include_input_image && flag.source_url) ? 1 : 0);
+  const evidenceFiles = Array.from({length: files}, (_, index) => ({
+    filename: `notsobot-flag-${flag.id}-frame-${index}.jpg`,
+    mimetype: 'image/jpeg',
+    sha256: '0'.repeat(64),
+    size: NCMEC_MOCK_JPEG.length,
+  }));
+  const draft = !NCMEC_MOCK_STATUS.configured;
+  const id = String(Date.now());
   const report = {
     created: now,
     created_by: mockUser.id,
-    environment: 'test' as const,
+    environment: (draft) ? 'unsent' as const : 'test' as const,
     error: null,
-    files: (flag.frames_kept ? 2 : 0) + ((body.include_input_image && flag.source_url) ? 1 : 0),
+    evidence: files,
+    files,
     finished: now,
-    id: String(Date.now()),
-    report_id: String(4564654 + Math.floor(Math.random() * 1000)),
-    status: 'finished' as const,
+    id,
+    report_id: (draft) ? null : String(4564654 + Math.floor(Math.random() * 1000)),
+    status: (draft) ? 'draft' as const : 'finished' as const,
   };
+  const detail = {
+    ...report,
+    evidence_files: evidenceFiles,
+    flag_id: flag.id,
+    report_text: [
+      `CyberTipline report draft for NotSoBot content flag #${flag.id} (draft #${id})`,
+      `Not sent to NCMEC. File it at https://report.cybertip.org/ and attach the ${files} file(s) listed under Files.`,
+      '',
+      '== Incident ==',
+      `Incident type: ${String(body.incident_type)}`,
+      `Date and time of incident: ${flag.created}`,
+      '',
+      '== Reported person or user ==',
+      `ESP identifier (Discord user id): ${flag.user_id}`,
+      `Screen name: ${flag.user?.username ?? ''}`,
+    ].join('\n'),
+    user_id: flag.user_id,
+  };
+  ncmecMockReports.set(id, detail);
   flag.ncmec_report = report;
-  flag.notes = [flag.notes, `NCMEC CyberTipline report ${report.report_id} (TEST environment)`].filter(Boolean).join('\n');
-  return {flag, report};
+  const note = (draft) ? `NCMEC report draft #${id}: not sent (the api has no NCMEC credentials), to be filed on NCMEC's website` : `NCMEC CyberTipline report ${report.report_id} (TEST environment)`;
+  flag.notes = [flag.notes, note].filter(Boolean).join('\n');
+  return {flag, report: detail};
+});
+
+route('GET', '/admin/ncmec/reports/(\\d+)', ([ , reportId ]) => {
+  requireStaff();
+  const report = ncmecMockReports.get(reportId);
+  if (!report) {
+    throw new MockError(404, ApiErrorCodes.UNKNOWN_REPORT, 'Unknown NCMEC report');
+  }
+  return report;
+});
+
+route('GET', '/admin/ncmec/reports/(\\d+)/files/(\\d+)', ([ , reportId ]) => {
+  requireStaff();
+  if (!ncmecMockReports.has(reportId)) {
+    throw new MockError(404, ApiErrorCodes.UNKNOWN_REPORT, 'Unknown NCMEC report');
+  }
+  return new Response(new Blob([NCMEC_MOCK_JPEG]), {status: 200, headers: {'content-type': 'image/jpeg'}});
 });
 
 route('PATCH', '/admin/content-flags/(\\d+)', ([ , flagId ], { body }) => {

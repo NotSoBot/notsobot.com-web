@@ -145,6 +145,8 @@ export const ApiEndpoints = Object.freeze({
   ADMIN_CONTENT_FLAG_NCMEC: (flagId: string) => `/admin/content-flags/${flagId}/ncmec`,
   ADMIN_NCMEC: '/admin/ncmec',
   ADMIN_NCMEC_CHECK: '/admin/ncmec/check',
+  ADMIN_NCMEC_REPORT: (reportId: string) => `/admin/ncmec/reports/${reportId}`,
+  ADMIN_NCMEC_REPORT_FILE: (reportId: string, index: number) => `/admin/ncmec/reports/${reportId}/files/${index}`,
   ADMIN_CONTENT_FLAG_PROMPT: (flagId: string) => `/admin/content-flags/${flagId}/prompt`,
   ADMIN_CONTENT_FLAG_TRANSLATE: (flagId: string) => `/admin/content-flags/${flagId}/translate`,
   ADMIN_REPORTS: '/admin/reports',

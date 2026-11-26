@@ -1,6 +1,7 @@
 import type { EditorRoom } from './room';
 import type {
   EditorActivityContext,
+  EditorAsset,
   EditorCatalogue,
   EditorDocument,
   EditorDocumentSummary,
@@ -63,7 +64,7 @@ export function createEditorApi(request: EditorRequest) {
   return {
     effects: () => request<EditorCatalogue>('/editor/effects'),
     documents: () => request<{documents: Array<EditorDocumentSummary>}>('/editor/documents'),
-    createDocument: (input: {file?: File, url?: string, activityInstanceId?: string, templateCode?: string, templatePassword?: string}) => {
+    createDocument: (input: {file?: File, url?: string, activityInstanceId?: string, templateCode?: string, templatePassword?: string, lobbyPassword?: string, lobbyName?: string}) => {
       const form = new FormData();
       // the new document starts with the template's steps (a locked one's need its password)
       if (input.templateCode) {
@@ -71,6 +72,13 @@ export function createEditorApi(request: EditorRequest) {
       }
       if (input.templatePassword) {
         form.append('template_password', input.templatePassword);
+      }
+      // a password lobby, with `activityInstanceId`
+      if (input.lobbyPassword) {
+        form.append('lobby_password', input.lobbyPassword);
+      }
+      if (input.lobbyName) {
+        form.append('lobby_name', input.lobbyName);
       }
       if (input.file) {
         form.append('file', input.file);
@@ -85,7 +93,7 @@ export function createEditorApi(request: EditorRequest) {
       return request<EditorDocument>('/editor/documents', {method: 'POST', body: form, timeout: 120 * 1000});
     },
     // a document whose source a generator makes (the api waits for it, up to ~40s on a busy queue)
-    generateDocument: (input: {generator: string, params: Record<string, unknown>, activityInstanceId?: string, templateCode?: string, templatePassword?: string}) => request<EditorDocument>(
+    generateDocument: (input: {generator: string, params: Record<string, unknown>, activityInstanceId?: string, templateCode?: string, templatePassword?: string, lobbyPassword?: string, lobbyName?: string}) => request<EditorDocument>(
       '/editor/documents/generate',
       {
         method: 'POST',
@@ -95,6 +103,8 @@ export function createEditorApi(request: EditorRequest) {
           activity_instance_id: input.activityInstanceId,
           template_code: input.templateCode,
           template_password: input.templatePassword,
+          lobby_password: input.lobbyPassword,
+          lobby_name: input.lobbyName,
         },
         timeout: 60 * 1000,
       },
@@ -126,11 +136,29 @@ export function createEditorApi(request: EditorRequest) {
     ),
     job: (jobId: string) => request<EditorJob>(`/jobs/${pathId(jobId)}`),
     // a render put on Discord's cdn with the user's own Discord token (the Activity's share dialog only takes those)
-    shareAttachment: (url: string, accessToken: string) => request<{url: string}>('/editor/share', {
+    shareAttachment: (url: string, accessToken: string, filename?: string) => request<{url: string}>('/editor/share', {
       method: 'POST',
-      body: {url, access_token: accessToken},
+      body: {url, access_token: accessToken, filename},
       timeout: 60 * 1000,
     }),
+    // an overlay's file (a picture, gif or video) for the document, scanned like an upload
+    uploadAsset: (documentId: string, input: {file?: File, url?: string}) => {
+      const form = new FormData();
+      if (input.file) {
+        form.append('file', input.file);
+      }
+      if (input.url) {
+        form.append('url', input.url);
+      }
+      return request<EditorAsset>(`/editor/documents/${pathId(documentId)}/assets`, {method: 'POST', body: form, timeout: 120 * 1000});
+    },
+    // a template's overlay files onto the document, before its steps are loaded onto it
+    importTemplateAssets: (documentId: string, templateCode: string) => request<{assets: Array<EditorAsset>}>(
+      `/editor/documents/${pathId(documentId)}/assets/template`,
+      {method: 'POST', body: {template_code: templateCode}},
+    ),
+    // the visible steps as mediascript: `lines` on the key `media`, and `tag`, a whole tag running them on `{iv}`
+    mediascript: (documentId: string) => request<{lines: Array<string>, tag: string, line_count: number, max_lines: number}>(`/editor/documents/${pathId(documentId)}/mediascript`),
     activity: (instanceId: string) => request<EditorActivityContext>(`/editor/activity/${pathId(instanceId)}`),
     createTemplate: (documentId: string, name: string, password?: string) => request<EditorTemplate>(
       '/editor/templates',
@@ -147,6 +175,11 @@ export function createEditorApi(request: EditorRequest) {
       {method: 'PATCH', body: {password}},
     ),
     templates: () => request<{templates: Array<EditorTemplate>}>('/editor/templates'),
+    // one of their own templates takes the document's saved steps ("Save template" after loading it)
+    saveTemplateSteps: (templateCode: string, documentId: string) => request<EditorTemplate>(`/editor/templates/${pathId(templateCode)}/steps`, {
+      method: 'PUT',
+      body: {document_id: documentId},
+    }),
     template: (templateCode: string) => request<EditorTemplate>(`/editor/templates/${pathId(templateCode)}`),
     deleteTemplate: (templateCode: string) => request<void>(`/editor/templates/${pathId(templateCode)}`, {method: 'DELETE'}),
   };
@@ -156,14 +189,25 @@ export type EditorApi = ReturnType<typeof createEditorApi>;
 
 
 // The host the editor runs in. Everything the editor needs from outside goes through here
+// a new room's settings (the start screen's and Fork's): who it's for, its name, and a password room's password
+export interface RoomSettings {
+  mode: 'solo' | 'public' | 'password',
+  name: string,
+  password: string,
+}
+
+
 export interface EditorHost {
   api: EditorApi,
   // reads the host's thrown errors
   errorOf: (error: unknown) => EditorApiError | null,
   // where "edit another file" goes (web: the start screen, activity: nothing, it's one document)
   onLeave?: () => void,
+  // the leave button's text, "New" when absent
+  leaveLabel?: string,
   // `share`: the Activity's share-to-channel, absent on the web
-  share?: (url: string) => Promise<void>,
+  // `filename`: the document's file name, what it's called in chat
+  share?: (url: string, filename: string) => Promise<void>,
   // links leaving the editor (download, premium): the Activity has to ask Discord to open them
   openExternal?: (url: string) => void,
   // the Activity's shared room, every change goes through it
@@ -179,8 +223,7 @@ export interface EditorHost {
   shareTemplateInChat?: boolean,
   // the editor is the whole window (the Activity), not a page under the site's navbar
   fullscreen?: boolean,
-  // the Activity's switch between the group's document and a document of your own: `copy` makes your own from this
-  // one ("Make my own copy"), `group` goes to (or becomes) the group's ("Edit with the group"). `document` has the
-  // saved steps
-  switchSession?: {kind: 'copy' | 'group', run: (document: EditorDocument) => Promise<void>},
+  // the Activity's Fork: this media and its steps (`document`, with the saved ones) as a new room with `settings`, or
+  // their own edit for `solo`, then opens it
+  fork?: (document: EditorDocument, settings: RoomSettings) => Promise<void>,
 }

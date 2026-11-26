@@ -204,6 +204,18 @@ export const MEDIASCRIPT_SPANISH_5: TagDocsTranslation['mediaScriptCommands'] = 
       'La última imagen o vídeo con una ventana de logro "touched grass" de 50G.',
     ],
   },
+  speechbubble: {
+    summary: 'El meme del bocadillo: un bocadillo arriba con la punta hacia abajo, junto a la cara más grande.',
+    args: {
+      MEDIA_KEY: MEDIA,
+      DIRECTION: 'hacia dónde apunta la punta: AUTO junto a la cara, del lado con más espacio; LEFT o RIGHT de la cara; CENTER hacia abajo sobre la cabeza (sin cara apuntan hacia abajo en ese lado)',
+      TRANSPARENT: 'recorta el bocadillo de la multimedia; false lo dibuja blanco',
+    },
+    notes: ['Los vídeos siempre llevan un bocadillo blanco, los mp4 no pueden ser transparentes. Un bocadillo recortado en un JPEG vuelve como PNG.'],
+    results: [
+      'La última imagen o vídeo con un bocadillo recortado en su parte de arriba y la punta hacia el lado derecho de la cara.',
+    ],
+  },
   snapchat: {
     summary: 'Pone sobre la multimedia un subtítulo al estilo Snapchat: texto blanco sobre una barra negra semitransparente que ocupa todo el ancho.',
     args: {
@@ -449,6 +461,22 @@ export const MEDIASCRIPT_SPANISH_5: TagDocsTranslation['mediaScriptCommands'] = 
       'Cada etiqueta es el nombre del objeto y qué tan seguro está el detector, los mismos objetos a los que recorta `cropauto`. El mismo tipo de objeto siempre tiene el mismo color.',
       'En las animaciones se mira cada pocos fotogramas, los fotogramas intermedios mantienen los recuadros del último.',
     ],
+  },
+  facebighead: {
+    summary: 'Hace más grande cada cabeza entera, como un cabezón.',
+    args: {
+      MEDIA_KEY: MEDIA,
+      SIZE: 'cuánto más grandes se hacen las cabezas',
+    },
+    notes: ['Se escala la cabeza entera, así que mantiene sus proporciones, y un anillo a su alrededor la funde con el cuello y el fondo. Las cabezas en las que no se encuentra una cara, como anime, dibujos o la parte de atrás de una cabeza, también la reciben, y en GIFs y vídeos sigue a cada cara.'],
+  },
+  facefilter: {
+    summary: 'Pone un filtro de cara al estilo Snapchat en cada cara.',
+    args: {
+      MEDIA_KEY: MEDIA,
+      FILTER: 'orejas y nariz de perro, dálmata o cerdo (los perros sacan la lengua), orejas de corazón, una corona de flores o una peluca arcoíris',
+    },
+    notes: ['Las orejas, la corona y la peluca van encima de la cabeza y giran con ella; la nariz y la lengua van en la cara. Las cabezas en las que no se encuentra una cara, como anime, dibujos o la parte de atrás de una cabeza, reciben las partes que van en la cabeza, y en GIFs y vídeos el filtro sigue a cada cara.'],
   },
   facehalloweenhat: {
     summary: 'Pone un sombrero de Halloween encima de cada cabeza.',

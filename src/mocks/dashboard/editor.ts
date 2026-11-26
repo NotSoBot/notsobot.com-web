@@ -248,7 +248,38 @@ export function registerEditorMocks(route: Route, error: MakeError): void {
   });
 
   route('GET', '/editor/documents/(\\d+)', (match) => find(match[1]));
+  // the api compiles the real lines, these are the effect ids as stand-ins
+  route('GET', '/editor/documents/(\\d+)/mediascript', (match) => {
+    const lines = find(match[1]).steps.filter((step) => !step.hidden).map((step) => `${step.effect} media`);
+    return {lines, tag: `{mediascript:\n${['load {iv} media', ...lines, 'render media'].join('\n')}}`, line_count: lines.length + 2, max_lines: 300};
+  });
 
+  // an overlay's file: the browser's own copy of it (a link is used as is), its size read once it loads
+  route('POST', '/editor/documents/(\\d+)/assets', (match, { body }) => {
+    const document = find(match[1]);
+    const file = body.file as File | undefined;
+    const link = body.url as string | undefined;
+    if (!file && !link) {
+      throw error(400, 50014, 'A file or url is required');
+    }
+    nextId += 1;
+    // a link's type from its extension, like the api's probe would find
+    const mimetype = file?.type || ((/\.(mp3|ogg|wav|m4a)$/i.test(link ?? '')) ? 'audio/mpeg' : (/\.(mp4|webm|mov)$/i.test(link ?? '')) ? 'video/mp4' : 'image/png');
+    const kind = (mimetype.startsWith('audio/')) ? 'audio' as const : (mimetype.startsWith('video/')) ? 'video' as const : 'image' as const;
+    const asset = {
+      id: String(nextId), url: (file) ? URL.createObjectURL(file) : link!, filename: (file?.name ?? link!.split('/').pop() ?? 'overlay').replace(/\.[^.]+$/, ''),
+      mimetype, kind, width: 200, height: 200, framecount: 1, duration: (kind === 'image') ? 0 : 12, audio: kind !== 'image',
+    };
+    document.assets = [...(document.assets ?? []), asset];
+    return asset;
+  });
+  route('POST', '/editor/documents/(\\d+)/assets/template', (match, { body }) => {
+    const document = find(match[1]);
+    const template = findTemplate(String(body.template_code));
+    const known = new Set((document.assets ?? []).map((asset) => asset.id));
+    document.assets = [...(document.assets ?? []), ...(template.assets ?? []).filter((asset) => !known.has(asset.id))];
+    return {assets: document.assets};
+  });
   route('PATCH', '/editor/documents/(\\d+)', (match, { body }) => {
     const document = find(match[1]);
     if (body.version !== document.version) {
@@ -312,6 +343,14 @@ export function registerEditorMocks(route: Route, error: MakeError): void {
     return view(template, true);
   });
 
+  route('PUT', '/editor/templates/([A-Za-z]+)/steps', (match, { body }) => {
+    const template = findTemplate(match[1]);
+    if (!template.is_owner) {
+      throw error(404, 10045, 'Unknown Editor Template');
+    }
+    template.steps = structuredClone(find(String(body.document_id)).steps);
+    return template;
+  });
   route('PATCH', '/editor/templates/([A-Za-z]+)', (match, { body }) => {
     const template = findTemplate(match[1]);
     if (!template.is_owner) {

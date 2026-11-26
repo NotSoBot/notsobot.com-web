@@ -35,8 +35,8 @@ export function effectFits(effect: EditorEffect, kind: EditorMediaKind, hasAudio
   if (!effect.kinds.includes(kind)) {
     return false;
   }
-  // a silent video's audio effects have nothing to work on
-  if (effect.group === 'audio' && kind === 'video' && !hasAudio) {
+  // a silent video's audio effects have nothing to work on (Add Audio is how it gets some)
+  if (effect.group === 'audio' && effect.id !== ADD_AUDIO_EFFECT_ID && kind === 'video' && !hasAudio) {
     return false;
   }
   return true;
@@ -79,6 +79,29 @@ export const STILL_EFFECT_ID = 'still';
 
 
 // a visible Still Frame: from it on the media is a still image
+// the api's `ADD_AUDIO_EFFECT_ID`: puts a sound on the media, a picture becomes a video with it
+export const ADD_AUDIO_EFFECT_ID = 'addaudio';
+
+// the api's `MAX_FILE_STEPS` and `file_step_allowed`: what can run on an uploaded file. A sound takes the audio effects,
+// an overlay every other one, never one placed on the preview, another file's, or a cut of its own
+export const MAX_FILE_STEPS = 10;
+const FILE_STEP_EXCLUDED = new Set(['overlay', 'addaudio', 'still', 'trim']);
+const FILE_STEP_EXCLUDED_KINDS = new Set(['point', 'box', 'strokes', 'media', 'steps']);
+
+export function fileStepAllowed(effect: EditorEffect, forAudio: boolean): boolean {
+  if (FILE_STEP_EXCLUDED.has(effect.id) || effect.params.some((param) => FILE_STEP_EXCLUDED_KINDS.has(param.kind))) {
+    return false;
+  }
+  return (effect.group === 'audio') === forAudio;
+}
+
+
+// a visible Add Audio with its sound picked: the media has sound from there
+export function addsAudio(steps: Array<EditorStep>): boolean {
+  return steps.some((step) => !step.hidden && step.effect === ADD_AUDIO_EFFECT_ID && Boolean(step.params.media));
+}
+
+
 export function hasStill(steps: Array<EditorStep>): boolean {
   return steps.some((step) => !step.hidden && step.effect === STILL_EFFECT_ID);
 }
@@ -87,7 +110,11 @@ export function hasStill(steps: Array<EditorStep>): boolean {
 // what the media is at the end of the stack, what the effect picker offers next (a Still Frame makes it an image, so
 // nothing that moves or plays sound can follow it, the api refuses those)
 export function stackKind(sourceKind: EditorMediaKind, steps: Array<EditorStep>): EditorMediaKind {
-  return (sourceKind === 'video' && hasStill(steps)) ? 'image' : sourceKind;
+  if (sourceKind === 'video' && hasStill(steps)) {
+    return 'image';
+  }
+  // Add Audio makes a picture a video (it can't follow a Still Frame, the api refuses that)
+  return (sourceKind === 'image' && addsAudio(steps)) ? 'video' : sourceKind;
 }
 
 

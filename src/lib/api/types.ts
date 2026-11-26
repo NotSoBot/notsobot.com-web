@@ -2193,17 +2193,28 @@ export interface ContentFlag {
 // the flag's user, with what the page needs to block them: `flags` (`UserFlags`) since owners can't be blocked and
 // moderators can only be blocked by owners
 // a CyberTipline filing (`POST /admin/content-flags/<id>/ncmec`), the flag's newest one. `report_id` is NCMEC's,
-// null when it failed before NCMEC opened it. A 'test' one went to NCMEC's test environment, not a real report
+// null when it failed before NCMEC opened it. A 'test' one went to NCMEC's test environment, not a real report.
+// A 'draft' ('unsent' environment) was never sent: the api has no NCMEC credentials, so staff file its text by hand
 export interface NcmecReportSummary {
   created: string,
   created_by: string,
-  environment: 'production' | 'test',
+  environment: 'production' | 'test' | 'unsent',
   error: string | null,
+  // saved copies of the files (`GET /admin/ncmec/reports/<id>/files/<index>`)
+  evidence: number,
   files: number,
   finished: string | null,
   id: string,
   report_id: string | null,
-  status: 'submitting' | 'finished' | 'failed',
+  status: 'submitting' | 'finished' | 'failed' | 'draft',
+}
+
+// `GET /admin/ncmec/reports/<id>`: the report written out for NCMEC's website form, and its saved files
+export interface NcmecReportDetail extends NcmecReportSummary {
+  evidence_files: Array<{filename: string, mimetype: string, sha256: string, size: number}>,
+  flag_id: string,
+  report_text: string | null,
+  user_id: string,
 }
 
 export interface NcmecStatus {
@@ -2232,7 +2243,7 @@ export interface NcmecReportRequest {
 
 export interface NcmecReportResult {
   flag: ContentFlag,
-  report: NcmecReportSummary,
+  report: NcmecReportDetail,
 }
 
 export interface ContentFlagUser extends AdminUserRef, AdminLegalHold {
