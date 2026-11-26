@@ -2213,6 +2213,8 @@ export interface NcmecReportSummary {
 export interface NcmecReportDetail extends NcmecReportSummary {
   evidence_files: Array<{filename: string, mimetype: string, sha256: string, size: number}>,
   flag_id: string,
+  // fits the form's 3000 character "Summarize what happened" box; null on drafts from before it existed
+  report_summary: string | null,
   report_text: string | null,
   user_id: string,
 }

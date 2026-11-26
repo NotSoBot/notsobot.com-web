@@ -17,6 +17,13 @@ import { BLOCK_REASON_MAX } from './BlockUserDialog';
 const NCMEC_BLOCK_REASON = 'Breaking NotSoBot’s rules.';
 // where a draft is filed by hand while the api has no NCMEC credentials
 const NCMEC_WEBSITE_URL = 'https://report.cybertip.org/';
+// the form's "Summarize what happened" box
+const NCMEC_SUMMARY_MAX = 3000;
+
+// as the form counts it: each newline is submitted as \r\n
+function formLength(text: string): number {
+  return text.length + (text.match(/\n/g)?.length ?? 0);
+}
 
 // the api's own message: NCMEC's refusals come back as 502/503, which `errorMessage` turns into a generic one
 function ncmecErrorMessage(error: unknown): string {
@@ -77,14 +84,17 @@ function formatBytes(size: number): string {
 export function NcmecDraftView({ report }: {report: NcmecReportDetail}) {
   const toast = useToast();
   const textId = useId();
+  const summaryId = useId();
   const [ downloading, setDownloading ] = useState<number | null>(null);
   const [ fileError, setFileError ] = useState<string | null>(null);
   const text = report.report_text ?? '';
+  const summary = report.report_summary ?? '';
+  const summaryLength = formLength(summary);
 
-  const copy = async () => {
+  const copy = async (value: string, what: string) => {
     try {
-      await navigator.clipboard.writeText(text);
-      toast('Copied the report text');
+      await navigator.clipboard.writeText(value);
+      toast(`Copied the ${what}`);
     } catch {
       toast('Couldn’t copy, select the text and copy it instead');
     }
@@ -113,10 +123,25 @@ export function NcmecDraftView({ report }: {report: NcmecReportDetail}) {
         </p>
       </div>
       {(report.error) ? <p className='text-sm break-words text-danger-text'>{report.error}</p> : null}
+      {(summary) ? (
+        <div>
+          <div className='mb-1.5 flex items-center gap-2'>
+            <label htmlFor={summaryId} className='text-sm text-muted'>
+              For “Summarize what happened”{' '}
+              <span className={cn((summaryLength > NCMEC_SUMMARY_MAX) ? 'text-danger-text' : 'text-subtle')}>({summaryLength} / {NCMEC_SUMMARY_MAX})</span>
+            </label>
+            <button type='button' className='btn btn-secondary btn-sm ml-auto' onClick={() => copy(summary, 'summary')}>
+              <Copy aria-hidden className='size-3.5'/>
+              Copy
+            </button>
+          </div>
+          <textarea id={summaryId} readOnly value={summary} rows={6} className='input text-xs' onFocus={(event) => event.target.select()}/>
+        </div>
+      ) : null}
       <div>
         <div className='mb-1.5 flex items-center gap-2'>
-          <label htmlFor={textId} className='text-sm text-muted'>Report text</label>
-          <button type='button' className='btn btn-secondary btn-sm ml-auto' onClick={copy} disabled={!text}>
+          <label htmlFor={textId} className='text-sm text-muted'>Report text{(summary) ? ', for the other fields' : ''}</label>
+          <button type='button' className='btn btn-secondary btn-sm ml-auto' onClick={() => copy(text, 'report text')} disabled={!text}>
             <Copy aria-hidden className='size-3.5'/>
             Copy
           </button>

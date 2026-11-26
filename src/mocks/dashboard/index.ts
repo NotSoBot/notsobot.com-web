@@ -2667,10 +2667,15 @@ route('POST', '/admin/content-flags/(\\d+)/ncmec', ([ , flagId ], { body }) => {
     report_id: (draft) ? null : String(4564654 + Math.floor(Math.random() * 1000)),
     status: (draft) ? 'draft' as const : 'finished' as const,
   };
+  const summary = [
+    `NotSoBot is a Discord bot that runs image, video and AI commands. On ${flag.created} Discord user ${flag.user?.username ?? '(unknown username)'} (id ${flag.user_id}) ran its ${flag.command_id ?? 'unknown'} command.`,
+    `Our automated safety scanner flagged the result and blocked it before it was posted, so it was never shared. Our content flag id: ${flag.id}.`,
+  ].join('\n\n');
   const detail = {
     ...report,
     evidence_files: evidenceFiles,
     flag_id: flag.id,
+    report_summary: summary,
     report_text: [
       `CyberTipline report draft for NotSoBot content flag #${flag.id} (draft #${id})`,
       `Not sent to NCMEC. File it at https://report.cybertip.org/ and attach the ${files} file(s) listed under Files.`,
@@ -2678,6 +2683,9 @@ route('POST', '/admin/content-flags/(\\d+)/ncmec', ([ , flagId ], { body }) => {
       '== Incident ==',
       `Incident type: ${String(body.incident_type)}`,
       `Date and time of incident: ${flag.created}`,
+      '',
+      `== Summarize what happened (${summary.length + summary.split('\n').length - 1} of 3000 characters) ==`,
+      summary,
       '',
       '== Reported person or user ==',
       `ESP identifier (Discord user id): ${flag.user_id}`,
