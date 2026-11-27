@@ -2,14 +2,12 @@ import { ImageOff, Music } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import { useI18n } from '@/i18n';
+import { prefersReducedMotion } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 
 import type { HubPreview } from './types';
 
 
-function prefersReducedMotion(): boolean {
-  return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-}
 
 
 // A video that only downloads once it's near the screen and only plays while it's on it (muted, looped, inline), so a

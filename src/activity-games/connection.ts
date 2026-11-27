@@ -1,4 +1,5 @@
-import type { EditorRoom, RoomGameMessage } from '@/editor/room';
+import { activityLog } from '@/editor/activityLog';
+import type { EditorRoom, RoomClose, RoomGameMessage } from '@/editor/room';
 
 import { pointsAwarded } from './points';
 import {
@@ -70,6 +71,9 @@ export interface GameSnapshot {
   error: string | null,
   // joining is taking a while (no answer to a `game_join` in JOIN_TIMEOUT): it's asked again, the screen says so
   slowJoin: boolean,
+  // the Activity's socket's last close while it's down (reconnecting), null while it's open: the joining screen says
+  // why it's waiting (NotSoBot open in too many places, say)
+  socketClose: RoomClose | null,
   // the finished game's game points per user (what counted toward their total), from the state's `awarded` or a
   // `game.awarded` after it. null until either says, and outside the finished screen
   awards: Record<string, number> | null,
@@ -90,6 +94,7 @@ const EMPTY_SNAPSHOT: GameSnapshot = Object.freeze({
   word: null,
   error: null,
   slowJoin: false,
+  socketClose: null,
   awards: null,
 });
 
@@ -508,6 +513,7 @@ export class RoomFlagGame extends FlagGameConnection {
     this.unsubscribers.push(
       this.room.onGame((message) => this.handle(message)),
       this.room.onStatus((status) => {
+        this.update({socketClose: (status === 'open') ? null : this.room.lastClose});
         if (status === 'open') {
           this.join();
         } else if (this.snapshot.status !== 'denied') {
@@ -518,10 +524,13 @@ export class RoomFlagGame extends FlagGameConnection {
       }),
       this.room.onPong((now, roundTrip) => this.sampleClock(now, roundTrip)),
     );
+    activityLog.add('game', `opening ${this.gameId}${(this.watching) ? ' to watch' : ''}, socket ${this.room.status}`);
     if (this.room.isOpen) {
       this.join();
     } else {
+      this.update({socketClose: this.room.lastClose});
       this.setStatus((this.room.status === 'denied') ? 'denied' : 'connecting');
+      this.slowLater();
     }
   }
 
@@ -593,11 +602,31 @@ export class RoomFlagGame extends FlagGameConnection {
     return this.room.sendMessage({...payload, op: `game_${op}`});
   }
 
+  // the joining screen's Try again: the join asked again, or the socket reconnected now when it's down
   retryJoin(): void {
-    if (!this.joined && this.room.isOpen) {
+    activityLog.add('game', `Try again pressed, socket ${this.room.status}`);
+    if (this.joined) {
+      return;
+    }
+    if (this.room.isOpen) {
       this.busyRetries = 0;
       this.join();
+    } else {
+      this.room.reconnectNow();
     }
+  }
+
+  // the socket's down when the join should go out: its reconnect brings the join, the screen says it's slow if that
+  // takes JOIN_TIMEOUT (it used to wait with no word at all for as long as the socket stayed down)
+  private slowLater(): void {
+    this.clearJoinTimer();
+    this.joinTimer = window.setTimeout(() => {
+      this.joinTimer = null;
+      if (!this.stopped && !this.joined && this.snapshot.status !== 'denied') {
+        activityLog.add('game', `no socket for ${JOIN_TIMEOUT}ms, still waiting for it`);
+        this.update({slowJoin: true});
+      }
+    }, JOIN_TIMEOUT);
   }
 
   // the join was refused for now (the game busy, too fast): asked again, a little later each time
@@ -608,6 +637,7 @@ export class RoomFlagGame extends FlagGameConnection {
       this.update({slowJoin: true});
     }
     const delay = Math.min(GAME_BUSY_RETRY * 2 ** (this.busyRetries - 1), GAME_BUSY_RETRY_MAX);
+    activityLog.add('game', `join refused for now (${this.busyRetries} in a row), asking again in ${delay}ms`);
     this.joinTimer = window.setTimeout(() => {
       this.joinTimer = null;
       this.join();
@@ -623,6 +653,7 @@ export class RoomFlagGame extends FlagGameConnection {
     this.setStatus('connecting');
     if (!this.room.sendMessage({op: 'game_join', game_id: this.gameId, ...((this.watching) ? {watch: true} : {})})) {
       // the socket isn't open, its `open` brings the join
+      this.slowLater();
       return;
     }
     this.joinTimer = window.setTimeout(() => {
@@ -630,6 +661,7 @@ export class RoomFlagGame extends FlagGameConnection {
       if (this.stopped || this.joined || this.snapshot.status === 'denied') {
         return;
       }
+      activityLog.add('game', `no game.ready or game.closed ${JOIN_TIMEOUT}ms after game_join${(this.room.isOpen) ? ', asking again' : ', socket down'}`);
       this.update({slowJoin: true});
       if (this.room.isOpen) {
         this.join();

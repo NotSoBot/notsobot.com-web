@@ -1,5 +1,6 @@
 import { forwardRef, useEffect, useRef, type CSSProperties } from 'react';
 
+import { prefersReducedMotion } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 
 
@@ -29,9 +30,8 @@ export function cdnThumbnailUrl(url: string): string | null {
   }
 }
 
-export function prefersReducedMotion(): boolean {
-  return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-}
+// the system's reduce motion or the Activity's Less motion (@/lib/motion), for the editor's other files
+export { prefersReducedMotion };
 
 
 // A preview or proxy: video loops muted (previews have no sound worth hearing on loop), audio gets controls, anything

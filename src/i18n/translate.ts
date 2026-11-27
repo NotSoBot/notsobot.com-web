@@ -91,11 +91,24 @@ export function activeDictionary(): Translations {
   return active.dictionary;
 }
 
+// told after every switch: without a provider (the Activity's entry) `useI18n` re-renders through this
+const activeListeners = new Set<() => void>();
+
+export function subscribeActiveLanguage(listener: () => void): () => void {
+  activeListeners.add(listener);
+  return () => {
+    activeListeners.delete(listener);
+  };
+}
+
 export function setActiveLanguage(language: Language, dictionary: Translations): void {
   active = {language, dictionary};
   // the worker sets it too when it renders a page (src/entry-server.tsx), and gives <html> its lang itself
   if (typeof document !== 'undefined') {
     document.documentElement.lang = language;
+  }
+  for (const listener of activeListeners) {
+    listener();
   }
 }
 

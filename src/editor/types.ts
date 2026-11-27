@@ -253,6 +253,20 @@ export interface EditorActivityContext {
   launch: Record<string, unknown> | null,
   // its group edits (lobbies), newest first
   lobbies: Array<EditorLobby>,
+  // a NotSoBot owner: a game's header has the connection logs (./activityLog)
+  owner: boolean,
+  // what its language is picked from after sign-in (./activityLanguage)
+  locales: EditorActivityLocales,
+}
+
+// raw locales, null when there's none (or the lookup failed). A dm's activity has no server ones
+export interface EditorActivityLocales {
+  // their NotSoBot setting (`/settings set locale`)
+  setting: string | null,
+  // the server's NotSoBot setting (`/server set locale`)
+  server_setting: string | null,
+  // the server's Discord `preferred_locale`
+  server_discord: string | null,
 }
 
 

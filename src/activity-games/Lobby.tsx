@@ -1,6 +1,7 @@
 import { Crown, Eye, Minus, Play, Plus, UserPlus, UserX } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 
+import { HowToPlayCard } from '@/components/guides/GuideSheet';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Segmented } from '@/components/ui/Segmented';
 import { RoomInviteDialog } from '@/editor/components/RoomInvite';
@@ -8,8 +9,10 @@ import type { RoomInviter } from '@/editor/invites';
 import { useI18n } from '@/i18n';
 import { cn } from '@/lib/utils';
 
+import { gameInfo } from './catalog';
 import type { FlagGameConnection } from './connection';
 import { playerOf } from './hooks';
+import { useHowToCard } from './howTo';
 import { PlayerFace } from './parts';
 import {
   GAME_DIFFICULTIES,
@@ -84,10 +87,15 @@ export function Lobby({ connection, game, you, moderator = false, inviter }: {
   const connected = game.players.filter((player) => player.connected).length;
   const solo = Boolean(game.room.solo);
   const alone = isHost && connected <= 1 && !game.watchers.length;
+  const info = gameInfo(game.room.game);
+  const [ howToShown, howToOpen, toggleHowTo ] = useHowToCard(info.id);
 
   return (
     <div className='flex flex-1 flex-col'>
       <div className='mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 pt-4 pb-6 lg:grid lg:grid-cols-[1fr_1.2fr] lg:items-start'>
+        {/* the rules while they wait for the host: open until they've finished a game of it, one line after (the Activity's
+            settings can keep it open or hide it, ./howTo) */}
+        {(howToShown) ? <HowToPlayCard guide={info.guide} rules={info.lobbyRules} open={howToOpen} onToggle={toggleHowTo} className='lg:col-span-2'/> : null}
         <section aria-labelledby='flag-players' className='flex flex-col gap-3'>
           <div className='flex items-baseline gap-2'>
             <h2 id='flag-players' className='text-sm font-semibold text-white'>{t('games.flag.players')}</h2>

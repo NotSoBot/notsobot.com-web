@@ -1,3 +1,5 @@
+import type { TranslationKey } from '@/i18n';
+
 import { hubApi } from './hub/api';
 import { createInvitesApi, type RoomInviter } from './invites';
 import type { EditorRoom } from './room';
@@ -265,8 +267,9 @@ export interface EditorHost {
   errorOf: (error: unknown) => EditorApiError | null,
   // where "edit another file" goes (web: the start screen, activity: nothing, it's one document)
   onLeave?: () => void,
-  // the leave button's text, "New" when absent
-  leaveLabel?: string,
+  // the leave button's text as a key, "New" when absent. A key and not the text: the editor translates it as it renders,
+  // so it follows the Activity switching language after sign-in
+  leaveLabel?: TranslationKey,
   // `share`: the Activity's share-to-channel, absent on the web. `filename`: the document's file name, what it's called
   // in chat. `posted`: the bot posted it in the channel ("Post in chat"), otherwise Discord's own dialog opened
   share?: (url: string, filename: string, documentId: string) => Promise<ShareOutcome>,

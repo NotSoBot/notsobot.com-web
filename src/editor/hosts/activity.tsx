@@ -14,10 +14,12 @@ import { GuideLinksProvider, HowToPlayButton } from '@/components/guides/GuideSh
 import { FullPageMessage } from '@/components/ui/FullPageMessage';
 import { Spinner } from '@/components/ui/Spinner';
 import { anySignal, timeoutSignal } from '@/lib/abort';
-import { useI18n } from '@/i18n';
+import { translate, useI18n } from '@/i18n';
 
 import { createEditorApi, EditorErrorCodes, pathId, type EditorApiError, type EditorHost, type EditorRequest, type RoomSettings } from '../api';
 import { EditorApp } from '../components/EditorApp';
+import { activityLanguage, applyActivityLocales } from '../activityLanguage';
+import { activityLog } from '../activityLog';
 import { INVITE_CUSTOM_ID, type RoomInviteKind, type RoomInviter } from '../invites';
 import { ConnectionNotice } from '../components/ConnectionNotice';
 import { LobbyList } from '../components/LobbyList';
@@ -187,6 +189,8 @@ interface ActivitySetup {
   template: EditorTemplate | null,
   // into a lobby, if there's room in it (`ROOM_MAX_EDITORS`) and the password's right (or with a redeemed invite to it)
   enterLobby: (documentId: string, password?: string, fill?: boolean, invite?: string) => Promise<EditingResult>,
+  // a NotSoBot owner, who sees the connection logs (../components/ActivityLogButton)
+  owner: boolean,
   // a room's Invite dialog (../invites.ts)
   inviter: (kind: RoomInviteKind, roomId: string) => RoomInviter,
 }
@@ -254,7 +258,7 @@ function firstPhase(launch: {surface: string | null, launchedOn: boolean, carry:
 
 
 export function ActivityApp() {
-  const { t, language } = useI18n();
+  const { t } = useI18n();
   const [ phase, setPhase ] = useState<Phase>({kind: 'loading'});
   // the phase as of the last render, for the room's listener (set up once at startup)
   const phaseRef = useMemo(() => ({current: phase}), []);
@@ -289,6 +293,8 @@ export function ActivityApp() {
   }, [setupInstanceId, tokenRef]);
 
   useEffect(() => {
+    // looked up when used, not as of startup: the language can switch once the context says (../activityLanguage)
+    const t = translate;
     let alive = true;
     let room: EditorRoom | null = null;
     const fail = (message: Extract<Phase, {kind: 'failed'}>['message'], detail?: string) => {
@@ -398,6 +404,9 @@ export function ActivityApp() {
         // Discord's proxy signs onto the request, and its stand-in id is used like an instance's
         const context = (isAppChannelFrame()) ? await api.appChannel() : await api.activity(sdk.instanceId);
         const instanceId = context.instance_id;
+        // their NotSoBot setting and the server's: the Activity switches to it a moment later when it's not the start's
+        void applyActivityLocales(context.locales);
+        activityLog.add('startup', `context ok, instance ${instanceId}, launch ${String(context.launch?.surface ?? 'none')}`);
 
         // the Activity's one socket (activity-plan.md "One Activity socket"): the editor's rooms and the flag game
         room = new EditorRoom(`${(window.location.protocol === 'https:') ? 'wss:' : 'ws:'}//${window.location.host}${API_BASE}/activity/${pathId(instanceId)}/socket`, token);
@@ -424,7 +433,7 @@ export function ActivityApp() {
               kind: 'template',
               template_code: template.code,
               url: exampleUrl || undefined,
-              locale: language,
+              locale: activityLanguage().language,
             }).catch(() => null);
             if (result?.posted) {
               return 'posted';
@@ -445,7 +454,7 @@ export function ActivityApp() {
           // urls. That dialog is desktop/web only (Discord's docs), phones share the activity link with the render's link
           // in the message instead
           share: async (url, filename, documentId) => {
-            const result = await api.activityPost(instanceId, {kind: 'render', url, filename, document_id: documentId, locale: language}).catch(() => null);
+            const result = await api.activityPost(instanceId, {kind: 'render', url, filename, document_id: documentId, locale: activityLanguage().language}).catch(() => null);
             if (result?.posted) {
               return 'posted';
             }
@@ -532,10 +541,10 @@ export function ActivityApp() {
             }));
             return (shared.didSendMessage) ? 'sent' : (shared.didCopyLink) ? 'copied' : 'none';
           },
-          post: (code) => api.activityPost(instanceId, {kind: 'invite', invite_code: code, locale: language}),
+          post: (code) => api.activityPost(instanceId, {kind: 'invite', invite_code: code, locale: activityLanguage().language}),
           errorOf: activityErrorOf,
         });
-        const leaveLabel = t('editor.session.lobbies');
+        const leaveLabel = 'editor.session.lobbies' as const;
         const groupHost: EditorHost = {...baseHost, room, fork, onLeave: leave, leaveLabel, inviter: (documentId) => inviter('editor', documentId)};
         const soloHost: EditorHost = {...baseHost, fork, onLeave: leave, leaveLabel};
 
@@ -591,7 +600,7 @@ export function ActivityApp() {
           return;
         }
         const surface = (typeof context.launch?.surface === 'string') ? context.launch.surface : null;
-        setSetup({instanceId, room, group: groupHost, solo: soloHost, lobbies: context.lobbies, mediaUrl, surface, template, enterLobby, inviter});
+        setSetup({instanceId, room, group: groupHost, solo: soloHost, lobbies: context.lobbies, mediaUrl, surface, template, enterLobby, inviter, owner: context.owner});
         const inviteCode = launchInviteCode(sdk.customId, context.launch);
         const first = (inviteCode) ? await openInvite(inviteCode) : firstPhase({surface, launchedOn: Boolean(mediaUrl || template), carry: carriedFlagGameOf(context.launch)});
         if (alive) {
@@ -605,6 +614,7 @@ export function ActivityApp() {
           ? `${step}: ${apiError.status}${(apiError.code !== null) ? ` (${apiError.code})` : ''} ${apiError.message}`
           : `${step}: ${(raw && raw.code !== undefined) ? `(${String(raw.code)}) ` : ''}${String(raw?.message ?? error)}`;
         console.error('[editor activity] startup failed', step, error);
+        activityLog.add('startup', `failed ${detail}`);
         if (apiError?.status === 403 && step === 'context') {
           // owner-only while it rolls out (and a user who left the activity)
           return fail('editor.activity.not_ready', detail);
@@ -692,6 +702,7 @@ export function ActivityApp() {
             apiBase={API_BASE}
             token={tokenRef.current ?? ''}
             watch={phase.watch}
+            owner={setup.owner}
             inviter={setup.inviter('game', phase.gameId)}
             onLeave={(notice) => setPhase({kind: 'games', notice})}
           />
@@ -699,12 +710,12 @@ export function ActivityApp() {
       case 'lobbies':
         return (
           <>
-            {/* the editor's How to play opens on its own the first time someone gets to its rooms or its start screen */}
+            {/* the editor's How to play carries a dot until it's been opened, on its rooms and its start screen */}
             <div className='relative mx-auto flex w-full max-w-3xl items-center justify-between gap-2 px-4 pt-3 -mb-8 sm:-mb-12'>
               <button type='button' onClick={() => setPhase({kind: 'choice'})} className='-ml-2 inline-flex min-h-10 w-fit items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-muted hover:bg-surface hover:text-fg'>
                 <ArrowLeft aria-hidden className='size-4'/>{t('games.choice.back')}
               </button>
-              <HowToPlayButton guide='media-editor' autoOpen className='-mr-2'/>
+              <HowToPlayButton guide='media-editor' markUnseen className='-mr-2'/>
             </div>
             <LobbyList
               host={setup.group}
@@ -728,8 +739,7 @@ export function ActivityApp() {
             launchSurface={setup.surface}
             onSuggestedDismiss={() => setSetup((current) => (current) ? {...current, mediaUrl: null} : current)}
             onBack={{label: t('editor.session.lobbies'), run: () => setPhase({kind: 'lobbies'})}}
-            // not over the launch's media or template dialog, they came to edit that
-            headerAside={<HowToPlayButton guide='media-editor' autoOpen={!setup.mediaUrl && !setup.template} className='-mr-2'/>}
+            headerAside={<HowToPlayButton guide='media-editor' markUnseen className='-mr-2'/>}
             mode={{value: phase.mode, onChange: (mode) => setPhase({kind: 'start', mode})}}
             // their own new lobby (its maker never needs its password)
             onOpen={async (document, opened) => {

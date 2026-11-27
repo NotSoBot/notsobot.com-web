@@ -21,4 +21,7 @@ export const Guides = {
   'guides.sheet.loading': 'Loading the guide',
   'guides.sheet.failed': 'Couldn’t load the guide.',
   'guides.sheet.retry': 'Try again',
+  'guides.sheet.all_rules': 'All the rules',
+  // the ? button's name while its guide's never been opened (it has a dot)
+  'guides.sheet.unopened': '{label}, not opened yet',
 } as const;

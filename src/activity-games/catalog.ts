@@ -16,11 +16,14 @@ export interface GameInfo {
   description: TranslationKey,
   // its How to play sheet's guide (src/content/guides)
   guide: GuideSlug,
+  // the guide's quick rules its lobby's How to play card shows (indexes into `quick`, the same in every language): the
+  // ones about playing, not about getting into a room
+  lobbyRules: ReadonlyArray<number>,
 }
 
 export const GAMES: ReadonlyArray<GameInfo> = [
-  {id: 'flag_guesser', icon: Flag, accent: 'bg-success/20 text-success-text', title: 'games.flag.title', description: 'games.tab.flag_description', guide: 'flag-guesser'},
-  {id: 'letter_trail', icon: LetterText, accent: 'bg-brand/20 text-brand-text', title: 'games.letters.title', description: 'games.tab.letters_description', guide: 'letter-trail'},
+  {id: 'flag_guesser', icon: Flag, accent: 'bg-success/20 text-success-text', title: 'games.flag.title', description: 'games.tab.flag_description', guide: 'flag-guesser', lobbyRules: [0, 2, 4]},
+  {id: 'letter_trail', icon: LetterText, accent: 'bg-brand/20 text-brand-text', title: 'games.letters.title', description: 'games.tab.letters_description', guide: 'letter-trail', lobbyRules: [1, 2, 3, 4]},
 ];
 
 // a room from an api that doesn't say its game is Flag Guesser's

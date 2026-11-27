@@ -3,24 +3,28 @@
 // name), site paths and the "Full guide" button open notsobot.com outside the Activity through the host's
 // `openExternal` (GuideLinksProvider: Discord's openExternalLink in the Activity, a new tab anywhere else), in the
 // viewer's language (`/es/`, `/pt/`).
-// HowToPlayButton is the entry point: a question mark icon button that opens the sheet, and with `autoOpen` opens it on
-// its own the first time someone gets there (once per guide per viewer, see `firstVisit`)
+// HowToPlayButton is the entry point: a question mark icon button that opens the sheet. Nothing opens it on its own (it
+// used to, the first time, and that got in the way of what people came to do): with `markUnseen` the button carries a
+// dot until its guide's been opened once, and a game's lobby has its own folding card (HowToPlayCard)
 import { ChevronDown, CircleHelp, ExternalLink, RotateCw } from 'lucide-react';
-import { createContext, useContext, useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 
 import { DialogError } from '@/components/ui/DialogError';
 import { Modal } from '@/components/ui/Modal';
 import { GUIDE_SLUGS, loadedGuides, loadGuides, parseGuideLink, type GuideBook, type GuideSlug } from '@/content/guides';
 import { languagePath, useI18n, type Language } from '@/i18n';
+import { useActivityPrefs } from '@/lib/activityPrefs';
 import { cn } from '@/lib/utils';
 import { guidePath } from '@/pages/guides/guideRoutes';
 
-import { GuideBlocks, GuideQuickRules, type GuideLinkRenderer } from './GuideBlocks';
+import { GuideBlocks, GuideInline, GuideQuickRules, type GuideLinkRenderer } from './GuideBlocks';
 
 
 const SITE_URL = 'https://notsobot.com';
-// the guides someone has seen open on their own, per guide (`<key><slug>`)
-const SEEN_STORAGE_KEY = 'nsb.activity.guide_seen.';
+// the guides someone has opened, per guide (`<key><slug>`). The old key is from when a guide opened on its own the first
+// time: someone it opened for has seen it
+const OPENED_STORAGE_KEY = 'nsb.activity.guide_opened.';
+const OLD_SEEN_STORAGE_KEY = 'nsb.activity.guide_seen.';
 const LINK_CLASS = 'font-medium text-brand-text underline underline-offset-4 hover:no-underline';
 
 
@@ -45,31 +49,66 @@ function siteUrl(language: Language, path: string): string {
 }
 
 
-// guides already opened on their own this session, so blocked storage still opens each one at most once
-const seenThisSession = new Set<GuideSlug>();
+// guides opened this session, so storage that's blocked still drops a dot once it's opened
+const openedThisSession = new Set<GuideSlug>();
+const openedListeners = new Set<() => void>();
 
-// Whether this is someone's first time at a guide's screen, remembered in local storage. Storage that throws (private
-// windows, blocked site data) doesn't nag on every visit: once a session, from memory
-function firstVisit(slug: GuideSlug): boolean {
-  if (seenThisSession.has(slug)) {
-    return false;
-  }
-  seenThisSession.add(slug);
-  try {
-    if (window.localStorage.getItem(`${SEEN_STORAGE_KEY}${slug}`)) {
-      return false;
-    }
-    window.localStorage.setItem(`${SEEN_STORAGE_KEY}${slug}`, '1');
+// Whether someone's opened a guide before. Storage that throws (private windows, blocked site data) counts as opened:
+// a dot that could never go away for good would be the nag the dot replaces
+function guideOpened(slug: GuideSlug): boolean {
+  if (openedThisSession.has(slug)) {
     return true;
+  }
+  try {
+    return Boolean(window.localStorage.getItem(`${OPENED_STORAGE_KEY}${slug}`) || window.localStorage.getItem(`${OLD_SEEN_STORAGE_KEY}${slug}`));
   } catch {
     return true;
   }
 }
 
+function markGuideOpened(slug: GuideSlug): void {
+  if (openedThisSession.has(slug)) {
+    return;
+  }
+  openedThisSession.add(slug);
+  try {
+    window.localStorage.setItem(`${OPENED_STORAGE_KEY}${slug}`, '1');
+  } catch {
+    // remembered for this session only
+  }
+  openedListeners.forEach((listener) => listener());
+}
+
+function subscribeOpened(listener: () => void): () => void {
+  openedListeners.add(listener);
+  return () => {
+    openedListeners.delete(listener);
+  };
+}
+
+// Settings' "Show tips again": every guide's dot comes back
+export function forgetOpenedGuides(): void {
+  openedThisSession.clear();
+  try {
+    for (const slug of GUIDE_SLUGS) {
+      window.localStorage.removeItem(`${OPENED_STORAGE_KEY}${slug}`);
+      window.localStorage.removeItem(`${OLD_SEEN_STORAGE_KEY}${slug}`);
+    }
+  } catch {
+    // nothing was stored
+  }
+  openedListeners.forEach((listener) => listener());
+}
+
+// every button of a guide drops its dot together, wherever the guide was opened from
+function useGuideOpened(slug: GuideSlug): boolean {
+  return useSyncExternalStore(subscribeOpened, () => guideOpened(slug), () => true);
+}
+
 
 // the guides in a language: right away when they've loaded before, otherwise their chunk. Another language's chunk that
 // fails gives the English guides (loadGuides), so this only fails when the English ones do
-function useGuideBook(language: Language) {
+export function useGuideBook(language: Language) {
   const [ fetched, setFetched ] = useState<{language: Language, book: GuideBook} | null>(null);
   const [ failed, setFailed ] = useState(false);
   const [ attempt, setAttempt ] = useState(0);
@@ -111,30 +150,29 @@ function openLabel(slug: GuideSlug) {
 }
 
 
-// a question mark that opens the guide's sheet. `autoOpen`: opens it as it first shows, the first time ever (per viewer
-// and guide), for a screen people land on before playing
-export function HowToPlayButton({ guide, autoOpen = false, className }: {guide: GuideSlug, autoOpen?: boolean, className?: string}) {
+// a question mark that opens the guide's sheet. `markUnseen`: a dot on it until the guide's been opened once (per viewer),
+// for the screens people land on before playing
+export function HowToPlayButton({ guide, markUnseen = false, className }: {guide: GuideSlug, markUnseen?: boolean, className?: string}) {
   const { t } = useI18n();
   const [ open, setOpen ] = useState(false);
-
-  useEffect(() => {
-    if (autoOpen && firstVisit(guide)) {
-      setOpen(true);
-    }
-  }, [autoOpen, guide]);
+  const opened = useGuideOpened(guide);
+  // the dots can be turned off in the Activity's settings
+  const { guideDots } = useActivityPrefs();
+  const dot = markUnseen && guideDots && !opened;
 
   const label = t(openLabel(guide));
   return (
     <>
       <button
         type='button'
-        aria-label={label}
+        aria-label={(dot) ? t('guides.sheet.unopened', {label}) : label}
         title={label}
         aria-haspopup='dialog'
         onClick={() => setOpen(true)}
-        className={cn('flex size-10 shrink-0 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface hover:text-fg', className)}
+        className={cn('relative flex size-10 shrink-0 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface hover:text-fg', className)}
       >
         <CircleHelp aria-hidden className='size-5'/>
+        {(dot) ? <span aria-hidden className='absolute top-1.5 right-1.5 size-2.5 rounded-full bg-brand ring-2 ring-bg'/> : null}
       </button>
       {(open) ? <GuideSheet guide={guide} onClose={() => setOpen(false)}/> : null}
     </>
@@ -156,6 +194,11 @@ export function GuideSheet({ guide: firstGuide, onClose }: {guide: GuideSlug, on
   // the sections unfolded, of the guide shown
   const [ expanded, setExpanded ] = useState<ReadonlySet<string>>(() => new Set());
   const guide = book?.guides[shown.slug] ?? null;
+
+  // opened from anywhere (a ? button, a lobby's card, a chip in here): that guide's dots go
+  useEffect(() => {
+    markGuideOpened(shown.slug);
+  }, [shown.slug]);
 
   // `link`: from a link in the text (it's gone once the guide changes), a chip keeps its focus
   const showGuide = (slug: GuideSlug, section: string | null, link: boolean) => {
@@ -311,5 +354,87 @@ export function GuideSheet({ guide: firstGuide, onClose }: {guide: GuideSlug, on
         )}
       </div>
     </Modal>
+  );
+}
+
+
+// A game lobby's "How to play": a few of the guide's quick rules (`rules`, indexes into its `quick`) in a card that folds
+// to one line, and a link to the whole sheet. In the lobby, where people wait for the host anyway, instead of a sheet
+// over the room list. Whether it's open is the lobby's (it starts open until someone's finished a game of it)
+export function HowToPlayCard({ guide: slug, rules, open, onToggle, className }: {
+  guide: GuideSlug,
+  rules: ReadonlyArray<number>,
+  open: boolean,
+  onToggle: () => void,
+  className?: string,
+}) {
+  const { t, language } = useI18n();
+  const openExternal = useContext(OpenExternalContext);
+  const { book, failed, retry } = useGuideBook(language);
+  const [ sheet, setSheet ] = useState<GuideSlug | null>(null);
+  const bodyId = useId();
+  const guide = book?.guides[slug] ?? null;
+  const shown = (guide) ? rules.map((index) => guide.quick[index]).filter((rule): rule is string => Boolean(rule)) : [];
+
+  const renderLink: GuideLinkRenderer = (href, children) => {
+    const target = parseGuideLink(href);
+    if (target) {
+      return <button type='button' className={LINK_CLASS} onClick={() => setSheet(target.slug)}>{children}</button>;
+    }
+    const url = (href.startsWith('/')) ? siteUrl(language, href) : href;
+    return (
+      <a href={url} target='_blank' rel='noreferrer' className={LINK_CLASS} onClick={(event) => { event.preventDefault(); openExternal(url); }}>
+        {children}
+      </a>
+    );
+  };
+
+  return (
+    <section className={cn('rounded-xl border border-line-strong bg-surface', className)}>
+      <h2>
+        <button
+          type='button'
+          aria-expanded={open}
+          aria-controls={bodyId}
+          onClick={onToggle}
+          className='flex min-h-12 w-full items-center gap-2.5 rounded-xl px-4 py-2.5 text-left text-sm font-semibold text-white transition-colors hover:bg-surface-2'
+        >
+          <CircleHelp aria-hidden className='size-4 shrink-0 text-brand-text'/>
+          <span className='min-w-0 flex-1'>{t(openLabel(slug))}</span>
+          <ChevronDown aria-hidden className={cn('size-4 shrink-0 text-muted transition-transform', open && 'rotate-180')}/>
+        </button>
+      </h2>
+      {(open) ? (
+        <div id={bodyId} className='flex flex-col gap-3 border-t border-line px-4 pt-3 pb-4'>
+          {(guide) ? (
+            <ol className='flex flex-col gap-2 text-sm leading-relaxed text-fg'>
+              {shown.map((rule, index) => (
+                <li key={index} className='flex gap-2.5'>
+                  <span aria-hidden className='mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-brand/20 text-[0.7rem] font-semibold text-brand-text tabular-nums'>{index + 1}</span>
+                  <span className='min-w-0'><GuideInline text={rule} renderLink={renderLink}/></span>
+                </li>
+              ))}
+            </ol>
+          ) : (failed) ? (
+            <div className='flex flex-wrap items-center gap-3'>
+              <DialogError>{t('guides.sheet.failed')}</DialogError>
+              <button type='button' className='btn btn-secondary btn-sm' onClick={retry}>
+                <RotateCw aria-hidden className='size-4'/>{t('guides.sheet.retry')}
+              </button>
+            </div>
+          ) : (
+            // about the rules' height, so the lobby under it doesn't move when they come
+            <div aria-busy role='status' className='flex flex-col gap-2'>
+              <span className='sr-only'>{t('guides.sheet.loading')}</span>
+              {rules.map((index) => <span key={index} aria-hidden className='h-5 animate-pulse rounded bg-surface-3'/>)}
+            </div>
+          )}
+          <button type='button' className={cn(LINK_CLASS, 'self-start text-sm')} onClick={() => setSheet(slug)}>
+            {t('guides.sheet.all_rules')}
+          </button>
+        </div>
+      ) : null}
+      {(sheet) ? <GuideSheet guide={sheet} onClose={() => setSheet(null)}/> : null}
+    </section>
   );
 }

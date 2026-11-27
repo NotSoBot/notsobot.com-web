@@ -2,6 +2,7 @@ import { Delete, Eye, SendHorizontal, SkipForward, X } from 'lucide-react';
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type Ref } from 'react';
 
 import { useI18n } from '@/i18n';
+import { prefersReducedMotion } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 
 import type { FlagGameConnection, GameSnapshot, WordResult } from './connection';
@@ -275,7 +276,7 @@ function TrailPlay({ connection, snapshot, game, round, playing, over }: {
       return;
     }
     lastShake.current = result.at;
-    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+    if (prefersReducedMotion()) {
       return;
     }
     shakeRef.current?.animate?.([

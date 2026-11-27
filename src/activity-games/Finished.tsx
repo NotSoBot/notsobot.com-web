@@ -1,10 +1,13 @@
 import { ArrowLeft, RotateCcw, SlidersHorizontal, Sparkles, Trophy } from 'lucide-react';
+import { useEffect } from 'react';
 
 import { useI18n } from '@/i18n';
 import { cn } from '@/lib/utils';
 
+import { gameInfo } from './catalog';
 import type { FlagGameConnection } from './connection';
 import { playerOf, rankedPlayers } from './hooks';
+import { markGamePlayed } from './howTo';
 import { PlayerFace } from './parts';
 import { gamePointsFor } from './points';
 import { isLetterTrail, type AnyGameState, type GamePlayer } from './protocol';
@@ -73,6 +76,14 @@ export function Finished({ connection, game, you, awards, onLeave }: {
   const mine = placed.find((row) => row.player.user_id === you) ?? null;
   const winners = placed.filter((row) => row.place === 1 && row.score > 0);
   const rest = placed.slice(3);
+  const played = !game.you_watch && Boolean(mine);
+  const kind = gameInfo(game.room.game).id;
+  // a game finished as a player: its lobby's How to play card starts folded from now on (./howTo)
+  useEffect(() => {
+    if (played) {
+      markGamePlayed(kind);
+    }
+  }, [played, kind]);
 
   return (
     <div className='flex flex-1 flex-col'>

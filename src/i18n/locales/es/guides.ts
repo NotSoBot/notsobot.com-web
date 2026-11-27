@@ -21,4 +21,6 @@ export const Guides: Record<keyof typeof English, string> = {
   'guides.sheet.loading': 'Cargando la guía',
   'guides.sheet.failed': 'No se pudo cargar la guía.',
   'guides.sheet.retry': 'Reintentar',
+  'guides.sheet.all_rules': 'Todas las reglas',
+  'guides.sheet.unopened': '{label}, aún sin abrir',
 };

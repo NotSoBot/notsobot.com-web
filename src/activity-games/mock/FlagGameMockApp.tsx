@@ -171,13 +171,19 @@ class MockRoomsFeed implements ActivityFeed {
 // "hunter22". `&rooms=0` has no rooms at all, `&quick=fail` Quick play refused. Game points: `&points=empty` (a dm's,
 // nobody has any), `&points=fail`, `&cap=N` leaves N of your daily cap (the finished screen's limit line), the bar's
 // "finish" ends the game now. Play solo makes a solo room (on no list) that starts as it opens, New room and a Quick play
-// that makes one open with only you in them (the lobby's invite card) until the bar's "someone joins". How to play opens
-// on its own the first time the room browser shows (`&guides=reset` forgets that it did, for every guide); the editor's
-// stand-in has the media editor's. Letter Trail: every third mock room is one (opened against FakeLetterTrail), and
+// that makes one open with only you in them (the lobby's invite card) until the bar's "someone joins". How to play's ? has
+// a dot until a guide's opened and a lobby's How to play card starts open until a game's finished (`&guides=reset`
+// forgets both, for every guide and game); the editor's stand-in has the media editor's ?. Letter Trail: every third mock room is one (opened against FakeLetterTrail), and
 // `&game=letters` opens straight into one, `&phase=countdown|round|reveal|finished` on that screen (with made-up words),
-// `&hold=1` keeps it there (no round end, no reveal timer), `&solo=1` a solo one, `&size=5` a 5x5 grid
+// `&hold=1` keeps it there (no round end, no reveal timer), `&solo=1` a solo one, `&size=5` a 5x5 grid. `&owner=1` has the
+// owners' connection logs in the header, `&join=too_many|socket|slow` a flag game join that hangs until Try again
 // either game's fake engine, the dev bar works the same on both
 type MockGame = FakeFlagGame | FakeLetterTrail;
+
+// `&join=too_many|socket|slow`: the flag game's join hangs that way until Try again (`&owner=1` to read its logs)
+function stuckJoinOf(value: string | null): 'too_many' | 'socket' | 'slow' | null {
+  return (value === 'too_many' || value === 'socket' || value === 'slow') ? value : null;
+}
 
 function mockPhase(value: string | null): 'lobby' | 'countdown' | 'round' | 'reveal' | 'finished' {
   return (value === 'countdown' || value === 'round' || value === 'reveal' || value === 'finished') ? value : 'lobby';
@@ -198,6 +204,11 @@ export function FlagGameMockApp() {
       try {
         for (const slug of GUIDE_SLUGS) {
           window.localStorage.removeItem(`nsb.activity.guide_seen.${slug}`);
+          window.localStorage.removeItem(`nsb.activity.guide_opened.${slug}`);
+        }
+        for (const game of ['flag_guesser', 'letter_trail']) {
+          window.localStorage.removeItem(`nsb.activity.game_played.${game}`);
+          window.localStorage.removeItem(`nsb.activity.lobby_rules.${game}`);
         }
       } catch {
         // blocked storage remembers nothing anyway
@@ -225,7 +236,9 @@ export function FlagGameMockApp() {
     youHost, dailyLeft, solo: params.get('solo') === '1', hold: params.get('hold') === '1',
     phase: mockPhase(params.get('phase')),
     settings: {...LETTER_TRAIL_DEFAULT_SETTINGS, size: (params.get('size') === '5') ? 5 : 4},
-  }) : new FakeFlagGame({youHost, dailyLeft}));
+  }) : new FakeFlagGame({youHost, dailyLeft, stuckJoin: stuckJoinOf(params.get('join'))}));
+  // `&owner=1`: a NotSoBot owner's header (the connection logs)
+  const owner = params.get('owner') === '1';
   useEffect(() => {
     connection.connect();
     return () => connection.close();
@@ -337,7 +350,7 @@ export function FlagGameMockApp() {
             (mock) the editor would open here.{' '}
             <button type='button' className='text-brand-text underline' onClick={() => setScreen('choice')}>back</button>
           </span>
-          <HowToPlayButton guide='media-editor' autoOpen/>
+          <HowToPlayButton guide='media-editor' markUnseen/>
         </div>
       ) : (screen === 'carry') ? (
         <FlagCarry
@@ -383,6 +396,7 @@ export function FlagGameMockApp() {
           key={String(watch)}
           connection={connection}
           inviter={inviter}
+          owner={owner}
           onLeave={(why) => {
             setNotice(why ?? null);
             setScreen('rooms');

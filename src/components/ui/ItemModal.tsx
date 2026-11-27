@@ -6,6 +6,7 @@ import { isArrowNavigationTarget } from '@/hooks/useArrowKeyNavigation';
 import { useI18n } from '@/i18n';
 import { ApiRequestError } from '@/lib/api';
 import { errorMessage } from '@/lib/api/dashboardQueries';
+import { prefersReducedMotion } from '@/lib/motion';
 
 import { ModalFooter } from './DetailModal';
 import { Modal, openModalCount } from './Modal';
@@ -135,9 +136,6 @@ function swipeHandledBy(target: EventTarget | null): boolean {
   return false;
 }
 
-function prefersReducedMotion(): boolean {
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-}
 
 // While the content slides it's clipped to the dialog, and once it stops nothing is left on it: a transform would
 // make it the containing block of the `fixed` dialogs opened from inside it.

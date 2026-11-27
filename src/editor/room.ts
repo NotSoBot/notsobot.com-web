@@ -1,3 +1,4 @@
+import { activityLog, summarize } from './activityLog';
 import type { EditorDocument, EditorLobby, EditorStep } from './types';
 
 
@@ -105,6 +106,17 @@ const RECONNECT_DELAYS = [500, 1000, 2000, 5000, 10000];
 // messages) reconnects like any other close, with the backoff
 const FATAL_CLOSE_CODES = new Set([4001, 4003, 4004]);
 
+// what the connection log (./activityLog) leaves out: every few seconds or every edit, nothing a hang turns on
+const UNLOGGED_SENDS = new Set(['ping', 'cursor', 'lock', 'unlock', 'add', 'remove', 'move', 'set_param', 'toggle', 'replace', 'screen']);
+const UNLOGGED_EVENTS = new Set(['pong', 'cursor', 'lock', 'unlock', 'document', 'members', 'lobby_edited', 'render']);
+
+// the socket's last close, until it's open again
+export interface RoomClose {
+  code: number,
+  reason: string,
+  at: number,
+}
+
 
 let opCounter = 0;
 function newOpId(): string {
@@ -118,6 +130,9 @@ export class EditorRoom {
   you: string | null = null;
   members: Array<RoomMember> = [];
   locks: Record<string, string> = {};
+  // why the socket last closed, null while it's open (a 4029 with `too many sockets open` is NotSoBot open in more
+  // windows or devices than the api lets one person have)
+  lastClose: RoomClose | null = null;
 
   private socket: WebSocket | null = null;
   private listeners = new Set<(event: RoomEvent) => void>();
@@ -157,6 +172,17 @@ export class EditorRoom {
 
   connect(): void {
     this.stopped = false;
+    this.open();
+  }
+
+  // reconnecting now instead of after the wait it's in (a Try again button), nothing when it's open or connecting
+  reconnectNow(): void {
+    if (this.stopped || this.reconnectTimer === null) {
+      return;
+    }
+    window.clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = null;
+    activityLog.add('socket', 'reconnecting now (asked)');
     this.open();
   }
 
@@ -349,9 +375,16 @@ export class EditorRoom {
   private send(message: Record<string, unknown>): boolean {
     // nothing is queued while it's not open: the editor saves over http meanwhile (`isOpen`), an op sent later would
     // apply the same change twice
+    const op = (typeof message.op === 'string') ? message.op : '?';
     if (this.isOpen) {
       this.socket!.send(JSON.stringify(message));
+      if (!UNLOGGED_SENDS.has(op)) {
+        activityLog.add('socket', `→ ${summarize(message)}`);
+      }
       return true;
+    }
+    if (!UNLOGGED_SENDS.has(op)) {
+      activityLog.add('socket', `→ ${op} not sent, socket ${this.status}`);
     }
     return false;
   }
@@ -389,11 +422,18 @@ export class EditorRoom {
 
   private open(): void {
     this.setStatus('connecting');
+    activityLog.add('socket', `connecting${(this.attempt) ? ` (attempt ${this.attempt + 1})` : ''}`);
     const socket = new WebSocket(this.url);
     this.socket = socket;
     socket.addEventListener('open', () => {
       // a socket can't carry an authorization header, the token is the first message
       socket.send(JSON.stringify({op: 'hello', token: this.token}));
+      activityLog.add('socket', 'open, → hello (token not logged), waiting for ready');
+    });
+    socket.addEventListener('error', () => {
+      if (this.socket === socket) {
+        activityLog.add('socket', 'socket error (the close after it has the code)');
+      }
     });
     socket.addEventListener('message', (message) => {
       let event: RoomEvent | RoomGameMessage;
@@ -401,6 +441,9 @@ export class EditorRoom {
         event = JSON.parse(String(message.data));
       } catch {
         return;
+      }
+      if (typeof event?.t === 'string' && !UNLOGGED_EVENTS.has(event.t) && event.t !== 'ready') {
+        activityLog.add('socket', `← ${event.t} ${summarize(event as Record<string, unknown>)}`.trimEnd());
       }
       if (typeof event?.t === 'string' && event.t.startsWith('game.')) {
         for (const listener of this.gameListeners) {
@@ -416,20 +459,28 @@ export class EditorRoom {
       }
       this.clearTimers();
       this.socket = null;
+      this.lastClose = {code: close.code, reason: close.reason, at: Date.now()};
+      activityLog.add('socket', `closed code=${close.code}${(close.reason) ? ` reason="${close.reason}"` : ''}${(close.wasClean) ? '' : ' (not clean)'}`);
       if (this.stopped) {
         this.setStatus('closed');
         return;
       }
       if (FATAL_CLOSE_CODES.has(close.code)) {
+        activityLog.add('socket', 'that code is fatal, not reconnecting');
         this.setStatus('denied');
         return;
       }
-      this.setStatus('closed');
       // up to half as long again, a different amount for everyone: after the api restarts every Activity's socket
       // closed at the same moment, and with the same waits they all came back at the same moments too
       const delay = RECONNECT_DELAYS[Math.min(this.attempt, RECONNECT_DELAYS.length - 1)] * (1 + Math.random() / 2);
+      activityLog.add('socket', `reconnecting in ${Math.round(delay)}ms`);
+      // set before the status goes out, its listeners read it (a game's joining screen offers Try again)
+      this.reconnectTimer = window.setTimeout(() => {
+        this.reconnectTimer = null;
+        this.open();
+      }, delay);
+      this.setStatus('closed');
       this.attempt += 1;
-      this.reconnectTimer = window.setTimeout(() => this.open(), delay);
     });
   }
 
@@ -449,7 +500,9 @@ export class EditorRoom {
   private handle(event: RoomEvent): void {
     switch (event.t) {
       case 'ready': {
+        activityLog.add('socket', `← ready you=${event.you} moderator=${Boolean(event.moderator)} members=${event.members.length}`);
         this.attempt = 0;
+        this.lastClose = null;
         this.you = event.you;
         this.moderator = Boolean(event.moderator);
         this.members = event.members;

@@ -406,14 +406,14 @@ export function GameRooms({ api, room, errorOf, notice, game: firstGame = null, 
 
   return (
     <div className='mx-auto flex min-h-[var(--editor-height,100dvh)] w-full max-w-3xl flex-col gap-4 px-4 pt-3 pb-[calc(1.5rem+var(--saib,0px))]'>
-      {/* New room up here with the way back: the two ways to start playing now get the header's row. How to play opens
-          on its own the first time someone gets here, before they pick a room */}
+      {/* New room up here with the way back: the two ways to start playing now get the header's row. How to play carries
+          a dot until its guide's been opened, the lobby has the rules too */}
       <div className='flex items-center justify-between gap-2'>
         <button type='button' onClick={onBack} className='-ml-2 inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-muted hover:bg-surface hover:text-fg'>
           <ArrowLeft aria-hidden className='size-4'/>{t('games.tab.title')}
         </button>
         <div className='-mr-1 flex items-center gap-1'>
-          <HowToPlayButton guide={gameInfo(game).guide} autoOpen/>
+          <HowToPlayButton guide={gameInfo(game).guide} markUnseen/>
           <button type='button' className='btn btn-secondary btn-sm min-h-10' onClick={() => setCreating(true)}>
             <Plus aria-hidden className='size-4'/>{t('games.rooms.new')}
           </button>

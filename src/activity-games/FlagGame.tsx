@@ -7,9 +7,10 @@ import { DialogError } from '@/components/ui/DialogError';
 import { FullPageMessage } from '@/components/ui/FullPageMessage';
 import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
+import { ActivityLogButton } from '@/editor/components/ActivityLogButton';
 import { RoomInviteButton } from '@/editor/components/RoomInvite';
 import type { RoomInviter } from '@/editor/invites';
-import type { EditorRoom } from '@/editor/room';
+import type { EditorRoom, RoomClose } from '@/editor/room';
 import { useI18n, type TranslationKey } from '@/i18n';
 import { usePublishPipStatus } from '@/editor/hosts/pip';
 
@@ -39,13 +40,30 @@ export function deniedMessageKey(closeCode: number | null): TranslationKey {
 }
 
 
+// the api closes a person's extra sockets with this (`ROOM_MAX_USER_SOCKETS`), a flood has the same code
+const TOO_MANY_SOCKETS = {code: 4029, reason: 'too many sockets open'};
+
+// what the joining screen says under its title: why the Activity's socket is down when it is (it used to say nothing
+// for as long as that lasted), or that the join is slow
+function joiningDescription(socketClose: RoomClose | null, slow: boolean, t: (key: TranslationKey) => string): string | undefined {
+  if (socketClose?.code === TOO_MANY_SOCKETS.code && socketClose.reason === TOO_MANY_SOCKETS.reason) {
+    return t('games.flag.joining_too_many');
+  }
+  if (socketClose) {
+    return t('games.flag.joining_socket');
+  }
+  return (slow) ? t('games.flag.joining_slow') : undefined;
+}
+
+
 // A game room in the Activity, any game's (activity-plan.md "Flag game in the Activity", word-game-plan.md): the header,
 // the connection's banners and the room's dialogs are every game's, the screens under them its game's (`room.game`:
 // Flag Guesser's here, Letter Trail's from ./LetterTrail). The api runs it, this shows its state: lobby → rounds with
 // reveals between → final scores. Watchers see it all and answer nothing.
 // `inviter`: the header's Invite (anyone in the room makes one) and the lobby's while the host is alone. A solo room
 // (Play solo) has neither, nor room settings or Close: it's theirs alone, and its settings are kept for the next one
-export function FlagGame({ connection, inviter, onLeave }: {connection: FlagGameConnection, inviter?: RoomInviter, onLeave: (notice?: string) => void}) {
+// `owner`: a NotSoBot owner, the header has the connection logs
+export function FlagGame({ connection, inviter, owner = false, onLeave }: {connection: FlagGameConnection, inviter?: RoomInviter, owner?: boolean, onLeave: (notice?: string) => void}) {
   const { t } = useI18n();
   const snapshot = useGameSnapshot(connection);
   const [ ending, setEnding ] = useState(false);
@@ -94,6 +112,7 @@ export function FlagGame({ connection, inviter, onLeave }: {connection: FlagGame
   if (snapshot.status === 'denied') {
     return (
       <FullPageMessage title={t(deniedMessageKey(snapshot.closeCode))}>
+        {(owner) ? <ActivityLogButton className='btn btn-secondary'/> : null}
         <button type='button' className='btn btn-secondary' onClick={() => onLeave()}>
           <ArrowLeft aria-hidden className='size-4'/>{t('games.rooms.back')}
         </button>
@@ -117,7 +136,8 @@ export function FlagGame({ connection, inviter, onLeave }: {connection: FlagGame
             {(solo) ? <span className='shrink-0 rounded-full bg-surface-3 px-2 py-0.5 text-xs font-semibold text-muted'>{t('games.rooms.solo_badge')}</span> : null}
           </h1>
           <span className='flex shrink-0 items-center'>
-            <HowToPlayButton guide={info.guide} className='size-11'/>
+            {(owner) ? <ActivityLogButton/> : null}
+            <HowToPlayButton guide={info.guide} markUnseen className='size-11'/>
             {(game && roomInviter) ? <RoomInviteButton inviter={roomInviter} compact/> : null}
             {(isHost && (game?.phase === 'round' || game?.phase === 'reveal')) ? (
               <button type='button' onClick={() => setEnding(true)} className='inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-danger-text hover:bg-surface'>
@@ -153,8 +173,8 @@ export function FlagGame({ connection, inviter, onLeave }: {connection: FlagGame
       ) : null}
 
       {(!game) ? (
-        <FullPageMessage title={t('games.flag.joining')} description={(snapshot.slowJoin) ? t('games.flag.joining_slow') : undefined}>
-          {(snapshot.slowJoin && snapshot.status === 'connecting') ? (
+        <FullPageMessage title={t('games.flag.joining')} description={joiningDescription(snapshot.socketClose, snapshot.slowJoin, t)}>
+          {(snapshot.slowJoin && snapshot.status !== 'open') ? (
             <button type='button' className='btn btn-secondary' onClick={() => connection.retryJoin()}>
               <RotateCw aria-hidden className='size-4'/>{t('games.flag.joining_retry')}
             </button>
@@ -296,12 +316,13 @@ function RoomSettingsDialog({ connection, game, onClose }: {connection: FlagGame
 // In the Activity: a room's game over the Activity's socket (whichever game it is, its first state says), joined while
 // it's on screen (leaving it sends `game_leave`, the
 // api marks them away). `watch`: they joined to watch
-export function ActivityFlagGame({ room, gameId, apiBase, token, watch = false, inviter, onLeave }: {
+export function ActivityFlagGame({ room, gameId, apiBase, token, watch = false, owner = false, inviter, onLeave }: {
   room: EditorRoom,
   gameId: string,
   apiBase: string,
   token: string,
   watch?: boolean,
+  owner?: boolean,
   inviter?: RoomInviter,
   onLeave: (notice?: string) => void,
 }) {
@@ -311,5 +332,5 @@ export function ActivityFlagGame({ room, gameId, apiBase, token, watch = false, 
     return () => connection.close();
   }, [connection]);
 
-  return <FlagGame connection={connection} inviter={inviter} onLeave={onLeave}/>;
+  return <FlagGame connection={connection} inviter={inviter} owner={owner} onLeave={onLeave}/>;
 }

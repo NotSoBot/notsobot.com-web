@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { createContext, Fragment, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createContext, Fragment, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import type { createBrowserRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 
@@ -17,6 +17,7 @@ import {
   loadDictionary,
   pluralWith,
   setActiveLanguage,
+  subscribeActiveLanguage,
   translateWith,
   type PluralKey,
   type TranslationKey,
@@ -241,7 +242,15 @@ export function I18nProvider({ createRouter }: {createRouter: (basename: string)
 // a page in src/entry-server.tsx) this falls back to whatever language is active, without switching. The error pages
 // have to render no matter what
 export function useI18n(): I18nContextValue {
-  return useContext(I18nContext) ?? fallbackContext();
+  const context = useContext(I18nContext);
+  // without a provider nothing else re-renders on a switch: the Activity changes language after sign-in
+  // (src/editor/activityLanguage.ts). Inside one the provider's own state does it
+  useSyncExternalStore((context) ? noSubscription : subscribeActiveLanguage, activeDictionary, activeDictionary);
+  return context ?? fallbackContext();
+}
+
+function noSubscription(): () => void {
+  return () => undefined;
 }
 
 // the same object (and functions) while the language and dictionary are the same: the Activity has no provider, and a

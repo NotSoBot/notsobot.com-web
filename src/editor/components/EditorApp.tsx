@@ -177,7 +177,7 @@ export function EditorApp({ host, documentId, catalogue, addEffectId = null, onE
       <div className='flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line-strong bg-deep px-4 py-2.5 sm:px-5'>
         {(host.onLeave) ? (
           <button type='button' onClick={host.onLeave} className='inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-muted hover:bg-surface hover:text-fg'>
-            <ArrowLeft aria-hidden className='size-4'/>{host.leaveLabel ?? t('editor.new')}
+            <ArrowLeft aria-hidden className='size-4'/>{t(host.leaveLabel ?? 'editor.new')}
           </button>
         ) : null}
         <div className='flex min-w-0 flex-[1_1_240px] items-center gap-2'>

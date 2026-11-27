@@ -1,3 +1,5 @@
+import { activityLog } from '@/editor/activityLog';
+
 import { FlagGameConnection } from '../connection';
 import {
   DEFAULT_SETTINGS,
@@ -83,8 +85,11 @@ export class FakeFlagGame extends FlagGameConnection {
   private solo: boolean;
   // a solo room's game starts as you first join, once
   private soloStarted = false;
+  // `&join=` on the mock page: the join hangs like a real one can (the socket refused for too many, the socket down, or
+  // no answer to the join) until Try again
+  private stuckJoin: 'too_many' | 'socket' | 'slow' | null;
 
-  constructor({ youHost = true, watch = false, dailyLeft = Infinity, visibility = 'server', solo = false, alone = false, settings }: {
+  constructor({ youHost = true, watch = false, dailyLeft = Infinity, visibility = 'server', solo = false, alone = false, settings, stuckJoin = null }: {
     youHost?: boolean,
     watch?: boolean,
     dailyLeft?: number,
@@ -92,8 +97,10 @@ export class FakeFlagGame extends FlagGameConnection {
     solo?: boolean,
     alone?: boolean,
     settings?: GameSettings,
+    stuckJoin?: 'too_many' | 'socket' | 'slow' | null,
   } = {}) {
     super();
+    this.stuckJoin = stuckJoin;
     this.dailyLeft = dailyLeft;
     this.solo = solo;
     const you: GamePlayer = {user_id: YOU, username: 'you_in_dev', avatar_url: null, score: 0, streak: 0, connected: true};
@@ -125,6 +132,10 @@ export class FakeFlagGame extends FlagGameConnection {
   connect(): void {
     this.alive = true;
     this.setStatus('connecting');
+    if (this.stuckJoin) {
+      this.hang(this.stuckJoin);
+      return;
+    }
     this.later(() => {
       // like the api: a solo room's game is already running by the time `ready` says so
       if (this.solo && !this.soloStarted && this.game.phase === 'lobby') {
@@ -134,6 +145,35 @@ export class FakeFlagGame extends FlagGameConnection {
       }
       this.emit({t: 'ready', you: YOU, now: Date.now(), game: this.copy()});
     }, 300);
+  }
+
+  // what a hanging join looks like, with the log lines the real socket would write
+  private hang(kind: 'too_many' | 'socket' | 'slow'): void {
+    activityLog.add('game', `opening mockroom0001, socket ${(kind === 'slow') ? 'open' : 'closed'}`);
+    if (kind === 'slow') {
+      activityLog.add('socket', '→ op=game_join game_id=mockroom0001');
+    } else {
+      const code = (kind === 'too_many') ? 4029 : 1006;
+      const reason = (kind === 'too_many') ? 'too many sockets open' : '';
+      activityLog.add('socket', `closed code=${code}${(reason) ? ` reason="${reason}"` : ''}`);
+      activityLog.add('socket', 'reconnecting in 5400ms');
+      this.update({socketClose: {code, reason, at: Date.now()}});
+    }
+    this.later(() => {
+      activityLog.add('game', (kind === 'slow') ? 'no game.ready or game.closed 6000ms after game_join, asking again' : 'no socket for 6000ms, still waiting for it');
+      this.update({slowJoin: true});
+    }, 1200);
+  }
+
+  // Try again: the hang's over
+  retryJoin(): void {
+    if (!this.stuckJoin) {
+      return;
+    }
+    activityLog.add('game', 'Try again pressed');
+    this.stuckJoin = null;
+    this.update({socketClose: null, slowJoin: false});
+    this.later(() => this.emit({t: 'ready', you: YOU, now: Date.now(), game: this.copy()}), 300);
   }
 
   // the dev toolbar's: the next bot that isn't in comes in (an `alone` room's invite card goes)

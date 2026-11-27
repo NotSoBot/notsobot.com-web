@@ -11,9 +11,12 @@ import { createRoot } from 'react-dom/client';
 import { ActivityApp } from '@/editor/hosts/activity';
 import { DEFAULT_LANGUAGE, languageFromLocale } from '@/i18n';
 import { loadDashboardText, loadDictionary, setActiveLanguage } from '@/i18n/translate';
+import { applyActivityMotion } from '@/lib/activityPrefs';
 
 
 async function start(): Promise<void> {
+  // the Activity settings' Less motion, before anything animates
+  applyActivityMotion();
   // Discord's own language (its client sets the iframe's), there's no url prefix or saved choice in here
   const language = languageFromLocale(navigator.language) ?? DEFAULT_LANGUAGE;
   setActiveLanguage(language, await loadDictionary(language));

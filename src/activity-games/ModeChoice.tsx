@@ -3,6 +3,7 @@ import { ChevronRight, Gamepad2, Wand2, type LucideIcon } from 'lucide-react';
 import { useI18n } from '@/i18n';
 import { cn } from '@/lib/utils';
 
+import { SettingsButton } from './ActivitySettings';
 import { useEditingCount, useGameRoomCounts, type ActivityFeed } from './counts';
 import type { GameRoomsApi } from './rooms';
 
@@ -25,7 +26,11 @@ export function ModeChoice({ api, room, onEdit, onGame, notice }: {
   return (
     <div className='mx-auto flex min-h-[var(--editor-height,100dvh)] w-full max-w-3xl flex-col justify-center gap-6 px-4 py-8'>
       <header className='flex flex-col gap-2'>
-        <h1 className='font-display text-3xl font-bold text-white sm:text-4xl'>{t('games.choice.title')}</h1>
+        {/* the settings' gear sits on the title's line, out of the way of the two choices */}
+        <div className='flex items-start justify-between gap-3'>
+          <h1 className='font-display text-3xl font-bold text-white sm:text-4xl'>{t('games.choice.title')}</h1>
+          <SettingsButton className='-mr-2 shrink-0'/>
+        </div>
         <p className='text-muted'>{t('games.choice.description')}</p>
       </header>
       {(notice) ? <p role='status' className='rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning'>{notice}</p> : null}

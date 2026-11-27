@@ -4,6 +4,7 @@ import { HowToPlayButton } from '@/components/guides/GuideSheet';
 import { useI18n } from '@/i18n';
 import { cn } from '@/lib/utils';
 
+import { SettingsButton } from './ActivitySettings';
 import { GAMES, type GameInfo } from './catalog';
 import { useGameRoomCounts, type ActivityFeed } from './counts';
 import { PointsBoard, YourPoints } from './GamePoints';
@@ -27,10 +28,11 @@ export function GamesTab({ api, room, onGame, onBack }: {
 
   return (
     <div className='mx-auto flex min-h-[var(--editor-height,100dvh)] w-full max-w-3xl flex-col gap-4 px-4 pt-3 pb-[calc(1.5rem+var(--saib,0px))]'>
-      <div className='flex items-center gap-2'>
+      <div className='flex items-center justify-between gap-2'>
         <button type='button' onClick={onBack} className='-ml-2 inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-muted hover:bg-surface hover:text-fg'>
           <ArrowLeft aria-hidden className='size-4'/>{t('games.choice.back')}
         </button>
+        <SettingsButton className='-mr-2'/>
       </div>
       <header className='flex flex-col gap-1'>
         <h1 className='flex items-center gap-2 font-display text-2xl font-bold text-white'>
