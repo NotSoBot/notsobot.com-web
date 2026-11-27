@@ -1,8 +1,10 @@
-import { Crown, Eye, Minus, Play, Plus, UserX } from 'lucide-react';
+import { Crown, Eye, Minus, Play, Plus, UserPlus, UserX } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Segmented } from '@/components/ui/Segmented';
+import { RoomInviteDialog } from '@/editor/components/RoomInvite';
+import type { RoomInviter } from '@/editor/invites';
 import { useI18n } from '@/i18n';
 import { cn } from '@/lib/utils';
 
@@ -12,37 +14,76 @@ import { PlayerFace } from './parts';
 import {
   GAME_DIFFICULTIES,
   GAME_MODES,
+  isLetterTrail,
+  LETTER_TRAIL_ROUNDS_MAX,
+  LETTER_TRAIL_ROUNDS_MIN,
+  LETTER_TRAIL_SECONDS,
+  LETTER_TRAIL_SIZES,
   ROUNDS_MAX,
   ROUNDS_MIN,
   SECONDS_MAX,
   SECONDS_MIN,
   SECONDS_STEP,
+  type AnyGameSettings,
+  type AnyGameState,
   type GameSettings,
-  type GameState,
   type GameWatcher,
+  type LetterTrailSettings,
 } from './protocol';
 
 
-// Before a game (and after one, for "Change settings"): who's playing and watching, the settings (only the host changes
-// them, the others see them as they are) and the host's Start. The room's creator (or a server moderator) removes people
-export function Lobby({ connection, game, you, moderator = false }: {connection: FlagGameConnection, game: GameState, you: string | null, moderator?: boolean}) {
+// the host's own change stays shown this long without the api's settings matching it, then the api's show again
+const DRAFT_KEPT = 1500;
+
+
+// Before a game (and after one, for "Change settings"): who's playing and watching, the room's game's settings (only the
+// host changes them, the others see them as they are) and the host's Start. The room's creator (or a server moderator) removes people.
+// While the host is here alone (nobody playing or watching) and the room isn't solo, a card offers its Invite (`inviter`)
+export function Lobby({ connection, game, you, moderator = false, inviter }: {
+  connection: FlagGameConnection,
+  game: AnyGameState,
+  you: string | null,
+  moderator?: boolean,
+  inviter?: RoomInviter,
+}) {
   const { t, plural } = useI18n();
   const [ kicking, setKicking ] = useState<GameWatcher | null>(null);
+  // the removal wasn't sent (the socket's reconnecting), its dialog says so
+  const [ unsent, setUnsent ] = useState(false);
+  // the invite dialog stays open when the card goes (someone came in while it was open)
+  const [ inviting, setInviting ] = useState(false);
   const creatorId = game.room.creator.user_id;
   // the room's creator can't be removed (they close the room instead), nobody removes themselves
   const canKick = (userId: string) => Boolean(you) && (you === creatorId || moderator) && userId !== you && userId !== creatorId;
   const isHost = Boolean(you) && game.host_id === you;
   const host = playerOf(game, game.host_id);
   // the host's change shows at once, the api's state replaces it
-  const [ draft, setDraft ] = useState<GameSettings | null>(null);
-  useEffect(() => setDraft(null), [game.settings]);
+  // (kept until the api's settings are the draft's, or nothing came for a moment: a state for an earlier tap, or for
+  // someone joining, used to put the old value back mid-tap and the next tap counted from it)
+  const [ draft, setDraft ] = useState<AnyGameSettings | null>(null);
+  useEffect(() => {
+    if (!draft) {
+      return;
+    }
+    const shown = game.settings as unknown as Record<string, unknown>;
+    const applied = Object.entries(draft).every(([ key, value ]) => value === shown[key]);
+    if (applied) {
+      setDraft(null);
+      return;
+    }
+    // refused or lost: the api's value shows again
+    const timer = window.setTimeout(() => setDraft(null), DRAFT_KEPT);
+    return () => window.clearTimeout(timer);
+  }, [game.settings, draft]);
   const settings = draft ?? game.settings;
-  const change = (changes: Partial<GameSettings>) => {
-    const next = {...settings, ...changes};
+  const change = (changes: Partial<AnyGameSettings>) => {
+    const next = {...settings, ...changes} as AnyGameSettings;
     setDraft(next);
     connection.settings(next);
   };
   const connected = game.players.filter((player) => player.connected).length;
+  const solo = Boolean(game.room.solo);
+  const alone = isHost && connected <= 1 && !game.watchers.length;
 
   return (
     <div className='flex flex-1 flex-col'>
@@ -52,6 +93,9 @@ export function Lobby({ connection, game, you, moderator = false }: {connection:
             <h2 id='flag-players' className='text-sm font-semibold text-white'>{t('games.flag.players')}</h2>
             <span className='text-xs text-subtle'>{plural('games.flag.players_here', connected)}</span>
           </div>
+          {/* the invite card's room is kept whether it shows or not (a room for more than one): someone coming in takes a
+              row of it, the last one leaving gives it back, so the settings under it never move */}
+          <div className={cn('flex flex-col gap-1.5', (!solo && inviter) && 'min-h-[13.75rem]')}>
           <ul className='flex flex-col gap-1.5'>
             {game.players.map((player) => (
               <li key={player.user_id} className='flex min-h-12 items-center gap-3 rounded-lg bg-surface px-3 py-2'>
@@ -70,6 +114,8 @@ export function Lobby({ connection, game, you, moderator = false }: {connection:
               </li>
             ))}
           </ul>
+          {(alone && !solo && inviter) ? <InviteCard onInvite={() => setInviting(true)}/> : null}
+          </div>
           {(game.watchers.length) ? (
             <>
               <h3 className='mt-2 flex items-center gap-1.5 text-sm font-semibold text-white'>
@@ -97,45 +143,11 @@ export function Lobby({ connection, game, you, moderator = false }: {connection:
             <h2 id='flag-settings' className='text-sm font-semibold text-white'>{t('games.flag.settings')}</h2>
             {(!isHost && host) ? <p className='text-xs text-subtle'>{t('games.flag.settings_host_only', {name: host.username})}</p> : null}
           </div>
-          <Setting label={t('games.flag.settings_mode')} hint={t(`games.flag.settings_mode_${settings.mode}_hint`)}>
-            <Segmented
-              label={t('games.flag.settings_mode')}
-              value={settings.mode}
-              disabled={!isHost}
-              options={GAME_MODES.map((value) => ({value, label: t(`games.flag.settings_mode_${value}`)}))}
-              onChange={(value) => change({mode: value as GameSettings['mode']})}
-            />
-          </Setting>
-          <Setting label={t('games.flag.settings_difficulty')} hint={t(`games.flag.settings_difficulty_${settings.difficulty}_hint`)}>
-            <Segmented
-              label={t('games.flag.settings_difficulty')}
-              value={settings.difficulty}
-              disabled={!isHost}
-              options={GAME_DIFFICULTIES.map((value) => ({value, label: t(`games.flag.settings_difficulty_${value}`)}))}
-              onChange={(value) => change({difficulty: value as GameSettings['difficulty']})}
-            />
-          </Setting>
-          <div className='grid grid-cols-2 gap-3'>
-            <Stepper
-              label={t('games.flag.settings_rounds')}
-              value={settings.rounds}
-              min={ROUNDS_MIN}
-              max={ROUNDS_MAX}
-              step={1}
-              disabled={!isHost}
-              onChange={(rounds) => change({rounds})}
-            />
-            <Stepper
-              label={t('games.flag.settings_seconds')}
-              value={settings.seconds}
-              min={SECONDS_MIN}
-              max={SECONDS_MAX}
-              step={SECONDS_STEP}
-              disabled={!isHost}
-              onChange={(seconds) => change({seconds})}
-            />
-          </div>
-          <p className='text-xs leading-relaxed text-subtle'>{t('games.flag.points_rules')}</p>
+          {(isLetterTrail(game)) ? (
+            <LetterTrailFields settings={settings as LetterTrailSettings} disabled={!isHost} onChange={change}/>
+          ) : (
+            <FlagGuesserFields settings={settings as GameSettings} disabled={!isHost} onChange={change}/>
+          )}
         </section>
       </div>
 
@@ -155,7 +167,8 @@ export function Lobby({ connection, game, you, moderator = false }: {connection:
               <button type='button' className='btn btn-primary btn-lg flex-1 py-3.5' onClick={() => connection.start()}>
                 <Play aria-hidden className='size-5'/>{t('games.flag.start')}
               </button>
-              <WatchInsteadButton connection={connection}/>
+              {/* a solo room has nobody to watch */}
+              {(solo) ? null : <WatchInsteadButton connection={connection}/>}
             </div>
           ) : (
             <div className='flex min-h-12 items-center justify-center gap-3'>
@@ -167,19 +180,50 @@ export function Lobby({ connection, game, you, moderator = false }: {connection:
           )}
         </div>
       </div>
+      {(inviting && inviter) ? <RoomInviteDialog inviter={inviter} onClose={() => setInviting(false)}/> : null}
       {(kicking) ? (
         <ConfirmDialog
           title={t('games.rooms.kick_title', {name: kicking.username})}
           description={t('games.rooms.kick_description')}
           confirmLabel={t('games.rooms.kick_confirm')}
           tone='danger'
+          error={(unsent) ? t('games.flag.reconnecting') : undefined}
           onConfirm={() => {
-            connection.kick(kicking.user_id);
-            setKicking(null);
+            if (connection.kick(kicking.user_id)) {
+              setKicking(null);
+            } else {
+              setUnsent(true);
+            }
           }}
-          onClose={() => setKicking(null)}
+          onClose={() => {
+            setKicking(null);
+            setUnsent(false);
+          }}
         />
       ) : null}
+    </div>
+  );
+}
+
+
+// the host alone in the lobby: bring friends in (the header's Invite: Discord's share sheet or a post in the channel),
+// or just start, a game works with one player
+function InviteCard({ onInvite }: {onInvite: () => void}) {
+  const { t } = useI18n();
+  return (
+    <div className='flex flex-col gap-3 rounded-xl border border-dashed border-line-strong bg-surface/50 p-3'>
+      <div className='flex items-start gap-3'>
+        <span className='flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand/15 text-brand-text'>
+          <UserPlus aria-hidden className='size-4'/>
+        </span>
+        <div className='flex min-w-0 flex-col gap-0.5'>
+          <h3 className='text-sm font-semibold text-white'>{t('games.flag.invite_title')}</h3>
+          <p className='text-xs text-muted'>{t('games.flag.invite_alone')}</p>
+        </div>
+      </div>
+      <button type='button' className='btn btn-secondary' onClick={onInvite}>
+        <UserPlus aria-hidden className='size-4'/>{t('editor.invite.button')}
+      </button>
     </div>
   );
 }
@@ -258,5 +302,92 @@ function Stepper({ label, value, min, max, step, disabled, onChange }: {
         )}
       </div>
     </div>
+  );
+}
+
+
+// Flag Guesser's settings: how they answer, which flags, how many and how long each
+function FlagGuesserFields({ settings, disabled, onChange }: {settings: GameSettings, disabled: boolean, onChange: (changes: Partial<GameSettings>) => void}) {
+  const { t } = useI18n();
+  return (
+    <>
+      <Setting label={t('games.flag.settings_mode')} hint={t(`games.flag.settings_mode_${settings.mode}_hint`)}>
+        <Segmented
+          label={t('games.flag.settings_mode')}
+          value={settings.mode}
+          disabled={disabled}
+          options={GAME_MODES.map((value) => ({value, label: t(`games.flag.settings_mode_${value}`)}))}
+          onChange={(value) => onChange({mode: value as GameSettings['mode']})}
+        />
+      </Setting>
+      <Setting label={t('games.flag.settings_difficulty')} hint={t(`games.flag.settings_difficulty_${settings.difficulty}_hint`)}>
+        <Segmented
+          label={t('games.flag.settings_difficulty')}
+          value={settings.difficulty}
+          disabled={disabled}
+          options={GAME_DIFFICULTIES.map((value) => ({value, label: t(`games.flag.settings_difficulty_${value}`)}))}
+          onChange={(value) => onChange({difficulty: value as GameSettings['difficulty']})}
+        />
+      </Setting>
+      <div className='grid grid-cols-2 gap-3'>
+        <Stepper
+          label={t('games.flag.settings_rounds')}
+          value={settings.rounds}
+          min={ROUNDS_MIN}
+          max={ROUNDS_MAX}
+          step={1}
+          disabled={disabled}
+          onChange={(rounds) => onChange({rounds})}
+        />
+        <Stepper
+          label={t('games.flag.settings_seconds')}
+          value={settings.seconds}
+          min={SECONDS_MIN}
+          max={SECONDS_MAX}
+          step={SECONDS_STEP}
+          disabled={disabled}
+          onChange={(seconds) => onChange({seconds})}
+        />
+      </div>
+      <p className='text-xs leading-relaxed text-subtle'>{t('games.flag.points_rules')}</p>
+    </>
+  );
+}
+
+
+// Letter Trail's: the grid's size, a round's seconds and how many rounds
+function LetterTrailFields({ settings, disabled, onChange }: {settings: LetterTrailSettings, disabled: boolean, onChange: (changes: Partial<LetterTrailSettings>) => void}) {
+  const { t } = useI18n();
+  return (
+    <>
+      <Setting label={t('games.letters.settings_size')} hint={t(`games.letters.settings_size_${settings.size}_hint`)}>
+        <Segmented
+          label={t('games.letters.settings_size')}
+          value={String(settings.size)}
+          disabled={disabled}
+          options={LETTER_TRAIL_SIZES.map((value) => ({value: String(value), label: t('games.letters.settings_size_value', {size: value})}))}
+          onChange={(value) => onChange({size: (Number(value) === 5) ? 5 : 4})}
+        />
+      </Setting>
+      <Setting label={t('games.letters.settings_seconds')} hint={t('games.letters.settings_seconds_hint')}>
+        <Segmented
+          label={t('games.letters.settings_seconds')}
+          value={String(settings.seconds)}
+          disabled={disabled}
+          options={LETTER_TRAIL_SECONDS.map((value) => ({value: String(value), label: t('games.letters.settings_seconds_value', {seconds: value})}))}
+          onChange={(value) => onChange({seconds: Number(value)})}
+        />
+      </Setting>
+      <Stepper
+        label={t('games.letters.settings_rounds')}
+        value={settings.rounds}
+        min={LETTER_TRAIL_ROUNDS_MIN}
+        max={LETTER_TRAIL_ROUNDS_MAX}
+        step={1}
+        disabled={disabled}
+        onChange={(rounds) => onChange({rounds})}
+      />
+      <p className='text-xs leading-relaxed text-subtle'>{t('games.letters.points_rules')}</p>
+    </>
   );
 }

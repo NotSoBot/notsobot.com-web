@@ -14,6 +14,7 @@ import { Ui } from './ui';
 import { Changelog } from './changelog';
 import { TagDocs } from './tagDocs';
 import { EditorHub } from './editorHub';
+import { Guides } from './guides';
 
 
 export const Portuguese: SiteTranslations = Object.freeze({
@@ -31,4 +32,5 @@ export const Portuguese: SiteTranslations = Object.freeze({
   ...Changelog,
   ...TagDocs,
   ...EditorHub,
+  ...Guides,
 });

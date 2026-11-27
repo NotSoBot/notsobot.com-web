@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 import { effectFits } from '../stack';
 import type { EditorEffect, EditorGroup, EditorMediaKind } from '../types';
 import { isAudioMimetype, isVideoMimetype, prefersReducedMotion } from './media';
-import { TabDots, TileCursors, tilePointer, useCursors } from './RoomCursors';
+import { TabDots, TileCursors, tilePointer, useCursorSend } from './RoomCursors';
 
 
 const TAB_LABELS: Record<EditorGroup, TranslationKey> = {
@@ -82,7 +82,7 @@ function TileThumbnail({ effect, active }: {effect: EditorEffect, active: boolea
 
 function EffectTile({ effect, tab, onAdd }: {effect: EditorEffect, tab: string, onAdd: (effect: EditorEffect) => void}) {
   const { t } = useI18n();
-  const cursors = useCursors();
+  const sendCursor = useCursorSend();
   const [ active, setActive ] = useState(false);
   const animated = Boolean(effect.thumbnail && isVideoMimetype(effect.thumbnail.mimetype));
   return (
@@ -93,7 +93,7 @@ function EffectTile({ effect, tab, onAdd }: {effect: EditorEffect, tab: string, 
       onMouseLeave={() => setActive(false)}
       onFocus={() => setActive(true)}
       onBlur={() => setActive(false)}
-      {...tilePointer(cursors, tab, effect.id)}
+      {...tilePointer(sendCursor, tab, effect.id)}
       aria-label={t('editor.tile.add', {name: (animated) ? t('editor.tile.animated', {name: effect.name}) : effect.name})}
       className='relative flex flex-col gap-1.5 rounded-[10px] border border-line-strong bg-bg p-1.5 text-left transition-colors hover:border-brand focus-visible:border-brand'
     >
@@ -126,7 +126,7 @@ export function EffectPicker({ effects, kind, hasAudio, onAdd, notes = true }: {
   const usable = useMemo(() => effects.filter((effect) => effectFits(effect, kind, hasAudio)), [effects, kind, hasAudio]);
   const enabledGroups = groups.filter((group) => usable.some((effect) => effect.group === group));
   const [ tab, setTab ] = useState<EditorGroup>(() => enabledGroups[0] ?? 'style');
-  const cursors = useCursors();
+  const sendCursor = useCursorSend();
 
   const search = query.trim().toLowerCase();
   // the page of tiles this is, for the others' pointers: a tile's spot only means something on the same page
@@ -140,7 +140,7 @@ export function EffectPicker({ effects, kind, hasAudio, onAdd, notes = true }: {
     : (!enabledGroups.includes('audio')) ? t('editor.tab.audio_off') : null;
 
   return (
-    <section aria-label={t('editor.tabs')} className='flex min-w-0 flex-col gap-3.5' onPointerLeave={() => cursors?.send(null)}>
+    <section aria-label={t('editor.tabs')} className='flex min-w-0 flex-col gap-3.5' onPointerLeave={() => sendCursor?.(null)}>
       <SearchInput size='sm' value={query} onValueChange={setQuery} placeholder={t('editor.search')} aria-label={t('editor.search')}/>
       {/* ten tabs: two rows of five, every label fits a narrow sidebar */}
       <div role='group' aria-label={t('editor.tabs')} className='grid grid-cols-5 gap-1 rounded-lg bg-deep p-1'>
@@ -156,7 +156,7 @@ export function EffectPicker({ effects, kind, hasAudio, onAdd, notes = true }: {
               onClick={() => {
                 setTab(group);
                 setQuery('');
-                cursors?.send({at: 'picker', tab: group, effect: null});
+                sendCursor?.({at: 'picker', tab: group, effect: null});
               }}
               className={cn(
                 'relative min-h-9 min-w-0 truncate rounded-md px-0.5 text-xs font-semibold transition-colors',

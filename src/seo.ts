@@ -95,6 +95,31 @@ export const PAGES: Readonly<Record<keyof typeof Routes, PageMeta>> = Object.fre
     index: true,
   },
   FOXBOT: {title: 'Foxbot', description: 'Foxbot on Discord.'},
+  GUIDES: {
+    title: 'Guides',
+    description: 'How to play Flag Guesser and Letter Trail, how game points work and how to use the media editor in NotSoBot\'s Discord Activity.',
+    index: true,
+  },
+  GUIDE_FLAG_GUESSER: {
+    title: 'Flag Guesser Guide',
+    description: 'How to play Flag Guesser in NotSoBot\'s Discord Activity and in chat: rooms, settings, hints and how points are scored.',
+    index: true,
+  },
+  GUIDE_GAME_POINTS: {
+    title: 'Game Points Guide',
+    description: 'How NotSoBot\'s game points work: earning them in chat and in the Activity, the daily limit, /games points and the leaderboards.',
+    index: true,
+  },
+  GUIDE_LETTER_TRAIL: {
+    title: 'Letter Trail Guide',
+    description: 'How to play Letter Trail in NotSoBot\'s Discord Activity: spelling words on a shared grid, scoring, only-you words, the ×2 tile and settings.',
+    index: true,
+  },
+  GUIDE_MEDIA_EDITOR: {
+    title: 'Media Editor Guide',
+    description: 'How to use NotSoBot\'s media editor in the Discord Activity: opening it, rooms, editing together, templates and posting what you make.',
+    index: true,
+  },
   INVITE: {title: 'Invite', description: 'Add NotSoBot to your Discord server.'},
   LEGAL_PRIVACY: {title: 'Privacy Policy', description: 'How NotSoBot collects, uses and stores your data.', index: true},
   LEGAL_TERMS_OF_SERVICE: {title: 'Terms of Service', description: 'The terms for using NotSoBot and notsobot.com.', index: true},

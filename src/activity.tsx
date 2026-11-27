@@ -32,4 +32,25 @@ async function start(): Promise<void> {
   );
 }
 
-void start();
+// a chunk or the dictionary that didn't load (a blip inside Discord's proxy) used to leave the Activity blank for good.
+// Plain markup: the strings and the app are what failed to load
+start().catch((error) => {
+  console.warn('[editor activity] failed to start', (error instanceof Error) ? error.message : error);
+  const root = document.getElementById('root');
+  if (!root) {
+    return;
+  }
+  root.textContent = '';
+  const box = document.createElement('div');
+  box.className = 'flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center';
+  const text = document.createElement('p');
+  text.className = 'text-muted';
+  text.textContent = 'NotSoBot couldn’t load. Check your connection and try again.';
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'btn btn-primary';
+  button.textContent = 'Reload';
+  button.addEventListener('click', () => window.location.reload());
+  box.append(text, button);
+  root.append(box);
+});

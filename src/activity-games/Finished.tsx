@@ -1,4 +1,4 @@
-import { ArrowLeft, RotateCcw, SlidersHorizontal, Trophy } from 'lucide-react';
+import { ArrowLeft, RotateCcw, SlidersHorizontal, Sparkles, Trophy } from 'lucide-react';
 
 import { useI18n } from '@/i18n';
 import { cn } from '@/lib/utils';
@@ -6,7 +6,8 @@ import { cn } from '@/lib/utils';
 import type { FlagGameConnection } from './connection';
 import { playerOf, rankedPlayers } from './hooks';
 import { PlayerFace } from './parts';
-import type { GamePlayer, GameState } from './protocol';
+import { gamePointsFor } from './points';
+import { isLetterTrail, type AnyGameState, type GamePlayer } from './protocol';
 
 
 interface Placed {
@@ -24,7 +25,7 @@ const PODIUM = [
 ];
 
 
-function placings(game: GameState): Array<Placed> {
+function placings(game: AnyGameState): Array<Placed> {
   const rows = (game.standings)
     ? game.standings.map((entry) => ({player: playerOf(game, entry.user_id), score: entry.score}))
       .filter((row): row is {player: GamePlayer, score: number} => row.player !== null)
@@ -39,8 +40,32 @@ function placings(game: GameState): Array<Placed> {
 }
 
 
-// The game's over: a podium for the top three, everyone else below, and the host's Play again / Change settings
-export function Finished({ connection, game, you, onLeave }: {connection: FlagGameConnection, game: GameState, you: string | null, onLeave: () => void}) {
+// what their score added to their game points total (./points): all of it, part of it (the daily cap) or none. Blank
+// until the api says (the award can come after the standings), the line's there from the start so nothing moves.
+// `expected`: what the score is worth in game points before the daily cap (a game's own rate, ./points)
+function AwardedLine({ expected, awarded }: {expected: number, awarded: number | undefined}) {
+  const { t, plural } = useI18n();
+  const text = (awarded === undefined) ? null
+    : (awarded <= 0) ? t('games.flag.awarded_none')
+    : (awarded < expected) ? plural('games.flag.awarded_capped', awarded)
+    : plural('games.flag.awarded', awarded);
+  return (
+    <p role='status' className={cn('flex min-h-5 items-center justify-center gap-1.5 text-sm font-semibold', (awarded !== undefined && 0 < awarded) ? 'text-success-text' : 'text-subtle')}>
+      {(text) ? <><Sparkles aria-hidden className='size-4 shrink-0'/>{text}</> : '\u00a0'}
+    </p>
+  );
+}
+
+
+// The game's over: a podium for the top three, everyone else below, and the host's Play again / Change settings.
+// `awards`: the game points each score added (connection.ts)
+export function Finished({ connection, game, you, awards, onLeave }: {
+  connection: FlagGameConnection,
+  game: AnyGameState,
+  you: string | null,
+  awards: Record<string, number> | null,
+  onLeave: () => void,
+}) {
   const { t, plural } = useI18n();
   const isHost = Boolean(you) && game.host_id === you;
   const host = playerOf(game, game.host_id);
@@ -60,6 +85,8 @@ export function Finished({ connection, game, you, onLeave }: {connection: FlagGa
               : t('games.flag.finished_title')}
           </h2>
           {(mine) ? <p className='text-sm text-muted'>{t('games.flag.finished_you', {place: mine.place, count: placed.length})}</p> : null}
+          {/* a score of 0 adds nothing, so there's no line for it */}
+          {(mine && 0 < mine.score) ? <AwardedLine expected={gamePointsFor((isLetterTrail(game)) ? 'letter_trail' : 'flag_guesser', mine.score)} awarded={(you) ? awards?.[you] : undefined}/> : null}
         </header>
 
         <ol aria-label={t('games.flag.finished_title')} className='grid grid-cols-3 items-end gap-2'>

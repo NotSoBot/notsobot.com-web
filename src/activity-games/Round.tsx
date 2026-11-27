@@ -7,7 +7,7 @@ import { cn, NO_AUTOFILL } from '@/lib/utils';
 import type { FlagGameConnection, GameSnapshot } from './connection';
 import { playerOf, useServerNow } from './hooks';
 import { FlagImage, PlayerFace, ScoresList, ScoresStrip, TimeBar } from './parts';
-import { GUESS_MAX_LENGTH, type GameRound, type GameState } from './protocol';
+import { GUESS_MAX_LENGTH, type AnyGameState, type GameRound, type GameState } from './protocol';
 
 
 // what a solve is worth before the first-solver and streak bonuses: 3 with no hint showing, 2 once the region shows, 1
@@ -18,12 +18,15 @@ function stagePoints(round: GameRound): number {
 
 
 // A flag on the clock: the flag, the time left (the api's clock), hints as they unlock, the guess box or the four
-// choices, and who's solved it so far
+// choices, and who's solved it so far. A game's first flag in a room for more than one starts a few seconds after Start:
+// until `started_at` (the api's clock, so everyone's "3, 2, 1" ends together) a big countdown covers the round, with
+// its clock full and no answer box (the api sends the flag and the choices once it's started)
 export function Round({ connection, snapshot, game, round }: {connection: FlagGameConnection, snapshot: GameSnapshot, game: GameState, round: GameRound}) {
   const { t, plural } = useI18n();
   const now = useServerNow(connection, true);
   const total = Math.max(1, round.ends_at - round.started_at);
-  const remaining = Math.max(0, round.ends_at - now);
+  const countdown = (now < round.started_at) ? Math.ceil((round.started_at - now) / 1000) : 0;
+  const remaining = Math.min(total, Math.max(0, round.ends_at - now));
   const fraction = remaining / total;
   const seconds = Math.ceil(remaining / 1000);
   const tone = (fraction > 0.34) ? 'brand' : (fraction > 0.15) ? 'warning' : 'danger';
@@ -31,7 +34,8 @@ export function Round({ connection, snapshot, game, round }: {connection: FlagGa
   const connected = game.players.filter((player) => player.connected).length;
 
   return (
-    <div className='mx-auto flex w-full max-w-5xl flex-1 flex-col gap-3 px-4 pt-3 pb-[calc(1rem+var(--saib,0px))] lg:grid lg:grid-cols-[1fr_16rem] lg:items-start lg:gap-8'>
+    <div className='relative mx-auto flex w-full max-w-5xl flex-1 flex-col gap-3 px-4 pt-3 pb-[calc(1rem+var(--saib,0px))] lg:grid lg:grid-cols-[1fr_16rem] lg:items-start lg:gap-8'>
+      {(countdown) ? <Countdown value={countdown}/> : null}
       <div className='flex min-w-0 flex-col gap-3'>
         <ScoresStrip game={game} you={you} answeredIds={snapshot.answeredIds}/>
         <div className='flex items-center gap-2'>
@@ -52,6 +56,9 @@ export function Round({ connection, snapshot, game, round }: {connection: FlagGa
 
         {(game.you_watch) ? (
           <WatchingPanel connection={connection} game={game}/>
+        ) : (countdown || !round.flag_url) ? (
+          // nothing to answer yet: the box's room (the four choices' in choices mode), so the round doesn't move at Go
+          <div aria-hidden className={(game.settings.mode === 'choices') ? 'h-[10.5rem]' : 'h-[4.625rem]'}/>
         ) : (round.choices) ? (
           <Choices connection={connection} snapshot={snapshot} choices={round.choices}/>
         ) : (
@@ -66,8 +73,28 @@ export function Round({ connection, snapshot, game, round }: {connection: FlagGa
 }
 
 
+// the start countdown over the whole round, its number as big as it gets: each one pops in (keyed, so the animation
+// runs again), read out once per number
+export function Countdown({ value }: {value: number}) {
+  const { t } = useI18n();
+  return (
+    <div className='absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-bg/80 backdrop-blur-sm'>
+      <span className='text-sm font-semibold tracking-wide text-muted uppercase'>{t('games.flag.countdown_title')}</span>
+      <span
+        key={value}
+        role='timer'
+        aria-live='assertive'
+        className='font-display text-[clamp(6rem,30dvh,12rem)] leading-none font-bold text-white tabular-nums motion-safe:animate-flag-countdown'
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+
 // a watcher's place for the answer box: they see the flag and the hints, and can join in when the room lets them
-function WatchingPanel({ connection, game }: {connection: FlagGameConnection, game: GameState}) {
+export function WatchingPanel({ connection, game }: {connection: FlagGameConnection, game: AnyGameState}) {
   const { t } = useI18n();
   return (
     <div role='status' className='flex min-h-14 flex-wrap items-center justify-center gap-3 rounded-xl border border-line-strong bg-surface px-4 py-2 text-center text-sm text-muted'>

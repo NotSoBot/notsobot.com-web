@@ -150,10 +150,12 @@ type TextHandle = 'move' | 'left' | 'right' | 'corner';
 // Text's box on the preview, as the render lays it out: wrapped and centered in `width` (a fraction of the media's
 // width), letters `size` of the width tall, the box centered on the position. Drag it to move it, its sides to change
 // how wide it wraps, a corner to scale the text. `+`/`-` resize it from the keyboard, arrows move it
-function PointTool({ step, param, onParam, label, resizeLabel, widthLabel, editLabel, editHint, maxTextLength }: {
+function PointTool({ step, param, onParam, onParams, label, resizeLabel, widthLabel, editLabel, editHint, maxTextLength }: {
   step: EditorStep,
   param: string,
   onParam: (name: string, value: unknown) => void,
+  // several at once from one gesture (a corner): one change, one undo step
+  onParams?: (values: Record<string, unknown>) => void,
   label: string,
   resizeLabel: string,
   widthLabel: string,
@@ -236,8 +238,16 @@ function PointTool({ step, param, onParam, label, resizeLabel, widthLabel, editL
       // scales the letters, which is what makes the box taller or shorter
       const rect = container.getBoundingClientRect();
       const height = Math.abs(at.y - point.y) * rect.height;
-      onParam('width', Math.round(clamp(Math.abs(at.x - point.x) * 2, 0.1, 1) * 1000) / 1000);
-      onParam('size', Math.round(clamp(drag.size * (height / drag.height), 0.02, 1) * 1000) / 1000);
+      const values = {
+        width: Math.round(clamp(Math.abs(at.x - point.x) * 2, 0.1, 1) * 1000) / 1000,
+        size: Math.round(clamp(drag.size * (height / drag.height), 0.02, 1) * 1000) / 1000,
+      };
+      if (onParams) {
+        onParams(values);
+      } else {
+        onParam('width', values.width);
+        onParam('size', values.size);
+      }
     } else {
       // the box stays centered on the position, a side sets half its width
       onParam('width', Math.round(clamp(Math.abs(at.x - point.x) * 2, 0.1, 1) * 1000) / 1000);
@@ -663,13 +673,15 @@ function StrokesTool({ step, param, onChange, pen, aspect, maxStrokes, maxPoints
 }
 
 
-export function SpatialOverlay({ tool, step, effectName, onChange, pen, aspect, maxStrokes, maxPoints, maxTextLength, assets = [] }: {
+export function SpatialOverlay({ tool, step, effectName, onChange, onChangeMany, pen, aspect, maxStrokes, maxPoints, maxTextLength, assets = [] }: {
   // the document's uploaded files, an overlay's is drawn in its box
   assets?: Array<EditorAsset>,
   tool: SpatialTool,
   step: EditorStep,
   effectName: string,
   onChange: (param: string, value: unknown) => void,
+  // several params from one gesture, as one change
+  onChangeMany?: (values: Record<string, unknown>) => void,
   pen: PenSettings,
   // height / width of what's shown, drawings keep their stroke widths even
   aspect: number,
@@ -686,6 +698,7 @@ export function SpatialOverlay({ tool, step, effectName, onChange, pen, aspect, 
           step={step}
           param={tool.param}
           onParam={onChange}
+          onParams={onChangeMany}
           label={label}
           resizeLabel={t('editor.preview.text_resize')}
           widthLabel={t('editor.preview.text_width')}

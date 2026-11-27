@@ -28,6 +28,10 @@ export type EditorRequest = <T>(path: string, options?: {
 
 
 // notsobot.api's editor error codes (utilities/constants/errors.py)
+// seconds the api holds an unfinished job's answer (`GET /jobs/<id>?wait=`, its most is 10)
+const JOB_POLL_WAIT = 8;
+
+
 export const EditorErrorCodes = Object.freeze({
   UNKNOWN_EDITOR_DOCUMENT: 10043,
   UNKNOWN_ACTIVITY_INSTANCE: 10042,
@@ -40,8 +44,12 @@ export const EditorErrorCodes = Object.freeze({
   // a locked template needs its password, or it was the wrong one (5 wrong a minute, then a 429)
   EDITOR_TEMPLATE_LOCKED: 50057,
   EDITOR_TEMPLATE_PASSWORD_INVALID: 50058,
+  // a password room (an editor lobby or a game room) they haven't given the password of
+  EDITOR_LOBBY_LOCKED: 50060,
   EDITOR_DOCUMENT_VERSION_MISMATCH: 50053,
   EDITOR_INVALID_STEP: 50054,
+  // a room's step someone else is adjusting right now, the api refuses anyone else's change to it
+  EDITOR_STEP_LOCKED: 50064,
   SERVICE_BUSY: 90008,
 });
 
@@ -134,16 +142,18 @@ export function createEditorApi(request: EditorRequest) {
         signal,
       },
     ),
+    // a pending one's answer is held by the api until it's over (8s at most), so this is asked again as it comes back
     previewStatus: (documentId: string, previewId: string, signal?: AbortSignal) => request<EditorPreview>(
       `/editor/documents/${pathId(documentId)}/previews/${pathId(previewId)}`,
-      {signal},
+      {signal, timeout: 25 * 1000},
     ),
     // `mimetype`: one of the document's `render_formats`, none keeps whatever the stack makes
     render: (documentId: string, mimetype?: string) => request<EditorJob>(
       `/editor/documents/${pathId(documentId)}/render`,
       {method: 'POST', body: (mimetype) ? {mimetype} : undefined, timeout: 30 * 1000},
     ),
-    job: (jobId: string) => request<EditorJob>(`/jobs/${pathId(jobId)}`),
+    // the api holds an unfinished job's answer up to JOB_POLL_WAIT seconds, so the next poll goes out as this one comes back
+    job: (jobId: string) => request<EditorJob>(`/jobs/${pathId(jobId)}`, {query: {wait: JOB_POLL_WAIT}, timeout: 25 * 1000}),
     // a render put on Discord's cdn with the user's own Discord token (the Activity's share dialog only takes those)
     shareAttachment: (url: string, accessToken: string, filename?: string) => request<{url: string}>('/editor/share', {
       method: 'POST',

@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type PointerEvent, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, type PointerEvent, type ReactNode } from 'react';
 
 import type { EditorRoom, RoomCursor, RoomMember } from '../room';
 
@@ -28,18 +28,24 @@ interface PlacedCursor {
   color: string,
 }
 
-interface CursorsValue {
-  // everyone else's, newest move last
-  cursors: Array<PlacedCursor>,
-  send: (cursor: RoomCursor | null) => void,
+export type CursorSend = (cursor: RoomCursor | null) => void;
+
+// Two contexts on purpose. Everyone else's pointers change with every `cursor` message (dozens a second with a few
+// people moving), and only the small parts that draw them read those. Sending your own never changes, so the picker,
+// its tiles, the step list and the preview (which only send) don't re-render when someone else's pointer moves
+const CursorSendContext = createContext<CursorSend | null>(null);
+// everyone else's, newest move last
+const CursorListContext = createContext<Array<PlacedCursor> | null>(null);
+
+
+// your own pointer, for the others. null outside a group edit (the web, a solo edit in the Activity)
+export function useCursorSend(): CursorSend | null {
+  return useContext(CursorSendContext);
 }
 
-const CursorContext = createContext<CursorsValue | null>(null);
-
-
-// null outside a group edit (the web, a solo edit in the Activity)
-export function useCursors(): CursorsValue | null {
-  return useContext(CursorContext);
+// the others' pointers, only for what draws them
+function useCursorList(): Array<PlacedCursor> | null {
+  return useContext(CursorListContext);
 }
 
 
@@ -86,23 +92,27 @@ export function CursorProvider({ room, documentId, editors, children }: {
     };
   }, [documentId, room]);
 
-  const send = useCallback((cursor: RoomCursor | null) => room?.sendCursor(cursor), [room]);
-  const value = useMemo<CursorsValue | null>(() => {
+  const send = useMemo<CursorSend | null>(() => (room) ? (cursor) => room.sendCursor(cursor) : null, [room]);
+  const cursors = useMemo<Array<PlacedCursor> | null>(() => {
     if (!room) {
       return null;
     }
     const byId = new Map(editors.map((member) => [member.user_id, member]));
-    const cursors: Array<PlacedCursor> = [];
+    const placed: Array<PlacedCursor> = [];
     for (const [ userId, { cursor } ] of raw) {
       const member = byId.get(userId);
       if (member) {
-        cursors.push({member, cursor, color: cursorColor(userId)});
+        placed.push({member, cursor, color: cursorColor(userId)});
       }
     }
-    return {cursors, send};
-  }, [editors, raw, room, send]);
+    return placed;
+  }, [editors, raw, room]);
 
-  return <CursorContext.Provider value={value}>{children}</CursorContext.Provider>;
+  return (
+    <CursorSendContext.Provider value={send}>
+      <CursorListContext.Provider value={cursors}>{children}</CursorListContext.Provider>
+    </CursorSendContext.Provider>
+  );
 }
 
 
@@ -119,28 +129,28 @@ function relative(event: PointerEvent<Element>): {x: number, y: number} | null {
 
 // pointer handlers for the preview's media box
 export function usePreviewPointer() {
-  const cursors = useCursors();
-  return useMemo(() => (cursors) ? {
+  const send = useCursorSend();
+  return useMemo(() => (send) ? {
     onPointerMove: (event: PointerEvent<Element>) => {
       const point = relative(event);
       if (point) {
-        cursors.send({at: 'preview', ...point});
+        send({at: 'preview', ...point});
       }
     },
-    onPointerLeave: () => cursors.send(null),
-  } : {}, [cursors]);
+    onPointerLeave: () => send(null),
+  } : {}, [send]);
 }
 
 
 // pointer handlers for an effect tile on a picker tab
-export function tilePointer(cursors: CursorsValue | null, tab: string, effect: string) {
-  if (!cursors) {
+export function tilePointer(send: CursorSend | null, tab: string, effect: string) {
+  if (!send) {
     return {};
   }
   return {
     onPointerMove: (event: PointerEvent<Element>) => {
       const point = relative(event);
-      cursors.send({at: 'picker', tab, effect, ...(point ?? {})});
+      send({at: 'picker', tab, effect, ...(point ?? {})});
     },
   };
 }
@@ -166,13 +176,13 @@ function Arrow({ color, name, x, y }: {color: string, name: string, x: number, y
 
 // everyone's pointer over the preview, inside its (relative) media box
 export function PreviewCursors() {
-  const cursors = useCursors();
+  const cursors = useCursorList();
   if (!cursors) {
     return null;
   }
   return (
     <>
-      {cursors.cursors.map(({ member, cursor, color }) => (cursor.at === 'preview') ? (
+      {cursors.map(({ member, cursor, color }) => (cursor.at === 'preview') ? (
         <Arrow key={member.user_id} color={color} name={member.username} x={cursor.x} y={cursor.y}/>
       ) : null)}
     </>
@@ -182,13 +192,13 @@ export function PreviewCursors() {
 
 // pointers over this tile, from people on the same tab (another tab's tiles aren't where they look on yours)
 export function TileCursors({ tab, effect }: {tab: string, effect: string}) {
-  const cursors = useCursors();
+  const cursors = useCursorList();
   if (!cursors) {
     return null;
   }
   return (
     <>
-      {cursors.cursors.map(({ member, cursor, color }) => (cursor.at === 'picker' && cursor.tab === tab && cursor.effect === effect) ? (
+      {cursors.map(({ member, cursor, color }) => (cursor.at === 'picker' && cursor.tab === tab && cursor.effect === effect) ? (
         <Arrow key={member.user_id} color={color} name={member.username} x={cursor.x ?? 0.5} y={cursor.y ?? 0.5}/>
       ) : null)}
     </>
@@ -198,8 +208,8 @@ export function TileCursors({ tab, effect }: {tab: string, effect: string}) {
 
 // a dot per person looking at this tab, so you can see where everyone is in the picker
 export function TabDots({ tab }: {tab: string}) {
-  const cursors = useCursors();
-  const here = cursors?.cursors.filter(({ cursor }) => cursor.at === 'picker' && cursor.tab === tab) ?? [];
+  const cursors = useCursorList();
+  const here = cursors?.filter(({ cursor }) => cursor.at === 'picker' && cursor.tab === tab) ?? [];
   if (!here.length) {
     return null;
   }
@@ -215,8 +225,8 @@ export function TabDots({ tab }: {tab: string}) {
 
 // who's pointing at this step, faces in their color
 export function StepCursors({ stepId }: {stepId: string}) {
-  const cursors = useCursors();
-  const here = cursors?.cursors.filter(({ cursor }) => cursor.at === 'step' && cursor.step_id === stepId) ?? [];
+  const cursors = useCursorList();
+  const here = cursors?.filter(({ cursor }) => cursor.at === 'step' && cursor.step_id === stepId) ?? [];
   if (!here.length) {
     return null;
   }

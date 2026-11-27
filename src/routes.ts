@@ -59,6 +59,12 @@ export const Routes = Object.freeze({
   EDITOR_TEMPLATE: '/editor/template/:templateCode',
   FAQ: '/faq',
   FOXBOT: '/foxbot',
+  // how-to guides for the Activity's games and the editor, one page each (src/content/guides has their content)
+  GUIDES: '/guides',
+  GUIDE_FLAG_GUESSER: '/guides/flag-guesser',
+  GUIDE_GAME_POINTS: '/guides/game-points',
+  GUIDE_LETTER_TRAIL: '/guides/letter-trail',
+  GUIDE_MEDIA_EDITOR: '/guides/media-editor',
   INVITE: '/invite',
   LEGAL_PRIVACY: '/legal/privacy',
   LEGAL_TERMS_OF_SERVICE: '/legal/tos',

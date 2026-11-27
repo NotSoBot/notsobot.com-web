@@ -1,4 +1,4 @@
-import { Flag, Wand2 } from 'lucide-react';
+import { Flag, LetterText, Wand2 } from 'lucide-react';
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
 
 import notSoLogo from '@/assets/logos/NotSoLogo.svg';
@@ -14,7 +14,8 @@ import { useI18n } from '@/i18n';
 // what the screen on show says about itself, set by the editor and the game while they're mounted
 export type PipStatus =
   | {kind: 'editor', title: string, previewUrl: string | null, previewIsVideo: boolean, people: number, watching: boolean}
-  | {kind: 'game', title: string, phase: 'lobby' | 'round' | 'reveal' | 'finished', round: {number: number, total: number} | null, score: number | null, rank: number | null, players: number, watching: boolean, flagUrl: string | null}
+  // `letters`: a Letter Trail room (its icon, rounds rather than flags)
+  | {kind: 'game', title: string, phase: 'lobby' | 'round' | 'reveal' | 'finished', round: {number: number, total: number} | null, score: number | null, rank: number | null, players: number, watching: boolean, flagUrl: string | null, letters?: boolean}
   | null;
 
 
@@ -119,16 +120,16 @@ export function PipView() {
             <img src={status.flagUrl} alt='' className='absolute inset-0 m-auto max-h-[70%] max-w-[85%] object-contain drop-shadow'/>
           ) : (
             <div className='absolute inset-0 flex items-center justify-center'>
-              <Flag aria-hidden className='size-10 text-success-text/60'/>
+              {(status.letters) ? <LetterText aria-hidden className='size-10 text-brand-text/60'/> : <Flag aria-hidden className='size-10 text-success-text/60'/>}
             </div>
           )}
           <PipBar
-            icon={<Flag aria-hidden className='size-3.5 shrink-0 text-success-text'/>}
+            icon={(status.letters) ? <LetterText aria-hidden className='size-3.5 shrink-0 text-brand-text'/> : <Flag aria-hidden className='size-3.5 shrink-0 text-success-text'/>}
             title={status.title}
             detail={[
               (status.phase === 'lobby') ? t('editor.pip.game_lobby')
                 : (status.phase === 'finished') ? t('editor.pip.game_over')
-                : (status.round) ? t('editor.pip.game_round', {number: status.round.number, total: status.round.total}) : null,
+                : (status.round) ? t((status.letters) ? 'editor.pip.game_round_letters' : 'editor.pip.game_round', {number: status.round.number, total: status.round.total}) : null,
               (status.watching) ? t('editor.pip.watching')
                 : (status.score !== null) ? plural('editor.pip.points', status.score) : null,
               (status.rank !== null && !status.watching && status.phase !== 'lobby' && (status.score ?? 0) > 0) ? t('editor.pip.rank', {rank: status.rank, total: status.players}) : null,

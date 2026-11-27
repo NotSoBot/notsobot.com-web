@@ -186,8 +186,11 @@ export function EditorApp({ host, documentId, catalogue, addEffectId = null, onE
           {(!state.watching) ? <ReplaceMediaButton state={state}/> : null}
         </div>
         {(state.room) ? <LobbyPeople editors={state.editors} room={state.room} documentId={document.id} ownerId={document.user_id} roomName={document.lobby_name || document.source.filename} lobbyName={document.lobby_name ?? null} locked={Boolean(document.locked)} watchOnly={Boolean(document.watch_only)}/> : null}
-        {(state.room && state.roomStatus !== 'open') ? <span role='status' className='text-xs text-warning'>{t('editor.room.reconnecting')}</span> : null}
         <span role='status' className={cn('text-xs', (state.saveState === 'error') ? 'text-danger-text' : 'text-subtle')}>{saveLabel}</span>
+        {/* a save that failed is tried again by itself a few times, this is for after that (or sooner) */}
+        {(state.saveState === 'error') ? (
+          <button type='button' onClick={state.retrySave} className='text-xs font-semibold text-brand-text underline hover:text-white'>{t('editor.preview.retry')}</button>
+        ) : null}
         <div className='flex items-center gap-1'>
           {/* a group room's Invite (the Activity's, never a solo edit) */}
           {(state.room && host.inviter) ? <RoomInviteButton inviter={host.inviter(document.id)}/> : null}
@@ -299,6 +302,7 @@ export function EditorApp({ host, documentId, catalogue, addEffectId = null, onE
             sourceKind={document.source_meta.kind}
             empty={!state.steps.some((step) => !step.hidden)}
             waitForSave={state.whenSaved}
+            preview={state.preview}
           />
         </aside>
       </div>

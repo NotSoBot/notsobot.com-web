@@ -5,6 +5,8 @@ import { BotInviteRedirect, ExternalRedirect } from '@/components/ExternalRedire
 import { SiteLayout } from '@/components/layout/SiteLayout';
 import { RequireEditorAccess } from '@/editor/hosts/access';
 import { Routes, Urls } from '@/config';
+import { loadGuides } from '@/content/guides/load';
+import { GUIDE_SLUGS } from '@/content/guides/types';
 import { loadTagDocs } from '@/content/tagDocs/load';
 import type { TagDocsView } from '@/content/tagDocs/localize';
 import { activeLanguage, loadDashboardText } from '@/i18n';
@@ -16,6 +18,7 @@ import { HomePage } from '@/pages/HomePage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { RouteErrorPage } from '@/pages/RouteErrorPage';
 import { AdminUserPeek } from '@/pages/dashboard/admin/AdminUserPeek';
+import { GUIDE_PAGE_KEYS } from '@/pages/guides/guideRoutes';
 import { NOT_FOUND_PAGE, PAGES, type PageMeta } from '@/seo';
 
 
@@ -35,16 +38,23 @@ let swapped = false;
 // load before it sets the language it renders in) or for a page it rendered (the router takes its state as loaded):
 // src/lib/pagePreload.ts loads the view for both
 function tagDocsLoader(view: TagDocsView) {
+  return contentLoader(() => loadTagDocs(view, activeLanguage()));
+}
+
+// the same for the guides (src/content/guides/load.ts), a chunk per language
+const guidesLoader = contentLoader(() => loadGuides(activeLanguage()));
+
+function contentLoader(load: () => Promise<unknown>) {
   return async (): Promise<null> => {
     if (typeof window === 'undefined') {
       return null;
     }
-    const docs = loadTagDocs(view, activeLanguage());
+    const content = load();
     if (swapped && !active?.state.initialized) {
       // the page's query asks again and reports it
-      docs.catch(() => undefined);
+      content.catch(() => undefined);
     } else {
-      await docs;
+      await content;
     }
     return null;
   };
@@ -103,6 +113,18 @@ export const routes: Array<RouteObject> = [
         ],
       },
       {path: '/docs', element: <Navigate to={Routes.TAG_DOCS} replace/>},
+      // the guides' content is a chunk per language, loaded before a guide page shows like the docs' view. Every guide
+      // is one page (GuidePage reads which from the matched handle), so moving between them keeps it mounted
+      {path: Routes.GUIDES, lazy: async () => ({Component: (await import('@/pages/guides/GuidesPage')).GuidesPage}), handle: PAGES.GUIDES, loader: guidesLoader, shouldRevalidate: () => false},
+      {
+        lazy: async () => ({Component: (await import('@/pages/guides/GuidePage')).GuidePage}),
+        loader: guidesLoader,
+        shouldRevalidate: () => false,
+        children: GUIDE_SLUGS.map((slug) => {
+          const key = GUIDE_PAGE_KEYS[slug];
+          return {path: Routes[key], element: null, handle: PAGES[key]};
+        }),
+      },
       {path: Routes.LEGAL_PRIVACY, lazy: async () => ({Component: (await import('@/pages/legal/PrivacyPage')).PrivacyPage}), handle: PAGES.LEGAL_PRIVACY},
       {path: Routes.LEGAL_TERMS_OF_SERVICE, lazy: async () => ({Component: (await import('@/pages/legal/TermsPage')).TermsPage}), handle: PAGES.LEGAL_TERMS_OF_SERVICE},
 

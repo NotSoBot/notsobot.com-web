@@ -9,6 +9,7 @@ import { ADD_AUDIO_EFFECT_ID, assetFits, fileAccepts, fileForAudio, fileInputAcc
 import type { EditorAsset, EditorBox, EditorFileAccept, EditorStep } from '../types';
 import type { EditorDocumentState } from '../useEditorDocument';
 import { FileSteps } from './FileSteps';
+import { prefersReducedMotion } from './media';
 
 
 // a new overlay's box: its file's own shape, 40% of the width (less when it would be too tall), centered
@@ -106,7 +107,8 @@ function AssetThumb({ asset, className }: {asset: EditorAsset, className?: strin
     return <span aria-hidden className={cn('flex items-center justify-center bg-deep text-muted', className)}><Music aria-hidden className='size-5'/></span>;
   }
   if (asset.mimetype.startsWith('video/')) {
-    return <video aria-hidden src={asset.url} muted autoPlay loop playsInline className={cn('bg-deep object-contain', className)}/>;
+    // a small tile: its first frame is enough for anyone who asked for less motion, and the file isn't pulled whole
+    return <video aria-hidden src={asset.url} muted autoPlay={!prefersReducedMotion()} loop playsInline preload='metadata' className={cn('bg-deep object-contain', className)}/>;
   }
   return <img src={asset.url} alt='' draggable={false} className={cn('bg-deep object-contain', className)}/>;
 }

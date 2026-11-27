@@ -1,7 +1,7 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 
 import type { FlagGameConnection, GameSnapshot } from './connection';
-import type { GamePlayer, GameState } from './protocol';
+import type { AnyGameState, GamePlayer } from './protocol';
 
 
 export function useGameSnapshot(connection: FlagGameConnection): GameSnapshot {
@@ -70,7 +70,7 @@ export function useFlagImage(connection: FlagGameConnection, flagUrl: string | n
 }
 
 
-export function playerOf(game: GameState, userId: string | null): GamePlayer | null {
+export function playerOf(game: AnyGameState, userId: string | null): GamePlayer | null {
   if (userId === null) {
     return null;
   }
@@ -79,7 +79,7 @@ export function playerOf(game: GameState, userId: string | null): GamePlayer | n
 
 
 // highest score first, the api's order (who joined first) breaks ties
-export function rankedPlayers(game: GameState): Array<GamePlayer> {
+export function rankedPlayers(game: AnyGameState): Array<GamePlayer> {
   return game.players.map((player, index) => ({player, index}))
     .sort((a, b) => b.player.score - a.player.score || a.index - b.index)
     .map(({ player }) => player);

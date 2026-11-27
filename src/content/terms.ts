@@ -3,7 +3,7 @@ import type { LegalDocument } from './legal';
 export const TERMS_OF_SERVICE: LegalDocument = {
   title: "Terms of Service",
   effective: "November 12, 2026",
-  lastUpdated: "November 26, 2026",
+  lastUpdated: "November 27, 2026",
   intro: "Please read these Terms of Service carefully before using NotSoBot. They explain what you can and can't do with the Service, what we store when you use it, and how to reach us.",
   sections: [
     {
@@ -79,7 +79,7 @@ export const TERMS_OF_SERVICE: LegalDocument = {
           "Reminders: reminder text, times, and the channel and message they belong to.",
           "Reports You send with the report command, including the text, the server, channel and message IDs involved, and Our review notes.",
           "Uploaded files: files You ask NotSoBot to host, their file names, sizes, dimensions and a file hash (BLAKE2b).",
-          "Media editor: a copy of the file You open in the editor, your edits, the files You add to it as overlays or audio, preview copies, and for the Discord Activity, the Activity, server and channel it was opened in, who launched it, and its rooms' names and a hash of their passwords, templates You save: their names, edits and the files they use, how many times they've been used, and a hash of the password if You lock one, the description and preview of templates You publish to the Template Hub, which templates You've used or reported, invites You make, and flag game rooms with their players' scores.",
+          "Media editor: a copy of the file You open in the editor, your edits, the files You add to it as overlays or audio, preview copies, and for the Discord Activity, the Activity, server and channel it was opened in, who launched it, and its rooms' names and a hash of their passwords, templates You save: their names, edits and the files they use, how many times they've been used, and a hash of the password if You lock one, the description and preview of templates You publish to the Template Hub, which templates You've used or reported, invites You make, game rooms with their players' scores and words, and game points.",
           "AI requests: the prompt, including any messages You replied to with the ai command, along with the instructions, model, generated response, any error and token counts.",
           "Cloned voices: the voice's name, what is needed to use the voice (a short list of numbers describing how it sounds, or for an older voice the ID of the voice stored at fish.audio or ElevenLabs), and the speech from the audio clips it was made from.",
           "Saved fonts: the font files You (or a server's members) save to use by name, with their names, original file names, sizes, a file hash (SHA-256), who saved them and a preview image.",

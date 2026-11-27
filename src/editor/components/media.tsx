@@ -12,6 +12,23 @@ export function isAudioMimetype(mimetype: string | undefined): boolean {
 }
 
 
+// The cdn's small png of one of its files (`<vanity>.png?thumbnail=true`, the lookup ignores the extension): a video's
+// frame, a sound's cover or waveform. Pictures have none, and a file's may not be made yet (a 404 either way), so
+// whoever shows it keeps something to fall back to. null for a link that isn't the cdn's
+export function cdnThumbnailUrl(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname !== 'cdn.nsb.gg') {
+      return null;
+    }
+    parsed.pathname = `${parsed.pathname.replace(/\.[^./]+$/, '')}.png`;
+    parsed.search = '?thumbnail=true';
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+
 export function prefersReducedMotion(): boolean {
   return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 }

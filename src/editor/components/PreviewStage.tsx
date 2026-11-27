@@ -33,7 +33,10 @@ export function PreviewStage({ state, pen, maxStrokes, maxPoints, maxTextLength 
   const scrollRef = useRef<HTMLDivElement>(null);
   // the others in the lobby see where on the picture this pointer is
   const previewPointer = usePreviewPointer();
+  const figureShown = Boolean(preview || proxy);
 
+  // (`figureShown`: there's no figure until the first picture is, while a proxy is still being made. Without it this
+  // ran once on nothing and zooming changed the percentage but never the picture)
   useEffect(() => {
     const figure = figureRef.current;
     if (!figure || zoom !== 1) {
@@ -42,7 +45,7 @@ export function PreviewStage({ state, pen, maxStrokes, maxPoints, maxTextLength 
     const observer = new ResizeObserver(() => setFitWidth(figure.getBoundingClientRect().width));
     observer.observe(figure);
     return () => observer.disconnect();
-  }, [zoom, document?.id]);
+  }, [zoom, document?.id, figureShown]);
 
   // a trackpad pinch (or ctrl + scroll) zooms the preview, not the page. not passive, so the page's own zoom is stopped
   useEffect(() => {
@@ -175,6 +178,7 @@ export function PreviewStage({ state, pen, maxStrokes, maxPoints, maxTextLength 
                   step={selectedStep}
                   effectName={selectedEffect.name}
                   onChange={(param, value) => state.setParam(selectedStep.id, param, value)}
+                  onChangeMany={(values) => state.setParams(selectedStep.id, values)}
                   pen={pen}
                   aspect={aspect}
                   maxStrokes={maxStrokes}

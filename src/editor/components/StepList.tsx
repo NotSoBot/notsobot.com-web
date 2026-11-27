@@ -5,7 +5,7 @@ import { useI18n } from '@/i18n';
 import { cn } from '@/lib/utils';
 
 import type { EditorDocumentState } from '../useEditorDocument';
-import { StepCursors, useCursors } from './RoomCursors';
+import { StepCursors, useCursorSend } from './RoomCursors';
 import { useStepSummary } from './useStepSummary';
 
 
@@ -15,7 +15,7 @@ export function StepList({ state }: {state: EditorDocumentState}) {
   const { steps, effectsById, selectedId, stepError } = state;
   const [ dragging, setDragging ] = useState<string | null>(null);
   const [ over, setOver ] = useState<number | null>(null);
-  const cursors = useCursors();
+  const sendCursor = useCursorSend();
 
   if (!steps.length) {
     return (
@@ -32,7 +32,7 @@ export function StepList({ state }: {state: EditorDocumentState}) {
   };
 
   return (
-    <ol className='flex flex-col gap-1.5' onPointerLeave={() => cursors?.send(null)}>
+    <ol className='flex flex-col gap-1.5' onPointerLeave={() => sendCursor?.(null)}>
       {steps.map((step, index) => {
         const effect = effectsById.get(step.effect);
         const name = effect?.name ?? step.effect;
@@ -44,7 +44,7 @@ export function StepList({ state }: {state: EditorDocumentState}) {
           <li
             key={step.id}
             draggable
-            onPointerEnter={() => cursors?.send({at: 'step', step_id: step.id})}
+            onPointerEnter={() => sendCursor?.({at: 'step', step_id: step.id})}
             onDragStart={(event) => {
               setDragging(step.id);
               event.dataTransfer.effectAllowed = 'move';

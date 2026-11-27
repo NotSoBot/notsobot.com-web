@@ -8,7 +8,12 @@ import { Routes } from '@/config';
 import { apiRequest } from '@/lib/api';
 
 
-// Who the media editor is open to, the api decides (its `EDITOR_PUBLIC`, `GET /editor/effects`'s `access`): owners only
+// `GET /editor/access`: the one field (the effect catalogue has it too, a couple hundred KB the navbar used to download
+// on every page to read it)
+type EditorAccess = {access: 'everyone' | 'owners'};
+
+
+// Who the media editor is open to, the api decides (its `EDITOR_PUBLIC`, `GET /editor/access`): owners only
 // until the rollout, then everyone logged in. The site's `/editor` page and its links go by it, so turning it on in the
 // api is all the site needs
 export function useEditorAccess(): {allowed: boolean, loading: boolean} {
@@ -16,7 +21,7 @@ export function useEditorAccess(): {allowed: boolean, loading: boolean} {
   const owner = isOwner(user);
   const query = useQuery({
     queryKey: ['editor', 'access'],
-    queryFn: ({ signal }) => apiRequest<{access: 'everyone' | 'owners'}>('/editor/effects', {auth: false, signal}),
+    queryFn: ({ signal }) => apiRequest<EditorAccess>('/editor/access', {auth: false, signal}),
     // owners can use it either way, nobody logged out can
     enabled: isAuthenticated && !owner,
     staleTime: 5 * 60 * 1000,

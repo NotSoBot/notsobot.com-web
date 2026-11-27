@@ -63,6 +63,34 @@
     from { transform: translateX(24px); opacity: 0; }
     to { transform: translateX(0); opacity: 1; }
   }
+
+  /* the flag game's "3, 2, 1": each number pops in and settles */
+  --animate-flag-countdown: flag-countdown 1s ease-out both;
+
+  @keyframes flag-countdown {
+    0% { transform: scale(1.6); opacity: 0; }
+    25% { transform: scale(1); opacity: 1; }
+    85% { transform: scale(0.94); opacity: 1; }
+    100% { transform: scale(0.9); opacity: 0.6; }
+  }
+
+  /* Letter Trail: a missed word shakes side to side, a found one pops */
+  --animate-letter-shake: letter-shake 0.4s ease-in-out both;
+  --animate-letter-pop: letter-pop 0.35s ease-out both;
+
+  @keyframes letter-shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-6px); }
+    40% { transform: translateX(6px); }
+    60% { transform: translateX(-4px); }
+    80% { transform: translateX(3px); }
+  }
+
+  @keyframes letter-pop {
+    0% { transform: scale(1); }
+    40% { transform: scale(1.08); }
+    100% { transform: scale(1); }
+  }
 }
 
 
@@ -70,6 +98,13 @@
   html {
     color-scheme: dark;
     -webkit-tap-highlight-color: transparent;
+    /* safe areas (notch, home indicator) for pages that run under them. Discord's mobile clients hand an Activity its
+       insets as --discord-safe-area-inset-*, a browser gives env() (non-zero only with viewport-fit=cover, which only
+       activity.html sets). Used as var(--saib, 0px) and friends */
+    --sait: var(--discord-safe-area-inset-top, env(safe-area-inset-top, 0px));
+    --saib: var(--discord-safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+    --sail: var(--discord-safe-area-inset-left, env(safe-area-inset-left, 0px));
+    --sair: var(--discord-safe-area-inset-right, env(safe-area-inset-right, 0px));
   }
 
   body {

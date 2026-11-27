@@ -6676,7 +6676,7 @@ route('GET', '/home', (_match, { query }) => {
 registerEditorMocks(route, (status, code, message, metadata) => new MockError(status, code, message, metadata));
 
 
-const MOCK_PUBLIC_PATHS = ['/tags/directory', '/reports/anonymous', '/commands', '/commands/stats', '/home', '/info/voice', '/editor/effects'];
+const MOCK_PUBLIC_PATHS = ['/tags/directory', '/reports/anonymous', '/commands', '/commands/stats', '/home', '/info/voice', '/editor/effects', '/editor/access'];
 // the template hub's list and a template's view answer logged out too (its staff queue doesn't)
 const MOCK_PUBLIC_PATTERN = /^\/editor\/hub(\/(?!review$)[A-Za-z]+)?$/;
 

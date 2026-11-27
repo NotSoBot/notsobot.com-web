@@ -59,6 +59,7 @@ export function Footer() {
           <h3 className='section-label mb-3'>{t('footer.links')}</h3>
           <ul className='space-y-2 text-sm'>
             <li><Link to={Routes.FAQ} className='text-muted transition-colors hover:text-white'>{t('nav.faq')}</Link></li>
+            <li><Link to={Routes.GUIDES} className='text-muted transition-colors hover:text-white'>{t('nav.guides')}</Link></li>
             <li><Link to={Routes.CHANGELOG} className='text-muted transition-colors hover:text-white'>{t('nav.changelog')}</Link></li>
             <li><Link to={Routes.PREMIUM} className='text-muted transition-colors hover:text-white'>{t('nav.premium')}</Link></li>
             <li><Link to={Routes.TAG_DOCS} className='text-muted transition-colors hover:text-white'>{t('footer.tag_docs')}</Link></li>

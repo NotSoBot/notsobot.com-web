@@ -53,6 +53,19 @@ function mediaKindOfUrl(url: string): 'image' | 'video' | 'audio' {
 }
 
 
+// where a link's media may be shown before they say start: Discord's cdn and our own. A site link's `?url=` can be
+// anyone's (someone else made the link), that file isn't loaded just by opening the page
+const PREVIEW_HOSTS = new Set(['cdn.discordapp.com', 'media.discordapp.net', 'cdn.nsb.gg']);
+
+function previewsBeforeStart(url: string): boolean {
+  try {
+    return PREVIEW_HOSTS.has(new URL(url).hostname);
+  } catch {
+    return false;
+  }
+}
+
+
 function fileNameOfUrl(url: string): string {
   try {
     return decodeURIComponent(new URL(url).pathname.split('/').pop() || '');
@@ -63,7 +76,9 @@ function fileNameOfUrl(url: string): string {
 
 
 // The Activity opened from Edit Media / Edit Avatar: that media, big, with who the edit is for and one button to start.
-// "Pick something else" leaves the start screen as it is (the link stays in its box)
+// "Pick something else" leaves the start screen as it is (the link stays in its box).
+// The site's `/editor?url=` (`surface` 'link') asks the same way: the link is shown in full, and nothing is fetched or
+// uploaded under their account until they press start
 function LaunchMediaDialog({ url, surface, uploading, error, blocked, settings, onStart, onDismiss }: {
   url: string,
   surface: string | null,
@@ -80,7 +95,9 @@ function LaunchMediaDialog({ url, surface, uploading, error, blocked, settings, 
   const [ broken, setBroken ] = useState(false);
   const kind = mediaKindOfUrl(url);
   const avatar = surface === 'edit_avatar';
+  const link = surface === 'link';
   const filename = fileNameOfUrl(url);
+  const preview = !link || previewsBeforeStart(url);
   return (
     <Modal anchor='top' labelledBy={titleId} onClose={() => !uploading && onDismiss()} className='max-w-lg'>
       <div className='flex max-h-[90dvh] flex-col gap-4 overflow-y-auto p-5 sm:p-6'>
@@ -88,10 +105,11 @@ function LaunchMediaDialog({ url, surface, uploading, error, blocked, settings, 
           <h2 id={titleId} className='pr-10 text-lg font-semibold text-white'>
             {(avatar) ? t('editor.launch.avatar_title') : t(`editor.launch.${kind}_title`)}
           </h2>
-          <p className='mt-1 text-sm text-muted'>{(avatar) ? t('editor.launch.avatar_description') : t('editor.launch.media_description')}</p>
+          <p className='mt-1 text-sm text-muted'>{(avatar) ? t('editor.launch.avatar_description') : (link) ? t('editor.launch.link_description') : t('editor.launch.media_description')}</p>
+          {(link) ? <p className='mt-2 rounded-md bg-deep px-2.5 py-1.5 font-mono text-xs break-all text-fg'>{url}</p> : null}
         </div>
         <div className={cn('flex items-center justify-center overflow-hidden rounded-xl border border-line-strong bg-deep', (avatar) ? 'mx-auto size-40 rounded-full' : 'max-h-[40dvh] min-h-32')}>
-          {(broken || kind === 'audio') ? (
+          {(broken || !preview || kind === 'audio') ? (
             <span className='flex flex-col items-center gap-2 p-6 text-subtle'>
               {(kind === 'audio') ? <Music aria-hidden className='size-10'/> : <ImageIcon aria-hidden className='size-10'/>}
               {(filename) ? <span className='max-w-full truncate font-mono text-xs'>{filename}</span> : null}
@@ -117,15 +135,15 @@ function LaunchMediaDialog({ url, surface, uploading, error, blocked, settings, 
 }
 
 
-export function StartScreen({ host, onOpen, initialUrl, suggestedUrl, launchSurface = null, onSuggestedDismiss, tryEffectId = null, tryGeneratorId = null, onBack, activityInstanceId: instanceId, template: templateProp, effectNames, mode }: {
+export function StartScreen({ host, onOpen, suggestedUrl, launchSurface = null, onSuggestedDismiss, tryEffectId = null, tryGeneratorId = null, onBack, headerAside, activityInstanceId: instanceId, template: templateProp, effectNames, mode }: {
   host: EditorHost,
   // `opened.template`: it starts from a template (its questions are asked once it's open)
   onOpen: (document: EditorDocument | EditorDocumentSummary, opened?: {template: boolean}) => void,
-  // `?url=`, from a link like the bot's "edit on the web", opened right away
-  initialUrl?: string | null,
-  // filled in but not opened: the Activity's Edit Media launch, shown in its own dialog until they start or dismiss it
+  // filled in but not opened: the Activity's Edit Media launch, or the site's `?url=` (a link like the bot's "edit on
+  // the web"), shown in its own dialog until they start or dismiss it. Never opened by itself: a link someone else made
+  // would upload whatever it names under the account of whoever opens it
   suggestedUrl?: string | null,
-  // how the Activity was launched (`edit_media`, `edit_avatar`, ...), the dialog's wording
+  // how the Activity was launched (`edit_media`, `edit_avatar`, ...) or `link` for the site's `?url=`, the dialog's wording
   launchSurface?: string | null,
   // "Pick something else": the dialog doesn't come back (the start screen remounts when Just me is picked)
   onSuggestedDismiss?: () => void,
@@ -135,6 +153,8 @@ export function StartScreen({ host, onOpen, initialUrl, suggestedUrl, launchSurf
   tryGeneratorId?: string | null,
   // back to where they came from (the Activity's lobby list)
   onBack?: {label: string, run: () => void},
+  // at the end of the back button's row (the Activity's How to play)
+  headerAside?: ReactNode,
   // the Activity: the document is the instance's (shared with everyone in it), and personal recents aren't shown
   activityInstanceId?: string,
   // a shared template (`/editor/template/<code>`, or the Activity's launch): the picked file starts with its steps
@@ -168,21 +188,20 @@ export function StartScreen({ host, onOpen, initialUrl, suggestedUrl, launchSurf
   const waitingForPassword = Boolean(shownTemplate && templateNeedsPassword(shownTemplate));
   const inputId = useId();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [ url, setUrl ] = useState(initialUrl ?? suggestedUrl ?? '');
+  const [ url, setUrl ] = useState(suggestedUrl ?? '');
   const [ uploading, setUploading ] = useState(false);
   const [ error, setError ] = useState<string | null>(null);
   const [ dragOver, setDragOver ] = useState(false);
   const [ recent, setRecent ] = useState<Array<EditorDocumentSummary> | null>(null);
   const [ deleting, setDeleting ] = useState<EditorDocumentSummary | null>(null);
   const [ deletePending, setDeletePending ] = useState(false);
-  const startedRef = useRef(false);
   // the catalogue's generators, fetched once per page load (the editor reuses it)
   const { catalogue } = useCatalogue(host);
   const generators = catalogue?.generators ?? [];
   // the effects' names for the template banner when the host doesn't pass them (the Activity)
   const catalogueNames = useMemo(() => new Map((catalogue?.effects ?? []).map((effect) => [effect.id, effect.name])), [catalogue]);
   const [ generating, setGenerating ] = useState<EditorGenerator | null>(null);
-  const [ launchDialog, setLaunchDialog ] = useState(Boolean(suggestedUrl && !initialUrl));
+  const [ launchDialog, setLaunchDialog ] = useState(Boolean(suggestedUrl));
   const tryEffect = (tryEffectId) ? catalogue?.effects.find((effect) => effect.id === tryEffectId) ?? null : null;
   // Try it on a generator: its dialog, once the catalogue's here
   const triedGeneratorRef = useRef(false);
@@ -227,15 +246,6 @@ export function StartScreen({ host, onOpen, initialUrl, suggestedUrl, launchSurf
     }
   };
 
-  useEffect(() => {
-    if (initialUrl && !startedRef.current) {
-      startedRef.current = true;
-      void open({url: initialUrl});
-    }
-    // only the first render's link
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const onDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     setDragOver(false);
@@ -269,10 +279,15 @@ export function StartScreen({ host, onOpen, initialUrl, suggestedUrl, launchSurf
   return (
     <div className='mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-10 sm:py-14'>
       <header className='flex flex-col gap-2'>
-        {(onBack) ? (
-          <button type='button' onClick={onBack.run} className='-ml-2 inline-flex min-h-10 w-fit items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-muted hover:bg-surface hover:text-fg'>
-            <ArrowLeft aria-hidden className='size-4'/>{onBack.label}
-          </button>
+        {(onBack || headerAside) ? (
+          <div className='flex items-center justify-between gap-2'>
+            {(onBack) ? (
+              <button type='button' onClick={onBack.run} className='-ml-2 inline-flex min-h-10 w-fit items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-muted hover:bg-surface hover:text-fg'>
+                <ArrowLeft aria-hidden className='size-4'/>{onBack.label}
+              </button>
+            ) : <span/>}
+            {headerAside}
+          </div>
         ) : null}
         <h1 className='font-display text-3xl font-bold text-white sm:text-4xl'>{t('editor.title')}</h1>
         <p className='text-muted'>{t('editor.start.description')}</p>

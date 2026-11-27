@@ -66,6 +66,12 @@ const SERVER_RENDERED_PAGES: ReadonlySet<PageKey> = new Set([
   'TAG_DOCS_MEDIASCRIPT',
   'LEGAL_PRIVACY',
   'LEGAL_TERMS_OF_SERVICE',
+  // static text from src/content/guides, a few kB each
+  'GUIDES',
+  'GUIDE_FLAG_GUESSER',
+  'GUIDE_GAME_POINTS',
+  'GUIDE_LETTER_TRAIL',
+  'GUIDE_MEDIA_EDITOR',
 ]);
 
 interface Page {
@@ -157,10 +163,13 @@ const COMPONENT_EMBED_MAX_BYTES = 3000;
 
 
 // user-written text goes into discord markdown as-is otherwise. `<` too, or `<@id>`, `<#id>`, `<t:...>` and
-// `<:emoji:id>` render as mentions, timestamps and emojis
+// `<:emoji:id>` render as mentions, timestamps and emojis. A bare link too: Discord's client links anything matching
+// `(https?|steam)://...` in a text component (its own rule, read from the client), so a template or tag named
+// "free nitro https://..." was a clickable link inside our embed. The slashes escaped, it's only text
 function escapeMarkdown(value: string): string {
   return value
     .replace(/[\\*_~`|[\]<]/g, '\\$&')
+    .replace(/:\/\//g, ':\\/\\/')
     .replace(/^(\s*)([#>-])/gm, '$1\\$2')
     // `1. item` is a numbered list
     .replace(/^(\s*\d+)\./gm, '$1\\.');

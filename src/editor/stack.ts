@@ -1,3 +1,4 @@
+import type { RoomOp } from './room';
 import type { EditorAsset, EditorEffect, EditorFileAccept, EditorMediaKind, EditorParam, EditorStep } from './types';
 
 
@@ -205,4 +206,139 @@ export function stepTimeline(steps: Array<EditorStep>, stepId: string, sourceDur
 // `1.5` -> `1.50s`, the length of a Trim and its times
 export function formatSeconds(value: number): string {
   return `${value.toFixed(2)}s`;
+}
+
+
+// every string inside a step's params, a file's own steps (a list of steps in a param) included
+function mapParamStrings(value: unknown, map: (text: string) => string): unknown {
+  if (typeof value === 'string') {
+    return map(value);
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => mapParamStrings(item, map));
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([ key, item ]) => [key, mapParamStrings(item, map)]));
+  }
+  return value;
+}
+
+// the document's uploaded files (`assets`) its steps use: a `media` param holds a file's id
+export function usedAssets(steps: Array<EditorStep>, assets: Array<EditorAsset>): Array<EditorAsset> {
+  const ids = new Set(assets.map((asset) => asset.id));
+  const used = new Set<string>();
+  for (const step of steps) {
+    mapParamStrings(step.params, (text) => {
+      if (ids.has(text)) {
+        used.add(text);
+      }
+      return text;
+    });
+  }
+  return assets.filter((asset) => used.has(asset.id));
+}
+
+// the same steps pointing at other files (a copy of the document has its own copies of them, old id -> new id)
+export function remapAssets(steps: Array<EditorStep>, ids: Map<string, string>): Array<EditorStep> {
+  return steps.map((step) => ({...step, params: mapParamStrings(step.params, (text) => ids.get(text) ?? text) as EditorStep['params']}));
+}
+
+
+// One undoable change to the stack, as what it did. In a room undo and redo apply it (or its opposite) to the stack as
+// it is now and send that as ordinary ops, so what the others changed meanwhile stays where it is: putting an earlier
+// stack back whole (`replace`) took their steps out for everyone. Only a change that was the whole stack (a template
+// loaded onto it, its template inputs) is still one
+export type StackChange =
+  // `index`: where it went in, or where it was taken from
+  | {kind: 'add', step: EditorStep, index: number}
+  | {kind: 'remove', step: EditorStep, index: number}
+  | {kind: 'move', stepId: string, from: number, to: number}
+  // one or more of a step's settings (a drag's worth is one change)
+  | {kind: 'params', stepId: string, before: Record<string, unknown>, after: Record<string, unknown>}
+  | {kind: 'toggle', stepId: string, before: boolean, after: boolean}
+  | {kind: 'replace', before: Array<EditorStep>, after: Array<EditorStep>};
+
+// the one step a change is about, none for the whole stack
+export function changedStepId(change: StackChange): string | null {
+  switch (change.kind) {
+    case 'add':
+    case 'remove':
+      return change.step.id;
+    case 'replace':
+      return null;
+    default:
+      return change.stepId;
+  }
+}
+
+type AppliedChange = {steps: Array<EditorStep>, ops: Array<RoomOp>};
+
+function withStep(steps: Array<EditorStep>, step: EditorStep, index: number): AppliedChange | null {
+  if (steps.some((item) => item.id === step.id)) {
+    return null;
+  }
+  const at = Math.min(Math.max(index, 0), steps.length);
+  return {steps: [...steps.slice(0, at), step, ...steps.slice(at)], ops: [{op: 'add', step, index: at}]};
+}
+
+function withoutStep(steps: Array<EditorStep>, stepId: string): AppliedChange | null {
+  if (!steps.some((item) => item.id === stepId)) {
+    return null;
+  }
+  return {steps: steps.filter((item) => item.id !== stepId), ops: [{op: 'remove', step_id: stepId}]};
+}
+
+// `change` undone or done again on `steps` as they are now: the stack after it and the ops that make it so for the
+// room. null when it no longer applies (its step is gone, or back, or already that way), the change is then dropped
+export function applyStackChange(steps: Array<EditorStep>, change: StackChange, direction: 'undo' | 'redo'): AppliedChange | null {
+  const redo = direction === 'redo';
+  switch (change.kind) {
+    case 'add':
+      return (redo) ? withStep(steps, change.step, change.index) : withoutStep(steps, change.step.id);
+    case 'remove':
+      return (redo) ? withoutStep(steps, change.step.id) : withStep(steps, change.step, change.index);
+    case 'move': {
+      const from = steps.findIndex((item) => item.id === change.stepId);
+      const to = Math.min(Math.max((redo) ? change.to : change.from, 0), steps.length - 1);
+      if (from === -1 || from === to) {
+        return null;
+      }
+      const items = [...steps];
+      const [ step ] = items.splice(from, 1);
+      items.splice(to, 0, step);
+      return {steps: items, ops: [{op: 'move', step_id: change.stepId, to}]};
+    }
+    case 'params': {
+      const values = (redo) ? change.after : change.before;
+      const step = steps.find((item) => item.id === change.stepId);
+      const names = Object.keys(values).filter((name) => step && step.params[name] !== values[name]);
+      if (!step || !names.length) {
+        return null;
+      }
+      const params = {...step.params};
+      for (const name of names) {
+        params[name] = values[name];
+      }
+      return {
+        steps: steps.map((item) => (item.id === change.stepId) ? {...item, params} : item),
+        // (a setting it didn't have before goes back to nothing, the api wants a value either way)
+        ops: names.map((name) => ({op: 'set_param', step_id: change.stepId, name, value: values[name] ?? null})),
+      };
+    }
+    case 'toggle': {
+      const hidden = (redo) ? change.after : change.before;
+      const step = steps.find((item) => item.id === change.stepId);
+      if (!step || Boolean(step.hidden) === hidden) {
+        return null;
+      }
+      return {
+        steps: steps.map((item) => (item.id === change.stepId) ? {...item, hidden} : item),
+        ops: [{op: 'toggle', step_id: change.stepId, hidden}],
+      };
+    }
+    case 'replace': {
+      const next = (redo) ? change.after : change.before;
+      return {steps: next, ops: [{op: 'replace', steps: next}]};
+    }
+  }
 }

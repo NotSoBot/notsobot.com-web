@@ -13,6 +13,7 @@ import { ROOM_MAX_EDITORS, type EditingResult, type EditorRoom, type RoomMember 
 import type { EditorLobby } from '../types';
 import { useCatalogue } from '../useCatalogue';
 import { MemberFaces } from './LobbyPeople';
+import { prefersReducedMotion } from './media';
 import { canModerateRoom, CloseRoomDialog } from './RoomModeration';
 import { PasswordInput } from './SaveTemplate';
 
@@ -104,6 +105,8 @@ export function LobbyList({ host, room, instanceId, initial, notice, onJoin, onN
           setMembers(event.members);
           break;
         case 'document':
+        // (a lobby they aren't in: the api only says it changed)
+        case 'lobby_edited':
           refresh();
           break;
         default:
@@ -280,7 +283,8 @@ function LobbyPreview({ lobby }: {lobby: EditorLobby}) {
     );
   }
   if (preview.mimetype.startsWith('video/')) {
-    return <video src={preview.url} muted autoPlay loop playsInline className='aspect-video w-full bg-deep object-contain'/>;
+    // up to 25 cards at once: they don't all play for someone who asked for less motion
+    return <video src={preview.url} muted autoPlay={!prefersReducedMotion()} loop playsInline preload='metadata' className='aspect-video w-full bg-deep object-contain'/>;
   }
   return <img src={preview.url} alt='' loading='lazy' className='aspect-video w-full bg-deep object-contain'/>;
 }

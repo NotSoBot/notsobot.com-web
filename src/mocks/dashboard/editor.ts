@@ -177,10 +177,10 @@ export function registerEditorMocks(route: Route, error: MakeError): void {
 
   // `__dashboardMocks.owner(false)` (then reload) shows a non-owner: the editor isn't open to them yet, unless
   // `sessionStorage.setItem('dashboardMocks:editorPublic', '1')` (then reload) has it open to everyone like EDITOR_PUBLIC
-  route('GET', '/editor/effects', () => ({
-    ...catalogue(),
-    access: (sessionStorage.getItem('dashboardMocks:editorPublic')) ? 'everyone' : 'owners',
-  }));
+  const access = () => (sessionStorage.getItem('dashboardMocks:editorPublic')) ? 'everyone' : 'owners';
+  route('GET', '/editor/effects', () => ({...catalogue(), access: access()}));
+  // what the site's navbar and `/editor` guard ask (src/editor/hosts/access.tsx)
+  route('GET', '/editor/access', () => ({access: access()}));
 
   // the template hub: published samples, your templates in every hub state, publish/unpublish/report (./editorHub.ts)
   registerHubMocks(route, error, templates, catalogue().effects);

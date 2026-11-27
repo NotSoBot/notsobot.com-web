@@ -1,5 +1,6 @@
 import { tokenStorage } from '@/auth/tokenStorage';
 import { config } from '@/config';
+import { anySignal, timeoutSignal } from '@/lib/abort';
 
 import { ApiEndpoints } from './endpoints';
 import type { ApiErrorBody } from './types';
@@ -104,7 +105,7 @@ export async function apiRequest<T = unknown>(path: string, options: ApiRequestO
     ...init,
     headers,
     body: requestBody,
-    signal: (timeout) ? AbortSignal.any([signal, AbortSignal.timeout(timeout)].filter((x): x is AbortSignal => !!x)) : signal,
+    signal: (timeout) ? anySignal([signal, timeoutSignal(timeout)].filter((x): x is AbortSignal => !!x)) : signal,
   });
 
   if (!response.ok) {

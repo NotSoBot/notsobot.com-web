@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 
 import type { FlagGameConnection } from './connection';
 import { rankedPlayers, useFlagImage } from './hooks';
-import type { GamePlayer, GameState } from './protocol';
+import { isLetterTrail, type AnyGameState, type GamePlayer } from './protocol';
 
 
 export function PlayerFace({ player, className }: {player: Pick<GamePlayer, 'username' | 'avatar_url' | 'connected'>, className?: string}) {
@@ -15,13 +15,20 @@ export function PlayerFace({ player, className }: {player: Pick<GamePlayer, 'use
 }
 
 
+// who solved this round's flag (Flag Guesser's, Letter Trail has no such thing)
+function solvedIds(game: AnyGameState): Set<string> {
+  return new Set((isLetterTrail(game)) ? [] : game.round?.solved ?? []);
+}
+
+
 // everyone's score in a row under the header, highest first: a tick on whoever solved this flag, a dot on whoever picked
-// a choice (not which one)
-export function ScoresStrip({ game, you, answeredIds = [] }: {game: GameState, you: string | null, answeredIds?: Array<string>}) {
+// a choice (not which one). `relative` so the chips' sr-only text (absolute) is clipped by the strip's scroll: unclipped,
+// a chip past the edge widened the page, which on a phone moves sticky bars below the screen
+export function ScoresStrip({ game, you, answeredIds = [] }: {game: AnyGameState, you: string | null, answeredIds?: Array<string>}) {
   const { t } = useI18n();
-  const solved = new Set(game.round?.solved ?? []);
+  const solved = solvedIds(game);
   return (
-    <ul aria-label={t('games.flag.scores')} className='-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] lg:hidden'>
+    <ul aria-label={t('games.flag.scores')} className='relative -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] lg:hidden'>
       {rankedPlayers(game).map((player) => (
         <li
           key={player.user_id}
@@ -54,9 +61,9 @@ export function ScoresStrip({ game, you, answeredIds = [] }: {game: GameState, y
 
 
 // the same scores as a list, beside the game on wide screens
-export function ScoresList({ game, you, answeredIds = [], className }: {game: GameState, you: string | null, answeredIds?: Array<string>, className?: string}) {
+export function ScoresList({ game, you, answeredIds = [], className }: {game: AnyGameState, you: string | null, answeredIds?: Array<string>, className?: string}) {
   const { t, plural } = useI18n();
-  const solved = new Set(game.round?.solved ?? []);
+  const solved = solvedIds(game);
   return (
     <section aria-labelledby='flag-scores' className={cn('flex flex-col gap-2', className)}>
       <h2 id='flag-scores' className='section-label'>{t('games.flag.scores')}</h2>

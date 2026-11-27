@@ -13,7 +13,12 @@ export interface RoomMember {
   avatar_url: string | null,
   // the lobby (group document) they're editing, null when they're only in the activity
   editing?: string | null,
+  // the part of the activity they're on, as their client said (`setScreen`), null on the start screen
+  screen?: RoomScreen | null,
 }
+
+// where in the Activity someone is, for the start screen's counts
+export type RoomScreen = 'editor' | 'games';
 
 // people editing the group's document at once (the api's `ROOM_MAX_EDITORS`, it enforces it)
 export const ROOM_MAX_EDITORS = 10;
@@ -50,14 +55,19 @@ export type RoomOp =
   | {op: 'replace', steps: Array<EditorStep>};
 
 export type RoomEvent =
-  | {t: 'ready', you: string, lobbies: Array<EditorLobby>, members: Array<RoomMember>, locks: Record<string, string>, moderator?: boolean}
+  | {t: 'ready', you: string, lobbies: Array<EditorLobby>, members: Array<RoomMember>, moderator?: boolean}
   | {t: 'document', document: EditorDocument, by: string | null, op: string | null, op_id: string | null}
   | {t: 'error', op_id: string | null, code: number, message: string, index?: number}
   | {t: 'lock', step_id: string, user_id: string}
   | {t: 'unlock', step_id: string, user_id: string}
   | {t: 'members', members: Array<RoomMember>}
   // the answer to `editing`: the lobby they're in now, `full` when it had no room, `error` a lock's code (password)
-  | {t: 'editing', document_id: string | null, full?: boolean, error?: number, message?: string}
+  // `locks`: the steps held in the lobby just joined, who holds each (step locks are a lobby's own, a leave's answer
+  // has none)
+  | {t: 'editing', document_id: string | null, full?: boolean, error?: number, message?: string, locks?: Record<string, string>}
+  // a lobby this socket isn't in changed its stack (the document itself only goes to the lobby's editors): the list
+  // asks again. It can also name the lobby being joined, for a change that came while the join was on its way
+  | {t: 'lobby_edited', document_id: string, version: number, by: string | null}
   | {t: 'render', user_id: string, status: 'started' | 'done' | 'failed', url?: string, document_id?: string | null}
   // another editor's pointer in this lobby (the api sends only the lobby's, never your own), null when it left
   | {t: 'cursor', user_id: string, document_id: string, cursor: RoomCursor | null}
@@ -71,15 +81,16 @@ export type RoomEvent =
   | {t: 'moderated', op: 'kick' | 'close_lobby' | 'delete_lobby' | 'room_settings', document_id: string, user_id?: string, error?: number, message?: string}
   // a room's creator renamed it or changed its password (who's in it stays in)
   | {t: 'lobby_updated', document_id: string, name: string | null, locked: boolean, watch_only?: boolean}
-  // a game room in this activity's scope changed (made, closed, renamed, its phase or who's in it), the list refetches
-  | {t: 'game_rooms_changed'}
-  // `now`: the api's clock in ms (older apis sent none)
-  | {t: 'pong', now?: number};
+  // a game room changed (made, closed, renamed, its phase or who's in it), the list refetches. `scope`: this activity's
+  // rooms or the global ones (every Activity hears those)
+  | {t: 'game_rooms_changed', scope: 'server' | 'global'}
+  // `now`: the api's clock in ms
+  | {t: 'pong', now: number};
 
 // a flag game message (`game.state`, `game.ready`, ...), for the one game this socket is in
 export interface RoomGameMessage {
   t: string,
-  game_id?: string,
+  game_id?: string | null,
   now?: number,
   [key: string]: unknown,
 }
@@ -128,7 +139,10 @@ export class EditorRoom {
   // the lobby it's editing (and its password or invite), asked for again after every reconnect (a new socket starts
   // outside)
   private wantEditing: {documentId: string, password?: string, invite?: string} | null = null;
-  private editingWaiters: Array<(result: EditingResult) => void> = [];
+  // what this socket last said it's on, said again on every new socket
+  private screen: RoomScreen | null = null;
+  // joins waiting for the api's answer, with the lobby each asked for
+  private editingWaiters: Array<{documentId: string, finish: (result: EditingResult) => void}> = [];
   // the lobby its ops change, what `sendOp` sends them to
   editingDocument: string | null = null;
   // a moderator of the server the activity is in: closes anyone's room and removes anyone from one
@@ -168,6 +182,17 @@ export class EditorRoom {
   onGame(listener: (message: RoomGameMessage) => void): () => void {
     this.gameListeners.add(listener);
     return () => this.gameListeners.delete(listener);
+  }
+
+  // where in the Activity they are now (the start screen is null): everyone's start screen counts it
+  setScreen(screen: RoomScreen | null): void {
+    if (screen === this.screen) {
+      return;
+    }
+    this.screen = screen;
+    if (this.isOpen) {
+      this.send({op: 'screen', screen});
+    }
   }
 
   // a pong with the api's clock, and the round trip of the ping it answers
@@ -219,17 +244,19 @@ export class EditorRoom {
     this.wantEditing = {documentId, password, invite};
     return new Promise((resolve) => {
       let done = false;
-      const finish = (result: EditingResult) => {
+      const waiter = {documentId, finish: (result: EditingResult) => {
         if (!done) {
           done = true;
+          window.clearTimeout(timer);
+          this.editingWaiters = this.editingWaiters.filter((item) => item !== waiter);
           if (result.result === 'ok') {
             this.editingDocument = documentId;
           }
           resolve(result);
         }
-      };
-      this.editingWaiters.push(finish);
-      window.setTimeout(() => finish({result: 'ok'}), EDITING_WAIT);
+      }};
+      const timer = window.setTimeout(() => waiter.finish({result: 'ok'}), EDITING_WAIT);
+      this.editingWaiters.push(waiter);
       this.send({op: 'editing', document_id: documentId, password, invite});
     });
   }
@@ -313,7 +340,9 @@ export class EditorRoom {
     });
   }
 
-  render(status: 'started' | 'done' | 'failed', url?: string): void {
+  // how this socket's own render of the lobby's document ended. That it started is the api's to tell the room (when
+  // it takes the render), and it only passes on an end from whoever has one running
+  render(status: 'done' | 'failed', url?: string): void {
     this.send({op: 'render', status, url});
   }
 
@@ -396,10 +425,25 @@ export class EditorRoom {
         return;
       }
       this.setStatus('closed');
-      const delay = RECONNECT_DELAYS[Math.min(this.attempt, RECONNECT_DELAYS.length - 1)];
+      // up to half as long again, a different amount for everyone: after the api restarts every Activity's socket
+      // closed at the same moment, and with the same waits they all came back at the same moments too
+      const delay = RECONNECT_DELAYS[Math.min(this.attempt, RECONNECT_DELAYS.length - 1)] * (1 + Math.random() / 2);
       this.attempt += 1;
       this.reconnectTimer = window.setTimeout(() => this.open(), delay);
     });
+  }
+
+  // someone holds a step, for LOCK_EXPIRY from now
+  private takeLock(stepId: string, userId: string): void {
+    this.locks = {...this.locks, [stepId]: userId};
+    const previous = this.lockTimers.get(stepId);
+    if (previous !== undefined) {
+      window.clearTimeout(previous);
+    }
+    this.lockTimers.set(stepId, window.setTimeout(() => {
+      this.lockTimers.delete(stepId);
+      this.handle({t: 'unlock', step_id: stepId, user_id: userId});
+    }, LOCK_EXPIRY));
   }
 
   private handle(event: RoomEvent): void {
@@ -409,9 +453,13 @@ export class EditorRoom {
         this.you = event.you;
         this.moderator = Boolean(event.moderator);
         this.members = event.members;
-        this.locks = event.locks;
+        // a new socket is in no lobby: the lobby's step locks come with `editing`'s answer
+        this.locks = {};
         this.setStatus('open');
         this.pingTimer = window.setInterval(() => this.ping(), PING_INTERVAL);
+        if (this.screen !== null) {
+          this.send({op: 'screen', screen: this.screen});
+        }
         if (this.wantEditing) {
           this.send({op: 'editing', document_id: this.wantEditing.documentId, password: this.wantEditing.password, invite: this.wantEditing.invite});
         }
@@ -423,7 +471,7 @@ export class EditorRoom {
       }
       case 'pong': {
         const sentAt = this.pingsSent.shift();
-        if (typeof event.now === 'number' && sentAt !== undefined) {
+        if (sentAt !== undefined) {
           for (const listener of this.pongListeners) {
             listener(event.now, Date.now() - sentAt);
           }
@@ -457,25 +505,35 @@ export class EditorRoom {
         if (result.result !== 'ok') {
           this.wantEditing = null;
           this.editingDocument = null;
+          // a refusal doesn't say which lobby it's for: every join still waiting
+          for (const waiter of [...this.editingWaiters]) {
+            waiter.finish(result);
+          }
+          break;
         }
-        const waiters = this.editingWaiters;
-        this.editingWaiters = [];
-        for (const waiter of waiters) {
-          waiter(result);
+        // the steps held in the lobby it's in now, none outside one
+        for (const timer of this.lockTimers.values()) {
+          window.clearTimeout(timer);
+        }
+        this.lockTimers.clear();
+        this.locks = {};
+        // each lasts LOCK_EXPIRY from here unless it's renewed, like one taken while watching
+        for (const [ stepId, userId ] of Object.entries(event.locks ?? {})) {
+          this.takeLock(stepId, userId);
+        }
+        // "you're in <lobby>" answers the joins that asked for that lobby. The answer to a leave (no lobby) answers
+        // none: it used to let a join sent right after Back through as joined, before its own refusal (full, a
+        // password) came
+        for (const waiter of [...this.editingWaiters]) {
+          if (event.document_id !== null && waiter.documentId === String(event.document_id)) {
+            waiter.finish(result);
+          }
         }
         break;
       }
       case 'lock': {
-        this.locks = {...this.locks, [event.step_id]: event.user_id};
-        // a take or a renewal (or, for a lock we asked for, who holds it instead), it lasts LOCK_EXPIRY from now
-        const previous = this.lockTimers.get(event.step_id);
-        if (previous !== undefined) {
-          window.clearTimeout(previous);
-        }
-        this.lockTimers.set(event.step_id, window.setTimeout(() => {
-          this.lockTimers.delete(event.step_id);
-          this.handle({t: 'unlock', step_id: event.step_id, user_id: event.user_id});
-        }, LOCK_EXPIRY));
+        // a take or a renewal (or, for a lock we asked for, who holds it instead)
+        this.takeLock(event.step_id, event.user_id);
         break;
       }
       case 'unlock': {

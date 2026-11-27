@@ -67,6 +67,19 @@ export function WebEditorPage() {
       return 'dialog';
     } : undefined,
   }), [navigate, premiumUrl]);
+  // `?url=`: only a web link, and only offered (the start screen asks before anything is fetched)
+  const linkedUrl = useMemo(() => {
+    const value = searchParams.get('url');
+    if (!value) {
+      return null;
+    }
+    try {
+      const parsed = new URL(value);
+      return (parsed.protocol === 'https:' || parsed.protocol === 'http:') ? value : null;
+    } catch {
+      return null;
+    }
+  }, [searchParams]);
   const { catalogue, error, retry } = useCatalogue(host);
   const template = useTemplate(host, templateCode);
   const effectNames = useMemo(() => new Map((catalogue?.effects ?? []).map((effect) => [effect.id, effect.name])), [catalogue]);
@@ -85,7 +98,8 @@ export function WebEditorPage() {
     return (
       <StartScreen
         host={host}
-        initialUrl={searchParams.get('url')}
+        suggestedUrl={linkedUrl}
+        launchSurface='link'
         tryEffectId={searchParams.get('effect')}
         tryGeneratorId={searchParams.get('generator')}
         template={(template.status === 'ready') ? template.template : null}
@@ -150,7 +164,8 @@ function useTemplate(host: EditorHost, templateCode: string | undefined): Templa
     }
     let alive = true;
     setState({status: 'loading'});
-    host.api.template(templateCode).then((template) => {
+    // (a code that can't be one makes the request throw before there's a promise: missing like any other)
+    Promise.resolve().then(() => host.api.template(templateCode)).then((template) => {
       if (alive) {
         setState({status: 'ready', template});
       }

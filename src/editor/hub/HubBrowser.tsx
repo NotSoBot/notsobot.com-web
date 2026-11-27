@@ -147,7 +147,8 @@ export function HubBrowser({ host, loggedIn, onTry, onLogin, openCode, onOpenCod
     }
     const controller = new AbortController();
     setFetched({code: openCode, template: null, missing: false});
-    host.api.hubTemplate(openCode, controller.signal).then((template) => {
+    // (a code that can't be one makes the request throw before there's a promise: not found like any other)
+    Promise.resolve().then(() => host.api.hubTemplate(openCode, controller.signal)).then((template) => {
       setFetched({code: openCode, template, missing: false});
     }).catch(() => {
       if (!controller.signal.aborted) {

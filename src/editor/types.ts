@@ -158,6 +158,9 @@ export interface EditorSourceMeta {
   mimetype: string,
   // has an audio stream (absent on documents made before it was recorded)
   audio?: boolean,
+  // Replace media: who picked this file and how (the file itself is the document owner's), absent on a document's
+  // first source. The link it came from stays on the api
+  added_by?: {at: string, user_id: string | null, via: 'upload' | 'url'},
 }
 
 export interface EditorSourceFile {
@@ -211,6 +214,8 @@ interface EditorPreviewBase {
   // a Trim cut the scrubbed frame away (`stopped_at` is the Trim), not a step that moves
   stopped_cut?: boolean,
   version?: number,
+  // the document's small copy as the api has it now (it may have been made during this request)
+  proxy?: EditorMediaInfo | null,
 }
 
 export type EditorPreview =

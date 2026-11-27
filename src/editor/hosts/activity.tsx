@@ -1,23 +1,29 @@
 import { DiscordSDK, Platform, RPCErrorCodes, patchUrlMappings } from '@discord/embedded-app-sdk';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { ArrowLeft } from 'lucide-react';
 
+import { carriedFlagGameOf, FlagCarry, type CarriedFlagGame } from '@/activity-games/FlagCarry';
 import { ActivityFlagGame } from '@/activity-games/FlagGame';
 import { GameRooms } from '@/activity-games/GameRooms';
 import { GamesTab } from '@/activity-games/GamesTab';
 import { ModeChoice } from '@/activity-games/ModeChoice';
+import type { GameKind } from '@/activity-games/protocol';
 import { createGameRoomsApi } from '@/activity-games/rooms';
+import { GuideLinksProvider, HowToPlayButton } from '@/components/guides/GuideSheet';
 import { FullPageMessage } from '@/components/ui/FullPageMessage';
 import { Spinner } from '@/components/ui/Spinner';
+import { anySignal, timeoutSignal } from '@/lib/abort';
 import { useI18n } from '@/i18n';
 
 import { createEditorApi, EditorErrorCodes, pathId, type EditorApiError, type EditorHost, type EditorRequest, type RoomSettings } from '../api';
 import { EditorApp } from '../components/EditorApp';
 import { INVITE_CUSTOM_ID, type RoomInviteKind, type RoomInviter } from '../invites';
+import { ConnectionNotice } from '../components/ConnectionNotice';
 import { LobbyList } from '../components/LobbyList';
 import { StartScreen, type LobbyMode } from '../components/StartScreen';
-import { EditorRoom, type EditingResult } from '../room';
+import { EditorRoom, type EditingResult, type RoomScreen } from '../room';
+import { remapAssets, usedAssets } from '../stack';
 import { PipView, useCompactLayout, type LayoutSubscriber } from './pip';
 import type { EditorDocument, EditorLobby, EditorTemplate } from '../types';
 import { useCatalogue } from '../useCatalogue';
@@ -89,12 +95,12 @@ function createActivityRequest(getToken: () => string | null): EditorRequest {
       headers.set('content-type', 'application/json');
       body = JSON.stringify(options.body);
     }
-    const timeout = AbortSignal.timeout(options.timeout ?? 15 * 1000);
+    const timeout = timeoutSignal(options.timeout ?? 15 * 1000);
     const response = await fetch(url, {
       method: options.method ?? 'GET',
       headers,
       body,
-      signal: (options.signal) ? AbortSignal.any([options.signal, timeout]) : timeout,
+      signal: (options.signal) ? anySignal([options.signal, timeout]) : timeout,
     });
     if (!response.ok) {
       let data: Record<string, unknown> | null = null;
@@ -152,11 +158,13 @@ type Phase =
   // the mode choice, the editor (lobbies/start) or the flag game (src/activity-games): what the app launcher opens on
   // (./activityLaunch), and where both room lists go back to. `notice`: an invite that couldn't be opened
   | {kind: 'choice', notice?: string}
-  // the flag game's rooms, and one being played or watched
-  // the Games tab (every game the Activity has), and Flag Guesser's rooms
+  // the Games tab (every game the Activity has), the room browser (`game`: filtered to that game's rooms), and a room
+  // being played or watched
   | {kind: 'games_tab'}
-  | {kind: 'games', notice?: string}
+  | {kind: 'games', notice?: string, game?: GameKind}
   | {kind: 'game', gameId: string, watch: boolean}
+  // Open in Activity on the in-chat Flag Guesser: offers a room continuing it (src/activity-games/FlagCarry.tsx)
+  | {kind: 'flag_carry', carry: CarriedFlagGame}
   // a new edit: who it's for (just me, everyone, everyone with the password) and its media
   | {kind: 'start', mode: LobbyMode}
   | {kind: 'editor', documentId: string, solo: boolean, fill?: boolean};
@@ -201,6 +209,17 @@ function ActivityEditor({ host, documentId, fill = false }: {host: EditorHost, d
 }
 
 
+// Discord's client loads an App Channel as a "frame" with `surface=1` (EmbeddedSurfaceType.APP_CHANNEL) and the channel
+// in the query, and `instance_id` set to the placeholder `example-cl-instance` rather than left out (the docs say it's
+// empty, the client says otherwise, read from discord-webarchive 2026-11-26). A voice channel Activity's url has no
+// `surface`, so that's what tells them apart, never `sdk.instanceId`
+const APP_CHANNEL_SURFACE = '1';
+
+function isAppChannelFrame(): boolean {
+  return new URLSearchParams(window.location.search).get('surface') === APP_CHANNEL_SURFACE;
+}
+
+
 // a first screen (./activityLaunch) as a phase, with why they're there (an invite that couldn't be opened)
 function screenPhase(screen: ActivityLaunchScreen, notice?: string): Phase {
   switch (screen) {
@@ -211,7 +230,7 @@ function screenPhase(screen: ActivityLaunchScreen, notice?: string): Phase {
       return (notice) ? {kind: 'games', notice} : {kind: 'games_tab'};
     case 'flag_guesser':
       // Open in Activity on the in-chat Flag Guesser: straight to its rooms
-      return {kind: 'games', notice};
+      return {kind: 'games', notice, game: 'flag_guesser'};
     case 'editor':
       return {kind: 'lobbies', notice};
     case 'choice':
@@ -222,9 +241,15 @@ function screenPhase(screen: ActivityLaunchScreen, notice?: string): Phase {
 
 // The first screen after sign-in, from how they launched it (./activityLaunch): something launched on (media or a
 // template) is a new edit, `/games` the game rooms, `/editor` (and its Join) the editor's rooms even with none running
-// yet (its New button is right there), the app launcher the mode choice. A room invite is opened before this (see below)
-function firstPhase(launch: {surface: string | null, launchedOn: boolean}): Phase {
-  return screenPhase(launchScreen(launch.surface, launch.launchedOn));
+// yet (its New button is right there), the app launcher the mode choice, Open in Activity on the in-chat Flag Guesser a
+// room continuing it (`carry`, the room list without one). A room invite is opened before this (see below)
+function firstPhase(launch: {surface: string | null, launchedOn: boolean, carry: CarriedFlagGame | null}): Phase {
+  const screen = launchScreen(launch.surface, launch.launchedOn);
+  // Open in Activity on the in-chat game the bot knew about: a room continuing it, offered before the room list
+  if (screen === 'flag_guesser' && launch.carry) {
+    return {kind: 'flag_carry', carry: launch.carry};
+  }
+  return screenPhase(screen);
 }
 
 
@@ -243,6 +268,25 @@ export function ActivityApp() {
   // the flag game's rooms in this instance's server (or dm)
   const gameInstanceId = setup?.instanceId ?? null;
   const gamesApi = useMemo(() => createGameRoomsApi(createActivityRequest(() => tokenRef.current), gameInstanceId ?? 'none'), [gameInstanceId, tokenRef]);
+  // where they are, said over the socket for everyone's start screen counts (src/activity-games/counts.ts): starting or in
+  // an edit is editing, anywhere in the games is games, the start screen and the editor's room list are neither
+  const roomScreen: RoomScreen | null = (phase.kind === 'games_tab' || phase.kind === 'games' || phase.kind === 'game' || phase.kind === 'flag_carry') ? 'games'
+    : (phase.kind === 'start' || phase.kind === 'editor') ? 'editor'
+    : null;
+  useEffect(() => {
+    setup?.room.setScreen(roomScreen);
+  }, [setup, roomScreen]);
+  // the in-chat game's flag for its prompt (./FlagCarry), an object url: the route wants the token, an <img> can't send it
+  const setupInstanceId = setup?.instanceId ?? null;
+  const loadCarriedFlag = useCallback(async (): Promise<string | null> => {
+    if (!setupInstanceId) {
+      return null;
+    }
+    const url = new URL(`${API_BASE}/activity/games/${pathId(setupInstanceId)}/carried/flag`, window.location.origin);
+    url.searchParams.set('width', '640');
+    const response = await fetch(url, {headers: {authorization: tokenRef.current ?? ''}, signal: timeoutSignal(15 * 1000)});
+    return (response.ok) ? URL.createObjectURL(await response.blob()) : null;
+  }, [setupInstanceId, tokenRef]);
 
   useEffect(() => {
     let alive = true;
@@ -350,9 +394,9 @@ export function ActivityApp() {
         });
 
         step = 'context';
-        // an App Channel has no instance (`instanceId` is empty, every viewer has their own session): the api works out
-        // the channel from what Discord's proxy signs onto the request, and its stand-in id is used like an instance's
-        const context = (sdk.instanceId) ? await api.activity(sdk.instanceId) : await api.appChannel();
+        // an App Channel has no instance (every viewer has their own session): the api works out the channel from what
+        // Discord's proxy signs onto the request, and its stand-in id is used like an instance's
+        const context = (isAppChannelFrame()) ? await api.appChannel() : await api.activity(sdk.instanceId);
         const instanceId = context.instance_id;
 
         // the Activity's one socket (activity-plan.md "One Activity socket"): the editor's rooms and the flag game
@@ -443,7 +487,28 @@ export function ActivityApp() {
             lobbyName: (!solo && settings.name.trim()) ? settings.name.trim() : undefined,
             lobbyWatchOnly: !solo && Boolean(settings.watchOnly),
           });
-          const saved = (document.steps.length) ? await api.saveSteps(copy.id, document.steps, copy.version) : copy;
+          let saved = copy;
+          try {
+            // the files its steps use (an overlay's picture, a sound) belong to the document forked from: the copy
+            // gets its own and the steps point at those. Saved as they were, the api refused the steps ("That file is
+            // gone") after the new room already existed
+            let steps = document.steps;
+            const files = usedAssets(steps, document.assets ?? []);
+            if (files.length) {
+              const ids = new Map<string, string>();
+              for (const file of files) {
+                ids.set(file.id, (await api.uploadAsset(copy.id, {url: file.url})).id);
+              }
+              steps = remapAssets(steps, ids);
+            }
+            if (steps.length) {
+              saved = await api.saveSteps(copy.id, steps, copy.version);
+            }
+          } catch (failure) {
+            // an empty room nobody asked for would stay in the list, one more for every try
+            await api.deleteDocument(copy.id).catch(() => undefined);
+            throw failure;
+          }
           if (solo) {
             // their spot in the room they forked from is someone else's to take now
             void room?.setEditing(null);
@@ -528,7 +593,7 @@ export function ActivityApp() {
         const surface = (typeof context.launch?.surface === 'string') ? context.launch.surface : null;
         setSetup({instanceId, room, group: groupHost, solo: soloHost, lobbies: context.lobbies, mediaUrl, surface, template, enterLobby, inviter});
         const inviteCode = launchInviteCode(sdk.customId, context.launch);
-        const first = (inviteCode) ? await openInvite(inviteCode) : firstPhase({surface, launchedOn: Boolean(mediaUrl || template)});
+        const first = (inviteCode) ? await openInvite(inviteCode) : firstPhase({surface, launchedOn: Boolean(mediaUrl || template), carry: carriedFlagGameOf(context.launch)});
         if (alive) {
           setPhase(first);
         }
@@ -575,6 +640,8 @@ export function ActivityApp() {
       case 'choice':
         return (
           <ModeChoice
+            api={gamesApi}
+            room={setup.room}
             notice={phase.notice}
             // the running lobbies when there are any (as of startup), otherwise a new edit
             onEdit={() => setPhase((setup.lobbies.length) ? {kind: 'lobbies'} : {kind: 'start', mode: 'public'})}
@@ -586,7 +653,7 @@ export function ActivityApp() {
           <GamesTab
             api={gamesApi}
             room={setup.room}
-            onFlagGuesser={() => setPhase({kind: 'games'})}
+            onGame={(game) => setPhase({kind: 'games', game})}
             onBack={() => setPhase({kind: 'choice'})}
           />
         );
@@ -597,8 +664,23 @@ export function ActivityApp() {
             room={setup.room}
             errorOf={activityErrorOf}
             notice={phase.notice}
+            game={phase.game}
+            // Quick play's room too, joined like any other
             onOpen={(gameId, watch) => setPhase({kind: 'game', gameId, watch})}
             onBack={() => setPhase({kind: 'games_tab'})}
+          />
+        );
+      case 'flag_carry':
+        return (
+          <FlagCarry
+            carry={phase.carry}
+            loadFlag={loadCarriedFlag}
+            onStart={async () => {
+              const created = await gamesApi.create({game: 'flag_guesser', name: null, watch_only: false, from_launch: true});
+              // its lobby, others join before its creator starts it
+              setPhase({kind: 'game', gameId: created.id, watch: false});
+            }}
+            onRooms={() => setPhase({kind: 'games', game: 'flag_guesser'})}
           />
         );
       case 'game':
@@ -617,10 +699,12 @@ export function ActivityApp() {
       case 'lobbies':
         return (
           <>
-            <div className='mx-auto w-full max-w-3xl px-4 pt-3 -mb-8 sm:-mb-12'>
+            {/* the editor's How to play opens on its own the first time someone gets to its rooms or its start screen */}
+            <div className='relative mx-auto flex w-full max-w-3xl items-center justify-between gap-2 px-4 pt-3 -mb-8 sm:-mb-12'>
               <button type='button' onClick={() => setPhase({kind: 'choice'})} className='-ml-2 inline-flex min-h-10 w-fit items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-muted hover:bg-surface hover:text-fg'>
                 <ArrowLeft aria-hidden className='size-4'/>{t('games.choice.back')}
               </button>
+              <HowToPlayButton guide='media-editor' autoOpen className='-mr-2'/>
             </div>
             <LobbyList
               host={setup.group}
@@ -644,6 +728,8 @@ export function ActivityApp() {
             launchSurface={setup.surface}
             onSuggestedDismiss={() => setSetup((current) => (current) ? {...current, mediaUrl: null} : current)}
             onBack={{label: t('editor.session.lobbies'), run: () => setPhase({kind: 'lobbies'})}}
+            // not over the launch's media or template dialog, they came to edit that
+            headerAside={<HowToPlayButton guide='media-editor' autoOpen={!setup.mediaUrl && !setup.template} className='-mr-2'/>}
             mode={{value: phase.mode, onChange: (mode) => setPhase({kind: 'start', mode})}}
             // their own new lobby (its maker never needs its password)
             onOpen={async (document, opened) => {
@@ -665,9 +751,11 @@ export function ActivityApp() {
     }
   })();
   return (
-    <>
+    <GuideLinksProvider openExternal={setup.group.openExternal}>
       {screen}
+      {/* the socket's gone and coming back: said on every screen but a game's, which has its own strip for it */}
+      {(phase.kind !== 'game') ? <ConnectionNotice room={setup.room}/> : null}
       {(compact) ? <PipView/> : null}
-    </>
+    </GuideLinksProvider>
   );
 }
