@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { HowToPlayCard } from '@/components/guides/GuideSheet';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Segmented } from '@/components/ui/Segmented';
+import { Spinner } from '@/components/ui/Spinner';
 import { RoomInviteDialog } from '@/editor/components/RoomInvite';
 import type { RoomInviter } from '@/editor/invites';
 import { useI18n } from '@/i18n';
@@ -11,7 +12,7 @@ import { cn } from '@/lib/utils';
 
 import { gameInfo } from './catalog';
 import type { FlagGameConnection } from './connection';
-import { playerOf } from './hooks';
+import { playerOf, useGameSnapshot } from './hooks';
 import { useHowToCard } from './howTo';
 import { PlayerFace } from './parts';
 import {
@@ -50,9 +51,9 @@ export function Lobby({ connection, game, you, moderator = false, inviter }: {
   inviter?: RoomInviter,
 }) {
   const { t, plural } = useI18n();
+  // the connection's own two: whether an op can go out now, and a Start (or End) that's sent and not answered yet
+  const { status, pendingOp } = useGameSnapshot(connection);
   const [ kicking, setKicking ] = useState<GameWatcher | null>(null);
-  // the removal wasn't sent (the socket's reconnecting), its dialog says so
-  const [ unsent, setUnsent ] = useState(false);
   // the invite dialog stays open when the card goes (someone came in while it was open)
   const [ inviting, setInviting ] = useState(false);
   const creatorId = game.room.creator.user_id;
@@ -172,8 +173,9 @@ export function Lobby({ connection, game, you, moderator = false, inviter }: {
             </div>
           ) : (isHost) ? (
             <div className='flex gap-2'>
-              <button type='button' className='btn btn-primary btn-lg flex-1 py-3.5' onClick={() => connection.start()}>
-                <Play aria-hidden className='size-5'/>{t('games.flag.start')}
+              {/* sent and not answered yet: a second tap would be refused as "already running" */}
+              <button type='button' className='btn btn-primary btn-lg flex-1 py-3.5' disabled={Boolean(pendingOp)} onClick={() => connection.start()}>
+                {(pendingOp === 'start') ? <Spinner className='size-5 border-white/40 border-t-white'/> : <Play aria-hidden className='size-5'/>}{t('games.flag.start')}
               </button>
               {/* a solo room has nobody to watch */}
               {(solo) ? null : <WatchInsteadButton connection={connection}/>}
@@ -195,18 +197,14 @@ export function Lobby({ connection, game, you, moderator = false, inviter }: {
           description={t('games.rooms.kick_description')}
           confirmLabel={t('games.rooms.kick_confirm')}
           tone='danger'
-          error={(unsent) ? t('games.flag.reconnecting') : undefined}
+          // not sent while the socket's reconnecting: the dialog stays and says so for as long as that lasts
+          error={(status !== 'open') ? t('games.flag.reconnecting') : undefined}
           onConfirm={() => {
             if (connection.kick(kicking.user_id)) {
               setKicking(null);
-            } else {
-              setUnsent(true);
             }
           }}
-          onClose={() => {
-            setKicking(null);
-            setUnsent(false);
-          }}
+          onClose={() => setKicking(null)}
         />
       ) : null}
     </div>

@@ -1,5 +1,5 @@
 import { FileUp, Link2, MessageCircleQuestion } from 'lucide-react';
-import { useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 
 import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
@@ -7,15 +7,29 @@ import { useI18n } from '@/i18n';
 import { cn } from '@/lib/utils';
 
 import { isFormula, VALUE_EFFECT_ID } from '../formulas';
-import { paramLabel } from '../stack';
-import type { EditorEffect, EditorParam, EditorStep } from '../types';
+import { assetFits, fileAccepts, fileForAudio, fileInputAccept, paramLabel } from '../stack';
+import type { EditorEffect, EditorParam, EditorParamKind, EditorStep } from '../types';
 import type { EditorDocumentState } from '../useEditorDocument';
 import { SimpleParamControl } from './ParamControls';
 
 
 // Template inputs: a template's maker picks settings people are asked for when they use it ("Your caption", a picture
 // for the overlay). Plain settings and files only, never positions or drawings (the api's INPUT_PARAM_KINDS)
-const INPUT_KINDS = new Set(['boolean', 'choice', 'color', 'integer', 'number', 'text', 'media']);
+// (every kind has its answer here: one added to `EditorParamKind` doesn't compile until it does)
+const INPUT_KINDS: Record<EditorParamKind, boolean> = {
+  boolean: true,
+  choice: true,
+  color: true,
+  integer: true,
+  number: true,
+  text: true,
+  media: true,
+  point: false,
+  box: false,
+  strokes: false,
+  time: false,
+  steps: false,
+};
 // the api's MAX_INPUT_LABEL_LENGTH and MAX_STACK_INPUTS
 export const MAX_INPUT_LABEL_LENGTH = 60;
 export const MAX_TEMPLATE_INPUTS = 10;
@@ -46,7 +60,7 @@ export function inputCandidates(steps: Array<EditorStep>, effectsById: Map<strin
         continue;
       }
       // a formula follows its values, asking for it would replace the formula
-      if (INPUT_KINDS.has(param.kind) && !isFormula(step.params[param.name])) {
+      if (INPUT_KINDS[param.kind] && !isFormula(step.params[param.name])) {
         candidates.push({step, effect, param, id: `${step.id}:${param.name}`});
       }
     }
@@ -80,11 +94,14 @@ export function AskForInputs({ candidates, value, onChange }: {
 }) {
   const { t } = useI18n();
   const count = Object.keys(value).length;
+  // open from the start when it already asks something, theirs to open and close after that. It used to follow the
+  // count: unticking the only question closed the list under the cursor
+  const [ open, setOpen ] = useState(count > 0);
   if (!candidates.length) {
     return null;
   }
   return (
-    <details className='rounded-lg border border-line-strong' open={count > 0}>
+    <details className='rounded-lg border border-line-strong' open={open} onToggle={(event) => setOpen(event.currentTarget.open)}>
       <summary className='flex cursor-pointer items-center gap-2 px-3 py-2.5 text-sm font-semibold text-fg'>
         <MessageCircleQuestion aria-hidden className='size-4 text-brand-text'/>
         <span className='flex-1'>{t('editor.inputs.ask_title')}</span>
@@ -137,34 +154,52 @@ export function AskForInputs({ candidates, value, onChange }: {
 }
 
 
-// a file question: an upload or a link, it becomes one of the edit's files
-function FileInput({ state, onPicked }: {state: EditorDocumentState, onPicked: (assetId: string) => void}) {
+// a file question's upload. The dialog keeps it, so Use can wait for one that's still on its way
+type FileUpload =
+  | {kind: 'idle'}
+  | {kind: 'uploading'}
+  | {kind: 'done', filename: string}
+  | {kind: 'error', message: string};
+
+const NO_UPLOAD: FileUpload = {kind: 'idle'};
+
+
+// a file question: an upload or a link, it becomes one of the edit's files. Only what the setting takes (`effect`'s
+// file param), like the step's own file control
+function FileInput({ state, effect, upload: status, onUpload, onPicked }: {
+  state: EditorDocumentState,
+  effect: EditorEffect,
+  upload: FileUpload,
+  onUpload: (upload: FileUpload) => void,
+  onPicked: (assetId: string) => void,
+}) {
   const { t } = useI18n();
   const fileRef = useRef<HTMLInputElement>(null);
   const [ link, setLink ] = useState('');
-  const [ pending, setPending ] = useState(false);
-  const [ error, setError ] = useState<string | null>(null);
-  const [ picked, setPicked ] = useState<string | null>(null);
+  const pending = status.kind === 'uploading';
+  const accepts = fileAccepts(effect);
   const upload = async (input: {file?: File, url?: string}) => {
-    setPending(true);
-    setError(null);
+    onUpload({kind: 'uploading'});
     try {
       const asset = await state.uploadAsset(input);
-      setPicked(asset.filename);
+      if (!assetFits(asset, accepts)) {
+        // it's this edit's file now, just not one this setting can use
+        const videoOnly = accepts.length === 1 && accepts[0] === 'video';
+        throw new Error((fileForAudio(effect)) ? t('editor.audio.no_sound') : (effect.id === 'overlay') ? t('editor.overlay.not_visual') : (videoOnly) ? t('editor.file.not_video') : t('editor.file.not_visual'));
+      }
+      onUpload({kind: 'done', filename: asset.filename});
       onPicked(asset.id);
       setLink('');
     } catch (failure) {
-      setError(state.errorOf(failure)?.message || t('editor.overlay.upload_failed'));
-    } finally {
-      setPending(false);
+      onUpload({kind: 'error', message: state.errorOf(failure)?.message || ((failure instanceof Error && failure.message) ? failure.message : t('editor.overlay.upload_failed'))});
     }
   };
   return (
-    <div className='flex flex-col gap-1.5'>
+    <div data-state={status.kind} className='flex flex-col gap-1.5'>
       <input
         ref={fileRef}
         type='file'
-        accept='image/*,video/*,audio/*'
+        accept={fileInputAccept(accepts)}
         hidden
         onChange={(event) => {
           const file = event.target.files?.[0];
@@ -197,8 +232,8 @@ function FileInput({ state, onPicked }: {state: EditorDocumentState, onPicked: (
           <Link2 aria-hidden className='size-4'/>
         </button>
       </div>
-      {(picked) ? <p className='truncate text-xs text-success-text'>{picked}</p> : null}
-      {(error) ? <p role='alert' className='text-xs text-danger-text'>{error}</p> : null}
+      {(status.kind === 'done') ? <p className='truncate text-xs text-success-text'>{status.filename}</p> : null}
+      {(status.kind === 'error') ? <p role='alert' className='text-xs text-danger-text'>{status.message}</p> : null}
     </div>
   );
 }
@@ -206,15 +241,31 @@ function FileInput({ state, onPicked }: {state: EditorDocumentState, onPicked: (
 
 // "Fill in": right after a template with questions is loaded, each question with its setting's control, prefilled
 // with what the template was saved with. Skip keeps those
-export function FillInputsDialog({ state, onClose }: {state: EditorDocumentState, onClose: () => void}) {
+// `locked`: nothing can be changed right now (someone else's render). It stays open with what was typed, Use waits
+export function FillInputsDialog({ state, locked = false, onClose }: {state: EditorDocumentState, locked?: boolean, onClose: () => void}) {
   const { t } = useI18n();
   const titleId = useId();
   const asked = useMemo(() => askedInputs(state.steps, state.effectsById), [state.effectsById, state.steps]);
   const [ values, setValues ] = useState<Record<string, unknown>>({});
-  if (!asked.length) {
+  // each file question's upload (by the question's id). One still on its way when Use was pressed finished after the
+  // dialog had closed, and its file was never used
+  const [ uploads, setUploads ] = useState<Record<string, FileUpload>>({});
+  const uploading = asked.some((item) => uploads[item.id]?.kind === 'uploading');
+  // nothing (left) to ask: closed for real. It used to only show nothing while whoever opened it still had it open,
+  // and came back by itself as soon as a step asked something again
+  const none = !asked.length;
+  useEffect(() => {
+    if (none) {
+      onClose();
+    }
+  }, [none, onClose]);
+  if (none) {
     return null;
   }
   const apply = () => {
+    if (uploading || locked) {
+      return;
+    }
     for (const item of asked) {
       if (item.id in values) {
         state.setParam(item.step.id, item.param.name, values[item.id]);
@@ -226,6 +277,7 @@ export function FillInputsDialog({ state, onClose }: {state: EditorDocumentState
     <Modal labelledBy={titleId} onClose={onClose} className='max-w-md'>
       <form
         className='flex max-h-[90dvh] flex-col gap-4 overflow-y-auto p-5 sm:p-6'
+        data-state={(uploading) ? 'uploading' : 'idle'}
         onSubmit={(event) => {
           event.preventDefault();
           apply();
@@ -239,7 +291,13 @@ export function FillInputsDialog({ state, onClose }: {state: EditorDocumentState
           <div key={item.id} className='flex flex-col gap-1.5'>
             <span className='text-sm font-semibold text-fg'>{item.label}</span>
             {(item.param.kind === 'media') ? (
-              <FileInput state={state} onPicked={(assetId) => setValues((current) => ({...current, [item.id]: assetId}))}/>
+              <FileInput
+                state={state}
+                effect={item.effect}
+                upload={uploads[item.id] ?? NO_UPLOAD}
+                onUpload={(upload) => setUploads((current) => ({...current, [item.id]: upload}))}
+                onPicked={(assetId) => setValues((current) => ({...current, [item.id]: assetId}))}
+              />
             ) : (item.param.kind === 'text') ? (
               <textarea
                 rows={2}
@@ -259,7 +317,7 @@ export function FillInputsDialog({ state, onClose }: {state: EditorDocumentState
         ))}
         <div className='flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
           <button type='button' className='btn btn-secondary' onClick={onClose}>{t('editor.inputs.skip')}</button>
-          <button type='submit' className='btn btn-primary' data-autofocus>{t('editor.inputs.use')}</button>
+          <button type='submit' className='btn btn-primary' disabled={uploading || locked} data-autofocus>{t('editor.inputs.use')}</button>
         </div>
       </form>
     </Modal>

@@ -46,7 +46,7 @@ export const GUIDES_SPANISH: GuideBook = {
             ]},
             {kind: 'text', text: '¿Estás solo en la sala? Te ofrece **Invita a tus amigos**: comparte un enlace o publica una invitación en el canal. O empieza igual, una partida funciona con un solo jugador.'},
             {kind: 'text', text: 'NotSoBot suele publicar también un mensaje en el canal con un botón **Unirse**, para que otros entren.'},
-            {kind: 'tip', text: '¿Jugando a `/games flag-guesser` en el chat? Su botón **Abrir en la Actividad** abre una sala que sigue la misma partida: primero sale la bandera que estaba en pantalla, con la misma dificultad, respuestas escritas y un minuto por bandera. Las puntuaciones empiezan de cero.'},
+            {kind: 'tip', text: '¿Jugando a `/games flag-guesser` en el chat? Su botón **Abrir en la Actividad** abre una sala que sigue la misma partida: primero sale la bandera que estaba en pantalla, con la misma dificultad, respuestas escritas y un minuto por bandera. Las puntuaciones empiezan de cero. La ronda del chat termina ahí, y su mensaje dice quién se llevó la bandera.'},
           ],
         },
         {
@@ -200,7 +200,7 @@ export const GUIDES_SPANISH: GuideBook = {
           blocks: [
             {kind: 'text', text: 'Letter Trail se juega en salas en la Actividad de Discord de NotSoBot, como [Flag Guesser](guide:flag-guesser).'},
             {kind: 'steps', items: [
-              'Usa `/games play` en un canal, o pulsa **Launch** en NotSoBot en el lanzador de apps de Discord y elige **Juegos**.',
+              'Usa `/games play` en un canal, o pulsa **Trastear** en NotSoBot en el lanzador de apps de Discord y elige **Juegos**.',
               'En la pestaña Juegos, elige **Letter Trail**.',
               'Pulsa **Jugar** o **Mirar** en una sala, usa **Partida rápida**, crea la tuya con **Nueva sala**, o pulsa **Jugar solo** para jugar sin nadie más.',
               'Espera en la sala a los demás y el anfitrión pulsa **Empezar juego**. Con más de un jugador hay primero una cuenta atrás de 3 segundos, y las letras aparecen cuando termina.',
@@ -331,7 +331,7 @@ export const GUIDES_SPANISH: GuideBook = {
           title: 'Ver los puntos en el chat',
           blocks: [
             {kind: 'facts', items: [
-              {label: '`/games points`', value: 'El total de alguien, sus puntos por juego, los de esta semana y su puesto en el servidor y en el mundo. Sin elegir usuario, ves los tuyos.'},
+              {label: '`/games points`', value: 'El total de alguien, sus puntos por juego, los de esta semana, su puesto en el servidor y en el mundo, y su historial en cada juego de salas (victorias, derrotas, empates, partidas abandonadas, racha y mejores estadísticas). Sin elegir usuario, ves los tuyos.'},
               {label: '`/games leaderboard`', value: 'Los 10 mejores. Elige **dónde**: Servidor (por defecto) o Global, y el **periodo**: Todo el tiempo (por defecto) o Esta semana. Tu puesto sale debajo si no estás entre los 10.'},
             ]},
             {kind: 'text', text: 'En un MD, la clasificación del servidor muestra la global. Las semanas empiezan el lunes a medianoche UTC.'},
@@ -380,7 +380,7 @@ export const GUIDES_SPANISH: GuideBook = {
           id: 'start-screen',
           title: 'La pantalla de inicio',
           blocks: [
-            {kind: 'text', text: 'Desde el lanzador de apps, la Actividad primero te pregunta qué quieres hacer: **Editar multimedia** o **Juegos**. Cada opción muestra cuánta gente está editando o cuántas partidas se están jugando ahora, y puedes cambiar cuando quieras.'},
+            {kind: 'text', text: 'Desde el lanzador de apps, la Actividad primero te pregunta qué quieres hacer: **Editar multimedia** o **Juegos**. Cada opción muestra cuánta gente está editando o cuántas partidas se están jugando ahora, y puedes cambiar cuando quieras. Si hay gente en una sala del editor o en una sala de juego, **Únete a alguien** los muestra con un botón **Unirse** que te lleva directo a su sala. Si pulsaste **Unirse** en el mensaje de Trastear de alguien, esa persona aparece primero.'},
             {kind: 'text', text: 'Para empezar a editar, elige un archivo (súbelo, arrástralo o pega un enlace), una de tus ediciones recientes, o empieza desde **O crea uno**: un lienzo en blanco, un código QR o una de las plantillas de texto del bot. Valen imágenes, GIFs, vídeos y audio de hasta 10 minutos.'},
           ],
         },

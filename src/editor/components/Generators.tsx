@@ -1,5 +1,5 @@
 import { FileUp, Sparkles, X } from 'lucide-react';
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 
 import { ColorPicker } from '@/components/ui/ColorPicker';
 import { DialogError } from '@/components/ui/DialogError';
@@ -94,8 +94,23 @@ function GeneratorField({ param, multiline, value, onChange }: {
       );
     case 'color':
       return <ColorPicker label={paramLabel(param)} value={String(value ?? param.default)} onChange={onChange}/>;
-    default:
+    case 'boolean':
+    case 'choice':
+    case 'point':
+    case 'box':
+    case 'strokes':
+    case 'time':
+    case 'media':
+    case 'steps':
+      // no generator asks for these, one that did is made with its default
       return null;
+    default: {
+      // a kind this build doesn't know (the catalogue is the api's) shows nothing. One added to `EditorParamKind`
+      // doesn't compile until it has a case here
+      const unknown: never = param.kind;
+      void unknown;
+      return null;
+    }
   }
 }
 
@@ -110,19 +125,30 @@ function PortraitField({ value, onChange }: {value: GeneratorPortrait | null, on
   const fileRef = useRef<HTMLInputElement>(null);
   const linkId = useId();
   const [ link, setLink ] = useState('');
-  const preview = useMemo(() => (value && 'file' in value) ? URL.createObjectURL(value.file) : (value) ? value.url : null, [value]);
-  useEffect(() => () => {
-    if (preview && value && 'file' in value) {
-      URL.revokeObjectURL(preview);
+  // a picked file's object url, made and let go by the same effect (made while rendering, a render React ran twice
+  // left one behind, and the one in use could be let go under the picture)
+  const file = (value && 'file' in value) ? value.file : null;
+  const [ fileUrl, setFileUrl ] = useState<{file: File, url: string} | null>(null);
+  useEffect(() => {
+    if (!file) {
+      setFileUrl(null);
+      return;
     }
-  }, [preview, value]);
+    const url = URL.createObjectURL(file);
+    setFileUrl({file, url});
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+  const preview = (value && 'url' in value) ? value.url : (fileUrl && fileUrl.file === file) ? fileUrl.url : null;
   const isVideo = Boolean(value && 'file' in value && value.file.type.startsWith('video/'));
   return (
     <div className='flex flex-col gap-2 rounded-lg border border-line-strong p-2.5'>
       <span className='text-sm text-muted'>{t('editor.generate.portrait')}</span>
-      {(value && preview) ? (
+      {(value) ? (
         <div className='flex items-center gap-2.5'>
-          {(isVideo) ? (
+          {(!preview) ? (
+            // (a picked file's url is there a moment after the file is)
+            <span aria-hidden className='size-14 shrink-0 rounded-md bg-deep'/>
+          ) : (isVideo) ? (
             <video src={preview} muted autoPlay loop playsInline className='size-14 shrink-0 rounded-md bg-deep object-cover'/>
           ) : (
             <img src={preview} alt='' className='size-14 shrink-0 rounded-md bg-deep object-cover'/>
@@ -200,6 +226,7 @@ export function GeneratorDialog({ generator, onClose, onMake }: {
     <Modal labelledBy={titleId} onClose={() => !pending && onClose()} className='max-w-md'>
       <form
         className='flex flex-col gap-4 p-5 sm:p-6'
+        data-state={(pending) ? 'pending' : (error) ? 'error' : 'idle'}
         onSubmit={async (event) => {
           event.preventDefault();
           if (pending || missingText) {

@@ -35,6 +35,8 @@ export function FileSteps({ state, step, asset, forAudio, generic = false }: {
     fileStepAllowed(effect, forAudio) && (forAudio || effect.kinds.includes(asset.kind))
   )), [asset.kind, forAudio, state.effectsById]);
 
+  // the step's last change was turned down (a file's effects are its step's one setting), a field being typed in says so
+  const refused = state.steps.findIndex((item) => item.id === step.id) === state.stepError?.index;
   const current = fileSteps.find((item) => item.id === selected) ?? null;
   const currentEffect = (current) ? state.effectsById.get(current.effect) : undefined;
   const full = MAX_FILE_STEPS <= fileSteps.length;
@@ -89,7 +91,8 @@ export function FileSteps({ state, step, asset, forAudio, generic = false }: {
         <p className='text-xs text-subtle'>{(forAudio) ? t('editor.file_steps.empty_audio') : (generic) ? t('editor.file_steps.empty_file') : t('editor.file_steps.empty')}</p>
       )}
       {(current && currentEffect) ? (
-        <div className='flex flex-col gap-2.5 rounded-md bg-deep p-2.5'>
+        // (per lock too, like the step's own settings: a field turned off under the cursor may never blur)
+        <div key={`${current.id}:${Boolean(state.lockedBy(step.id)) || Boolean(state.editLock)}`} className='flex flex-col gap-2.5 rounded-md bg-deep p-2.5'>
           <span className='text-xs font-semibold text-white'>{currentEffect.name}</span>
           {(currentEffect.params.length) ? currentEffect.params.map((param) => (
             <SimpleParamControl
@@ -97,6 +100,7 @@ export function FileSteps({ state, step, asset, forAudio, generic = false }: {
               param={param}
               value={current.params[param.name]}
               onChange={(value) => update(current.id, (old) => ({...old, params: {...old.params, [param.name]: value}}))}
+              refused={refused}
             />
           )) : <p className='text-xs text-subtle'>{t('editor.settings.none')}</p>}
         </div>

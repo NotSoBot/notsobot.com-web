@@ -73,6 +73,7 @@ export const TAG_DOC_FUNCTIONS_PART1: Array<TagDocFunction> = [
       'Counts against the network request limit.',
       'An empty argument outputs nothing.',
       'Throws an error if the position is not a positive number or there is no fact at that position.',
+      'Positions stay the ones NotSoAI saw in its prompt for the whole reply, so `{ai.knowledge.delete:1}{ai.knowledge.delete:2}` removes the first two facts. A fact that was already removed throws an error.',
       'Asks the person to confirm with Allow and Cancel buttons first, even when nobody else\'s text was in the prompt. It is left as plain text if they cancel or don\'t answer within a minute.',
     ],
   },
@@ -98,6 +99,7 @@ export const TAG_DOC_FUNCTIONS_PART1: Array<TagDocFunction> = [
       'Counts against the network request limit.',
       'Outputs nothing if the position or the fact is empty.',
       'Throws an error if the position is not a positive number, there is no fact at that position, or the facts would be over 1000 characters together.',
+      'Positions stay the ones NotSoAI saw in its prompt for the whole reply, so after `{ai.knowledge.delete:1}`, `{ai.knowledge.edit:2|…}` still changes the fact that was second. A fact that was already removed throws an error.',
     ],
   },
   {

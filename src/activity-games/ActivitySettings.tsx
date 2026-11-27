@@ -127,7 +127,10 @@ export function ActivitySettings({ onClose }: {onClose: () => void}) {
           <h3 id={`${titleId}-motion`} className='section-label'>{t('games.settings.motion')}</h3>
           <Toggle
             checked={prefs.lessMotion}
-            onChange={(lessMotion) => setActivityPrefs({lessMotion})}
+            onChange={(lessMotion) => {
+              setReset(false);
+              setActivityPrefs({lessMotion});
+            }}
             label={t('games.settings.less_motion')}
             description={t('games.settings.less_motion_hint')}
           />

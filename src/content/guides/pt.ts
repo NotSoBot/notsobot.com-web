@@ -46,7 +46,7 @@ export const GUIDES_PORTUGUESE: GuideBook = {
             ]},
             {kind: 'text', text: 'Está sozinho na sala? Ela oferece **Convide seus amigos**: compartilhe um link ou publique um convite no canal. Ou comece assim mesmo, uma partida funciona com um jogador só.'},
             {kind: 'text', text: 'O NotSoBot costuma publicar também uma mensagem no canal com um botão **Entrar**, para os outros entrarem.'},
-            {kind: 'tip', text: 'Jogando `/games flag-guesser` no chat? O botão **Abrir na Atividade** abre uma sala que continua o mesmo jogo: primeiro vem a bandeira que estava na tela, com a mesma dificuldade, respostas digitadas e um minuto por bandeira. As pontuações começam do zero.'},
+            {kind: 'tip', text: 'Jogando `/games flag-guesser` no chat? O botão **Abrir na Atividade** abre uma sala que continua o mesmo jogo: primeiro vem a bandeira que estava na tela, com a mesma dificuldade, respostas digitadas e um minuto por bandeira. As pontuações começam do zero. A rodada no chat termina ali, e a mensagem dela diz quem levou a bandeira.'},
           ],
         },
         {
@@ -200,7 +200,7 @@ export const GUIDES_PORTUGUESE: GuideBook = {
           blocks: [
             {kind: 'text', text: 'Letter Trail é jogado em salas na Atividade do Discord do NotSoBot, como o [Flag Guesser](guide:flag-guesser).'},
             {kind: 'steps', items: [
-              'Use `/games play` em um canal, ou toque em **Launch** no NotSoBot no lançador de apps do Discord e escolha **Jogos**.',
+              'Use `/games play` em um canal, ou toque em **Zoar** no NotSoBot no lançador de apps do Discord e escolha **Jogos**.',
               'Na aba Jogos, escolha **Letter Trail**.',
               'Toque em **Jogar** ou **Assistir** em uma sala, use **Jogo rápido**, crie a sua com **Nova sala**, ou toque em **Jogar sozinho** para jogar só você.',
               'Espere os outros na sala e o anfitrião toca em **Começar jogo**. Com mais de um jogador vem antes uma contagem de 3 segundos, e as letras aparecem quando ela acaba.',
@@ -331,7 +331,7 @@ export const GUIDES_PORTUGUESE: GuideBook = {
           title: 'Ver os pontos no chat',
           blocks: [
             {kind: 'facts', items: [
-              {label: '`/games points`', value: 'O total de alguém, os pontos por jogo, os desta semana e a posição no servidor e no mundo. Sem escolher um usuário, você vê os seus.'},
+              {label: '`/games points`', value: 'O total de alguém, os pontos por jogo, os desta semana, a posição no servidor e no mundo, e o histórico em cada jogo de salas (vitórias, derrotas, empates, partidas abandonadas, sequência e melhores estatísticas). Sem escolher um usuário, você vê os seus.'},
               {label: '`/games leaderboard`', value: 'Os 10 melhores. Escolha **onde**: Servidor (o padrão) ou Global, e o **período**: Todo o período (o padrão) ou Esta semana. Sua posição aparece embaixo se você não estiver entre os 10.'},
             ]},
             {kind: 'text', text: 'Em uma DM, o ranking do servidor mostra o global. As semanas começam na segunda-feira à meia-noite UTC.'},
@@ -380,7 +380,7 @@ export const GUIDES_PORTUGUESE: GuideBook = {
           id: 'start-screen',
           title: 'A tela inicial',
           blocks: [
-            {kind: 'text', text: 'Pelo inicializador de apps, a Atividade primeiro pergunta o que você quer fazer: **Editar mídia** ou **Jogos**. Cada opção mostra quantas pessoas estão editando ou quantos jogos estão rolando agora, e dá para trocar quando quiser.'},
+            {kind: 'text', text: 'Pelo inicializador de apps, a Atividade primeiro pergunta o que você quer fazer: **Editar mídia** ou **Jogos**. Cada opção mostra quantas pessoas estão editando ou quantos jogos estão rolando agora, e dá para trocar quando quiser. Se tiver gente numa sala do editor ou numa sala de jogo, **Entre junto com alguém** mostra essas pessoas com um botão **Entrar** que leva direto à sala delas. Se você tocou em **Entrar** na mensagem de Zoar de alguém, essa pessoa aparece primeiro.'},
             {kind: 'text', text: 'Para começar uma edição, escolha um arquivo (envie, arraste ou cole um link), uma das suas edições recentes, ou comece por **Ou crie um**: uma tela em branco, um QR code ou um dos modelos de texto do bot. Imagens, GIFs, vídeos e áudio de até 10 minutos funcionam.'},
           ],
         },

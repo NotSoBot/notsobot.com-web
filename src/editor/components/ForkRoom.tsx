@@ -35,6 +35,9 @@ function ForkDialog({ host, state, onClose }: {host: EditorHost, state: ReturnTy
         throw new Error(t('editor.render.unsaved'));
       }
       await host.fork!({...document, steps: state.steps}, {mode, name, password, watchOnly});
+      // the host opens the fork and this editor goes with it. Closed here all the same: a fork that came back without
+      // going anywhere would leave Create spinning for good
+      onClose();
     } catch (failure) {
       setError(host.errorOf(failure)?.message || ((failure instanceof Error) ? failure.message : t('editor.session.failed')));
       setPending(false);

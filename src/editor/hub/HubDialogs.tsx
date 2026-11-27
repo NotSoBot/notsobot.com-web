@@ -55,7 +55,7 @@ export function HubReportDialog({ host, template, onClose }: {host: Pick<EditorH
   return (
     <Modal labelledBy={titleId} onClose={() => !pending && onClose()} className='max-w-md'>
       {(sent) ? (
-        <div className='flex flex-col gap-4 p-5 sm:p-6'>
+        <div data-state='sent' className='flex flex-col gap-4 p-5 sm:p-6'>
           <h2 id={titleId} className='pr-10 text-lg font-semibold text-white'>{t('hub.report.title', {name: template.name})}</h2>
           <p role='status' className='flex items-center gap-2 text-sm text-success-text'>
             <Check aria-hidden className='size-4 shrink-0'/>{t('hub.report.sent')}
@@ -67,6 +67,7 @@ export function HubReportDialog({ host, template, onClose }: {host: Pick<EditorH
       ) : (
         <form
           className='flex flex-col gap-4 p-5 sm:p-6'
+          data-state={(pending) ? 'pending' : (error) ? 'error' : 'idle'}
           onSubmit={async (event) => {
             event.preventDefault();
             if (!reason || pending) {

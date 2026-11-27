@@ -42,7 +42,12 @@ export interface GamePlayer {
   // once the game's finished: the game points that counted toward their total (./points, after the daily cap). Best
   // effort, it can come after the state in a `game.awarded`
   awarded?: number | null,
+  // once the game's finished: how it went for them in their record (game-stats-plan.md "What counts"), null without
+  // one (a late joiner, or before the end). `solo`: stats only, no record (a solo room or one counted player)
+  outcome: GameOutcome | null,
 }
+
+export type GameOutcome = 'win' | 'loss' | 'tie' | 'left' | 'solo';
 
 export interface GameHint {
   region?: string,
@@ -65,12 +70,12 @@ export interface GameRound {
   // who solved it, in order
   solved: Array<string>,
   answered: number,
-  // who has answered (choices mode), not what
-  answered_by?: Array<string>,
+  // who's through with it (named it, or picked a choice), not what they picked
+  answered_by: Array<string>,
   // this socket's own: solved it, answered (choices), and which one it picked
-  you_solved?: boolean,
-  you_answered?: boolean,
-  your_choice?: number | null,
+  you_solved: boolean,
+  you_answered: boolean,
+  your_choice: number | null,
 }
 
 export interface GameReveal {
@@ -78,8 +83,8 @@ export interface GameReveal {
   code: string,
   solved: Array<{user_id: string, points: number}>,
   // ms epoch on the api's clock: the next flag (or the standings) comes then. `until` is the same
-  ends_at?: number,
-  until?: number,
+  ends_at: number,
+  until: number,
 }
 
 // someone watching: sees everything, answers nothing
@@ -110,12 +115,11 @@ export interface GameRoomInfo {
   locked: boolean,
   // whoever isn't already playing only watches
   watch_only: boolean,
-  // older apis send none of these: a Flag Guesser room in this server
-  game?: GameKind,
-  visibility?: GameRoomVisibility,
-  origin?: GameRoomOrigin | null,
+  game: GameKind,
+  visibility: GameRoomVisibility,
+  origin: GameRoomOrigin | null,
   // Play solo: its creator's alone (no invites, watchers or room settings, never listed), its game starts as they join
-  solo?: boolean,
+  solo: boolean,
 }
 
 // a room's state, the same for every game but its settings, round and reveal (Flag Guesser's are `GameState`, Letter
@@ -135,13 +139,14 @@ export interface GameStateOf<Settings, Round, Reveal> {
   players: Array<GamePlayer>,
   round: Round | null,
   reveal: Reveal | null,
-  standings: Array<{user_id: string, score: number}> | null,
+  // the finished game's, best first. `awarded` like a player's (null until the game points are in)
+  standings: Array<{user_id: string, score: number, awarded: number | null}> | null,
 }
 
 // Flag Guesser's
 export type GameState = GameStateOf<GameSettings, GameRound, GameReveal>;
 export type LetterTrailState = GameStateOf<LetterTrailSettings, LetterTrailRound, LetterTrailReveal>;
-// any room's, `isLetterTrail` tells them apart (an older api's rooms without a `game` are Flag Guesser's)
+// any room's, `isLetterTrail` tells them apart (`room.game`)
 export type AnyGameState = GameState | LetterTrailState;
 export type AnyGameSettings = GameSettings | LetterTrailSettings;
 
@@ -153,7 +158,7 @@ export function isLetterTrail(game: AnyGameState): game is LetterTrailState {
 export type GameServerEvent =
   // the answer to `game_join`. `moderator`: a moderator of the activity's server, they remove people from any room and
   // close it
-  | {t: 'ready', you: string, now: number, game: AnyGameState, moderator?: boolean}
+  | {t: 'ready', you: string, now: number, game: AnyGameState, moderator: boolean}
   | {t: 'state', now: number, game: AnyGameState}
   | {t: 'hint', hint: GameHint, now?: number}
   // the answer to your own guess or choice, nobody else gets it. `close`: a near miss (`type` mode)
@@ -210,7 +215,7 @@ export interface GameRoomSummary {
   players: Array<GameWatcher>,
   watchers: number,
   // a solo room (only its creator ever gets one, from Play solo)
-  solo?: boolean,
+  solo: boolean,
 }
 
 // the room browser's tabs: this server's rooms (or this dm's) and the global ones
@@ -326,8 +331,8 @@ export interface LetterTrailRevealWord extends LetterTrailWord {
 export interface LetterTrailReveal {
   // ms epoch on the api's clock: the next round (or the standings) comes then, sooner when the host skips. `until` is
   // the same
-  ends_at?: number,
-  until?: number,
+  ends_at: number,
+  until: number,
   // every player's words, a word's `points` its final ones (x2 tile and "only you" in), `round_score` their sum
   players: Array<{user_id: string, words: Array<LetterTrailRevealWord>, round_score: number}>,
   // the longest words on the board nobody found, longest first, up to 12

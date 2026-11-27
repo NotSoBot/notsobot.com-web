@@ -3,11 +3,11 @@ import { INVITE_CUSTOM_ID, inviteCodeOf, type RoomInviteKind } from '../invites'
 
 
 // How the bot launched the Activity, the api's `launch.surface` (each person's own launch): Discord's app launcher or
-// Launch button (`entry_point`), Edit Media / Edit Avatar, `/editor` (`command`) and the Join on its launch message
+// Mess Around button (`entry_point`) and the Join on its launch message (`entry_point_join`), Edit Media / Edit Avatar, `/editor` (`command`) and the Join on its launch message
 // (`join`), a shared template's post (`template_post`), `/games` (`games`) and the Join on its message (`games_join`),
 // the Join on a room invite's post (`invite`, with `invite_code`), and Open in Activity on the in-chat Flag Guesser
 // (`flag_guesser`)
-export type ActivityLaunchSurface = 'entry_point' | 'edit_media' | 'edit_avatar' | 'command' | 'join' | 'template_post' | 'games' | 'games_join' | 'invite' | 'flag_guesser';
+export type ActivityLaunchSurface = 'entry_point' | 'entry_point_join' | 'edit_media' | 'edit_avatar' | 'command' | 'join' | 'template_post' | 'games' | 'games_join' | 'invite' | 'flag_guesser';
 
 // the first screen after sign-in: a new edit, the Games tab (`games`), Flag Guesser's rooms, the editor's rooms or the
 // mode choice
@@ -33,7 +33,10 @@ export function launchScreen(surface: string | null, launchedOn: boolean): Activ
     case 'edit_avatar':
     case 'template_post':
       return 'editor';
-    // an invite launch is redeemed first (launchInviteCode, inviteScreen), one without its code opens on the choice
+    // the app launcher's button and its message's Join pick for themselves. an invite launch is redeemed first
+    // (launchInviteCode, inviteScreen), one without its code opens on the choice
+    case 'entry_point':
+    case 'entry_point_join':
     case 'invite':
     default:
       return 'choice';
@@ -51,7 +54,22 @@ export function launchInviteCode(customId: string | null | undefined, launch: Re
 }
 
 
-// where an invite lands: the room's kind once it's redeemed (the editor's room, entered with it, or the game). A
+// a shared template link's `custom_id` (`template:<code>`)
+export const TEMPLATE_CUSTOM_ID = 'template:';
+
+// the template they launched on: a template link someone shared in chat (its `custom_id`), or `/editor template:` (the
+// bot's launch, `template_code`). The link wins, it's what they just clicked; the launch the bot noted for them can be
+// an older one. A link whose code isn't one leaves the launch's
+export function launchTemplateCode(customId: string | null | undefined, launch: Record<string, unknown> | null): string | null {
+  const shared = (customId?.startsWith(TEMPLATE_CUSTOM_ID)) ? customId.slice(TEMPLATE_CUSTOM_ID.length) : null;
+  if (shared && /^[A-Za-z]{1,12}$/.test(shared)) {
+    return shared;
+  }
+  return (typeof launch?.template_code === 'string' && launch.template_code) ? launch.template_code : null;
+}
+
+
+// where an invite lands:the room's kind once it's redeemed (the editor's room, entered with it, or the game). A
 // refused one lands on that kind's room list when the error says which (its room is gone), the mode choice otherwise
 // (unknown or expired, removed from it, another server's), the api's message as the notice either way
 export function inviteScreen(kind: RoomInviteKind | null, errorCode: number | null = null): ActivityLaunchScreen {

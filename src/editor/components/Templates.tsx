@@ -35,6 +35,7 @@ function UnlockForm({ host, template, onUnlocked }: {
   return (
     <form
       className='flex flex-col gap-2'
+      data-state={(pending) ? 'pending' : (error) ? 'error' : 'idle'}
       onSubmit={async (event) => {
         event.preventDefault();
         if (!password || pending) {
@@ -47,6 +48,8 @@ function UnlockForm({ host, template, onUnlocked }: {
         } catch (failure) {
           const apiError = host.errorOf(failure);
           setError((apiError?.code === EditorErrorCodes.EDITOR_TEMPLATE_PASSWORD_INVALID && apiError.status === 403) ? t('editor.template.unlock_wrong') : (apiError?.message || t('editor.template.unlock_error')));
+        } finally {
+          // (the form goes once it's unlocked, but only because the banner stops asking: it doesn't spin on that)
           setPending(false);
         }
       }}
@@ -161,6 +164,7 @@ function LockDialog({ host, template, onSaved, onClose }: {
     <Modal labelledBy={titleId} onClose={() => !pending && onClose()} className='max-w-md'>
       <form
         className='flex flex-col gap-4 p-5 sm:p-6'
+        data-state={pending ?? ((error) ? 'error' : 'idle')}
         onSubmit={(event) => {
           event.preventDefault();
           if (!short && !pending) {
@@ -197,35 +201,57 @@ function LockDialog({ host, template, onSaved, onClose }: {
 }
 
 
+// the list itself: a load that failed isn't an empty list ("You have no templates yet" over a network error)
+type TemplateListState =
+  | {status: 'loading'}
+  | {status: 'error'}
+  | {status: 'ready', templates: Array<EditorTemplate>};
+
+// the one dialog open over the list, on the template it was opened for
+type TemplateListDialog =
+  | {kind: 'lock', template: EditorTemplate}
+  | {kind: 'delete', template: EditorTemplate, pending: boolean, error: string | null};
+
+
 export function TemplateList({ host }: {host: EditorHost}) {
   const { t, plural } = useI18n();
-  const [ templates, setTemplates ] = useState<Array<EditorTemplate> | null>(null);
-  const [ deleting, setDeleting ] = useState<EditorTemplate | null>(null);
-  const [ locking, setLocking ] = useState<EditorTemplate | null>(null);
-  const [ pending, setPending ] = useState(false);
+  const [ list, setList ] = useState<TemplateListState>({status: 'loading'});
+  const [ attempt, setAttempt ] = useState(0);
+  const [ dialog, setDialog ] = useState<TemplateListDialog | null>(null);
   const share = host.shareTemplate;
 
   useEffect(() => {
     let alive = true;
+    setList({status: 'loading'});
     host.api.templates().then((result) => {
       if (alive) {
-        setTemplates(result.templates);
+        setList({status: 'ready', templates: result.templates});
       }
     }).catch(() => {
       if (alive) {
-        setTemplates([]);
+        setList({status: 'error'});
       }
     });
     return () => {
       alive = false;
     };
-  }, [host]);
+  }, [host, attempt]);
+
+  const replace = (saved: EditorTemplate) => setList((current) => (current.status === 'ready')
+    ? {...current, templates: current.templates.map((item) => (item.code === saved.code) ? saved : item)}
+    : current);
+  const templates = (list.status === 'ready') ? list.templates : [];
 
   return (
-    <section className='flex flex-col gap-3'>
+    <section data-state={list.status} className='flex flex-col gap-3'>
       <h2 className='font-display text-lg font-bold text-white'>{t('editor.template.yours')}</h2>
-      {(templates === null) ? (
+      {(list.status === 'loading') ? (
         <Spinner/>
+      ) : (list.status === 'error') ? (
+        <div role='alert' className='flex flex-wrap items-center gap-3'>
+          <p className='text-sm text-danger-text'>{t('editor.templates.error')}</p>
+          <button type='button' className='btn btn-secondary' onClick={() => setAttempt((value) => value + 1)}>{t('common.retry')}</button>
+        </div>
       ) : (!templates.length) ? (
         <p className='text-sm text-muted'>{t('editor.template.yours_empty')}</p>
       ) : (
@@ -246,7 +272,7 @@ export function TemplateList({ host }: {host: EditorHost}) {
                   {plural('editor.start.steps', template.steps.length)} · {plural('editor.template.uses', template.uses)}
                 </span>
               </span>
-              <PublishButton host={host} template={template} className='max-sm:ml-4' onChange={(saved) => setTemplates((items) => (items ?? []).map((item) => (item.code === saved.code) ? saved : item))}/>
+              <PublishButton host={host} template={template} className='max-sm:ml-4' onChange={replace}/>
               <CopyTemplateLink url={host.templateUrl(template.code)}/>
               {(share) ? (
                 <button
@@ -263,7 +289,7 @@ export function TemplateList({ host }: {host: EditorHost}) {
                 type='button'
                 aria-label={(template.locked) ? t('editor.template.lock_change_title', {name: template.name}) : t('editor.template.lock_title', {name: template.name})}
                 title={(template.locked) ? t('editor.template.lock_change') : t('editor.template.lock')}
-                onClick={() => setLocking(template)}
+                onClick={() => setDialog({kind: 'lock', template})}
                 className='flex size-10 shrink-0 items-center justify-center rounded-md text-muted hover:bg-surface-3 hover:text-fg'
               >
                 {(template.locked) ? <Lock aria-hidden className='size-4'/> : <LockOpen aria-hidden className='size-4'/>}
@@ -271,7 +297,7 @@ export function TemplateList({ host }: {host: EditorHost}) {
               <button
                 type='button'
                 aria-label={t('editor.template.delete', {name: template.name})}
-                onClick={() => setDeleting(template)}
+                onClick={() => setDialog({kind: 'delete', template, pending: false, error: null})}
                 className='flex size-10 shrink-0 items-center justify-center rounded-md text-muted hover:bg-surface-3 hover:text-danger-text'
               >
                 <Trash2 aria-hidden className='size-4'/>
@@ -280,34 +306,37 @@ export function TemplateList({ host }: {host: EditorHost}) {
           ))}
         </ul>
       )}
-      {(locking) ? (
+      {(dialog?.kind === 'lock') ? (
         <LockDialog
           host={host}
-          template={locking}
+          template={dialog.template}
           onSaved={(saved) => {
-            setTemplates((items) => (items ?? []).map((item) => (item.code === saved.code) ? saved : item));
-            setLocking(null);
+            replace(saved);
+            setDialog(null);
           }}
-          onClose={() => setLocking(null)}
+          onClose={() => setDialog(null)}
         />
       ) : null}
-      {(deleting) ? (
+      {(dialog?.kind === 'delete') ? (
         <ConfirmDialog
           title={t('editor.template.delete_title')}
           description={t('editor.template.delete_description')}
-          confirmLabel={t('editor.template.delete', {name: deleting.name})}
-          pending={pending}
+          confirmLabel={t('editor.template.delete', {name: dialog.template.name})}
+          pending={dialog.pending}
+          error={dialog.error}
           onConfirm={async () => {
-            setPending(true);
+            const { template } = dialog;
+            setDialog({kind: 'delete', template, pending: true, error: null});
             try {
-              await host.api.deleteTemplate(deleting.code);
-              setTemplates((items) => (items ?? []).filter((item) => item.code !== deleting.code));
-              setDeleting(null);
-            } finally {
-              setPending(false);
+              await host.api.deleteTemplate(template.code);
+              setList((current) => (current.status === 'ready') ? {...current, templates: current.templates.filter((item) => item.code !== template.code)} : current);
+              setDialog(null);
+            } catch (failure) {
+              // (it used to stop spinning and say nothing)
+              setDialog({kind: 'delete', template, pending: false, error: host.errorOf(failure)?.message || t('errors.generic')});
             }
           }}
-          onClose={() => setDeleting(null)}
+          onClose={() => setDialog(null)}
         />
       ) : null}
     </section>

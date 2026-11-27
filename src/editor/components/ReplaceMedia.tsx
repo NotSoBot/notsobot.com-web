@@ -42,7 +42,7 @@ function ReplaceMediaDialog({ state, onClose }: {state: EditorDocumentState, onC
 
   return (
     <Modal labelledBy={titleId} onClose={() => !pending && onClose()} className='max-w-md'>
-      <div className='flex flex-col gap-4 p-5 sm:p-6'>
+      <div data-state={(pending) ? 'pending' : (error) ? 'error' : 'idle'} className='flex flex-col gap-4 p-5 sm:p-6'>
         <div>
           <h2 id={titleId} className='pr-10 text-lg font-semibold text-white'>{t('editor.replace.title')}</h2>
           <p className='mt-2 text-sm text-muted'>

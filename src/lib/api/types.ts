@@ -538,7 +538,6 @@ export const ApiErrorCodes = {
   // a staff grant's Take back was already sent (another tab, a double click)
   CREDIT_GRANT_ALREADY_REVERSED: 50052,
   // a legal hold on them: "Delete my data" and their other deletes are refused
-  USER_DATA_ON_HOLD: 50055,
   // the flag already has a finished CyberTipline report, or one is being filed right now
   CONTENT_FLAG_ALREADY_REPORTED: 50056,
   CREDITS_LIMIT: 30033,
@@ -649,6 +648,8 @@ export interface UserSettings {
   file_upload_threshold: number,
   file_upload_type: number,
   file_upload_vanity: string | null,
+  // left off the global game points boards (and given no global rank), servers' boards still show them
+  game_points_hidden: boolean,
   locale: string | null,
   // `MediaMemeFonts` key caption/meme/recaption use when no font is picked (before the server's), null: theirs
   media_font: string | null,

@@ -116,6 +116,7 @@ export function SettingsPage({ data = <YourDataSection/> }: {data?: ReactNode}) 
           <AutoEmbedSection settings={settings} onDirtyChange={onDirtyChange}/>
           <SearchSection settings={settings} onDirtyChange={onDirtyChange}/>
           <VoiceSection settings={settings} onDirtyChange={onDirtyChange}/>
+          <GamesSection settings={settings} onDirtyChange={onDirtyChange}/>
         </div>
       )}
       {data}
@@ -391,6 +392,25 @@ function AutoEmbedSection({ settings, onDirtyChange }: SectionProps) {
           />
         </div>
         {(!premium) ? <PremiumNotice>{t('settings.autoembed.premium')}</PremiumNotice> : null}
+      </div>
+    </SectionForm>
+  );
+}
+
+
+// game points (the bot's /games and the Activity's games): whether they're on the global leaderboards
+function GamesSection({ settings, onDirtyChange }: SectionProps) {
+  const { t } = useI18n();
+  const section = useSettingsSection('settings.games.title', settings, ['game_points_hidden'], onDirtyChange);
+  return (
+    <SectionForm id='games' title={t('settings.games.title')} accent='#3ba55c' description={t('settings.games.description')} section={section}>
+      <div className='md:col-span-2'>
+        <Toggle
+          label={t('settings.games.hidden')}
+          description={t('settings.games.hidden_hint')}
+          checked={section.values.game_points_hidden === true}
+          onChange={(value) => section.set('game_points_hidden', value)}
+        />
       </div>
     </SectionForm>
   );

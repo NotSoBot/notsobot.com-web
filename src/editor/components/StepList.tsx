@@ -13,13 +13,24 @@ export function StepList({ state }: {state: EditorDocumentState}) {
   const { t } = useI18n();
   const summarize = useStepSummary();
   const { steps, effectsById, selectedId, stepError } = state;
-  const [ dragging, setDragging ] = useState<string | null>(null);
+  const [ dragged, setDragged ] = useState<string | null>(null);
   const [ over, setOver ] = useState<number | null>(null);
   const sendCursor = useCursorSend();
+  // the row being dragged, while it's still there: one someone else removed mid-drag never hears its drag end
+  const dragging = (dragged && steps.some((step) => step.id === dragged)) ? dragged : null;
+  // a change that was turned down without naming a step (someone else is adjusting it, too many at once): it was put
+  // back, this says why (the api's own words: "This step can't run" isn't what happened). It used to be shown nowhere,
+  // the change just undid itself
+  const refusal = (stepError && stepError.index === null && stepError.message) ? (
+    <p role='alert' className='text-xs text-danger-text'>{stepError.message}</p>
+  ) : null;
 
   if (!steps.length) {
     return (
-      <p className='rounded-lg border border-dashed border-line-strong p-4 text-sm text-muted'>{t('editor.edits_empty')}</p>
+      <>
+        {refusal}
+        <p className='rounded-lg border border-dashed border-line-strong p-4 text-sm text-muted'>{t('editor.edits_empty')}</p>
+      </>
     );
   }
 
@@ -32,7 +43,25 @@ export function StepList({ state }: {state: EditorDocumentState}) {
   };
 
   return (
-    <ol className='flex flex-col gap-1.5' onPointerLeave={() => sendCursor?.(null)}>
+    <>
+    {refusal}
+    <ol
+      className='flex flex-col gap-1.5'
+      onPointerLeave={() => sendCursor?.(null)}
+      onDragLeave={(event) => {
+        // out of the list altogether: no row is the drop's anymore. WebKit doesn't say where the drag went
+        // (`relatedTarget` is null), there it's by where the pointer is: every leave between a row's own parts cleared
+        // the ring, which blinked
+        const into = event.relatedTarget as Node | null;
+        const rect = event.currentTarget.getBoundingClientRect();
+        const inside = (into)
+          ? event.currentTarget.contains(into)
+          : rect.left <= event.clientX && event.clientX < rect.right && rect.top <= event.clientY && event.clientY < rect.bottom;
+        if (!inside) {
+          setOver(null);
+        }
+      }}
+    >
       {steps.map((step, index) => {
         const effect = effectsById.get(step.effect);
         const name = effect?.name ?? step.effect;
@@ -40,13 +69,19 @@ export function StepList({ state }: {state: EditorDocumentState}) {
         const failed = stepError?.index === index;
         const summary = summarize(effect, step);
         const lockedBy = state.lockedBy(step.id);
+        // someone else is adjusting it, or the whole stack is off (watching, someone's render)
+        const locked = Boolean(lockedBy) || Boolean(state.editLock);
         return (
           <li
             key={step.id}
-            draggable
+            data-step-id={step.id}
+            data-state={(failed) ? 'failed' : (selected) ? 'selected' : 'idle'}
+            data-locked={locked}
+            // (a `fieldset disabled` around the list turns its buttons off, not a row's dragging)
+            draggable={!locked}
             onPointerEnter={() => sendCursor?.({at: 'step', step_id: step.id})}
             onDragStart={(event) => {
-              setDragging(step.id);
+              setDragged(step.id);
               event.dataTransfer.effectAllowed = 'move';
             }}
             onDragOver={(event) => {
@@ -60,11 +95,11 @@ export function StepList({ state }: {state: EditorDocumentState}) {
               if (dragging) {
                 state.moveStep(dragging, index);
               }
-              setDragging(null);
+              setDragged(null);
               setOver(null);
             }}
             onDragEnd={() => {
-              setDragging(null);
+              setDragged(null);
               setOver(null);
             }}
             className={cn(
@@ -115,5 +150,6 @@ export function StepList({ state }: {state: EditorDocumentState}) {
         );
       })}
     </ol>
+    </>
   );
 }

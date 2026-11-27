@@ -7,12 +7,17 @@ import { cn } from '@/lib/utils';
 
 import { FRAME_MODE_MIN_FRAMES, type EditorDocumentState } from '../useEditorDocument';
 import { isAudioMimetype, isVideoMimetype, MediaView } from './media';
+import { BADGE_LABELS, previewBadge } from './previewBadge';
 import { PreviewCursors, usePreviewPointer } from './RoomCursors';
 import { SpatialOverlay, type PenSettings } from './SpatialOverlay';
 
 
 // how big the preview can be made, to draw or place things more precisely. 1 is fitted to the stage
 const ZOOMS = [1, 1.5, 2, 3, 4];
+
+
+// what the stage itself shows: the media, or why there's none yet
+type PreviewStageBody = 'media' | 'proxy_failed' | 'failed' | 'preparing';
 
 
 export function PreviewStage({ state, pen, maxStrokes, maxPoints, maxTextLength }: {
@@ -85,21 +90,22 @@ export function PreviewStage({ state, pen, maxStrokes, maxPoints, maxTextLength 
   const shown = (showOriginal || !preview || scrubbing) ? proxy : preview;
   const seekTo = (scrubbing || (showOriginal && mode === 'frame')) ? frame / fps : null;
 
-  const statusLabel = (proxyFailed) ? t('editor.preview.proxy_failed')
-    : (previewState === 'preparing') ? t('editor.preview.preparing')
-    : (previewState === 'updating' || state.saveState === 'saving') ? t('editor.preview.updating')
-    : (previewState === 'busy') ? t('editor.preview.busy')
-    : (previewState === 'failed') ? (previewError || t('editor.preview.failed'))
-    : t('editor.preview.up_to_date');
-  const statusTone = (proxyFailed || previewState === 'failed') ? 'danger'
-    : (previewState === 'busy') ? 'warning'
-    : (previewState === 'idle' && state.saveState !== 'saving') ? 'success' : 'busy';
+  const badge = previewBadge(proxyFailed, previewState, state.saveState);
+  const failedLabel = previewError || t('editor.preview.failed');
+  const statusLabel = (badge.kind === 'failed') ? failedLabel : t(BADGE_LABELS[badge.kind]);
+  const statusTone = badge.tone;
+  // nothing to show yet: a first preview that failed says so with Try again (it used to spin "preparing" for good under
+  // a line that said it failed)
+  const stage: PreviewStageBody = (shown) ? 'media'
+    : (proxyFailed) ? 'proxy_failed'
+    : (previewState === 'failed' && state.saveState !== 'saving') ? 'failed'
+    : 'preparing';
 
   const stoppedAt = (mode === 'frame' && preview?.stopped_at) ? preview.stopped_at : null;
   const aspect = (shown && shown.width && shown.height) ? shown.height / shown.width : 1;
 
   return (
-    <section aria-label={t('editor.preview')} className='flex min-h-[420px] min-w-0 flex-col gap-3.5 bg-deep p-4 select-none sm:p-5 lg:min-h-full'>
+    <section aria-label={t('editor.preview')} data-preview-state={previewState} data-save-state={state.saveState} data-stage={stage} className='flex min-h-[420px] min-w-0 flex-col gap-3.5 bg-deep p-4 select-none sm:p-5 lg:min-h-full'>
       <div className='flex min-h-9 flex-wrap items-center gap-2'>
         {(proxy) ? (
           <span className='rounded-md bg-surface px-2 py-1 font-mono text-xs text-muted'>
@@ -117,7 +123,7 @@ export function PreviewStage({ state, pen, maxStrokes, maxPoints, maxTextLength 
           {(statusTone === 'busy') ? <Spinner className='size-3'/> : <span aria-hidden className={cn('size-2 rounded-full', (statusTone === 'success') ? 'bg-success' : (statusTone === 'danger') ? 'bg-danger' : 'bg-warning')}/>}
           {statusLabel}
         </span>
-        {(previewState === 'failed') ? (
+        {(badge.retry) ? (
           <button type='button' onClick={() => void state.retryPreview()} className='inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2 text-[13px] font-semibold text-brand-text hover:text-white'>
             <RotateCw aria-hidden className='size-3.5'/>{t('editor.preview.retry')}
           </button>
@@ -177,7 +183,7 @@ export function PreviewStage({ state, pen, maxStrokes, maxPoints, maxTextLength 
                   tool={selectedTool}
                   step={selectedStep}
                   effectName={selectedEffect.name}
-                  onChange={(param, value) => state.setParam(selectedStep.id, param, value)}
+                  onChange={(param, value, options) => state.setParam(selectedStep.id, param, value, options)}
                   onChangeMany={(values) => state.setParams(selectedStep.id, values)}
                   pen={pen}
                   aspect={aspect}
@@ -196,8 +202,15 @@ export function PreviewStage({ state, pen, maxStrokes, maxPoints, maxTextLength 
             </figure>
           )
         ) : (
-          (proxyFailed) ? (
+          (stage === 'proxy_failed') ? (
             <p className='text-sm text-danger-text'>{t('editor.preview.proxy_failed')}</p>
+          ) : (stage === 'failed') ? (
+            <div className='flex flex-col items-center gap-2'>
+              <p className='text-sm text-danger-text'>{failedLabel}</p>
+              <button type='button' onClick={() => void state.retryPreview()} className='inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2 text-[13px] font-semibold text-brand-text hover:text-white'>
+                <RotateCw aria-hidden className='size-3.5'/>{t('editor.preview.retry')}
+              </button>
+            </div>
           ) : (
             <Spinner label={t('editor.preview.preparing')}/>
           )

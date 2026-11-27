@@ -19,6 +19,7 @@ import {
   type LetterTrailWord,
 } from '../protocol';
 import { MOCK_WORDS } from './letterWords';
+import { withOutcomes } from './outcomes';
 
 
 // Dev mocks only (never in a production build, see src/activity.tsx): the api's Letter Trail played in the browser,
@@ -29,9 +30,9 @@ import { MOCK_WORDS } from './letterWords';
 
 const YOU = '300000000000000001';
 const BOTS: Array<GamePlayer> = [
-  {user_id: '300000000000000002', username: 'mochi', avatar_url: null, score: 0, streak: 0, connected: true},
-  {user_id: '300000000000000003', username: 'ferretking', avatar_url: null, score: 0, streak: 0, connected: true},
-  {user_id: '300000000000000004', username: 'quill', avatar_url: null, score: 0, streak: 0, connected: false},
+  {user_id: '300000000000000002', username: 'mochi', avatar_url: null, score: 0, streak: 0, connected: true, outcome: null},
+  {user_id: '300000000000000003', username: 'ferretking', avatar_url: null, score: 0, streak: 0, connected: true, outcome: null},
+  {user_id: '300000000000000004', username: 'quill', avatar_url: null, score: 0, streak: 0, connected: false, outcome: null},
 ];
 const LATENCY = 40;
 const AWARD_DELAY = 1200;
@@ -122,8 +123,10 @@ export class FakeLetterTrail extends FlagGameConnection {
   private soloStarted = false;
   private hold: boolean;
   private phase: 'lobby' | 'countdown' | 'round' | 'reveal' | 'finished';
+  // `&moderator=1` on the mock page, like FakeFlagGame's
+  private moderator: boolean;
 
-  constructor({ youHost = true, watch = false, dailyLeft = Infinity, visibility = 'server', solo = false, alone = false, settings, phase = 'lobby', hold = false }: {
+  constructor({ youHost = true, watch = false, dailyLeft = Infinity, visibility = 'server', solo = false, alone = false, settings, phase = 'lobby', hold = false, moderator = false }: {
     youHost?: boolean,
     watch?: boolean,
     dailyLeft?: number,
@@ -133,13 +136,15 @@ export class FakeLetterTrail extends FlagGameConnection {
     settings?: LetterTrailSettings,
     phase?: 'lobby' | 'countdown' | 'round' | 'reveal' | 'finished',
     hold?: boolean,
+    moderator?: boolean,
   } = {}) {
     super();
+    this.moderator = moderator;
     this.dailyLeft = dailyLeft;
     this.solo = solo;
     this.hold = hold;
     this.phase = phase;
-    const you: GamePlayer = {user_id: YOU, username: 'you_in_dev', avatar_url: null, score: 0, streak: 0, connected: true};
+    const you: GamePlayer = {user_id: YOU, username: 'you_in_dev', avatar_url: null, score: 0, streak: 0, connected: true, outcome: null};
     const players = (solo || alone) ? [you] : (watch) ? [...BOTS] : (youHost) ? [you, ...BOTS] : [BOTS[0], you, ...BOTS.slice(1)];
     const creator = (solo || alone || (youHost && !watch)) ? you : BOTS[0];
     this.game = {
@@ -178,14 +183,14 @@ export class FakeLetterTrail extends FlagGameConnection {
         this.soloStarted = this.solo;
         this.jumpTo(this.phase);
       }
-      this.emit({t: 'ready', you: YOU, now: Date.now(), game: this.copy()});
+      this.emitReady();
     }, 300);
   }
 
   close(): void {
     this.alive = false;
     this.clearTimers();
-    this.setStatus('closed');
+    this.setStatus('left');
   }
 
   loadFlag(flagUrl: string): Promise<string> {
@@ -203,11 +208,8 @@ export class FakeLetterTrail extends FlagGameConnection {
   }
 
   drop(ms = 4000): void {
-    this.setStatus('closed');
-    window.setTimeout(() => {
-      this.setStatus('connecting');
-      window.setTimeout(() => this.emit({t: 'ready', you: YOU, now: Date.now(), game: this.copy()}), 600);
-    }, ms);
+    this.setStatus('reconnecting');
+    window.setTimeout(() => this.emitReady(), ms + 600);
   }
 
   hostStart(): void {
@@ -290,8 +292,19 @@ export class FakeLetterTrail extends FlagGameConnection {
     return game;
   }
 
+  private emitReady(): void {
+    this.emit({t: 'ready', you: YOU, now: Date.now(), game: this.copy(), moderator: this.moderator});
+  }
+
   private broadcastState(): void {
     this.emit({t: 'state', now: Date.now(), game: this.copy()});
+  }
+
+  // only the sender gets the answer to its own op
+  private answerTo(from: string, event: GameServerEvent): void {
+    if (from === YOU) {
+      this.emit(event);
+    }
   }
 
   private handle(message: GameClientMessage, from: string): void {
@@ -311,21 +324,24 @@ export class FakeLetterTrail extends FlagGameConnection {
         break;
       }
       case 'start': {
+        // like the api: a refused op is an `error` with its op, never silence
         if (!host) {
+          this.answerTo(from, {t: 'error', op: 'start', message: 'Only the host can start the game'});
           return;
         }
-        this.game.players = this.game.players.map(({ awarded: _awarded, ...player }) => ({...player, score: 0, streak: 0}));
+        this.game.players = this.game.players.map(({ awarded: _awarded, ...player }) => ({...player, score: 0, streak: 0, outcome: null}));
         this.startRound(1);
         break;
       }
       case 'end': {
         if (!host) {
+          this.answerTo(from, {t: 'error', op: 'end', message: 'Only the host can end the game'});
           return;
         }
         const ended = this.game.phase === 'round' || this.game.phase === 'reveal';
         this.clearTimers();
         this.game = {...this.game, phase: 'lobby', round: null, reveal: null, standings: null};
-        this.game.players = this.game.players.map(({ awarded: _awarded, ...player }) => player);
+        this.game.players = this.game.players.map(({ awarded: _awarded, ...player }) => ({...player, outcome: null}));
         this.broadcastState();
         if (ended) {
           this.award();
@@ -351,7 +367,7 @@ export class FakeLetterTrail extends FlagGameConnection {
           return;
         }
         this.game.watchers = this.game.watchers.filter((entry) => entry.user_id !== from);
-        this.game.players = [...this.game.players, {...watcher, score: 0, streak: 0, connected: true}];
+        this.game.players = [...this.game.players, {...watcher, score: 0, streak: 0, connected: true, outcome: null}];
         this.game.you_watch = false;
         this.broadcastState();
         break;
@@ -552,7 +568,9 @@ export class FakeLetterTrail extends FlagGameConnection {
     this.game = {
       ...this.game,
       phase: 'finished',
-      standings: [...this.game.players].sort((a, b) => b.score - a.score).map((player) => ({user_id: player.user_id, score: player.score})),
+      // each player's record from it, like the api's
+      players: withOutcomes(this.game.players, this.game.room.solo),
+      standings: [...this.game.players].sort((a, b) => b.score - a.score).map((player) => ({user_id: player.user_id, score: player.score, awarded: null})),
     };
     this.broadcastState();
     this.award();
@@ -574,6 +592,7 @@ export class FakeLetterTrail extends FlagGameConnection {
     this.later(() => {
       if (this.game.phase === 'finished') {
         this.game.players = this.game.players.map((player) => (player.user_id in awards) ? {...player, awarded: awards[player.user_id]} : player);
+        this.game.standings = this.game.standings?.map((row) => (row.user_id in awards) ? {...row, awarded: awards[row.user_id]} : row) ?? null;
       }
       this.emit({t: 'awarded', awards, now: Date.now()});
     }, AWARD_DELAY);

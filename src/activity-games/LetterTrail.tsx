@@ -7,7 +7,8 @@ import { cn } from '@/lib/utils';
 
 import type { FlagGameConnection, GameSnapshot, WordResult } from './connection';
 import { playerOf, rankedPlayers, useServerNow } from './hooks';
-import { findTrail, longEnough, tileFace, touching, wordOf, wordPoints } from './letterTrailBoard';
+import { findTrail, longEnough, tileFace, tileLetters, wordOf, wordPoints } from './letterTrailBoard';
+import { IDLE_TRAIL, trailPath, trailReduce, type Trail, type TrailEvent } from './letterTrailInput';
 import { PlayerFace, ScoresList, ScoresStrip, TimeBar } from './parts';
 import {
   LETTER_TRAIL_REVEAL_MS,
@@ -29,6 +30,10 @@ import { Countdown, WatchingPanel } from './Round';
 const DRAG_HIT = 0.35;
 // how long a word's answer lights its tiles
 const FLASH_MS = 700;
+// a drag whose pointer has said nothing for this long gives way to another pointer coming down: one whose end never
+// got here (a webview that dropped it) would otherwise have every later finger ignored as "the second one" until the
+// round was over
+const DRAG_STALE_MS = 1500;
 
 
 function upper(word: string): string {
@@ -45,8 +50,9 @@ function trailPoints(path: ReadonlyArray<number>, size: number): string {
 type TrailTone = 'build' | 'hit' | 'miss' | 'show';
 
 // The grid: its tiles (the x2 one marked), the trail lit with a line through it, and a second trail the last answer
-// lit (`flash`). Square, its letters sized by its own width. Only the tiles, a parent handles pointers
-function BoardGrid({ board, size, bonus, path, tone = 'build', flash, className, gridRef, dim = false, ...handlers }: {
+// lit (`flash`). Square, its letters sized by its own width. Only the tiles, a parent handles pointers. Each tile says
+// which it is, its letters and how it's lit (`data-tile`, `data-letter`, `data-tone`), for a test or an agent to read
+function BoardGrid({ board, size, bonus, path, tone = 'build', flash, className, gridRef, dim = false, playable = false, ...handlers }: {
   board: ReadonlyArray<string> | null,
   size: number,
   bonus: number | null,
@@ -56,10 +62,13 @@ function BoardGrid({ board, size, bonus, path, tone = 'build', flash, className,
   className?: string,
   gridRef?: Ref<HTMLDivElement>,
   dim?: boolean,
+  // tiles that can be picked now: a pointer cursor, and an unlit tile shows it's hovered (only where there's hover)
+  playable?: boolean,
   onPointerDown?: (event: ReactPointerEvent<HTMLDivElement>) => void,
   onPointerMove?: (event: ReactPointerEvent<HTMLDivElement>) => void,
   onPointerUp?: (event: ReactPointerEvent<HTMLDivElement>) => void,
   onPointerCancel?: (event: ReactPointerEvent<HTMLDivElement>) => void,
+  onLostPointerCapture?: (event: ReactPointerEvent<HTMLDivElement>) => void,
 }) {
   const { t } = useI18n();
   const lit = new Set(path);
@@ -76,7 +85,7 @@ function BoardGrid({ board, size, bonus, path, tone = 'build', flash, className,
         ref={gridRef}
         role='img'
         aria-label={label}
-        className={cn('relative grid aspect-square w-full touch-none select-none', dim && 'opacity-60')}
+        className={cn('relative grid aspect-square w-full touch-none select-none', dim && 'opacity-60', playable && 'cursor-pointer')}
         style={{gridTemplateColumns: `repeat(${size}, minmax(0, 1fr))`, fontSize: `calc(100cqw / ${size} * 0.44)`, WebkitUserSelect: 'none', WebkitTouchCallout: 'none'}}
         {...handlers}
       >
@@ -86,6 +95,9 @@ function BoardGrid({ board, size, bonus, path, tone = 'build', flash, className,
           return (
             <div key={index} aria-hidden className='p-[4%]'>
               <div
+                data-tile={index}
+                data-letter={(tile) ? tileLetters(tile) : undefined}
+                data-tone={tileTone ?? undefined}
                 className={cn(
                   'relative flex size-full items-center justify-center rounded-[18%] border-2 font-display leading-none font-bold transition-colors duration-100',
                   (!tile) && 'border-line bg-surface/60',
@@ -95,6 +107,7 @@ function BoardGrid({ board, size, bonus, path, tone = 'build', flash, className,
                   (tileTone === 'hit') && 'border-success bg-success text-white',
                   (tileTone === 'miss') && 'border-danger bg-danger/70 text-white',
                   (isBonus && tile && !tileTone) && 'border-warning/80 bg-warning/15',
+                  (playable && tile && !tileTone) && 'hover:border-brand/70 hover:brightness-125',
                 )}
               >
                 {/* letters sit above the trail line (z-2 over the svg's z-1), with a dark halo on a lit tile so a white
@@ -162,7 +175,34 @@ function missText(result: WordResult, t: ReturnType<typeof useI18n>['t']): strin
     case 'repeat': return (word) ? t('games.letters.miss_repeat', {word}) : t('games.letters.miss_repeat_short');
     case 'closed': return t('games.letters.miss_closed');
     case 'board': return t('games.letters.miss_board', {word});
+    case 'not_word':
+    // a reason this page doesn't know (an api newer than it), or none: said as the plainest one
     default: return (word) ? t('games.letters.miss_not_word', {word}) : t('games.letters.miss_not_word_short');
+  }
+}
+
+
+// Where a round is for whoever's looking at it: the "3, 2, 1" before a game's first round, the moment after it with no
+// board yet (it comes with a `state`), playing, only watching, or its time up (until the api's reveal comes)
+type RoundPhase = 'countdown' | 'dealing' | 'playing' | 'watching' | 'over';
+
+// a mouse (or trackpad) rather than a finger: there's a keyboard to type words on, and tiles can show they're hovered
+function hasMouse(): boolean {
+  return typeof window !== 'undefined' && Boolean(window.matchMedia?.('(hover: hover) and (pointer: fine)').matches);
+}
+
+// what the word line says when no word's being built and no answer's fresh (with a mouse, that typing works too)
+function phaseHint(phase: RoundPhase, t: ReturnType<typeof useI18n>['t'], mouse: boolean): string {
+  switch (phase) {
+    case 'countdown': return '';
+    case 'dealing':
+    case 'playing': return t((mouse) ? 'games.letters.how_hint_keys' : 'games.letters.how_hint');
+    case 'watching': return t('games.rooms.watching');
+    case 'over': return t('games.letters.times_up');
+    default: {
+      const unknown: never = phase;
+      return unknown;
+    }
   }
 }
 
@@ -181,20 +221,28 @@ export function LetterTrailRound({ connection, snapshot, game, round }: {
   const now = useServerNow(connection, true);
   const total = Math.max(1, round.ends_at - round.started_at);
   const countdown = (now < round.started_at) ? Math.ceil((round.started_at - now) / 1000) : 0;
-  const remaining = Math.min(total, Math.max(0, round.ends_at - now));
+  // its time's up once and stays up: a better sample of the api's clock can put `now` back a moment, which showed
+  // "Time's up", emptied the trail and then let them play again. Kept by the end it passed, a round the api made
+  // longer isn't over
+  const endedAt = useRef<number | null>(null);
+  if (round.ends_at <= now) {
+    endedAt.current = round.ends_at;
+  }
+  const over = endedAt.current === round.ends_at;
+  const remaining = (over) ? 0 : Math.min(total, Math.max(0, round.ends_at - now));
   const fraction = remaining / total;
   const seconds = Math.ceil(remaining / 1000);
   const tone = (fraction > 0.34) ? 'brand' : (fraction > 0.15) ? 'warning' : 'danger';
-  const over = remaining <= 0;
   const board = round.board;
-  const playing = !game.you_watch && Boolean(board) && !countdown && !over;
+  // the one place that says where the round is (`data-phase` on the screen has it too)
+  const phase: RoundPhase = (over) ? 'over' : (countdown) ? 'countdown' : (game.you_watch) ? 'watching' : (!board) ? 'dealing' : 'playing';
   const you = snapshot.you;
   const solo = Boolean(game.room.solo);
   const yourCount = Math.max(snapshot.words.length, (you) ? round.counts[you] ?? 0 : 0);
 
   return (
-    <div className='relative mx-auto flex w-full max-w-5xl flex-1 flex-col gap-3 px-4 pt-3 pb-[calc(1rem+var(--saib,0px))] lg:grid lg:grid-cols-[minmax(0,1fr)_17rem] lg:items-start lg:gap-8'>
-      {(countdown) ? <Countdown value={countdown}/> : null}
+    <div data-phase={phase} className='relative mx-auto flex w-full max-w-5xl flex-1 flex-col gap-3 px-4 pt-3 pb-[calc(1rem+var(--saib,0px))] lg:grid lg:grid-cols-[minmax(0,1fr)_17rem] lg:items-start lg:gap-8'>
+      {(phase === 'countdown') ? <Countdown value={countdown}/> : null}
       <div className='flex min-w-0 flex-col gap-3'>
         {(solo) ? null : <CountsStrip game={game} round={round} you={you}/>}
         <div className='flex items-center gap-2'>
@@ -208,7 +256,7 @@ export function LetterTrailRound({ connection, snapshot, game, round }: {
           </span>
         </div>
         <TimeBar fraction={fraction} tone={tone} label={t('games.flag.time_left')}/>
-        <TrailPlay connection={connection} snapshot={snapshot} game={game} round={round} playing={playing} over={over}/>
+        <TrailPlay connection={connection} snapshot={snapshot} game={game} round={round} phase={phase}/>
       </div>
       <aside className='flex min-w-0 flex-col gap-4'>
         {(solo) ? null : <CountsList game={game} round={round} you={you} className='hidden lg:flex'/>}
@@ -220,52 +268,79 @@ export function LetterTrailRound({ connection, snapshot, game, round }: {
 
 
 // the word line, the grid and the buttons under it: everything a pointer or a key changes
-function TrailPlay({ connection, snapshot, game, round, playing, over }: {
+function TrailPlay({ connection, snapshot, game, round, phase }: {
   connection: FlagGameConnection,
   snapshot: GameSnapshot,
   game: LetterTrailState,
   round: LetterTrailRoundState,
-  playing: boolean,
-  over: boolean,
+  phase: RoundPhase,
 }) {
   const { t, plural } = useI18n();
   const board = round.board;
   const size = round.size;
-  const [ path, setPathState ] = useState<Array<number>>([]);
-  // letters typed on a keyboard (null when the trail is from a pointer), and whether they're on the board at all
-  const [ typed, setTypedState ] = useState<string | null>(null);
-  const pathRef = useRef<Array<number>>([]);
-  const typedRef = useRef<string | null>(null);
+  const playing = phase === 'playing';
+  // the word being built: nothing, tiles tapped, a drag in progress, or letters typed (./letterTrailInput has every
+  // state and what each pointer and key does to it). In a ref too: two events can come before a render
+  const [ trail, setTrailState ] = useState<Trail>(IDLE_TRAIL);
+  const trailRef = useRef<Trail>(IDLE_TRAIL);
   const gridRef = useRef<HTMLDivElement>(null);
   const areaRef = useRef<HTMLDivElement>(null);
   const shakeRef = useRef<HTMLDivElement>(null);
-  // a pointer on the grid: which, whether it went on to another tile (a drag), whether it came down on the trail's last
-  // tile (a tap there sends it)
-  const drag = useRef<{pointerId: number, moved: boolean, onLast: boolean} | null>(null);
   const { result: fresh, lit } = useFreshResult(snapshot.word);
   const lastShake = useRef(0);
+  const [ mouse ] = useState(hasMouse);
 
-  const setPath = (next: Array<number>) => {
-    pathRef.current = next;
-    setPathState(next);
+  // the trail after an event, and the tiles it asks to send (if any)
+  const apply = (event: TrailEvent): Array<number> | null => {
+    const step = trailReduce(trailRef.current, event, {board: board ?? [], size});
+    if (step.trail !== trailRef.current) {
+      trailRef.current = step.trail;
+      setTrailState(step.trail);
+    }
+    return step.send;
   };
-  const setTyped = (next: string | null) => {
-    typedRef.current = next;
-    setTypedState(next);
+
+  // sends the tiles as a word (or says why not): too short and already yours are known here, the api says the rest
+  const submit = (tiles: Array<number>) => {
+    if (!board || !playing || !tiles.length) {
+      return;
+    }
+    const word = wordOf(board, tiles);
+    if (!longEnough(word)) {
+      connection.localMiss(tiles, word, 'short');
+      apply({type: 'clear'});
+      return;
+    }
+    if (snapshot.words.some((entry) => entry.word === word)) {
+      connection.localMiss(tiles, word, 'repeat');
+      apply({type: 'clear'});
+      return;
+    }
+    // not sent (a moment after the last one, or the socket's reconnecting): the trail stays to send again
+    if (connection.word(tiles)) {
+      apply({type: 'clear'});
+    }
   };
-  const clear = () => {
-    setPath([]);
-    setTyped(null);
+
+  // every pointer and key comes through here
+  const dispatch = (event: TrailEvent) => {
+    const send = apply(event);
+    if (send) {
+      submit(send);
+    }
   };
+  // when the dragging pointer last said anything (down or a move), see DRAG_STALE_MS
+  const dragSeenRef = useRef(0);
+  // and where it was then, to follow its moves along the line between them
+  const dragPointRef = useRef<{clientX: number, clientY: number} | null>(null);
+  // the latest one, for the listeners set up once
+  const act = useRef(dispatch);
+  act.current = dispatch;
 
   // nothing to play once it's over (or for a watcher)
   useEffect(() => {
     if (!playing) {
-      drag.current = null;
-      pathRef.current = [];
-      typedRef.current = null;
-      setPathState([]);
-      setTypedState(null);
+      act.current({type: 'stop'});
     }
   }, [playing]);
 
@@ -288,28 +363,6 @@ function TrailPlay({ connection, snapshot, game, round, playing, over }: {
       {transform: 'translateX(0)'},
     ], {duration: 380, easing: 'ease-in-out'});
   }, [snapshot.word]);
-
-  // sends the trail (or says why not): too short and already yours are known here, the api says the rest
-  const submit = (trail: Array<number>) => {
-    if (!board || !playing || !trail.length) {
-      return;
-    }
-    const word = wordOf(board, trail);
-    if (!longEnough(word)) {
-      connection.localMiss(trail, word, 'short');
-      clear();
-      return;
-    }
-    if (snapshot.words.some((entry) => entry.word === word)) {
-      connection.localMiss(trail, word, 'repeat');
-      clear();
-      return;
-    }
-    // not sent (a moment after the last one, or the socket's reconnecting): the trail stays to send again
-    if (connection.word(trail)) {
-      clear();
-    }
-  };
 
   // the tile under a pointer: anywhere in its square when it comes down, near its centre while dragging
   const tileAt = (event: {clientX: number, clientY: number}, near: boolean): number | null => {
@@ -340,95 +393,96 @@ function TrailPlay({ connection, snapshot, game, round, playing, over }: {
     if (tile === null) {
       return;
     }
+    const held = trailRef.current;
+    if (held.kind === 'dragging' && held.pointerId !== event.pointerId && performance.now() - dragSeenRef.current > DRAG_STALE_MS) {
+      dispatch({type: 'cancel', pointerId: held.pointerId});
+    }
+    const before = trailRef.current;
+    dispatch({type: 'down', tile, pointerId: event.pointerId});
+    // another finger while one's dragging: the trail's as it was, and this pointer isn't followed
+    if (trailRef.current === before) {
+      return;
+    }
+    dragSeenRef.current = performance.now();
+    dragPointRef.current = {clientX: event.clientX, clientY: event.clientY};
     event.preventDefault();
     try {
       event.currentTarget.setPointerCapture(event.pointerId);
     } catch {
       // a pointer that's already gone: its moves just won't follow it off the grid
     }
-    // a typed word gives way to the pointer, its trail stays to go on from
-    setTyped(null);
-    const current = pathRef.current;
-    const last = current[current.length - 1];
-    const onLast = last === tile;
-    if (!onLast) {
-      setPath((last !== undefined && !current.includes(tile) && touching(last, tile, size)) ? [...current, tile] : [tile]);
-    }
-    drag.current = {pointerId: event.pointerId, moved: false, onLast};
   };
 
   const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const pointer = drag.current;
-    if (!pointer || pointer.pointerId !== event.pointerId) {
+    const current = trailRef.current;
+    if (current.kind !== 'dragging' || current.pointerId !== event.pointerId) {
       return;
     }
-    const tile = tileAt(event, true);
-    const current = pathRef.current;
-    const last = current[current.length - 1];
-    if (tile === null || tile === last) {
+    // a mouse with no button down is one whose pointerup never came (let go outside the window): the drag's over,
+    // or the trail would go on growing under a hover
+    if (event.pointerType === 'mouse' && event.buttons === 0) {
+      dispatch({type: 'cancel', pointerId: event.pointerId});
       return;
     }
-    if (2 <= current.length && tile === current[current.length - 2]) {
-      // back onto the tile before: that step's undone
-      pointer.moved = true;
-      setPath(current.slice(0, -1));
-    } else if (last !== undefined && !current.includes(tile) && touching(last, tile, size)) {
-      pointer.moved = true;
-      setPath([...current, tile]);
+    dragSeenRef.current = performance.now();
+    // every tile on the way from where it was, not only where it is now: a mouse flicked across the grid can move a
+    // whole tile between two events, and the tile it jumped over left the next one not touching the trail
+    const from = dragPointRef.current;
+    const to = {clientX: event.clientX, clientY: event.clientY};
+    dragPointRef.current = to;
+    const cell = (gridRef.current?.getBoundingClientRect().width ?? 0) / size;
+    const steps = (from && cell) ? Math.min(64, Math.ceil(Math.hypot(to.clientX - from.clientX, to.clientY - from.clientY) / (cell / 8))) : 0;
+    for (let step = 1; step <= Math.max(1, steps); step++) {
+      const at = (from && steps) ? {
+        clientX: from.clientX + (to.clientX - from.clientX) * (step / steps),
+        clientY: from.clientY + (to.clientY - from.clientY) * (step / steps),
+      } : to;
+      const tile = tileAt(at, true);
+      if (tile !== null) {
+        dispatch({type: 'move', tile, pointerId: event.pointerId});
+      }
     }
   };
 
   const onPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const pointer = drag.current;
-    if (!pointer || pointer.pointerId !== event.pointerId) {
-      return;
-    }
-    drag.current = null;
-    const current = pathRef.current;
-    if (pointer.moved) {
-      // a drag sends as it's let go, one dragged back to where it started is nothing
-      if (current.length <= 1) {
-        clear();
-      } else {
-        submit(current);
-      }
-    } else if (pointer.onLast) {
-      // the trail's only tile tapped again lets go of it, a longer trail's last one sends it
-      if (current.length <= 1) {
-        clear();
-      } else {
-        submit(current);
-      }
-    }
+    dispatch({type: 'up', pointerId: event.pointerId});
   };
 
   const onPointerCancel = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (drag.current?.pointerId === event.pointerId) {
-      drag.current = null;
+    dispatch({type: 'cancel', pointerId: event.pointerId});
+  };
+
+  // the grid itself lost the pointer with no pointerup (after one, the drag's already over and this does nothing).
+  // Only its own: a finger's first move also sends one up from the tile it came down on, as the capture moves from
+  // that tile to the grid
+  const onLostPointerCapture = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.target === event.currentTarget) {
+      dispatch({type: 'cancel', pointerId: event.pointerId});
     }
   };
 
-  // a tap anywhere but the grid and its buttons clears the trail
+  // a tap anywhere but the grid and its buttons clears the trail. And a pointer let go where the grid didn't hear of
+  // it ends its drag (the grid's own handler has run by now when it did hear): with a drag left open, every later
+  // finger would be the second one
   useEffect(() => {
     const onDown = (event: PointerEvent) => {
-      if (!pathRef.current.length && typedRef.current === null) {
-        return;
-      }
       if (areaRef.current && event.target instanceof Node && areaRef.current.contains(event.target)) {
         return;
       }
-      pathRef.current = [];
-      typedRef.current = null;
-      setPathState([]);
-      setTypedState(null);
+      act.current({type: 'outsideTap'});
     };
+    const onEnd = (event: PointerEvent) => act.current({type: 'cancel', pointerId: event.pointerId});
     document.addEventListener('pointerdown', onDown);
-    return () => document.removeEventListener('pointerdown', onDown);
+    document.addEventListener('pointerup', onEnd);
+    document.addEventListener('pointercancel', onEnd);
+    return () => {
+      document.removeEventListener('pointerdown', onDown);
+      document.removeEventListener('pointerup', onEnd);
+      document.removeEventListener('pointercancel', onEnd);
+    };
   }, []);
 
   // typing: each letter finds the word so far on the board (keeping the trail shown when it still fits)
-  const keys = useRef({submit, clear});
-  keys.current = {submit, clear};
   useEffect(() => {
     if (!playing || !board) {
       return;
@@ -448,38 +502,37 @@ function TrailPlay({ connection, snapshot, game, round, playing, over }: {
       const key = event.key;
       if (/^[a-zA-Z]$/.test(key)) {
         event.preventDefault();
-        const next = (typedRef.current ?? '') + key.toLowerCase();
-        const trail = findTrail(board, size, next, pathRef.current);
-        setTyped(next);
-        setPath(trail ?? []);
+        // a button still focused from a click (How to play once it's closed, the one under the grid) would take the
+        // word's Enter for itself: typing takes the focus off it
+        const focused = document.activeElement;
+        if (trailRef.current.kind !== 'dragging' && focused instanceof HTMLElement && focused.closest('button')) {
+          focused.blur();
+        }
+        act.current({type: 'letter', letter: key.toLowerCase()});
       } else if (key === 'Backspace') {
         event.preventDefault();
-        const current = typedRef.current;
-        if (current) {
-          const next = current.slice(0, -1);
-          setTyped((next) ? next : null);
-          setPath((next) ? findTrail(board, size, next, pathRef.current) ?? [] : []);
-        } else if (pathRef.current.length) {
-          setPath(pathRef.current.slice(0, -1));
-        }
+        act.current({type: 'backspace'});
       } else if (key === 'Enter') {
         event.preventDefault();
-        const current = typedRef.current;
-        if (current && !pathRef.current.length) {
+        const current = trailRef.current;
+        if (current.kind === 'typed' && !current.path.length) {
           // letters that aren't on the board: said, never sent
-          connection.localMiss([], current, 'board');
-          keys.current.clear();
-        } else if (pathRef.current.length) {
-          keys.current.submit(pathRef.current);
+          connection.localMiss([], current.letters, 'board');
+          act.current({type: 'clear'});
+        } else {
+          act.current({type: 'enter'});
         }
       } else if (key === 'Escape') {
-        keys.current.clear();
+        act.current({type: 'escape'});
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [playing, board, size, connection]);
+  }, [playing, board, connection]);
 
+  const path = trailPath(trail);
+  // letters typed on a keyboard (null when the trail is from a pointer), and whether they're on the board at all
+  const typed = (trail.kind === 'typed') ? trail.letters : null;
   const building = (board && path.length) ? wordOf(board, path) : '';
   const offBoard = typed !== null && !path.length;
   const throughBonus = round.bonus !== null && path.includes(round.bonus);
@@ -487,13 +540,18 @@ function TrailPlay({ connection, snapshot, game, round, playing, over }: {
   const flash = (fresh?.path?.length && lit) ? {path: fresh.path, tone: (fresh.ok) ? 'hit' as const : 'miss' as const} : null;
 
   return (
-    <div ref={areaRef} className='flex flex-col items-center gap-3'>
+    <div ref={areaRef} data-trail={trail.kind} className='flex flex-col items-center gap-3'>
       {/* the answers, read out (the word line below changes with every tile) */}
       <p aria-live='polite' className='sr-only'>
         {(fresh) ? ((fresh.ok) ? t('games.letters.hit', {word: upper(fresh.word ?? ''), points: fresh.points ?? 0}) : missText(fresh, t)) : ''}
       </p>
-      {/* the word line: the word being built, or the last answer, or how to play. Always this tall */}
-      <div aria-hidden={Boolean(fresh) && !building && !offBoard} className='flex h-12 w-full items-center justify-center text-center'>
+      {/* the word line: the word being built, or the last answer, or how to play. Always this tall. `data-result` is
+          the last answer for as long as it's fresh, shown or under the word being built */}
+      <div
+        aria-hidden={Boolean(fresh) && !building && !offBoard}
+        data-result={(!fresh) ? undefined : (fresh.ok) ? 'hit' : (fresh.reason) ? `miss:${fresh.reason}` : 'miss'}
+        className='flex h-12 w-full items-center justify-center text-center'
+      >
         {(building || offBoard) ? (
           <span className='flex items-baseline gap-2'>
             <span className={cn('font-display text-3xl font-bold tracking-[0.12em]', (offBoard) ? 'text-danger-text' : 'text-white')}>
@@ -516,7 +574,7 @@ function TrailPlay({ connection, snapshot, game, round, playing, over }: {
             <span key={fresh.at} className='text-sm font-semibold text-danger-text'>{missText(fresh, t)}</span>
           )
         ) : (
-          <span className='text-sm text-subtle'>{(over) ? t('games.letters.times_up') : t('games.letters.how_hint')}</span>
+          <span className='text-sm text-subtle'>{phaseHint(phase, t, mouse)}</span>
         )}
       </div>
 
@@ -529,11 +587,13 @@ function TrailPlay({ connection, snapshot, game, round, playing, over }: {
           tone={(offBoard) ? 'miss' : 'build'}
           flash={flash}
           gridRef={gridRef}
-          dim={over}
+          dim={phase === 'over'}
+          playable={playing}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerCancel}
+          onLostPointerCapture={onLostPointerCapture}
         />
       </div>
 
@@ -545,22 +605,17 @@ function TrailPlay({ connection, snapshot, game, round, playing, over }: {
             type='button'
             aria-label={t('games.letters.clear')}
             title={t('games.letters.clear')}
-            disabled={!path.length && typed === null}
-            onClick={() => {
-              if (pathRef.current.length > 1 && typedRef.current === null) {
-                setPath(pathRef.current.slice(0, -1));
-              } else {
-                clear();
-              }
-            }}
+            disabled={trail.kind === 'idle'}
+            onClick={() => dispatch({type: 'back'})}
             className='btn btn-secondary h-12 rounded-xl px-4'
           >
             {(path.length > 1 && typed === null) ? <Delete aria-hidden className='size-4'/> : <X aria-hidden className='size-4'/>}
           </button>
+          {/* off while the socket's reconnecting too: a word can't go out then, the strip over the game says why */}
           <button
             type='button'
-            disabled={!playing || !longEnough(building)}
-            onClick={() => submit(pathRef.current)}
+            disabled={!playing || snapshot.status !== 'open' || !longEnough(building)}
+            onClick={() => dispatch({type: 'enter'})}
             className='btn btn-primary h-12 rounded-xl'
           >
             <SendHorizontal aria-hidden className='size-4'/>
@@ -710,7 +765,14 @@ export function LetterTrailReveal({ connection, snapshot, game, reveal }: {
   const you = snapshot.you;
   const isHost = Boolean(you) && game.host_id === you;
   const [ picked, setPicked ] = useState<string | null>(null);
-  const [ nexted, setNexted ] = useState(false);
+  // the host's Next: sent once, and theirs to press again when it can't have gone through (the api refused something,
+  // or the socket dropped). The reveal ends by itself anyway
+  const [ next, setNext ] = useState<'idle' | 'sent'>('idle');
+  useEffect(() => {
+    if (snapshot.error || snapshot.status !== 'open') {
+      setNext('idle');
+    }
+  }, [snapshot.error, snapshot.status]);
   const order = rankedPlayers(game).map((player) => player.user_id);
   // their words, best round first (the game's standings break ties)
   const rows = [...reveal.players].sort((a, b) => b.round_score - a.round_score || order.indexOf(a.user_id) - order.indexOf(b.user_id));
@@ -724,7 +786,7 @@ export function LetterTrailReveal({ connection, snapshot, game, reveal }: {
   const nextLabel = (last) ? t('games.letters.reveal_final_next') : t('games.letters.reveal_next');
 
   return (
-    <div className='mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4 px-4 pt-3 lg:grid lg:pb-[calc(1rem+var(--saib,0px))] lg:grid-cols-[minmax(0,1fr)_17rem] lg:items-start lg:gap-8'>
+    <div data-phase='reveal' className='mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4 px-4 pt-3 lg:grid lg:pb-[calc(1rem+var(--saib,0px))] lg:grid-cols-[minmax(0,1fr)_17rem] lg:items-start lg:gap-8'>
       <div className='flex min-w-0 flex-col gap-4'>
         {(solo) ? null : <ScoresStrip game={game} you={you}/>}
         <div className='flex flex-col items-center gap-1 text-center'>
@@ -804,10 +866,10 @@ export function LetterTrailReveal({ connection, snapshot, game, reveal }: {
             <button
               type='button'
               className='btn btn-secondary min-h-11 w-full lg:w-auto'
-              disabled={nexted}
+              disabled={next === 'sent'}
               onClick={() => {
                 if (connection.next()) {
-                  setNexted(true);
+                  setNext('sent');
                 }
               }}
             >

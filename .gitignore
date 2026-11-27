@@ -10,5 +10,7 @@ dist
 .DS_Store
 .wrangler
 .vite
+# vitest's own output (its json report)
+.vitest
 # local editor/agent tooling
 .claude

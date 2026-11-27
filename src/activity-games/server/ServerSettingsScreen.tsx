@@ -36,7 +36,7 @@ export function ServerSettingsScreen({ guildId, guild, ...host }: {
         if (guild && !settingsQueryClient.getQueryData(key)) {
           settingsQueryClient.setQueryData(key, guild);
         }
-        return createSettingsRouter({
+        return createSettingsRouter('server_settings', {
           // the dashboard's server subtree (`/dashboard/servers/:guildId/<tab>`, the same tab routes), opening on Music.
           // Its Settings tab is the Activity's own (./ActivityServerSettingsPage)
           path: Routes.DASHBOARD_SERVER,
@@ -65,7 +65,7 @@ function SettingsLayout() {
   const home = !!useMatch({path: Routes.DASHBOARD_SERVER, end: true});
 
   return (
-    <SettingsFrame dashboardUrl={`${siteUrl}${dashboardServerPath(guildId)}`}>
+    <SettingsFrame screen='server_settings' state={(guild) ? 'ready' : (isPending) ? 'loading' : 'error'} dashboardUrl={`${siteUrl}${dashboardServerPath(guildId)}`}>
       {(home && (guild || isPending)) ? <HomeQueries guildId={guildId}/> : null}
       {(guild) ? (
         // keyed by the server like the dashboard's, nothing of one server's carries over onto another

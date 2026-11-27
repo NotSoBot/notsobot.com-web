@@ -1,5 +1,5 @@
 import { ArrowLeft, Eye, Globe, Lock, Play, Plus, User, Users, Zap } from 'lucide-react';
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type RefObject } from 'react';
 
 import { HowToPlayButton } from '@/components/guides/GuideSheet';
 import { DialogError } from '@/components/ui/DialogError';
@@ -88,18 +88,38 @@ interface RoomPages {
 }
 
 
+// the next page: nothing going on, on its way, or it failed (a Retry shows, nothing asks again by itself in a loop)
+type MoreState = 'idle' | 'loading' | 'error';
+
+
 // One tab's rooms, a page at a time (`loadMore` on scroll), with both tabs' counts. Live: a change in the tab shown
 // refetches what's been scrolled through, a change in the other one only its count (later, a burst is one fetch). No
 // polling: fetched on a new query, then again when the socket says a room changed or reconnects, or once it's shown
-// again after a change while hidden
+// again after a change while hidden.
+// One fetch of the list at a time (`inflight`), a refetch or the next page: side by side, a refetch that started first
+// took the page just loaded away again, and one that started second dropped that page's answer with nothing to ask
+// for it again (the cursors are offsets, so the list looked the same and the scroll sentinel never fired)
 function useRoomPages(api: GameRoomsApi, feed: GameRoomsFeed, query: RoomsQuery, errorOf: (error: unknown) => EditorApiError | null, failed: string) {
   const [ pages, setPages ] = useState<RoomPages>({rooms: null, next: null, loading: true, error: null});
   const [ counts, setCounts ] = useState<Record<GameRoomTab, number> | null>(null);
-  const [ loadingMore, setLoadingMore ] = useState(false);
-  // the first page failed: asked again (the Try again button)
+  const [ more, setMore ] = useState<MoreState>('idle');
+  // the list failed to load: asked again (the Try again button)
   const [ attempt, setAttempt ] = useState(0);
-  // what the listeners and `loadMore` read: only the latest fetch's answer counts (an older one can come back last)
-  const live = useRef({generation: 0, pages: 1, next: null as string | null, more: false, query});
+  // goes up when a next page that was asked for while a refetch was under way can be asked for again: the scroll
+  // sentinel's observer is made again on it (an observer only calls on a change)
+  const [ rearmed, setRearmed ] = useState(0);
+  // what the listeners and `loadMore` read: only the latest fetch's answer counts (an older one can come back last).
+  // `inflight`: the one fetch under way. `missed`: the next page was asked for during a refetch. `freed`: the query's
+  // own, called when a next page is done (a refetch may have been waiting for it)
+  const live = useRef({
+    generation: 0,
+    pages: 1,
+    next: null as string | null,
+    inflight: null as 'refresh' | 'more' | null,
+    missed: false,
+    freed: null as (() => void) | null,
+    query,
+  });
   const { tab, game, q, sort } = query;
 
   useEffect(() => {
@@ -108,13 +128,16 @@ function useRoomPages(api: GameRoomsApi, feed: GameRoomsFeed, query: RoomsQuery,
     state.query = {tab, game, q, sort};
     state.pages = 1;
     state.next = null;
+    // the last query's fetch (if one's still out) isn't this one's: its answer is dropped and it frees nothing
+    state.inflight = null;
+    state.missed = false;
     setPages((current) => ({rooms: (tabChanged) ? null : current.rooms, next: null, loading: true, error: null}));
+    setMore('idle');
     let alive = true;
     let refreshTimer: number | null = null;
     let countTimer: number | null = null;
     let stale = false;
-    // one refetch at a time: a change during one asks once more after it, never a second chain of pages beside it
-    let fetching = false;
+    // one fetch at a time: a change during one asks once more after it, never a second chain of pages beside it
     let again = false;
 
     const fetchPages = async (count: number, generation: number): Promise<GameRoomList & {all: Array<GameRoomSummary>}> => {
@@ -126,7 +149,7 @@ function useRoomPages(api: GameRoomsApi, feed: GameRoomsFeed, query: RoomsQuery,
         all = mergeRooms(all, last.rooms);
         cursor = last.next_cursor;
         if (generation !== state.generation) {
-          // nobody's waiting for the rest (a new query, or more was loaded meanwhile)
+          // nobody's waiting for the rest (a new query)
           break;
         }
       }
@@ -137,12 +160,12 @@ function useRoomPages(api: GameRoomsApi, feed: GameRoomsFeed, query: RoomsQuery,
         stale = true;
         return;
       }
-      if (fetching) {
+      if (state.inflight !== null) {
         again = true;
         return;
       }
       stale = false;
-      fetching = true;
+      state.inflight = 'refresh';
       const generation = ++state.generation;
       fetchPages(Math.min(state.pages, REFRESH_MAX_PAGES), generation).then((result) => {
         if (alive && generation === state.generation) {
@@ -157,8 +180,16 @@ function useRoomPages(api: GameRoomsApi, feed: GameRoomsFeed, query: RoomsQuery,
           setPages((current) => ({rooms: current.rooms, next: current.next, loading: false, error: errorOf(failure)?.message || failed}));
         }
       }).finally(() => {
-        fetching = false;
-        if (again && alive) {
+        if (!alive || generation !== state.generation) {
+          return;
+        }
+        state.inflight = null;
+        if (state.missed) {
+          // the end of the list was reached meanwhile: its sentinel is looked at again
+          state.missed = false;
+          setRearmed((value) => value + 1);
+        }
+        if (again) {
           again = false;
           refreshSoon();
         }
@@ -191,6 +222,13 @@ function useRoomPages(api: GameRoomsApi, feed: GameRoomsFeed, query: RoomsQuery,
         refresh();
       }
     };
+    // a next page is done: a change that came during it is fetched now
+    state.freed = () => {
+      if (again) {
+        again = false;
+        refreshSoon();
+      }
+    };
     refresh();
     const unsubscribe = feed.subscribe((event) => {
       if (event.t === 'game_rooms_changed') {
@@ -213,6 +251,7 @@ function useRoomPages(api: GameRoomsApi, feed: GameRoomsFeed, query: RoomsQuery,
       alive = false;
       // a page still loading belongs to the old query
       state.generation++;
+      state.freed = null;
       if (refreshTimer !== null) {
         window.clearTimeout(refreshTimer);
       }
@@ -227,31 +266,43 @@ function useRoomPages(api: GameRoomsApi, feed: GameRoomsFeed, query: RoomsQuery,
 
   const loadMore = useCallback(() => {
     const state = live.current;
-    if (!state.next || state.more) {
+    if (!state.next || state.inflight === 'more') {
+      return;
+    }
+    if (state.inflight === 'refresh') {
+      // its cursor is about to be replaced: asked again once the refetch is in
+      state.missed = true;
       return;
     }
     const generation = state.generation;
     const { tab: shownTab, game: shownGame, q: shownQ, sort: shownSort } = state.query;
-    state.more = true;
-    setLoadingMore(true);
+    state.inflight = 'more';
+    setMore('loading');
     api.list({tab: shownTab, game: shownGame, q: shownQ, sort: shownSort, cursor: state.next, limit: GAME_ROOMS_PAGE}).then((result) => {
       if (generation === state.generation) {
         state.next = result.next_cursor;
         state.pages += 1;
         setPages((current) => ({...current, rooms: mergeRooms(current.rooms ?? [], result.rooms), next: result.next_cursor}));
         setCounts(result.counts);
+        setMore('idle');
       }
     }).catch(() => {
-      // the sentinel asks again when it's scrolled to next
+      // said under the list with a Retry (the sentinel asks again too when it's scrolled to next)
+      if (generation === state.generation) {
+        setMore('error');
+      }
     }).finally(() => {
-      state.more = false;
-      setLoadingMore(false);
+      // a new query meanwhile started over, the slot's its own by now
+      if (generation === state.generation) {
+        state.inflight = null;
+        state.freed?.();
+      }
     });
   }, [api]);
 
   const retry = useCallback(() => setAttempt((value) => value + 1), []);
 
-  return {...pages, counts, loadingMore, loadMore, retry};
+  return {...pages, counts, more, rearmed, loadMore, retry};
 }
 
 
@@ -259,6 +310,26 @@ function useRoomPages(api: GameRoomsApi, feed: GameRoomsFeed, query: RoomsQuery,
 function mergeRooms(shown: Array<GameRoomSummary>, page: Array<GameRoomSummary>): Array<GameRoomSummary> {
   const seen = new Set(shown.map((room) => room.id));
   return [...shown, ...page.filter((room) => !seen.has(room.id))];
+}
+
+
+// What the browser is doing besides listing, one thing at a time: asking which game (Quick play or Play solo with every
+// game shown), Quick play or Play solo on its way, a password room being asked whether it lets them in (`probing`, the
+// api lets in whoever gave its password already) or asking for its password, or the New room dialog
+type RoomsAction =
+  | {kind: 'idle'}
+  | {kind: 'picking', then: 'quick' | 'solo'}
+  | {kind: 'starting', what: 'quick' | 'solo'}
+  | {kind: 'probing', room: GameRoomSummary, watch: boolean}
+  | {kind: 'unlocking', room: GameRoomSummary, watch: boolean}
+  | {kind: 'creating'};
+
+const IDLE: RoomsAction = {kind: 'idle'};
+
+// why the last action failed. `roomId`: it was that room's card that was tapped, it's said there while the card's listed
+interface RoomsRefusal {
+  message: string,
+  roomId: string | null,
 }
 
 
@@ -283,14 +354,13 @@ export function GameRooms({ api, room, errorOf, notice, game: firstGame = null, 
   const [ search, setSearch ] = useState('');
   const [ q, setQ ] = useState('');
   const [ sort, setSort ] = useState<GameRoomSort>('filling');
-  const [ creating, setCreating ] = useState(false);
-  // Quick play or Play solo with every game shown: which game, asked first
-  const [ picking, setPicking ] = useState<'quick' | 'solo' | null>(null);
-  // Quick play or Play solo on its way (one at a time), and why the last one failed
-  const [ starting, setStarting ] = useState<{busy: 'quick' | 'solo' | null, error: string | null}>({busy: null, error: null});
-  // a password room being joined: the room, and whether they asked to watch
-  const [ unlocking, setUnlocking ] = useState<{room: GameRoomSummary, watch: boolean} | null>(null);
+  const [ action, setAction ] = useState<RoomsAction>(IDLE);
+  // why the last one failed, until the next one starts
+  const [ refusal, setRefusal ] = useState<RoomsRefusal | null>(null);
+  // the action as of now, for an answer that comes later: it only counts while its own action is still the one running
+  const current = useRef<RoomsAction>(IDLE);
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const refusalRef = useRef<HTMLDivElement>(null);
   // an answer that comes after they left this screen (Back, then the editor or another room) opens nothing
   const mounted = useRef(true);
   useEffect(() => {
@@ -299,8 +369,6 @@ export function GameRooms({ api, room, errorOf, notice, game: firstGame = null, 
       mounted.current = false;
     };
   }, []);
-  // the locked room last tapped: an older tap's answer doesn't take them into that one instead
-  const probing = useRef<string | null>(null);
   const tabsId = useId();
   const pages = useRoomPages(api, room, {tab, game, q: q.trim(), sort}, errorOf, t('games.rooms.error'));
   const { loadMore } = pages;
@@ -325,7 +393,31 @@ export function GameRooms({ api, room, errorOf, notice, game: firstGame = null, 
     }, {rootMargin: '400px 0px'});
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [pages.next, shownCount, loadMore]);
+  }, [pages.next, shownCount, loadMore, pages.rearmed]);
+
+  // a refusal is said where they're looking: on the card they tapped, or brought into view when it's up top (they may
+  // be far down the list). Only when it's new: a card leaving the list later moves it up top without moving the page
+  useEffect(() => {
+    if (refusal) {
+      refusalRef.current?.scrollIntoView?.({block: 'nearest'});
+    }
+  }, [refusal]);
+
+  // a new action, the last one's failure isn't its own
+  const begin = (next: RoomsAction) => {
+    current.current = next;
+    setAction(next);
+    setRefusal(null);
+  };
+  const fail = (message: string, roomId: string | null = null) => {
+    current.current = IDLE;
+    setAction(IDLE);
+    setRefusal({message, roomId});
+  };
+  // whether an answer still counts: they're on this screen, and its action is the one running
+  const still = (started: RoomsAction) => mounted.current && current.current === started;
+  // on its way: everything else that would start something waits for it
+  const running = action.kind === 'starting' || action.kind === 'probing';
 
   const pickTab = (value: GameRoomTab) => {
     setTab(value);
@@ -333,79 +425,69 @@ export function GameRooms({ api, room, errorOf, notice, game: firstGame = null, 
   };
 
   const open = (target: GameRoomSummary, watch: boolean) => {
-    if (target.locked) {
-      // the api lets in whoever gave it already (and its creator) without asking again
-      probing.current = target.id;
-      api.join(target.id).then(() => {
-        if (mounted.current && probing.current === target.id) {
-          onOpen(target.id, watch);
-        }
-      }).catch((failure) => {
-        if (!mounted.current || probing.current !== target.id) {
-          return;
-        }
-        const error = errorOf(failure);
-        if (!error || error.code === EditorErrorCodes.EDITOR_LOBBY_LOCKED) {
-          setUnlocking({room: target, watch});
-        } else {
-          // removed from it, the room gone: its password wouldn't help
-          setStarting({busy: null, error: error.message || t('games.rooms.error')});
-        }
-      });
+    if (running) {
       return;
     }
-    probing.current = null;
-    onOpen(target.id, watch);
+    if (!target.locked) {
+      onOpen(target.id, watch);
+      return;
+    }
+    // the api lets in whoever gave it already (and its creator) without asking again
+    const started: RoomsAction = {kind: 'probing', room: target, watch};
+    begin(started);
+    api.join(target.id).then(() => {
+      if (still(started)) {
+        onOpen(target.id, watch);
+      }
+    }).catch((failure) => {
+      if (!still(started)) {
+        return;
+      }
+      const error = errorOf(failure);
+      if (error?.code === EditorErrorCodes.EDITOR_LOBBY_LOCKED) {
+        begin({kind: 'unlocking', room: target, watch});
+      } else {
+        // removed from it, the room gone: its password wouldn't help. No answer at all (offline, timed out) isn't a
+        // reason to ask for a password either
+        fail(error?.message || t('games.rooms.join_failed'), target.id);
+      }
+    });
   };
 
-  // with every game shown, they pick the game first
-  const quickPlay = async (chosen: GameKind | null = game) => {
-    if (starting.busy) {
+  // Quick play, or Play solo: a room of their own (on no list, nobody else comes in), its game starting as they join.
+  // With every game shown, they pick the game first
+  const start = async (what: 'quick' | 'solo', chosen: GameKind | null = game) => {
+    if (running) {
       return;
     }
     if (!chosen) {
-      setPicking('quick');
+      begin({kind: 'picking', then: what});
       return;
     }
-    setStarting({busy: 'quick', error: null});
+    const started: RoomsAction = {kind: 'starting', what};
+    begin(started);
     try {
-      const result = await api.quick(chosen, tab);
-      if (mounted.current) {
-        onOpen(result.id, false);
+      const { id } = (what === 'quick')
+        ? await api.quick(chosen, tab)
+        : await api.create({game: chosen, solo: true, settings: storedSoloSettings(chosen), name: null, watch_only: false});
+      if (still(started)) {
+        onOpen(id, false);
       }
     } catch (failure) {
-      if (mounted.current) {
-        setStarting({busy: null, error: errorOf(failure)?.message || t('games.rooms.quick_failed')});
-      }
-    }
-  };
-
-  // a room of their own (on no list, nobody else comes in), its game starting as they join
-  const playSolo = async (chosen: GameKind | null = game) => {
-    if (starting.busy) {
-      return;
-    }
-    if (!chosen) {
-      setPicking('solo');
-      return;
-    }
-    setStarting({busy: 'solo', error: null});
-    try {
-      const created = await api.create({game: chosen, solo: true, settings: storedSoloSettings(chosen), name: null, watch_only: false});
-      if (mounted.current) {
-        onOpen(created.id, false);
-      }
-    } catch (failure) {
-      if (mounted.current) {
-        setStarting({busy: null, error: errorOf(failure)?.message || t('games.rooms.solo_failed')});
+      if (still(started)) {
+        fail(errorOf(failure)?.message || t((what === 'quick') ? 'games.rooms.quick_failed' : 'games.rooms.solo_failed'));
       }
     }
   };
 
   const searching = Boolean(q.trim());
+  // a room's refusal is on its card while that's listed, anything else (and a room that's off the list) up top
+  const refusedCard = (refusal?.roomId && pages.rooms?.some((item) => item.id === refusal.roomId)) ? refusal.roomId : null;
+  // for anyone reading the page: the list as it is now
+  const listState = (pages.loading || (!pages.rooms && !pages.error)) ? 'loading' : (pages.error) ? 'error' : (pages.rooms?.length) ? 'ready' : 'empty';
 
   return (
-    <div className='mx-auto flex min-h-[var(--editor-height,100dvh)] w-full max-w-3xl flex-col gap-4 px-4 pt-3 pb-[calc(1.5rem+var(--saib,0px))]'>
+    <div data-state={action.kind} className='mx-auto flex min-h-[var(--editor-height,100dvh)] w-full max-w-3xl flex-col gap-4 px-4 pt-3 pb-[calc(1.5rem+var(--saib,0px))]'>
       {/* New room up here with the way back: the two ways to start playing now get the header's row. How to play carries
           a dot until its guide's been opened, the lobby has the rules too */}
       <div className='flex items-center justify-between gap-2'>
@@ -414,7 +496,7 @@ export function GameRooms({ api, room, errorOf, notice, game: firstGame = null, 
         </button>
         <div className='-mr-1 flex items-center gap-1'>
           <HowToPlayButton guide={gameInfo(game).guide} markUnseen/>
-          <button type='button' className='btn btn-secondary btn-sm min-h-10' onClick={() => setCreating(true)}>
+          <button type='button' className='btn btn-secondary btn-sm min-h-10' onClick={() => begin({kind: 'creating'})} disabled={running}>
             <Plus aria-hidden className='size-4'/>{t('games.rooms.new')}
           </button>
         </div>
@@ -425,19 +507,19 @@ export function GameRooms({ api, room, errorOf, notice, game: firstGame = null, 
           <p className='text-sm text-muted'>{t('games.rooms.description')}</p>
         </div>
         <div className='grid shrink-0 grid-cols-2 gap-2 sm:flex'>
-          <button type='button' className='btn btn-primary min-w-0' onClick={() => quickPlay()} disabled={starting.busy !== null}>
-            {(starting.busy === 'quick') ? <Spinner className='size-4 border-white/40 border-t-white'/> : <Zap aria-hidden className='size-4 shrink-0'/>}
+          <button type='button' className='btn btn-primary min-w-0' onClick={() => start('quick')} disabled={running}>
+            {(action.kind === 'starting' && action.what === 'quick') ? <Spinner className='size-4 border-white/40 border-t-white'/> : <Zap aria-hidden className='size-4 shrink-0'/>}
             <span className='truncate'>{t('games.rooms.quick')}</span>
           </button>
-          <button type='button' title={t('games.rooms.solo_hint')} className='btn btn-secondary min-w-0' onClick={() => playSolo()} disabled={starting.busy !== null}>
-            {(starting.busy === 'solo') ? <Spinner className='size-4'/> : <User aria-hidden className='size-4 shrink-0'/>}
+          <button type='button' title={t('games.rooms.solo_hint')} className='btn btn-secondary min-w-0' onClick={() => start('solo')} disabled={running}>
+            {(action.kind === 'starting' && action.what === 'solo') ? <Spinner className='size-4'/> : <User aria-hidden className='size-4 shrink-0'/>}
             <span className='truncate'>{t('games.rooms.solo')}</span>
           </button>
         </div>
       </header>
 
       {(notice) ? <p role='status' className='rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning'>{notice}</p> : null}
-      {(starting.error) ? <DialogError>{starting.error}</DialogError> : null}
+      {(refusal && !refusedCard) ? <div ref={refusalRef}><DialogError>{refusal.message}</DialogError></div> : null}
 
       <div className='flex flex-col gap-2'>
         <div role='tablist' aria-label={t('games.rooms.tabs')} className='grid grid-cols-2 gap-1 rounded-lg bg-deep p-1'>
@@ -486,13 +568,17 @@ export function GameRooms({ api, room, errorOf, notice, game: firstGame = null, 
         </div>
       </div>
 
-      <div id={`${tabsId}-panel`} role='tabpanel' aria-labelledby={`${tabsId}-${tab}`} aria-busy={pages.loading} className='flex flex-col gap-2'>
-        {(pages.error) ? <DialogError>{pages.error}</DialogError> : null}
-        {(!pages.rooms && pages.error) ? (
-          <div className='flex justify-center py-6'>
-            <button type='button' className='btn btn-secondary' onClick={pages.retry}>{t('games.flag.joining_retry')}</button>
-          </div>
-        ) : (!pages.rooms) ? (
+      <div id={`${tabsId}-panel`} role='tabpanel' aria-labelledby={`${tabsId}-${tab}`} aria-busy={pages.loading} data-state={listState} className='flex flex-col gap-2'>
+        {(pages.error) ? (
+          <>
+            <DialogError>{pages.error}</DialogError>
+            {/* over a list that's still showing too: it's as old as its last good fetch until this is pressed */}
+            <div className={cn('flex justify-center', (!pages.rooms) && 'py-6')}>
+              <button type='button' className='btn btn-secondary' onClick={pages.retry}>{t('games.flag.joining_retry')}</button>
+            </div>
+          </>
+        ) : null}
+        {(!pages.rooms && pages.error) ? null : (!pages.rooms) ? (
           // as tall as cards, so the first page doesn't push anything around when it comes
           <ul aria-hidden className='flex flex-col gap-2'>
             {[0, 1, 2].map((index) => <li key={index} className='h-[10.25rem] animate-pulse rounded-xl border border-line bg-surface sm:h-[7.25rem]'/>)}
@@ -500,13 +586,28 @@ export function GameRooms({ api, room, errorOf, notice, game: firstGame = null, 
         ) : (pages.rooms.length) ? (
           <>
             <ul className={cn('flex flex-col gap-2 transition-opacity', (pages.loading) && 'opacity-60')}>
-              {pages.rooms.map((item) => <RoomCard key={item.id} room={item} global={tab === 'global'} onOpen={(watch) => open(item, watch)}/>)}
+              {pages.rooms.map((item) => (
+                <RoomCard
+                  key={item.id}
+                  room={item}
+                  global={tab === 'global'}
+                  // the one that was tapped says it's being asked, the others wait for it (and for Quick play or Play solo)
+                  busy={(action.kind === 'probing' && action.room.id === item.id) ? ((action.watch) ? 'watch' : 'play') : null}
+                  disabled={running}
+                  refusal={(refusedCard === item.id) ? refusal?.message : undefined}
+                  refusalRef={refusalRef}
+                  onOpen={(watch) => open(item, watch)}
+                />
+              ))}
             </ul>
             <div ref={sentinelRef} aria-hidden className='h-px'/>
-            {/* a row as tall as the spinner whenever there's more, so the list doesn't hop when it shows */}
+            {/* a row as tall as the spinner whenever there's more, so the list doesn't hop when it shows. A page that
+                failed has its Retry here */}
             {(pages.next) ? (
-              <div className='flex h-10 items-center justify-center'>
-                {(pages.loadingMore) ? <Spinner className='size-5'/> : null}
+              <div data-state={pages.more} className='flex h-10 items-center justify-center'>
+                {(pages.more === 'loading') ? <Spinner className='size-5'/>
+                  : (pages.more === 'error') ? <button type='button' className='btn btn-secondary btn-sm' onClick={loadMore}>{t('common.retry')}</button>
+                  : null}
               </div>
             ) : null}
           </>
@@ -521,7 +622,7 @@ export function GameRooms({ api, room, errorOf, notice, game: firstGame = null, 
                 setQ('');
               }}>{t('games.rooms.clear_search')}</button>
             ) : (
-              <button type='button' className='btn btn-secondary' onClick={() => setCreating(true)}>
+              <button type='button' className='btn btn-secondary' onClick={() => begin({kind: 'creating'})} disabled={running}>
                 <Plus aria-hidden className='size-4'/>{t('games.rooms.new')}
               </button>
             )}
@@ -529,43 +630,35 @@ export function GameRooms({ api, room, errorOf, notice, game: firstGame = null, 
         )}
       </div>
 
-      {(picking) ? (
+      {(action.kind === 'picking') ? (
         <GamePickDialog
-          title={(picking === 'quick') ? t('games.rooms.pick_quick') : t('games.rooms.pick_solo')}
-          onClose={() => setPicking(null)}
-          onPick={(chosen) => {
-            const action = picking;
-            setPicking(null);
-            if (action === 'quick') {
-              void quickPlay(chosen);
-            } else {
-              void playSolo(chosen);
-            }
-          }}
+          title={(action.then === 'quick') ? t('games.rooms.pick_quick') : t('games.rooms.pick_solo')}
+          onClose={() => begin(IDLE)}
+          onPick={(chosen) => void start(action.then, chosen)}
         />
       ) : null}
-      {(creating) ? (
+      {(action.kind === 'creating') ? (
         <NewRoomDialog
           api={api}
           errorOf={errorOf}
           game={game ?? GAMES[0].id}
           visibility={tab}
-          onClose={() => setCreating(false)}
+          onClose={() => begin(IDLE)}
           onCreated={(created) => {
-            setCreating(false);
+            begin(IDLE);
             onOpen(created.id, false);
           }}
         />
       ) : null}
-      {(unlocking) ? (
+      {(action.kind === 'unlocking') ? (
         <PasswordDialog
           api={api}
           errorOf={errorOf}
-          room={unlocking.room}
-          onClose={() => setUnlocking(null)}
+          room={action.room}
+          onClose={() => begin(IDLE)}
           onJoined={() => {
-            const { room: target, watch } = unlocking;
-            setUnlocking(null);
+            const { room: target, watch } = action;
+            begin(IDLE);
             onOpen(target.id, watch);
           }}
         />
@@ -599,8 +692,18 @@ function roomDetails(room: GameRoomSummary, t: ReturnType<typeof useI18n>['t'], 
 
 
 // a room: its game, name and marks, who made it (and where, for a global one), what it plays, who's in it. Every line
-// is always there and one line tall, so cards in a tab are the same height and don't move as rooms update
-function RoomCard({ room, global, onOpen }: {room: GameRoomSummary, global: boolean, onOpen: (watch: boolean) => void}) {
+// is always there and one line tall, so cards in a tab are the same height and don't move as rooms update (but for one
+// that just refused them: why is under it, `refusal`, and `refusalRef` brings that into view).
+// `busy`: which of its buttons was tapped and is being asked about (a password room). `disabled`: something's on its way
+function RoomCard({ room, global, busy = null, disabled = false, refusal, refusalRef, onOpen }: {
+  room: GameRoomSummary,
+  global: boolean,
+  busy?: 'play' | 'watch' | null,
+  disabled?: boolean,
+  refusal?: string,
+  refusalRef?: RefObject<HTMLDivElement | null>,
+  onOpen: (watch: boolean) => void,
+}) {
   const { t, plural } = useI18n();
   const info = gameInfo(room.game);
   const Icon = info.icon;
@@ -612,7 +715,8 @@ function RoomCard({ room, global, onOpen }: {room: GameRoomSummary, global: bool
     (global && room.origin?.guild_name) ? room.origin.guild_name : null,
   ].filter((part): part is string => Boolean(part));
   return (
-    <li className='flex flex-col gap-3 rounded-xl border border-line-strong bg-surface p-3 sm:flex-row sm:items-center'>
+    <li data-state={(busy) ? 'probing' : (refusal) ? 'refused' : 'idle'} className='flex flex-col gap-3 rounded-xl border border-line-strong bg-surface p-3'>
+      <div className='flex flex-col gap-3 sm:flex-row sm:items-center'>
       <div className='flex min-w-0 flex-1 gap-3'>
         <span title={t(info.title)} className={cn('flex size-10 shrink-0 items-center justify-center rounded-lg', info.accent)}>
           <Icon aria-hidden className='size-5'/>
@@ -648,20 +752,22 @@ function RoomCard({ room, global, onOpen }: {room: GameRoomSummary, global: bool
       <div className='flex shrink-0 gap-2'>
         {(room.watch_only) ? (
           // the api decides: its creator and who's already playing play, everyone else watches
-          <button type='button' className='btn btn-primary flex-1 sm:flex-none' onClick={() => onOpen(false)}>
-            <Eye aria-hidden className='size-4'/>{t('games.rooms.watch')}
+          <button type='button' className='btn btn-primary flex-1 sm:flex-none' disabled={disabled} onClick={() => onOpen(false)}>
+            {(busy === 'play') ? <Spinner className='size-4 border-white/40 border-t-white'/> : <Eye aria-hidden className='size-4'/>}{t('games.rooms.watch')}
           </button>
         ) : (
           <>
-            <button type='button' className='btn btn-secondary flex-1 sm:flex-none' onClick={() => onOpen(true)}>
-              <Eye aria-hidden className='size-4'/>{t('games.rooms.watch')}
+            <button type='button' className='btn btn-secondary flex-1 sm:flex-none' disabled={disabled} onClick={() => onOpen(true)}>
+              {(busy === 'watch') ? <Spinner className='size-4'/> : <Eye aria-hidden className='size-4'/>}{t('games.rooms.watch')}
             </button>
-            <button type='button' className='btn btn-primary flex-1 sm:flex-none' onClick={() => onOpen(false)}>
-              <Play aria-hidden className='size-4'/>{t('games.rooms.play')}
+            <button type='button' className='btn btn-primary flex-1 sm:flex-none' disabled={disabled} onClick={() => onOpen(false)}>
+              {(busy === 'play') ? <Spinner className='size-4 border-white/40 border-t-white'/> : <Play aria-hidden className='size-4'/>}{t('games.rooms.play')}
             </button>
           </>
         )}
       </div>
+      </div>
+      {(refusal) ? <div ref={refusalRef}><DialogError>{refusal}</DialogError></div> : null}
     </li>
   );
 }
@@ -848,7 +954,8 @@ function NewRoomDialog({ api, errorOf, game: firstGame, visibility: firstVisibil
   const ready = roomSettingsReady(mode, password);
 
   return (
-    <Modal anchor='top' labelledBy={titleId} onClose={onClose} className='max-w-md'>
+    // not while it's being made: the room would be there anyway, and its answer took them into it after they'd cancelled
+    <Modal anchor='top' labelledBy={titleId} onClose={() => !busy && onClose()} className='max-w-md'>
       <form
         className='flex flex-col gap-4 p-5 sm:p-6'
         onSubmit={async (event) => {
@@ -887,7 +994,7 @@ function NewRoomDialog({ api, errorOf, game: firstGame, visibility: firstVisibil
         />
         {(error) ? <DialogError>{error}</DialogError> : null}
         <div className='flex justify-end gap-2'>
-          <button type='button' className='btn btn-secondary' onClick={onClose}>{t('common.cancel')}</button>
+          <button type='button' className='btn btn-secondary' onClick={onClose} disabled={busy}>{t('common.cancel')}</button>
           <button type='submit' className='btn btn-primary' disabled={!ready || busy}>
             {(busy) ? <Spinner className='size-4'/> : <Plus aria-hidden className='size-4'/>}{t('games.rooms.create')}
           </button>
@@ -912,7 +1019,8 @@ function PasswordDialog({ api, errorOf, room, onClose, onJoined }: {
   const [ busy, setBusy ] = useState(false);
   const [ error, setError ] = useState<string | null>(null);
   return (
-    <Modal anchor='top' labelledBy={titleId} onClose={onClose} className='max-w-sm'>
+    // not while the password's being checked: a right one took them into the room after they'd cancelled
+    <Modal anchor='top' labelledBy={titleId} onClose={() => !busy && onClose()} className='max-w-sm'>
       <form
         className='flex flex-col gap-4 p-5 sm:p-6'
         onSubmit={async (event) => {
@@ -941,7 +1049,7 @@ function PasswordDialog({ api, errorOf, room, onClose, onJoined }: {
         </div>
         {(error) ? <DialogError>{error}</DialogError> : null}
         <div className='flex justify-end gap-2'>
-          <button type='button' className='btn btn-secondary' onClick={onClose}>{t('common.cancel')}</button>
+          <button type='button' className='btn btn-secondary' onClick={onClose} disabled={busy}>{t('common.cancel')}</button>
           <button type='submit' className={cn('btn btn-primary')} disabled={!password || busy}>
             {(busy) ? <Spinner className='size-4'/> : <Lock aria-hidden className='size-4'/>}{t('games.rooms.unlock')}
           </button>

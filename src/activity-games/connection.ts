@@ -20,7 +20,13 @@ import {
 // snapshot, replaced on every change) and the ops they send. The Activity's socket (RoomFlagGame below) and the dev
 // mocks' in-browser engines share everything but the transport
 
-export type GameStatus = 'connecting' | 'open' | 'closed' | 'denied';
+// `connecting`: joining, no game to show yet. `open`: joined. `reconnecting`: not joined just now (the socket's down, or
+// the join's being asked again) with the game it had still shown. `left`: closed from here, for good. `denied`: the api
+// ended it for good (`closeCode`), nothing after it counts
+// the api's code on a `game.error` for an op sent too often
+const RATELIMITED_CODE = 30016;
+
+export type GameStatus = 'connecting' | 'open' | 'reconnecting' | 'left' | 'denied';
 
 // your own last guess's answer, `text` what was typed (`type` mode)
 export interface GuessResult {
@@ -67,8 +73,12 @@ export interface GameSnapshot {
   // Letter Trail, this round's own: the words you found (newest first) and your last word's answer
   words: Array<LetterTrailWord>,
   word: WordResult | null,
-  // the api refused something (it may not send these, see protocol.ts)
+  // the api refused something (it may not send these, see protocol.ts). Never a refused guess, choice or word: the
+  // round says those itself
   error: string | null,
+  // a Start or an End that's sent and not answered yet (a `state`, a `ready`, an `error` or the status changing
+  // answers it): no second one goes out meanwhile, their buttons wait
+  pendingOp: 'start' | 'end' | null,
   // joining is taking a while (no answer to a `game_join` in JOIN_TIMEOUT): it's asked again, the screen says so
   slowJoin: boolean,
   // the Activity's socket's last close while it's down (reconnecting), null while it's open: the joining screen says
@@ -93,6 +103,7 @@ const EMPTY_SNAPSHOT: GameSnapshot = Object.freeze({
   words: [],
   word: null,
   error: null,
+  pendingOp: null,
   slowJoin: false,
   socketClose: null,
   awards: null,
@@ -163,12 +174,21 @@ export abstract class FlagGameConnection {
     return this.send({op: 'settings', ...settings});
   }
 
+  // false too while a Start or an End is still waiting for its answer (`pendingOp`)
   start(): boolean {
-    return this.send({op: 'start'});
+    return this.sendPending('start');
   }
 
   end(): boolean {
-    return this.send({op: 'end'});
+    return this.sendPending('end');
+  }
+
+  private sendPending(op: 'start' | 'end'): boolean {
+    if (this.snapshot.pendingOp !== null || !this.send({op})) {
+      return false;
+    }
+    this.update({pendingOp: op});
+    return true;
   }
 
   // a watcher joins in, a player only watches (between games)
@@ -249,22 +269,33 @@ export abstract class FlagGameConnection {
   // asking to join again now (the joining screen's button), for a transport that joins
   retryJoin(): void {}
 
+  // they're going back to the room list themselves (a Rooms button), not just unmounting: the leave `close` sends says
+  // so, and a room that leaves empty closes (the api's `close_empty`)
+  protected toRooms = false;
+  backToRooms(): void {
+    this.toRooms = true;
+  }
+
   protected setStatus(status: GameStatus, closeCode: number | null = null): void {
     if (status !== 'open') {
       // answers to guesses sent on the old socket won't come
       this.pendingGuesses = [];
       this.pendingWords = [];
     }
-    this.update({status, closeCode});
+    // nor a Start's or an End's
+    this.update({status, closeCode, pendingOp: null});
   }
 
   // a sample of the api's clock: `now` from a message, or from a pong (its round trip known, the best kind)
   protected sampleClock(now: number, roundTrip: number | null): void {
     const received = Date.now();
     if (roundTrip !== null) {
-      if (roundTrip <= this.skewRoundTrip) {
+      const skew = now - (received - roundTrip / 2);
+      // the closest one yet, or one the skew so far can't be right by (a sample is off by half its round trip at most,
+      // so further apart than a whole one means this clock was changed since): that one starts over from here
+      if (roundTrip <= this.skewRoundTrip || roundTrip < Math.abs(skew - this.snapshot.skew)) {
         this.skewRoundTrip = roundTrip;
-        this.update({skew: now - (received - roundTrip / 2)});
+        this.update({skew});
       }
     } else if (this.skewRoundTrip === Infinity) {
       this.update({skew: now - received});
@@ -275,7 +306,7 @@ export abstract class FlagGameConnection {
     switch (event.t) {
       case 'ready': {
         this.sampleClock(event.now, null);
-        this.update({you: event.you, moderator: Boolean(event.moderator)});
+        this.update({you: event.you, moderator: event.moderator});
         this.awardsFrom(event.game);
         // a `ready` is the api's whole answer for this socket: a choice it doesn't know of never arrived
         this.update(this.replaceGame(event.game, true));
@@ -285,7 +316,7 @@ export abstract class FlagGameConnection {
       case 'state': {
         this.sampleClock(event.now, null);
         this.awardsFrom(event.game);
-        this.update(this.replaceGame(event.game));
+        this.update({...this.replaceGame(event.game), pendingOp: null});
         break;
       }
       case 'hint': {
@@ -329,7 +360,11 @@ export abstract class FlagGameConnection {
         break;
       }
       case 'word': {
-        const path = this.pendingWords.shift() ?? null;
+        const path = this.pendingWords.shift();
+        if (path === undefined) {
+          // an answer to nothing sent in this round (a word from the round before, answered late): not this round's
+          break;
+        }
         const at = Date.now();
         if (!event.ok) {
           this.update({word: {ok: false, word: event.word ?? null, points: null, bonus: false, reason: event.reason, path, at}});
@@ -369,16 +404,23 @@ export abstract class FlagGameConnection {
       }
       case 'error': {
         // a refused guess or choice gets this instead of its answer: it leaves the queue too, or every later answer
-        // would name the guess before it. a refused choice can be picked again
-        const refused = event.op === 'guess' || event.op === 'choose';
-        if (refused) {
+        // would name the guess before it. a refused choice can be picked again. It's no banner: the round shows why
+        // already (it's over, they've answered), and one sent as the time ran out is refused every time
+        // "too fast" is the one the round doesn't explain by itself (the guess or word just went nowhere): that one
+        // still shows
+        const tooFast = (event.code === RATELIMITED_CODE) ? {error: event.message || null} : {};
+        if (event.op === 'guess' || event.op === 'choose') {
           this.pendingGuesses.shift();
+          this.update({pendingOp: null, ...((event.op === 'choose') ? {chosen: null} : {}), ...tooFast});
+          break;
         }
         // a refused word (too many too fast) leaves its queue the same way
         if (event.op === 'word') {
           this.pendingWords.shift();
+          this.update({pendingOp: null, ...tooFast});
+          break;
         }
-        this.update({error: event.message || null, ...((event.op === 'choose') ? {chosen: null} : {})});
+        this.update({error: event.message || null, pendingOp: null});
         break;
       }
       case 'awarded': {
@@ -387,8 +429,13 @@ export abstract class FlagGameConnection {
         this.takeAwards(event.awards, finished);
         break;
       }
-      default:
+      default: {
+        // every event is handled above (a new one in `GameServerEvent` stops compiling here). One the api sends that
+        // this build doesn't know of gets here too, and is left alone
+        const unknown: never = event;
+        void unknown;
         break;
+      }
     }
   }
 
@@ -428,6 +475,9 @@ export abstract class FlagGameConnection {
   // a whole new state: this round's own bits stay while it's the same round, otherwise they start over
   private replaceGame(game: AnyGameState, authoritative = false): Partial<GameSnapshot> {
     const previous = this.snapshot.game;
+    // a refusal showing goes when a round starts (the next one, or a lobby's first). Not with every state: in a lobby
+    // (no round) each one used to take it, a moment after it showed
+    const newRound = Boolean(game.round);
     if (isLetterTrail(game)) {
       const previousRound = (previous && isLetterTrail(previous)) ? previous.round : null;
       if (sameLetterTrailRound(previousRound, game.round)) {
@@ -435,7 +485,7 @@ export abstract class FlagGameConnection {
       }
       // a new round (or none): the last one's words and unanswered ones aren't this one's
       this.pendingWords = [];
-      return {game, words: mergeWords([], game.round?.you_found), word: null, error: null, guess: null, chosen: null, answeredIds: [], feed: []};
+      return {game, words: mergeWords([], game.round?.you_found), word: null, guess: null, chosen: null, answeredIds: [], feed: [], ...((newRound) ? {error: null} : {})};
     }
     if (previous && isLetterTrail(previous)) {
       this.pendingWords = [];
@@ -445,6 +495,11 @@ export abstract class FlagGameConnection {
     // the api says what this socket already picked (a reconnect gets it in `ready`)
     const yourChoice = game.round?.your_choice ?? null;
     const answeredIds = game.round?.answered_by ?? [];
+    // a `ready` with a choice of theirs whose answer never got here (it went to the socket before this one): the api
+    // says whether it was right
+    const rebuilt: GuessResult | null = (authoritative && game.round && yourChoice !== null)
+      ? {result: (game.round.you_solved) ? 'correct' : 'wrong', text: null, at: Date.now()}
+      : null;
     if (sameRound) {
       const solvedIds = new Set(game.round?.solved ?? []);
       return {
@@ -453,11 +508,12 @@ export abstract class FlagGameConnection {
         // a state made before the api saw the choice has none yet, the one just picked stays until a `ready` says
         chosen: (authoritative) ? yourChoice : this.snapshot.chosen ?? yourChoice,
         answeredIds: (answeredIds.length) ? answeredIds : this.snapshot.answeredIds,
+        ...((rebuilt && !this.snapshot.guess) ? {guess: rebuilt} : {}),
       };
     }
     // the last round's unanswered guesses aren't this round's
     this.pendingGuesses = [];
-    return {game, guess: null, chosen: yourChoice, answeredIds, feed: [], words: [], word: null, error: null};
+    return {game, guess: rebuilt, chosen: yourChoice, answeredIds, feed: [], words: [], word: null, ...((newRound) ? {error: null} : {})};
   }
 
   protected update(changes: Partial<GameSnapshot>): void {
@@ -489,8 +545,6 @@ const JOIN_TIMEOUT = 6000;
 export class RoomFlagGame extends FlagGameConnection {
   private unsubscribers: Array<() => void> = [];
   private stopped = false;
-  // a `game.ready` came for this socket's join, so leaving means something
-  private joined = false;
   private flags = new Map<string, Promise<string>>();
   private objectUrls: Array<string> = [];
   private joinTimer: number | null = null;
@@ -508,6 +562,16 @@ export class RoomFlagGame extends FlagGameConnection {
     super();
   }
 
+  // a `game.ready` came for this socket's join and nothing has ended it since: the status says so, nothing else does
+  private get joined(): boolean {
+    return this.snapshot.status === 'open';
+  }
+
+  // not joined, and not for good: joining with nothing to show yet, or getting back to the game that's still shown
+  private get waitingStatus(): GameStatus {
+    return (this.snapshot.game) ? 'reconnecting' : 'connecting';
+  }
+
   connect(): void {
     this.stopped = false;
     this.unsubscribers.push(
@@ -518,8 +582,7 @@ export class RoomFlagGame extends FlagGameConnection {
           this.join();
         } else if (this.snapshot.status !== 'denied') {
           // the room reconnects, its `ready` brings a rejoin. a denied room ends the whole Activity
-          this.joined = false;
-          this.setStatus((status === 'denied') ? 'denied' : 'closed');
+          this.setStatus((status === 'denied') ? 'denied' : this.waitingStatus);
         }
       }),
       this.room.onPong((now, roundTrip) => this.sampleClock(now, roundTrip)),
@@ -529,7 +592,7 @@ export class RoomFlagGame extends FlagGameConnection {
       this.join();
     } else {
       this.update({socketClose: this.room.lastClose});
-      this.setStatus((this.room.status === 'denied') ? 'denied' : 'connecting');
+      this.setStatus((this.room.status === 'denied') ? 'denied' : this.waitingStatus);
       this.slowLater();
     }
   }
@@ -541,12 +604,13 @@ export class RoomFlagGame extends FlagGameConnection {
       unsubscribe();
     }
     this.unsubscribers = [];
-    if (this.snapshot.status !== 'denied') {
-      // the api also leaves it when the socket closes, this is for the socket that stays
-      this.room.sendMessage({op: 'game_leave'});
+    if (this.room.isOpen) {
+      // the api also leaves it when the socket closes, this is for the socket that stays. Sent whatever the status: a
+      // join asked twice can be refused and then let in (it was slow, the room had space again), and the api takes a
+      // leave from nobody's game as nothing
+      this.room.sendMessage((this.toRooms) ? {op: 'game_leave', close_empty: true} : {op: 'game_leave'});
     }
-    this.joined = false;
-    this.setStatus('closed');
+    this.setStatus('left');
     for (const url of this.objectUrls) {
       URL.revokeObjectURL(url);
     }
@@ -595,24 +659,27 @@ export class RoomFlagGame extends FlagGameConnection {
 
   // the game's ops go out with a `game_` prefix (`settings` → `game_settings`), only once it's joined
   protected send(message: GameClientMessage): boolean {
-    if (this.stopped || !this.joined || this.snapshot.status !== 'open') {
+    if (this.stopped || !this.joined) {
       return false;
     }
     const { op, ...payload } = message;
     return this.room.sendMessage({...payload, op: `game_${op}`});
   }
 
-  // the joining screen's Try again: the join asked again, or the socket reconnected now when it's down
+  // the joining screen's Try again: the join asked again, or the socket reconnected now when it's down. Either way the
+  // screen is back to waiting (its button was there because it's slow), slow again after another JOIN_TIMEOUT
   retryJoin(): void {
     activityLog.add('game', `Try again pressed, socket ${this.room.status}`);
-    if (this.joined) {
+    if (this.stopped || this.joined || this.snapshot.status === 'denied') {
       return;
     }
+    this.update({slowJoin: false});
     if (this.room.isOpen) {
       this.busyRetries = 0;
       this.join();
     } else {
       this.room.reconnectNow();
+      this.slowLater();
     }
   }
 
@@ -636,6 +703,8 @@ export class RoomFlagGame extends FlagGameConnection {
     if (GAME_BUSY_SLOW_AFTER <= this.busyRetries) {
       this.update({slowJoin: true});
     }
+    // not in the game meanwhile, whatever it was before (a second join's refusal can come after the first one's `ready`)
+    this.setStatus(this.waitingStatus);
     const delay = Math.min(GAME_BUSY_RETRY * 2 ** (this.busyRetries - 1), GAME_BUSY_RETRY_MAX);
     activityLog.add('game', `join refused for now (${this.busyRetries} in a row), asking again in ${delay}ms`);
     this.joinTimer = window.setTimeout(() => {
@@ -649,8 +718,7 @@ export class RoomFlagGame extends FlagGameConnection {
     if (this.stopped || this.snapshot.status === 'denied') {
       return;
     }
-    this.joined = false;
-    this.setStatus('connecting');
+    this.setStatus(this.waitingStatus);
     if (!this.room.sendMessage({op: 'game_join', game_id: this.gameId, ...((this.watching) ? {watch: true} : {})})) {
       // the socket isn't open, its `open` brings the join
       this.slowLater();
@@ -678,8 +746,9 @@ export class RoomFlagGame extends FlagGameConnection {
 
   private handle(message: RoomGameMessage): void {
     // one game per socket: another game's (a late one from before a switch) isn't this one's
-    // (an answer from before any game is joined has no game id at all, null: a refused join's)
-    if (this.stopped || (message.game_id != null && message.game_id !== this.gameId)) {
+    // (an answer from before any game is joined has no game id at all, null: a join refused as too fast)
+    // denied is for good: whatever comes after it (a second join's `ready`, the `closed` after a `kicked`) changes nothing
+    if (this.stopped || this.snapshot.status === 'denied' || (message.game_id != null && message.game_id !== this.gameId)) {
       return;
     }
     if (typeof message.now === 'number') {
@@ -687,10 +756,14 @@ export class RoomFlagGame extends FlagGameConnection {
     }
     // `game.state` → `state` and so on, the payloads are the old socket's
     const event = {...message, t: message.t.slice('game.'.length)} as GameServerEvent;
+    // before its `ready` a join has three answers: the `ready`, a `closed`, or the join itself refused. Anything else
+    // is from before this join (a state on its way as they left and came back) and would show a game they aren't in
+    if (!this.joined && event.t !== 'ready' && event.t !== 'closed' && !(event.t === 'error' && event.op === 'join')) {
+      return;
+    }
     switch (event.t) {
       case 'ready': {
         this.clearJoinTimer();
-        this.joined = true;
         this.busyRetries = 0;
         this.update({slowJoin: false});
         this.watching = event.game.you_watch;
@@ -705,7 +778,6 @@ export class RoomFlagGame extends FlagGameConnection {
       }
       case 'closed': {
         this.clearJoinTimer();
-        this.joined = false;
         if (event.code === GAME_BUSY_CODE) {
           // the game stayed busy for the join (its lock), not a refusal: asked again in a moment
           this.joinLater();

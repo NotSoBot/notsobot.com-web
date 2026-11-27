@@ -25,7 +25,7 @@ export function UserSettingsScreen(host: ActivitySettingsHost) {
   return (
     <SettingsScreen
       {...host}
-      createRouter={() => createSettingsRouter({
+      createRouter={() => createSettingsRouter('user_settings', {
         path: Routes.DASHBOARD,
         element: <UserSettingsLayout/>,
         children: DASHBOARD_USER_ROUTES.flatMap((route): Array<RouteObject> => {
@@ -50,7 +50,7 @@ function UserSettingsLayout() {
   const { siteUrl } = useActivitySettingsHost();
   const { user, status } = useAuth();
   return (
-    <SettingsFrame dashboardUrl={`${siteUrl}${Routes.DASHBOARD}`}>
+    <SettingsFrame screen='user_settings' state={(user) ? 'ready' : (status === 'loading') ? 'loading' : 'error'} dashboardUrl={`${siteUrl}${Routes.DASHBOARD}`}>
       {(user) ? (
         <SettingsTitle
           media={<UserAvatar user={user} size={64} className='size-10 shrink-0 rounded-full bg-surface-3'/>}

@@ -7,7 +7,7 @@ import { Routes } from '@/config';
 import { useI18n } from '@/i18n';
 import { apiRequest, ApiRequestError } from '@/lib/api';
 
-import { createEditorApi, type EditorApiError, type EditorHost, type EditorRequest } from '../api';
+import { createEditorApi, EditorErrorCodes, pathId, type EditorApiError, type EditorHost, type EditorRequest } from '../api';
 import type { EditorTemplate } from '../types';
 import { EditorApp } from '../components/EditorApp';
 import { StartScreen } from '../components/StartScreen';
@@ -81,18 +81,33 @@ export function WebEditorPage() {
     }
   }, [searchParams]);
   const { catalogue, error, retry } = useCatalogue(host);
-  const template = useTemplate(host, templateCode);
+  const { template, retry: retryTemplate } = useTemplate(host, templateCode);
   const effectNames = useMemo(() => new Map((catalogue?.effects ?? []).map((effect) => [effect.id, effect.name])), [catalogue]);
 
   if (!documentId) {
-    if (templateCode && template.status === 'loading') {
-      return <FullPageMessage><Spinner/></FullPageMessage>;
+    if (template.status === 'loading') {
+      return <div data-state='loading' className='contents'><FullPageMessage><Spinner/></FullPageMessage></div>;
     }
-    if (templateCode && template.status === 'missing') {
+    if (template.status === 'missing') {
       return (
-        <FullPageMessage title={t('editor.template.not_found')}>
-          <button type='button' className='btn btn-secondary' onClick={() => navigate(Routes.EDITOR)}>{t('editor.back')}</button>
-        </FullPageMessage>
+        <div data-state='missing' className='contents'>
+          <FullPageMessage title={t('editor.template.not_found')}>
+            <button type='button' className='btn btn-secondary' onClick={() => navigate(Routes.EDITOR)}>{t('editor.back')}</button>
+          </FullPageMessage>
+        </div>
+      );
+    }
+    // it didn't load (the network, the api down): not "doesn't exist anymore", and it can be asked for again
+    if (template.status === 'failed') {
+      return (
+        <div data-state='failed' className='contents'>
+          <FullPageMessage title={t('editor.session.failed')}>
+            <div className='flex flex-wrap items-center justify-center gap-2'>
+              <button type='button' className='btn btn-secondary' onClick={() => navigate(Routes.EDITOR)}>{t('editor.back')}</button>
+              <button type='button' className='btn btn-primary' onClick={retryTemplate}>{t('common.retry')}</button>
+            </div>
+          </FullPageMessage>
+        </div>
       );
     }
     return (
@@ -142,41 +157,57 @@ export function WebEditorPage() {
       documentId={documentId}
       catalogue={catalogue}
       addEffectId={searchParams.get('add')}
-      onEffectAdded={() => navigate(Routes.EDITOR_DOCUMENT.replace(':documentId', documentId) + ((searchParams.get('fill')) ? '?fill=1' : ''), {replace: true})}
       askInputs={searchParams.get('fill') === '1'}
-      onInputsAsked={() => navigate(Routes.EDITOR_DOCUMENT.replace(':documentId', documentId), {replace: true})}
+      // `?add=` and `?fill=1` are used up together, a reload neither adds the effect nor asks again
+      onLaunchUsed={() => navigate(Routes.EDITOR_DOCUMENT.replace(':documentId', documentId), {replace: true})}
     />
   );
 }
 
 
+// `code`: the template it's about. The state is set from an effect, so for one render after the url's code changes it
+// is still the last one's: read against the code, that render is `loading` and never the other template
 type TemplateState =
-  | {status: 'none' | 'loading' | 'missing'}
-  | {status: 'ready', template: EditorTemplate};
+  | {status: 'none'}
+  | {status: 'loading' | 'missing' | 'failed', code: string}
+  | {status: 'ready', code: string, template: EditorTemplate};
 
-// `/editor/template/<code>`'s template, `missing` when it was deleted (or the code isn't one)
-function useTemplate(host: EditorHost, templateCode: string | undefined): TemplateState {
-  const [ state, setState ] = useState<TemplateState>({status: (templateCode) ? 'loading' : 'none'});
+// `/editor/template/<code>`'s template: `missing` when it was deleted (or the code isn't one), `failed` when it couldn't
+// be asked for (`retry` asks again)
+function useTemplate(host: EditorHost, templateCode: string | undefined): {template: TemplateState, retry: () => void} {
+  const [ state, setState ] = useState<TemplateState>({status: 'none'});
+  const [ attempt, setAttempt ] = useState(0);
   useEffect(() => {
     if (!templateCode) {
       setState({status: 'none'});
       return;
     }
+    // a code that can't be one (the request would throw before it's sent): missing like any other
+    try {
+      pathId(templateCode);
+    } catch {
+      setState({status: 'missing', code: templateCode});
+      return;
+    }
     let alive = true;
-    setState({status: 'loading'});
-    // (a code that can't be one makes the request throw before there's a promise: missing like any other)
-    Promise.resolve().then(() => host.api.template(templateCode)).then((template) => {
+    setState({status: 'loading', code: templateCode});
+    host.api.template(templateCode).then((template) => {
       if (alive) {
-        setState({status: 'ready', template});
+        setState({status: 'ready', code: templateCode, template});
       }
-    }).catch(() => {
+    }).catch((failure) => {
       if (alive) {
-        setState({status: 'missing'});
+        const apiError = host.errorOf(failure);
+        const missing = apiError?.status === 404 || apiError?.code === EditorErrorCodes.UNKNOWN_EDITOR_TEMPLATE;
+        setState({status: (missing) ? 'missing' : 'failed', code: templateCode});
       }
     });
     return () => {
       alive = false;
     };
-  }, [host, templateCode]);
-  return state;
+  }, [host, templateCode, attempt]);
+  const template: TemplateState = (!templateCode) ? {status: 'none'}
+    : (state.status !== 'none' && state.code === templateCode) ? state
+    : {status: 'loading', code: templateCode};
+  return {template, retry: () => setAttempt((value) => value + 1)};
 }

@@ -20,7 +20,7 @@ export const GUIDES_ENGLISH: GuideBook = {
       {kind: 'text', text: 'NotSoBot’s Discord Activity has the media editor and the games. It opens right inside a channel, and everyone there can join.'},
       {kind: 'list', items: [
         'Use `/games play` to go straight to the games, or `/editor` for the media editor.',
-        'Or press **Launch** on NotSoBot in Discord’s app launcher, then pick **Edit media** or **Games**.',
+        'Or press **Mess Around** on NotSoBot in Discord’s app launcher, then pick **Edit media** or **Games**.',
         'Someone already in it? Press **Join** on the message NotSoBot posts in the channel.',
       ]},
       {kind: 'tip', text: 'Each game and the media editor has a question mark button that opens its guide right in the Activity.'},
@@ -47,14 +47,14 @@ export const GUIDES_ENGLISH: GuideBook = {
           blocks: [
             {kind: 'text', text: 'Flag Guesser is played in rooms in NotSoBot’s Discord Activity. There’s also a quicker version in chat, one flag at a time.'},
             {kind: 'steps', items: [
-              'Use `/games play` in a channel, or press **Launch** on NotSoBot in Discord’s app launcher and pick **Games**.',
+              'Use `/games play` in a channel, or press **Mess Around** on NotSoBot in Discord’s app launcher and pick **Games**.',
               'On the Games tab, pick **Flag Guesser**.',
               'Press **Play** or **Watch** on a room, use **Quick play**, make your own with **New room**, or press **Play solo** to play alone.',
               'Wait in the lobby for others, then the host presses **Start game**. A 3-second countdown (3, 2, 1) comes before the first flag, and nothing can be answered until it ends.',
             ]},
             {kind: 'text', text: 'Alone in your lobby? It offers **Invite friends**: share a link or post an invite in the channel. Or just start, a game works with one player.'},
             {kind: 'text', text: 'NotSoBot usually posts a message in the channel too, with a **Join** button, so others can jump in.'},
-            {kind: 'tip', text: 'Playing `/games flag-guesser` in chat? Its **Open in Activity** button opens a room that carries on the same game: the flag that was up comes first, with the same difficulty, typed answers and a minute a flag. Scores start from zero.'},
+            {kind: 'tip', text: 'Playing `/games flag-guesser` in chat? Its **Open in Activity** button opens a room that carries on the same game: the flag that was up comes first, with the same difficulty, typed answers and a minute a flag. Scores start from zero. The round in chat ends there, and its message says who took the flag.'},
           ],
         },
         {
@@ -208,7 +208,7 @@ export const GUIDES_ENGLISH: GuideBook = {
           blocks: [
             {kind: 'text', text: 'Letter Trail is played in rooms in NotSoBot’s Discord Activity, like [Flag Guesser](guide:flag-guesser).'},
             {kind: 'steps', items: [
-              'Use `/games play` in a channel, or press **Launch** on NotSoBot in Discord’s app launcher and pick **Games**.',
+              'Use `/games play` in a channel, or press **Mess Around** on NotSoBot in Discord’s app launcher and pick **Games**.',
               'On the Games tab, pick **Letter Trail**.',
               'Press **Play** or **Watch** on a room, use **Quick play**, make your own with **New room**, or press **Play solo** to play alone.',
               'Wait in the lobby for others, then the host presses **Start game**. With more than one player, a 3-second countdown comes first and the letters show when it ends.',
@@ -339,7 +339,7 @@ export const GUIDES_ENGLISH: GuideBook = {
           title: 'Checking points in chat',
           blocks: [
             {kind: 'facts', items: [
-              {label: '`/games points`', value: 'Someone’s total, their points per game, this week’s points, and their rank in the server and worldwide. Leave out the user to see your own.'},
+              {label: '`/games points`', value: 'Someone’s total, their points per game, this week’s points, their rank in the server and worldwide, and their record in each room game (wins, losses, ties, games left, win streak and best stats). Leave out the user to see your own.'},
               {label: '`/games leaderboard`', value: 'The top 10. Pick **where**: Server (the default) or Global, and the **period**: All time (the default) or This week. Your own place shows under it when you’re not in the top 10.'},
             ]},
             {kind: 'text', text: 'In a DM, the server board shows the global one instead. Weeks start on Monday at midnight UTC.'},
@@ -362,7 +362,7 @@ export const GUIDES_ENGLISH: GuideBook = {
       title: 'Media editor',
       summary: 'Edit pictures, GIFs, videos and sounds right in Discord, on your own or together in a room.',
       quick: [
-        'Open it with `/editor`, with **Edit Media** or **Edit Avatar**, or from Launch.',
+        'Open it with `/editor`, with **Edit Media** or **Edit Avatar**, or from Mess Around in Discord’s app launcher.',
         'Pick **Just me** to edit alone, or **Everyone** or **Password** to start a room.',
         'Up to 10 people edit a room together and see each other’s cursors.',
         'A step someone is adjusting is theirs until they let go.',
@@ -377,7 +377,7 @@ export const GUIDES_ENGLISH: GuideBook = {
             {kind: 'list', items: [
               '`/editor` opens it in the channel. Attach a file or a link and it opens on that media. Without one, it opens on the editor’s rooms.',
               '**Edit Media** on a message (in its Apps menu) opens the editor on that message’s picture, GIF, video or sound. **Edit Avatar** on a person does the same with their avatar.',
-              'Press **Launch** on NotSoBot in Discord’s app launcher, then pick **Edit media**.',
+              'Press **Mess Around** on NotSoBot in Discord’s app launcher, then pick **Edit media**.',
               '`/editor template:` with a template’s link or code opens with that template ready to go.',
             ]},
             {kind: 'text', text: 'NotSoBot usually posts a message in the channel too, with a **Join** button, so others can come edit with you.'},
@@ -388,7 +388,7 @@ export const GUIDES_ENGLISH: GuideBook = {
           id: 'start-screen',
           title: 'The start screen',
           blocks: [
-            {kind: 'text', text: 'From Launch, the Activity first asks what you want to do: **Edit media** or **Games**. Each one shows how many people are editing or how many games are being played right now, and you can switch any time.'},
+            {kind: 'text', text: 'From Mess Around, the Activity first asks what you want to do: **Edit media** or **Games**. Each one shows how many people are editing or how many games are being played right now, and you can switch any time. If people are in an editor lobby or a game room, **Jump in with someone** lists them with a **Join** button that takes you straight to their room. If you pressed **Join** on someone\'s Mess Around message, that person is listed first.'},
             {kind: 'text', text: 'To start an edit, pick a file (upload it, drop it in or paste a link), one of your recent edits, or start from **Or make one**: a blank canvas, a QR code or one of the bot’s text templates. Images, GIFs, videos and audio up to 10 minutes long all work.'},
           ],
         },

@@ -69,6 +69,10 @@ export const Settings = {
   'settings.tts.voice': 'Voice',
   'settings.tts.voice_hint': 'Cloned voices are picked from Discord with the tts commands.',
   'settings.tts.voices_link': 'Yours are on the <link>Voices</link> page.',
+  'settings.games.title': 'Games',
+  'settings.games.description': 'Your points from NotSoBot’s games, in chat and in the Activity.',
+  'settings.games.hidden': 'Hide me from the global leaderboards',
+  'settings.games.hidden_hint': 'Your global rank isn’t shown either. You still earn points, and your servers’ leaderboards still show you.',
   'settings.personality_hint': 'Supports <docs>TagScript</docs>, run before every reply, with <code>{args}</code> as the message sent to the AI, so the prompt can change with what was asked.',
   'settings.personality_example': 'For example: <code>{example}</code>',
   'vanity.bad_part': 'Part {part} isn’t a number or range. Use something like 5 or 3-8.',
@@ -121,5 +125,4 @@ export const Settings = {
   'data.delete.confirm': 'Delete everything',
   'data.delete.phrase': 'delete my data',
   'data.delete.error': 'Couldn’t delete your data.',
-  'data.delete.on_hold': 'Your data can’t be deleted right now.',
 } as const;

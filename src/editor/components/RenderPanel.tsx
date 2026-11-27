@@ -48,7 +48,7 @@ function resultOf(job: EditorJob): RenderState {
 
 // The full quality render: the whole stack on the original, a normal job on the user's tier queue. Polled through
 // `/jobs/<id>` like a command. Only the newest one counts, a new render or leaving the document drops the old poll
-export function RenderPanel({ host, documentId, documentFilename, formats, sourceKind, empty, waitForSave, preview }: {
+export function RenderPanel({ host, documentId, documentFilename, formats, sourceKind, empty, locked = false, waitForSave, preview }: {
   host: EditorHost,
   documentId: string,
   // the document's file name, a shared render keeps it (with the render's own extension)
@@ -58,6 +58,9 @@ export function RenderPanel({ host, documentId, documentFilename, formats, sourc
   sourceKind: string,
   // no visible steps: the only time it's off, and the only time its hint shows (it never comes and goes while editing)
   empty: boolean,
+  // someone else's render has the stack: no render or format change of their own until it ends. A finished render's
+  // Share, Download and Copy link stay as they are
+  locked?: boolean,
   // the last edits saved, a render started mid-save waits for them instead of the button switching off on every edit
   waitForSave: () => Promise<boolean>,
   // the editor's preview of the stack as it is now (the small proxy's), what a rendered picture's thumbnail shows
@@ -111,9 +114,12 @@ export function RenderPanel({ host, documentId, documentFilename, formats, sourc
       return;
     }
     try {
-      let job = await host.api.render(documentId, (formats.includes(format)) ? format : undefined);
-      // the room was told by the api just now, its end is this panel's to say (also when it's left mid-render)
-      announcedRef.current = Boolean(host.room);
+      // in a room, the socket it's asked from: the api tells the room, and only that socket's word ends it
+      const socketId = host.room?.socketId ?? null;
+      let job = await host.api.render(documentId, (formats.includes(format)) ? format : undefined, socketId);
+      // the room was told by the api just now, its end is this panel's to say (also when it's left mid-render). A
+      // socket that reconnected since is another one, the api ends it itself when the old one goes
+      announcedRef.current = Boolean(host.room && socketId);
       let failures = 0;
       while (!JOB_DONE.has(job.status)) {
         if (run !== runRef.current) {
@@ -169,11 +175,15 @@ export function RenderPanel({ host, documentId, documentFilename, formats, sourc
   const queued = running && state.job?.status === 'queued';
 
   return (
-    <div className='flex shrink-0 flex-col gap-2 border-t border-line-strong pt-3.5'>
+    <div
+      data-state={state.status}
+      data-job-status={(state.status === 'running' && state.job) ? state.job.status : undefined}
+      className='flex shrink-0 flex-col gap-2 border-t border-line-strong pt-3.5'
+    >
       {(formats.length) ? (
         <div className='flex items-center gap-2'>
           <label htmlFor={formatId} className='shrink-0 text-[13px] text-muted'>{t('editor.render.format')}</label>
-          <select id={formatId} value={(formats.includes(format)) ? format : ''} disabled={running} onChange={(event) => setFormat(event.target.value)} className={SELECT}>
+          <select id={formatId} value={(formats.includes(format)) ? format : ''} disabled={running || locked} onChange={(event) => setFormat(event.target.value)} className={SELECT}>
             <option value=''>{t('editor.render.format_auto')}</option>
             {formats.map((mimetype) => (
               <option key={mimetype} value={mimetype}>
@@ -183,7 +193,7 @@ export function RenderPanel({ host, documentId, documentFilename, formats, sourc
           </select>
         </div>
       ) : null}
-      <button type='button' className='btn btn-primary min-h-11 w-full' disabled={empty || running} onClick={() => void start()}>
+      <button type='button' className='btn btn-primary min-h-11 w-full' disabled={empty || running || locked} onClick={() => void start()}>
         {(running) ? <Spinner className='size-4 border-white/40 border-t-white'/> : null}
         {(running) ? ((queued) ? t('editor.render.queued') : t('editor.render.rendering')) : t('editor.render')}
       </button>
@@ -227,6 +237,14 @@ function RenderThumbnail({ url, thumbnail, mimetype, extension }: {url: string, 
 }
 
 
+// sharing a finished render: one thing at a time. `posted`: the bot posted it in the channel (Discord's own dialog says
+// nothing back, that's `idle` again)
+type ShareState =
+  | {status: 'idle'}
+  | {status: 'sharing'}
+  | {status: 'posted'}
+  | {status: 'failed', message: string};
+
 const ACTION = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60';
 
 
@@ -246,39 +264,39 @@ function RenderResult({ host, documentId, url, thumbnail, filename, shareName, m
   const { t } = useI18n();
   const { copied, copy } = useCopied();
   const [ copyFailed, setCopyFailed ] = useState(false);
-  const [ sharing, setSharing ] = useState(false);
-  const [ shareError, setShareError ] = useState<string | null>(null);
-  // the bot posted it in the channel (Discord's own dialog says nothing back)
-  const [ posted, setPosted ] = useState(false);
+  const copyFailedTimer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(copyFailedTimer.current), []);
+  const [ share, setShare ] = useState<ShareState>({status: 'idle'});
+  const sharing = share.status === 'sharing';
   const extension = (mimetype) ? formatName(mimetype) : (url.split('.').pop() || '').toUpperCase();
 
   const onCopy = async () => {
     const worked = await copy(url);
+    // a second failure starts its two seconds over (the first one's timer used to cut it short)
+    window.clearTimeout(copyFailedTimer.current);
     setCopyFailed(!worked);
     if (!worked) {
-      window.setTimeout(() => setCopyFailed(false), 2000);
+      copyFailedTimer.current = window.setTimeout(() => setCopyFailed(false), 2000);
     }
   };
 
   const onShare = async () => {
-    if (!host.share) {
+    if (!host.share || sharing) {
       return;
     }
-    setSharing(true);
-    setShareError(null);
+    // (an earlier try's "posted" goes with it: a share that failed after one that worked used to show both)
+    setShare({status: 'sharing'});
     try {
-      setPosted(await host.share(url, shareName, documentId) === 'posted');
+      const outcome = await host.share(url, shareName, documentId);
+      setShare((outcome === 'posted') ? {status: 'posted'} : {status: 'idle'});
     } catch (error) {
       // the api's reason (too big, discord refused it), or the sdk's own message
-      const message = host.errorOf(error)?.message ?? ((error instanceof Error) ? error.message : '');
-      setShareError(message);
-    } finally {
-      setSharing(false);
+      setShare({status: 'failed', message: host.errorOf(error)?.message ?? ((error instanceof Error) ? error.message : '')});
     }
   };
 
   return (
-    <div role='status' className='flex flex-col gap-3 rounded-xl border border-success/40 bg-success/10 p-3'>
+    <div role='status' data-share-state={share.status} className='flex flex-col gap-3 rounded-xl border border-success/40 bg-success/10 p-3'>
       <div className='flex items-center gap-3'>
         <div className='flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-deep'>
           <RenderThumbnail url={url} thumbnail={thumbnail} mimetype={mimetype} extension={extension}/>
@@ -297,15 +315,15 @@ function RenderResult({ host, documentId, url, thumbnail, filename, shareName, m
           {(sharing) ? t('editor.render.sharing') : t('editor.render.share')}
         </button>
       ) : null}
-      {(posted) ? (
+      {(share.status === 'posted') ? (
         <p role='status' className='-mt-1 flex gap-1.5 text-xs text-success-text'>
           <Check aria-hidden className='mt-px size-3.5 shrink-0'/>{t('editor.render.posted')}
         </p>
       ) : null}
-      {(shareError !== null) ? (
+      {(share.status === 'failed') ? (
         <p role='alert' className='-mt-1 flex gap-1.5 text-xs text-danger-text'>
           <CircleAlert aria-hidden className='mt-px size-3.5 shrink-0'/>
-          {t('editor.render.share_failed')}{(shareError) ? `: ${shareError}` : null}
+          {t('editor.render.share_failed')}{(share.message) ? `: ${share.message}` : null}
         </p>
       ) : null}
 

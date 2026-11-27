@@ -71,6 +71,10 @@ export const Settings: Record<keyof typeof English, string> = {
   'settings.tts.voice': 'Voz',
   'settings.tts.voice_hint': 'As vozes clonadas são escolhidas no Discord com os comandos tts.',
   'settings.tts.voices_link': 'As suas ficam na página <link>Vozes</link>.',
+  'settings.games.title': 'Jogos',
+  'settings.games.description': 'Seus pontos dos jogos do NotSoBot, no chat e na Atividade.',
+  'settings.games.hidden': 'Não aparecer nos rankings globais',
+  'settings.games.hidden_hint': 'Sua posição global também não aparece. Você continua ganhando pontos, e os rankings dos seus servidores continuam mostrando você.',
   'settings.personality_hint': 'Aceita <docs>TagScript</docs>, executado antes de cada resposta, com <code>{args}</code> como a mensagem enviada à IA, para o prompt poder mudar conforme o que foi perguntado.',
   'settings.personality_example': 'Por exemplo: <code>{example}</code>',
   'vanity.bad_part': 'A parte {part} não é um número nem um intervalo. Use algo como 5 ou 3-8.',
@@ -123,5 +127,4 @@ export const Settings: Record<keyof typeof English, string> = {
   'data.delete.confirm': 'Excluir tudo',
   'data.delete.phrase': 'excluir meus dados',
   'data.delete.error': 'Não foi possível excluir seus dados.',
-  'data.delete.on_hold': 'Seus dados não podem ser excluídos agora.',
 };

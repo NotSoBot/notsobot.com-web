@@ -138,7 +138,13 @@ function SaveTemplateDialog({ host, state, documentId, exampleUrl, onClose }: {
   const [ asks, setAsks ] = useState<Record<string, string>>(() => Object.fromEntries(
     candidates.filter((item) => item.step.inputs?.[item.param.name]).map((item) => [item.id, item.step.inputs![item.param.name]]),
   ));
-  const emptyQuestion = Object.values(asks).some((question) => !question.trim());
+  // the ones whose step and setting are still there: in a room a step can go while this is open, and its question (an
+  // empty one kept Create off with nothing to fill in) goes with it
+  const asked = useMemo(() => {
+    const ids = new Set(candidates.map((item) => item.id));
+    return Object.fromEntries(Object.entries(asks).filter(([ id ]) => ids.has(id)));
+  }, [asks, candidates]);
+  const emptyQuestion = Object.values(asked).some((question) => !question.trim());
   // heavy AI effects can't be in a template yet (the api refuses them too)
   const blocked = (state) ? state.steps.map((step) => state.effectsById.get(step.effect)).find((effect) => effect?.template_blocked) : undefined;
 
@@ -155,8 +161,8 @@ function SaveTemplateDialog({ host, state, documentId, exampleUrl, onClose }: {
           byStep[step.id] = undefined;
         }
         for (const item of candidates) {
-          if (item.id in asks) {
-            byStep[item.step.id] = {...(byStep[item.step.id] ?? {}), [item.param.name]: asks[item.id].trim()};
+          if (item.id in asked) {
+            byStep[item.step.id] = {...(byStep[item.step.id] ?? {}), [item.param.name]: asked[item.id].trim()};
           }
         }
         const changed = state.steps.some((step) => JSON.stringify(step.inputs ?? null) !== JSON.stringify(byStep[step.id] ?? null));
@@ -179,6 +185,7 @@ function SaveTemplateDialog({ host, state, documentId, exampleUrl, onClose }: {
     <Modal labelledBy={titleId} onClose={() => !pending && onClose()} className='max-w-md'>
       <form
         className='p-5 sm:p-6'
+        data-state={(saved) ? 'saved' : (pending) ? 'pending' : (error) ? 'error' : 'idle'}
         onSubmit={(event) => {
           event.preventDefault();
           if (saved) {
@@ -220,7 +227,7 @@ function SaveTemplateDialog({ host, state, documentId, exampleUrl, onClose }: {
               </p>
             </div>
             <div className='mt-4'>
-              <AskForInputs candidates={candidates} value={asks} onChange={setAsks}/>
+              <AskForInputs candidates={candidates} value={asked} onChange={setAsks}/>
             </div>
             {(blocked) ? <p role='alert' className='mt-4 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-warning'>{t('editor.template.heavy_ai', {name: blocked.name})}</p> : null}
           </>

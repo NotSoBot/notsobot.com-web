@@ -1,12 +1,23 @@
 import { ChevronRight, Gamepad2, UserCog, Wand2, type LucideIcon } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 import { GuildIcon } from '@/components/ui/GuildIcon';
+import { Spinner } from '@/components/ui/Spinner';
+import { MemberAvatar } from '@/editor/components/LobbyPeople';
 import { useI18n } from '@/i18n';
 import { cn } from '@/lib/utils';
 
 import { SettingsButton } from './ActivitySettings';
-import { useEditingCount, useGameRoomCounts, type ActivityFeed } from './counts';
+import { gameInfo } from './catalog';
+import {
+  JOIN_TARGETS_SHOWN,
+  joinTargetKey,
+  useEditingCount,
+  useGameRoomCounts,
+  useJoinTargets,
+  type ActivityFeed,
+  type JoinTarget,
+} from './counts';
 import type { GameRoomsApi } from './rooms';
 
 
@@ -16,12 +27,17 @@ import type { GameRoomsApi } from './rooms';
 // `notice`: why they're here instead (a room invite that couldn't be opened). Each card says what's going on in it here,
 // live (./counts): how many people are editing, how many games are being played. Under the two: `onYourSettings`, their
 // own dashboard pages (./user), for everyone signed in (dms too); `server`, the server's settings (./server), once it's
-// known they can change something there (never in a dm)
-export function ModeChoice({ api, room, onEdit, onGame, onYourSettings, server, notice }: {
+// known they can change something there (never in a dm). Above the two, `onJoin`: the others here who are in a room (a
+// lobby they edit, a game room), each with a Join straight into it, so a Join on someone's launch message finds them
+// (`first`: whose message it was, when the launch says, their room goes first).
+// A password room still asks for its password on the way in (its list opens, saying so)
+export function ModeChoice({ api, room, onEdit, onGame, onJoin, first, onYourSettings, server, notice }: {
   api: GameRoomsApi,
   room: ActivityFeed,
   onEdit: () => void,
   onGame: () => void,
+  onJoin?: ((target: JoinTarget) => Promise<void> | void) | null,
+  first?: string | null,
   onYourSettings?: (() => void) | null,
   server?: {guild: {id: string, name: string, icon: string | null}, onOpen: () => void} | null,
   notice?: string | null,
@@ -29,6 +45,7 @@ export function ModeChoice({ api, room, onEdit, onGame, onYourSettings, server, 
   const { t, plural } = useI18n();
   const editing = useEditingCount(room);
   const games = useGameRoomCounts(api, room, null);
+  const targets = useJoinTargets(room, first ?? null).slice(0, JOIN_TARGETS_SHOWN);
   return (
     <div className='mx-auto flex min-h-[var(--editor-height,100dvh)] w-full max-w-3xl flex-col justify-center gap-6 px-4 py-8'>
       <header className='flex flex-col gap-2'>
@@ -40,6 +57,7 @@ export function ModeChoice({ api, room, onEdit, onGame, onYourSettings, server, 
         <p className='text-muted'>{t('games.choice.description')}</p>
       </header>
       {(notice) ? <p role='status' className='rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning'>{notice}</p> : null}
+      {(onJoin && targets.length) ? <JoinRows targets={targets} onJoin={onJoin}/> : null}
       <div className='grid gap-3 sm:grid-cols-2'>
         <ChoiceCard
           icon={Wand2}
@@ -123,6 +141,60 @@ function ChoiceCard({ icon: Icon, accent, title, description, status, live, onCl
       </span>
       <ChevronRight aria-hidden className='size-5 shrink-0 text-subtle transition-transform group-hover:translate-x-0.5 sm:hidden'/>
     </button>
+  );
+}
+
+
+// Who's in a room here, a row each: their face, what they're in and a Join. One join at a time, the row's button says
+// it's on its way (another tap would race it)
+function JoinRows({ targets, onJoin }: {targets: Array<JoinTarget>, onJoin: (target: JoinTarget) => Promise<void> | void}) {
+  const { t } = useI18n();
+  const [ joining, setJoining ] = useState<string | null>(null);
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
+  const join = (target: JoinTarget) => {
+    const key = joinTargetKey(target);
+    setJoining(key);
+    void Promise.resolve(onJoin(target)).finally(() => {
+      // (gone already when the join opened the room)
+      if (alive.current) {
+        setJoining(null);
+      }
+    });
+  };
+  return (
+    <section aria-labelledby='mode-choice-join' className='flex flex-col gap-2'>
+      <h2 id='mode-choice-join' className='text-xs font-semibold uppercase tracking-wide text-subtle'>{t('games.choice.join_title')}</h2>
+      <ul className='flex flex-col gap-2'>
+        {targets.map((target) => {
+          const key = joinTargetKey(target);
+          const what = (target.kind === 'editor') ? t('games.choice.join_editing') : t('games.choice.join_playing', {game: t(gameInfo(target.game).title)});
+          return (
+            <li key={key} className='flex items-center gap-3 rounded-2xl border border-line-strong bg-surface p-3'>
+              <MemberAvatar member={target.member} className='size-10 shrink-0'/>
+              <span className='flex min-w-0 flex-1 flex-col'>
+                <span className='truncate font-semibold text-white'>{target.member.username}</span>
+                <span className='truncate text-sm text-muted'>{what}</span>
+              </span>
+              <button
+                type='button'
+                onClick={() => join(target)}
+                disabled={joining !== null}
+                aria-label={t('games.choice.join_label', {name: target.member.username})}
+                className='btn btn-primary shrink-0'
+              >
+                {(joining === key) ? <Spinner className='size-4 border-white/40 border-t-white'/> : null}{t('games.choice.join')}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
 

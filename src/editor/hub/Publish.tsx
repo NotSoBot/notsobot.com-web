@@ -23,6 +23,28 @@ export function hubStatusOf(template: EditorTemplate): HubStatus {
 }
 
 
+// What each status is to its owner, in one place: one added to `HubStatus` doesn't compile until it has a row.
+// `listed`: on the hub or held for it, it can be unpublished and its description saved. `button`: the globe's color
+interface HubStatusView {
+  tone: 'neutral' | 'danger' | 'warning' | 'success',
+  listed: boolean,
+  button: string,
+}
+
+const HUB_STATUS: Record<HubStatus, HubStatusView> = {
+  none: {tone: 'neutral', listed: false, button: 'text-muted hover:text-fg'},
+  review: {tone: 'warning', listed: true, button: 'text-warning'},
+  published: {tone: 'success', listed: true, button: 'text-success-text'},
+  hidden: {tone: 'neutral', listed: true, button: 'text-muted hover:text-fg'},
+  rejected: {tone: 'danger', listed: false, button: 'text-danger-text'},
+};
+
+// (one this build doesn't know, from a newer api, is shown like an unlisted one rather than not at all)
+function hubStatusView(status: HubStatus): HubStatusView {
+  return HUB_STATUS[status] ?? HUB_STATUS.none;
+}
+
+
 // Where one of their templates stands on the hub, next to its name in their lists. Nothing while it's unlisted
 export function HubStatusBadge({ template, className }: {template: EditorTemplate, className?: string}) {
   const { t } = useI18n();
@@ -30,8 +52,7 @@ export function HubStatusBadge({ template, className }: {template: EditorTemplat
   if (status === 'none') {
     return null;
   }
-  const tone = (status === 'published') ? 'success' : (status === 'review') ? 'warning' : (status === 'rejected') ? 'danger' : 'neutral';
-  return <Chip tone={tone} className={className}>{t(`hub.status.${status}`)}</Chip>;
+  return <Chip tone={hubStatusView(status).tone} className={className}>{t(`hub.status.${status}`)}</Chip>;
 }
 
 
@@ -64,8 +85,14 @@ function StatusResult({ host, template }: {host: EditorHost, template: EditorTem
       text = (reason) ? t('hub.result.hidden', {reason}) : t('hub.result.hidden_plain');
       tone = 'border-line-strong bg-surface text-muted';
       break;
-    default:
+    case 'none':
       return null;
+    default: {
+      // a status this build doesn't know says nothing. One added to `HubStatus` doesn't compile until it has a case
+      const unknown: never = status;
+      void unknown;
+      return null;
+    }
   }
   return (
     <div role='status' className={cn('flex flex-col gap-2 rounded-lg border px-3 py-2.5 text-sm', tone)}>
@@ -97,7 +124,7 @@ export function PublishDialog({ host, template, onChange, onClose }: {
   const [ error, setError ] = useState<string | null>(null);
   const [ unpublished, setUnpublished ] = useState(false);
   const status = hubStatusOf(template);
-  const listed = status === 'published' || status === 'review' || status === 'hidden';
+  const listed = hubStatusView(status).listed;
   const unchanged = listed && description.trim() === (template.hub?.description ?? '').trim();
 
   const publish = async () => {
@@ -133,6 +160,8 @@ export function PublishDialog({ host, template, onChange, onClose }: {
     <Modal labelledBy={titleId} onClose={() => !pending && onClose()} className='max-w-lg'>
       <form
         className='flex flex-col gap-4 p-5 sm:p-6'
+        data-state={pending ?? ((error) ? 'error' : 'idle')}
+        data-hub-status={status}
         aria-busy={pending === 'publish'}
         onSubmit={(event) => {
           event.preventDefault();
@@ -224,10 +253,11 @@ export function PublishButton({ host, template, onChange, className }: {
         type='button'
         aria-label={label}
         title={label}
+        data-hub-status={status}
         onClick={() => setOpen(true)}
         className={cn(
           'flex size-10 shrink-0 items-center justify-center rounded-md hover:bg-surface-3',
-          (status === 'published') ? 'text-success-text' : (status === 'review') ? 'text-warning' : (status === 'rejected') ? 'text-danger-text' : 'text-muted hover:text-fg',
+          hubStatusView(status).button,
           className,
         )}
       >

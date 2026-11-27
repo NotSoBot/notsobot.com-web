@@ -91,6 +91,19 @@ const AUTO_REVIEW_OPTIONS = [
 const AUTO_REVIEW_DECISION_TONES: Record<string, 'danger' | 'success' | 'warning'> = {confirm: 'danger', dismiss: 'success', escalate: 'warning'};
 
 // the row and header chip for a flag the model review looked at
+// a flag made from a hash match (`auto_confirmed_from`). One that matched a flag reported to NCMEC isn't confirmed by
+// itself: the api leaves it unsure, for a person to decide whether it needs a report of its own
+function hashMatchLabel(flag: ContentFlag): string {
+  return (flag.status === ContentFlagStatuses.UNSURE) ? 'matches a reported flag' : 'auto-confirmed';
+}
+
+function hashMatchTitle(flag: ContentFlag): string {
+  if (flag.status === ContentFlagStatuses.UNSURE) {
+    return `Same media as #${flag.auto_confirmed_from}, which was reported to NCMEC. It's blocked, decide whether this upload needs its own report`;
+  }
+  return `Same media as #${flag.auto_confirmed_from}, which was already confirmed`;
+}
+
 function autoReviewChip(review: ContentFlagAutoReview | null | undefined, key?: string): ReactNode {
   if (!review) {
     return null;
@@ -639,7 +652,7 @@ function ContentFlagRow({ flag, onOpen }: {flag: ContentFlag, onOpen: (id: strin
     ) : null,
     (flag.category) ? <Chip key='category' tone={(flag.category.startsWith('unsafe')) ? 'danger' : 'warning'}>{flag.category}</Chip> : null,
     (flag.needs_human_review) ? <Chip key='review' tone='warning'>needs review</Chip> : null,
-    (flag.auto_confirmed_from) ? <Chip key='auto'>auto-confirmed</Chip> : null,
+    (flag.auto_confirmed_from) ? <Chip key='auto'>{hashMatchLabel(flag)}</Chip> : null,
     autoReviewChip(flag.auto_review, 'auto-review'),
     (user?.blocked) ? <Chip key='blocked' tone='danger'>user blocked</Chip> : null,
   ].filter(Boolean);
@@ -875,7 +888,7 @@ function ContentFlagDetails({ flag, onReport, navigation }: {
         states={<>
           {(flag.category) ? <Chip tone={(flag.category.startsWith('unsafe')) ? 'danger' : 'warning'}>{flag.category}</Chip> : null}
           {(flag.needs_human_review) ? <Chip tone='warning'>needs human review</Chip> : null}
-          {(flag.auto_confirmed_from) ? <Chip title={`Same media as #${flag.auto_confirmed_from}, which was already confirmed`}>auto-confirmed</Chip> : null}
+          {(flag.auto_confirmed_from) ? <Chip title={hashMatchTitle(flag)}>{hashMatchLabel(flag)}</Chip> : null}
           {autoReviewChip(flag.auto_review)}
         </>}
         status={<>

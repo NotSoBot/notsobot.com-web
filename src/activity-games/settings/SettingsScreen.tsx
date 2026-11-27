@@ -46,6 +46,15 @@ const LEAVE_PATH = '/leave';
 
 export type SettingsRouter = ReturnType<typeof createMemoryRouter>;
 
+// which of the two screens a frame is (the Activity's own names for them), and where it is: its first page's code or
+// whose settings these are still loading, there, or not loaded. On the frame's element as `data-screen` and
+// `data-state`, for a test or an agent to read (a form's own state is on its save bar)
+export type SettingsScreenName = 'server_settings' | 'user_settings';
+export type SettingsFrameState = 'loading' | 'ready' | 'error';
+
+const FRAME = 'mx-auto flex min-h-[var(--editor-height,100dvh)] w-full max-w-4xl flex-col gap-4 px-4 pt-3 pb-[calc(1.5rem+var(--saib,0px))]';
+const BACK = '-ml-2 inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-muted hover:bg-surface hover:text-fg';
+
 
 // `createRouter` makes the screen's router once (`createSettingsRouter`), it's where a screen seeds the cache too
 export function SettingsScreen({ siteUrl, openExternal, onBack, createRouter }: ActivitySettingsHost & {createRouter: () => SettingsRouter}) {
@@ -77,13 +86,13 @@ export function SettingsScreen({ siteUrl, openExternal, onBack, createRouter }: 
 
 // `layout`: the screen's own layout route over the dashboard's pages (their paths unchanged, so the pages' links to each
 // other stay inside), opening on `initialPath`. Back's route and the site's other pages go next to it
-export function createSettingsRouter(layout: RouteObject, initialPath: string): SettingsRouter {
+export function createSettingsRouter(screen: SettingsScreenName, layout: RouteObject, initialPath: string): SettingsRouter {
   const routes: Array<RouteObject> = [
     {
       ...layout,
       errorElement: <SettingsRouteError/>,
       // while the first page's code loads
-      HydrateFallback: SettingsLoading,
+      HydrateFallback: () => <SettingsLoading screen={screen}/>,
     },
     {path: LEAVE_PATH, element: <Leave/>},
     // anywhere else is one of the site's pages, reached by a page's own navigate() (links never get here, see
@@ -159,20 +168,38 @@ function useSiteLinks(router: SettingsRouter, host: ActivitySettingsHost) {
 }
 
 
-function SettingsLoading() {
-  return <FullPageMessage><Spinner/></FullPageMessage>;
+// the first page's code is on its way: the frame's Back where it'll be (straight out, nothing's open to ask about), so
+// a slow load isn't a spinner with no way out
+function SettingsLoading({ screen }: {screen: SettingsScreenName}) {
+  const { t } = useI18n();
+  const { onBack } = useActivitySettingsHost();
+  return (
+    <div data-screen={screen} data-state='loading' className={FRAME}>
+      <div className='flex items-center'>
+        <button type='button' onClick={onBack} className={BACK}>
+          <ArrowLeft aria-hidden className='size-4'/>{t('games.choice.back')}
+        </button>
+      </div>
+      <div aria-busy='true' className='flex flex-1 items-center justify-center'><Spinner/></div>
+    </div>
+  );
 }
 
 
 // A screen's layout around its pages: Back and the full dashboard's link (`dashboardUrl`) on top, then the screen's own
-// header, tabs and page (`children`)
-export function SettingsFrame({ dashboardUrl, children }: {dashboardUrl: string, children: ReactNode}) {
+// header, tabs and page (`children`). `state`: whether whose settings these are (the server, the person) has loaded
+export function SettingsFrame({ screen, state, dashboardUrl, children }: {
+  screen: SettingsScreenName,
+  state: SettingsFrameState,
+  dashboardUrl: string,
+  children: ReactNode,
+}) {
   const { t } = useI18n();
   const navigate = useNavigate();
   return (
-    <div className='mx-auto flex min-h-[var(--editor-height,100dvh)] w-full max-w-4xl flex-col gap-4 px-4 pt-3 pb-[calc(1.5rem+var(--saib,0px))]'>
+    <div data-screen={screen} data-state={state} className={FRAME}>
       <div className='flex items-center justify-between gap-2'>
-        <button type='button' onClick={() => navigate(LEAVE_PATH)} className='-ml-2 inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-muted hover:bg-surface hover:text-fg'>
+        <button type='button' onClick={() => navigate(LEAVE_PATH)} className={BACK}>
           <ArrowLeft aria-hidden className='size-4'/>{t('games.choice.back')}
         </button>
         {/* opened in the browser by `useSiteLinks` */}

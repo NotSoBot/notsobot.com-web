@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import type { EditorHost } from '../api';
 import type { EditorGroup } from '../types';
 import { useCatalogue } from '../useCatalogue';
+import { isHubCode } from './api';
 import { HubCard, HubCardSkeleton } from './HubCard';
 import { HubDetailDialog } from './HubDetail';
 import { HubLoginDialog, HubReportDialog, type HubLoginIntent } from './HubDialogs';
@@ -24,10 +25,36 @@ const SKELETONS = 6;
 const GROUPS: ReadonlyArray<EditorGroup> = ['style', 'distort', 'animate', 'text', 'faces', 'scenes', 'adjust', 'edit', 'draw', 'audio'];
 
 
+// the next page's own load, under the ones already shown
+type MoreState =
+  | {status: 'idle'}
+  | {status: 'loading'}
+  | {status: 'error', message: string};
+
 type ListState =
   | {status: 'loading'}
   | {status: 'error', message: string}
-  | {status: 'ready', templates: Array<HubTemplate>, next: string | null};
+  | {status: 'ready', templates: Array<HubTemplate>, next: string | null, more: MoreState};
+
+// the dialog over the list (besides a template's own view): never two of them
+type HubOverlay =
+  | {kind: 'report', template: HubTemplate}
+  | {kind: 'login', template: HubTemplate, intent: HubLoginIntent};
+
+// the one Try that's running, or the last one that failed, by its template's code. One at a time: a second one started
+// meanwhile used to win or lose by which answer came last, and take the first one's spinner away
+type TryState =
+  | {code: string, status: 'loading'}
+  | {code: string, status: 'error', message: string};
+
+// the open one when it isn't in the list (a shared link, or past the loaded pages), by its code
+type FetchedState =
+  | {code: string, status: 'loading'}
+  | {code: string, status: 'ready', template: HubTemplate}
+  // the api says it isn't on the hub (a 404)
+  | {code: string, status: 'missing'}
+  // anything else: it can be asked again
+  | {code: string, status: 'error'};
 
 
 function FilterToggle({ pressed, onChange, label }: {pressed: boolean, onChange: (value: boolean) => void, label: string}) {
@@ -54,7 +81,8 @@ function FilterToggle({ pressed, onChange, label }: {pressed: boolean, onChange:
 export function HubBrowser({ host, loggedIn, onTry, onLogin, openCode, onOpenCode, className }: {
   host: EditorHost,
   loggedIn: boolean,
-  // the site goes to the template's link, the Activity puts it on its start screen
+  // the site goes to the template's link, the Activity puts it on its start screen. One that fails rejects, the reason
+  // is said beside the Try that was pressed
   onTry: (template: HubTemplate) => void | Promise<void>,
   onLogin?: (template: HubTemplate, intent: HubLoginIntent) => void,
   openCode: string | null,
@@ -62,7 +90,7 @@ export function HubBrowser({ host, loggedIn, onTry, onLogin, openCode, onOpenCod
   className?: string,
 }) {
   const { t } = useI18n();
-  // the Activity has no i18n provider, its `t` is a new function every render: effects read it from here
+  // (effects read `t` from here: it changes with the language, which is no reason to load the list again)
   const tRef = useRef(t);
   tRef.current = t;
   const filtersId = useId();
@@ -79,12 +107,12 @@ export function HubBrowser({ host, loggedIn, onTry, onLogin, openCode, onOpenCod
   const [ filtersOpen, setFiltersOpen ] = useState(false);
   const [ list, setList ] = useState<ListState>({status: 'loading'});
   const [ attempt, setAttempt ] = useState(0);
-  const [ more, setMore ] = useState<{pending: boolean, error: string | null}>({pending: false, error: null});
-  const [ trying, setTrying ] = useState<string | null>(null);
-  const [ reporting, setReporting ] = useState<HubTemplate | null>(null);
-  const [ login, setLogin ] = useState<{template: HubTemplate, intent: HubLoginIntent} | null>(null);
-  // the open one when it isn't in the list (a shared link, or past the loaded pages)
-  const [ fetched, setFetched ] = useState<{code: string, template: HubTemplate | null, missing: boolean} | null>(null);
+  const [ tryState, setTryState ] = useState<TryState | null>(null);
+  const [ overlay, setOverlay ] = useState<HubOverlay | null>(null);
+  const [ fetched, setFetched ] = useState<FetchedState | null>(null);
+  const fetchedRef = useRef(fetched);
+  fetchedRef.current = fetched;
+  const [ fetchAttempt, setFetchAttempt ] = useState(0);
   const moreAbort = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -103,10 +131,12 @@ export function HubBrowser({ host, loggedIn, onTry, onLogin, openCode, onOpenCod
   useEffect(() => {
     const controller = new AbortController();
     moreAbort.current?.abort();
-    setMore({pending: false, error: null});
     setList({status: 'loading'});
     host.api.hub(filters, controller.signal).then((page) => {
-      setList({status: 'ready', templates: page.templates, next: page.next});
+      // (an aborted request rejects in both hosts today, this doesn't lean on that)
+      if (!controller.signal.aborted) {
+        setList({status: 'ready', templates: page.templates, next: page.next, more: {status: 'idle'}});
+      }
     }).catch((failure) => {
       if (!controller.signal.aborted) {
         setList({status: 'error', message: host.errorOf(failure)?.message || tRef.current('hub.error')});
@@ -116,69 +146,89 @@ export function HubBrowser({ host, loggedIn, onTry, onLogin, openCode, onOpenCod
   }, [host, filters, attempt]);
 
   const loadMore = async () => {
-    if (list.status !== 'ready' || !list.next || more.pending) {
+    if (list.status !== 'ready' || !list.next || list.more.status === 'loading') {
       return;
     }
     const controller = new AbortController();
     moreAbort.current = controller;
-    setMore({pending: true, error: null});
+    // (a list that's loading again for other filters has no `more`, this page isn't its)
+    const setMore = (more: MoreState) => setList((current) => (current.status === 'ready' && !controller.signal.aborted) ? {...current, more} : current);
+    setMore({status: 'loading'});
     try {
       const page = await host.api.hub({...filters, before: list.next}, controller.signal);
+      if (controller.signal.aborted) {
+        return;
+      }
       setList((current) => {
         if (current.status !== 'ready') {
           return current;
         }
         // a template that moved up between pages (ranked lists change) isn't shown twice
         const seen = new Set(current.templates.map((item) => item.code));
-        return {status: 'ready', templates: [...current.templates, ...page.templates.filter((item) => !seen.has(item.code))], next: page.next};
+        return {status: 'ready', templates: [...current.templates, ...page.templates.filter((item) => !seen.has(item.code))], next: page.next, more: {status: 'idle'}};
       });
-      setMore({pending: false, error: null});
     } catch (failure) {
-      if (!controller.signal.aborted) {
-        setMore({pending: false, error: host.errorOf(failure)?.message || t('hub.error')});
-      }
+      setMore({status: 'error', message: host.errorOf(failure)?.message || t('hub.error')});
     }
   };
 
   const listed = (list.status === 'ready' && openCode) ? list.templates.find((item) => item.code === openCode) ?? null : null;
   useEffect(() => {
-    if (!openCode || listed || list.status === 'loading' || fetched?.code === openCode) {
+    if (!openCode || listed || list.status === 'loading') {
+      return;
+    }
+    // already asked for and answered (the state as of the last render: this effect doesn't run again for it)
+    const known = fetchedRef.current;
+    if (known?.code === openCode && (known.status === 'ready' || known.status === 'missing')) {
+      return;
+    }
+    // a code that can't be one isn't asked for (the request would throw before there's a promise): not there
+    if (!isHubCode(openCode)) {
+      setFetched({code: openCode, status: 'missing'});
       return;
     }
     const controller = new AbortController();
-    setFetched({code: openCode, template: null, missing: false});
-    // (a code that can't be one makes the request throw before there's a promise: not found like any other)
-    Promise.resolve().then(() => host.api.hubTemplate(openCode, controller.signal)).then((template) => {
-      setFetched({code: openCode, template, missing: false});
-    }).catch(() => {
+    setFetched({code: openCode, status: 'loading'});
+    host.api.hubTemplate(openCode, controller.signal).then((template) => {
       if (!controller.signal.aborted) {
-        setFetched({code: openCode, template: null, missing: true});
+        setFetched({code: openCode, status: 'ready', template});
+      }
+    }).catch((failure) => {
+      if (!controller.signal.aborted) {
+        // only the api's own "not there" is that: a busy api or a dropped connection used to read "not on the hub"
+        setFetched({code: openCode, status: (host.errorOf(failure)?.status === 404) ? 'missing' : 'error'});
       }
     });
-    return () => controller.abort();
-    // `fetched` is what this sets
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [host, openCode, listed, list.status]);
-  const opened = listed ?? ((fetched?.code === openCode) ? fetched.template : null);
+    return () => {
+      controller.abort();
+      // closed before it answered: it's asked again when it's opened again. Left as loading, the next time found it
+      // "already asked for" and spun until a reload
+      setFetched((current) => (current?.code === openCode && current.status === 'loading') ? null : current);
+    };
+  }, [host, openCode, listed, list.status, fetchAttempt]);
+  const opened = listed ?? ((fetched?.code === openCode && fetched.status === 'ready') ? fetched.template : null);
+  const openedState = (opened || fetched?.code !== openCode) ? null : fetched.status;
 
+  const trying = (tryState?.status === 'loading') ? tryState.code : null;
+  const tryError = (code: string) => (tryState?.status === 'error' && tryState.code === code) ? tryState.message : null;
   const tryTemplate = async (template: HubTemplate) => {
     if (!loggedIn) {
-      setLogin({template, intent: 'try'});
+      setOverlay({kind: 'login', template, intent: 'try'});
       return;
     }
-    setTrying(template.code);
+    if (trying) {
+      return;
+    }
+    setTryState({code: template.code, status: 'loading'});
     try {
       await onTry(template);
-    } finally {
-      setTrying(null);
+      setTryState(null);
+    } catch (failure) {
+      setTryState({code: template.code, status: 'error', message: host.errorOf(failure)?.message || t('hub.entry.error')});
     }
   };
   const report = (template: HubTemplate) => {
-    if (!loggedIn) {
-      setLogin({template, intent: 'report'});
-      return;
-    }
-    setReporting(template);
+    setOverlay((loggedIn) ? {kind: 'report', template} : {kind: 'login', template, intent: 'report'});
   };
 
   const activeFilters = [kind !== 'all', group !== 'all', asks, sort !== 'popular'].filter(Boolean).length;
@@ -192,7 +242,7 @@ export function HubBrowser({ host, loggedIn, onTry, onLogin, openCode, onOpenCod
   };
 
   return (
-    <div className={cn('flex flex-col gap-5', className)}>
+    <div data-state={list.status} data-more={(list.status === 'ready') ? list.more.status : undefined} className={cn('flex flex-col gap-5', className)}>
       <div>
         <div className='flex gap-2'>
           <SearchInput className='min-w-0 flex-1' value={query} onValueChange={setQuery} placeholder={t('hub.search')} aria-label={t('hub.search')}/>
@@ -258,6 +308,8 @@ export function HubBrowser({ host, loggedIn, onTry, onLogin, openCode, onOpenCod
                   template={template}
                   effectNames={effectNames}
                   trying={trying === template.code}
+                  tryDisabled={Boolean(trying)}
+                  tryError={tryError(template.code)}
                   onOpen={() => onOpenCode(template.code)}
                   onTry={() => void tryTemplate(template)}
                   onReport={() => report(template)}
@@ -267,11 +319,11 @@ export function HubBrowser({ host, loggedIn, onTry, onLogin, openCode, onOpenCod
           </ul>
           {(list.next) ? (
             <div className='flex flex-col items-center gap-2'>
-              <button type='button' className='btn btn-secondary' onClick={() => void loadMore()} disabled={more.pending}>
-                {(more.pending) ? <Spinner className='size-4'/> : null}
+              <button type='button' className='btn btn-secondary' onClick={() => void loadMore()} disabled={list.more.status === 'loading'}>
+                {(list.more.status === 'loading') ? <Spinner className='size-4'/> : null}
                 {t('common.load_more')}
               </button>
-              {(more.error) ? <p role='alert' className='text-sm text-danger-text'>{more.error}</p> : null}
+              {(list.more.status === 'error') ? <p role='alert' className='text-sm text-danger-text'>{list.more.message}</p> : null}
             </div>
           ) : null}
         </>
@@ -280,20 +332,24 @@ export function HubBrowser({ host, loggedIn, onTry, onLogin, openCode, onOpenCod
       {(openCode) ? (
         <HubDetailDialog
           template={opened}
-          missing={!listed && fetched?.code === openCode && fetched.missing}
+          missing={openedState === 'missing'}
+          failed={openedState === 'error'}
+          onRetry={() => setFetchAttempt((value) => value + 1)}
           effectNames={effectNames}
           trying={trying === openCode}
+          tryDisabled={Boolean(trying)}
+          tryError={tryError(openCode)}
           onTry={() => opened && void tryTemplate(opened)}
           onReport={() => opened && report(opened)}
           onClose={() => onOpenCode(null)}
         />
       ) : null}
-      {(reporting) ? <HubReportDialog host={host} template={reporting} onClose={() => setReporting(null)}/> : null}
-      {(login) ? (
+      {(overlay?.kind === 'report') ? <HubReportDialog host={host} template={overlay.template} onClose={() => setOverlay(null)}/> : null}
+      {(overlay?.kind === 'login') ? (
         <HubLoginDialog
-          intent={login.intent}
-          onLogin={() => onLogin?.(login.template, login.intent)}
-          onClose={() => setLogin(null)}
+          intent={overlay.intent}
+          onLogin={() => onLogin?.(overlay.template, overlay.intent)}
+          onClose={() => setOverlay(null)}
         />
       ) : null}
     </div>

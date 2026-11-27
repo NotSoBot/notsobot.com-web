@@ -21,11 +21,13 @@ import {
 } from './protocol';
 
 
-// Flag Guesser's key from before there were other games, the others' after it
+// Flag Guesser's key from before there were other games, the others' after it. Letter Trail's is its second: every solo
+// game is stored (not only ones whose settings were changed), so the first key held the 3 rounds Letter Trail started
+// with and kept solo games at 3 after the default went to 1
 const SOLO_SETTINGS_KEY = 'nsb.activity.games.solo_settings';
 
 function storageKey(game: GameKind): string {
-  return (game === 'flag_guesser') ? SOLO_SETTINGS_KEY : `${SOLO_SETTINGS_KEY}.${game}`;
+  return (game === 'flag_guesser') ? SOLO_SETTINGS_KEY : `${SOLO_SETTINGS_KEY}.${game}.2`;
 }
 
 

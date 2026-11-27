@@ -24,7 +24,8 @@ export function useServerNow(connection: FlagGameConnection, active: boolean, in
 }
 
 
-// this machine's clock, re-rendering every `interval` while `active` (the reveal's own timer, the api doesn't send one)
+// this machine's clock, re-rendering every `interval` while `active` (a reveal's bar: the api's `reveal.ends_at` less
+// this and the skew)
 export function useLocalNow(active: boolean, interval = 100): number {
   const [ now, setNow ] = useState(() => Date.now());
   useEffect(() => {
@@ -38,10 +39,16 @@ export function useLocalNow(active: boolean, interval = 100): number {
 }
 
 
-// a round's flag, fetched by the connection (the api's needs the token). null while it loads
+// how a flag's fetch stands: the flag it's of (another round's by now is as good as loading), and its image once loaded
+type FlagLoad =
+  | {url: string, status: 'loading' | 'failed', src: null}
+  | {url: string, status: 'loaded', src: string};
+
+// a round's flag, fetched by the connection (the api's needs the token). null while it loads. `retry` after `failed`
+// loads again (it's loading meanwhile, not failed)
 export function useFlagImage(connection: FlagGameConnection, flagUrl: string | null): {src: string | null, failed: boolean, retry: () => void} {
-  const [ loaded, setLoaded ] = useState<{url: string, src: string} | null>(null);
-  const [ failedUrl, setFailedUrl ] = useState<string | null>(null);
+  const [ load, setLoad ] = useState<FlagLoad | null>(null);
+  // only says "fetch again", how it's going is `load`
   const [ attempt, setAttempt ] = useState(0);
   useEffect(() => {
     if (!flagUrl) {
@@ -50,22 +57,28 @@ export function useFlagImage(connection: FlagGameConnection, flagUrl: string | n
     let alive = true;
     connection.loadFlag(flagUrl).then((src) => {
       if (alive) {
-        setLoaded({url: flagUrl, src});
-        setFailedUrl(null);
+        setLoad({url: flagUrl, status: 'loaded', src});
       }
     }).catch(() => {
       if (alive) {
-        setFailedUrl(flagUrl);
+        setLoad({url: flagUrl, status: 'failed', src: null});
       }
     });
     return () => {
       alive = false;
     };
   }, [connection, flagUrl, attempt]);
+  // nothing for this flag yet (the first render with it, or the last round's still held): loading
+  const status = (load && load.url === flagUrl) ? load.status : 'loading';
   return {
-    src: (loaded && loaded.url === flagUrl) ? loaded.src : null,
-    failed: Boolean(flagUrl) && failedUrl === flagUrl,
-    retry: () => setAttempt((value) => value + 1),
+    src: (load && load.url === flagUrl) ? load.src : null,
+    failed: status === 'failed',
+    retry: () => {
+      if (flagUrl) {
+        setLoad({url: flagUrl, status: 'loading', src: null});
+        setAttempt((value) => value + 1);
+      }
+    },
   };
 }
 

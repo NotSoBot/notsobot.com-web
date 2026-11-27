@@ -1,5 +1,5 @@
 import { FileUp, Link2, Music, Ratio } from 'lucide-react';
-import { useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 
 import { Spinner } from '@/components/ui/Spinner';
 import { useI18n } from '@/i18n';
@@ -120,6 +120,13 @@ function fitsStep(asset: EditorAsset, accepts: Array<EditorFileAccept>): boolean
 }
 
 
+// where its upload is (the control's `data-state`). `token` tells one upload from the next
+type UploadStatus =
+  | {kind: 'idle'}
+  | {kind: 'uploading', token: number}
+  | {kind: 'error', message: string};
+
+
 // The file of an effect that takes one (Overlay, Add Audio, and since 2026-11-26 Blend, Face Swap, Vocoder...): one
 // already uploaded to this edit, a new upload, or a link. Only the files its `accepts` takes are offered. Picking one for
 // an effect placed in a box (Overlay, Green Screen Overlay) sizes the box to the file's shape
@@ -136,39 +143,64 @@ export function OverlayMediaControl({ state, step, value }: {state: EditorDocume
   const fileRef = useRef<HTMLInputElement>(null);
   const linkId = useId();
   const [ link, setLink ] = useState('');
-  const [ pending, setPending ] = useState(false);
-  const [ error, setError ] = useState<string | null>(null);
+  const [ status, setStatus ] = useState<UploadStatus>({kind: 'idle'});
+  const pending = status.kind === 'uploading';
+  const tokenRef = useRef(0);
+  // what an upload reads once it's done: the steps as they are by then, and whether this control is still here
+  const stepsRef = useRef(state.steps);
+  stepsRef.current = state.steps;
+  const aliveRef = useRef(true);
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => {
+      aliveRef.current = false;
+    };
+  }, []);
   const assets = (state.document?.assets ?? []).filter((asset) => fitsStep(asset, accepts));
   const current = assets.find((asset) => asset.id === value) ?? null;
   const meta = state.document?.source_meta;
   const mediaAspect = (meta?.height || 1) / (meta?.width || 1);
 
+  // the file and, for one placed in a box, its box: one change (and one undo)
   const pick = (asset: EditorAsset) => {
-    state.setParam(step.id, 'media', asset.id);
     if (hasBox) {
-      state.setParam(step.id, 'region', fittedBox(asset, mediaAspect));
+      state.setParams(step.id, {media: asset.id, region: fittedBox(asset, mediaAspect)});
+    } else {
+      state.setParam(step.id, 'media', asset.id);
     }
   };
   const upload = async (input: {file?: File, url?: string}) => {
-    setPending(true);
-    setError(null);
+    const token = tokenRef.current + 1;
+    tokenRef.current = token;
+    // the step's file as the upload starts
+    const began = value;
+    setStatus({kind: 'uploading', token});
     try {
       const asset = await state.uploadAsset(input);
       if (!fitsStep(asset, accepts)) {
         // it's this edit's file now, just not one this step can use
         throw new Error(notFit);
       }
-      pick(asset);
-      setLink('');
+      // it becomes the step's file only if the step is still here with the file it had: one picked while this was on its
+      // way stays (with wherever its box was put), a removed step isn't written to, and once this control is gone
+      // (another step selected) nobody can say. Either way it's one of the edit's files now, a click away
+      const now = (aliveRef.current) ? stepsRef.current.find((item) => item.id === step.id) : undefined;
+      if (now && ((typeof now.params.media === 'string') ? now.params.media : null) === began) {
+        pick(asset);
+      }
+      if (aliveRef.current && tokenRef.current === token) {
+        setStatus({kind: 'idle'});
+        setLink('');
+      }
     } catch (failure) {
-      setError(state.errorOf(failure)?.message || ((failure instanceof Error && failure.message) ? failure.message : t('editor.overlay.upload_failed')));
-    } finally {
-      setPending(false);
+      if (aliveRef.current && tokenRef.current === token) {
+        setStatus({kind: 'error', message: state.errorOf(failure)?.message || ((failure instanceof Error && failure.message) ? failure.message : t('editor.overlay.upload_failed'))});
+      }
     }
   };
 
   return (
-    <div className='flex flex-col gap-2.5'>
+    <div data-state={status.kind} className='flex flex-col gap-2.5'>
       <span className='text-[13px] text-muted'>{(forAudio) ? t('editor.audio.file') : (isOverlay) ? t('editor.overlay.file') : t('editor.file.file')}</span>
       {(current) ? (
         <div className='flex items-center gap-2.5 rounded-lg border border-line-strong bg-deep p-2'>
@@ -193,7 +225,11 @@ export function OverlayMediaControl({ state, step, value }: {state: EditorDocume
               aria-pressed={asset.id === value}
               aria-label={asset.filename}
               title={asset.filename}
-              onClick={() => pick(asset)}
+              onClick={() => {
+                pick(asset);
+                // a failed upload's message isn't about this one
+                setStatus((was) => (was.kind === 'error') ? {kind: 'idle'} : was);
+              }}
               className={cn('size-11 overflow-hidden rounded-md border-2', (asset.id === value) ? 'border-brand' : 'border-line-strong hover:border-muted')}
             >
               <AssetThumb asset={asset} className='size-full'/>
@@ -240,7 +276,7 @@ export function OverlayMediaControl({ state, step, value }: {state: EditorDocume
           <Link2 aria-hidden className='size-4'/>
         </button>
       </form>
-      {(error) ? <p role='alert' className='text-xs text-danger-text'>{error}</p> : null}
+      {(status.kind === 'error') ? <p role='alert' className='text-xs text-danger-text'>{status.message}</p> : null}
       {(current && 0 < current.duration) ? <ClipRange state={state} step={step} duration={current.duration}/> : null}
       {(current) ? <FileSteps state={state} step={step} asset={current} forAudio={forAudio} generic={!isOverlay && !forAudio}/> : null}
       {(current && hasBox) ? (

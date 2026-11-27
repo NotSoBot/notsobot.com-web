@@ -10,12 +10,13 @@ import { HubBrowser } from './HubBrowser';
 
 
 // The hub inside the Activity: a panel over the start screen. Try loads the template (its steps) and hands it to the
-// start screen, which then starts whatever's picked with it, the same as a shared template link
+// start screen, which then starts whatever's picked with it, the same as a shared template link. One that can't be
+// loaded is the browser's to say, beside the Try that was pressed (it used to be said up here, under a template's own
+// view or scrolled out of sight)
 function HubPanel({ host, onPick, onClose }: {host: EditorHost, onPick: (template: EditorTemplate) => void, onClose: () => void}) {
   const { t } = useI18n();
   const titleId = useId();
   const [ openCode, setOpenCode ] = useState<string | null>(null);
-  const [ error, setError ] = useState<string | null>(null);
   return (
     <Modal labelledBy={titleId} onClose={onClose} className='max-w-5xl' stickyClose>
       <div className='flex flex-col gap-4 p-4 sm:p-6'>
@@ -23,20 +24,12 @@ function HubPanel({ host, onPick, onClose }: {host: EditorHost, onPick: (templat
           <h2 id={titleId} className='pr-10 font-display text-2xl font-bold text-white'>{t('hub.title')}</h2>
           <p className='mt-1 text-sm text-muted'>{t('hub.description')}</p>
         </div>
-        {(error) ? <p role='alert' className='text-sm text-danger-text'>{error}</p> : null}
         <HubBrowser
           host={host}
           loggedIn
           openCode={openCode}
           onOpenCode={setOpenCode}
-          onTry={async (item) => {
-            setError(null);
-            try {
-              onPick(await host.api.template(item.code));
-            } catch (failure) {
-              setError(host.errorOf(failure)?.message || t('hub.entry.error'));
-            }
-          }}
+          onTry={async (item) => onPick(await host.api.template(item.code))}
         />
       </div>
     </Modal>

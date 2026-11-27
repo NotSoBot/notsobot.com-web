@@ -93,6 +93,7 @@ export const FUNCTIONS_PORTUGUESE_1: TagDocsTranslation['functions'] = {
       NETWORK,
       EMPTY_ARGUMENT,
       'Gera um erro se a posição não for um número positivo ou se não houver fato nessa posição.',
+      'As posições continuam sendo as que o NotSoAI viu no prompt durante toda a resposta, então `{ai.knowledge.delete:1}{ai.knowledge.delete:2}` remove os dois primeiros fatos. Um fato que já foi removido gera um erro.',
       CONFIRM_FIRST,
     ],
   },
@@ -114,6 +115,7 @@ export const FUNCTIONS_PORTUGUESE_1: TagDocsTranslation['functions'] = {
       NETWORK,
       'Não retorna nada se a posição ou o fato estiverem vazios.',
       'Gera um erro se a posição não for um número positivo, se não houver fato nessa posição ou se os fatos juntos passariam de 1000 caracteres.',
+      'As posições continuam sendo as que o NotSoAI viu no prompt durante toda a resposta, então depois de `{ai.knowledge.delete:1}`, `{ai.knowledge.edit:2|…}` ainda muda o fato que era o segundo. Um fato que já foi removido gera um erro.',
     ],
   },
   AI_LISTEN_STOP: {

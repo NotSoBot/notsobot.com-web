@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { HowToPlayButton } from '@/components/guides/GuideSheet';
 import { GUIDE_SLUGS } from '@/content/guides';
+import { EditorErrorCodes } from '@/editor/api';
 import { launchScreen } from '@/editor/hosts/activityLaunch';
 import type { RoomInviter } from '@/editor/invites';
 import type { RoomEvent, RoomMember, RoomStatus } from '@/editor/room';
@@ -30,7 +31,7 @@ import type { GameRoomsApi } from '../rooms';
 import { FakeFlagGame } from './FakeFlagGame';
 import { FakeLetterTrail } from './FakeLetterTrail';
 import { MOCK_COUNTRIES } from './flags';
-import type { ActivityGamePoints, GamePointsBoardItem } from '../points';
+import type { ActivityGamePoints, GamePointsBoardItem, GameStatsByGame } from '../points';
 import { PipView, useCompactLayout } from '@/editor/hosts/pip';
 
 
@@ -79,6 +80,7 @@ function mockRooms(visibility: GameRoomVisibility, count: number): Array<GameRoo
       round: (phase === 'round' || phase === 'reveal') ? {number: 1 + (seed % rounds), total: rounds} : (phase === 'finished') ? {number: rounds, total: rounds} : null,
       players,
       watchers: (seed * 3) % 5,
+      solo: false,
     };
   });
 }
@@ -97,6 +99,13 @@ function sortMockRooms(rooms: Array<GameRoomSummary>, sort: GameRoomSort): Array
 
 const MOCK_YOU_PLAYER = {user_id: '300000000000000001', username: 'you_in_dev', avatar_url: null};
 
+// a refusal with the api's own code (`errorOf` below reads it), for the ones the screens tell apart by it
+class MockApiError extends Error {
+  constructor(message: string, readonly code: number) {
+    super(message);
+  }
+}
+
 
 // the Games tab's game points: you're on both boards, a few places down
 const MOCK_YOU = '300000000000000001';
@@ -109,15 +118,37 @@ function mockBoard(names: Array<[string, number]>): Array<GamePointsBoardItem> {
     points,
   }));
 }
+// your record in each game (game-stats-plan.md): Flag Guesser with every column, Letter Trail a few games
+const MOCK_STATS: GameStatsByGame = {
+  flag_guesser: {
+    games: 23, wins: 12, losses: 5, ties: 1, left: 2, solo: 3, win_streak: 3, best_win_streak: 7,
+    stats: {best_score: 31, named: 142, firsts: 38, best_streak: 9, fastest_ms: 1430},
+  },
+  letter_trail: {
+    games: 6, wins: 2, losses: 3, ties: 0, left: 0, solo: 1, win_streak: 0, best_win_streak: 1,
+    stats: {best_score: 74, words: 118, only_you: 21, longest_word: 'gardens'},
+  },
+};
+// nobody's played yet: every game there with zeros (the api's), so no game's block shows
+const EMPTY_STATS: GameStatsByGame = {
+  flag_guesser: {games: 0, wins: 0, losses: 0, ties: 0, left: 0, solo: 0, win_streak: 0, best_win_streak: 0, stats: {}},
+  letter_trail: {games: 0, wins: 0, losses: 0, ties: 0, left: 0, solo: 0, win_streak: 0, best_win_streak: 0, stats: {}},
+};
 const MOCK_POINTS: ActivityGamePoints = {
-  you: {user_id: MOCK_YOU, total: 1284, games: {flag_guesser: 1101, letter_trail: 183}, week: 96, rank: {global: 1532, guild: 4}},
+  you: {user_id: MOCK_YOU, total: 1284, games: {flag_guesser: 1101, letter_trail: 183}, week: 96, rank: {global: 1532, guild: 4}, hidden: false, stats: MOCK_STATS},
   board: {scope: 'guild', period: 'all', game: null, items: mockBoard([['flagfan', 4810], ['atlas', 3122], ['mapper', 1990], ['you_in_dev', 1284], ['streamer', 1203], ['mochi', 870], ['quill', 455]])},
   week_board: {scope: 'guild', period: 'week', game: null, items: mockBoard([['atlas', 288], ['flagfan', 241], ['you_in_dev', 96], ['a_very_long_username_here', 71], ['mochi', 12], ['quill', 4]])},
 };
 const EMPTY_POINTS: ActivityGamePoints = {
-  you: {user_id: MOCK_YOU, total: 0, games: {}, week: 0, rank: {global: null, guild: null}},
+  you: {user_id: MOCK_YOU, total: 0, games: {}, week: 0, rank: {global: null, guild: null}, hidden: false, stats: EMPTY_STATS},
   board: {scope: 'global', period: 'all', game: null, items: []},
   week_board: {scope: 'global', period: 'week', game: null, items: []},
+};
+// a dm's, you hid from the global boards: no rank and not on them
+const HIDDEN_POINTS: ActivityGamePoints = {
+  you: {...MOCK_POINTS.you, rank: {global: null, guild: null}, hidden: true},
+  board: {scope: 'global', period: 'all', game: null, items: mockBoard([['flagfan', 4810], ['atlas', 3122], ['mapper', 1990], ['streamer', 1203], ['mochi', 870]])},
+  week_board: {scope: 'global', period: 'week', game: null, items: mockBoard([['atlas', 288], ['flagfan', 241], ['a_very_long_username_here', 71], ['mochi', 12]])},
 };
 
 
@@ -138,12 +169,23 @@ function mockInviter(canPost: boolean): RoomInviter {
 // the Activity's socket as the room list sees it: the dev bar's "rooms changed" is the api's `game_rooms_changed`
 class MockRoomsFeed implements ActivityFeed {
   private listeners = new Set<(event: RoomEvent) => void>();
-  // two people editing, one on the start screen (the mode choice's count)
+  you: string | null = MOCK_YOU_PLAYER.user_id;
+  // two people editing (one in a lobby), one on the start screen (the mode choice's count), two in a game room and
+  // you: the mode choice's Join rows (`&friends=0` has nobody in a room)
   members: Array<RoomMember> = [
     {user_id: '1', username: 'cake', avatar_url: null, screen: 'editor'},
     {user_id: '2', username: 'beebo', avatar_url: null, editing: 'mocklobby1'},
     {user_id: '3', username: 'lucia', avatar_url: null, screen: null},
+    {user_id: '4', username: 'mochi', avatar_url: null, screen: 'games', playing: {game_id: 'mockroom00002', game: 'letter_trail'}},
+    {user_id: '5', username: 'ferretking', avatar_url: null, screen: 'games', playing: {game_id: 'mockroom00002', game: 'letter_trail'}},
+    {user_id: MOCK_YOU_PLAYER.user_id, username: MOCK_YOU_PLAYER.username, avatar_url: null, screen: null},
   ];
+
+  constructor(friends: boolean = true) {
+    if (!friends) {
+      this.members = this.members.map((member) => ({...member, editing: null, playing: null}));
+    }
+  }
 
   subscribe(listener: (event: RoomEvent) => void): () => void {
     this.listeners.add(listener);
@@ -168,15 +210,16 @@ class MockRoomsFeed implements ActivityFeed {
 // screen that launch would open on, the room header's Invite answers with a fake code (`&post=0`: posting refused), the
 // bar at the bottom drops the connection, has the bot host start or (on the room
 // browser) has someone watch the first room of a tab (`game_rooms_changed` with that scope). A locked room's password is
-// "hunter22". `&rooms=0` has no rooms at all, `&quick=fail` Quick play refused. Game points: `&points=empty` (a dm's,
-// nobody has any), `&points=fail`, `&cap=N` leaves N of your daily cap (the finished screen's limit line), the bar's
+// "hunter22". `&friends=0` has nobody in a room on the mode choice (no Join rows), `&joined=2` launched from that member's Join (their room first). `&rooms=0` has no rooms at all, `&quick=fail` Quick play refused. Game points: `&points=empty` (a dm's,
+// nobody has any), `&points=hidden` (a dm's, you hid from the global boards), `&points=fail`, `&cap=N` leaves N of your daily cap (the finished screen's limit line), the bar's
 // "finish" ends the game now. Play solo makes a solo room (on no list) that starts as it opens, New room and a Quick play
 // that makes one open with only you in them (the lobby's invite card) until the bar's "someone joins". How to play's ? has
 // a dot until a guide's opened and a lobby's How to play card starts open until a game's finished (`&guides=reset`
 // forgets both, for every guide and game); the editor's stand-in has the media editor's ?. Letter Trail: every third mock room is one (opened against FakeLetterTrail), and
 // `&game=letters` opens straight into one, `&phase=countdown|round|reveal|finished` on that screen (with made-up words),
 // `&hold=1` keeps it there (no round end, no reveal timer), `&solo=1` a solo one, `&size=5` a 5x5 grid. `&owner=1` has the
-// owners' connection logs in the header, `&join=too_many|socket|slow` a flag game join that hangs until Try again
+// owners' connection logs in the header, `&join=too_many|socket|slow` a flag game join that hangs until Try again,
+// `&moderator=1` a room where you moderate the server (`ready`'s `moderator`: remove anyone, close any room)
 // either game's fake engine, the dev bar works the same on both
 type MockGame = FakeFlagGame | FakeLetterTrail;
 
@@ -216,6 +259,7 @@ export function FlagGameMockApp() {
     }
   });
   const youHost = params.get('host') !== '0';
+  const moderator = params.get('moderator') === '1';
   const dailyLeft = (params.get('cap') !== null) ? Number(params.get('cap')) : Infinity;
   const pointsMode = params.get('points');
   const first = params.get('screen');
@@ -233,17 +277,17 @@ export function FlagGameMockApp() {
   const [ watch, setWatch ] = useState(false);
   const lettersFirst = params.get('game') === 'letters';
   const [ connection, setConnection ] = useState<MockGame>(() => (lettersFirst) ? new FakeLetterTrail({
-    youHost, dailyLeft, solo: params.get('solo') === '1', hold: params.get('hold') === '1',
+    youHost, dailyLeft, moderator, solo: params.get('solo') === '1', hold: params.get('hold') === '1',
     phase: mockPhase(params.get('phase')),
     settings: {...LETTER_TRAIL_DEFAULT_SETTINGS, size: (params.get('size') === '5') ? 5 : 4},
-  }) : new FakeFlagGame({youHost, dailyLeft, stuckJoin: stuckJoinOf(params.get('join'))}));
+  }) : new FakeFlagGame({youHost, dailyLeft, moderator, stuckJoin: stuckJoinOf(params.get('join'))}));
   // `&owner=1`: a NotSoBot owner's header (the connection logs)
   const owner = params.get('owner') === '1';
   useEffect(() => {
     connection.connect();
     return () => connection.close();
   }, [connection]);
-  const [ feed ] = useState(() => new MockRoomsFeed());
+  const [ feed ] = useState(() => new MockRoomsFeed(params.get('friends') !== '0'));
   const [ inviter ] = useState(() => mockInviter(params.get('post') !== '0'));
   // both tabs' rooms, made and changed by the browser's New room, Quick play and the dev bar
   const [ store ] = useState(() => ({
@@ -260,7 +304,7 @@ export function FlagGameMockApp() {
         origin: {guild_id: '200000000000000000', guild_name: 'Dev server'}, name: null, creator: MOCK_YOU_PLAYER,
         created_at: Date.now(), locked: false, watch_only: false, phase: 'lobby',
         settings: (room.game === 'letter_trail') ? {...LETTER_TRAIL_DEFAULT_SETTINGS} : {mode: 'type', rounds: 10, difficulty: 'medium', seconds: 20},
-        round: null, players: [MOCK_YOU_PLAYER], watchers: 0, ...room,
+        round: null, players: [MOCK_YOU_PLAYER], watchers: 0, solo: false, ...room,
       };
       store.rooms = [created, ...store.rooms];
       return created;
@@ -309,12 +353,14 @@ export function FlagGameMockApp() {
         }
         return {id: made(tab, {game}).id, created: true};
       },
+      // asked without one first (the api lets in whoever gave it already): refused with the api's locked code, which
+      // is what opens the password dialog
       join: async (_gameId, password) => {
         if (password !== undefined && password !== 'hunter22') {
           throw new Error('That isn’t the password');
         }
         if (password === undefined) {
-          throw new Error('locked');
+          throw new MockApiError('This room needs its password', EditorErrorCodes.EDITOR_LOBBY_LOCKED);
         }
       },
       // a moment like the list's, so the points show blank first
@@ -323,7 +369,7 @@ export function FlagGameMockApp() {
         if (pointsMode === 'fail') {
           throw new Error('points failed');
         }
-        return (pointsMode === 'empty') ? EMPTY_POINTS : MOCK_POINTS;
+        return (pointsMode === 'empty') ? EMPTY_POINTS : (pointsMode === 'hidden') ? HIDDEN_POINTS : MOCK_POINTS;
       },
     };
   }, [store, pointsMode]);
@@ -343,7 +389,18 @@ export function FlagGameMockApp() {
     <>
       {(compact) ? <PipView/> : null}
       {(screen === 'choice') ? (
-        <ModeChoice api={api} room={feed} onEdit={() => setScreen('editor')} onGame={() => setScreen('tab')}/>
+        <ModeChoice
+          api={api}
+          room={feed}
+          onEdit={() => setScreen('editor')}
+          onGame={() => setScreen('tab')}
+          first={params.get('joined')}
+          // a moment like the real join, then where it would land
+          onJoin={async (target) => {
+            await new Promise((resolve) => window.setTimeout(resolve, 500));
+            setScreen((target.kind === 'game') ? 'game' : 'editor');
+          }}
+        />
       ) : (screen === 'editor') ? (
         <div className='flex items-center gap-2 p-6 text-muted'>
           <span>
@@ -362,7 +419,7 @@ export function FlagGameMockApp() {
               throw new Error('You can have at most 2 game rooms open, close one first');
             }
             setWatch(false);
-            setConnection(new FakeFlagGame({youHost, dailyLeft}));
+            setConnection(new FakeFlagGame({youHost, dailyLeft, moderator}));
             setScreen('game');
           }}
           onRooms={() => setScreen('rooms')}
@@ -376,13 +433,13 @@ export function FlagGameMockApp() {
         <GameRooms
           api={api}
           room={feed}
-          errorOf={(error) => (error instanceof Error) ? {status: 400, code: null, message: error.message, body: null} : null}
+          errorOf={(error) => (error instanceof Error) ? {status: 400, code: (error instanceof MockApiError) ? error.code : null, message: error.message, body: null} : null}
           notice={notice}
           game={roomsGame}
           onOpen={(gameId, asWatcher) => {
             const opened = store.rooms.find((room) => room.id === gameId);
             const solo = store.solo.get(gameId);
-            const options = {youHost, watch: asWatcher, dailyLeft, visibility: opened?.visibility, solo: Boolean(solo), alone: gameId.startsWith('mocknew')};
+            const options = {youHost, watch: asWatcher, dailyLeft, moderator, visibility: opened?.visibility, solo: Boolean(solo), alone: gameId.startsWith('mocknew')};
             setWatch(asWatcher);
             setConnection(((solo?.game ?? opened?.game) === 'letter_trail')
               ? new FakeLetterTrail({...options, settings: (solo?.settings ?? opened?.settings) as LetterTrailSettings | undefined})

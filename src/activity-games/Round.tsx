@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useI18n } from '@/i18n';
 import { cn, NO_AUTOFILL } from '@/lib/utils';
 
+import { answerState } from './answerState';
 import type { FlagGameConnection, GameSnapshot } from './connection';
 import { playerOf, useServerNow } from './hooks';
 import { FlagImage, PlayerFace, ScoresList, ScoresStrip, TimeBar } from './parts';
@@ -32,9 +33,37 @@ export function Round({ connection, snapshot, game, round }: {connection: FlagGa
   const tone = (fraction > 0.34) ? 'brand' : (fraction > 0.15) ? 'warning' : 'danger';
   const you = snapshot.you;
   const connected = game.players.filter((player) => player.connected).length;
+  const answer = answerState(game, round, snapshot, countdown);
+  const answerArea = (() => {
+    switch (answer.kind) {
+      case 'watching':
+        return <WatchingPanel connection={connection} game={game}/>;
+      case 'countdown':
+      case 'waiting_flag':
+        // nothing to answer yet: the box's room (the four choices' in choices mode), so the round doesn't move at Go
+        return <div aria-hidden className={(game.settings.mode === 'choices') ? 'h-[10.5rem]' : 'h-[4.625rem]'}/>;
+      case 'choosing':
+      case 'chosen':
+        return <Choices connection={connection} snapshot={snapshot} choices={answer.choices}/>;
+      case 'typing':
+      case 'solved':
+        // one box for both (keyed by the flag), what was typed isn't this flag's on the next one
+        return <GuessBox connection={connection} snapshot={snapshot} solved={answer.kind === 'solved'} key={answer.flagUrl}/>;
+      default: {
+        // a state added to AnswerState has to be drawn here: this stops compiling until it is
+        const unknown: never = answer;
+        return unknown;
+      }
+    }
+  })();
 
   return (
-    <div className='relative mx-auto flex w-full max-w-5xl flex-1 flex-col gap-3 px-4 pt-3 pb-[calc(1rem+var(--saib,0px))] lg:grid lg:grid-cols-[1fr_16rem] lg:items-start lg:gap-8'>
+    // for anyone reading the page: what the answer area is on, and which flag of the game this is
+    <div
+      className='relative mx-auto flex w-full max-w-5xl flex-1 flex-col gap-3 px-4 pt-3 pb-[calc(1rem+var(--saib,0px))] lg:grid lg:grid-cols-[1fr_16rem] lg:items-start lg:gap-8'
+      data-state={answer.kind}
+      data-round={round.number}
+    >
       {(countdown) ? <Countdown value={countdown}/> : null}
       <div className='flex min-w-0 flex-col gap-3'>
         <ScoresStrip game={game} you={you} answeredIds={snapshot.answeredIds}/>
@@ -54,16 +83,7 @@ export function Round({ connection, snapshot, game, round }: {connection: FlagGa
 
         <Hints round={round}/>
 
-        {(game.you_watch) ? (
-          <WatchingPanel connection={connection} game={game}/>
-        ) : (countdown || !round.flag_url) ? (
-          // nothing to answer yet: the box's room (the four choices' in choices mode), so the round doesn't move at Go
-          <div aria-hidden className={(game.settings.mode === 'choices') ? 'h-[10.5rem]' : 'h-[4.625rem]'}/>
-        ) : (round.choices) ? (
-          <Choices connection={connection} snapshot={snapshot} choices={round.choices}/>
-        ) : (
-          <GuessBox connection={connection} snapshot={snapshot} round={round} key={round.flag_url}/>
-        )}
+        {answerArea}
 
         <SolvedFeed snapshot={snapshot} game={game} round={round} connected={connected}/>
       </div>
@@ -135,13 +155,15 @@ function Hints({ round }: {round: GameRound}) {
 }
 
 
-function GuessBox({ connection, snapshot, round }: {connection: FlagGameConnection, snapshot: GameSnapshot, round: GameRound}) {
+// `solved`: they've got this flag (`answerState`), the box makes way for what it gave them
+function GuessBox({ connection, snapshot, solved }: {connection: FlagGameConnection, snapshot: GameSnapshot, solved: boolean}) {
   const { t } = useI18n();
   const [ text, setText ] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const you = snapshot.you;
-  const solved = Boolean(you && round.solved.includes(you));
   const guess = snapshot.guess;
+  // a guess isn't sent while the socket's reconnecting (the strip above says it is): what's typed waits in the box
+  const connected = snapshot.status === 'open';
   const points = snapshot.feed.find((entry) => entry.user_id === you)?.points ?? null;
 
   // a wrong guess clears the box for the next one, a close one stays to fix its spelling
@@ -162,7 +184,7 @@ function GuessBox({ connection, snapshot, round }: {connection: FlagGameConnecti
 
   const submit = () => {
     const value = text.trim();
-    if (!value) {
+    if (!value || !connected) {
       return;
     }
     connection.guess(value.slice(0, GUESS_MAX_LENGTH));
@@ -200,7 +222,7 @@ function GuessBox({ connection, snapshot, round }: {connection: FlagGameConnecti
           type='submit'
           // a tap on it keeps the keyboard up (the field keeps focus)
           onPointerDown={(event) => event.preventDefault()}
-          disabled={!text.trim()}
+          disabled={!text.trim() || !connected}
           className='btn btn-primary h-12 rounded-xl px-4'
         >
           <SendHorizontal aria-hidden className='size-4'/>
@@ -224,6 +246,8 @@ function GuessBox({ connection, snapshot, round }: {connection: FlagGameConnecti
 function Choices({ connection, snapshot, choices }: {connection: FlagGameConnection, snapshot: GameSnapshot, choices: Array<string>}) {
   const { t } = useI18n();
   const chosen = snapshot.chosen;
+  // a choice isn't sent while the socket's reconnecting
+  const connected = snapshot.status === 'open';
   const result = (chosen !== null) ? snapshot.guess?.result ?? null : null;
   const you = snapshot.you;
   const points = snapshot.feed.find((entry) => entry.user_id === you)?.points ?? null;
@@ -236,7 +260,7 @@ function Choices({ connection, snapshot, choices }: {connection: FlagGameConnect
             <button
               key={`${index}:${choice}`}
               type='button'
-              disabled={chosen !== null}
+              disabled={chosen !== null || !connected}
               aria-pressed={picked}
               onClick={() => connection.choose(index)}
               className={cn(

@@ -19,19 +19,21 @@ import {
   type GameState,
 } from '../protocol';
 import { MOCK_COUNTRIES, type MockCountry } from './flags';
+import { withOutcomes } from './outcomes';
 
 
 // Dev mocks only (never in a production build, see src/activity.tsx): the api's flag game played in the browser, behind
 // the same connection the Activity's socket gives the screens. Three bots join, solve some flags and answer some
 // choices. Not the api's rules to the letter, close enough to see every screen. A game's first flag counts down
 // (`START_COUNTDOWN_MS`, no flag or choices until then) unless the room is solo, which starts as you join. `alone`: a
-// room just made, only you in it until the dev bar's "someone joins"
+// room just made, only you in it until the dev bar's "someone joins". What the api refuses it refuses the same way
+// (an `error` with the op, never silence): a guess after the round, a second choice, a Start that isn't the host's
 
 const YOU = '300000000000000001';
 const BOTS: Array<GamePlayer> = [
-  {user_id: '300000000000000002', username: 'mochi', avatar_url: null, score: 0, streak: 0, connected: true},
-  {user_id: '300000000000000003', username: 'ferretking', avatar_url: null, score: 0, streak: 0, connected: true},
-  {user_id: '300000000000000004', username: 'quill', avatar_url: null, score: 0, streak: 0, connected: false},
+  {user_id: '300000000000000002', username: 'mochi', avatar_url: null, score: 0, streak: 0, connected: true, outcome: null},
+  {user_id: '300000000000000003', username: 'ferretking', avatar_url: null, score: 0, streak: 0, connected: true, outcome: null},
+  {user_id: '300000000000000004', username: 'quill', avatar_url: null, score: 0, streak: 0, connected: false, outcome: null},
 ];
 // a message's trip each way
 const LATENCY = 40;
@@ -77,6 +79,8 @@ export class FakeFlagGame extends FlagGameConnection {
   private answerIndex = -1;
   private order: Array<MockCountry> = [];
   private answered = new Set<string>();
+  // the choice you picked this round (the api says it back in `your_choice`, a reconnect's `ready` has it)
+  private yourChoice: number | null = null;
   private timers: Array<number> = [];
   private alive = false;
   private solvedPoints: Array<{user_id: string, points: number}> = [];
@@ -88,8 +92,10 @@ export class FakeFlagGame extends FlagGameConnection {
   // `&join=` on the mock page: the join hangs like a real one can (the socket refused for too many, the socket down, or
   // no answer to the join) until Try again
   private stuckJoin: 'too_many' | 'socket' | 'slow' | null;
+  // `&moderator=1` on the mock page: `ready` says you moderate the server (remove anyone, close any room)
+  private moderator: boolean;
 
-  constructor({ youHost = true, watch = false, dailyLeft = Infinity, visibility = 'server', solo = false, alone = false, settings, stuckJoin = null }: {
+  constructor({ youHost = true, watch = false, dailyLeft = Infinity, visibility = 'server', solo = false, alone = false, settings, stuckJoin = null, moderator = false }: {
     youHost?: boolean,
     watch?: boolean,
     dailyLeft?: number,
@@ -98,12 +104,14 @@ export class FakeFlagGame extends FlagGameConnection {
     alone?: boolean,
     settings?: GameSettings,
     stuckJoin?: 'too_many' | 'socket' | 'slow' | null,
+    moderator?: boolean,
   } = {}) {
     super();
     this.stuckJoin = stuckJoin;
+    this.moderator = moderator;
     this.dailyLeft = dailyLeft;
     this.solo = solo;
-    const you: GamePlayer = {user_id: YOU, username: 'you_in_dev', avatar_url: null, score: 0, streak: 0, connected: true};
+    const you: GamePlayer = {user_id: YOU, username: 'you_in_dev', avatar_url: null, score: 0, streak: 0, connected: true, outcome: null};
     const players = (solo || alone) ? [you] : (watch) ? [...BOTS] : (youHost) ? [you, ...BOTS] : [BOTS[0], you, ...BOTS.slice(1)];
     const creator = (solo || alone || (youHost && !watch)) ? you : BOTS[0];
     this.game = {
@@ -143,7 +151,7 @@ export class FakeFlagGame extends FlagGameConnection {
         this.order = shuffle(MOCK_COUNTRIES);
         this.startRound(1);
       }
-      this.emit({t: 'ready', you: YOU, now: Date.now(), game: this.copy()});
+      this.emitReady();
     }, 300);
   }
 
@@ -173,7 +181,7 @@ export class FakeFlagGame extends FlagGameConnection {
     activityLog.add('game', 'Try again pressed');
     this.stuckJoin = null;
     this.update({socketClose: null, slowJoin: false});
-    this.later(() => this.emit({t: 'ready', you: YOU, now: Date.now(), game: this.copy()}), 300);
+    this.later(() => this.emitReady(), 300);
   }
 
   // the dev toolbar's: the next bot that isn't in comes in (an `alone` room's invite card goes)
@@ -192,16 +200,13 @@ export class FakeFlagGame extends FlagGameConnection {
       window.clearTimeout(timer);
     }
     this.timers = [];
-    this.setStatus('closed');
+    this.setStatus('left');
   }
 
   // the dev toolbar's: the socket drops for a while, the game goes on without them, then a fresh `ready`
   drop(ms = 4000): void {
-    this.setStatus('closed');
-    window.setTimeout(() => {
-      this.setStatus('connecting');
-      window.setTimeout(() => this.emit({t: 'ready', you: YOU, now: Date.now(), game: this.copy()}), 600);
-    }, ms);
+    this.setStatus('reconnecting');
+    window.setTimeout(() => this.emitReady(), ms + 600);
   }
 
   // the dev toolbar's: what the host would do when it isn't you
@@ -262,8 +267,21 @@ export class FakeFlagGame extends FlagGameConnection {
     }
   }
 
+  // the game as the api sends it to you: the round's `you_*` and who's through with it are worked out per reader
   private copy(): GameState {
-    return JSON.parse(JSON.stringify(this.game));
+    const game: GameState = JSON.parse(JSON.stringify(this.game));
+    if (game.round) {
+      const done = [...game.round.solved, ...[...this.answered].filter((userId) => !game.round!.solved.includes(userId))];
+      game.round.answered_by = done;
+      game.round.you_solved = game.round.solved.includes(YOU);
+      game.round.you_answered = done.includes(YOU);
+      game.round.your_choice = this.yourChoice;
+    }
+    return game;
+  }
+
+  private emitReady(): void {
+    this.emit({t: 'ready', you: YOU, now: Date.now(), game: this.copy(), moderator: this.moderator});
   }
 
   private broadcastState(): void {
@@ -291,22 +309,24 @@ export class FakeFlagGame extends FlagGameConnection {
       }
       case 'start': {
         if (!host) {
+          this.answerTo(from, {t: 'error', op: 'start', message: 'Only the host can start the game'});
           return;
         }
-        this.game.players = this.game.players.map(({ awarded: _awarded, ...player }) => ({...player, score: 0, streak: 0}));
+        this.game.players = this.game.players.map(({ awarded: _awarded, ...player }) => ({...player, score: 0, streak: 0, outcome: null}));
         this.order = shuffle(MOCK_COUNTRIES);
         this.startRound(1);
         break;
       }
       case 'end': {
         if (!host) {
+          this.answerTo(from, {t: 'error', op: 'end', message: 'Only the host can end the game'});
           return;
         }
         // ended early: the points so far still count, the award comes while it's back in the lobby
         const ended = this.game.phase === 'round' || this.game.phase === 'reveal';
         this.clearRoundTimers();
         this.game = {...this.game, phase: 'lobby', round: null, reveal: null, standings: null};
-        this.game.players = this.game.players.map(({ awarded: _awarded, ...player }) => player);
+        this.game.players = this.game.players.map(({ awarded: _awarded, ...player }) => ({...player, outcome: null}));
         this.broadcastState();
         if (ended) {
           this.award();
@@ -315,11 +335,17 @@ export class FakeFlagGame extends FlagGameConnection {
       }
       case 'guess': {
         const round = this.game.round;
-        if (this.game.phase !== 'round' || !round || !this.country || round.solved.includes(from)) {
+        // like the api: a guess always gets its answer or an `error` with its op (one sent as the time ran out too)
+        if (this.game.phase !== 'round' || !round || !this.country) {
+          this.answerTo(from, {t: 'error', op: 'guess', message: 'The round is over'});
           return;
         }
         if (Date.now() < round.started_at) {
           this.answerTo(from, {t: 'error', op: 'guess', message: 'The round hasn’t started yet'});
+          return;
+        }
+        if (round.solved.includes(from)) {
+          this.answerTo(from, {t: 'error', op: 'guess', message: 'You already answered this flag'});
           return;
         }
         const guess = normalize(message.text);
@@ -336,10 +362,22 @@ export class FakeFlagGame extends FlagGameConnection {
       }
       case 'choose': {
         const round = this.game.round;
-        if (this.game.phase !== 'round' || !round || this.answered.has(from) || Date.now() < round.started_at) {
+        if (this.game.phase !== 'round' || !round) {
+          this.answerTo(from, {t: 'error', op: 'choose', message: 'The round is over'});
+          return;
+        }
+        if (Date.now() < round.started_at) {
+          this.answerTo(from, {t: 'error', op: 'choose', message: 'The round hasn’t started yet'});
+          return;
+        }
+        if (this.answered.has(from)) {
+          this.answerTo(from, {t: 'error', op: 'choose', message: 'You already answered this flag'});
           return;
         }
         this.answered.add(from);
+        if (from === YOU) {
+          this.yourChoice = message.index;
+        }
         round.answered += 1;
         const correct = message.index === this.answerIndex;
         this.answerTo(from, {t: 'guess', correct});
@@ -358,7 +396,7 @@ export class FakeFlagGame extends FlagGameConnection {
           return;
         }
         this.game.watchers = this.game.watchers.filter((entry) => entry.user_id !== from);
-        this.game.players = [...this.game.players, {...watcher, score: 0, streak: 0, connected: true}];
+        this.game.players = [...this.game.players, {...watcher, score: 0, streak: 0, connected: true, outcome: null}];
         this.game.you_watch = false;
         this.broadcastState();
         break;
@@ -422,8 +460,10 @@ export class FakeFlagGame extends FlagGameConnection {
     this.game = {
       ...this.game,
       phase: 'finished',
+      // each player's record from it, like the api's
+      players: withOutcomes(this.game.players, this.game.room.solo),
       round: this.game.round ?? null,
-      standings: [...this.game.players].sort((a, b) => b.score - a.score).map((player) => ({user_id: player.user_id, score: player.score})),
+      standings: [...this.game.players].sort((a, b) => b.score - a.score).map((player) => ({user_id: player.user_id, score: player.score, awarded: null})),
     };
     this.broadcastState();
     this.award();
@@ -442,8 +482,9 @@ export class FakeFlagGame extends FlagGameConnection {
     }
     this.later(() => {
       if (this.game.phase === 'finished') {
-        // later states carry it on the players, like the api's
+        // later states carry it on the players and the standings, like the api's
         this.game.players = this.game.players.map((player) => (player.user_id in awards) ? {...player, awarded: awards[player.user_id]} : player);
+        this.game.standings = this.game.standings?.map((row) => (row.user_id in awards) ? {...row, awarded: awards[row.user_id]} : row) ?? null;
       }
       this.emit({t: 'awarded', awards, now: Date.now()});
     }, AWARD_DELAY);
@@ -454,6 +495,7 @@ export class FakeFlagGame extends FlagGameConnection {
     const country = this.order[(number - 1) % this.order.length];
     this.country = country;
     this.answered = new Set();
+    this.yourChoice = null;
     // a game's first flag counts down in a room for more than one, its time and hints from then on
     const delay = (number === 1 && !this.solo) ? START_COUNTDOWN_MS : 0;
     const now = Date.now() + delay;
@@ -479,6 +521,11 @@ export class FakeFlagGame extends FlagGameConnection {
         choices: (delay) ? null : choices,
         solved: [],
         answered: 0,
+        // each reader's own, `copy` fills them in
+        answered_by: [],
+        you_solved: false,
+        you_answered: false,
+        your_choice: null,
       },
       reveal: null,
       standings: null,
@@ -565,10 +612,12 @@ export class FakeFlagGame extends FlagGameConnection {
         player.streak = 0;
       }
     }
+    // like the api: when the next flag (or the standings) comes, the reveal's bar runs to it
+    const endsAt = Date.now() + REVEAL_MS;
     this.game = {
       ...this.game,
       phase: 'reveal',
-      reveal: {name: this.country.name, code: this.country.code, solved: this.solvedPoints},
+      reveal: {name: this.country.name, code: this.country.code, solved: this.solvedPoints, ends_at: endsAt, until: endsAt},
     };
     this.broadcastState();
     this.later(() => {

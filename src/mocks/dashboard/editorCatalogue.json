@@ -7711,51 +7711,6 @@
       "template_blocked": false
     },
     {
-      "command_id": "tools.ml.mashup",
-      "group": "style",
-      "id": "mashup",
-      "kinds": [
-        "image"
-      ],
-      "ml": true,
-      "name": "Mashup",
-      "params": [
-        {
-          "name": "media",
-          "kind": "media",
-          "default": null,
-          "optional": true,
-          "accepts": [
-            "image",
-            "video"
-          ]
-        },
-        {
-          "name": "clip_start",
-          "kind": "time",
-          "default": 0.0,
-          "minimum": 0,
-          "maximum": 600
-        },
-        {
-          "name": "clip_end",
-          "kind": "time",
-          "default": null,
-          "minimum": 0,
-          "maximum": 600,
-          "optional": true
-        },
-        {
-          "name": "file_steps",
-          "kind": "steps",
-          "default": []
-        }
-      ],
-      "temporal": false,
-      "thumbnail": null,
-      "template_blocked": true
-    },
-    {
       "command_id": "media.iv.manipulation.face.swap",
       "group": "faces",
       "id": "faceswap",

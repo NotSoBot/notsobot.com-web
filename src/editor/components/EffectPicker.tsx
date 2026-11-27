@@ -125,7 +125,10 @@ export function EffectPicker({ effects, kind, hasAudio, onAdd, notes = true }: {
   const groups = GROUPS;
   const usable = useMemo(() => effects.filter((effect) => effectFits(effect, kind, hasAudio)), [effects, kind, hasAudio]);
   const enabledGroups = groups.filter((group) => usable.some((effect) => effect.group === group));
-  const [ tab, setTab ] = useState<EditorGroup>(() => enabledGroups[0] ?? 'style');
+  const [ picked, setTab ] = useState<EditorGroup>(() => enabledGroups[0] ?? 'style');
+  // the tab that's shown: the picked one while it has effects for this media, the first that does otherwise (what the
+  // media is can change under it, a Still Frame makes a video a picture). It used to stay on a tab that was off, empty
+  const tab = (enabledGroups.includes(picked)) ? picked : (enabledGroups[0] ?? picked);
   const sendCursor = useCursorSend();
 
   const search = query.trim().toLowerCase();

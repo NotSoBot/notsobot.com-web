@@ -3,9 +3,15 @@ import type { EditorTemplate } from '../types';
 import type { HubPage, HubQuery, HubReportReason, HubTemplate } from './types';
 
 
-// an id put into a path (the same rule as `pathId` in ../api.ts, kept here so this file doesn't import it back)
+// what a template's code can be at all (the same rule as `pathId` in ../api.ts, kept here so this file doesn't import
+// it back). One from a url that isn't is known not to be on the hub without asking
+export function isHubCode(value: string): boolean {
+  return /^[\w-]+$/.test(value);
+}
+
+// an id put into a path
 function code(value: string): string {
-  if (!/^[\w-]+$/.test(value)) {
+  if (!isHubCode(value)) {
     throw new Error('Invalid id');
   }
   return value;

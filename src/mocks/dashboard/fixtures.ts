@@ -80,6 +80,7 @@ export function createSettings(): UserSettings {
     file_upload_threshold: 0,
     file_upload_type: 0,
     file_upload_vanity: null,
+    game_points_hidden: false,
     locale: 'en',
     media_font: null,
     ml_diffusion_model: null,

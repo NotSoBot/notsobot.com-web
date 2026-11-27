@@ -1,5 +1,5 @@
 import { BookmarkCheck, Check, LayoutTemplate, Lock } from 'lucide-react';
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 
 import { DialogError } from '@/components/ui/DialogError';
 import { Modal } from '@/components/ui/Modal';
@@ -11,7 +11,7 @@ import type { EditorHost } from '../api';
 import { defaultParams, newStepId } from '../stack';
 import type { EditorEffect, EditorStep, EditorTemplate } from '../types';
 import type { useEditorDocument } from '../useEditorDocument';
-import { HubStatusBadge, PublishButton } from '../hub/Publish';
+import { HubStatusBadge, hubStatusOf, PublishButton } from '../hub/Publish';
 
 
 type EditorState = ReturnType<typeof useEditorDocument>;
@@ -54,6 +54,16 @@ function TemplatePickerDialog({ host, state, onLoad, onClose }: {
   const titleId = useId();
   const [ templates, setTemplates ] = useState<Array<EditorTemplate> | null>(null);
   const [ error, setError ] = useState<string | null>(null);
+  // the one being loaded onto the edit (its files are copied over first), by its code. Nothing said it was on its way:
+  // a second click loaded it twice, and Cancel closed the dialog only for the effects to be replaced a moment later
+  const [ loading, setLoading ] = useState<string | null>(null);
+  const aliveRef = useRef(true);
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => {
+      aliveRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -72,8 +82,8 @@ function TemplatePickerDialog({ host, state, onLoad, onClose }: {
   }, [host, t]);
 
   return (
-    <Modal labelledBy={titleId} onClose={onClose} className='max-w-lg'>
-      <div className='flex flex-col gap-4 p-5 sm:p-6'>
+    <Modal labelledBy={titleId} onClose={() => !loading && onClose()} className='max-w-lg'>
+      <div data-state={(error) ? 'error' : (!templates) ? 'loading' : (loading) ? 'applying' : 'ready'} className='flex flex-col gap-4 p-5 sm:p-6'>
         <div>
           <h2 id={titleId} className='pr-10 text-lg font-semibold text-white'>{t('editor.templates.title')}</h2>
           <p className='mt-2 text-sm text-muted'>{t('editor.templates.description')}</p>
@@ -89,23 +99,40 @@ function TemplatePickerDialog({ host, state, onLoad, onClose }: {
                 <li key={template.code} className='flex items-center gap-1.5'>
                   <button
                     type='button'
-                    disabled={!usable.length}
+                    disabled={!usable.length || Boolean(loading)}
                     onClick={async () => {
+                      if (loading) {
+                        return;
+                      }
                       if (template.assets?.length && state.document) {
                         // its overlays' files become this edit's first, the steps can use them then
+                        setLoading(template.code);
                         try {
-                          state.addAssets((await host.api.importTemplateAssets(state.document.id, template.code)).assets);
+                          const { assets } = await host.api.importTemplateAssets(state.document.id, template.code);
+                          // the dialog's gone meanwhile (the editor closed under it): nothing is loaded
+                          if (!aliveRef.current) {
+                            return;
+                          }
+                          state.addAssets(assets);
                         } catch (failure) {
-                          setError(host.errorOf(failure)?.message || t('editor.templates.error'));
+                          if (aliveRef.current) {
+                            setError(host.errorOf(failure)?.message || t('editor.templates.error'));
+                            setLoading(null);
+                          }
                           return;
                         }
                       }
-                      state.replaceSteps(usable);
+                      // turned down (someone's render started while its files were coming): nothing was loaded, the
+                      // dialog stays and it can be picked again once the render's over
+                      if (!state.replaceSteps(usable)) {
+                        setLoading(null);
+                        return;
+                      }
                       onLoad(template);
                     }}
                     className='flex min-h-14 w-full min-w-0 flex-1 items-center gap-3 rounded-lg border border-line-strong bg-bg px-3 py-2 text-left hover:border-brand disabled:cursor-not-allowed disabled:opacity-50'
                   >
-                    <LayoutTemplate aria-hidden className='size-5 shrink-0 text-muted'/>
+                    {(loading === template.code) ? <Spinner className='size-5 shrink-0'/> : <LayoutTemplate aria-hidden className='size-5 shrink-0 text-muted'/>}
                     <span className='flex min-w-0 flex-1 flex-col'>
                       <span className='flex items-center gap-1.5 text-sm font-semibold text-white'>
                         <span className='truncate'>{template.name}</span>
@@ -117,7 +144,10 @@ function TemplatePickerDialog({ host, state, onLoad, onClose }: {
                       </span>
                     </span>
                   </button>
-                  <PublishButton host={host} template={template} onChange={(saved) => setTemplates((items) => (items ?? []).map((item) => (item.code === saved.code) ? saved : item))}/>
+                  {/* (not while one is loading: the dialog closes under whatever it opened) */}
+                  <fieldset disabled={Boolean(loading)} className='contents'>
+                    <PublishButton host={host} template={template} onChange={(saved) => setTemplates((items) => (items ?? []).map((item) => (item.code === saved.code) ? saved : item))}/>
+                  </fieldset>
                 </li>
               );
             })}
@@ -127,7 +157,7 @@ function TemplatePickerDialog({ host, state, onLoad, onClose }: {
         )}
         {(state.steps.length && templates?.length) ? <p className='text-xs text-subtle'>{t('editor.templates.replaces')}</p> : null}
         <div className='flex justify-end'>
-          <button type='button' className='btn btn-secondary' onClick={onClose}>{t('common.cancel')}</button>
+          <button type='button' className='btn btn-secondary' onClick={onClose} disabled={Boolean(loading)}>{t('common.cancel')}</button>
         </div>
       </div>
     </Modal>
@@ -178,15 +208,23 @@ export function SaveLoadedTemplateButton({ host, state, documentId, template }: 
   const { t } = useI18n();
   const [ status, setStatus ] = useState<'idle' | 'saving' | 'saved' | 'failed'>('idle');
   const [ error, setError ] = useState<string | null>(null);
+  // the template as the api answered the last save: a published one whose steps changed is back in review
+  const [ answered, setAnswered ] = useState<EditorTemplate | null>(null);
+  const stepsRef = useRef(state.steps);
+  stepsRef.current = state.steps;
   // a change after saving makes it worth saving again
   useEffect(() => {
     setStatus((current) => (current === 'saved') ? 'idle' : current);
   }, [state.steps]);
+  // where it stands on the hub now, when the save changed that (nothing else on this screen would say so)
+  const moved = (answered && answered.code === template.code && hubStatusOf(answered) !== hubStatusOf(template)) ? answered : null;
 
   const label = (status === 'saved') ? t('editor.templates.saved', {name: template.name}) : t('editor.templates.save', {name: template.name});
   return (
+    <>
     <button
       type='button'
+      data-state={status}
       disabled={status === 'saving' || !state.steps.some((step) => !step.hidden)}
       aria-label={label}
       title={error ?? label}
@@ -197,8 +235,12 @@ export function SaveLoadedTemplateButton({ host, state, documentId, template }: 
           if (!await state.whenSaved()) {
             throw new Error(t('editor.render.unsaved'));
           }
-          await host.api.saveTemplateSteps(template.code, documentId);
-          setStatus('saved');
+          // the api copies the saved steps, these
+          const sent = stepsRef.current;
+          setAnswered(await host.api.saveTemplateSteps(template.code, documentId));
+          // changed while it was saving (the effect above only clears a `saved` that's already there): it isn't what
+          // the template has
+          setStatus((stepsRef.current === sent) ? 'saved' : 'idle');
         } catch (failure) {
           setError(host.errorOf(failure)?.message || ((failure instanceof Error) ? failure.message : t('editor.templates.save_failed')));
           setStatus('failed');
@@ -212,5 +254,7 @@ export function SaveLoadedTemplateButton({ host, state, documentId, template }: 
       {(status === 'saving') ? <Spinner className='size-4'/> : (status === 'saved') ? <Check aria-hidden className='size-4'/> : <BookmarkCheck aria-hidden className='size-4'/>}
       <span className='hidden truncate sm:inline'>{label}</span>
     </button>
+    {(moved) ? <HubStatusBadge template={moved} className='shrink-0'/> : null}
+    </>
   );
 }

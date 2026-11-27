@@ -17,6 +17,10 @@ const PREVIEW_POLL = 400;
 const PROXY_POLL = 500;
 // previews were refused as busy, try again after this
 const BUSY_RETRY = 5000;
+// a preview replaced by nothing this request did is asked for again after these, each up to as long again. Each person
+// has their own preview of a room's document, so that's one of their other tabs, or someone else's identical preview it
+// was waiting on that its owner replaced. Replaced after the last one too, it's failed
+const SUPERSEDED_RETRY_DELAYS = [1000, 2000];
 // two changes to the same param within this long are one undo step (a slider drag)
 const COALESCE_WINDOW = 800;
 const MAX_HISTORY = 50;
@@ -56,6 +60,35 @@ interface HistoryEntry {
 type DonePreview = Extract<EditorPreview, {status: 'done'}>;
 
 
+// the same steps with the same settings, in the same order (as json: a stack the api wrote differently isn't "the same")
+function sameSteps(a: Array<EditorStep>, b: Array<EditorStep>): boolean {
+  return a === b || JSON.stringify(a) === JSON.stringify(b);
+}
+
+
+// the step a room op changes, null when it's the whole stack
+function opStepId(op: RoomOp): string | null {
+  switch (op.op) {
+    case 'add':
+      return op.step.id;
+    case 'replace':
+      return null;
+    default:
+      return op.step_id;
+  }
+}
+
+
+// whether `after` is `before` with nothing but those steps changed, added, removed or moved (null: any step may be)
+function onlyStepsChanged(before: Array<EditorStep>, after: Array<EditorStep>, stepIds: Set<string> | null): boolean {
+  if (!stepIds) {
+    return true;
+  }
+  const others = (steps: Array<EditorStep>) => steps.filter((step) => !stepIds.has(step.id));
+  return sameSteps(others(before), others(after));
+}
+
+
 function sleep(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     const timer = window.setTimeout(resolve, ms);
@@ -72,6 +105,8 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
 
   const [ document, setDocument ] = useState<EditorDocument | null>(null);
   const [ loadError, setLoadError ] = useState<EditorApiError | null>(null);
+  // `reload` (Retry after a `loadError`) counts it up, the load runs again
+  const [ loadAttempt, setLoadAttempt ] = useState(0);
   const [ steps, setSteps ] = useState<Array<EditorStep>>([]);
   // undo/redo stacks live in a ref (updaters must stay pure), `historyVersion` re-renders when they change
   const historyRef = useRef<{past: Array<HistoryEntry>, future: Array<HistoryEntry>}>({past: [], future: []});
@@ -100,8 +135,18 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
   // a failed save's next try, and how many there were since the last one that worked
   const saveRetryTimerRef = useRef<number | null>(null);
   const saveRetriesRef = useRef(0);
+  // the last http save failed and nothing has replaced it yet: for a passing reason (tried again by itself) or refused
+  const saveFailedRef = useRef<'passing' | 'refused' | null>(null);
+  // The version an http save says its steps were made from, while one is owed (`httpOwed`): the document's as the first
+  // of those edits was made, then each save's own answer. null with nothing owed, a save then goes by the document's.
+  // Not simply the document's: in a room that keeps moving with what the others do, and a save sent with their version
+  // would write this stack over their change. Sent with the older one it's refused as out of date instead, and the
+  // stack is reloaded with its notice
+  const baseVersionRef = useRef<number | null>(null);
   const previewAbortRef = useRef<AbortController | null>(null);
   const frameTimerRef = useRef<number | null>(null);
+  // the editor's gone (or its document is being loaded again): nothing asks for a preview or takes a document after
+  const disposedRef = useRef(false);
 
   // ---- the activity's room (host.room), null on the web ----
   const room = host.room ?? null;
@@ -111,8 +156,24 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
   const [ rendering, setRendering ] = useState<string | null>(null);
   const renderingRef = useRef<string | null>(null);
   renderingRef.current = rendering;
-  // ops sent and not yet seen back, the room's documents don't replace the stack until they're all in
-  const pendingOpsRef = useRef(new Set<string>());
+  // a watch-only room's watchers: everyone but its creator. Their changes go nowhere (the api refuses them anyway)
+  const watching = Boolean(room && document?.watch_only && room.you && document.user_id !== room.you);
+  const watchingRef = useRef(watching);
+  watchingRef.current = watching;
+  // why nothing they do changes the stack right now, null when it does: they only watch, or someone else's render has
+  // it locked (the api doesn't refuse an op for a render, so it's stopped here)
+  const editLock: 'watching' | 'rendering' | null = (watching) ? 'watching' : (rendering) ? 'rendering' : null;
+  const editLockRef = useRef(editLock);
+  editLockRef.current = editLock;
+  // ops sent and not yet seen back, the room's documents don't replace the stack until they're all in. By op id, with
+  // the step each one changes (null: the whole stack, a `replace`)
+  const pendingOpsRef = useRef(new Map<string, string | null>());
+  // The ops that were still unanswered when the socket last went down: each may have been applied (one version each)
+  // with its answer lost. `count` of them, on `steps` (null: any step), made on the stack `base` (the last one the room
+  // sent). An http save that's then refused as out of date is behind by these, not by someone else's change, when the
+  // api is ahead by no more versions than `count` and nothing but `steps` differs from `base` (`save`). null again once
+  // a save is in, the stack is reloaded or the room settles
+  const inDoubtRef = useRef<{count: number, steps: Set<string> | null, base: Array<EditorStep>} | null>(null);
   // an undo's or redo's ops still on their way, by op id: one the room refuses because its step is gone takes its
   // history entry with it, quietly
   const historyOpsRef = useRef(new Map<string, HistoryEntry>());
@@ -155,11 +216,14 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
   const requestRef = useRef({mode, frame, upto});
   requestRef.current = {mode, frame, upto};
 
-  const runPreview = useCallback(async () => {
+  // `superseded`: how many times in a row this preview was asked for again because someone else's replaced it
+  // (SUPERSEDED_RETRY_DELAYS), 0 for a new request
+  const requestPreview = useCallback(async (superseded: number) => {
     const current = documentRef.current;
-    if (!current) {
+    if (!current || disposedRef.current) {
       return;
     }
+    // (a request waiting to be asked again after it was replaced is one of these too: a newer one ends its wait)
     previewAbortRef.current?.abort();
     const controller = new AbortController();
     previewAbortRef.current = controller;
@@ -189,10 +253,21 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
           return;
         }
         if (result.status === 'superseded' || result.status === 'expired') {
-          // a newer one replaced it (ours, or someone else's in an activity), that one shows
-          if (!signal.aborted) {
-            setPreviewState('idle');
+          // a newer one replaced it. Ours: it aborted this request, the newer one shows
+          if (signal.aborted) {
+            return;
           }
+          // Not ours: another tab of theirs, or the room member whose identical preview this one waited on (the api runs
+          // it once for everyone who asks) moved on and replaced it. Another member's own preview never replaces
+          // ours. Nothing shows it here, and saying "up to date" over the old picture was wrong. Asked for again in a
+          // moment, and failed (with its Try again) when that keeps being replaced too
+          if (SUPERSEDED_RETRY_DELAYS.length <= superseded) {
+            setPreviewState('failed');
+            setPreviewError(null);
+            return;
+          }
+          await sleep(SUPERSEDED_RETRY_DELAYS[superseded] * (1 + Math.random()), signal);
+          void requestPreview(superseded + 1);
           return;
         }
         if (result.status === 'preparing') {
@@ -205,6 +280,9 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
         // pending
         const previewId = result.preview_id;
         if (!previewId) {
+          // nothing to ask about again: failed, not "updating" for good
+          setPreviewState('failed');
+          setPreviewError(null);
           return;
         }
         const asked = Date.now();
@@ -227,7 +305,7 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
         } catch {
           return;
         }
-        void runPreview();
+        void requestPreview(0);
         return;
       }
       setPreviewState('failed');
@@ -235,7 +313,55 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
     }
   }, [api, host]);
 
+  // a preview of the stack as the api has it now, in place of whichever one was on its way
+  const runPreview = useCallback(() => requestPreview(0), [requestPreview]);
+
   // ---- saving ----
+
+  // Something on screen still has to reach the api over http: a save waiting out its delay, on its way, asked for again
+  // meanwhile, waiting for its next try, or failed. In a room, until it's in: edits keep going over http and the room's
+  // stack isn't taken (`commit`, `settleRoom`). (A watcher owes nothing, nothing of theirs can be saved)
+  const httpOwed = useCallback((): boolean => !watchingRef.current && (
+    saveTimerRef.current !== null
+    || savingRef.current
+    || dirtyRef.current
+    || saveRetryTimerRef.current !== null
+    || saveFailedRef.current !== null
+  ), []);
+
+  // In a room: its stack is what's shown, and that's "saved", once nothing of ours is still on its way: no op waiting
+  // for its answer, no dragged param waiting for its turn, nothing owed over http. The one place that decides it (each
+  // caller used to have its own version of this, not all the same)
+  const settleRoom = useCallback(() => {
+    const current = documentRef.current;
+    if (!current || pendingOpsRef.current.size || paramTimerRef.current !== null || httpOwed()) {
+      return;
+    }
+    // (only a watcher gets here with these still set: a save of theirs that failed is over with)
+    saveFailedRef.current = null;
+    baseVersionRef.current = null;
+    inDoubtRef.current = null;
+    stepsRef.current = current.steps;
+    setSteps(current.steps);
+    setSaveState('saved');
+  }, [httpOwed]);
+
+  // The api's stack takes the place of what's on screen, with the "changed somewhere else" notice: what wasn't saved is
+  // given up, nothing is owed anymore
+  const reloadStack = useCallback((head: EditorDocument) => {
+    documentRef.current = head;
+    stepsRef.current = head.steps;
+    setDocument(head);
+    setSteps(head.steps);
+    setReloaded(true);
+    // (the save that failed before it is over with, its message isn't left beside the notice)
+    setStepError(null);
+    setSaveState('saved');
+    dirtyRef.current = false;
+    saveFailedRef.current = null;
+    baseVersionRef.current = null;
+    inDoubtRef.current = null;
+  }, []);
 
   const save = useCallback(async () => {
     const current = documentRef.current;
@@ -248,76 +374,124 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
     }
     savingRef.current = true;
     dirtyRef.current = false;
+    saveFailedRef.current = null;
     if (saveRetryTimerRef.current !== null) {
       window.clearTimeout(saveRetryTimerRef.current);
       saveRetryTimerRef.current = null;
     }
     setSaveState('saving');
     const sent = stepsRef.current;
+    // an http answer, unless the room already sent a later version of the document while it was on its way
+    const newest = (answer: EditorDocument): EditorDocument => {
+      const known = documentRef.current;
+      return (known && known.id === answer.id && answer.version < known.version) ? known : answer;
+    };
+    const version = baseVersionRef.current ?? current.version;
+    let saved: EditorDocument;
     try {
-      const saved = await api.saveSteps(current.id, sent, current.version);
-      saveRetriesRef.current = 0;
-      documentRef.current = saved;
-      setDocument(saved);
-      setStepError(null);
-      setSaveState('saved');
+      saved = await api.saveSteps(current.id, sent, version);
     } catch (error) {
       const apiError = host.errorOf(error);
-      if (apiError?.code === EditorErrorCodes.EDITOR_DOCUMENT_VERSION_MISMATCH) {
-        // changed elsewhere: take the server's and say so, the edit since is lost (rare on the web, one tab each)
-        const latest = await api.document(current.id).catch(() => null);
-        if (latest) {
-          documentRef.current = latest;
-          stepsRef.current = latest.steps;
-          setDocument(latest);
-          setSteps(latest.steps);
-          setReloaded(true);
+      // refused as out of date: the stack as the api has it now (null when that can't be fetched either)
+      const outdated = apiError?.code === EditorErrorCodes.EDITOR_DOCUMENT_VERSION_MISMATCH;
+      const latest = (outdated) ? await api.document(current.id).catch(() => null) : null;
+      if (latest && !sameSteps(latest.steps, sent)) {
+        const ahead = latest.version - version;
+        const doubt = inDoubtRef.current;
+        if (doubt && 0 < ahead && ahead <= doubt.count && onlyStepsChanged(doubt.base, latest.steps, doubt.steps)) {
+          // The api is ahead by no more than our own ops that were unanswered when the socket went down (a version
+          // each), and only in the steps those were about: they were applied, only their answers were lost. Nothing
+          // changed elsewhere, and this stack was made on top of them: it's sent again from where the api is now. No
+          // reload, no notice (a drag that went on through a dropped socket lost everything since the drop here).
+          // Once: a save that's out of date again after it is someone else's change
+          inDoubtRef.current = null;
+          baseVersionRef.current = latest.version;
+          const head = newest(latest);
+          documentRef.current = head;
+          setDocument(head);
+          savingRef.current = false;
+          void save();
+          return;
         }
-        setSaveState('saved');
+        // changed elsewhere: take the server's and say so, the edit since is lost (rare on the web, one tab each)
         savingRef.current = false;
-        dirtyRef.current = false;
+        reloadStack(newest(latest));
         // what's shown is the server's stack now, its preview too (the old one still had the dropped edit)
         void runPreview();
         return;
       }
-      const invalid = apiError?.code === EditorErrorCodes.EDITOR_INVALID_STEP;
-      if (invalid) {
-        const index = apiError.body?.index;
-        setStepError({index: (typeof index === 'number') ? index : null, message: apiError.message});
-      } else {
-        setStepError({index: null, message: apiError?.message ?? ''});
-      }
-      setSaveState('error');
-      savingRef.current = false;
-      if (dirtyRef.current) {
-        // edited while it was failing: those go out now (they may be what fixes a refused step), the save used to stop
-        // here and never send them
-        void save();
+      if (!latest) {
+        const invalid = apiError?.code === EditorErrorCodes.EDITOR_INVALID_STEP;
+        if (invalid) {
+          const index = apiError.body?.index;
+          setStepError({index: (typeof index === 'number') ? index : null, message: apiError.message});
+        } else {
+          setStepError({index: null, message: apiError?.message ?? ''});
+        }
+        setSaveState('error');
+        savingRef.current = false;
+        // A passing failure is tried again, a refusal (a bad step, not allowed, gone) isn't. Passing too: a step
+        // someone else is adjusting (theirs for a few seconds), and an out-of-date answer whose fresh stack couldn't
+        // be fetched (it used to say "saved" there, with nothing saved)
+        const passing = !invalid && (
+          !apiError
+          || apiError.status === 0
+          || apiError.status === 429
+          || 500 <= apiError.status
+          || apiError.code === EditorErrorCodes.EDITOR_STEP_LOCKED
+          || outdated
+        );
+        saveFailedRef.current = (passing) ? 'passing' : 'refused';
+        if (dirtyRef.current) {
+          // edited while it was failing: those go out now (they may be what fixes a refused step), the save used to
+          // stop here and never send them
+          void save();
+          return;
+        }
+        if (passing && saveRetriesRef.current < SAVE_RETRY_DELAYS.length) {
+          const delay = SAVE_RETRY_DELAYS[saveRetriesRef.current];
+          saveRetriesRef.current += 1;
+          saveRetryTimerRef.current = window.setTimeout(() => {
+            saveRetryTimerRef.current = null;
+            void save();
+          }, delay);
+        }
         return;
       }
-      // a passing failure is tried again, a refusal (a bad step, not allowed, gone) isn't
-      const passing = !apiError || apiError.status === 0 || apiError.status === 429 || 500 <= apiError.status;
-      if (!invalid && passing && saveRetriesRef.current < SAVE_RETRY_DELAYS.length) {
-        const delay = SAVE_RETRY_DELAYS[saveRetriesRef.current];
-        saveRetriesRef.current += 1;
-        saveRetryTimerRef.current = window.setTimeout(() => {
-          saveRetryTimerRef.current = null;
-          void save();
-        }, delay);
-      }
-      return;
+      // Out of date, but the api has exactly these steps already: they went through the room and only its answers
+      // were lost with the socket. Nothing changed elsewhere and nothing is reloaded, it's as good as saved (it used to
+      // show "changed somewhere else" for this)
+      saved = latest;
     }
+    saveRetriesRef.current = 0;
     savingRef.current = false;
+    inDoubtRef.current = null;
+    // anything still owed (an edit made while this was on its way) was made on top of what's now saved
+    baseVersionRef.current = (dirtyRef.current || saveTimerRef.current !== null) ? saved.version : null;
+    const head = newest(saved);
+    documentRef.current = head;
+    setDocument(head);
+    setStepError(null);
+    setSaveState('saved');
     if (dirtyRef.current) {
       void save();
       return;
     }
+    if (head !== saved) {
+      // a later document the room sent while this was owed waited for it (it has what was just saved, versions go in
+      // order). Otherwise the stack on screen stays as it is, a save's answer never replaces it
+      settleRoom();
+    }
     void runPreview();
-  }, [api, host, runPreview]);
+  }, [api, host, reloadStack, runPreview, settleRoom]);
 
   const scheduleSave = useCallback(() => {
     if (saveTimerRef.current !== null) {
       window.clearTimeout(saveTimerRef.current);
+    }
+    // the first edit of the ones this will save: the version they're made from (`baseVersionRef`)
+    if (baseVersionRef.current === null && documentRef.current) {
+      baseVersionRef.current = documentRef.current.version;
     }
     // a new edit starts the tries over, its own save replaces a waiting retry
     saveRetriesRef.current = 0;
@@ -342,6 +516,7 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
 
   useEffect(() => {
     const controller = new AbortController();
+    disposedRef.current = false;
     setDocument(null);
     setLoadError(null);
     setPreview(null);
@@ -371,7 +546,14 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
     })();
     return () => {
       controller.abort();
+      // no preview is asked for from here on: a scrub's wait, a save still on its way or a document the room was asked
+      // for used to start one after the editor was gone, polled to its end for nobody
+      disposedRef.current = true;
       previewAbortRef.current?.abort();
+      if (frameTimerRef.current !== null) {
+        window.clearTimeout(frameTimerRef.current);
+        frameTimerRef.current = null;
+      }
       const unsaved = saveTimerRef.current !== null || saveRetryTimerRef.current !== null;
       if (saveTimerRef.current !== null) {
         window.clearTimeout(saveTimerRef.current);
@@ -385,10 +567,13 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
       if (unsaved && leaving && leaving.id === documentId) {
         // left inside the save's wait (a change, then New or Back right away): it's sent now, the edit used to be gone
         // when the document was opened again
-        api.saveSteps(leaving.id, stepsRef.current, leaving.version).catch(() => undefined);
+        api.saveSteps(leaving.id, stepsRef.current, baseVersionRef.current ?? leaving.version).catch(() => undefined);
       }
     };
-  }, [api, documentId, host, runPreview]);
+  }, [api, documentId, host, loadAttempt, runPreview]);
+
+  // the load again, after a `loadError` (its Retry)
+  const reload = useCallback(() => setLoadAttempt((value) => value + 1), []);
 
   // a different selection (spatial steps preview what goes into them), playing or a mode change asks again
   const previewKey = `${mode}:${upto ?? 'all'}`;
@@ -411,18 +596,14 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
       return null;
     }
     const id = room.sendOp(op);
-    pendingOpsRef.current.add(id);
+    pendingOpsRef.current.set(id, opStepId(op));
     // the render (and "saved") waits until the room has every op from here
     setSaveState('saving');
+    // (an op the room refused before this one has had its say: in a quiet room its message stayed until someone edited)
+    setStepError(null);
     return id;
   }, [room]);
 
-  // a dragged param goes out at most every ROOM_PARAM_INTERVAL (the last value always), and its step is soft-locked
-  // while it moves so nobody else changes it at the same time
-  // a watch-only room's watchers: everyone but its creator. Their changes go nowhere (the api refuses them anyway)
-  const watching = Boolean(room && document?.watch_only && room.you && document.user_id !== room.you);
-  const watchingRef = useRef(watching);
-  watchingRef.current = watching;
   useEffect(() => {
     // made watch-only while they had a step open: its settings and handles go
     if (watching) {
@@ -430,17 +611,15 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
     }
   }, [watching]);
 
+  // a dragged param goes out at most every ROOM_PARAM_INTERVAL (the last value always), and its step is soft-locked
+  // while it moves so nobody else changes it at the same time
   // the spacing timer: the next waiting param goes out and the wait starts over, with none waiting it's done
   const flushParams = useCallback(function flush() {
     paramTimerRef.current = null;
     const next = paramQueueRef.current.entries().next();
     if (next.done) {
-      if (!pendingOpsRef.current.size && documentRef.current) {
-        // nothing more to send and the room's document already came (it waited on this timer): take it now
-        stepsRef.current = documentRef.current.steps;
-        setSteps(documentRef.current.steps);
-        setSaveState('saved');
-      }
+      // nothing more to send: a document of the room's that waited on this timer is taken now
+      settleRoom();
       return;
     }
     if (!room?.isOpen) {
@@ -451,10 +630,11 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
     paramQueueRef.current.delete(key);
     sendOp({op: 'set_param', step_id: entry.stepId, name: entry.name, value: entry.value});
     paramTimerRef.current = window.setTimeout(flush, ROOM_PARAM_INTERVAL);
-  }, [room, sendOp]);
+  }, [room, sendOp, settleRoom]);
 
-  const sendParam = useCallback((stepId: string, name: string, value: unknown) => {
-    if (watchingRef.current) {
+  // `hold`: false leaves the step's soft lock alone (one finished change, a drawn stroke: nothing's being dragged)
+  const sendParam = useCallback((stepId: string, name: string, value: unknown, hold: boolean = true) => {
+    if (editLockRef.current) {
       return;
     }
     if (!room?.isOpen) {
@@ -464,17 +644,24 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
     // a second, and a text box's corner moves two params at once. (Each param used to have its own timer, and a waiting
     // value went out right before the next move's: about 15 a second for a slider, 30 for a corner, refused after a few
     // seconds of dragging)
+    // (Not while an http save is owed: `commit` put this change in that save, the whole stack goes with it. The step is
+    // still held below, they're dragging it all the same)
     const key = `${stepId}:${name}`;
-    if (paramTimerRef.current !== null) {
-      const waiting = paramQueueRef.current.get(key);
-      if (waiting) {
-        waiting.value = value;
+    if (!httpOwed()) {
+      if (paramTimerRef.current !== null) {
+        const waiting = paramQueueRef.current.get(key);
+        if (waiting) {
+          waiting.value = value;
+        } else {
+          paramQueueRef.current.set(key, {stepId, name, value});
+        }
       } else {
-        paramQueueRef.current.set(key, {stepId, name, value});
+        sendOp({op: 'set_param', step_id: stepId, name, value});
+        paramTimerRef.current = window.setTimeout(flushParams, ROOM_PARAM_INTERVAL);
       }
-    } else {
-      sendOp({op: 'set_param', step_id: stepId, name, value});
-      paramTimerRef.current = window.setTimeout(flushParams, ROOM_PARAM_INTERVAL);
+    }
+    if (!hold) {
+      return;
     }
 
     const now = Date.now();
@@ -492,11 +679,11 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
         room.unlock(stepId);
       }, ROOM_LOCK_RELEASE),
     });
-  }, [flushParams, room, sendOp]);
+  }, [flushParams, httpOwed, room, sendOp]);
 
   // `change`: what this did, for undo (`HistoryEntry`). `op`: the same thing for the room
   const commit = useCallback((next: Array<EditorStep>, change: StackChange, coalesceKey?: string, op?: RoomOp) => {
-    if (watchingRef.current) {
+    if (editLockRef.current) {
       return;
     }
     const now = Date.now();
@@ -519,8 +706,10 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
     setSteps(next);
     setReloaded(false);
     // in an activity the room applies it, while its socket isn't open (connecting, nginx refusing the upgrade) it's
-    // saved over http like the web, which the api announces to the room too
-    if (room?.isOpen) {
+    // saved over http like the web, which the api announces to the room too. And for as long as an http save is still
+    // owed after the socket's back (`httpOwed`): an op is only this one change, the room would answer with a stack
+    // that has it and none of what that save was still to bring
+    if (room?.isOpen && !httpOwed()) {
       // set_param goes through `sendParam` (throttled), everything else at once
       if (op && op.op !== 'set_param') {
         sendOp(op);
@@ -528,7 +717,7 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
       return;
     }
     scheduleSave();
-  }, [room, scheduleSave, sendOp]);
+  }, [httpOwed, room, scheduleSave, sendOp]);
 
   // Undo and redo. Outside a room nobody else touches the stack, the one on the other side of the entry is put back
   // whole. In a room the entry's change (or its opposite) is applied to the stack as it is now and sent as ordinary ops,
@@ -603,8 +792,8 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
       : {past: [...past, entry].slice(-MAX_HISTORY), future: rest};
     show(applied.steps);
     setReloaded(false);
-    if (!room.isOpen) {
-      // the socket's down: saved over http like any other change meanwhile
+    if (!room.isOpen || httpOwed()) {
+      // the socket's down (or an http save is still owed, see `commit`): saved over http like any other change meanwhile
       scheduleSave();
       return;
     }
@@ -614,7 +803,7 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
         historyOpsRef.current.set(id, entry);
       }
     }
-  }, [room, scheduleSave, sendOp]);
+  }, [httpOwed, room, scheduleSave, sendOp]);
 
   const undo = useCallback(() => travel('undo'), [travel]);
   const redo = useCallback(() => travel('redo'), [travel]);
@@ -644,9 +833,14 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
   }, [addAssets, api, documentId]);
 
   // the whole stack at once (a template loaded onto it), one undo brings back what was there
-  const replaceSteps = useCallback((next: Array<EditorStep>) => {
+  // false when nothing was replaced: they only watch, or someone's render has the stack locked (`editLock`)
+  const replaceSteps = useCallback((next: Array<EditorStep>): boolean => {
+    if (editLockRef.current) {
+      return false;
+    }
     commit(next, {kind: 'replace', before: stepsRef.current, after: next}, undefined, {op: 'replace', steps: next});
     setSelectedId(null);
+    return true;
   }, [commit]);
 
   // template inputs: which params each step asks people for (param -> question), the whole stack in one change
@@ -706,7 +900,8 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
     commit(items, {kind: 'move', stepId, from, to: target}, undefined, {op: 'move', step_id: stepId, to: target});
   }, [commit]);
 
-  const setParam = useCallback((stepId: string, name: string, value: unknown) => {
+  // `lock: false`: the change is whole as it is (a finished stroke), the step isn't held for the others after it
+  const setParam = useCallback((stepId: string, name: string, value: unknown, options?: {lock?: boolean}) => {
     const before = stepsRef.current.find((step) => step.id === stepId)?.params[name];
     commit(
       stepsRef.current.map((step) => (step.id === stepId) ? {...step, params: {...step.params, [name]: value}} : step),
@@ -714,7 +909,7 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
       `${stepId}:${name}`,
       {op: 'set_param', step_id: stepId, name, value},
     );
-    sendParam(stepId, name, value);
+    sendParam(stepId, name, value, options?.lock !== false);
   }, [commit, sendParam]);
 
   // several of a step's params from one gesture (a text box's corner is its width and its letters' size): one change,
@@ -746,13 +941,16 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
       if (roomPreviewTimerRef.current !== null) {
         window.clearTimeout(roomPreviewTimerRef.current);
       }
+      // the picture is behind from now, not only once it's asked for (it read "up to date" for the wait)
+      setPreviewState('updating');
       roomPreviewTimerRef.current = window.setTimeout(() => {
         roomPreviewTimerRef.current = null;
         void runPreview();
       }, ROOM_PREVIEW_DELAY);
     };
     const takeDocument = (next: EditorDocument) => {
-      if (next.id !== documentId) {
+      // (one that was asked for can come back after the editor's gone)
+      if (disposedRef.current || next.id !== documentId) {
         return;
       }
       // a change made while joining can come again after `ready`, an older or the same version is already here
@@ -765,23 +963,45 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
         // someone replaced the media: the old one's preview and frame mean nothing now
         resetForSource();
       }
+      if (saveFailedRef.current === 'refused' && saveTimerRef.current === null && !watchingRef.current) {
+        // A save the api refused for good (a bad step, not allowed), with nothing done about it since: it would stay
+        // owed, and the room's stack unseen under a preview that already shows it, until they did something. The room
+        // has moved on, its stack is taken like any other change made elsewhere, with the notice. (One that's being
+        // tried again, or edited since, still goes out and is settled by its own answer)
+        reloadStack(next);
+        previewSoon();
+        return;
+      }
       documentRef.current = next;
       setDocument(next);
-      // our own ops still on their way would be undone by this older stack, the last one's document has them all
-      if (!pendingOpsRef.current.size && paramTimerRef.current === null) {
-        stepsRef.current = next.steps;
-        setSteps(next.steps);
-        setSaveState('saved');
-      }
+      // Its stack is shown once nothing of ours is still on its way: our own ops would be undone by this older stack
+      // (the last one's document has them all), and an http save that's still owed would lose what it's to bring
+      settleRoom();
       previewSoon();
     };
     const unsubscribeStatus = room.onStatus((status) => {
       if (status === 'open') {
+        // The socket's back, so most likely the api is too: a save waiting for its next try (or out of them) goes now.
+        // Edits keep going over http until it's in (`httpOwed`)
+        if (!watchingRef.current && (saveRetryTimerRef.current !== null || saveFailedRef.current === 'passing')) {
+          saveRetriesRef.current = 0;
+          void save();
+        }
         return;
       }
       // whoever was rendering can't say it ended over a socket that's down
       setRendering(null);
-      const unsent = pendingOpsRef.current.size > 0 || paramQueueRef.current.size > 0;
+      // nor can who holds which step be heard of (the room dropped them too): none are shown as held until `editing`'s
+      // answer on the next socket. A step someone was dragging as it went down stayed "X is adjusting this" until then
+      setLocks((current) => (Object.keys(current).length) ? {} : current);
+      // our own holds went with the socket: a drag still going takes its step again with its next move on the new one
+      // (after a short drop it counted as held here for up to ROOM_LOCK_RENEW, with nothing held on the api)
+      for (const { release } of lockTimersRef.current.values()) {
+        window.clearTimeout(release);
+      }
+      lockTimersRef.current.clear();
+      const unanswered = [...pendingOpsRef.current.values()];
+      const unsent = unanswered.length > 0 || paramQueueRef.current.size > 0;
       pendingOpsRef.current.clear();
       historyOpsRef.current.clear();
       paramQueueRef.current.clear();
@@ -793,8 +1013,20 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
         // ops in flight (or still waiting to go) may be lost with the socket, and what's shown has them: the whole
         // stack goes over http instead, like every edit while the socket's down. It used to say "saved" here while the
         // preview and the render used the room's stack without the edit. If the room did get them, the save is
-        // refused as out of date and the room's stack is taken
+        // refused as out of date: when the api is only ahead by those ops it's sent again from the api's version
+        // (`inDoubtRef`), otherwise the room's stack is taken
+        if (unanswered.length && documentRef.current) {
+          inDoubtRef.current = {
+            count: unanswered.length,
+            steps: (unanswered.includes(null)) ? null : new Set(unanswered.filter((stepId) => stepId !== null)),
+            base: documentRef.current.steps,
+          };
+        }
         scheduleSave();
+      } else {
+        // nothing to send (or a watcher, whose changes go nowhere): what's shown is the room's stack again. A document
+        // that was waiting on the param timer cleared above is taken here, a watcher's "saving" ends
+        settleRoom();
       }
     });
     const unsubscribe = room.subscribe((event) => {
@@ -815,15 +1047,25 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
             historyOpsRef.current.delete(event.op_id);
           }
           takeDocument(event.document);
-          setStepError(null);
+          // also when it wasn't taken (a version already here, fetched a moment before): its op is answered all the
+          // same, and "saving" used to stay up with nothing left to wait for
+          settleRoom();
+          // (an http save's error stays until that save is in)
+          if (!httpOwed()) {
+            setStepError(null);
+          }
           break;
         }
         case 'error': {
-          const undone = (event.op_id) ? historyOpsRef.current.get(event.op_id) : undefined;
-          if (event.op_id) {
-            pendingOpsRef.current.delete(event.op_id);
-            historyOpsRef.current.delete(event.op_id);
+          // Only an op of ours that's still waiting for its answer. The api also says `error` with no op id (a lock, a
+          // cursor, a message it couldn't read): none of those changed the stack, and taken for a refused op they put
+          // the stack back and said "saved"
+          const opId = event.op_id;
+          if (!opId || !pendingOpsRef.current.delete(opId)) {
+            break;
           }
+          const undone = historyOpsRef.current.get(opId);
+          historyOpsRef.current.delete(opId);
           if (undone && event.code === EditorErrorCodes.UNKNOWN_EDITOR_STEP) {
             // an undo or redo whose step someone removed a moment before: there's nothing to undo anymore, the entry
             // goes and nothing is said
@@ -833,12 +1075,8 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
           } else {
             setStepError({index: (typeof event.index === 'number') ? event.index : null, message: event.message});
           }
-          // a refused op (its step's gone, a bad value): back to what the room has
-          if (!pendingOpsRef.current.size && documentRef.current) {
-            stepsRef.current = documentRef.current.steps;
-            setSteps(documentRef.current.steps);
-            setSaveState('saved');
-          }
+          // a refused op (its step's gone, a bad value): back to what the room has, once nothing else is on its way
+          settleRoom();
           break;
         }
         case 'members':
@@ -878,13 +1116,30 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
             setRendering((current) => (current === event.user_id) ? null : current);
           }
           break;
+        case 'cursor':
+        case 'kicked':
+        case 'lobby_closed':
+        case 'lobby_deleted':
+        case 'moderated':
+        case 'game_rooms_changed':
+        case 'pong':
+          // not the document's: the others' pointers (./components/RoomCursors), being taken out of the room (the
+          // host), the answers to moderation, the games
+          break;
         default:
+          // Every `RoomEvent` is named above: a new one doesn't compile until it's given a case here. Only checked when
+          // it's built, a message this build doesn't know is ignored like before
+          event satisfies never;
           break;
       }
     });
     return () => {
       unsubscribe();
       unsubscribeStatus();
+      if (roomPreviewTimerRef.current !== null) {
+        window.clearTimeout(roomPreviewTimerRef.current);
+        roomPreviewTimerRef.current = null;
+      }
       if (paramTimerRef.current !== null) {
         window.clearTimeout(paramTimerRef.current);
         paramTimerRef.current = null;
@@ -902,7 +1157,7 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
       }
       lockTimersRef.current.clear();
     };
-  }, [api, documentId, room, runPreview, scheduleSave]);
+  }, [api, documentId, httpOwed, room, runPreview, save, scheduleSave, settleRoom]);
 
   // who else holds a step's soft lock (they're dragging it), null when it's free or it's ours
   // Resolves once every edit is saved (true), or the save failed or took too long (false). The render waits on it, so
@@ -946,6 +1201,8 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
     resetForSource();
     documentRef.current = next;
     stepsRef.current = next.steps;
+    // (a save scheduled while the file was on its way goes by this document's version, not the one before it)
+    baseVersionRef.current = null;
     setDocument(next);
     setSteps(next.steps);
     setStepError(null);
@@ -998,6 +1255,7 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
     errorOf: host.errorOf,
     document,
     loadError,
+    reload,
     steps,
     effectsById,
     selectedId,
@@ -1013,6 +1271,8 @@ export function useEditorDocument(host: EditorHost, documentId: string, catalogu
     canRedo: !watching && !rendering && historyRef.current.future.length > 0,
     // a watch-only room they didn't make: they watch, render and fork, nothing they do changes it
     watching,
+    // why their changes do nothing right now ('watching' before 'rendering': someone else's render), null when they do
+    editLock,
     undo,
     redo,
     addStep,

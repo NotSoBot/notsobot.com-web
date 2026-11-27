@@ -18,26 +18,18 @@ import { gameInfo } from './catalog';
 import { RoomFlagGame, type FlagGameConnection } from './connection';
 import { Finished } from './Finished';
 import { GameRoomFields, GameRoomVisibilityField, type RoomMode } from './GameRooms';
+import { closeOutcome, screenOf } from './gameScreen';
 import { rankedPlayers, useFlagImage, useGameSnapshot } from './hooks';
 import { LetterTrailReveal, LetterTrailRound } from './LetterTrail';
 import { Lobby } from './Lobby';
-import { GameCloseCodes, isLetterTrail, ROOM_PASSWORD_MIN, type AnyGameState, type GameRoomVisibility } from './protocol';
+import { isLetterTrail, ROOM_PASSWORD_MIN, type AnyGameState, type GameRoomVisibility } from './protocol';
 import { Reveal } from './Reveal';
 import { Round } from './Round';
 import { storeSoloSettings } from './solo';
 
 
-// why a game ended for good (`game.closed`'s code), as the room list says it
-export function deniedMessageKey(closeCode: number | null): TranslationKey {
-  switch (closeCode) {
-    case GameCloseCodes.UNAUTHORIZED: return 'games.flag.denied_token';
-    case GameCloseCodes.KICKED: return 'games.rooms.kicked';
-    case GameCloseCodes.LOCKED: return 'games.rooms.locked_out';
-    case GameCloseCodes.ROOM_GONE: return 'games.rooms.closed';
-    case GameCloseCodes.FULL: return 'games.rooms.full';
-    default: return 'games.flag.denied';
-  }
-}
+// the room's dialogs, one at a time: the host's End, its creator's settings, Close
+type GameDialog = {kind: 'end'} | {kind: 'settings'} | {kind: 'close'} | null;
 
 
 // the api closes a person's extra sockets with this (`ROOM_MAX_USER_SOCKETS`), a flood has the same code
@@ -66,13 +58,19 @@ function joiningDescription(socketClose: RoomClose | null, slow: boolean, t: (ke
 export function FlagGame({ connection, inviter, owner = false, onLeave }: {connection: FlagGameConnection, inviter?: RoomInviter, owner?: boolean, onLeave: (notice?: string) => void}) {
   const { t } = useI18n();
   const snapshot = useGameSnapshot(connection);
-  const [ ending, setEnding ] = useState(false);
-  const [ editing, setEditing ] = useState(false);
-  const [ closing, setClosing ] = useState(false);
-  // a confirmed End or Close that wasn't sent (the socket's reconnecting), its dialog says so
-  const [ unsent, setUnsent ] = useState(false);
+  const [ dialog, setDialog ] = useState<GameDialog>(null);
   const game = snapshot.game;
   const isHost = Boolean(snapshot.you && game?.host_id === snapshot.you);
+  // only a game that's running can be ended, by its host
+  const canEnd = isHost && (game?.phase === 'round' || game?.phase === 'reveal');
+  // the End confirm is for the game it was asked in: once that's over by itself (or the host is someone else) it goes,
+  // confirming it then used to send everyone from the final scores to the lobby (`end` there is Change settings)
+  if (dialog?.kind === 'end' && !canEnd) {
+    setDialog(null);
+  }
+  // a confirmed End, Close or removal isn't sent while the socket's reconnecting: its dialog stays and says so for as
+  // long as that lasts
+  const unsent = (snapshot.status !== 'open') ? t('games.flag.reconnecting') : undefined;
   const isCreator = Boolean(snapshot.you && game?.room.creator.user_id === snapshot.you);
   const solo = Boolean(game?.room.solo);
   const roomInviter = (solo) ? undefined : inviter;
@@ -100,31 +98,82 @@ export function FlagGame({ connection, inviter, owner = false, onLeave }: {conne
     watching: game.you_watch,
     flagUrl: pipFlag,
     letters: isLetterTrail(game),
+    room: {name: game.room.name, locked: game.room.locked, solo: game.room.solo},
   } : null);
 
   // removed or closed: back to the room list, saying why (anything else stays on its own screen)
+  const closed = (snapshot.status === 'denied') ? closeOutcome(snapshot.closeCode) : null;
+  const leaving = (closed?.kind === 'leave') ? closed.message : null;
   useEffect(() => {
-    if (snapshot.status === 'denied' && (snapshot.closeCode === GameCloseCodes.KICKED || snapshot.closeCode === GameCloseCodes.ROOM_GONE || snapshot.closeCode === GameCloseCodes.LOCKED || snapshot.closeCode === GameCloseCodes.FULL)) {
-      onLeave(t(deniedMessageKey(snapshot.closeCode)));
+    if (leaving) {
+      onLeave(t(leaving));
     }
-  }, [snapshot.status, snapshot.closeCode, onLeave, t]);
+  }, [leaving, onLeave, t]);
 
-  if (snapshot.status === 'denied') {
+  // their own way back to the room list (never a removal's): a room it leaves empty closes
+  const backToRooms = () => {
+    connection.backToRooms();
+    onLeave();
+  };
+
+  if (closed) {
     return (
-      <FullPageMessage title={t(deniedMessageKey(snapshot.closeCode))}>
+      <FullPageMessage title={t(closed.message)}>
         {(owner) ? <ActivityLogButton className='btn btn-secondary'/> : null}
-        <button type='button' className='btn btn-secondary' onClick={() => onLeave()}>
+        <button type='button' className='btn btn-secondary' onClick={backToRooms}>
           <ArrowLeft aria-hidden className='size-4'/>{t('games.rooms.back')}
         </button>
       </FullPageMessage>
     );
   }
 
+  const screen = screenOf(snapshot);
+  const body = (() => {
+    switch (screen.kind) {
+      case 'joining':
+        return (
+          <FullPageMessage title={t('games.flag.joining')} description={joiningDescription(snapshot.socketClose, snapshot.slowJoin, t)}>
+            {(snapshot.slowJoin && snapshot.status !== 'open') ? (
+              <button type='button' className='btn btn-secondary' onClick={() => connection.retryJoin()}>
+                <RotateCw aria-hidden className='size-4'/>{t('games.flag.joining_retry')}
+              </button>
+            ) : <Spinner/>}
+          </FullPageMessage>
+        );
+      case 'lobby':
+        return <Lobby connection={connection} game={screen.game} you={snapshot.you} moderator={snapshot.moderator} inviter={roomInviter}/>;
+      case 'flag_round':
+        return <Round connection={connection} snapshot={snapshot} game={screen.game} round={screen.round}/>;
+      case 'flag_reveal':
+        return <Reveal key={screen.game.round?.flag_url ?? screen.reveal.code} connection={connection} snapshot={snapshot} game={screen.game} reveal={screen.reveal}/>;
+      case 'letters_round':
+        return <LetterTrailRound key={`${screen.round.number}:${screen.round.started_at}`} connection={connection} snapshot={snapshot} game={screen.game} round={screen.round}/>;
+      case 'letters_reveal':
+        return <LetterTrailReveal key={`${screen.game.round?.number ?? 0}:${screen.game.round?.started_at ?? 0}`} connection={connection} snapshot={snapshot} game={screen.game} reveal={screen.reveal}/>;
+      case 'finished':
+        return <Finished connection={connection} game={screen.game} you={snapshot.you} awards={snapshot.awards} onLeave={backToRooms}/>;
+      case 'waiting':
+        return <FullPageMessage><Spinner/></FullPageMessage>;
+      default: {
+        // a screen added to GameScreen has to be drawn here: this stops compiling until it is
+        const unknown: never = screen;
+        return unknown;
+      }
+    }
+  })();
+
   return (
-    <div className='flex min-h-[var(--editor-height,100dvh)] flex-col bg-bg text-fg'>
+    // for anyone reading the page: where the room is (`joining` until its first state), the connection, and who they are
+    // in it
+    <div
+      className='flex min-h-[var(--editor-height,100dvh)] flex-col bg-bg text-fg'
+      data-phase={game?.phase ?? 'joining'}
+      data-status={snapshot.status}
+      data-role={(!game) ? undefined : (game.you_watch) ? 'watcher' : (isHost) ? 'host' : 'player'}
+    >
       <header className='border-b border-line'>
         <div className='mx-auto flex w-full max-w-5xl items-center gap-2 px-2 py-1.5'>
-          <button type='button' onClick={() => onLeave()} className='inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-muted hover:bg-surface hover:text-fg'>
+          <button type='button' onClick={backToRooms} className='inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-muted hover:bg-surface hover:text-fg'>
             <ArrowLeft aria-hidden className='size-4'/><span className='max-sm:sr-only'>{t('games.rooms.back')}</span>
           </button>
           <h1 className='flex min-w-0 flex-1 items-center justify-center gap-1.5 font-display text-base font-bold text-white'>
@@ -139,18 +188,18 @@ export function FlagGame({ connection, inviter, owner = false, onLeave }: {conne
             {(owner) ? <ActivityLogButton/> : null}
             <HowToPlayButton guide={info.guide} markUnseen className='size-11'/>
             {(game && roomInviter) ? <RoomInviteButton inviter={roomInviter} compact/> : null}
-            {(isHost && (game?.phase === 'round' || game?.phase === 'reveal')) ? (
-              <button type='button' onClick={() => setEnding(true)} className='inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-danger-text hover:bg-surface'>
+            {(canEnd) ? (
+              <button type='button' onClick={() => setDialog({kind: 'end'})} className='inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-danger-text hover:bg-surface'>
                 <Square aria-hidden className='size-3.5'/><span className='max-sm:sr-only'>{t('games.flag.end')}</span>
               </button>
             ) : null}
             {(game && isCreator && !solo) ? (
-              <button type='button' aria-label={t('games.rooms.settings')} title={t('games.rooms.settings')} onClick={() => setEditing(true)} className='flex size-11 items-center justify-center rounded-lg text-muted hover:bg-surface hover:text-fg'>
+              <button type='button' aria-label={t('games.rooms.settings')} title={t('games.rooms.settings')} onClick={() => setDialog({kind: 'settings'})} className='flex size-11 items-center justify-center rounded-lg text-muted hover:bg-surface hover:text-fg'>
                 <Settings2 aria-hidden className='size-4'/>
               </button>
             ) : null}
             {(game && !solo && (isCreator || snapshot.moderator)) ? (
-              <button type='button' aria-label={t('games.rooms.close')} title={t('games.rooms.close')} onClick={() => setClosing(true)} className='flex size-11 items-center justify-center rounded-lg text-danger-text hover:bg-surface'>
+              <button type='button' aria-label={t('games.rooms.close')} title={t('games.rooms.close')} onClick={() => setDialog({kind: 'close'})} className='flex size-11 items-center justify-center rounded-lg text-danger-text hover:bg-surface'>
                 <Trash2 aria-hidden className='size-4'/>
               </button>
             ) : null}
@@ -172,76 +221,40 @@ export function FlagGame({ connection, inviter, owner = false, onLeave }: {conne
         </div>
       ) : null}
 
-      {(!game) ? (
-        <FullPageMessage title={t('games.flag.joining')} description={joiningDescription(snapshot.socketClose, snapshot.slowJoin, t)}>
-          {(snapshot.slowJoin && snapshot.status !== 'open') ? (
-            <button type='button' className='btn btn-secondary' onClick={() => connection.retryJoin()}>
-              <RotateCw aria-hidden className='size-4'/>{t('games.flag.joining_retry')}
-            </button>
-          ) : <Spinner/>}
-        </FullPageMessage>
-      ) : (game.phase === 'lobby') ? (
-        <Lobby connection={connection} game={game} you={snapshot.you} moderator={snapshot.moderator} inviter={roomInviter}/>
-      ) : (isLetterTrail(game)) ? (
-        (game.phase === 'round' && game.round) ? (
-          <LetterTrailRound key={`${game.round.number}:${game.round.started_at}`} connection={connection} snapshot={snapshot} game={game} round={game.round}/>
-        ) : (game.phase === 'reveal' && game.reveal) ? (
-          <LetterTrailReveal key={`${game.round?.number ?? 0}:${game.round?.started_at ?? 0}`} connection={connection} snapshot={snapshot} game={game} reveal={game.reveal}/>
-        ) : (game.phase === 'finished') ? (
-          <Finished connection={connection} game={game} you={snapshot.you} awards={snapshot.awards} onLeave={() => onLeave()}/>
-        ) : (
-          <FullPageMessage><Spinner/></FullPageMessage>
-        )
-      ) : (game.phase === 'round' && game.round) ? (
-        <Round connection={connection} snapshot={snapshot} game={game} round={game.round}/>
-      ) : (game.phase === 'reveal' && game.reveal) ? (
-        <Reveal key={game.round?.flag_url ?? game.reveal.code} connection={connection} snapshot={snapshot} game={game} reveal={game.reveal}/>
-      ) : (game.phase === 'finished') ? (
-        <Finished connection={connection} game={game} you={snapshot.you} awards={snapshot.awards} onLeave={() => onLeave()}/>
-      ) : (
-        <FullPageMessage><Spinner/></FullPageMessage>
-      )}
+      {body}
 
-      {(ending) ? (
+      {(dialog?.kind === 'end' && canEnd) ? (
         <ConfirmDialog
           title={t('games.flag.end_title')}
           description={t('games.flag.end_description')}
           confirmLabel={t('games.flag.end')}
           tone='danger'
-          error={(unsent) ? t('games.flag.reconnecting') : undefined}
+          // an End already on its way (confirmed, opened again before the lobby's state): it waits, nothing to say
+          pending={snapshot.pendingOp === 'end'}
+          error={unsent}
           onConfirm={() => {
             // not sent while the socket's reconnecting: the dialog stays and says so, it didn't happen
             if (connection.end()) {
-              setEnding(false);
-            } else {
-              setUnsent(true);
+              setDialog(null);
             }
           }}
-          onClose={() => {
-            setEnding(false);
-            setUnsent(false);
-          }}
+          onClose={() => setDialog(null)}
         />
       ) : null}
-      {(editing && game) ? <RoomSettingsDialog connection={connection} game={game} onClose={() => setEditing(false)}/> : null}
-      {(closing) ? (
+      {(dialog?.kind === 'settings' && game) ? <RoomSettingsDialog connection={connection} game={game} onClose={() => setDialog(null)}/> : null}
+      {(dialog?.kind === 'close') ? (
         <ConfirmDialog
           title={t('games.rooms.close_title')}
           description={t('games.rooms.close_description')}
           confirmLabel={t('games.rooms.close')}
           tone='danger'
-          error={(unsent) ? t('games.flag.reconnecting') : undefined}
+          error={unsent}
           onConfirm={() => {
             if (connection.closeRoom()) {
-              setClosing(false);
-            } else {
-              setUnsent(true);
+              setDialog(null);
             }
           }}
-          onClose={() => {
-            setClosing(false);
-            setUnsent(false);
-          }}
+          onClose={() => setDialog(null)}
         />
       ) : null}
     </div>

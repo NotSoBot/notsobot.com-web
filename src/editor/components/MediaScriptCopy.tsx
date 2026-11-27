@@ -44,7 +44,7 @@ function MediaScriptDialog({ host, documentId, onClose }: {host: EditorHost, doc
   const text = (!result) ? '' : (view === 'tag') ? result.tag : result.lines.join('\n');
   return (
     <Modal labelledBy={titleId} onClose={onClose} className='max-w-2xl'>
-      <div className='flex flex-col gap-4 p-5 sm:p-6'>
+      <div data-state={(error) ? 'error' : (!result) ? 'loading' : 'ready'} className='flex flex-col gap-4 p-5 sm:p-6'>
         <div>
           <h2 id={titleId} className='pr-10 text-lg font-semibold text-white'>{t('editor.mediascript.title')}</h2>
           <p className='mt-2 text-sm text-muted'>{(view === 'tag') ? t('editor.mediascript.tag_description') : t('editor.mediascript.lines_description')}</p>

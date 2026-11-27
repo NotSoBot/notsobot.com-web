@@ -89,6 +89,7 @@ export const FUNCTIONS_SPANISH_1: TagDocsTranslation['functions'] = {
       NETWORK,
       EMPTY_ARGUMENT,
       'Da un error si la posición no es un número positivo o no hay ningún dato en esa posición.',
+      'Las posiciones son las que NotSoAI vio en su prompt durante toda la respuesta, así que `{ai.knowledge.delete:1}{ai.knowledge.delete:2}` quita los dos primeros datos. Un dato que ya se quitó da un error.',
       CONFIRM_FIRST,
     ],
   },
@@ -110,6 +111,7 @@ export const FUNCTIONS_SPANISH_1: TagDocsTranslation['functions'] = {
       NETWORK,
       'No devuelve nada si la posición o el dato están vacíos.',
       'Da un error si la posición no es un número positivo, si no hay ningún dato en esa posición o si los datos juntos pasarían de 1000 caracteres.',
+      'Las posiciones son las que NotSoAI vio en su prompt durante toda la respuesta, así que después de `{ai.knowledge.delete:1}`, `{ai.knowledge.edit:2|…}` sigue cambiando el dato que era el segundo. Un dato que ya se quitó da un error.',
     ],
   },
   AI_LISTEN_STOP: {

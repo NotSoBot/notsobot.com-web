@@ -5,6 +5,7 @@ import { isOwner, useAuth } from '@/auth';
 import { FullPageMessage } from '@/components/ui/FullPageMessage';
 import { Spinner } from '@/components/ui/Spinner';
 import { Routes } from '@/config';
+import { useI18n } from '@/i18n';
 import { apiRequest } from '@/lib/api';
 
 
@@ -12,11 +13,14 @@ import { apiRequest } from '@/lib/api';
 // on every page to read it)
 type EditorAccess = {access: 'everyone' | 'owners'};
 
+// `error`: the api didn't say (it couldn't be reached), which isn't a no
+export type EditorAccessStatus = 'loading' | 'allowed' | 'denied' | 'error';
+
 
 // Who the media editor is open to, the api decides (its `EDITOR_PUBLIC`, `GET /editor/access`): owners only
 // until the rollout, then everyone logged in. The site's `/editor` page and its links go by it, so turning it on in the
-// api is all the site needs
-export function useEditorAccess(): {allowed: boolean, loading: boolean} {
+// api is all the site needs. `allowed` is `status === 'allowed'`, for the links that only show when it is
+export function useEditorAccess(): {status: EditorAccessStatus, allowed: boolean, retry: () => void} {
   const { user, isAuthenticated } = useAuth();
   const owner = isOwner(user);
   const query = useQuery({
@@ -27,21 +31,35 @@ export function useEditorAccess(): {allowed: boolean, loading: boolean} {
     staleTime: 5 * 60 * 1000,
     select: (data) => data.access,
   });
-  if (owner) {
-    return {allowed: true, loading: false};
-  }
-  return {allowed: isAuthenticated && query.data === 'everyone', loading: isAuthenticated && query.isPending};
+  // the last answer stands while a later one fails, and asking again after a failure is loading again
+  const status: EditorAccessStatus = (owner) ? 'allowed'
+    : (!isAuthenticated) ? 'denied'
+    : (query.data !== undefined) ? ((query.data === 'everyone') ? 'allowed' : 'denied')
+    // an answer that doesn't say: not allowed, as before (never a spinner for good)
+    : (query.isSuccess) ? 'denied'
+    : (query.isError && !query.isFetching) ? 'error'
+    : 'loading';
+  return {status, allowed: status === 'allowed', retry: () => void query.refetch()};
 }
 
 
-// Goes inside <RequireAuth/>: the editor's routes, for whoever it's open to. Everyone else goes back to the dashboard
+// Goes inside <RequireAuth/>: the editor's routes, for whoever it's open to. Everyone else goes back to the dashboard,
+// but only on the api's word: when it couldn't be asked they stay here with a Retry (a link to a template isn't lost)
 export function RequireEditorAccess() {
-  const { allowed, loading } = useEditorAccess();
-  if (loading) {
-    return <FullPageMessage><Spinner/></FullPageMessage>;
+  const { t } = useI18n();
+  const { status, retry } = useEditorAccess();
+  switch (status) {
+    case 'loading':
+      return <FullPageMessage><Spinner/></FullPageMessage>;
+    case 'error':
+      return (
+        <FullPageMessage title={t('ui.session_error.title')} description={t('ui.session_error.description')}>
+          <button type='button' className='btn btn-secondary' onClick={retry}>{t('common.retry')}</button>
+        </FullPageMessage>
+      );
+    case 'denied':
+      return <Navigate to={Routes.DASHBOARD} replace/>;
+    case 'allowed':
+      return <Outlet/>;
   }
-  if (!allowed) {
-    return <Navigate to={Routes.DASHBOARD} replace/>;
-  }
-  return <Outlet/>;
 }

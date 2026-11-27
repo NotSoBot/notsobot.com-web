@@ -1,16 +1,17 @@
 import { ArrowLeft, RotateCcw, SlidersHorizontal, Sparkles, Trophy } from 'lucide-react';
 import { useEffect } from 'react';
 
+import { Spinner } from '@/components/ui/Spinner';
 import { useI18n } from '@/i18n';
 import { cn } from '@/lib/utils';
 
 import { gameInfo } from './catalog';
 import type { FlagGameConnection } from './connection';
-import { playerOf, rankedPlayers } from './hooks';
+import { playerOf, rankedPlayers, useGameSnapshot } from './hooks';
 import { markGamePlayed } from './howTo';
 import { PlayerFace } from './parts';
 import { gamePointsFor } from './points';
-import { isLetterTrail, type AnyGameState, type GamePlayer } from './protocol';
+import { isLetterTrail, type AnyGameState, type GameOutcome, type GamePlayer } from './protocol';
 
 
 interface Placed {
@@ -43,6 +44,30 @@ function placings(game: AnyGameState): Array<Placed> {
 }
 
 
+// a player's record from this game (game-stats-plan.md "What counts") as a small tag. The reader's own shows a win, tie
+// or loss by their place, everyone's rows a win, tie or left (a loss is every other row, a tag on each says nothing)
+const OUTCOME_STYLES: Partial<Record<GameOutcome, string>> = {
+  win: 'bg-success/15 text-success-text',
+  tie: 'bg-warning/15 text-warning',
+  loss: 'bg-surface-3 text-muted',
+  left: 'bg-surface-3 text-subtle',
+};
+const OWN_OUTCOMES: ReadonlyArray<GameOutcome> = ['win', 'tie', 'loss'];
+const ROW_OUTCOMES: ReadonlyArray<GameOutcome> = ['win', 'tie', 'left'];
+
+function OutcomeTag({ outcome, shown }: {outcome: GameOutcome | null, shown: ReadonlyArray<GameOutcome>}) {
+  const { t } = useI18n();
+  if (!outcome || !shown.includes(outcome)) {
+    return null;
+  }
+  return (
+    <span className={cn('shrink-0 rounded-md px-1.5 py-0.5 text-[0.6875rem] leading-none font-bold uppercase tracking-wide', OUTCOME_STYLES[outcome])}>
+      {t(`games.flag.outcome_${outcome as 'win' | 'tie' | 'loss' | 'left'}`)}
+    </span>
+  );
+}
+
+
 // what their score added to their game points total (./points): all of it, part of it (the daily cap) or none. Blank
 // until the api says (the award can come after the standings), the line's there from the start so nothing moves.
 // `expected`: what the score is worth in game points before the daily cap (a game's own rate, ./points)
@@ -70,11 +95,15 @@ export function Finished({ connection, game, you, awards, onLeave }: {
   onLeave: () => void,
 }) {
   const { t, plural } = useI18n();
+  // the host's Play again or Change settings that's sent and not answered yet
+  const { pendingOp } = useGameSnapshot(connection);
   const isHost = Boolean(you) && game.host_id === you;
   const host = playerOf(game, game.host_id);
   const placed = placings(game);
   const mine = placed.find((row) => row.player.user_id === you) ?? null;
-  const winners = placed.filter((row) => row.place === 1 && row.score > 0);
+  // the api's record says who won once it has one (a top score that left doesn't win), otherwise the top score does
+  const recorded = placed.some((row) => row.player.outcome === 'win' || row.player.outcome === 'tie');
+  const winners = placed.filter((row) => ((recorded) ? (row.player.outcome === 'win' || row.player.outcome === 'tie') : row.place === 1) && row.score > 0);
   const rest = placed.slice(3);
   const played = !game.you_watch && Boolean(mine);
   const kind = gameInfo(game.room.game).id;
@@ -109,7 +138,12 @@ export function Finished({ connection, game, you, awards, onLeave }: {
                 : (winners.length === 1) ? t('games.flag.finished_winner', {name: winners[0].player.username})
                 : t('games.flag.finished_title')}
             </h2>
-            {(mine) ? <p className='text-sm text-muted'>{t('games.flag.finished_you', {place: mine.place, count: placed.length})}</p> : null}
+            {(mine) ? (
+              <p className='flex items-center justify-center gap-2 text-sm text-muted'>
+                <OutcomeTag outcome={mine.player.outcome} shown={OWN_OUTCOMES}/>
+                {t('games.flag.finished_you', {place: mine.place, count: placed.length})}
+              </p>
+            ) : null}
             {/* a score of 0 adds nothing, so there's no line for it */}
             {(mine && 0 < mine.score) ? <AwardedLine expected={gamePointsFor((isLetterTrail(game)) ? 'letter_trail' : 'flag_guesser', mine.score)} awarded={(you) ? awards?.[you] : undefined}/> : null}
           </header>
@@ -124,7 +158,10 @@ export function Finished({ connection, game, you, awards, onLeave }: {
                 <li key={row.player.user_id} className='flex min-w-0 flex-col items-center gap-1.5'>
                   <PlayerFace player={row.player} className={cn((index === 0) ? 'size-16' : 'size-12', 'border-2 border-line-strong')}/>
                   <span className={cn('max-w-full truncate text-sm', (row.player.user_id === you) ? 'font-bold text-white' : 'text-fg')}>{row.player.username}</span>
-                  <span className='text-xs text-subtle'>{plural('games.flag.points', row.score)}</span>
+                  <span className='flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-xs text-subtle'>
+                    {plural('games.flag.points', row.score)}
+                    <OutcomeTag outcome={row.player.outcome} shown={ROW_OUTCOMES}/>
+                  </span>
                   <div className={cn('flex w-full items-start justify-center rounded-t-lg bg-surface-3 pt-2', height)}>
                     <span className={cn('font-display text-2xl font-bold', medal)}>{row.place}</span>
                   </div>
@@ -140,6 +177,7 @@ export function Finished({ connection, game, you, awards, onLeave }: {
                   <span className='w-5 text-right text-xs text-subtle tabular-nums'>{row.place}</span>
                   <PlayerFace player={row.player} className='size-7'/>
                   <span className='min-w-0 flex-1 truncate text-fg'>{row.player.username}</span>
+                  <OutcomeTag outcome={row.player.outcome} shown={ROW_OUTCOMES}/>
                   <span className='font-bold text-white tabular-nums'>{row.score}</span>
                 </li>
               ))}
@@ -152,11 +190,12 @@ export function Finished({ connection, game, you, awards, onLeave }: {
         <div className='mx-auto flex w-full max-w-2xl flex-col gap-2'>
           {(isHost) ? (
             <div className='grid grid-cols-2 gap-2'>
-              <button type='button' className='btn btn-secondary min-h-12' onClick={() => connection.end()}>
-                <SlidersHorizontal aria-hidden className='size-4'/>{t('games.flag.change_settings')}
+              {/* one at a time, and not twice: the second would be refused (or undo the first) */}
+              <button type='button' className='btn btn-secondary min-h-12' disabled={Boolean(pendingOp)} onClick={() => connection.end()}>
+                {(pendingOp === 'end') ? <Spinner className='size-4'/> : <SlidersHorizontal aria-hidden className='size-4'/>}{t('games.flag.change_settings')}
               </button>
-              <button type='button' className='btn btn-primary min-h-12' onClick={() => connection.start()}>
-                <RotateCcw aria-hidden className='size-4'/>{t('games.flag.play_again')}
+              <button type='button' className='btn btn-primary min-h-12' disabled={Boolean(pendingOp)} onClick={() => connection.start()}>
+                {(pendingOp === 'start') ? <Spinner className='size-4 border-white/40 border-t-white'/> : <RotateCcw aria-hidden className='size-4'/>}{t('games.flag.play_again')}
               </button>
             </div>
           ) : (

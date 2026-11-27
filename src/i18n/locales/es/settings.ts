@@ -71,6 +71,10 @@ export const Settings: Record<keyof typeof English, string> = {
   'settings.tts.voice': 'Voz',
   'settings.tts.voice_hint': 'Las voces clonadas se eligen desde Discord con los comandos tts.',
   'settings.tts.voices_link': 'Las tuyas están en la página <link>Voces</link>.',
+  'settings.games.title': 'Juegos',
+  'settings.games.description': 'Tus puntos de los juegos de NotSoBot, en el chat y en la Actividad.',
+  'settings.games.hidden': 'No aparecer en las clasificaciones globales',
+  'settings.games.hidden_hint': 'Tu puesto global tampoco se muestra. Sigues ganando puntos y las clasificaciones de tus servidores te siguen mostrando.',
   'settings.personality_hint': 'Admite <docs>TagScript</docs>, que se ejecuta antes de cada respuesta, con <code>{args}</code> como el mensaje enviado a la IA, así el prompt puede cambiar según lo que se pregunte.',
   'settings.personality_example': 'Por ejemplo: <code>{example}</code>',
   'vanity.bad_part': 'La parte {part} no es un número ni un rango. Usa algo como 5 o 3-8.',
@@ -123,5 +127,4 @@ export const Settings: Record<keyof typeof English, string> = {
   'data.delete.confirm': 'Borrar todo',
   'data.delete.phrase': 'borrar mis datos',
   'data.delete.error': 'No se pudieron borrar tus datos.',
-  'data.delete.on_hold': 'Tus datos no se pueden borrar en este momento.',
 };

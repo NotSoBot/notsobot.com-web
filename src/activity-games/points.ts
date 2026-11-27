@@ -27,8 +27,53 @@ export interface GamePointsUser {
   // per game key (`flag_guesser`)
   games: Record<string, number>,
   week: number,
-  // null with 0 points, `guild` null outside a server
+  // null with 0 points, `guild` null outside a server, `global` null while they're `hidden`
   rank: {global: number | null, guild: number | null},
+  // they hid from the global boards (their settings' `game_points_hidden`), servers' boards still show them
+  hidden: boolean,
+  // their record and stats in each game (game-stats-plan.md "Game stats"), every game there (zeros, `stats: {}`, before
+  // their first)
+  stats: GameStatsByGame,
+}
+
+// a game's own stats, summed or best of across their recorded games. Missing until a game sets one
+export interface FlagGuesserStats {
+  // the game's own score, not game points
+  best_score: number,
+  // right answers
+  named: number,
+  // first to name the flag
+  firsts: number,
+  // longest run of flags named in one game
+  best_streak: number,
+  // quickest right answer from the flag showing
+  fastest_ms: number,
+}
+
+export interface LetterTrailStats {
+  best_score: number,
+  words: number,
+  // words only they found (rooms of 2+)
+  only_you: number,
+  longest_word: string,
+}
+
+export interface GameStatsEntry<Stats extends object = Record<string, number | string>> {
+  // every recorded game, solo ones too
+  games: number,
+  wins: number,
+  losses: number,
+  ties: number,
+  left: number,
+  solo: number,
+  win_streak: number,
+  best_win_streak: number,
+  stats: Partial<Stats>,
+}
+
+export interface GameStatsByGame {
+  flag_guesser: GameStatsEntry<FlagGuesserStats>,
+  letter_trail: GameStatsEntry<LetterTrailStats>,
 }
 
 export interface GamePointsBoardItem {
@@ -80,15 +125,21 @@ export function useGamePoints(api: GameRoomsApi): {points: ActivityGamePoints | 
   const [ failed, setFailed ] = useState(false);
   useEffect(() => {
     let alive = true;
+    // the fetch asked last: an older one answering after it (it was slow) would put its older numbers back
+    let latest = 0;
     const refresh = () => {
+      const asked = ++latest;
       api.points().then((result) => {
+        if (asked !== latest) {
+          return;
+        }
         lastPoints.set(api, result);
         if (alive) {
           setPoints(result);
           setFailed(false);
         }
       }).catch(() => {
-        if (alive) {
+        if (alive && asked === latest) {
           setFailed(true);
         }
       });

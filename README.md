@@ -22,6 +22,8 @@ npm run dev                  # http://localhost:5173
 
 `npm run build` type-checks the code and builds both halves with [`@cloudflare/vite-plugin`](https://developers.cloudflare.com/workers/vite-plugin/): the app's static files go to `dist/client/` and the Cloudflare Worker below to `dist/notsobot_com_web/`, so the worker can import app code like any other module. `/api` stays on the notsobot.api origin.
 
+`npm test` runs the unit tests ([Vitest](https://vitest.dev), `npm run test:watch` while writing them). They sit next to what they test as `x.test.ts`, use their own `vitest.config.ts` (no worker, only the `@` alias and a DOM), and are type-checked by `npm run build` with everything else, so a test that no longer compiles fails the build. What they cover and how to add one: `docs/ui-state.md`.
+
 `npm run dev` runs that same worker (in workerd, reloading on change) in front of the app, so pages get their metatags locally too. It reads `.dev.vars` like the deploy does, and only `/api` and Vite's own module paths skip it (`vite.config.ts`). `npm run preview` does the same with the production build.
 
 ### Deploying

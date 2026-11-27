@@ -16,6 +16,14 @@ export interface RoomMember {
   editing?: string | null,
   // the part of the activity they're on, as their client said (`setScreen`), null on the start screen
   screen?: RoomScreen | null,
+  // the game room they're in (playing or watching), the api's own: the start screen's "Join <name>" goes there. Null
+  // outside one and in a solo room. `game` is a `GameKind` (activity-games/protocol.ts)
+  playing?: RoomMemberPlaying | null,
+}
+
+export interface RoomMemberPlaying {
+  game_id: string,
+  game: string,
 }
 
 // where in the Activity someone is, for the start screen's counts
@@ -56,7 +64,7 @@ export type RoomOp =
   | {op: 'replace', steps: Array<EditorStep>};
 
 export type RoomEvent =
-  | {t: 'ready', you: string, lobbies: Array<EditorLobby>, members: Array<RoomMember>, moderator?: boolean}
+  | {t: 'ready', you: string, socket_id: string, lobbies: Array<EditorLobby>, members: Array<RoomMember>, moderator?: boolean}
   | {t: 'document', document: EditorDocument, by: string | null, op: string | null, op_id: string | null}
   | {t: 'error', op_id: string | null, code: number, message: string, index?: number}
   | {t: 'lock', step_id: string, user_id: string}
@@ -99,6 +107,15 @@ export interface RoomGameMessage {
 export type RoomStatus = 'connecting' | 'open' | 'closed' | 'denied';
 
 const PING_INTERVAL = 20 * 1000;
+// the api answers a ping within moments. One still unanswered after this long, with nothing else heard from the api
+// since it went out, means the socket is dead though nothing closed it (a phone that changed networks): it's given up
+// on like a close, the usual reconnect follows
+const PONG_TIMEOUT = 30 * 1000;
+// how long a new socket has to open, say hello and be answered `ready` (the api gives its own lookups 20s), given up on
+// the same way
+const CONNECT_TIMEOUT = 30 * 1000;
+// `lastClose`'s code for a socket given up on from here: what the browser says of one that went without a close
+const CLOSE_ABNORMAL = 1006;
 // the api doesn't say when a soft lock runs out (10s after its last renewal), it's dropped here then
 const LOCK_EXPIRY = 10 * 1000;
 const RECONNECT_DELAYS = [500, 1000, 2000, 5000, 10000];
@@ -125,9 +142,29 @@ function newOpId(): string {
 }
 
 
+// Every listener is told, in the order they were added. From a copy, so one that adds a listener while it runs doesn't
+// have it told this time (one taken off meanwhile still isn't told). One that throws doesn't stop the rest, or what
+// called this (a status change in the middle of a reconnect)
+function tell<Args extends Array<unknown>>(listeners: Set<(...args: Args) => void>, ...args: Args): void {
+  for (const listener of [...listeners]) {
+    if (!listeners.has(listener)) {
+      continue;
+    }
+    try {
+      listener(...args);
+    } catch (error) {
+      console.error('[editor room] a listener failed', error);
+    }
+  }
+}
+
+
 export class EditorRoom {
   status: RoomStatus = 'connecting';
   you: string | null = null;
+  // the open socket's own id (`ready`'s), null while there's none: a render names it (the api's `socket_id`), only that
+  // socket may then say how it ended. A reconnect is another socket, a render started before it can't be ended from it
+  socketId: string | null = null;
   members: Array<RoomMember> = [];
   locks: Record<string, string> = {};
   // why the socket last closed, null while it's open (a 4029 with `too many sockets open` is NotSoBot open in more
@@ -139,9 +176,16 @@ export class EditorRoom {
   private statusListeners = new Set<(status: RoomStatus) => void>();
   private gameListeners = new Set<(message: RoomGameMessage) => void>();
   private pongListeners = new Set<(now: number, roundTrip: number) => void>();
-  // when each unanswered ping went out, oldest first (pongs come back in order)
+  // when each unanswered ping went out, oldest first (pongs come back in order). By `performance.now()`, like
+  // `heardAt`: a clock that only goes forward, the wall clock can be set back or jump
   private pingsSent: Array<number> = [];
   private pingTimer: number | null = null;
+  // when this socket last delivered anything: it was alive then, whatever became of a ping's pong
+  private heardAt = 0;
+  // runs out when the oldest unanswered ping has waited PONG_TIMEOUT with nothing heard since
+  private pongTimer: number | null = null;
+  // runs out when a new socket hasn't been answered `ready` within CONNECT_TIMEOUT
+  private connectTimer: number | null = null;
   private lockTimers = new Map<string, number>();
   private reconnectTimer: number | null = null;
   // the pointer waiting to go out, and when the last one did
@@ -157,7 +201,8 @@ export class EditorRoom {
   // what this socket last said it's on, said again on every new socket
   private screen: RoomScreen | null = null;
   // joins waiting for the api's answer, with the lobby each asked for
-  private editingWaiters: Array<{documentId: string, finish: (result: EditingResult) => void}> = [];
+  // (`cancel`: its wait is over without an answer, `close()`)
+  private editingWaiters: Array<{documentId: string, finish: (result: EditingResult) => void, cancel: () => void}> = [];
   // the lobby its ops change, what `sendOp` sends them to
   editingDocument: string | null = null;
   // a moderator of the server the activity is in: closes anyone's room and removes anyone from one
@@ -189,8 +234,27 @@ export class EditorRoom {
   close(): void {
     this.stopped = true;
     this.clearTimers();
+    // a join still waiting for its answer: its wait went on running after this, and "went ahead" on a closed room
+    // (`editingDocument` set, its caller told it joined). Nothing answers it now
+    for (const waiter of this.editingWaiters) {
+      waiter.cancel();
+    }
+    this.editingWaiters = [];
+    // a kick, close or settings change still waiting: it didn't happen as far as this can tell
+    for (const waiter of [...this.moderationWaiters.values()]) {
+      waiter({ok: false, message: 'Not connected, try again in a moment'});
+    }
+    this.moderationWaiters.clear();
     this.socket?.close(1000);
     this.socket = null;
+    this.socketId = null;
+    this.locks = {};
+    // said like every other change: the socket's own close event isn't heard anymore (it's no longer `this.socket`),
+    // so `status` used to stay 'open' or 'connecting' for good and nothing listening was told. A room the api turned
+    // away for good stays `denied`
+    if (this.status !== 'closed' && this.status !== 'denied') {
+      this.setStatus('closed');
+    }
   }
 
   subscribe(listener: (event: RoomEvent) => void): () => void {
@@ -235,8 +299,32 @@ export class EditorRoom {
   // a ping now (besides the one every PING_INTERVAL), for a fresh clock sample
   ping(): void {
     if (this.send({op: 'ping'})) {
-      this.pingsSent.push(Date.now());
+      this.pingsSent.push(performance.now());
+      this.watchPong();
     }
+  }
+
+  // The wait for the oldest unanswered ping's pong, none when every ping was answered. Counted from that ping or from
+  // the last thing the socket delivered, whichever is later: the api can leave a ping unanswered (over its message
+  // limit) on a socket that's fine, and anything it sends says so
+  private watchPong(): void {
+    if (this.pongTimer !== null) {
+      window.clearTimeout(this.pongTimer);
+      this.pongTimer = null;
+    }
+    const oldest = this.pingsSent[0];
+    if (oldest === undefined) {
+      return;
+    }
+    this.pongTimer = window.setTimeout(() => {
+      this.pongTimer = null;
+      if (performance.now() - Math.max(oldest, this.heardAt) < PONG_TIMEOUT) {
+        // heard from while this waited (`heardAt` moved on): the wait starts over from then
+        this.watchPong();
+        return;
+      }
+      this.giveUpSocket('no pong');
+    }, Math.max(0, Math.max(oldest, this.heardAt) + PONG_TIMEOUT - performance.now()));
   }
 
   // a stack op, its `op_id` comes back on the document (or error) it caused
@@ -275,11 +363,16 @@ export class EditorRoom {
           done = true;
           window.clearTimeout(timer);
           this.editingWaiters = this.editingWaiters.filter((item) => item !== waiter);
-          if (result.result === 'ok') {
+          // only the lobby they still want: an earlier join's timeout going ahead after a later join was answered
+          // used to put this back on the earlier one, and every change in the later one was sent to the wrong lobby
+          if (result.result === 'ok' && this.wantEditing?.documentId === documentId) {
             this.editingDocument = documentId;
           }
           resolve(result);
         }
+      }, cancel: () => {
+        done = true;
+        window.clearTimeout(timer);
       }};
       const timer = window.setTimeout(() => waiter.finish({result: 'ok'}), EDITING_WAIT);
       this.editingWaiters.push(waiter);
@@ -391,9 +484,7 @@ export class EditorRoom {
 
   private setStatus(status: RoomStatus): void {
     this.status = status;
-    for (const listener of this.statusListeners) {
-      listener(status);
-    }
+    tell(this.statusListeners, status);
   }
 
   private clearTimers(): void {
@@ -404,6 +495,14 @@ export class EditorRoom {
     if (this.pingTimer !== null) {
       window.clearInterval(this.pingTimer);
       this.pingTimer = null;
+    }
+    if (this.pongTimer !== null) {
+      window.clearTimeout(this.pongTimer);
+      this.pongTimer = null;
+    }
+    if (this.connectTimer !== null) {
+      window.clearTimeout(this.connectTimer);
+      this.connectTimer = null;
     }
     if (this.reconnectTimer !== null) {
       window.clearTimeout(this.reconnectTimer);
@@ -421,10 +520,29 @@ export class EditorRoom {
   }
 
   private open(): void {
+    // a socket still there, or a wait to reconnect (a second `connect()`): the old socket used to stay open with
+    // nothing listening to it, and the wait later opened another one over this one. A reconnect gets here with
+    // neither (`socketGone` cleared them)
+    const previous = this.socket;
+    if (previous || this.reconnectTimer !== null) {
+      this.clearTimers();
+      this.socket = null;
+      this.socketId = null;
+      this.locks = {};
+      previous?.close(1000);
+    }
     this.setStatus('connecting');
     activityLog.add('socket', `connecting${(this.attempt) ? ` (attempt ${this.attempt + 1})` : ''}`);
     const socket = new WebSocket(this.url);
     this.socket = socket;
+    // (a network that swallows the handshake leaves a socket connecting for minutes, with nothing to say so)
+    if (this.connectTimer !== null) {
+      window.clearTimeout(this.connectTimer);
+    }
+    this.connectTimer = window.setTimeout(() => {
+      this.connectTimer = null;
+      this.giveUpSocket('not ready in time');
+    }, CONNECT_TIMEOUT);
     socket.addEventListener('open', () => {
       // a socket can't carry an authorization header, the token is the first message
       socket.send(JSON.stringify({op: 'hello', token: this.token}));
@@ -436,6 +554,11 @@ export class EditorRoom {
       }
     });
     socket.addEventListener('message', (message) => {
+      // a socket that was closed or given up on can still deliver what was already on its way: not this room's anymore
+      if (this.socket !== socket) {
+        return;
+      }
+      this.heardAt = performance.now();
       let event: RoomEvent | RoomGameMessage;
       try {
         event = JSON.parse(String(message.data));
@@ -446,9 +569,7 @@ export class EditorRoom {
         activityLog.add('socket', `← ${event.t} ${summarize(event as Record<string, unknown>)}`.trimEnd());
       }
       if (typeof event?.t === 'string' && event.t.startsWith('game.')) {
-        for (const listener of this.gameListeners) {
-          listener(event as RoomGameMessage);
-        }
+        tell(this.gameListeners, event as RoomGameMessage);
         return;
       }
       this.handle(event as RoomEvent);
@@ -457,31 +578,50 @@ export class EditorRoom {
       if (this.socket !== socket) {
         return;
       }
-      this.clearTimers();
-      this.socket = null;
-      this.lastClose = {code: close.code, reason: close.reason, at: Date.now()};
-      activityLog.add('socket', `closed code=${close.code}${(close.reason) ? ` reason="${close.reason}"` : ''}${(close.wasClean) ? '' : ' (not clean)'}`);
-      if (this.stopped) {
-        this.setStatus('closed');
-        return;
-      }
-      if (FATAL_CLOSE_CODES.has(close.code)) {
-        activityLog.add('socket', 'that code is fatal, not reconnecting');
-        this.setStatus('denied');
-        return;
-      }
-      // up to half as long again, a different amount for everyone: after the api restarts every Activity's socket
-      // closed at the same moment, and with the same waits they all came back at the same moments too
-      const delay = RECONNECT_DELAYS[Math.min(this.attempt, RECONNECT_DELAYS.length - 1)] * (1 + Math.random() / 2);
-      activityLog.add('socket', `reconnecting in ${Math.round(delay)}ms`);
-      // set before the status goes out, its listeners read it (a game's joining screen offers Try again)
-      this.reconnectTimer = window.setTimeout(() => {
-        this.reconnectTimer = null;
-        this.open();
-      }, delay);
-      this.setStatus('closed');
-      this.attempt += 1;
+      this.socketGone(close.code, close.reason, close.wasClean);
     });
+  }
+
+  // The socket never said it closed but it's dead (no pong, or never `ready`): from here on it's as if it had. It's
+  // closed for the api's sake, whatever it still says or delivers is ignored (it's no longer `this.socket`)
+  private giveUpSocket(why: string): void {
+    const socket = this.socket;
+    if (!socket) {
+      return;
+    }
+    activityLog.add('socket', `${why}, giving up on this socket`);
+    this.socketGone(CLOSE_ABNORMAL, why, false);
+    socket.close();
+  }
+
+  // the socket closed (or was given up on, `giveUpSocket`): its timers and state go, and unless it was turned away for
+  // good the next try is set up
+  private socketGone(code: number, reason: string, clean: boolean): void {
+    this.clearTimers();
+    this.socket = null;
+    this.socketId = null;
+    // who holds which step can't be heard of while it's down (and their expiry timers just went): none are shown as
+    // held until `editing`'s answer on the next socket says which are
+    this.locks = {};
+    this.lastClose = {code, reason, at: Date.now()};
+    activityLog.add('socket', `closed code=${code}${(reason) ? ` reason="${reason}"` : ''}${(clean) ? '' : ' (not clean)'}`);
+    // (never after `close()`: that takes the socket and every timer that gets here with it, and says `closed` itself)
+    if (FATAL_CLOSE_CODES.has(code)) {
+      activityLog.add('socket', 'that code is fatal, not reconnecting');
+      this.setStatus('denied');
+      return;
+    }
+    // up to half as long again, a different amount for everyone: after the api restarts every Activity's socket
+    // closed at the same moment, and with the same waits they all came back at the same moments too
+    const delay = RECONNECT_DELAYS[Math.min(this.attempt, RECONNECT_DELAYS.length - 1)] * (1 + Math.random() / 2);
+    activityLog.add('socket', `reconnecting in ${Math.round(delay)}ms`);
+    // set before the status goes out, its listeners read it (a game's joining screen offers Try again)
+    this.reconnectTimer = window.setTimeout(() => {
+      this.reconnectTimer = null;
+      this.open();
+    }, delay);
+    this.setStatus('closed');
+    this.attempt += 1;
   }
 
   // someone holds a step, for LOCK_EXPIRY from now
@@ -501,14 +641,23 @@ export class EditorRoom {
     switch (event.t) {
       case 'ready': {
         activityLog.add('socket', `← ready you=${event.you} moderator=${Boolean(event.moderator)} members=${event.members.length}`);
+        if (this.connectTimer !== null) {
+          window.clearTimeout(this.connectTimer);
+          this.connectTimer = null;
+        }
         this.attempt = 0;
         this.lastClose = null;
         this.you = event.you;
+        this.socketId = event.socket_id;
         this.moderator = Boolean(event.moderator);
         this.members = event.members;
         // a new socket is in no lobby: the lobby's step locks come with `editing`'s answer
         this.locks = {};
         this.setStatus('open');
+        // (a second `ready` on the same socket would start a second one beside the first)
+        if (this.pingTimer !== null) {
+          window.clearInterval(this.pingTimer);
+        }
         this.pingTimer = window.setInterval(() => this.ping(), PING_INTERVAL);
         if (this.screen !== null) {
           this.send({op: 'screen', screen: this.screen});
@@ -523,11 +672,17 @@ export class EditorRoom {
         break;
       }
       case 'pong': {
+        // Pongs come back in order, so it's taken for the oldest unanswered ping's (the round trip a game's clock goes
+        // by. When the api skipped that one's pong this is a later ping's and the round trip comes out a ping too
+        // long, that once: too long is the safe way round, a game keeps its closest sample). Any other ping still
+        // waiting went out before this pong came and has been overtaken by it: left in the list, one skipped pong made
+        // every later round trip a ping late, and the stale entry at the head closed a healthy socket the next time
+        // one was skipped
         const sentAt = this.pingsSent.shift();
+        this.pingsSent = [];
+        this.watchPong();
         if (sentAt !== undefined) {
-          for (const listener of this.pongListeners) {
-            listener(event.now, Date.now() - sentAt);
-          }
+          tell(this.pongListeners, event.now, performance.now() - sentAt);
         }
         break;
       }
@@ -601,11 +756,21 @@ export class EditorRoom {
         }
         break;
       }
+      case 'document':
+      case 'error':
+      case 'lobby_edited':
+      case 'lobby_updated':
+      case 'render':
+      case 'cursor':
+      case 'game_rooms_changed':
+        // nothing the room itself keeps, its listeners read them
+        break;
       default:
+        // Every `RoomEvent` is named above: a new one doesn't compile until it's given a case here. Only checked when
+        // it's built: a message this build doesn't know (a newer api's) still goes on to the listeners as it is
+        event satisfies never;
         break;
     }
-    for (const listener of this.listeners) {
-      listener(event);
-    }
+    tell(this.listeners, event);
   }
 }

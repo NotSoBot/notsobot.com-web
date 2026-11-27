@@ -27,11 +27,13 @@ export function roomSettingsReady(mode: LobbyMode, password: string, keepsPasswo
 
 
 // Just me / Everyone / Password, the room's name and its password: the start screen's and Fork's
-export function RoomSettingsFields({ mode, onModeChange, name, onNameChange, password, onPasswordChange, watchOnly, onWatchOnlyChange, modes = LOBBY_MODES, keepsPassword = false, modeHint, watchOnlyHint, namePlaceholder }: {
+export function RoomSettingsFields({ mode, onModeChange, name, onNameChange, password, onPasswordChange, watchOnly, onWatchOnlyChange, modes = LOBBY_MODES, keepsPassword = false, disabled = false, modeHint, watchOnlyHint, namePlaceholder }: {
   // the choices shown, a room's own settings leave out Just me
   modes?: ReadonlyArray<LobbyMode>,
   // a password room's settings: an empty password keeps the one it has
   keepsPassword?: boolean,
+  // what they'd change is already on its way (the start screen while it uploads): shown, not changeable
+  disabled?: boolean,
   mode: LobbyMode,
   onModeChange: (value: LobbyMode) => void,
   name: string,
@@ -51,7 +53,8 @@ export function RoomSettingsFields({ mode, onModeChange, name, onNameChange, pas
   const watchId = useId();
   const passwordId = useId();
   return (
-    <div className='flex flex-col gap-2'>
+    <div className={cn('flex flex-col gap-2', disabled && 'opacity-60')}>
+      <fieldset disabled={disabled} className='contents'>
       <div role='radiogroup' aria-label={t('editor.session.mode')} className={cn('grid gap-1 rounded-lg bg-deep p-1', (modes.length === 3) ? 'grid-cols-3' : 'grid-cols-2')}>
         {modes.map((value) => (
           <button
@@ -103,6 +106,7 @@ export function RoomSettingsFields({ mode, onModeChange, name, onNameChange, pas
           </span>
         </label>
       ) : null}
+      </fieldset>
     </div>
   );
 }

@@ -208,9 +208,17 @@ export function StepSettings({ state, effect, step, pen, setPen, maxStrokes, dur
   const timeParams = effect.params.filter((param) => param.optional && param.kind === 'number');
   const lockedBy = state.lockedBy(step.id);
   const shown = effect.params.filter((param) => !timeParams.includes(param));
+  // this step's last change was turned down (`stepError` names it by its place), a field being typed in says so
+  const refused = state.steps.findIndex((item) => item.id === step.id) === state.stepError?.index;
+  // someone else is adjusting it, or the whole stack is off (someone's render)
+  const locked = Boolean(lockedBy) || Boolean(state.editLock);
 
   return (
-    <section aria-label={t('editor.settings', {name: effect.name})} className='flex flex-col gap-3 rounded-[10px] border border-line-strong bg-bg p-3.5'>
+    <section
+      aria-label={t('editor.settings', {name: effect.name})}
+      data-locked={locked}
+      className='flex flex-col gap-3 rounded-[10px] border border-line-strong bg-bg p-3.5'
+    >
       <h3 className='text-sm font-bold text-white'>{effect.name}</h3>
       {(lockedBy) ? <p role='status' className='text-xs text-warning'>{t('editor.room.adjusting', {name: lockedBy.username})}</p> : null}
       {/* someone else is dragging it in the activity: their soft lock, it's theirs until they let go */}
@@ -246,7 +254,9 @@ export function StepSettings({ state, effect, step, pen, setPen, maxStrokes, dur
           case 'choice':
           case 'color':
           case 'text':
-            return <SimpleParamControl key={param.name} param={param} value={value} onChange={set(param.name)}/>;
+            // (its own per step: what's being typed in one isn't shown in the next step's setting of the same name.
+            // And per lock: a field turned off under the cursor may never blur, it starts over once it's on again)
+            return <SimpleParamControl key={`${step.id}:${param.name}:${locked}`} param={param} value={value} onChange={set(param.name)} refused={refused}/>;
           case 'time':
             // the part of an uploaded file that's used: the file's control shows it, against the file's length
             if (param.name.startsWith('clip_')) {
@@ -267,7 +277,8 @@ export function StepSettings({ state, effect, step, pen, setPen, maxStrokes, dur
             // an overlay's own control says where to place it
             return (effect.params.some((item) => item.kind === 'media')) ? null : <p key={param.name} className='text-[13px] text-muted'>{t('editor.settings.place_box')}</p>;
           case 'media':
-            return <OverlayMediaControl key={param.name} state={state} step={step} value={(typeof value === 'string') ? value : null}/>;
+            // its own per step: an upload still running, its error and the link box aren't the next step's
+            return <OverlayMediaControl key={`${step.id}:${param.name}`} state={state} step={step} value={(typeof value === 'string') ? value : null}/>;
           case 'strokes':
             return (
               <DrawControls
@@ -279,8 +290,16 @@ export function StepSettings({ state, effect, step, pen, setPen, maxStrokes, dur
                 maxStrokes={maxStrokes}
               />
             );
-          default:
+          case 'steps':
+            // a file's own effects: its file's control lists them
             return null;
+          default: {
+            // a kind this build doesn't know (the catalogue is the api's) shows nothing. One added to `EditorParamKind`
+            // doesn't compile until it has a case here
+            const unknown: never = param.kind;
+            void unknown;
+            return null;
+          }
         }
       })}
       {(timeParams.length && duration > 0) ? (

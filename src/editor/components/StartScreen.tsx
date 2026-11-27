@@ -14,6 +14,7 @@ import { useCatalogue } from '../useCatalogue';
 import { defaultParams, newStep } from '../stack';
 import { GeneratorDialog, GeneratorGrid } from './Generators';
 import { RoomSettingsFields, roomSettingsReady, type LobbyMode } from './RoomSettings';
+import { MIN_PASSWORD_LENGTH } from './SaveTemplate';
 import { TemplateBanner, TemplateList, templateNeedsPassword } from './Templates';
 import { HubEntry } from '../hub/HubEntry';
 
@@ -73,6 +74,18 @@ function fileNameOfUrl(url: string): string {
     return '';
   }
 }
+
+
+// Opening something (a file, a link, the launch's media): one at a time. While it uploads every other way in, the way
+// back and the room's settings are off: what was sent is what the new edit is made with
+type StartState =
+  | {status: 'idle'}
+  | {status: 'uploading'}
+  | {status: 'failed', message: string};
+
+// what has to be filled in before anything can be opened: a locked template's password (a file picked before then
+// would start without its steps), or a password room's password
+type StartBlock = 'template_password' | 'lobby_password';
 
 
 // The Activity opened from Edit Media / Edit Avatar: that media, big, with who the edit is for and one button to start.
@@ -186,15 +199,28 @@ export function StartScreen({ host, onOpen, suggestedUrl, launchSurface = null, 
   const templatePassword = (unlocked && unlocked.template.code === template?.code) ? unlocked.password : undefined;
   // a locked one has to be unlocked first, a file picked before then would start without its steps
   const waitingForPassword = Boolean(shownTemplate && templateNeedsPassword(shownTemplate));
+  // the one gate for every way in: the drop zone, the link, the launch's dialog and the generators (which only looked
+  // at the template's, a password room with no password yet could be made from one, without it)
+  const blockedBy: StartBlock | null = (waitingForPassword) ? 'template_password' : (lobbyPasswordShort) ? 'lobby_password' : null;
   const inputId = useId();
   const fileRef = useRef<HTMLInputElement>(null);
   const [ url, setUrl ] = useState(suggestedUrl ?? '');
-  const [ uploading, setUploading ] = useState(false);
-  const [ error, setError ] = useState<string | null>(null);
+  const [ start, setStart ] = useState<StartState>({status: 'idle'});
+  const uploading = start.status === 'uploading';
+  const error = (start.status === 'failed') ? start.message : null;
+  // the same as `uploading`, for a second drop in the same tick (the state's a render behind)
+  const openingRef = useRef(false);
+  const aliveRef = useRef(true);
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => {
+      aliveRef.current = false;
+    };
+  }, []);
   const [ dragOver, setDragOver ] = useState(false);
   const [ recent, setRecent ] = useState<Array<EditorDocumentSummary> | null>(null);
-  const [ deleting, setDeleting ] = useState<EditorDocumentSummary | null>(null);
-  const [ deletePending, setDeletePending ] = useState(false);
+  // the edit asked about, as it was when its bin was pressed
+  const [ deleting, setDeleting ] = useState<{item: EditorDocumentSummary, pending: boolean, error: string | null} | null>(null);
   // the catalogue's generators, fetched once per page load (the editor reuses it)
   const { catalogue } = useCatalogue(host);
   const generators = catalogue?.generators ?? [];
@@ -236,24 +262,47 @@ export function StartScreen({ host, onOpen, suggestedUrl, launchSurface = null, 
   }, [instanceId, host]);
 
   const open = async (input: {file?: File, url?: string}) => {
-    setUploading(true);
-    setError(null);
-    try {
-      onOpen(await host.api.createDocument({...input, activityInstanceId, templateCode: template?.code, templatePassword, lobbyPassword: lobbyPasswordSent, lobbyName: lobbyNameSent, lobbyWatchOnly: lobbyWatchOnlySent}), {template: Boolean(template)});
-    } catch (failure) {
-      setError(host.errorOf(failure)?.message || t('editor.start.upload_error'));
-      setUploading(false);
+    // one at a time (a file dropped on the zone mid-upload used to make a second document, in the Activity a second
+    // room), and never past the gate
+    if (openingRef.current || blockedBy) {
+      return;
     }
+    openingRef.current = true;
+    setStart({status: 'uploading'});
+    let document: EditorDocument;
+    try {
+      document = await host.api.createDocument({...input, activityInstanceId, templateCode: template?.code, templatePassword, lobbyPassword: lobbyPasswordSent, lobbyName: lobbyNameSent, lobbyWatchOnly: lobbyWatchOnlySent});
+    } catch (failure) {
+      openingRef.current = false;
+      setStart({status: 'failed', message: host.errorOf(failure)?.message || t('editor.start.upload_error')});
+      return;
+    }
+    // they left the page meanwhile (the site's own links, nothing on this screen leaves mid-upload): it's among their
+    // recent edits, opening it now would pull them off wherever they went
+    if (!aliveRef.current) {
+      return;
+    }
+    // (still `uploading`: the host is opening it, this screen goes with that)
+    onOpen(document, {template: Boolean(template)});
   };
 
   const onDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     setDragOver(false);
+    if (uploading) {
+      return;
+    }
     const file = event.dataTransfer.files[0];
     if (file) {
       void open({file});
     }
   };
+
+  // why Make can't go ahead, in the dialog's own error line (the grid is off then, this is for a dialog opened by
+  // `?generator=` over a locked template)
+  const blockedMessage = (): string | null => (blockedBy === 'template_password') ? t('editor.template.unlock_first')
+    : (blockedBy === 'lobby_password') ? t('editor.template.password_short', {count: MIN_PASSWORD_LENGTH})
+    : null;
 
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
@@ -273,16 +322,21 @@ export function StartScreen({ host, onOpen, suggestedUrl, launchSurface = null, 
       onPasswordChange={setLobbyPassword}
       watchOnly={lobbyWatchOnly}
       onWatchOnlyChange={setLobbyWatchOnly}
+      disabled={uploading}
     />
   ) : null;
 
   return (
-    <div className='mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-10 sm:py-14'>
+    <div
+      data-state={(uploading) ? 'uploading' : (dragOver) ? 'dragging' : start.status}
+      data-blocked={blockedBy ?? 'none'}
+      className='mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-10 sm:py-14'
+    >
       <header className='flex flex-col gap-2'>
         {(onBack || headerAside) ? (
           <div className='flex items-center justify-between gap-2'>
             {(onBack) ? (
-              <button type='button' onClick={onBack.run} className='-ml-2 inline-flex min-h-10 w-fit items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-muted hover:bg-surface hover:text-fg'>
+              <button type='button' onClick={onBack.run} disabled={uploading} className='-ml-2 inline-flex min-h-10 w-fit items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-muted hover:bg-surface hover:text-fg disabled:cursor-not-allowed disabled:opacity-40'>
                 <ArrowLeft aria-hidden className='size-4'/>{onBack.label}
               </button>
             ) : <span/>}
@@ -301,12 +355,12 @@ export function StartScreen({ host, onOpen, suggestedUrl, launchSurface = null, 
           surface={launchSurface}
           uploading={uploading}
           error={error}
-          blocked={lobbyPasswordShort || waitingForPassword}
+          blocked={blockedBy !== null}
           settings={(mode) ? roomSettings : null}
           onStart={() => void open({url: suggestedUrl})}
           onDismiss={() => {
             setLaunchDialog(false);
-            setError(null);
+            setStart((current) => (current.status === 'failed') ? {status: 'idle'} : current);
             onSuggestedDismiss?.();
           }}
         />
@@ -325,11 +379,12 @@ export function StartScreen({ host, onOpen, suggestedUrl, launchSurface = null, 
 
       {/* a locked template waits for its password, a file picked before then would start without its steps */}
       {(waitingForPassword) ? <p className='-mt-4 text-sm text-warning'>{t('editor.template.unlock_first')}</p> : null}
-      <fieldset disabled={waitingForPassword || lobbyPasswordShort} className={cn('flex flex-col gap-8', (waitingForPassword || lobbyPasswordShort) && 'pointer-events-none opacity-50')}>
+      <fieldset disabled={blockedBy !== null} className={cn('flex flex-col gap-8', blockedBy && 'pointer-events-none opacity-50')}>
       <div
         onDragOver={(event) => {
           event.preventDefault();
-          setDragOver(true);
+          // (nothing lights up for a drop that won't be taken)
+          setDragOver(!uploading);
         }}
         onDragLeave={() => setDragOver(false)}
         onDrop={onDrop}
@@ -384,7 +439,8 @@ export function StartScreen({ host, onOpen, suggestedUrl, launchSurface = null, 
         </div>
       </form>
       </fieldset>
-      {(error) ? <p role='alert' className='-mt-5 text-sm text-danger-text'>{error}</p> : null}
+      {/* (the launch's dialog shows its own, this one would be a second copy under it) */}
+      {(error && !(launchDialog && suggestedUrl)) ? <p role='alert' className='-mt-5 text-sm text-danger-text'>{error}</p> : null}
 
       {/* the template hub: its page on the site, a panel in the Activity whose Try puts the template here */}
       <HubEntry host={host} picked={hubTemplate} onPick={setHubTemplate} onUnpick={() => setHubTemplate(null)} disabled={uploading}/>
@@ -395,7 +451,7 @@ export function StartScreen({ host, onOpen, suggestedUrl, launchSurface = null, 
             <h2 className='font-display text-lg font-bold text-white'>{t('editor.generate.title')}</h2>
             <p className='text-sm text-muted'>{t('editor.generate.description')}</p>
           </div>
-          <GeneratorGrid generators={generators} disabled={uploading || waitingForPassword} onPick={setGenerating}/>
+          <GeneratorGrid generators={generators} disabled={uploading || blockedBy !== null} onPick={setGenerating}/>
         </section>
       ) : null}
       {(generating) ? (
@@ -403,6 +459,10 @@ export function StartScreen({ host, onOpen, suggestedUrl, launchSurface = null, 
           generator={generating}
           onClose={() => setGenerating(null)}
           onMake={async (params, portrait) => {
+            const blocked = blockedMessage();
+            if (blocked) {
+              return blocked;
+            }
             try {
               const shared = {activityInstanceId, templateCode: template?.code, templatePassword, lobbyPassword: lobbyPasswordSent, lobbyName: lobbyNameSent, lobbyWatchOnly: lobbyWatchOnlySent};
               const effect = (portrait && generating.portrait_effect) ? catalogue?.effects.find((item) => item.id === generating.portrait_effect) : undefined;
@@ -412,7 +472,14 @@ export function StartScreen({ host, onOpen, suggestedUrl, launchSurface = null, 
                 // on the picture before it or on the whole card after it
                 const created = await host.api.createDocument({...portrait, ...shared});
                 const card = {...newStep(effect), params: {...defaultParams(effect), ...params}};
-                document = await host.api.saveSteps(created.id, [card, ...created.steps], created.version);
+                try {
+                  document = await host.api.saveSteps(created.id, [card, ...created.steps], created.version);
+                } catch (failure) {
+                  // only the portrait, without its card: not what was asked for, and in the Activity a room in everyone's
+                  // list already, one more for every try
+                  await host.api.deleteDocument(created.id).catch(() => undefined);
+                  throw failure;
+                }
               } else {
                 document = await host.api.generateDocument({generator: generating.id, params, ...shared});
               }
@@ -437,7 +504,7 @@ export function StartScreen({ host, onOpen, suggestedUrl, launchSurface = null, 
           <ul className='flex flex-col gap-2'>
             {recent.map((item) => (
               <li key={item.id} className='flex items-center gap-2 rounded-lg border border-line-strong bg-surface p-2'>
-                <button type='button' onClick={() => onOpen(item)} className='flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-md p-1 text-left hover:bg-surface-3'>
+                <button type='button' onClick={() => onOpen(item)} disabled={uploading} className='flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-md p-1 text-left hover:bg-surface-3 disabled:cursor-not-allowed disabled:opacity-60'>
                   {(item.proxy && item.proxy.mimetype.startsWith('image/')) ? (
                     <img src={item.proxy.url} alt='' className='size-12 shrink-0 rounded object-cover'/>
                   ) : (
@@ -455,8 +522,9 @@ export function StartScreen({ host, onOpen, suggestedUrl, launchSurface = null, 
                 <button
                   type='button'
                   aria-label={t('editor.start.delete', {name: item.source.filename})}
-                  onClick={() => setDeleting(item)}
-                  className='flex size-10 shrink-0 items-center justify-center rounded-md text-muted hover:bg-surface-3 hover:text-danger-text'
+                  onClick={() => setDeleting({item, pending: false, error: null})}
+                  disabled={uploading}
+                  className='flex size-10 shrink-0 items-center justify-center rounded-md text-muted hover:bg-surface-3 hover:text-danger-text disabled:cursor-not-allowed disabled:opacity-40'
                 >
                   <Trash2 aria-hidden className='size-4'/>
                 </button>
@@ -473,16 +541,19 @@ export function StartScreen({ host, onOpen, suggestedUrl, launchSurface = null, 
         <ConfirmDialog
           title={t('editor.start.delete_confirm_title')}
           description={t('editor.start.delete_confirm_description')}
-          confirmLabel={t('editor.start.delete', {name: deleting.source.filename})}
-          pending={deletePending}
+          confirmLabel={t('editor.start.delete', {name: deleting.item.source.filename})}
+          pending={deleting.pending}
+          error={deleting.error}
           onConfirm={async () => {
-            setDeletePending(true);
+            const { item } = deleting;
+            setDeleting({item, pending: true, error: null});
             try {
-              await host.api.deleteDocument(deleting.id);
-              setRecent((items) => (items ?? []).filter((item) => item.id !== deleting.id));
+              await host.api.deleteDocument(item.id);
+              setRecent((items) => (items ?? []).filter((other) => other.id !== item.id));
               setDeleting(null);
-            } finally {
-              setDeletePending(false);
+            } catch (failure) {
+              // (it used to stop spinning and say nothing)
+              setDeleting({item, pending: false, error: host.errorOf(failure)?.message || t('editor.session.failed')});
             }
           }}
           onClose={() => setDeleting(null)}

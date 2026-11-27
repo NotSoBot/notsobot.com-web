@@ -149,11 +149,22 @@ export function createEditorApi(request: EditorRequest) {
       `/editor/documents/${pathId(documentId)}/previews/${pathId(previewId)}`,
       {signal, timeout: 25 * 1000},
     ),
-    // `mimetype`: one of the document's `render_formats`, none keeps whatever the stack makes
-    render: (documentId: string, mimetype?: string) => request<EditorJob>(
-      `/editor/documents/${pathId(documentId)}/render`,
-      {method: 'POST', body: (mimetype) ? {mimetype} : undefined, timeout: 30 * 1000},
-    ),
+    // `mimetype`: one of the document's `render_formats`, none keeps whatever the stack makes. `socketId`: in a room,
+    // the Activity socket it's asked from (`EditorRoom.socketId`), the room is paused for it and only that socket may
+    // say how it ended. Without one the room isn't told
+    render: (documentId: string, mimetype?: string, socketId?: string | null) => {
+      const body: Record<string, string> = {};
+      if (mimetype) {
+        body.mimetype = mimetype;
+      }
+      if (socketId) {
+        body.socket_id = socketId;
+      }
+      return request<EditorJob>(
+        `/editor/documents/${pathId(documentId)}/render`,
+        {method: 'POST', body: (Object.keys(body).length) ? body : undefined, timeout: 30 * 1000},
+      );
+    },
     // the api holds an unfinished job's answer up to JOB_POLL_WAIT seconds, so the next poll goes out as this one comes back
     job: (jobId: string) => request<EditorJob>(`/jobs/${pathId(jobId)}`, {query: {wait: JOB_POLL_WAIT}, timeout: 25 * 1000}),
     // a render put on Discord's cdn with the user's own Discord token (the Activity's share dialog only takes those)

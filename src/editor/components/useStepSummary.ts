@@ -88,8 +88,17 @@ export function useStepSummary() {
           parts.push(t('editor.summary.at', {x: Math.round(point.x * 100), y: Math.round(point.y * 100)}));
           break;
         }
-        default:
+        case 'color':
+        case 'media':
+          // not worth a word in one line
           break;
+        default: {
+          // a kind this build doesn't know (the catalogue is the api's) says nothing. One added to `EditorParamKind`
+          // doesn't compile until it has a case here
+          const unknown: never = param.kind;
+          void unknown;
+          break;
+        }
       }
     }
     return parts.join(' · ');

@@ -7,7 +7,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Spinner } from '@/components/ui/Spinner';
 import { Routes, Urls } from '@/config';
 import { useI18n } from '@/i18n';
-import { ApiErrorCodes, ApiRequestError, type UserDataExport } from '@/lib/api';
+import type { UserDataExport } from '@/lib/api';
 import { errorMessage, isNotAvailableYet, useDeleteMeMutation, useExportMeDataMutation } from '@/lib/api/dashboardQueries';
 import { downloadJson } from '@/lib/utils';
 
@@ -143,8 +143,6 @@ function DeletePanel() {
           pending={remove.isPending}
           error={(unavailable) ? (
             <UnavailableText/>
-          ) : (remove.error instanceof ApiRequestError && remove.error.code === ApiErrorCodes.USER_DATA_ON_HOLD) ? (
-            t('data.delete.on_hold')
           ) : (remove.isError) ? errorMessage(remove.error, t('data.delete.error')) : null}
           onClose={() => setConfirming(false)}
           onConfirm={() => remove.mutate(undefined, {

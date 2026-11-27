@@ -2,11 +2,12 @@ import { ArrowLeft, Eye, MessageCircleQuestion, Redo2, Undo2, X } from 'lucide-r
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { FullPageMessage } from '@/components/ui/FullPageMessage';
+import { openModalCount } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
 import { useI18n } from '@/i18n';
 import { cn } from '@/lib/utils';
 
-import type { EditorHost } from '../api';
+import { EditorErrorCodes, type EditorHost } from '../api';
 import { FormulaContext, valuesBefore, VALUE_EFFECT_ID, type FormulaContextValue } from '../formulas';
 import { addsAudio, newStep, stackKind, stepTimeline } from '../stack';
 import type { EditorCatalogue, EditorEffect, EditorTemplate } from '../types';
@@ -15,6 +16,7 @@ import { usePublishPipStatus } from '../hosts/pip';
 import { EffectPicker } from './EffectPicker';
 import { ForkButton } from './ForkRoom';
 import { LobbyPeople } from './LobbyPeople';
+import { isAudioMimetype } from './media';
 import { MediaScriptButton } from './MediaScriptCopy';
 import { PreviewStage } from './PreviewStage';
 import { ReplaceMediaButton } from './ReplaceMedia';
@@ -48,16 +50,17 @@ function mediaChip(
 
 
 // The editor itself, the same in both hosts. The host gives it the api and what's different about where it runs
-export function EditorApp({ host, documentId, catalogue, addEffectId = null, onEffectAdded, askInputs = false, onInputsAsked }: {
+export function EditorApp({ host, documentId, catalogue, addEffectId = null, askInputs = false, onLaunchUsed }: {
   host: EditorHost,
   documentId: string,
   catalogue: EditorCatalogue,
   // just started from a template: its questions are asked once the document's here (`FillInputsDialog`)
   askInputs?: boolean,
-  onInputsAsked?: () => void,
   // the commands page's Try it: this effect goes on once the document's here (only on one with no steps yet)
   addEffectId?: string | null,
-  onEffectAdded?: () => void,
+  // both of those were seen to, once: the web drops them from the url here (one call for the two. Each used to have its
+  // own, and with both set the second one's navigation put the first one's `?fill=1` back)
+  onLaunchUsed?: () => void,
 }) {
   const { t, plural } = useI18n();
   const state = useEditorDocument(host, documentId, catalogue);
@@ -68,35 +71,30 @@ export function EditorApp({ host, documentId, catalogue, addEffectId = null, onE
 
   // the template's questions: after starting from one, or loading one from Templates
   const [ filling, setFilling ] = useState(false);
-  const askedRef = useRef(false);
-  useEffect(() => {
-    if (!askInputs || askedRef.current || !document) {
-      return;
-    }
-    askedRef.current = true;
-    if (askedInputs(document.steps, effectsById).length) {
-      setFilling(true);
-    }
-    onInputsAsked?.();
-  }, [askInputs, document, effectsById, onInputsAsked]);
-
-  const addedRef = useRef(false);
+  const launchedRef = useRef(false);
   const { addStep } = state;
   useEffect(() => {
-    if (!addEffectId || addedRef.current || !document) {
+    if (launchedRef.current || !document || (!askInputs && !addEffectId)) {
       return;
     }
-    addedRef.current = true;
-    const effect = effectsById.get(addEffectId);
+    launchedRef.current = true;
+    if (askInputs && askedInputs(document.steps, effectsById).length) {
+      setFilling(true);
+    }
+    const effect = (addEffectId) ? effectsById.get(addEffectId) : undefined;
     if (effect && !document.steps.length) {
       addStep(newStep(effect));
     }
-    onEffectAdded?.();
-  }, [addEffectId, addStep, document, effectsById, onEffectAdded]);
+    onLaunchUsed?.();
+  }, [addEffectId, addStep, askInputs, document, effectsById, onLaunchUsed]);
 
   // ctrl/cmd+z and shift+ctrl/cmd+z (or ctrl+y), not while typing in a field
   const { undo, redo } = state;
   const onKeyDown = useCallback((event: KeyboardEvent) => {
+    // a dialog is open over the editor (Fork, Room settings, Invite): the stack under it stays as it is
+    if (openModalCount()) {
+      return;
+    }
     const target = event.target as HTMLElement | null;
     if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable)) {
       return;
@@ -122,24 +120,37 @@ export function EditorApp({ host, documentId, catalogue, addEffectId = null, onE
   usePublishPipStatus((state.document) ? {
     kind: 'editor',
     title: state.document.lobby_name || state.document.source.filename,
-    previewUrl: pipPreview?.url ?? null,
+    // (a sound has no picture: the small window keeps its icon, an <img> of an mp3 was a blank)
+    previewUrl: (pipPreview && !isAudioMimetype(pipPreview.mimetype)) ? pipPreview.url : null,
     previewIsVideo: Boolean(pipPreview?.mimetype.startsWith('video/')),
     people: (state.room) ? Math.max(1, state.editors.length) : 1,
     watching: state.watching,
+    // a solo edit has no room
+    room: {name: state.document.lobby_name ?? null, locked: Boolean(state.document.locked), solo: !state.room},
   } : null);
 
   if (loadError) {
+    // gone (deleted, expired, never there) has nothing to try again. Anything else (the network, a timeout, the api
+    // down) used to say "doesn't exist" too
+    const missing = loadError.status === 404 || loadError.code === EditorErrorCodes.UNKNOWN_EDITOR_DOCUMENT;
     return (
-      <FullPageMessage title={t('editor.load_error')}>
-        {(host.onLeave) ? <button type='button' className='btn btn-secondary' onClick={host.onLeave}>{t('editor.back')}</button> : null}
-      </FullPageMessage>
+      <div data-state={(missing) ? 'missing' : 'failed'} className='contents'>
+        <FullPageMessage title={(missing) ? t('editor.load_error') : t('editor.session.failed')}>
+          <div className='flex flex-wrap items-center justify-center gap-2'>
+            {(host.onLeave) ? <button type='button' className='btn btn-secondary' onClick={host.onLeave}>{t('editor.back')}</button> : null}
+            {(missing) ? null : <button type='button' className='btn btn-primary' onClick={() => state.reload()}>{t('common.retry')}</button>}
+          </div>
+        </FullPageMessage>
+      </div>
     );
   }
   if (!document) {
     return (
-      <FullPageMessage>
-        <Spinner/>
-      </FullPageMessage>
+      <div data-state='loading' className='contents'>
+        <FullPageMessage>
+          <Spinner/>
+        </FullPageMessage>
+      </div>
     );
   }
 
@@ -167,13 +178,15 @@ export function EditorApp({ host, documentId, catalogue, addEffectId = null, onE
     range: (selectedStep?.effect === VALUE_EFFECT_ID) ? {minimum: Number(selectedStep.params.minimum ?? 0), maximum: Number(selectedStep.params.maximum ?? 100)} : undefined,
   };
   const addEffect = (effect: EditorEffect) => state.addStep(newStep(effect));
+  // why nothing can be changed right now, if anything: a watch-only room they didn't make, or someone else's render
+  const editLock = state.editLock;
   const saveLabel = (state.saveState === 'saving') ? t('editor.save.saving') : (state.saveState === 'error') ? t('editor.save.error') : t('editor.save.saved');
 
   return (
     <CursorProvider room={state.room ?? null} documentId={document.id} editors={state.editors}>
     {/* on wide screens the editor is the window's height (under the site's navbar on the web) and each column scrolls on
         its own, so a long effect list never pushes Render out of reach. narrow screens scroll as one page */}
-    <div className={cn('flex flex-col bg-bg text-fg', (host.fullscreen) ? 'min-h-[var(--editor-height,100dvh)] lg:h-[var(--editor-height,100dvh)]' : 'min-h-[calc(100dvh-4rem)] lg:h-[calc(100dvh-4rem-1px)]')}>
+    <div data-state='ready' data-edit-lock={editLock ?? 'none'} data-save-state={state.saveState} className={cn('flex flex-col bg-bg text-fg', (host.fullscreen) ? 'min-h-[var(--editor-height,100dvh)] lg:h-[var(--editor-height,100dvh)]' : 'min-h-[calc(100dvh-4rem)] lg:h-[calc(100dvh-4rem-1px)]')}>
       <div className='flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line-strong bg-deep px-4 py-2.5 sm:px-5'>
         {(host.onLeave) ? (
           <button type='button' onClick={host.onLeave} className='inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-muted hover:bg-surface hover:text-fg'>
@@ -234,12 +247,14 @@ export function EditorApp({ host, documentId, catalogue, addEffectId = null, onE
         <p role='status' className='border-b border-warning/40 bg-warning/10 px-5 py-2 text-sm text-warning'>{t('editor.reloaded')}</p>
       ) : null}
 
-      {/* another person's final render locks the stack for everyone in the activity until it's done */}
-      <fieldset disabled={state.renderLocked} className='contents'>
+      {/* another person's final render locks the stack for everyone in the activity until it's done: the picker and the
+          steps with their settings. The preview's own controls (zoom, the original, play, frames) and a finished render's
+          Share and Copy link change nothing in the stack and stay on (one fieldset around all three columns turned
+          those off too) */}
       <div className='flex flex-1 flex-col lg:min-h-0 lg:flex-row'>
         <div className='order-3 w-full shrink-0 border-line bg-surface p-4 lg:order-1 lg:w-[300px] lg:overflow-y-auto lg:border-r xl:w-[340px]'>
           {(state.watching) ? <p className='mb-3 text-xs text-subtle'>{t('editor.room.watching_picker')}</p> : null}
-          <fieldset disabled={state.watching} className={cn('contents', state.watching && '[&_button]:opacity-60')}>
+          <fieldset disabled={editLock !== null} className={cn('contents', state.watching && '[&_button]:opacity-60')}>
           <EffectPicker effects={catalogue.effects} kind={pickerKind} hasAudio={hasAudio && pickerKind !== 'image'} onAdd={addEffect}/>
           </fieldset>
         </div>
@@ -249,13 +264,12 @@ export function EditorApp({ host, documentId, catalogue, addEffectId = null, onE
         <aside aria-label={t('editor.edits')} className='order-2 flex w-full shrink-0 flex-col gap-3 border-line bg-surface p-4 lg:order-3 lg:min-h-0 lg:w-[320px] lg:border-l xl:w-[360px]'>
           {/* the steps and their settings scroll, Render stays at the bottom */}
           <div className='flex flex-col gap-3 lg:min-h-0 lg:flex-1 lg:overflow-y-auto'>
+          <fieldset disabled={editLock !== null} className='contents'>
           <div className='flex items-baseline justify-between'>
             <h2 className='font-display text-lg font-bold text-white'>{t('editor.edits')}</h2>
             <span className='font-mono text-xs text-muted'>{state.steps.length}</span>
           </div>
-          <fieldset disabled={state.watching} className='contents'>
           <StepList state={state}/>
-          </fieldset>
           {(selectedStep?.inputs && Object.keys(selectedStep.inputs).length && !state.watching) ? (
             <div className='flex flex-col gap-1.5 rounded-lg border border-brand/30 bg-brand/10 p-2.5'>
               <span className='text-xs text-muted'>{t('editor.inputs.step_asks')}</span>
@@ -293,6 +307,7 @@ export function EditorApp({ host, documentId, catalogue, addEffectId = null, onE
             />
           ) : null}
           </FormulaContext.Provider>
+          </fieldset>
           </div>
           <RenderPanel
             host={host}
@@ -301,13 +316,15 @@ export function EditorApp({ host, documentId, catalogue, addEffectId = null, onE
             formats={document.render_formats ?? []}
             sourceKind={document.source_meta.kind}
             empty={!state.steps.some((step) => !step.hidden)}
+            locked={state.renderLocked}
             waitForSave={state.whenSaved}
             preview={state.preview}
           />
         </aside>
       </div>
-      </fieldset>
-      {(filling && !state.watching) ? <FillInputsDialog state={state} onClose={() => setFilling(false)}/> : null}
+      {/* its answers are edits: not for someone only watching, and Use waits out someone else's render (it stays open
+          with what was typed, closing it then lost the answers) */}
+      {(filling && editLock !== 'watching') ? <FillInputsDialog state={state} locked={editLock !== null} onClose={() => setFilling(false)}/> : null}
     </div>
     </CursorProvider>
   );

@@ -1,5 +1,5 @@
 import { DoorClosed, Globe, ImageIcon, Lock, LogIn, Plus } from 'lucide-react';
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 
 import { FiltersButton } from '@/components/ui/FiltersButton';
 import { SearchInput } from '@/components/ui/SearchInput';
@@ -20,6 +20,9 @@ import { PasswordInput } from './SaveTemplate';
 
 // lobby changes (new ones, steps) come as the room's document events, one refetch per burst of them
 const REFRESH_DELAY = 800;
+// ...and at the latest this long after the first of them (someone dragging a slider is a change every moment, the
+// refetch used to wait for them to stop)
+const REFRESH_MAX_WAIT = 3000;
 // a card lists this many of its steps by name
 const SHOWN_STEPS = 4;
 
@@ -28,6 +31,19 @@ type RoomKind = typeof ROOM_KINDS[number];
 type RoomSort = 'newest' | 'people';
 const ROOM_VISIBILITIES = ['all', 'public', 'password'] as const;
 type RoomVisibility = typeof ROOM_VISIBILITIES[number];
+
+// the list against the api: asked and not answered yet (what's shown is the last answer, or the launch's), answered,
+// or the last ask failed (the room's events still keep it going)
+type ListStatus = 'refreshing' | 'ready' | 'failed';
+
+// One card's join. `asking`: a locked one's password form is open (its maker never needs it), with what the last try
+// came to. `joining`: sent and not answered, `asked` when it went from the form (which stays up meanwhile).
+// `refused`: why not
+type CardState =
+  | {status: 'idle'}
+  | {status: 'asking', error: string | null}
+  | {status: 'joining', asked: boolean}
+  | {status: 'refused', error: string};
 
 
 // The Activity's group edits ("lobbies"), each up to `limit` editors: what's being edited (picture, file, steps, a
@@ -58,36 +74,113 @@ export function LobbyList({ host, room, instanceId, initial, notice, onJoin, onN
   const filtersId = useId();
   // set by the room's `ready`, re-rendered with it
   const [ , setModerator ] = useState(room.moderator);
+  const [ status, setStatus ] = useState<ListStatus>('refreshing');
+  // the one room being joined, every other Join and New room wait for its answer (each card had its own, a second
+  // card's Join went out beside the first)
+  const [ joining, setJoining ] = useState<string | null>(null);
+  const joiningRef = useRef(false);
+  // "Close or delete this room?" for the room as it was when asked. Here and not in its card: the card goes when a
+  // filter stops matching it, the dialog went with it
+  const [ closing, setClosing ] = useState<{documentId: string, name: string} | null>(null);
+  // the cards in use (a password form open, a join on its way): they stay listed whatever the filters say
+  const [ engaged, setEngaged ] = useState<ReadonlySet<string>>(() => new Set());
+  const aliveRef = useRef(true);
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => {
+      aliveRef.current = false;
+    };
+  }, []);
+
+  const join = useCallback(async (documentId: string, password?: string): Promise<EditingResult | null> => {
+    if (joiningRef.current) {
+      return null;
+    }
+    joiningRef.current = true;
+    setJoining(documentId);
+    try {
+      return await onJoin(documentId, password);
+    } finally {
+      joiningRef.current = false;
+      if (aliveRef.current) {
+        setJoining(null);
+      }
+    }
+  }, [onJoin]);
+
+  const setCardEngaged = useCallback((documentId: string, inUse: boolean) => {
+    setEngaged((current) => {
+      if (current.has(documentId) === inUse) {
+        return current;
+      }
+      const next = new Set(current);
+      if (inUse) {
+        next.add(documentId);
+      } else {
+        next.delete(documentId);
+      }
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     let alive = true;
     let timer: number | null = null;
+    // when the burst the timer is waiting out began
+    let waitingSince: number | null = null;
+    // the newest ask: an older one's answer that comes after it (or after the room said something newer) is dropped
+    let sequence = 0;
+    const fetchNow = () => {
+      if (timer !== null) {
+        window.clearTimeout(timer);
+        timer = null;
+      }
+      waitingSince = null;
+      sequence += 1;
+      const sent = sequence;
+      setStatus('refreshing');
+      host.api.activity(instanceId).then((context) => {
+        if (alive && sent === sequence) {
+          setLobbies(context.lobbies);
+          setStatus('ready');
+        }
+      }).catch(() => {
+        if (alive && sent === sequence) {
+          setStatus('failed');
+        }
+      });
+    };
     const refresh = () => {
+      const now = Date.now();
+      waitingSince ??= now;
       if (timer !== null) {
         window.clearTimeout(timer);
       }
       timer = window.setTimeout(() => {
         timer = null;
-        host.api.activity(instanceId).then((context) => {
-          if (alive) {
-            setLobbies(context.lobbies);
-          }
-        }).catch(() => undefined);
-      }, REFRESH_DELAY);
+        fetchNow();
+      }, Math.max(0, Math.min(REFRESH_DELAY, waitingSince + REFRESH_MAX_WAIT - now)));
     };
-    // the list as of now: something may have changed between the context and this screen
-    refresh();
+    // the list as of now, asked for right away: `initial` is the launch's, by the time they're back here from an edit
+    // it's missing their own room and has ones long closed
+    fetchNow();
     setMembers(room.members);
     const unsubscribe = room.subscribe((event) => {
       switch (event.t) {
         case 'ready':
+          // the room's own list, newer than an ask still on its way
+          sequence += 1;
           setLobbies(event.lobbies);
+          setStatus('ready');
           setMembers(event.members);
           setModerator(Boolean(event.moderator));
           break;
         case 'lobby_closed':
         case 'lobby_deleted':
+          // an ask sent before it closed would bring it back: dropped, and asked again
+          sequence += 1;
           setLobbies((current) => current.filter((lobby) => lobby.id !== event.document_id));
+          refresh();
           break;
         case 'lobby_updated':
           // a locked one's file name, steps and picture aren't sent any more (but to its creator and whoever's in it), they
@@ -126,6 +219,9 @@ export function LobbyList({ host, room, instanceId, initial, notice, onJoin, onN
   const editorsOf = (lobby: EditorLobby) => members.filter((member) => member.editing === lobby.id);
   const search = query.trim().toLowerCase();
   const shown = lobbies.filter((lobby) => {
+    if (engaged.has(lobby.id)) {
+      return true;
+    }
     if ((visibility === 'public' && lobby.locked) || (visibility === 'password' && !lobby.locked)) {
       return false;
     }
@@ -161,13 +257,13 @@ export function LobbyList({ host, room, instanceId, initial, notice, onJoin, onN
   const filtering = Boolean(search) || activeFilters > 0;
 
   return (
-    <div className='mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-10 sm:py-14'>
+    <div data-state={status} data-joining={joining ?? 'none'} className='mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-10 sm:py-14'>
       <header className='flex flex-col gap-2'>
         <h1 className='font-display text-3xl font-bold text-white sm:text-4xl'>{t('editor.session.lobbies_title')}</h1>
         <p className='text-muted'>{t('editor.session.lobbies_description', {limit: ROOM_MAX_EDITORS})}</p>
       </header>
       {(notice) ? <p role='status' className='rounded-lg border border-warning/40 bg-warning/10 px-4 py-2.5 text-sm text-warning'>{notice}</p> : null}
-      <button type='button' onClick={onNew} className='btn btn-primary w-full sm:w-fit'>
+      <button type='button' onClick={onNew} disabled={joining !== null} className='btn btn-primary w-full sm:w-fit'>
         <Plus aria-hidden className='size-4'/>{t('editor.session.new_lobby')}
       </button>
       {(lobbies.length) ? (
@@ -220,7 +316,10 @@ export function LobbyList({ host, room, instanceId, initial, notice, onJoin, onN
                       editors={editorsOf(lobby)}
                       room={room}
                       effectNames={effectNames}
-                      onJoin={onJoin}
+                      joining={joining}
+                      onJoin={join}
+                      onEngaged={setCardEngaged}
+                      onClose={(name) => setClosing({documentId: lobby.id, name})}
                     />
                   </li>
                 ))}
@@ -251,6 +350,7 @@ export function LobbyList({ host, room, instanceId, initial, notice, onJoin, onN
       ) : (
         <p className='text-sm text-subtle'>{t('editor.session.no_lobbies')}</p>
       )}
+      {(closing) ? <CloseRoomDialog room={room} documentId={closing.documentId} name={closing.name} onClose={() => setClosing(null)}/> : null}
     </div>
   );
 }
@@ -290,62 +390,106 @@ function LobbyPreview({ lobby }: {lobby: EditorLobby}) {
 }
 
 
-function LobbyCard({ lobby, editors, room, effectNames, onJoin }: {
+function LobbyCard({ lobby, editors, room, effectNames, joining, onJoin, onEngaged, onClose }: {
   lobby: EditorLobby,
   editors: Array<RoomMember>,
   room: EditorRoom,
   effectNames: Map<string, string>,
-  onJoin: (documentId: string, password?: string) => Promise<EditingResult>,
+  // the room being joined from this list (this one or another), nothing else joins meanwhile
+  joining: string | null,
+  // null: another join was on its way, this one wasn't sent
+  onJoin: (documentId: string, password?: string) => Promise<EditingResult | null>,
+  // its password form is open or its join is on its way: the list keeps it whatever the filters say
+  onEngaged: (documentId: string, inUse: boolean) => void,
+  // "Close or delete this room?", the list's dialog. `name`: what the card calls it now
+  onClose: (name: string) => void,
 }) {
   const { t } = useI18n();
   const passwordId = useId();
-  const [ pending, setPending ] = useState(false);
-  const [ error, setError ] = useState<string | null>(null);
-  // a locked one asks for its password in the card (its maker never needs it)
-  const [ asking, setAsking ] = useState(false);
+  const [ state, setState ] = useState<CardState>({status: 'idle'});
   const [ password, setPassword ] = useState('');
-  const [ closing, setClosing ] = useState(false);
   const you = room.you;
   const moderates = canModerateRoom(room, lobby.user_id);
   const aliveRef = useRef(true);
-  useEffect(() => () => {
-    aliveRef.current = false;
+  useEffect(() => {
+    // (set here too: strict mode runs the cleanup once right after the first mount, and it stayed false from then on.
+    // In development a refused join span for good)
+    aliveRef.current = true;
+    return () => {
+      aliveRef.current = false;
+    };
   }, []);
+
+  const inUse = state.status === 'asking' || state.status === 'joining';
+  useEffect(() => {
+    if (!inUse) {
+      return;
+    }
+    onEngaged(lobby.id, true);
+    return () => onEngaged(lobby.id, false);
+  }, [inUse, lobby.id, onEngaged]);
 
   const full = editors.length >= lobby.limit;
   const needsPassword = lobby.locked && lobby.user_id !== you;
   const steps = lobby.steps.map((id) => effectNames.get(id) ?? id);
   const shownSteps = steps.slice(0, SHOWN_STEPS).join(' → ');
+  const name = lobby.name || lobby.filename || t('editor.session.untitled');
+  const pending = state.status === 'joining';
+  const busy = joining !== null;
+  const asking = state.status === 'asking' || (state.status === 'joining' && state.asked);
+  const error = (state.status === 'asking' || state.status === 'refused') ? state.error : null;
 
   const join = async (withPassword?: string) => {
-    setPending(true);
-    setError(null);
-    const { result, message } = await onJoin(lobby.id, withPassword);
-    // joined, this card's gone with the list
+    const before = state;
+    setState({status: 'joining', asked: before.status === 'asking'});
+    let answer: EditingResult | null;
+    try {
+      answer = await onJoin(lobby.id, withPassword);
+    } catch {
+      answer = {result: 'gone'};
+    }
     if (!aliveRef.current) {
       return;
     }
-    setPending(false);
-    if (result === 'full') {
-      setError(t('editor.session.full', {limit: lobby.limit}));
-    } else if (result === 'locked') {
-      setAsking(true);
-    } else if (result === 'kicked') {
-      setError(t('editor.session.kicked_join'));
-    } else if (result === 'wrong') {
-      setError(message || t('editor.session.wrong_password'));
-    } else if (result === 'gone') {
-      setError(message || t('editor.session.failed'));
+    if (!answer) {
+      setState(before);
+      return;
+    }
+    const { result, message } = answer;
+    switch (result) {
+      case 'ok':
+        // joined: the host opens it, this card goes with the list
+        setState({status: 'idle'});
+        break;
+      case 'full':
+        setState({status: 'refused', error: t('editor.session.full', {limit: lobby.limit})});
+        break;
+      case 'locked':
+        setState({status: 'asking', error: null});
+        break;
+      case 'wrong':
+        setState({status: 'asking', error: message || t('editor.session.wrong_password')});
+        break;
+      case 'kicked':
+        setState({status: 'refused', error: t('editor.session.kicked_join')});
+        break;
+      case 'gone':
+        setState({status: 'refused', error: message || t('editor.session.failed')});
+        break;
+      default: {
+        const unknown: never = result;
+        return unknown;
+      }
     }
   };
 
   return (
-    <div className='flex h-full flex-col overflow-hidden rounded-xl border border-line-strong bg-surface'>
+    <div data-state={state.status} data-lobby-id={lobby.id} className='flex h-full flex-col overflow-hidden rounded-xl border border-line-strong bg-surface'>
       <LobbyPreview lobby={lobby}/>
       <div className='flex flex-1 flex-col gap-2 p-3'>
         <div className='flex min-w-0 items-center gap-1.5'>
           {(lobby.locked) ? <Lock aria-label={t('editor.session.locked')} className='size-3.5 shrink-0 text-subtle'/> : null}
-          <h3 className='truncate text-sm font-semibold text-white'>{lobby.name || lobby.filename || t('editor.session.untitled')}</h3>
+          <h3 className='truncate text-sm font-semibold text-white'>{name}</h3>
         </div>
         {(lobby.creator) ? (
           <p className='-mt-1 truncate text-xs text-subtle'>
@@ -370,24 +514,38 @@ function LobbyCard({ lobby, editors, room, effectNames, onJoin }: {
             className='flex flex-col gap-2'
             onSubmit={(event) => {
               event.preventDefault();
-              if (password && !pending) {
+              if (password && !busy) {
                 void join(password);
               }
             }}
           >
             <label htmlFor={passwordId} className='text-xs text-muted'>{t('editor.session.lobby_password')}</label>
             <PasswordInput id={passwordId} value={password} onChange={setPassword} autoComplete='current-password' autoFocus/>
-            <button type='submit' className='btn btn-primary w-full' disabled={!password || pending}>
-              {(pending) ? <Spinner className='size-4 border-white/40 border-t-white'/> : <LogIn aria-hidden className='size-4'/>}
-              {t('editor.session.join_short')}
-            </button>
+            <div className='flex gap-2'>
+              {/* (the form keeps its card listed whatever the filters say, this is how it lets go) */}
+              <button
+                type='button'
+                className='btn btn-secondary'
+                disabled={pending}
+                onClick={() => {
+                  setPassword('');
+                  setState({status: 'idle'});
+                }}
+              >
+                {t('common.cancel')}
+              </button>
+              <button type='submit' className='btn btn-primary min-w-0 flex-1' disabled={!password || busy}>
+                {(pending) ? <Spinner className='size-4 border-white/40 border-t-white'/> : <LogIn aria-hidden className='size-4'/>}
+                {t('editor.session.join_short')}
+              </button>
+            </div>
           </form>
         ) : (
           <button
             type='button'
             className='btn btn-secondary w-full'
-            disabled={pending || full}
-            onClick={() => (needsPassword) ? setAsking(true) : void join()}
+            disabled={busy || full}
+            onClick={() => (needsPassword) ? setState({status: 'asking', error: null}) : void join()}
           >
             {(pending) ? <Spinner className='size-4'/> : (needsPassword) ? <Lock aria-hidden className='size-4'/> : <LogIn aria-hidden className='size-4'/>}
             {(full) ? t('editor.session.full_short') : t('editor.session.join_short')}
@@ -395,12 +553,11 @@ function LobbyCard({ lobby, editors, room, effectNames, onJoin }: {
         )}
         {(error) ? <p role='alert' className='text-xs text-danger-text'>{error}</p> : null}
         {(moderates) ? (
-          <button type='button' onClick={() => setClosing(true)} className='inline-flex min-h-9 items-center justify-center gap-1.5 rounded-md text-xs font-semibold text-danger-text hover:bg-surface-3'>
+          <button type='button' onClick={() => onClose(name)} className='inline-flex min-h-9 items-center justify-center gap-1.5 rounded-md text-xs font-semibold text-danger-text hover:bg-surface-3'>
             <DoorClosed aria-hidden className='size-3.5'/>{t('editor.room.close_or_delete')}
           </button>
         ) : null}
       </div>
-      {(closing) ? <CloseRoomDialog room={room} documentId={lobby.id} name={lobby.name || lobby.filename || t('editor.session.untitled')} onClose={() => setClosing(false)}/> : null}
     </div>
   );
 }

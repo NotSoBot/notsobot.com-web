@@ -11,11 +11,19 @@ import { useI18n } from '@/i18n';
 // The full page stays mounted underneath (sockets, edits, timers carry on), Discord brings it back when they click in
 
 
+// the room it's in, for their Discord profile's line (./presence): its name (null for an unnamed one), a password
+// room, and one that's theirs alone (Play solo, a solo edit)
+export interface PipRoom {
+  name: string | null,
+  locked: boolean,
+  solo: boolean,
+}
+
 // what the screen on show says about itself, set by the editor and the game while they're mounted
 export type PipStatus =
-  | {kind: 'editor', title: string, previewUrl: string | null, previewIsVideo: boolean, people: number, watching: boolean}
+  | {kind: 'editor', title: string, previewUrl: string | null, previewIsVideo: boolean, people: number, watching: boolean, room: PipRoom}
   // `letters`: a Letter Trail room (its icon, rounds rather than flags)
-  | {kind: 'game', title: string, phase: 'lobby' | 'round' | 'reveal' | 'finished', round: {number: number, total: number} | null, score: number | null, rank: number | null, players: number, watching: boolean, flagUrl: string | null, letters?: boolean}
+  | {kind: 'game', title: string, phase: 'lobby' | 'round' | 'reveal' | 'finished', round: {number: number, total: number} | null, score: number | null, rank: number | null, players: number, watching: boolean, flagUrl: string | null, letters?: boolean, room: PipRoom}
   | null;
 
 
@@ -91,7 +99,7 @@ export function PipView() {
   const { t, plural } = useI18n();
   const status = usePipStatus();
   return (
-    <div className='fixed inset-0 z-[150] flex flex-col overflow-hidden bg-bg text-fg' aria-live='polite'>
+    <div data-state={status?.kind ?? 'idle'} className='fixed inset-0 z-[150] flex flex-col overflow-hidden bg-bg text-fg' aria-live='polite'>
       {(status?.kind === 'editor') ? (
         <>
           {(status.previewUrl) ? (

@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 
 import { clamp, roundFraction, type SpatialTool } from '../stack';
 import type { EditorAsset, EditorBox, EditorPoint, EditorStep, EditorStroke } from '../types';
+import { useFieldDraft } from './ParamControls';
 
 
 // The selected step's spatial param drawn over the preview (which shows what goes into that step), in fractions of
@@ -133,6 +134,17 @@ function useElementWidth<T extends HTMLElement>() {
 }
 
 
+// What a tool is doing, on its root as `data-state` (beside `data-tool`) for anyone reading the page. A drag and a pinch
+// live in refs (a move doesn't re-render), so those are written straight onto the element
+type GestureState = 'idle' | 'dragging' | 'pinching' | 'editing' | 'drawing';
+
+function markGesture(element: HTMLElement | SVGElement | null, state: GestureState) {
+  if (element) {
+    element.dataset.state = state;
+  }
+}
+
+
 function nudgeOf(event: KeyboardEvent): EditorPoint | null {
   const step = (event.shiftKey) ? NUDGE_LARGE : NUDGE;
   switch (event.key) {
@@ -170,13 +182,17 @@ function PointTool({ step, param, onParam, onParams, label, resizeLabel, widthLa
   const boxWidth = (typeof step.params.width === 'number') ? step.params.width : 0.9;
   const color = (typeof step.params.color === 'string') ? step.params.color : '#ffffff';
   const resizable = 'size' in step.params || step.effect === 'text';
-  const dragRef = useRef<{handle: TextHandle, dx: number, dy: number, height: number, size: number} | null>(null);
+  // the drag and the pointer it belongs to: another finger's moves and its lift aren't this drag's
+  const dragRef = useRef<{pointerId: number, handle: TextHandle, dx: number, dy: number, height: number, size: number} | null>(null);
   // no touch-gesture cancelling here: double-tapping the text edits it
   const selectionHold = useSelectionHold();
   // double-click edits the text right on the preview, Escape puts back what it was
   const [ editing, setEditing ] = useState(false);
   const originalRef = useRef('');
   const editorRef = useRef<HTMLTextAreaElement>(null);
+  // the box while it's typed in (`useFieldDraft`): in a room an emptied text is refused and the step goes back to its
+  // last letter, the box used to show that again mid-edit
+  const draft = useFieldDraft(text);
 
   useLayoutEffect(() => {
     const editor = editorRef.current;
@@ -186,13 +202,16 @@ function PointTool({ step, param, onParam, onParams, label, resizeLabel, widthLa
     // grows with its lines, like the box it replaced
     editor.style.height = '0px';
     editor.style.height = `${editor.scrollHeight}px`;
-  }, [editing, text, size, width, boxWidth]);
+  }, [editing, draft.text, size, width, boxWidth]);
 
   const startEditing = () => {
     if (!('text' in step.params)) {
       return;
     }
     originalRef.current = text;
+    // (the box this replaces is what a drag holds on to: none outlives it)
+    dragRef.current = null;
+    selectionHold.release();
     setEditing(true);
     requestAnimationFrame(() => {
       editorRef.current?.focus();
@@ -211,23 +230,45 @@ function PointTool({ step, param, onParam, onParams, label, resizeLabel, widthLa
     if (!container) {
       return;
     }
+    // only the main button drags: a right click's release can go to its menu, the box then followed the bare cursor
+    if (event.pointerType === 'mouse' && event.button !== 0) {
+      return;
+    }
+    // a second finger while one is dragging isn't a drag of its own (its handle used to take over the first one's
+    // moves). One mouse, nothing else can be down: a drag whose up never came is forgotten
+    if (dragRef.current && dragRef.current.pointerId !== event.pointerId && event.pointerType !== 'mouse') {
+      return;
+    }
     event.stopPropagation();
     // no text selection or native drag starts under the pointer (it flashes over the preview while drawing)
     event.preventDefault();
     // keeps keyboard nudging working after a click (preventing the press also stops it taking focus)
     (event.currentTarget as HTMLElement | SVGElement).focus?.();
+    // a side or a corner can't take the focus, so a field outside the tool kept it (the size's number box, say) and
+    // went on showing what it had while this dragged its value: it's left. The text box on the preview is the tool's
+    // own, it stays as it is
+    const focused = document.activeElement;
+    if (focused instanceof HTMLElement && focused !== document.body && !container.contains(focused)) {
+      focused.blur();
+    }
     event.currentTarget.setPointerCapture(event.pointerId);
     const at = fractionOf(event, container);
     const rect = container.getBoundingClientRect();
     // a corner's height comes from how far it is from the center vertically, the box grows with the letters' size
     const height = Math.abs(at.y - point.y) * rect.height;
-    dragRef.current = {handle, dx: point.x - at.x, dy: point.y - at.y, height: Math.max(height, 4), size};
+    dragRef.current = {pointerId: event.pointerId, handle, dx: point.x - at.x, dy: point.y - at.y, height: Math.max(height, 4), size};
     selectionHold.hold();
+    markGesture(container, 'dragging');
   };
   const move = (event: PointerEvent<HTMLElement>) => {
     const container = containerRef.current;
     const drag = dragRef.current;
-    if (!drag || !container) {
+    if (!drag || !container || drag.pointerId !== event.pointerId) {
+      return;
+    }
+    // the button came up somewhere this never heard of: the drag is over
+    if (event.pointerType === 'mouse' && event.buttons === 0) {
+      end(event);
       return;
     }
     const at = fractionOf(event, container);
@@ -253,9 +294,14 @@ function PointTool({ step, param, onParam, onParams, label, resizeLabel, widthLa
       onParam('width', Math.round(clamp(Math.abs(at.x - point.x) * 2, 0.1, 1) * 1000) / 1000);
     }
   };
-  const end = () => {
+  // up, cancel, or the capture lost without either (it comes after every up too, there's nothing left to end then)
+  const end = (event: PointerEvent<HTMLElement>) => {
+    if (!dragRef.current || dragRef.current.pointerId !== event.pointerId) {
+      return;
+    }
     dragRef.current = null;
     selectionHold.release();
+    markGesture(containerRef.current, (editing) ? 'editing' : 'idle');
   };
   const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
     const nudge = nudgeOf(event);
@@ -275,11 +321,12 @@ function PointTool({ step, param, onParam, onParams, label, resizeLabel, widthLa
     onPointerMove: move,
     onPointerUp: end,
     onPointerCancel: end,
+    onLostPointerCapture: end,
   });
   const HANDLE = 'absolute touch-none rounded-sm border border-black/60 bg-white shadow';
 
   return (
-    <div ref={containerRef} className='absolute inset-0'>
+    <div ref={containerRef} data-tool='point' data-state={(editing) ? 'editing' : 'idle'} className='absolute inset-0'>
       <div
         className='absolute -translate-x-1/2 -translate-y-1/2'
         style={{left: `${point.x * 100}%`, top: `${point.y * 100}%`, width: `${boxWidth * 100}%`}}
@@ -287,15 +334,20 @@ function PointTool({ step, param, onParam, onParams, label, resizeLabel, widthLa
         {(editing) ? (
           <textarea
             ref={editorRef}
-            value={text}
+            value={draft.text}
             aria-label={editLabel}
             maxLength={maxTextLength}
             rows={1}
-            onChange={(event) => onParam('text', event.target.value)}
+            onChange={(event) => {
+              draft.type(event.target.value);
+              onParam('text', event.target.value);
+            }}
             onBlur={() => {
+              const typed = draft.text;
+              draft.drop();
               setEditing(false);
               // the api won't take empty text, an emptied box goes back to what it was
-              if (!text.trim()) {
+              if (!typed.trim()) {
                 onParam('text', originalRef.current);
               }
             }}
@@ -304,6 +356,7 @@ function PointTool({ step, param, onParam, onParams, label, resizeLabel, widthLa
               if (event.key === 'Escape') {
                 event.preventDefault();
                 onParam('text', originalRef.current);
+                draft.drop();
                 setEditing(false);
               } else if (event.key === 'Enter' && !event.shiftKey) {
                 // Enter finishes, Shift+Enter is a new line
@@ -443,12 +496,17 @@ function BoxTool({ step, param, onChange, label, dim, fill }: {
     pinchRef.current = {ids: pair, distance, box: dragRef.current?.box ?? box};
     dragRef.current = null;
     selectionHold.hold();
+    markGesture(containerRef.current, 'pinching');
     return true;
   };
 
   const start = (handle: BoxHandle) => (event: PointerEvent<HTMLElement>) => {
     const container = containerRef.current;
     if (!container) {
+      return;
+    }
+    // only the main button drags: a right click's release can go to its menu, the box then followed the bare cursor
+    if (event.pointerType === 'mouse' && event.button !== 0) {
       return;
     }
     event.stopPropagation();
@@ -467,6 +525,7 @@ function BoxTool({ step, param, onChange, label, dim, fill }: {
     event.currentTarget.setPointerCapture(event.pointerId);
     dragRef.current = {pointerId: event.pointerId, handle, start: fractionOf(event, container), box};
     selectionHold.hold();
+    markGesture(container, 'dragging');
   };
   // a finger on the media around the box: only a pinch's second finger, one alone does nothing (as before)
   const down = (event: PointerEvent<HTMLElement>) => {
@@ -494,6 +553,11 @@ function BoxTool({ step, param, onChange, label, dim, fill }: {
     if (!drag || !container || drag.pointerId !== event.pointerId) {
       return;
     }
+    // the button came up somewhere this never heard of: the drag is over
+    if (event.pointerType === 'mouse' && event.buttons === 0) {
+      end(event);
+      return;
+    }
     const at = fractionOf(event, container);
     onChange(resize(drag.handle, drag.box, at.x - drag.start.x, at.y - drag.start.y));
   };
@@ -510,8 +574,16 @@ function BoxTool({ step, param, onChange, label, dim, fill }: {
       return;
     }
     dragRef.current = null;
+    markGesture(containerRef.current, 'idle');
     if (!pointersRef.current.size) {
       selectionHold.release();
+    }
+  };
+  // the capture lost without an up or a cancel: only a drag's own pointer ends it here (the capture is lost after every
+  // up too, and a pinch's fingers are `end`'s alone)
+  const lost = (event: PointerEvent<HTMLElement>) => {
+    if (dragRef.current && dragRef.current.pointerId === event.pointerId) {
+      end(event);
     }
   };
   const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
@@ -531,7 +603,7 @@ function BoxTool({ step, param, onChange, label, dim, fill }: {
   ];
 
   return (
-    <div ref={containerRef} className='absolute inset-0 touch-none select-none [-webkit-touch-callout:none]' onPointerDown={down} onPointerMove={move} onPointerUp={end} onPointerCancel={end}>
+    <div ref={containerRef} data-tool='box' data-state='idle' className='absolute inset-0 touch-none select-none [-webkit-touch-callout:none]' onPointerDown={down} onPointerMove={move} onPointerUp={end} onPointerCancel={end} onLostPointerCapture={lost}>
       {(dim) ? (
         <svg aria-hidden className='pointer-events-none absolute inset-0 size-full' viewBox='0 0 1 1' preserveAspectRatio='none'>
           <path
@@ -592,6 +664,12 @@ function StrokesTool({ step, param, onChange, pen, aspect, maxStrokes, maxPoints
   const svgRef = useRef<SVGSVGElement>(null);
   const strokes = (step.params[param] as Array<EditorStroke>) ?? [];
   const [ current, setCurrent ] = useState<EditorStroke | null>(null);
+  // the pointer drawing it, and every one that's down on the drawing: a second finger makes it a pinch, not a line.
+  // Both fingers used to draw one zigzag between them, kept when the first lifted. A pen is never one of two: it draws
+  // whatever hand is resting on the screen (`penRef`: the stroke is a pen's)
+  const pointerRef = useRef<number | null>(null);
+  const penRef = useRef(false);
+  const downRef = useRef(new Set<number>());
   const full = maxStrokes <= strokes.length;
   const selectionHold = useSelectionHold();
   useNoTouchGestures(svgRef);
@@ -605,16 +683,41 @@ function StrokesTool({ step, param, onChange, pen, aspect, maxStrokes, maxPoints
     if (full || event.button !== 0) {
       return;
     }
+    const touch = event.pointerType === 'touch';
+    // a hand coming to rest beside a pen that's drawing: not a second finger, the stroke goes on
+    if (touch && penRef.current && pointerRef.current !== null) {
+      return;
+    }
+    if (!touch || event.isPrimary) {
+      // one mouse, a pen, or a first finger: nothing that was down before counts. A pen draws over a resting hand
+      // (what that hand drew, if anything, is dropped), and a finger whose up never came is forgotten
+      downRef.current.clear();
+    }
+    downRef.current.add(event.pointerId);
+    if (1 < downRef.current.size) {
+      // a second finger: what the first drew so far is dropped, and nothing is drawn until they're all up
+      event.preventDefault();
+      pointerRef.current = null;
+      setCurrent(null);
+      return;
+    }
     // no text selection or native drag starts under the pointer (it flashes over the preview while drawing)
     event.preventDefault();
     // keeps keyboard nudging working after a click (preventing the press also stops it taking focus)
     (event.currentTarget as HTMLElement | SVGElement).focus?.();
     event.currentTarget.setPointerCapture(event.pointerId);
+    pointerRef.current = event.pointerId;
+    penRef.current = event.pointerType === 'pen';
     setCurrent({color: pen.color, width: pen.width, points: [pointOf(event)]});
     selectionHold.hold();
   };
   const onPointerMove = (event: PointerEvent<SVGSVGElement>) => {
-    if (!current) {
+    if (!current || pointerRef.current !== event.pointerId) {
+      return;
+    }
+    // the button came up somewhere this never heard of: the stroke ends where it got to
+    if (event.pointerType === 'mouse' && event.buttons === 0) {
+      onPointerUp(event);
       return;
     }
     const [ x, y ] = pointOf(event);
@@ -624,12 +727,19 @@ function StrokesTool({ step, param, onChange, pen, aspect, maxStrokes, maxPoints
     }
     setCurrent({...current, points: [...current.points, [x, y]]});
   };
-  const onPointerUp = () => {
-    if (current) {
-      onChange([...strokes, current]);
+  // up, cancel, or the capture lost without either (it comes after every up too, the stroke is already in then)
+  const onPointerUp = (event: PointerEvent<SVGSVGElement>) => {
+    downRef.current.delete(event.pointerId);
+    if (pointerRef.current === event.pointerId) {
+      pointerRef.current = null;
+      if (current) {
+        onChange([...strokes, current]);
+      }
+      setCurrent(null);
     }
-    setCurrent(null);
-    selectionHold.release();
+    if (!downRef.current.size) {
+      selectionHold.release();
+    }
   };
 
   const height = 1000 * aspect;
@@ -639,12 +749,15 @@ function StrokesTool({ step, param, onChange, pen, aspect, maxStrokes, maxPoints
       ref={svgRef}
       role='img'
       aria-label={label}
+      data-tool='strokes'
+      data-state={(current) ? 'drawing' : 'idle'}
       viewBox={`0 0 1000 ${height}`}
       preserveAspectRatio='none'
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
+      onLostPointerCapture={onPointerUp}
       className={cn('absolute inset-0 size-full touch-none select-none [-webkit-touch-callout:none]', (full) ? 'cursor-not-allowed' : 'cursor-crosshair')}
     >
       {all.map((stroke, index) => (
@@ -679,7 +792,8 @@ export function SpatialOverlay({ tool, step, effectName, onChange, onChangeMany,
   tool: SpatialTool,
   step: EditorStep,
   effectName: string,
-  onChange: (param: string, value: unknown) => void,
+  // `lock: false` (the document's `setParam`): a change that's whole when it's made, it doesn't take the step's soft lock
+  onChange: (param: string, value: unknown, options?: {lock?: boolean}) => void,
   // several params from one gesture, as one change
   onChangeMany?: (values: Record<string, unknown>) => void,
   pen: PenSettings,
@@ -691,10 +805,13 @@ export function SpatialOverlay({ tool, step, effectName, onChange, onChangeMany,
 }) {
   const { t } = useI18n();
   const label = t('editor.settings', {name: effectName});
+  // each tool is its step's own (`key`): another step of the same kind selected mid-gesture starts clean, a drag or a
+  // text edit in progress used to carry over and write the first step's box or text into the second
   switch (tool.kind) {
     case 'point':
       return (
         <PointTool
+          key={step.id}
           step={step}
           param={tool.param}
           onParam={onChange}
@@ -711,14 +828,17 @@ export function SpatialOverlay({ tool, step, effectName, onChange, onChangeMany,
       // a box with a file in it (Overlay, Green Screen Overlay) shows the file
       const asset = (typeof step.params.media === 'string') ? assets.find((item) => item.id === step.params.media) : undefined;
       const fill = (asset) ? {url: asset.url, mimetype: asset.mimetype, opacity: Number(step.params.opacity ?? 1)} : null;
-      return <BoxTool step={step} param={tool.param} onChange={(value) => onChange(tool.param, value)} label={label} dim={step.effect === 'crop'} fill={fill}/>;
+      return <BoxTool key={step.id} step={step} param={tool.param} onChange={(value) => onChange(tool.param, value)} label={label} dim={step.effect === 'crop'} fill={fill}/>;
     }
     case 'strokes':
       return (
         <StrokesTool
+          key={step.id}
           step={step}
           param={tool.param}
-          onChange={(value) => onChange(tool.param, value)}
+          // a finished stroke is one whole change: no soft lock for it. Taken as the pen lifted it protected nothing,
+          // and it took the tool away from whoever else was mid-stroke on the same drawing (their line was lost)
+          onChange={(value) => onChange(tool.param, value, {lock: false})}
           pen={pen}
           aspect={aspect}
           maxStrokes={maxStrokes}
@@ -726,5 +846,11 @@ export function SpatialOverlay({ tool, step, effectName, onChange, onChangeMany,
           label={label}
         />
       );
+    default: {
+      // a tool this doesn't draw: one added to `SpatialTool` doesn't compile until it has a case
+      const unknown: never = tool;
+      void unknown;
+      return null;
+    }
   }
 }

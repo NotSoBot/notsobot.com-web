@@ -1,7 +1,8 @@
 import { DoorClosed, Settings2, UserX } from 'lucide-react';
-import { useEffect, useId, useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 
-import { Spinner } from '@/components/ui/Spinner';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { useDismiss } from '@/hooks/useDismiss';
 import { useI18n } from '@/i18n';
 import { cn } from '@/lib/utils';
 
@@ -40,6 +41,15 @@ export function MemberFaces({ members, size = 'size-7', ring = 'border-deep' }: 
 }
 
 
+// What's open from the header's faces: the list, or one of the dialogs it leads to (the list stays under them and is
+// what they close back to). What a dialog is about is as it was when it opened: the room's name, the person to remove
+type PeoplePanel =
+  | {kind: 'list'}
+  | {kind: 'settings'}
+  | {kind: 'close', name: string}
+  | {kind: 'remove', member: RoomMember, pending: boolean, error: string | null};
+
+
 // The header's "who's editing this": only this room's editors (others in the activity are in other rooms or choosing
 // one), tap for the whole list. Its creator and server moderators also remove people from it and close it here
 export function LobbyPeople({ editors, room, documentId, ownerId, roomName, lobbyName, locked, watchOnly = false }: {
@@ -55,55 +65,64 @@ export function LobbyPeople({ editors, room, documentId, ownerId, roomName, lobb
 }) {
   const { t } = useI18n();
   const you = room.you;
-  const [ open, setOpen ] = useState(false);
-  const [ removing, setRemoving ] = useState<string | null>(null);
-  const [ error, setError ] = useState<string | null>(null);
-  const [ closing, setClosing ] = useState(false);
-  const [ editing, setEditing ] = useState(false);
+  const [ panel, setPanel ] = useState<PeoplePanel | null>(null);
   const moderates = canModerateRoom(room, ownerId);
   const listId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
+  // only the list itself: a dialog over it has its own Escape and backdrop
+  useDismiss(rootRef, panel?.kind === 'list', () => setPanel(null));
 
-  useEffect(() => {
-    if (!open || closing || editing) {
-      return;
-    }
-    const onPointer = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    };
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setOpen(false);
-      }
-    };
-    window.addEventListener('pointerdown', onPointer);
-    window.addEventListener('keydown', onKey);
-    return () => {
-      window.removeEventListener('pointerdown', onPointer);
-      window.removeEventListener('keydown', onKey);
-    };
-  }, [closing, editing, open]);
+  const backToList = () => setPanel({kind: 'list'});
+  // (outside the faces below: with nobody listed for a moment, which is what a reconnect looks like to someone alone in
+  // their room, an open dialog used to go and come back empty)
+  const dialogs = (
+    <>
+      {(panel?.kind === 'settings') ? <RoomSettingsDialog room={room} documentId={documentId} name={lobbyName} locked={locked} watchOnly={watchOnly} onClose={backToList}/> : null}
+      {(panel?.kind === 'close') ? <CloseRoomDialog room={room} documentId={documentId} name={panel.name} onClose={backToList}/> : null}
+      {(panel?.kind === 'remove') ? (
+        // removed is kept out of the room (for days): asked first, about whoever was pressed (the list moves as people
+        // come and go)
+        <ConfirmDialog
+          title={t('editor.room.remove', {name: panel.member.username})}
+          confirmLabel={t('editor.room.remove', {name: panel.member.username})}
+          pending={panel.pending}
+          error={panel.error}
+          onConfirm={async () => {
+            const { member } = panel;
+            setPanel({kind: 'remove', member, pending: true, error: null});
+            const result = await room.kick(documentId, member.user_id);
+            setPanel((current) => {
+              if (current?.kind !== 'remove' || current.member.user_id !== member.user_id) {
+                return current;
+              }
+              return (result.ok) ? {kind: 'list'} : {kind: 'remove', member, pending: false, error: result.message};
+            });
+          }}
+          onClose={backToList}
+        />
+      ) : null}
+    </>
+  );
 
-  if (!editors.length) {
-    return null;
-  }
   const label = t('editor.session.editing_count', {count: editors.length, limit: ROOM_MAX_EDITORS});
+  // the same root with or without anyone listed (a reconnect's `ready` lists nobody for a moment): a different one
+  // each way had React remount an open dialog on both flips, and what was typed in it went
   return (
-    <div ref={rootRef} className='relative'>
+    <div ref={rootRef} data-state={panel?.kind ?? 'closed'} className={(editors.length) ? 'relative' : 'contents'}>
+      {(editors.length) ? (
+      <>
       <button
         type='button'
-        aria-expanded={open}
+        aria-expanded={panel !== null}
         aria-controls={listId}
         aria-label={label}
         title={label}
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => setPanel((current) => (current) ? null : {kind: 'list'})}
         className='flex min-h-10 items-center rounded-lg px-1 hover:bg-surface'
       >
         <MemberFaces members={editors}/>
       </button>
-      {(open) ? (
+      {(panel) ? (
         <div id={listId} className='absolute right-0 top-full z-30 mt-1 w-60 rounded-lg border border-line-strong bg-surface-2 p-2 shadow-xl'>
           <p className='px-1 pb-1.5 text-xs font-semibold text-subtle'>{label}</p>
           <ul className='flex max-h-72 flex-col gap-0.5 overflow-y-auto'>
@@ -116,31 +135,21 @@ export function LobbyPeople({ editors, room, documentId, ownerId, roomName, lobb
                 {(moderates && member.user_id !== you && member.user_id !== ownerId) ? (
                   <button
                     type='button'
-                    disabled={removing !== null}
                     aria-label={t('editor.room.remove', {name: member.username})}
                     title={t('editor.room.remove', {name: member.username})}
-                    onClick={async () => {
-                      setRemoving(member.user_id);
-                      setError(null);
-                      const result = await room.kick(documentId, member.user_id);
-                      setRemoving(null);
-                      if (!result.ok) {
-                        setError(result.message);
-                      }
-                    }}
-                    className='flex size-8 shrink-0 items-center justify-center rounded-md text-muted hover:bg-surface-3 hover:text-danger-text disabled:opacity-40'
+                    onClick={() => setPanel({kind: 'remove', member, pending: false, error: null})}
+                    className='flex size-8 shrink-0 items-center justify-center rounded-md text-muted hover:bg-surface-3 hover:text-danger-text'
                   >
-                    {(removing === member.user_id) ? <Spinner className='size-3.5'/> : <UserX aria-hidden className='size-4'/>}
+                    <UserX aria-hidden className='size-4'/>
                   </button>
                 ) : null}
               </li>
             ))}
           </ul>
-          {(error) ? <p role='alert' className='px-1 pt-1.5 text-xs text-danger-text'>{error}</p> : null}
           {(ownerId === you) ? (
             <button
               type='button'
-              onClick={() => setEditing(true)}
+              onClick={() => setPanel({kind: 'settings'})}
               className='mt-1.5 flex min-h-9 w-full items-center gap-2 rounded-md border-t border-line-strong px-1 pt-1.5 text-left text-sm font-semibold text-fg hover:bg-surface-3'
             >
               <Settings2 aria-hidden className='size-4'/>{t('editor.room.settings')}
@@ -149,7 +158,7 @@ export function LobbyPeople({ editors, room, documentId, ownerId, roomName, lobb
           {(moderates) ? (
             <button
               type='button'
-              onClick={() => setClosing(true)}
+              onClick={() => setPanel({kind: 'close', name: roomName})}
               className='mt-1.5 flex min-h-9 w-full items-center gap-2 rounded-md border-t border-line-strong px-1 pt-1.5 text-left text-sm font-semibold text-danger-text hover:bg-surface-3'
             >
               <DoorClosed aria-hidden className='size-4'/>{t('editor.room.close_or_delete')}
@@ -157,8 +166,9 @@ export function LobbyPeople({ editors, room, documentId, ownerId, roomName, lobb
           ) : null}
         </div>
       ) : null}
-      {(editing) ? <RoomSettingsDialog room={room} documentId={documentId} name={lobbyName} locked={locked} watchOnly={watchOnly} onClose={() => setEditing(false)}/> : null}
-      {(closing) ? <CloseRoomDialog room={room} documentId={documentId} name={roomName} onClose={() => setClosing(false)}/> : null}
+      </>
+      ) : null}
+      {dialogs}
     </div>
   );
 }
