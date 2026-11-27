@@ -79,7 +79,7 @@ export const OWNER_SECTIONS: ReadonlyArray<Section> = [
 
 // Alphabetical by the translated label like the Overview page's tiles and a server's pages, Overview stays first. The
 // staff groups are plain English and keep the order they're written in
-function sortedByLabel(sections: ReadonlyArray<Section>): Array<Section> {
+export function sortedByLabel(sections: ReadonlyArray<Section>): Array<Section> {
   return [...sections].sort((a, b) => {
     return Number(b.to === Routes.DASHBOARD) - Number(a.to === Routes.DASHBOARD) || maybeTranslate(a.label).localeCompare(maybeTranslate(b.label));
   });

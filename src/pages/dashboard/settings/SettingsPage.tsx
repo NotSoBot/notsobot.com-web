@@ -57,7 +57,9 @@ function isFreshVisit(navigationType: NavigationType, location: Location): boole
 }
 
 
-export function SettingsPage() {
+// `data`: what goes where Your data (export and delete) is. The Discord Activity's Your settings puts a link to the site's
+// there instead (src/activity-games/user/ActivityUserSettingsPage.tsx)
+export function SettingsPage({ data = <YourDataSection/> }: {data?: ReactNode}) {
   const { t } = useI18n();
   const { data: settings, isPending, error, refetch, isRefetching } = useMeSettingsQuery();
   const [ dirtySections, setDirtySections ] = useState<ReadonlySet<string>>(new Set());
@@ -116,7 +118,7 @@ export function SettingsPage() {
           <VoiceSection settings={settings} onDirtyChange={onDirtyChange}/>
         </div>
       )}
-      <YourDataSection/>
+      {data}
       <UnsavedChangesGuard when={0 < dirtySections.size}/>
     </>
   );

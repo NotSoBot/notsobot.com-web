@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { cloudflare } from '@cloudflare/vite-plugin';
@@ -7,6 +8,49 @@ import { defineConfig, loadEnv } from 'vite';
 
 
 const LUCIDE_PATTERN = /node_modules[\\/]lucide-react[\\/]/;
+// the Discord Activity's script (activity.html's entry)
+const ACTIVITY_ENTRY = fileURLToPath(new URL('./src/activity.tsx', import.meta.url));
+// lucide's barrel (`from 'lucide-react'`): `export { default as Coins, default as CoinsIcon, ... } from './icons/coins.mjs'`
+const LUCIDE_BARREL = fileURLToPath(new URL('./node_modules/lucide-react/dist/esm/lucide-react.mjs', import.meta.url));
+const LUCIDE_IMPORT = /import\s*\{([^}]*)\}\s*from\s*["']lucide-react["']/g;
+
+
+type ModuleGraph = (moduleId: string) => {code: string | null, importedIds: ReadonlyArray<string>} | null;
+
+// The icon files the Discord Activity's first load uses. They go in `icons-activity` instead of the site's
+// `icons-initial`: one `$initial` group for both entries made the Activity preload icons only the site's first load uses,
+// once the dashboard pages the Activity lazy loads moved some of the site's own icons into shared chunks.
+// Every icon's importer is lucide's barrel (which everything imports), so the graph can't answer it from the icon's side:
+// this walks the Activity's static imports from its entry and reads which icons each of its own modules imports by name
+function activityIconFiles(getModuleInfo: ModuleGraph): Set<string> {
+  const fileOf = new Map<string, string>();
+  for (const [ , names, file ] of readFileSync(LUCIDE_BARREL, 'utf8').matchAll(/export \{([^}]*)\} from '\.\/icons\/([^']+)'/g)) {
+    for (const [ , name ] of names.matchAll(/default as (\w+)/g)) {
+      fileOf.set(name, file);
+    }
+  }
+  const files = new Set<string>();
+  const seen = new Set<string>([ACTIVITY_ENTRY]);
+  const queue = [ACTIVITY_ENTRY];
+  for (let moduleId = queue.pop(); moduleId !== undefined; moduleId = queue.pop()) {
+    const info = getModuleInfo(moduleId);
+    for (const [ , names ] of info?.code?.matchAll(LUCIDE_IMPORT) ?? []) {
+      for (const name of names.split(',').map((part) => part.trim().split(/\s+as\s+/)[0])) {
+        const file = fileOf.get(name);
+        if (file) {
+          files.add(file);
+        }
+      }
+    }
+    for (const imported of info?.importedIds ?? []) {
+      if (!seen.has(imported) && !imported.includes('node_modules')) {
+        seen.add(imported);
+        queue.push(imported);
+      }
+    }
+  }
+  return files;
+}
 
 
 export default defineConfig(({ command, mode }) => {
@@ -17,6 +61,8 @@ export default defineConfig(({ command, mode }) => {
   // mean to). Without it, requests go straight to a local notsobot.api (API_PORT in its .env.example) with the
   // `/api` prefix stripped like its nginx does, so dev never touches production by accident.
   const apiProxyTarget = env.VITE_DEV_API_PROXY || `http://localhost:${env.VITE_DEV_API_PORT || 8080}`;
+  // `activityIconFiles`, worked out once per build (the module graph is complete by the time chunks are made)
+  let activityIcons: Set<string> | null = null;
   const stripApiPrefix = !env.VITE_DEV_API_PROXY;
 
   return {
@@ -87,9 +133,19 @@ export default defineConfig(({ command, mode }) => {
               // an icon more than one page uses was a chunk of its own, a third of all the chunks at a few hundred
               // bytes each. they're two files now: the ones the first load already needed (shared with the entry),
               // and the ones only lazy pages share, which the first load still doesn't fetch. an icon one page uses
-              // stays in that page's chunk
+              // stays in that page's chunk. the Activity's first load has its own (`activityIconFiles`), the site's
+              // first load fetches that one too for the icons both use
               codeSplitting: {
                 groups: [
+                  {
+                    name: (moduleId, ctx) => {
+                      activityIcons ??= activityIconFiles((id) => ctx.getModuleInfo(id));
+                      return (activityIcons.has(moduleId.split(/[\\/]/).pop() ?? '')) ? 'icons-activity' : null;
+                    },
+                    test: LUCIDE_PATTERN,
+                    minShareCount: 2,
+                    priority: 3,
+                  },
                   {name: 'icons-initial', test: LUCIDE_PATTERN, tags: ['$initial'], minShareCount: 2, priority: 2},
                   {name: 'icons', test: LUCIDE_PATTERN, minShareCount: 2, priority: 1},
                 ],

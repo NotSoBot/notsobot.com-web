@@ -1,5 +1,5 @@
 import { DiscordSDK, Platform, RPCErrorCodes, patchUrlMappings } from '@discord/embedded-app-sdk';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { ArrowLeft } from 'lucide-react';
 
@@ -10,11 +10,13 @@ import { GamesTab } from '@/activity-games/GamesTab';
 import { ModeChoice } from '@/activity-games/ModeChoice';
 import type { GameKind } from '@/activity-games/protocol';
 import { createGameRoomsApi } from '@/activity-games/rooms';
+import { tokenStorage } from '@/auth/tokenStorage';
 import { GuideLinksProvider, HowToPlayButton } from '@/components/guides/GuideSheet';
 import { FullPageMessage } from '@/components/ui/FullPageMessage';
 import { Spinner } from '@/components/ui/Spinner';
 import { anySignal, timeoutSignal } from '@/lib/abort';
 import { translate, useI18n } from '@/i18n';
+import type { UserGuild } from '@/lib/api/types';
 
 import { createEditorApi, EditorErrorCodes, pathId, type EditorApiError, type EditorHost, type EditorRequest, type RoomSettings } from '../api';
 import { EditorApp } from '../components/EditorApp';
@@ -43,8 +45,9 @@ import { inviteScreen, launchInviteCode, launchScreen, type ActivityLaunchScreen
 // ROOM_MAX_EDITORS editors and optionally locked with a password, plus solo edits nobody else sees
 
 
-// requests through Discord's proxy, the `/api` url mapping
-const API_BASE = '/.proxy/api';
+// requests through Discord's proxy, the `/api` url mapping. The site's api client is set to it too (src/activity.tsx),
+// for the Server and Your settings' dashboard pages
+export const API_BASE = '/.proxy/api';
 const URL_MAPPINGS = [{prefix: '/cdn', target: 'cdn.nsb.gg'}];
 const SITE_URL = 'https://notsobot.com';
 // a shared template link's `custom_id` (`template:<code>`)
@@ -54,6 +57,36 @@ const PREMIUM_URL = `${SITE_URL}/premium`;
 // only who they are (Discord's "Access your username, avatar and banner"): the api checks the instance and the server
 // with the bot's token, nothing needs their server list
 const SCOPES: Array<'identify'> = ['identify'];
+
+
+// The server's dashboard pages (the mode choice's Server settings) and your own (Your settings), only downloaded when
+// they're opened. A chunk that didn't load says so with a way back instead of taking the whole Activity down
+const ServerSettingsScreen = lazy(async () => {
+  try {
+    return {default: (await import('@/activity-games/server/ServerSettingsScreen')).ServerSettingsScreen};
+  } catch (error) {
+    console.warn('[editor activity] server settings failed to load', error);
+    return {default: SettingsUnavailable};
+  }
+});
+
+const UserSettingsScreen = lazy(async () => {
+  try {
+    return {default: (await import('@/activity-games/user/UserSettingsScreen')).UserSettingsScreen};
+  } catch (error) {
+    console.warn('[editor activity] your settings failed to load', error);
+    return {default: SettingsUnavailable};
+  }
+});
+
+function SettingsUnavailable({ onBack }: {onBack: () => void}) {
+  const { t } = useI18n();
+  return (
+    <FullPageMessage title={t('route_error.chunk')}>
+      <button type='button' className='btn btn-secondary' onClick={onBack}>{t('games.choice.back')}</button>
+    </FullPageMessage>
+  );
+}
 
 
 class ActivityRequestError extends Error {
@@ -169,12 +202,17 @@ type Phase =
   | {kind: 'flag_carry', carry: CarriedFlagGame}
   // a new edit: who it's for (just me, everyone, everyone with the password) and its media
   | {kind: 'start', mode: LobbyMode}
-  | {kind: 'editor', documentId: string, solo: boolean, fill?: boolean};
+  | {kind: 'editor', documentId: string, solo: boolean, fill?: boolean}
+  // the server's dashboard pages and your own, from the mode choice (src/activity-games/server and user)
+  | {kind: 'server_settings', guildId: string}
+  | {kind: 'user_settings'};
 
 
 // what startup set up, for the screens
 interface ActivitySetup {
   instanceId: string,
+  // the server it's running in, null in a dm (and an App Channel outside one)
+  guildId: string | null,
   // the Activity's one socket: the editor's rooms and the flag game
   room: EditorRoom,
   // the group's host (the room) and a solo document's (no room: its edits must never reach a lobby's)
@@ -291,6 +329,24 @@ export function ActivityApp() {
     const response = await fetch(url, {headers: {authorization: tokenRef.current ?? ''}, signal: timeoutSignal(15 * 1000)});
     return (response.ok) ? URL.createObjectURL(await response.blob()) : null;
   }, [setupInstanceId, tokenRef]);
+  // the server as they see it on the dashboard, once it says they can change something there: the mode choice's Server
+  // settings. Asked once after startup, the mode choice doesn't wait for it
+  const setupGuildId = setup?.guildId ?? null;
+  const [ settingsGuild, setSettingsGuild ] = useState<UserGuild | null>(null);
+  useEffect(() => {
+    if (!setupGuildId) {
+      return;
+    }
+    let alive = true;
+    createActivityRequest(() => tokenRef.current)<UserGuild>(`/users/@me/guilds/${pathId(setupGuildId)}`).then((guild) => {
+      if (alive && Object.values(guild.editable).some(Boolean)) {
+        setSettingsGuild(guild);
+      }
+    }).catch((error) => console.warn('[editor activity] server lookup failed', error));
+    return () => {
+      alive = false;
+    };
+  }, [setupGuildId, tokenRef]);
 
   useEffect(() => {
     // looked up when used, not as of startup: the language can switch once the context says (../activityLanguage)
@@ -389,6 +445,9 @@ export function ActivityApp() {
           ({ token } = await ensureSdkAuth());
         }
         tokenRef.current = token;
+        // the site's api client and `useAuth` read it from there, for the settings' dashboard pages. Every launch
+        // signs in again, so whatever an earlier one left in storage is replaced here
+        tokenStorage.set(token);
         // shown small when they tab out (the corner window or a call's grid): the compact view (./pip)
         const layoutSdk = sdk;
         setLayoutSubscriber(() => (listener: (layoutMode: number) => void) => {
@@ -600,7 +659,7 @@ export function ActivityApp() {
           return;
         }
         const surface = (typeof context.launch?.surface === 'string') ? context.launch.surface : null;
-        setSetup({instanceId, room, group: groupHost, solo: soloHost, lobbies: context.lobbies, mediaUrl, surface, template, enterLobby, inviter, owner: context.owner});
+        setSetup({instanceId, guildId: context.guild_id, room, group: groupHost, solo: soloHost, lobbies: context.lobbies, mediaUrl, surface, template, enterLobby, inviter, owner: context.owner});
         const inviteCode = launchInviteCode(sdk.customId, context.launch);
         const first = (inviteCode) ? await openInvite(inviteCode) : firstPhase({surface, launchedOn: Boolean(mediaUrl || template), carry: carriedFlagGameOf(context.launch)});
         if (alive) {
@@ -656,14 +715,38 @@ export function ActivityApp() {
             // the running lobbies when there are any (as of startup), otherwise a new edit
             onEdit={() => setPhase((setup.lobbies.length) ? {kind: 'lobbies'} : {kind: 'start', mode: 'public'})}
             onGame={() => setPhase({kind: 'games_tab'})}
+            onYourSettings={() => setPhase({kind: 'user_settings'})}
+            server={(settingsGuild) ? {guild: settingsGuild, onOpen: () => setPhase({kind: 'server_settings', guildId: settingsGuild.id})} : null}
           />
+        );
+      case 'server_settings':
+        return (
+          <Suspense fallback={<FullPageMessage><Spinner/></FullPageMessage>}>
+            <ServerSettingsScreen
+              guildId={phase.guildId}
+              guild={(settingsGuild?.id === phase.guildId) ? settingsGuild : null}
+              siteUrl={SITE_URL}
+              openExternal={setup.group.openExternal ?? ((url) => window.open(url, '_blank', 'noopener'))}
+              onBack={() => setPhase({kind: 'choice'})}
+            />
+          </Suspense>
+        );
+      case 'user_settings':
+        return (
+          <Suspense fallback={<FullPageMessage><Spinner/></FullPageMessage>}>
+            <UserSettingsScreen
+              siteUrl={SITE_URL}
+              openExternal={setup.group.openExternal ?? ((url) => window.open(url, '_blank', 'noopener'))}
+              onBack={() => setPhase({kind: 'choice'})}
+            />
+          </Suspense>
         );
       case 'games_tab':
         return (
           <GamesTab
             api={gamesApi}
             room={setup.room}
-            onGame={(game) => setPhase({kind: 'games', game})}
+            onGame={(game) => setPhase({kind: 'games', game: game ?? undefined})}
             onBack={() => setPhase({kind: 'choice'})}
           />
         );

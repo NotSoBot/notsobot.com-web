@@ -270,7 +270,7 @@ export const GUIDES_ENGLISH: GuideBook = {
             {kind: 'facts', items: [
               {label: 'Grid', value: '**4×4** (the default) or **5×5**. A bigger grid has more words, and longer ones.'},
               {label: 'Time a round', value: '60, 80 (the default) or 120 seconds.'},
-              {label: 'Rounds', value: '1 to 5 a game, 3 by default.'},
+              {label: 'Rounds', value: '1 to 5 a game, 1 by default.'},
             ]},
             {kind: 'text', text: 'Boards are picked to have plenty of words: usually 30 or more on a 4×4 and 60 or more on a 5×5.'},
             {kind: 'text', text: 'After a round, its words show for 10 seconds before the next one. The host can press **Next round** to go on sooner.'},

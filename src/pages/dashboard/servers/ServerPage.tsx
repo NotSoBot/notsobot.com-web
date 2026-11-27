@@ -28,9 +28,10 @@ import { ScopeMismatchCard } from './ServersPage';
 import { useDirtyGroups, type SettingsGroup } from './useDirtyGroups';
 
 
-// what each tab's page (`./tabs`, a module each so opening one doesn't download the others) gets from `ServerPage`.
-// Nothing a tab draws is imported here, or it'd come with every one of them
-interface ServerOutletContext {
+// what each tab's page (`./tabs`, a module each so opening one doesn't download the others) gets from `ServerPage`, or
+// from the Discord Activity's server settings (src/activity-games/server). Nothing a tab draws is imported here, or it'd
+// come with every one of them
+export interface ServerOutletContext {
   guild: UserGuild,
   setDirty: (group: SettingsGroup) => (dirty: boolean) => void,
 }
@@ -144,15 +145,28 @@ function ServerLayout({ guild, setDirty }: {guild: UserGuild, setDirty: ServerOu
       <YourStuffLinks guildId={guild.id} className={homeOnly}/>
 
       <div className='mt-6 space-y-4'>
-        {(lockedAreas.length) ? <ViewOnlyBanner lockedAreas={lockedAreas} all={!canEditAnything} className={homeOnly}/> : null}
-        {(guild.blocked) ? (
-          <p role='status' className='flex items-start gap-2 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-fg'>
-            <Ban aria-hidden className='mt-0.5 size-4 shrink-0 text-danger-text'/>
-            <span>{t('server.blocked_notice')}{(guild.blocked_reason) ? t('server.blocked_reason', {reason: guild.blocked_reason}) : null}</span>
-          </p>
-        ) : null}
+        <ServerNotices guild={guild} viewOnlyClassName={homeOnly}/>
         <Outlet context={{guild, setDirty} satisfies ServerOutletContext}/>
       </div>
+    </>
+  );
+}
+
+
+// what can't be changed here (`viewOnlyClassName`: where that shows) and that the server is blocked, over the open page
+export function ServerNotices({ guild, viewOnlyClassName }: {guild: UserGuild, viewOnlyClassName?: string}) {
+  const { t } = useI18n();
+  const canEditAnything = Object.values(guild.editable).some(Boolean);
+  const lockedAreas = (Object.keys(AREA_LABEL) as Array<GuildEditableArea>).filter((area) => !guild.editable[area]);
+  return (
+    <>
+      {(lockedAreas.length) ? <ViewOnlyBanner lockedAreas={lockedAreas} all={!canEditAnything} className={viewOnlyClassName}/> : null}
+      {(guild.blocked) ? (
+        <p role='status' className='flex items-start gap-2 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-fg'>
+          <Ban aria-hidden className='mt-0.5 size-4 shrink-0 text-danger-text'/>
+          <span>{t('server.blocked_notice')}{(guild.blocked_reason) ? t('server.blocked_reason', {reason: guild.blocked_reason}) : null}</span>
+        </p>
+      ) : null}
     </>
   );
 }
@@ -161,7 +175,7 @@ function ServerLayout({ guild, setDirty }: {guild: UserGuild, setDirty: ServerOu
 // Home's counts that only need the server's id, the same queries `ServerHome` reads: asked for next to the server itself
 // instead of a round trip later, once it has loaded and Home is drawn. It stays for as long as Home is open (leaving
 // right as Home takes over would cancel them mid-flight), and draws nothing
-function HomeQueries({ guildId }: {guildId: string}) {
+export function HomeQueries({ guildId }: {guildId: string}) {
   useGuildLLMKnowledgeQuery(guildId);
   useGuildTagsQuery(guildId, '');
   useGuildVoicesQuery(guildId);
@@ -172,7 +186,7 @@ function HomeQueries({ guildId }: {guildId: string}) {
 
 
 // "Your commands" / "Your reminders" / "Your tags" in this server, opening those pages filtered to it
-function YourStuffLinks({ guildId, className }: {guildId: string, className?: string}) {
+export function YourStuffLinks({ guildId, className }: {guildId: string, className?: string}) {
   const { t } = useI18n();
   const reminders = useMeRemindersQuery();
   const tags = useMeTagsCountQuery(guildId);

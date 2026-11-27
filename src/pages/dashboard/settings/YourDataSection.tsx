@@ -14,7 +14,7 @@ import { downloadJson } from '@/lib/utils';
 import { Panel } from '../ui';
 
 
-const YOUR_DATA_ANCHOR = 'your-data';
+export const YOUR_DATA_ANCHOR = 'your-data';
 
 
 // Export/delete, at the bottom of the settings page. Not tied to the settings loading, so it works even when they don't.

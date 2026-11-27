@@ -4,7 +4,7 @@ import '@fontsource-variable/figtree';
 import '@fontsource-variable/jetbrains-mono';
 import './index.css';
 
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { StrictMode } from 'react';
 import { createRoot, hydrateRoot } from 'react-dom/client';
 import { matchRoutes, type HydrationState } from 'react-router';
@@ -12,9 +12,9 @@ import { matchRoutes, type HydrationState } from 'react-router';
 import { AuthProvider } from '@/auth';
 import { activeLanguage, I18nProvider, initI18n, splitLanguagePath } from '@/i18n';
 import { installAnalyticsHook } from '@/lib/analytics';
-import { ApiRequestError } from '@/lib/api';
 import { reloadForNewBuild } from '@/lib/chunkReload';
 import { preloadPage } from '@/lib/pagePreload';
+import { createQueryClient } from '@/lib/queryClient';
 import { createRouter, HYDRATION_DATA_ID, loadRouteModules, routes } from '@/router';
 
 
@@ -29,20 +29,7 @@ window.addEventListener('vite:preloadError', (event) => {
 });
 
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 30 * 1000,
-      // client errors (4xx) won't fix themselves on retry
-      retry: (failureCount, error) => {
-        if (error instanceof ApiRequestError && error.status < 500) {
-          return false;
-        }
-        return failureCount < 2;
-      },
-    },
-  },
-});
+const queryClient = createQueryClient();
 
 
 // Dev-only fake backend for the dashboard (see .env.example). The condition is static, so production

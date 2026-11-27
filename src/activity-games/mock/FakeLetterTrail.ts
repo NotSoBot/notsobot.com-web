@@ -169,11 +169,13 @@ export class FakeLetterTrail extends FlagGameConnection {
     this.alive = true;
     this.setStatus('connecting');
     this.later(() => {
-      if (this.solo && !this.soloStarted && this.game.phase === 'lobby') {
+      if (this.solo && !this.soloStarted && this.game.phase === 'lobby' && (this.phase === 'lobby' || this.phase === 'countdown')) {
         // like the api: a solo room's game is already running by the time `ready` says so
         this.soloStarted = true;
         this.startRound(1);
       } else if (this.phase !== 'lobby' && this.game.phase === 'lobby') {
+        // `&phase=` asked for a later screen (a solo one too: its round, reveal or finished screen)
+        this.soloStarted = this.solo;
         this.jumpTo(this.phase);
       }
       this.emit({t: 'ready', you: YOU, now: Date.now(), game: this.copy()});

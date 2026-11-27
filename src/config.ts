@@ -6,8 +6,15 @@ function parseBoolean(value: string | undefined, fallback: boolean): boolean {
 }
 
 
+// where the api is: the site's own `/api`, or the Discord Activity's proxy mapping (`setApiBase`)
+let apiBase = (import.meta.env.VITE_API_BASE || '/api').replace(/\/+$/, '');
+
+
 export const config = Object.freeze({
-  apiBase: (import.meta.env.VITE_API_BASE || '/api').replace(/\/+$/, ''),
+  // a getter, read on every request: the Activity sets its base after this module has loaded
+  get apiBase(): string {
+    return apiBase;
+  },
   // the old site only exposed login on the beta build, so default it to dev-only
   authEnabled: parseBoolean(import.meta.env.VITE_AUTH_ENABLED, import.meta.env.DEV),
   // cloudflare turnstile, the captcha on the report forms when logged out. Without it, reporting needs a login. The
@@ -15,6 +22,13 @@ export const config = Object.freeze({
   turnstileSiteKey: import.meta.env.VITE_TURNSTILE_SITE_KEY
     || ((import.meta.env.DEV && import.meta.env.VITE_DASHBOARD_MOCKS === 'true') ? '1x00000000000000000000AA' : null),
 });
+
+
+// The Discord Activity (src/activity.tsx) reaches the api through Discord's proxy (`/.proxy/api`), not the site's `/api`.
+// Set at its startup, before the site's api client (src/lib/api/client.ts) makes any request
+export function setApiBase(base: string): void {
+  apiBase = base.replace(/\/+$/, '');
+}
 
 
 export const Urls = Object.freeze({

@@ -18,6 +18,8 @@ import { HomePage } from '@/pages/HomePage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { RouteErrorPage } from '@/pages/RouteErrorPage';
 import { AdminUserPeek } from '@/pages/dashboard/admin/AdminUserPeek';
+import { SERVER_TAB_ROUTES } from '@/pages/dashboard/servers/tabs/routes';
+import { DASHBOARD_USER_ROUTES } from '@/pages/dashboard/userRoutes';
 import { GUIDE_PAGE_KEYS } from '@/pages/guides/guideRoutes';
 import { NOT_FOUND_PAGE, PAGES, type PageMeta } from '@/seo';
 
@@ -187,19 +189,8 @@ export const routes: Array<RouteObject> = [
             },
             handle: PAGES.DASHBOARD,
             children: [
-              {index: true, lazy: async () => ({Component: (await import('@/pages/dashboard/OverviewPage')).OverviewPage})},
-              // a tag's details and editor open over the list (`TagsPage` reads the child match), so the list stays mounted under them
-              {
-                path: Routes.DASHBOARD_TAGS,
-                lazy: async () => ({Component: (await import('@/pages/dashboard/tags/TagsPage')).TagsPage}),
-                handle: PAGES.DASHBOARD_TAGS,
-                children: [
-                  {path: Routes.DASHBOARD_TAG, element: null, handle: PAGES.DASHBOARD_TAG},
-                  {path: Routes.DASHBOARD_TAG_EDIT, element: null, handle: PAGES.DASHBOARD_TAG_EDIT},
-                ],
-              },
-              {path: Routes.DASHBOARD_APPLICATIONS, lazy: async () => ({Component: (await import('@/pages/dashboard/applications/ApplicationsPage')).ApplicationsPage}), handle: PAGES.DASHBOARD_APPLICATIONS},
-              {path: Routes.DASHBOARD_COMMANDS, lazy: async () => ({Component: (await import('@/pages/dashboard/commands/CommandHistoryPage')).CommandHistoryPage}), handle: PAGES.DASHBOARD_COMMANDS},
+              // your own pages, shared with the Discord Activity's Your settings
+              ...DASHBOARD_USER_ROUTES,
               {path: Routes.DASHBOARD_SERVERS, lazy: async () => ({Component: (await import('@/pages/dashboard/servers/ServersPage')).ServersPage}), handle: PAGES.DASHBOARD_SERVERS},
               // a server's pages share the server it loads (Home is the server's own url), each is its own module so
               // opening one doesn't download the rest
@@ -207,30 +198,8 @@ export const routes: Array<RouteObject> = [
                 path: Routes.DASHBOARD_SERVER,
                 lazy: async () => ({Component: (await import('@/pages/dashboard/servers/ServerPage')).ServerPage}),
                 handle: PAGES.DASHBOARD_SERVER,
-                children: [
-                  {index: true, lazy: async () => ({Component: (await import('@/pages/dashboard/servers/tabs/ServerHomePage')).ServerHomePage})},
-                  {path: 'commands', lazy: async () => ({Component: (await import('@/pages/dashboard/servers/tabs/ServerCommandsPage')).ServerCommandsPage})},
-                  {path: 'music', lazy: async () => ({Component: (await import('@/pages/dashboard/servers/tabs/ServerMusicPage')).ServerMusicPage})},
-                  {path: 'notsoai', lazy: async () => ({Component: (await import('@/pages/dashboard/servers/tabs/ServerNotSoAIPage')).ServerNotSoAIPage})},
-                  {path: 'reminders', lazy: async () => ({Component: (await import('@/pages/dashboard/servers/tabs/ServerRemindersPage')).ServerRemindersPage})},
-                  {path: 'tags', lazy: async () => ({Component: (await import('@/pages/dashboard/servers/tabs/ServerTagsPage')).ServerTagsPage})},
-                  {path: 'voices', lazy: async () => ({Component: (await import('@/pages/dashboard/servers/tabs/ServerVoicesPage')).ServerVoicesPage})},
-                  {path: 'fonts', lazy: async () => ({Component: (await import('@/pages/dashboard/servers/tabs/ServerFontsPage')).ServerFontsPage})},
-                  {path: 'reports', lazy: async () => ({Component: (await import('@/pages/dashboard/servers/tabs/ServerReportsPage')).ServerReportsPage})},
-                  {path: 'rules', lazy: async () => ({Component: (await import('@/pages/dashboard/servers/tabs/ServerRulesPage')).ServerRulesPage})},
-                  {path: 'warnings', lazy: async () => ({Component: (await import('@/pages/dashboard/servers/tabs/ServerWarningsPage')).ServerWarningsPage})},
-                  {path: 'credits', lazy: async () => ({Component: (await import('@/pages/dashboard/servers/tabs/ServerCreditsPage')).ServerCreditsPage})},
-                  {path: 'settings', lazy: async () => ({Component: (await import('@/pages/dashboard/servers/tabs/ServerSettingsPage')).ServerSettingsPage})},
-                ],
+                children: SERVER_TAB_ROUTES,
               },
-              {path: Routes.DASHBOARD_PREMIUM, lazy: async () => ({Component: (await import('@/pages/dashboard/PremiumPage')).PremiumPage}), handle: PAGES.DASHBOARD_PREMIUM},
-              {path: Routes.DASHBOARD_SETTINGS, lazy: async () => ({Component: (await import('@/pages/dashboard/settings/SettingsPage')).SettingsPage}), handle: PAGES.DASHBOARD_SETTINGS},
-              {path: Routes.DASHBOARD_FILES, lazy: async () => ({Component: (await import('@/pages/dashboard/files/FilesPage')).FilesPage}), handle: PAGES.DASHBOARD_FILES},
-              {path: Routes.DASHBOARD_FONTS, lazy: async () => ({Component: (await import('@/pages/dashboard/fonts/FontsPage')).FontsPage}), handle: PAGES.DASHBOARD_FONTS},
-              {path: Routes.DASHBOARD_AI_MEMORY, lazy: async () => ({Component: (await import('@/pages/dashboard/ai-memory/AIMemoryPage')).AIMemoryPage}), handle: PAGES.DASHBOARD_AI_MEMORY},
-              {path: Routes.DASHBOARD_REMINDERS, lazy: async () => ({Component: (await import('@/pages/dashboard/reminders/RemindersPage')).RemindersPage}), handle: PAGES.DASHBOARD_REMINDERS},
-              {path: `${Routes.DASHBOARD_REPORTS}/:itemId?`, lazy: async () => ({Component: (await import('@/pages/dashboard/reports/ReportsPage')).ReportsPage}), handle: PAGES.DASHBOARD_REPORTS},
-              {path: Routes.DASHBOARD_VOICES, lazy: async () => ({Component: (await import('@/pages/dashboard/voices/VoicesPage')).VoicesPage}), handle: PAGES.DASHBOARD_VOICES},
               // NotSoBot staff only (owners and moderators). `AdminUserPeek` opens a linked user over whichever page it's on
               {
                 element: <RequireStaff><AdminUserPeek/></RequireStaff>,

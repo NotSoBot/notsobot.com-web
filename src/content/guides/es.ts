@@ -262,7 +262,7 @@ export const GUIDES_SPANISH: GuideBook = {
             {kind: 'facts', items: [
               {label: 'Cuadrícula', value: '**4×4** (por defecto) o **5×5**. Una más grande tiene más palabras, y más largas.'},
               {label: 'Tiempo por ronda', value: '60, 80 (por defecto) o 120 segundos.'},
-              {label: 'Rondas', value: 'De 1 a 5 por partida, 3 por defecto.'},
+              {label: 'Rondas', value: 'De 1 a 5 por partida, 1 por defecto.'},
             ]},
             {kind: 'text', text: 'Las cuadrículas se eligen para tener muchas palabras: normalmente 30 o más en una de 4×4 y 60 o más en una de 5×5.'},
             {kind: 'text', text: 'Tras una ronda, sus palabras se ven durante 10 segundos antes de la siguiente. El anfitrión puede pulsar **Siguiente ronda** para seguir antes.'},

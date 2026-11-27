@@ -14,6 +14,18 @@ export const Games = {
   'games.choice.playing_one': '{count} game being played',
   'games.choice.playing_other': '{count} games being played',
   'games.choice.playing_none': 'No games being played right now',
+  // the mode choice's Server settings and its screen (src/activity-games/server), the server's dashboard pages inside the
+  // Activity. The pages' own strings are the dashboard's
+  'activity.server.title': 'Server settings',
+  'activity.server.description': 'Music, NotSoAI, tags and everything else NotSoBot does in {server}.',
+  'activity.server.open_dashboard': 'Open full dashboard',
+  'activity.server.pages': 'Server pages',
+  'activity.server.data_note': 'Downloading or deleting this server’s data is on the <link>full dashboard</link>.',
+  // the mode choice's Your settings and its screen (src/activity-games/user), your own dashboard pages inside the Activity
+  'activity.user.title': 'Your settings',
+  'activity.user.description': 'Your own NotSoBot settings, tags, files, reminders and more.',
+  'activity.user.pages': 'Your pages',
+  'activity.user.data_note': 'Downloading or deleting your data is on the <link>full dashboard</link>.',
   // the Activity's settings sheet (src/activity-games/ActivitySettings.tsx)
   'games.settings.open': 'Settings',
   'games.settings.title': 'Settings',
@@ -132,6 +144,7 @@ export const Games = {
   'games.flag.finished_title': 'Final scores',
   'games.flag.finished_winner': '{name} wins',
   'games.flag.finished_tie': 'A tie at the top',
+  'games.flag.finished_solo': 'Game over',
   'games.flag.finished_you': 'Your place: {place} of {count}',
   'games.flag.awarded_one': '+{count} point to your total',
   'games.flag.awarded_other': '+{count} points to your total',
@@ -300,9 +313,9 @@ export const Games = {
   'games.tab.rooms_open_other': '{count} rooms open',
   'games.tab.playing_one': '{count} playing',
   'games.tab.playing_other': '{count} playing',
-  'games.tab.people_in_one': '{count} person',
-  'games.tab.people_in_other': '{count} people',
   'games.tab.more_soon': 'More games are coming.',
+  'games.tab.all_rooms': 'All rooms',
+  'games.tab.all_rooms_description': 'Every game, this server and global',
   // game points on the Games tab (src/activity-games/GamePoints.tsx)
   'games.points.title': 'Your points',
   'games.points.total': 'Total',

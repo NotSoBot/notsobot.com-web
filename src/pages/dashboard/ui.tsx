@@ -151,8 +151,9 @@ export function SaveBar({ dirty, pending, onDiscard, saveLabel, disabled = false
         data-state={state}
         className={cn(
           'flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between',
-          (standalone) ? cn('card p-4', dirty && 'sticky bottom-3 z-10 shadow-xl shadow-black/40')
-            : (stuck) ? 'sticky bottom-3 z-10 mt-5 rounded-lg border border-line-strong bg-surface p-3 shadow-xl shadow-black/40'
+          // above the home indicator in the Discord Activity on phones (--saib is 0 on the site)
+          (standalone) ? cn('card p-4', dirty && 'sticky bottom-[calc(0.75rem+var(--saib,0px))] z-10 shadow-xl shadow-black/40')
+            : (stuck) ? 'sticky bottom-[calc(0.75rem+var(--saib,0px))] z-10 mt-5 rounded-lg border border-line-strong bg-surface p-3 shadow-xl shadow-black/40'
               : 'mt-5 border-t border-line pt-4',
         )}
       >

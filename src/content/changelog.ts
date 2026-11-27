@@ -28,6 +28,17 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 
 export const CHANGELOG: Array<ChangelogDay> = [
   {
+    date: '2026-11-27',
+    title: 'Server and Your settings in the Activity',
+    items: [
+      {kind: 'new', text: 'Your settings and Server settings in the Activity, on the start screen: Your settings has your own dashboard pages (settings, reminders, tags, AI memory, fonts, voices, files and command history), and Server settings, shown when you can change something in the server, has every page of its dashboard, starting on Music. Pages you can\'t change show read-only with the permission they need, and Premium and downloading or deleting data open notsobot.com.'},
+      {kind: 'new', text: 'An All rooms row on the Activity\'s Games tab opens the room list for every game, this server\'s rooms and global ones.'},
+      {kind: 'improved', text: 'The Games tab\'s game cards have a How to play button, with their room counts on a line of their own.'},
+      {kind: 'improved', text: 'A solo game in the Activity ends on your score and the points it added, instead of a podium with only you on it.'},
+      {kind: 'improved', text: 'Letter Trail games are 1 round by default now. The host can still pick up to 5.'},
+    ],
+  },
+  {
     date: '2026-11-26',
     title: 'Template Hub, Flag Guesser, Letter Trail and /games',
     items: [

@@ -85,53 +85,68 @@ export function Finished({ connection, game, you, awards, onLeave }: {
     }
   }, [played, kind]);
 
+  const solo = Boolean(game.room.solo);
+  const GameIcon = gameInfo(game.room.game).icon;
+
   return (
     <div className='flex flex-1 flex-col'>
-      <div className='mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 pt-4 pb-6'>
-        <header className='flex flex-col items-center gap-1 text-center'>
-          <Trophy aria-hidden className='size-8 text-[#f5c542]'/>
-          <h2 className='font-display text-3xl font-bold text-white'>
-            {(winners.length > 1) ? t('games.flag.finished_tie')
-              : (winners.length === 1) ? t('games.flag.finished_winner', {name: winners[0].player.username})
-              : t('games.flag.finished_title')}
-          </h2>
-          {(mine) ? <p className='text-sm text-muted'>{t('games.flag.finished_you', {place: mine.place, count: placed.length})}</p> : null}
-          {/* a score of 0 adds nothing, so there's no line for it */}
+      {(solo) ? (
+        // a solo game has no one to place against: no winner, no podium, just their score and what it added
+        <div className='mx-auto flex w-full max-w-2xl flex-1 flex-col items-center justify-center gap-2 px-4 py-8 text-center'>
+          <span aria-hidden className={cn('mb-2 flex size-14 items-center justify-center rounded-2xl', gameInfo(game.room.game).accent)}>
+            <GameIcon className='size-7'/>
+          </span>
+          <p className='section-label'>{t('games.flag.finished_solo')}</p>
+          <h2 className='font-display text-5xl font-bold text-white tabular-nums'>{plural('games.flag.points', mine?.score ?? 0)}</h2>
           {(mine && 0 < mine.score) ? <AwardedLine expected={gamePointsFor((isLetterTrail(game)) ? 'letter_trail' : 'flag_guesser', mine.score)} awarded={(you) ? awards?.[you] : undefined}/> : null}
-        </header>
+        </div>
+      ) : (
+        <div className='mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 pt-4 pb-6'>
+          <header className='flex flex-col items-center gap-1 text-center'>
+            <Trophy aria-hidden className='size-8 text-[#f5c542]'/>
+            <h2 className='font-display text-3xl font-bold text-white'>
+              {(winners.length > 1) ? t('games.flag.finished_tie')
+                : (winners.length === 1) ? t('games.flag.finished_winner', {name: winners[0].player.username})
+                : t('games.flag.finished_title')}
+            </h2>
+            {(mine) ? <p className='text-sm text-muted'>{t('games.flag.finished_you', {place: mine.place, count: placed.length})}</p> : null}
+            {/* a score of 0 adds nothing, so there's no line for it */}
+            {(mine && 0 < mine.score) ? <AwardedLine expected={gamePointsFor((isLetterTrail(game)) ? 'letter_trail' : 'flag_guesser', mine.score)} awarded={(you) ? awards?.[you] : undefined}/> : null}
+          </header>
 
-        <ol aria-label={t('games.flag.finished_title')} className='grid grid-cols-3 items-end gap-2'>
-          {PODIUM.map(({ index, height, medal }) => {
-            const row = placed[index];
-            if (!row) {
-              return <li key={index} aria-hidden/>;
-            }
-            return (
-              <li key={row.player.user_id} className='flex min-w-0 flex-col items-center gap-1.5'>
-                <PlayerFace player={row.player} className={cn((index === 0) ? 'size-16' : 'size-12', 'border-2 border-line-strong')}/>
-                <span className={cn('max-w-full truncate text-sm', (row.player.user_id === you) ? 'font-bold text-white' : 'text-fg')}>{row.player.username}</span>
-                <span className='text-xs text-subtle'>{plural('games.flag.points', row.score)}</span>
-                <div className={cn('flex w-full items-start justify-center rounded-t-lg bg-surface-3 pt-2', height)}>
-                  <span className={cn('font-display text-2xl font-bold', medal)}>{row.place}</span>
-                </div>
-              </li>
-            );
-          })}
-        </ol>
-
-        {(rest.length) ? (
-          <ol className='flex flex-col gap-1'>
-            {rest.map((row) => (
-              <li key={row.player.user_id} className={cn('flex items-center gap-2 rounded-lg px-3 py-2 text-sm', (row.player.user_id === you) ? 'bg-brand/15' : 'bg-surface')}>
-                <span className='w-5 text-right text-xs text-subtle tabular-nums'>{row.place}</span>
-                <PlayerFace player={row.player} className='size-7'/>
-                <span className='min-w-0 flex-1 truncate text-fg'>{row.player.username}</span>
-                <span className='font-bold text-white tabular-nums'>{row.score}</span>
-              </li>
-            ))}
+          <ol aria-label={t('games.flag.finished_title')} className='grid grid-cols-3 items-end gap-2'>
+            {PODIUM.map(({ index, height, medal }) => {
+              const row = placed[index];
+              if (!row) {
+                return <li key={index} aria-hidden/>;
+              }
+              return (
+                <li key={row.player.user_id} className='flex min-w-0 flex-col items-center gap-1.5'>
+                  <PlayerFace player={row.player} className={cn((index === 0) ? 'size-16' : 'size-12', 'border-2 border-line-strong')}/>
+                  <span className={cn('max-w-full truncate text-sm', (row.player.user_id === you) ? 'font-bold text-white' : 'text-fg')}>{row.player.username}</span>
+                  <span className='text-xs text-subtle'>{plural('games.flag.points', row.score)}</span>
+                  <div className={cn('flex w-full items-start justify-center rounded-t-lg bg-surface-3 pt-2', height)}>
+                    <span className={cn('font-display text-2xl font-bold', medal)}>{row.place}</span>
+                  </div>
+                </li>
+              );
+            })}
           </ol>
-        ) : null}
-      </div>
+
+          {(rest.length) ? (
+            <ol className='flex flex-col gap-1'>
+              {rest.map((row) => (
+                <li key={row.player.user_id} className={cn('flex items-center gap-2 rounded-lg px-3 py-2 text-sm', (row.player.user_id === you) ? 'bg-brand/15' : 'bg-surface')}>
+                  <span className='w-5 text-right text-xs text-subtle tabular-nums'>{row.place}</span>
+                  <PlayerFace player={row.player} className='size-7'/>
+                  <span className='min-w-0 flex-1 truncate text-fg'>{row.player.username}</span>
+                  <span className='font-bold text-white tabular-nums'>{row.score}</span>
+                </li>
+              ))}
+            </ol>
+          ) : null}
+        </div>
+      )}
 
       <div className='sticky bottom-0 border-t border-line bg-bg/95 px-4 pt-3 pb-[calc(0.75rem+var(--saib,0px))] backdrop-blur'>
         <div className='mx-auto flex w-full max-w-2xl flex-col gap-2'>

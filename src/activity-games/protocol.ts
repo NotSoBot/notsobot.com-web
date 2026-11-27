@@ -278,7 +278,7 @@ export const LETTER_TRAIL_SIZES: ReadonlyArray<LetterTrailSize> = [4, 5];
 export const LETTER_TRAIL_SECONDS: ReadonlyArray<number> = [60, 80, 120];
 export const LETTER_TRAIL_ROUNDS_MIN = 1;
 export const LETTER_TRAIL_ROUNDS_MAX = 5;
-export const LETTER_TRAIL_DEFAULT_SETTINGS: LetterTrailSettings = Object.freeze({size: 4, seconds: 80, rounds: 3});
+export const LETTER_TRAIL_DEFAULT_SETTINGS: LetterTrailSettings = Object.freeze({size: 4, seconds: 80, rounds: 1});
 // a word's fewest letters (a `Qu` tile is two)
 export const LETTER_TRAIL_MIN_LETTERS = 3;
 // a reveal's length, longer than Flag Guesser's: there's more to read. The host can skip it (`next`)

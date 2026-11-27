@@ -8,13 +8,17 @@ import './index.css';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
-import { ActivityApp } from '@/editor/hosts/activity';
+import { setApiBase } from '@/config';
+import { ActivityApp, API_BASE } from '@/editor/hosts/activity';
 import { DEFAULT_LANGUAGE, languageFromLocale } from '@/i18n';
 import { loadDashboardText, loadDictionary, setActiveLanguage } from '@/i18n/translate';
 import { applyActivityMotion } from '@/lib/activityPrefs';
 
 
 async function start(): Promise<void> {
+  // the site's api client (the Server and Your settings' dashboard pages) through Discord's proxy, like the Activity's own
+  // requests
+  setApiBase(API_BASE);
   // the Activity settings' Less motion, before anything animates
   applyActivityMotion();
   // Discord's own language (its client sets the iframe's), there's no url prefix or saved choice in here
@@ -26,6 +30,45 @@ async function start(): Promise<void> {
   if (import.meta.env.DEV && import.meta.env.VITE_DASHBOARD_MOCKS === 'true' && new URLSearchParams(window.location.search).has('mockGame')) {
     const { FlagGameMockApp } = await import('@/activity-games/mock/FlagGameMockApp');
     createRoot(document.getElementById('root')!).render(<StrictMode><FlagGameMockApp/></StrictMode>);
+    return;
+  }
+  // dev mocks only: `/activity?mockSettings=1` is the server settings for the dashboard mocks' editable server, without
+  // Discord. The mocks answer on the proxy path set above, links open in a new tab
+  if (import.meta.env.DEV && import.meta.env.VITE_DASHBOARD_MOCKS === 'true' && new URLSearchParams(window.location.search).has('mockSettings')) {
+    const [ { installDashboardMocks }, { ServerSettingsScreen } ] = await Promise.all([
+      import('@/mocks/dashboard'),
+      import('@/activity-games/server/ServerSettingsScreen'),
+    ]);
+    installDashboardMocks();
+    createRoot(document.getElementById('root')!).render(
+      <StrictMode>
+        <ServerSettingsScreen
+          guildId='1100000000000000001'
+          siteUrl='https://notsobot.com'
+          openExternal={(url) => window.open(url, '_blank', 'noopener')}
+          // there's no mode choice here, Back starts it over
+          onBack={() => window.location.reload()}
+        />
+      </StrictMode>,
+    );
+    return;
+  }
+  // dev mocks only: `/activity?mockUserSettings=1` is Your settings for the dashboard mocks' user, the same way
+  if (import.meta.env.DEV && import.meta.env.VITE_DASHBOARD_MOCKS === 'true' && new URLSearchParams(window.location.search).has('mockUserSettings')) {
+    const [ { installDashboardMocks }, { UserSettingsScreen } ] = await Promise.all([
+      import('@/mocks/dashboard'),
+      import('@/activity-games/user/UserSettingsScreen'),
+    ]);
+    installDashboardMocks();
+    createRoot(document.getElementById('root')!).render(
+      <StrictMode>
+        <UserSettingsScreen
+          siteUrl='https://notsobot.com'
+          openExternal={(url) => window.open(url, '_blank', 'noopener')}
+          onBack={() => window.location.reload()}
+        />
+      </StrictMode>,
+    );
     return;
   }
   createRoot(document.getElementById('root')!).render(

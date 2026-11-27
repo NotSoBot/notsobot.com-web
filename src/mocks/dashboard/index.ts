@@ -6682,9 +6682,10 @@ const MOCK_PUBLIC_PATTERN = /^\/editor\/hub(\/(?!review$)[A-Za-z]+)?$/;
 
 export function installDashboardMocks(): void {
   const realFetch = window.fetch.bind(window);
-  const prefix = new URL(config.apiBase, window.location.origin).pathname.replace(/\/+$/, '');
 
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    // read per request: the Activity's mock (`/activity?mockSettings=1`) moves the base to Discord's proxy path
+    const prefix = new URL(config.apiBase, window.location.origin).pathname.replace(/\/+$/, '');
     const url = new URL((input instanceof Request) ? input.url : String(input), window.location.origin);
     const method = (init?.method || ((input instanceof Request) ? input.method : 'GET')).toUpperCase();
     if (url.origin !== window.location.origin || !url.pathname.startsWith(prefix + '/')) {

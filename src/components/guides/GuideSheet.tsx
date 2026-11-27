@@ -151,12 +151,19 @@ function openLabel(slug: GuideSlug) {
 
 
 // a question mark that opens the guide's sheet. `markUnseen`: a dot on it until the guide's been opened once (per viewer),
-// for the screens people land on before playing
-export function HowToPlayButton({ guide, markUnseen = false, className }: {guide: GuideSlug, markUnseen?: boolean, className?: string}) {
+// for the screens people land on before playing. `labelled`: its name shows beside it (a game card's footer). The
+// button sets no position of its own (`cn` is plain clsx, a caller's `absolute` mustn't lose to one in here): the dot is
+// placed on the icon's own box
+export function HowToPlayButton({ guide, markUnseen = false, labelled = false, className }: {
+  guide: GuideSlug,
+  markUnseen?: boolean,
+  labelled?: boolean,
+  className?: string,
+}) {
   const { t } = useI18n();
   const [ open, setOpen ] = useState(false);
   const opened = useGuideOpened(guide);
-  // the dots can be turned off in the Activity's settings
+  // the Activity's settings can turn the dots off (src/lib/activityPrefs.ts)
   const { guideDots } = useActivityPrefs();
   const dot = markUnseen && guideDots && !opened;
 
@@ -166,13 +173,20 @@ export function HowToPlayButton({ guide, markUnseen = false, className }: {guide
       <button
         type='button'
         aria-label={(dot) ? t('guides.sheet.unopened', {label}) : label}
-        title={label}
+        title={(labelled) ? undefined : label}
         aria-haspopup='dialog'
         onClick={() => setOpen(true)}
-        className={cn('relative flex size-10 shrink-0 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface hover:text-fg', className)}
+        className={cn(
+          'flex shrink-0 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface hover:text-fg',
+          (labelled) ? 'min-h-10 gap-1.5 px-2 text-sm font-semibold' : 'size-10',
+          className,
+        )}
       >
-        <CircleHelp aria-hidden className='size-5'/>
-        {(dot) ? <span aria-hidden className='absolute top-1.5 right-1.5 size-2.5 rounded-full bg-brand ring-2 ring-bg'/> : null}
+        <span className='relative flex'>
+          <CircleHelp aria-hidden className={(labelled) ? 'size-4' : 'size-5'}/>
+          {(dot) ? <span aria-hidden className='absolute -top-1 -right-1 size-2.5 rounded-full bg-brand ring-2 ring-bg'/> : null}
+        </span>
+        {(labelled) ? <span aria-hidden>{label}</span> : null}
       </button>
       {(open) ? <GuideSheet guide={guide} onClose={() => setOpen(false)}/> : null}
     </>

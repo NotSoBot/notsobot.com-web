@@ -262,7 +262,7 @@ export const GUIDES_PORTUGUESE: GuideBook = {
             {kind: 'facts', items: [
               {label: 'Grade', value: '**4×4** (o padrão) ou **5×5**. Uma grade maior tem mais palavras, e mais longas.'},
               {label: 'Tempo por rodada', value: '60, 80 (o padrão) ou 120 segundos.'},
-              {label: 'Rodadas', value: 'De 1 a 5 por jogo, 3 por padrão.'},
+              {label: 'Rodadas', value: 'De 1 a 5 por jogo, 1 por padrão.'},
             ]},
             {kind: 'text', text: 'As grades são escolhidas para ter bastante palavras: em geral 30 ou mais numa 4×4 e 60 ou mais numa 5×5.'},
             {kind: 'text', text: 'Depois de uma rodada, as palavras dela aparecem por 10 segundos antes da próxima. O anfitrião pode tocar em **Próxima rodada** para seguir antes.'},

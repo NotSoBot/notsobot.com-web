@@ -95,7 +95,8 @@ export function ToastProvider({ children }: {children: ReactNode}) {
       </ToastLiftContext.Provider>
       <div
         data-toast-region
-        className='pointer-events-none fixed inset-x-0 bottom-0 z-[60] flex flex-col items-center gap-2 p-4 sm:items-end'
+        // the bottom padding clears the home indicator in the Discord Activity on phones (--saib is 0 on the site)
+        className='pointer-events-none fixed inset-x-0 bottom-0 z-[60] flex flex-col items-center gap-2 p-4 pb-[calc(1rem+var(--saib,0px))] sm:items-end'
         style={(lift) ? {bottom: lift} : undefined}
       >
         {toasts.map((toast) => <Toast key={toast.id} toast={toast} onDismiss={dismiss}/>)}
