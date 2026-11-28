@@ -1,5 +1,4 @@
-import type { CarriedFlagGame } from '@/activity-games/FlagCarry';
-import type { GameKind } from '@/activity-games/protocol';
+import type { GamesLaunch } from '@/activity/shell';
 
 import type { LobbyMode } from '../components/StartScreen';
 import type { RoomScreen } from '../room';
@@ -26,16 +25,12 @@ export type Phase =
   }
   // the activity's group edits, join one or start a new one. `notice`: why they're back (lost their spot)
   | {kind: 'lobbies', notice?: string}
-  // the mode choice, the editor (lobbies/start) or the flag game (src/activity-games): what the app launcher opens on
-  // (./activityLaunch), and where both room lists go back to. `notice`: an invite that couldn't be opened
+  // the mode choice, the editor (lobbies/start) or the games: what the app launcher opens on (./activityLaunch), and
+  // where the editor's room list and the games half go back to. `notice`: an invite that couldn't be opened
   | {kind: 'choice', notice?: string}
-  // the Games tab (every game the Activity has), the room browser (`game`: filtered to that game's rooms), and a room
-  // being played or watched (`game`: the filter the room browser had, leaving the room goes back to it)
-  | {kind: 'games_tab'}
-  | {kind: 'games', notice?: string, game?: GameKind}
-  | {kind: 'game', gameId: string, watch: boolean, game?: GameKind}
-  // Open in Activity on the in-chat Flag Guesser: offers a room continuing it (src/activity-games/FlagCarry.tsx)
-  | {kind: 'flag_carry', carry: CarriedFlagGame}
+  // the games half (notsogames.com's, src/activity/shell.ts): an iframe at /games/ that does everything games, through
+  // this page's SDK and socket. `launch`: what it opens on, handed over once (`takeLaunch`)
+  | {kind: 'games_frame', launch: GamesLaunch}
   // a new edit: who it's for (just me, everyone, everyone with the password) and its media
   | {kind: 'start', mode: LobbyMode}
   | {kind: 'editor', documentId: string, solo: boolean, fill?: boolean}
@@ -50,10 +45,7 @@ export const PHASE_SCREENS: Record<Phase['kind'], RoomScreen | null> = {
   failed: null,
   lobbies: null,
   choice: null,
-  games_tab: 'games',
-  games: 'games',
-  game: 'games',
-  flag_carry: 'games',
+  games_frame: 'games',
   start: 'editor',
   editor: 'editor',
   server_settings: null,

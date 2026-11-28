@@ -10,4 +10,4 @@ export {
   splitLanguagePath,
   type Language,
 } from './languages';
-export { activeLanguage, hasTranslation, loadDashboardText, maybeTranslate, translate, translatePlural, type PluralKey, type TranslationKey, type Translations } from './translate';
+export { activeLanguage, hasTranslation, loadDashboardText, wantGamesText, maybeTranslate, translate, translatePlural, type PluralKey, type TranslationKey, type Translations } from './translate';

@@ -3,7 +3,8 @@
 // join hangs inside Discord where there's no devtools. Never a token, never a whole document or game state: op names,
 // message types, codes and short reasons
 
-export type ActivityLogSource = 'socket' | 'game' | 'startup';
+// `sdk`: the Discord SDK's postMessage traffic while it starts (./hosts/sdkTrace.ts)
+export type ActivityLogSource = 'socket' | 'game' | 'startup' | 'sdk';
 
 export interface ActivityLogEntry {
   at: number,
@@ -46,6 +47,32 @@ class ActivityLog {
 }
 
 export const activityLog = new ActivityLog();
+
+
+// Whether the last person signed in to the Activity on this device was a NotSoBot owner: set after every sign-in. The
+// startup failure screen shows the log by it, since a start that fails before sign-in can't ask the api who's there.
+// Only hides the log from everyone else, the log has nothing secret in it
+const OWNER_DEVICE_KEY = 'nsb.activity.owner-device';
+
+export function rememberOwnerDevice(owner: boolean): void {
+  try {
+    if (owner) {
+      window.localStorage.setItem(OWNER_DEVICE_KEY, '1');
+    } else {
+      window.localStorage.removeItem(OWNER_DEVICE_KEY);
+    }
+  } catch {
+    // storage refused: the failure screen just won't have the log
+  }
+}
+
+export function isOwnerDevice(): boolean {
+  try {
+    return window.localStorage.getItem(OWNER_DEVICE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
 
 
 // a message's small fields for a log line (`code=4029 game_id=…`), leaving out anything big or secret

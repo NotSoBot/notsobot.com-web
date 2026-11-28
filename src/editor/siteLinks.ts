@@ -1,11 +1,12 @@
-// Links the Activity opens to notsobot.com (guides, docs, commands, premium, the dashboard) go to the page in the
+// Links the Activity opens to notsobot.com (docs, commands, premium, the dashboard) and notsogames.com (the game guides)
+// go to the page in the
 // Activity's language: `/es/` or `/pt/` before the path (src/i18n/languages.ts). The pages that stay English on the site
 // (admin and owner pages, the changelog, the legal pages) and what isn't a page (the api) keep their url, and so does
 // a link that already says its language (the guides' own links, an `/en/` one)
 import { languagePath, splitLanguagePath, type Language } from '@/i18n/languages';
 
 
-const SITE_HOSTS: ReadonlySet<string> = new Set(['notsobot.com', 'www.notsobot.com']);
+const SITE_HOSTS: ReadonlySet<string> = new Set(['notsobot.com', 'www.notsobot.com', 'notsogames.com', 'www.notsogames.com']);
 
 const ENGLISH_ONLY_PATHS: ReadonlyArray<string> = [
   '/api',

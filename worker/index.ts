@@ -1,6 +1,7 @@
-// Serves the built site (dist/client/, from the vite build) through Workers Static Assets.
-// /assets/* and other files never reach this code (see run_worker_first in wrangler.jsonc). Everything else is a
-// page, so it gets index.html with that page's metatags filled in for Discord/Twitter/search embeds.
+// Serves notsobot.com's built site (dist/client/, from the vite build) through Workers Static Assets, on its hosts
+// (src/sites.ts). notsogames.com is notsogames.com-web's, with its own worker: this repo only signs it in through the
+// handoff. /assets/* and other files never reach this code (see run_worker_first in wrangler.jsonc). Everything else
+// is a page, so it gets the site's html with that page's metatags filled in for Discord/Twitter/search embeds.
 
 import { ApiRedirect, DomainRouter, FetchRouter, HttpMethods } from 'cf-worker-router';
 
@@ -20,6 +21,7 @@ import { ANALYTICS_BEFORE_SEND, encodeSource, SOURCE_CODE_PARAM } from '../src/l
 import { enabledCommandVariants } from '../src/lib/commandAvailability';
 import { commandTypeFromPath, compareCommandTypes } from '../src/lib/commandPaths';
 import { renderApp, type RenderedPage } from '../src/entry-server';
+import { LOCAL_SITE_HOSTS, REDIRECT_HOSTS, SITE_HOSTS, SiteIds } from '../src/sites';
 import { DEFAULT_LANGUAGE, LANGUAGE_PREFIXES, languagePath, Languages, splitLanguagePath, type Language } from '../src/i18n/languages';
 import { Layout as EnglishLayout } from '../src/i18n/locales/en/layout';
 import { Layout as SpanishLayout } from '../src/i18n/locales/es/layout';
@@ -38,7 +40,7 @@ interface Env {
   SITE_DOMAIN: string,
   // "true" lets search engines index the site. anything else (beta) marks every page noindex
   ALLOW_INDEXING: string,
-  // from Umami's website settings, one per site. a secret from .dev.vars (.dev.vars.beta for beta), uploaded by
+  // from Umami's website settings. a secret from .dev.vars (.dev.vars.beta for beta), uploaded by
   // `npm run deploy`. empty or unset leaves analytics off
   UMAMI_WEBSITE_ID?: string,
   // the deployed version, when wrangler.jsonc has a `version_metadata` binding under this name. part of every page's
@@ -50,14 +52,12 @@ interface Env {
 // TRACKER_SCRIPT_NAME on notsobot.api's analytics-umami container. it sends events back to the same host
 const UMAMI_SCRIPT_URL = 'https://oasis.notsocompany.com/drink.js';
 
-// short domains that only redirect to SITE_DOMAIN, keeping the path and query (notso.bot/invite, notso.bot/es/premium)
-const REDIRECT_DOMAINS = ['notso.bot', 'www.notso.bot'];
 
 // pages the worker renders with react (src/entry-server.tsx) for the browser to hydrate, plus the not-found page.
 // every other page gets renderStaticBody until the browser renders it. most left out show data from the api, which
 // the worker doesn't load for them yet, so they would only render their loading state. CHANGELOG and TAG_DOCS(_MEDIASCRIPT)
 // show everything at once (~1 MB of html, 8-11 ms of cpu on an M-series mac), which needs the paid plan's cpu limit
-const SERVER_RENDERED_PAGES: ReadonlySet<PageKey> = new Set([
+const SERVER_RENDERED_PAGES: ReadonlySet<string> = new Set<PageKey>([
   'HOME',
   'FAQ',
   'PREMIUM',
@@ -68,14 +68,11 @@ const SERVER_RENDERED_PAGES: ReadonlySet<PageKey> = new Set([
   'LEGAL_TERMS_OF_SERVICE',
   // static text from src/content/guides, a few kB each
   'GUIDES',
-  'GUIDE_FLAG_GUESSER',
-  'GUIDE_GAME_POINTS',
-  'GUIDE_LETTER_TRAIL',
   'GUIDE_MEDIA_EDITOR',
 ]);
 
 interface Page {
-  key: PageKey,
+  key: string,
   meta: PageMeta,
   // where the page really lives. null for paths with a `:param`, whose canonical url is the request's own path
   canonical: string | null,
@@ -117,11 +114,6 @@ const PAGE_LIST: Array<Page> = [
 const SITEMAP_PATHS = (Object.keys(PAGES) as Array<PageKey>)
   .filter((key) => PAGES[key].index && !Routes[key].includes(':'))
   .map((key) => Routes[key]);
-
-
-function findPage(pathname: string): Page | null {
-  return PAGE_LIST.find((page) => page.matcher.test(pathname)) ?? null;
-}
 
 
 interface Embed {
@@ -649,32 +641,33 @@ function commandEmbed(language: Language, command: Command, metadata: CommandMet
 }
 
 
-function renderRobots(env: Env): string {
+function renderRobots(env: Env, site: Site): string {
   if (env.ALLOW_INDEXING !== 'true') {
     return 'User-agent: *\nDisallow: /\n';
   }
-  return `User-agent: *\nAllow: /\n\nSitemap: https://${env.SITE_DOMAIN}/sitemap.xml\n`;
+  return `User-agent: *\nAllow: /\n\nSitemap: https://${site.domain(env)}/sitemap.xml\n`;
 }
 
 
 const LANGUAGES = Object.keys(LANGUAGE_PREFIXES) as Array<Language>;
 
 // every language's copy of a page, plus x-default (English, the site's root) for visitors whose language isn't one
-function alternateUrls(env: Env, path: string): Array<[string, string]> {
+function alternateUrls(domain: string, path: string): Array<[string, string]> {
   return [
-    ...LANGUAGES.map((language): [string, string] => [language, `https://${env.SITE_DOMAIN}${languagePath(language, path)}`]),
-    ['x-default', `https://${env.SITE_DOMAIN}${path}`],
+    ...LANGUAGES.map((language): [string, string] => [language, `https://${domain}${languagePath(language, path)}`]),
+    ['x-default', `https://${domain}${path}`],
   ];
 }
 
 // each page once per language, each entry listing the others so search engines know they're translations
-function renderSitemap(env: Env): string {
-  const urls = SITEMAP_PATHS.flatMap((path) => {
-    const alternates = alternateUrls(env, path).map(([ hreflang, href ]) => {
+function renderSitemap(env: Env, site: Site): string {
+  const domain = site.domain(env);
+  const urls = site.sitemapPaths.flatMap((path) => {
+    const alternates = alternateUrls(domain, path).map(([ hreflang, href ]) => {
       return `<xhtml:link rel="alternate" hreflang="${hreflang}" href="${escapeHtml(href)}"/>`;
     }).join('');
     return LANGUAGES.map((language) => {
-      return `<url><loc>${escapeHtml(`https://${env.SITE_DOMAIN}${languagePath(language, path)}`)}</loc>${alternates}</url>`;
+      return `<url><loc>${escapeHtml(`https://${domain}${languagePath(language, path)}`)}</loc>${alternates}</url>`;
     });
   });
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">${urls.join('')}</urlset>\n`;
@@ -751,6 +744,41 @@ function renderStaticBody(language: Language, meta: PageMeta): string {
 }
 
 
+// What renderPage needs to know about the site: its pages and metadata, domain, analytics, html shell and render
+interface Site {
+  name: string,
+  domain: (env: Env) => string,
+  umamiId: (env: Env) => string | undefined,
+  // the site's html as static assets serves it
+  shell: (env: Env, url: URL) => Promise<Response>,
+  pages: ReadonlyArray<Page>,
+  sitemapPaths: ReadonlyArray<string>,
+  serverRendered: ReadonlySet<string>,
+  // a page's (or the not-found page's) title and description in a language
+  localized: (key: string, language: Language) => PageMeta,
+  title: (meta: PageMeta) => string,
+  render: (request: Request, language: Language, prefix: string) => Promise<RenderedPage | null>,
+  staticBody: (language: Language, meta: PageMeta) => string,
+  contentPolicy: string,
+}
+
+const NOTSOBOT_SITE: Site = {
+  name: SITE_NAME,
+  domain: (env) => env.SITE_DOMAIN,
+  umamiId: (env) => env.UMAMI_WEBSITE_ID,
+  // "/" rather than "/index.html": static assets redirects the latter to the former
+  shell: (env, url) => env.ASSETS.fetch(new Request(new URL('/', url))),
+  pages: PAGE_LIST,
+  sitemapPaths: SITEMAP_PATHS,
+  serverRendered: SERVER_RENDERED_PAGES,
+  localized: (key, language) => localizedPage(key as PageKey | 'NOT_FOUND', language),
+  title: pageTitle,
+  render: renderApp,
+  staticBody: renderStaticBody,
+  contentPolicy: CONTENT_POLICY,
+};
+
+
 // A page's validator, so a revisit is a 304 instead of the whole html again (and no render). It has to change whenever
 // the html would, so `parts` is everything the html is made from (see renderPage). weak: cloudflare compresses the
 // html on the way out, and would weaken a strong one anyway
@@ -767,7 +795,7 @@ function etagMatches(header: string | null, etag: string): boolean {
 }
 
 // what every page's response carries, a 304 included (browsers update the stored page's headers from it)
-function setPageHeaders(headers: Headers, etag: string | null): Headers {
+function setPageHeaders(headers: Headers, etag: string | null, contentPolicy: string): Headers {
   headers.set('cache-control', 'no-cache');
   // the html depends on the path, the shell's etag doesn't describe it
   headers.delete('etag');
@@ -775,7 +803,7 @@ function setPageHeaders(headers: Headers, etag: string | null): Headers {
     headers.set('etag', etag);
   }
   headers.set('content-security-policy', FRAME_POLICY);
-  headers.set('content-security-policy-report-only', CONTENT_POLICY);
+  headers.set('content-security-policy-report-only', contentPolicy);
   headers.set('x-frame-options', 'DENY');
   headers.set('x-content-type-options', 'nosniff');
   headers.set('referrer-policy', 'strict-origin-when-cross-origin');
@@ -790,6 +818,15 @@ function setPageHeaders(headers: Headers, etag: string | null): Headers {
 // bundles as /activity/assets/*, which are the site's own /assets/*. Discord frames it, so unlike every other page it
 // may be framed, by Discord only
 const ACTIVITY_FRAME_POLICY = 'frame-ancestors https://discord.com https://*.discord.com https://*.discordsays.com; object-src \'none\'; base-uri \'self\'';
+
+// a local dev host (localhost, *.localhost) may also frame its own Activity page, for nested tests in the mock
+// Activity. Production's is the Discord-only one above, where a nested page's ancestors are discord.com and the same
+// *.discordsays.com page
+function activityFramePolicy(hostname: string): string {
+  return (hostname === 'localhost' || hostname.endsWith('.localhost'))
+    ? ACTIVITY_FRAME_POLICY.replace('frame-ancestors ', 'frame-ancestors \'self\' ')
+    : ACTIVITY_FRAME_POLICY;
+}
 
 async function serveActivity(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
@@ -807,7 +844,7 @@ async function serveActivity(request: Request, env: Env): Promise<Response> {
   }
   const headers = new Headers(page.headers);
   headers.set('cache-control', 'no-cache');
-  headers.set('content-security-policy', ACTIVITY_FRAME_POLICY);
+  headers.set('content-security-policy', activityFramePolicy(url.hostname));
   headers.delete('x-frame-options');
   headers.set('x-content-type-options', 'nosniff');
   headers.set('referrer-policy', 'strict-origin-when-cross-origin');
@@ -816,8 +853,8 @@ async function serveActivity(request: Request, env: Env): Promise<Response> {
 }
 
 
-// the html for one of the site's pages (or the not-found page) with its metatags filled in, or a file from static assets
-async function renderPage(request: Request, env: Env, context: ExecutionContext | null): Promise<Response> {
+// the html for one of a site's pages (or the not-found page) with its metatags filled in, or a file from static assets
+async function renderPage(request: Request, env: Env, context: ExecutionContext | null, site: Site): Promise<Response> {
   const url = new URL(request.url);
 
   // `/es/premium` is the Spanish copy of `/premium`, everything below works on the path without the prefix
@@ -827,18 +864,17 @@ async function renderPage(request: Request, env: Env, context: ExecutionContext 
 
   // anything else that looks like a file is served as-is, unless it's a page: command ids have dots in them
   // (/commands/media.iv.manipulation.caption)
-  const page = findPage(path);
+  const page = site.pages.find((item) => item.matcher.test(path)) ?? null;
   if ((!page && /\.[a-z0-9]+$/i.test(url.pathname)) || (request.method !== 'GET' && request.method !== 'HEAD')) {
     return env.ASSETS.fetch(request);
   }
 
-  // "/" rather than "/index.html": static assets redirects the latter to the former
-  const shell = await env.ASSETS.fetch(new Request(new URL('/', url)));
+  const shell = await site.shell(env, url);
   if (!shell.ok) {
     return shell;
   }
 
-  const fallback: Embed = {meta: localizedPage(page?.key ?? 'NOT_FOUND', language), siteName: SITE_NAME, image: null, components: null};
+  const fallback: Embed = {meta: site.localized(page?.key ?? 'NOT_FOUND', language), siteName: site.name, image: null, components: null};
   let embed = fallback;
   // the path's segments after the page's own, like the tag id in /tags/directory/:tagId
   const segments = path.replace(/\/+$/, '').split('/');
@@ -883,14 +919,15 @@ async function renderPage(request: Request, env: Env, context: ExecutionContext 
   // always the main domain (not www.) and the real path (not a redirect like /privacy), so duplicates don't split
   // search ranking. each language is its own page, so its canonical keeps the prefix. the not-found page gets none
   const canonicalPath = (page) ? (page.canonical ?? (path.replace(/\/+$/, '') || '/')) : null;
-  const canonical = (canonicalPath) ? `https://${env.SITE_DOMAIN}${languagePath(language, canonicalPath)}` : null;
+  const domain = site.domain(env);
+  const canonical = (canonicalPath) ? `https://${domain}${languagePath(language, canonicalPath)}` : null;
 
   // `name` for regular and twitter tags, `property` for open graph ones (facebook/linkedin ignore `name="og:*"`)
   const metatags: Array<['name' | 'property', string, string]> = [
     ['name', 'description', meta.description],
     ['property', 'og:type', 'website'],
     ['property', 'og:site_name', embed.siteName],
-    ['property', 'og:title', meta.title ?? SITE_NAME],
+    ['property', 'og:title', meta.title ?? site.name],
     ['property', 'og:description', meta.description],
     ['name', 'twitter:card', 'summary'],
   ];
@@ -909,7 +946,7 @@ async function renderPage(request: Request, env: Env, context: ExecutionContext 
   }).join('');
   if (canonical && canonicalPath) {
     head += `<link rel="canonical" href="${escapeHtml(canonical)}"/>`;
-    for (const [ hreflang, href ] of alternateUrls(env, canonicalPath)) {
+    for (const [ hreflang, href ] of alternateUrls(domain, canonicalPath)) {
       head += `<link rel="alternate" hreflang="${hreflang}" href="${escapeHtml(href)}"/>`;
     }
   }
@@ -918,15 +955,16 @@ async function renderPage(request: Request, env: Env, context: ExecutionContext 
   if (componentEmbed && new TextEncoder().encode(componentEmbed).length <= COMPONENT_EMBED_MAX_BYTES) {
     head += `<script id="discord:component-embed" type="application/json">${componentEmbed}</script>`;
   }
-  if (env.UMAMI_WEBSITE_ID) {
+  const umamiId = site.umamiId(env);
+  if (umamiId) {
     // the only place the script is added, src/lib/analytics.ts waits for it (data-website-id) to send its events
     // `data-before-send` names the function every payload goes through first (src/lib/analyticsUrl.ts)
-    head += `<script defer data-website-id="${escapeHtml(env.UMAMI_WEBSITE_ID)}" data-before-send="${ANALYTICS_BEFORE_SEND}" src="${UMAMI_SCRIPT_URL}"></script>`;
+    head += `<script defer data-website-id="${escapeHtml(umamiId)}" data-before-send="${ANALYTICS_BEFORE_SEND}" src="${UMAMI_SCRIPT_URL}"></script>`;
   }
 
-  const title = pageTitle(meta);
-  const staticBody = renderStaticBody(language, meta);
-  const serverRendered = !page || SERVER_RENDERED_PAGES.has(page.key);
+  const title = site.title(meta);
+  const staticBody = site.staticBody(language, meta);
+  const serverRendered = !page || site.serverRendered.has(page.key);
 
   // Everything the html below is made from, so a browser that already has it gets a 304 before anything is rendered:
   // - the build: the shell's own etag (its content names the app's hashed entry script and stylesheet, which change
@@ -954,14 +992,14 @@ async function renderPage(request: Request, env: Env, context: ExecutionContext 
   if (etag && etagMatches(request.headers.get('if-none-match'), etag)) {
     // the shell isn't sent, so it's let go unread
     await shell.body?.cancel().catch(() => undefined);
-    return new Response(null, {status: 304, headers: setPageHeaders(new Headers(), etag)});
+    return new Response(null, {status: 304, headers: setPageHeaders(new Headers(), etag, site.contentPolicy)});
   }
 
   // a page that fails to render still gets the static body, the browser renders it like any other
   let rendered: RenderedPage | null = null;
   if (serverRendered) {
     try {
-      rendered = await renderApp(request, language, split.prefix);
+      rendered = await site.render(request, language, split.prefix);
     } catch (error) {
       console.error('render failed', url.pathname, error);
     }
@@ -984,7 +1022,7 @@ async function renderPage(request: Request, env: Env, context: ExecutionContext 
 
   // the etag describes the rendered page: one whose render failed this time goes without, so the browser asks again
   // in full instead of keeping the fallback
-  const headers = setPageHeaders(new Headers(response.headers), (rendered || !serverRendered) ? etag : null);
+  const headers = setPageHeaders(new Headers(response.headers), (rendered || !serverRendered) ? etag : null, site.contentPolicy);
   // unknown paths still get the app, so its not-found page renders, but as a real 404
   return new Response(response.body, {headers, status: (page === null) ? 404 : 200});
 }
@@ -992,44 +1030,49 @@ async function renderPage(request: Request, env: Env, context: ExecutionContext 
 
 const router = new FetchRouter();
 
-// the hosts that get the site. production's route catches every subdomain of notsobot.com (wrangler.jsonc), anything
-// not here or in REDIRECT_DOMAINS matches no route and gets cf-worker-router's 404, like nsb.gg. beta.notsobot.com is
-// the beta script's (`CLOUDFLARE_ENV=beta` build), and `wrangler dev` sends requests in as notsobot.com
-const SITE_HOSTS = ['notsobot.com', 'www.notsobot.com', 'beta.notsobot.com'];
-// `vite dev` and `vite preview` keep the request's own host. the routes never send these to the worker in production
-const LOCAL_HOSTS = ['localhost', '127.0.0.1'];
-
-for (const host of [...SITE_HOSTS, ...LOCAL_HOSTS]) {
-  const site = new DomainRouter(host);
+// notsobot.com's hosts (src/sites.ts). production's routes catch every subdomain of notsobot.com (wrangler.jsonc),
+// anything not here or in the redirects below matches no route and gets cf-worker-router's 404, like nsb.gg. The beta.
+// host is the beta script's (`CLOUDFLARE_ENV=beta` build), and `wrangler dev` sends requests in as notsobot.com.
+// `vite dev` and `vite preview` keep the request's own host (`localhost`), the routes never send those to the worker
+// in production. notsogames.com and notso.games are notsogames.com-web's worker's
+for (const host of [...SITE_HOSTS[SiteIds.NOTSOBOT], ...LOCAL_SITE_HOSTS[SiteIds.NOTSOBOT]]) {
+  const domain = new DomainRouter(host);
+  const local = LOCAL_SITE_HOSTS[SiteIds.NOTSOBOT].includes(host);
 
   // normally the zone's notsobot.com/api/* route skips workers entirely, this is just in case. locally it would fetch
   // the worker itself (`vite dev` sends `/api` to its proxy before the worker, vite.config.ts)
-  if (!LOCAL_HOSTS.includes(host)) {
-    site.route(['/api', '/api/:path...'], '*', (event) => fetch(event.request), {priority: 1});
+  if (!local) {
+    domain.route(['/api', '/api/:path...'], '*', (event) => fetch(event.request), {priority: 1});
   }
 
-  site.route('/robots.txt', [HttpMethods.GET, HttpMethods.HEAD], (event) => {
-    return new Response(renderRobots(getEnv(event)), {headers: {'content-type': 'text/plain; charset=utf-8', 'cache-control': 'public, max-age=3600'}});
+  domain.route('/robots.txt', [HttpMethods.GET, HttpMethods.HEAD], (event) => {
+    return new Response(renderRobots(getEnv(event), NOTSOBOT_SITE), {headers: {'content-type': 'text/plain; charset=utf-8', 'cache-control': 'public, max-age=3600'}});
   }, {priority: 1});
 
-  site.route('/sitemap.xml', [HttpMethods.GET, HttpMethods.HEAD], (event) => {
-    return new Response(renderSitemap(getEnv(event)), {headers: {'content-type': 'application/xml; charset=utf-8', 'cache-control': 'public, max-age=3600'}});
+  domain.route('/sitemap.xml', [HttpMethods.GET, HttpMethods.HEAD], (event) => {
+    return new Response(renderSitemap(getEnv(event), NOTSOBOT_SITE), {headers: {'content-type': 'application/xml; charset=utf-8', 'cache-control': 'public, max-age=3600'}});
   }, {priority: 1});
 
-  site.route(['/activity', '/activity/:path...'], [HttpMethods.GET, HttpMethods.HEAD], (event) => {
+  // the Discord Activity's shell page (its url mapping in the developer portal). Its games are notsogames.com's, in
+  // an iframe at /games/ (the url mapping `/games` → notsogames.com/activity)
+  domain.route(['/activity', '/activity/:path...'], [HttpMethods.GET, HttpMethods.HEAD], (event) => {
     return serveActivity(event.request, getEnv(event));
   }, {priority: 1});
 
   // every other path, the routes above win by priority (a catch-all listing every method would otherwise sort first)
-  site.route('/:path...', '*', (event) => renderPage(event.request, getEnv(event), event.context));
-  router.addRouter(site);
+  domain.route('/:path...', '*', (event) => renderPage(event.request, getEnv(event), event.context, NOTSOBOT_SITE));
+  router.addRouter(domain);
 }
 
-// notso.bot is a short name for the site
-for (const domain of REDIRECT_DOMAINS) {
-  const redirect = new DomainRouter(domain);
+// notso.bot is a short name for notsobot.com, with the path and query kept (notso.bot/invite). REDIRECT_HOSTS also
+// lists notso.games, which notsogames.com-web's worker serves
+for (const [ host, target ] of Object.entries(REDIRECT_HOSTS)) {
+  if (target !== SiteIds.NOTSOBOT) {
+    continue;
+  }
+  const redirect = new DomainRouter(host);
   redirect.route('/:path...', '*', (event) => {
-    return new ApiRedirect(`https://${getEnv(event).SITE_DOMAIN}${event.url.pathname}${event.url.search}`, {status: 301});
+    return new ApiRedirect(`https://${NOTSOBOT_SITE.domain(getEnv(event))}${event.url.pathname}${event.url.search}`, {status: 301});
   });
   router.addRouter(redirect);
 }

@@ -60,9 +60,11 @@ export interface RoomInviter {
   kind: RoomInviteKind,
   // a new invite to this room
   create: () => Promise<RoomInvite>,
-  // Discord's share sheet: a link that launches the Activity on the invite
+  // Discord's share sheet: a link that launches the Activity on the invite. notsogames.com's: the system share sheet or
+  // the link copied (`notsogames.com/join/<code>`)
   shareLink: (code: string) => Promise<InviteShareResult>,
-  // the bot posts it in the activity's channel with a Join button, `posted: false` with why when it can't
-  post: (code: string) => Promise<{posted: boolean, reason?: string}>,
+  // the bot posts it in the activity's channel with a Join button, `posted: false` with why when it can't. None on
+  // notsogames.com, there's no channel
+  post?: (code: string) => Promise<{posted: boolean, reason?: string}>,
   errorOf: (error: unknown) => EditorApiError | null,
 }

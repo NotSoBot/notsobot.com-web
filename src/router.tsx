@@ -1,4 +1,4 @@
-import { createBrowserRouter, matchRoutes, Navigate, type HydrationState, type RouteObject } from 'react-router';
+import { createBrowserRouter, Navigate, type HydrationState, type RouteObject } from 'react-router';
 
 import { RequireAuth, RequireStaff } from '@/auth';
 import { BotInviteRedirect, ExternalRedirect } from '@/components/ExternalRedirect';
@@ -6,11 +6,12 @@ import { SiteLayout } from '@/components/layout/SiteLayout';
 import { RequireEditorAccess } from '@/editor/hosts/access';
 import { Routes, Urls } from '@/config';
 import { loadGuides } from '@/content/guides/load';
-import { GUIDE_SLUGS } from '@/content/guides/types';
+import { SITE_GUIDE_SLUGS } from '@/content/guides/types';
 import { loadTagDocs } from '@/content/tagDocs/load';
 import type { TagDocsView } from '@/content/tagDocs/localize';
 import { activeLanguage, loadDashboardText } from '@/i18n';
 import { ApiEndpoints, apiUrl } from '@/lib/api';
+import { loadMatchedRouteModules } from '@/lib/routeModules';
 import { BotAddedRedirectPage } from '@/pages/auth/BotAddedRedirectPage';
 import { LoginCallbackPage } from '@/pages/auth/LoginCallbackPage';
 import { LoginPage } from '@/pages/auth/LoginPage';
@@ -122,7 +123,7 @@ export const routes: Array<RouteObject> = [
         lazy: async () => ({Component: (await import('@/pages/guides/GuidePage')).GuidePage}),
         loader: guidesLoader,
         shouldRevalidate: () => false,
-        children: GUIDE_SLUGS.map((slug) => {
+        children: SITE_GUIDE_SLUGS.map((slug) => {
           const key = GUIDE_PAGE_KEYS[slug];
           return {path: Routes[key], element: null, handle: PAGES[key]};
         }),
@@ -133,6 +134,8 @@ export const routes: Array<RouteObject> = [
       // auth (Discord OAuth via notsobot.api)
       {path: Routes.AUTH_LOGIN, element: <LoginPage/>, handle: PAGES.AUTH_LOGIN},
       {path: Routes.AUTH_LOGIN_CALLBACK, element: <LoginCallbackPage/>, handle: PAGES.AUTH_LOGIN_CALLBACK},
+      // notsogames.com's sign-in: logs in here if needed, then sends a one-time code back to it
+      {path: Routes.AUTH_HANDOFF, lazy: async () => ({Component: (await import('@/pages/auth/HandoffPage')).HandoffPage}), handle: PAGES.AUTH_HANDOFF},
       {path: Routes.AUTH_REDIRECT, element: <BotAddedRedirectPage/>},
 
       // short legal paths (used by the new design)
@@ -256,12 +259,6 @@ export function createRouter(basename: string, hydrationData?: HydrationState) {
 
 // A page the worker rendered hydrates with its lazy route modules already loaded, or the router would render the
 // HydrateFallback (nothing) over the server's markup until they arrive. Gives back the matched routes' handles
-export async function loadRouteModules(basename: string): Promise<Array<unknown>> {
-  const matches = matchRoutes(routes, window.location, basename || undefined) ?? [];
-  await Promise.all(matches.map(async ({ route }) => {
-    if (typeof route.lazy === 'function') {
-      Object.assign(route, {...await route.lazy(), lazy: undefined});
-    }
-  }));
-  return matches.map(({ route }) => route.handle);
+export function loadRouteModules(basename: string): Promise<Array<unknown>> {
+  return loadMatchedRouteModules(routes, basename);
 }

@@ -1,4 +1,3 @@
-import { gameInfo } from '@/activity-games/catalog';
 import type { translate } from '@/i18n';
 
 import type { Phase } from './activityPhase';
@@ -7,8 +6,9 @@ import type { PipRoom, PipStatus } from './pip';
 
 // What their Discord profile says while they're in the Activity (the sdk's `setActivity`, Discord's "rich presence"):
 // under "Playing NotSoBot", which screen they're on, and in an edit or a game what's going on in it. Built from the
-// phase and from what the screen on show already says about itself for the small window (./pip), so a game or the
-// editor doesn't publish anything new for it.
+// phase and from what the screen on show already says about itself for the small window (./pip), so the editor
+// doesn't publish anything new for it. The games half (notsogames.com's, in an iframe) says its own through the shell
+// (src/activity/shell.ts `setPresence`), this one stays quiet meanwhile.
 // No OAuth scope needed: Discord's client takes `SET_ACTIVITY` from an Activity's frame with the scope it has from the
 // start (`RPC_EMBEDDED_APP_SCOPE`, read from discord-webarchive 2026-11-27), unlike its docs' `rpc.activities.write`.
 // Everyone who can see their profile reads it: a room's name is there only when anyone could find and join it, a
@@ -25,9 +25,7 @@ export interface PresenceActivity {
   party?: {size: [number, number]},
 }
 
-// the api's seats (`MAX_ROOM_PLAYERS` in notsobot.api's activity_games/rooms.py, `ROOM_MAX_EDITORS` in ../room.ts):
-// a party shows as "(3 of 32)" next to the state
-export const PRESENCE_GAME_SEATS = 32;
+// the api's seats (`ROOM_MAX_EDITORS` in ../room.ts): a party shows as "(3 of 10)" next to the state
 export const PRESENCE_EDITOR_SEATS = 10;
 
 type Translate = typeof translate;
@@ -59,8 +57,6 @@ function detailsOf(title: string, room: PipRoom, t: Translate): string {
 // anywhere else from when the first line changed
 export function presenceSession(phase: Phase, activity: Omit<PresenceActivity, 'timestamps'>): string {
   switch (phase.kind) {
-    case 'game':
-      return `game:${phase.gameId}`;
     case 'editor':
       return `editor:${phase.documentId}`;
     default:
@@ -70,9 +66,9 @@ export function presenceSession(phase: Phase, activity: Omit<PresenceActivity, '
 
 
 // what the profile says on a screen, `null` for the ones that say nothing (starting up, failed: whatever Discord shows
-// by itself stays)
+// by itself stays; the games half: it says its own)
 export function presenceOf(phase: Phase, status: PipStatus, t: Translate): Omit<PresenceActivity, 'timestamps'> | null {
-  // the editor and a game say what's in them once they've loaded (the joining screen before that has no status)
+  // the editor says what's in it once it's loaded (the joining screen before that has no status)
   if (status?.kind === 'editor' && phase.kind === 'editor') {
     return {
       type: 0,
@@ -82,22 +78,10 @@ export function presenceOf(phase: Phase, status: PipStatus, t: Translate): Omit<
       ...((1 < status.people) ? {party: {size: [status.people, PRESENCE_EDITOR_SEATS]}} : {}),
     };
   }
-  if (status?.kind === 'game' && phase.kind === 'game') {
-    const round = (status.round) ? t((status.letters) ? 'editor.presence.round_letters' : 'editor.presence.round_flag', {number: status.round.number, total: status.round.total}) : null;
-    const where = (status.phase === 'lobby') ? t('editor.presence.lobby')
-      : (status.phase === 'finished') ? t('editor.pip.game_over')
-      : round;
-    const state = [ (status.watching) ? t('editor.pip.watching') : null, where ].filter(Boolean).join(SEPARATOR);
-    return {
-      type: 0,
-      details: detailsOf(t((status.letters) ? 'games.letters.title' : 'games.flag.title'), status.room, t),
-      ...((state) ? {state} : {}),
-      ...((1 < status.players) ? {party: {size: [status.players, PRESENCE_GAME_SEATS]}} : {}),
-    };
-  }
   switch (phase.kind) {
     case 'loading':
     case 'failed':
+    case 'games_frame':
       return null;
     case 'choice':
       return {type: 0, details: t('editor.presence.main_menu'), state: t('editor.presence.choosing')};
@@ -105,21 +89,11 @@ export function presenceOf(phase: Phase, status: PipStatus, t: Translate): Omit<
       return {type: 0, details: t('editor.presence.settings'), state: t('editor.presence.server_settings')};
     case 'user_settings':
       return {type: 0, details: t('editor.presence.settings'), state: t('editor.presence.personal_settings')};
-    case 'games_tab':
-      return {type: 0, details: t('editor.presence.games'), state: t('editor.presence.picking_game')};
-    case 'games':
-      // the room list filtered to one game says which, the whole list just games
-      return {type: 0, details: (phase.game) ? t(gameInfo(phase.game).title) : t('editor.presence.games'), state: t('editor.presence.looking_for_room')};
-    case 'flag_carry':
-      return {type: 0, details: t('games.flag.title'), state: t('editor.presence.starting_game')};
     case 'lobbies':
     case 'start':
       return {type: 0, details: t('editor.title'), state: t('editor.presence.starting_edit')};
     case 'editor':
       return {type: 0, details: t('editor.title'), state: t('editor.presence.opening_edit')};
-    case 'game':
-      // the room's own game isn't known until its first state: the room list's filter when it had one
-      return {type: 0, details: (phase.game) ? t(gameInfo(phase.game).title) : t('editor.presence.games'), state: t('editor.presence.joining_room')};
   }
 }
 

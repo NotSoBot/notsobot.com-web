@@ -6,10 +6,16 @@ import { localizedSiteUrl } from './siteLinks';
 describe('localizedSiteUrl', () => {
   it("puts the language's prefix on the site's pages", () => {
     expect(localizedSiteUrl('https://notsobot.com/premium', 'es')).toBe('https://notsobot.com/es/premium');
-    expect(localizedSiteUrl('https://notsobot.com/guides/flag-guesser', 'pt')).toBe('https://notsobot.com/pt/guides/flag-guesser');
+    expect(localizedSiteUrl('https://notsobot.com/guides/media-editor', 'pt')).toBe('https://notsobot.com/pt/guides/media-editor');
     expect(localizedSiteUrl('https://notsobot.com/docs/mediascript', 'es')).toBe('https://notsobot.com/es/docs/mediascript');
     expect(localizedSiteUrl('https://notsobot.com/commands/caption', 'pt')).toBe('https://notsobot.com/pt/commands/caption');
     expect(localizedSiteUrl('https://www.notsobot.com/faq', 'es')).toBe('https://www.notsobot.com/es/faq');
+  });
+
+  it("puts the language's prefix on notsogames.com's pages too", () => {
+    expect(localizedSiteUrl('https://notsogames.com/guides/flag-guesser', 'es')).toBe('https://notsogames.com/es/guides/flag-guesser');
+    expect(localizedSiteUrl('https://notsogames.com/pt/guides/letter-trail', 'es')).toBe('https://notsogames.com/pt/guides/letter-trail');
+    expect(localizedSiteUrl('https://notsogames.com.evil.example/play', 'es')).toBe('https://notsogames.com.evil.example/play');
   });
 
   it('keeps the query and the anchor', () => {

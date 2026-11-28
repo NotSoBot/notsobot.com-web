@@ -69,6 +69,7 @@ import {
 } from '@/lib/api/types';
 import { toDate } from '@/lib/utils';
 
+import { registerHandoffMocks } from '../handoff';
 import { registerEditorMocks } from './editor';
 
 import {
@@ -387,7 +388,7 @@ function json(status: number, body?: unknown): Response {
 }
 
 
-type Handler = (match: RegExpMatchArray, request: {method: string, query: URLSearchParams, body: Record<string, unknown>}) => unknown;
+type Handler = (match: RegExpMatchArray, request: {method: string, query: URLSearchParams, body: Record<string, unknown>, authorization: string | null}) => unknown;
 
 interface Route {
   method: string,
@@ -6674,13 +6675,16 @@ route('GET', '/home', (_match, { query }) => {
 
 
 registerEditorMocks(route, (status, code, message, metadata) => new MockError(status, code, message, metadata));
+// notsobot.com's half of the sign-in handoff to notsogames.com (../handoff.ts)
+registerHandoffMocks(route, (status, code, message, metadata) => new MockError(status, code, message, metadata));
 
 
 const MOCK_PUBLIC_PATHS = ['/tags/directory', '/reports/anonymous', '/commands', '/commands/stats', '/home', '/info/voice', '/editor/effects', '/editor/access'];
 // the template hub's list and a template's view answer logged out too (its staff queue doesn't)
 const MOCK_PUBLIC_PATTERN = /^\/editor\/hub(\/(?!review$)[A-Za-z]+)?$/;
 
-export function installDashboardMocks(): void {
+// `signIn: false`: start logged out (notsogames.com's mocks, src/games.tsx, sign in through its own handoff or a guest)
+export function installDashboardMocks({ signIn = true }: {signIn?: boolean} = {}): void {
   const realFetch = window.fetch.bind(window);
 
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -6701,7 +6705,8 @@ export function installDashboardMocks(): void {
       init?.signal?.throwIfAborted();
       const headers = new Headers(init?.headers);
       // the public tag directory and anonymous reports are fetched without a token
-      if (!MOCK_PUBLIC_PATHS.includes(path) && !MOCK_PUBLIC_PATTERN.test(path) && headers.get('authorization') !== MOCK_TOKEN) {
+      const authorization = headers.get('authorization');
+      if (!MOCK_PUBLIC_PATHS.includes(path) && !MOCK_PUBLIC_PATTERN.test(path) && authorization !== MOCK_TOKEN) {
         return json(401, {code: 0, message: '401: Unauthorized', status: 401});
       }
       let body: Record<string, unknown> = {};
@@ -6711,7 +6716,8 @@ export function installDashboardMocks(): void {
         body = Object.fromEntries(init.body.entries());
       }
       try {
-        const result = handler(match, {method, query: url.searchParams, body});
+        // (the games' handoff mocks answer after hashing, a promise)
+        const result = await handler(match, {method, query: url.searchParams, body, authorization});
         // media routes answer with the bytes themselves
         if (result instanceof Response) {
           return result;
@@ -6728,10 +6734,10 @@ export function installDashboardMocks(): void {
     return realFetch(input, init);
   };
 
-  // pretend we're logged in, unless browsing logged out
+  // pretend we're logged in, unless browsing logged out (or it's notsogames.com's, which keeps whatever session it has)
   if (state.loggedOut) {
     tokenStorage.clear();
-  } else if (tokenStorage.get() !== MOCK_TOKEN) {
+  } else if (signIn && tokenStorage.get() !== MOCK_TOKEN) {
     tokenStorage.set(MOCK_TOKEN);
   }
 

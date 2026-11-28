@@ -4,6 +4,7 @@ import { useId, useRef, useState } from 'react';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useDismiss } from '@/hooks/useDismiss';
 import { useI18n } from '@/i18n';
+import { userDefaultAvatarUrl } from '@/lib/discord';
 import { cn } from '@/lib/utils';
 
 import { ROOM_MAX_EDITORS, type EditorRoom, type RoomMember } from '../room';
@@ -14,9 +15,31 @@ import { canModerateRoom, CloseRoomDialog, RoomSettingsDialog } from './RoomMode
 const SHOWN_FACES = 4;
 
 
-export function MemberAvatar({ member, className }: {member: Pick<RoomMember, 'username' | 'avatar_url'>, className?: string}) {
-  if (member.avatar_url) {
-    return <img src={member.avatar_url} alt='' className={cn('rounded-full bg-surface object-cover', className)}/>;
+// Discord's default avatar for an id, null for ids that aren't snowflakes (web guests). Room members carry no
+// discriminator, so legacy-tag users get the id's one, which can be a different colour from what Discord shows them
+function defaultAvatarUrl(userId: string): string | null {
+  if (!/^\d+$/.test(userId)) {
+    return null;
+  }
+  return userDefaultAvatarUrl({id: userId, discriminator: '0'});
+}
+
+
+export function MemberAvatar({ member, className }: {member: Pick<RoomMember, 'user_id' | 'username' | 'avatar_url'>, className?: string}) {
+  // the urls that failed to load: a stored avatar hash goes stale once they change it (the cdn 404s), then Discord's
+  // default avatar stands in, and if that fails too, their initial
+  const [failed, setFailed] = useState<ReadonlyArray<string>>([]);
+  const fallback = defaultAvatarUrl(member.user_id);
+  const src = [member.avatar_url, fallback].find((url): url is string => !!url && !failed.includes(url));
+  if (src) {
+    return (
+      <img
+        src={src}
+        alt=''
+        className={cn('rounded-full bg-surface object-cover', className)}
+        onError={() => setFailed((urls) => [...urls, src])}
+      />
+    );
   }
   return (
     <span aria-hidden className={cn('flex items-center justify-center rounded-full bg-brand text-xs font-bold text-white', className)}>

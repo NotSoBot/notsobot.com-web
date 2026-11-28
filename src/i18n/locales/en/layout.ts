@@ -10,6 +10,8 @@ export const Layout = {
   'nav.editor': 'Editor',
   'nav.faq': 'FAQ',
   'nav.guides': 'Guides',
+  // notsogames.com, the games' own site
+  'nav.games': 'Games',
   'nav.open_menu': 'Open menu',
   'nav.close_menu': 'Close menu',
   'nav.skip': 'Skip to content',
@@ -39,6 +41,7 @@ export const Layout = {
 
   'page.AUTH_LOGIN': 'Log In',
   'page.AUTH_LOGIN_CALLBACK': 'Log In',
+  'page.AUTH_HANDOFF': 'Sign In',
   'page.CHANGELOG': 'Changelog',
   'page.COMMANDS': 'Commands',
   'page.COMMAND': 'Commands',
@@ -67,9 +70,6 @@ export const Layout = {
   'page.DASHBOARD_VOICES': 'Your Voices',
   'page.FAQ': 'FAQ',
   'page.GUIDES': 'Guides',
-  'page.GUIDE_FLAG_GUESSER': 'Flag Guesser Guide',
-  'page.GUIDE_GAME_POINTS': 'Game Points Guide',
-  'page.GUIDE_LETTER_TRAIL': 'Letter Trail Guide',
   'page.GUIDE_MEDIA_EDITOR': 'Media Editor Guide',
   'page.INVITE': 'Invite',
   'page.LEGAL_PRIVACY': 'Privacy Policy',
@@ -106,4 +106,11 @@ export const Layout = {
   'login.failed_title': 'Login Failed',
   'login.failed_description': 'Discord didn\'t hand us a session. Give it another try.',
   'login.logging_in': 'Logging You In…',
+  // notsobot.com/auth/handoff, notsogames.com's sign-in (src/pages/auth/HandoffPage.tsx)
+  'handoff.working': 'Signing you in to NotSoGames…',
+  'handoff.bad_link_title': 'That Sign-In Link Doesn’t Work',
+  'handoff.bad_link_description': 'Start signing in from NotSoGames again.',
+  'handoff.failed_title': 'Couldn’t Sign You In to NotSoGames',
+  'handoff.failed_description': 'Something went wrong handing your login over. Try again.',
+  'handoff.back': 'Back to NotSoGames',
 } as const;

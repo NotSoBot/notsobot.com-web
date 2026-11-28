@@ -1,8 +1,8 @@
 // The Activity's "How to play" sheet: a guide's quick rules, then its sections folded up, read from the same content as
-// notsobot.com/guides (src/content/guides). `guide:` links switch the sheet to that guide (and open the section they
-// name), site paths and the "Full guide" button open notsobot.com outside the Activity through the host's
-// `openExternal` (GuideLinksProvider: Discord's openExternalLink in the Activity, a new tab anywhere else), in the
-// viewer's language (`/es/`, `/pt/`).
+// the guide pages (src/content/guides). `guide:` links switch the sheet to that guide (and open the section they
+// name), site paths open notsobot.com and the "Full guide" button the guide's page (notsogames.com for a game's,
+// notsobot.com for the editor's) outside the Activity through the host's `openExternal` (GuideLinksProvider: Discord's
+// openExternalLink in the Activity, a new tab anywhere else), in the viewer's language (`/es/`, `/pt/`).
 // HowToPlayButton is the entry point: a question mark icon button that opens the sheet. Nothing opens it on its own (it
 // used to, the first time, and that got in the way of what people came to do): with `markUnseen` the button carries a
 // dot until its guide's been opened once, and a game's lobby has its own folding card (HowToPlayCard)
@@ -11,16 +11,15 @@ import { createContext, useContext, useEffect, useId, useRef, useState, useSyncE
 
 import { DialogError } from '@/components/ui/DialogError';
 import { Modal } from '@/components/ui/Modal';
-import { GUIDE_SLUGS, loadedGuides, loadGuides, parseGuideLink, type GuideBook, type GuideSlug } from '@/content/guides';
+import { GUIDE_SLUGS, guideUrl, isGameGuide, loadedGuides, loadGuides, parseGuideLink, type GuideBook, type GuideSlug } from '@/content/guides';
 import { languagePath, useI18n, type Language } from '@/i18n';
 import { useActivityPrefs } from '@/lib/activityPrefs';
 import { cn } from '@/lib/utils';
-import { guidePath } from '@/pages/guides/guideRoutes';
+import { SiteIds, siteOrigin } from '@/sites';
 
 import { GuideBlocks, GuideInline, GuideQuickRules, type GuideLinkRenderer } from './GuideBlocks';
 
 
-const SITE_URL = 'https://notsobot.com';
 // the guides someone has opened, per guide (`<key><slug>`). The old key is from when a guide opened on its own the first
 // time: someone it opened for has seen it
 const OPENED_STORAGE_KEY = 'nsb.activity.guide_opened.';
@@ -36,16 +35,23 @@ const openInNewTab: OpenExternal = (url) => {
 };
 
 const OpenExternalContext = createContext<OpenExternal>(openInNewTab);
+// the guides the sheet's switcher offers: all of them in the Activity, the games' on notsogames.com
+const SlugsContext = createContext<ReadonlyArray<GuideSlug>>(GUIDE_SLUGS);
 
-// how the sheets under it open notsobot.com: the Activity passes Discord's openExternalLink, a plain link inside
-// Discord's iframe goes nowhere
-export function GuideLinksProvider({ openExternal, children }: {openExternal?: OpenExternal, children: ReactNode}) {
-  return <OpenExternalContext.Provider value={openExternal ?? openInNewTab}>{children}</OpenExternalContext.Provider>;
+// how the sheets under it open the sites: the Activity passes Discord's openExternalLink, a plain link inside
+// Discord's iframe goes nowhere. `slugs`: the guides its switcher offers
+export function GuideLinksProvider({ openExternal, slugs, children }: {openExternal?: OpenExternal, slugs?: ReadonlyArray<GuideSlug>, children: ReactNode}) {
+  return (
+    <OpenExternalContext.Provider value={openExternal ?? openInNewTab}>
+      <SlugsContext.Provider value={slugs ?? GUIDE_SLUGS}>{children}</SlugsContext.Provider>
+    </OpenExternalContext.Provider>
+  );
 }
 
 
+// a `/path` in a guide's text is notsobot.com's page
 function siteUrl(language: Language, path: string): string {
-  return `${SITE_URL}${languagePath(language, path)}`;
+  return `${siteOrigin(SiteIds.NOTSOBOT)}${languagePath(language, path)}`;
 }
 
 
@@ -198,6 +204,7 @@ export function HowToPlayButton({ guide, markUnseen = false, labelled = false, c
 export function GuideSheet({ guide: firstGuide, onClose }: {guide: GuideSlug, onClose: () => void}) {
   const { t, language } = useI18n();
   const openExternal = useContext(OpenExternalContext);
+  const slugs = useContext(SlugsContext);
   const titleId = useId();
   const idPrefix = useId();
   const headerRef = useRef<HTMLElement>(null);
@@ -309,7 +316,7 @@ export function GuideSheet({ guide: firstGuide, onClose }: {guide: GuideSlug, on
         ) : (
           <>
             <nav ref={switcherRef} aria-label={t('guides.list_label')} className='relative -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:-mx-6 sm:px-6'>
-              {GUIDE_SLUGS.map((slug) => (
+              {slugs.map((slug) => (
                 <button
                   key={slug}
                   type='button'
@@ -361,8 +368,8 @@ export function GuideSheet({ guide: firstGuide, onClose }: {guide: GuideSlug, on
               </>
             ) : null}
 
-            <button type='button' className='btn btn-secondary w-full' onClick={() => openExternal(siteUrl(language, guidePath(shown.slug)))}>
-              <ExternalLink aria-hidden className='size-4'/>{t('guides.sheet.full')}
+            <button type='button' className='btn btn-secondary w-full' onClick={() => openExternal(guideUrl(shown.slug, language))}>
+              <ExternalLink aria-hidden className='size-4'/>{t((isGameGuide(shown.slug)) ? 'guides.sheet.full_games' : 'guides.sheet.full')}
             </button>
           </>
         )}

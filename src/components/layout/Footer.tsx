@@ -5,9 +5,10 @@ import { Link } from 'react-router';
 import { ReportButton } from '@/components/reports/ReportButton';
 import { GitHubLogo } from '@/components/ui/GitHubLogo';
 import { Routes, Urls } from '@/config';
-import { useI18n } from '@/i18n';
+import { languagePath, useI18n } from '@/i18n';
 import { ApiEndpoints, apiUrl } from '@/lib/api';
 import { shuffle } from '@/lib/utils';
+import { SiteIds, siteOrigin } from '@/sites';
 
 import { LanguagePicker } from './LanguagePicker';
 
@@ -29,7 +30,7 @@ const QUOTE_INTERVAL = 5000;
 
 
 export function Footer() {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   return (
     <footer className='mt-16 border-t border-line bg-surface'>
       <div className='container-page flex flex-col items-start justify-between gap-6 py-8 md:flex-row md:items-center'>
@@ -60,6 +61,7 @@ export function Footer() {
           <ul className='space-y-2 text-sm'>
             <li><Link to={Routes.FAQ} className='text-muted transition-colors hover:text-white'>{t('nav.faq')}</Link></li>
             <li><Link to={Routes.GUIDES} className='text-muted transition-colors hover:text-white'>{t('nav.guides')}</Link></li>
+            <li><a href={`${siteOrigin(SiteIds.GAMES)}${languagePath(language, '/')}`} className='text-muted transition-colors hover:text-white'>{t('nav.games')}</a></li>
             <li><Link to={Routes.CHANGELOG} className='text-muted transition-colors hover:text-white'>{t('nav.changelog')}</Link></li>
             <li><Link to={Routes.PREMIUM} className='text-muted transition-colors hover:text-white'>{t('nav.premium')}</Link></li>
             <li><Link to={Routes.TAG_DOCS} className='text-muted transition-colors hover:text-white'>{t('footer.tag_docs')}</Link></li>

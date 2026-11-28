@@ -396,6 +396,7 @@ export const Editor: Record<keyof typeof English, string> = {
   'editor.invite.title_editor': 'Convidar para esta sala',
   'editor.invite.title_game': 'Convidar para este jogo',
   'editor.invite.description': 'O convite abre a atividade direto nesta sala. Ele deixa entrar numa sala com senha sem a senha, mas quem foi removido da sala continua de fora.',
+  'editor.invite.description_link': 'Qualquer pessoa com o link pode entrar nesta sala nas próximas 24 horas, mesmo com senha. Quem foi removido continua de fora.',
   'editor.invite.share': 'Compartilhar link',
   'editor.invite.post': 'Publicar neste canal',
   'editor.invite.creating': 'Criando o convite…',

@@ -160,6 +160,7 @@ function UserDetails({ entry, navigation }: {entry: AdminUserEntry, navigation?:
       <div className='px-4 pt-4 pb-5 sm:border-t sm:border-line sm:px-6'>
         {(user.blocked) ? <div className='mb-5 [&>div]:w-full'><BlockedNotice reason={user.blocked_reason} until={user.blocked_until}/></div> : null}
         {(user.legal_hold) ? <div className='mb-5 [&>div]:w-full'><LegalHoldNotice hold={user}/></div> : null}
+        {(user.data_deletion_started_at) ? <div className='mb-5 [&>div]:w-full'><DataDeletionNotice startedAt={user.data_deletion_started_at}/></div> : null}
 
         {/* side by side from sm up so both fill two rows of tiles: the flag counts by status on the left, commands and
             reports on the right once there's room, then what they have across the bottom. Stacked below that */}
@@ -323,6 +324,22 @@ function StrikeCard({ strike, users }: {strike: AdminCopyrightStrike, users: Adm
 
 
 // a red callout with the block reason, two lines at most until "Show full reason" opens the rest
+// their "Delete my data" is under way, or stopped partway (a legal hold placed meanwhile stops it)
+function DataDeletionNotice({ startedAt }: {startedAt: string}) {
+  return (
+    <div className='w-72 rounded-md border border-line bg-surface-2 px-3 py-2'>
+      <p className='flex items-center gap-1.5 text-xs font-bold tracking-wide text-muted uppercase'>
+        <Trash2 aria-hidden className='size-3.5 shrink-0'/>
+        Data deletion
+      </p>
+      <p className='mt-1 text-xs text-fg'>
+        Data deletion started <ExactDate value={startedAt} format={formatDateTime}/>
+      </p>
+    </div>
+  );
+}
+
+
 function BlockedNotice({ reason, until }: {reason: string | null, until: string | number | null}) {
   const ref = useRef<HTMLParagraphElement>(null);
   const [ expanded, setExpanded ] = useState(false);

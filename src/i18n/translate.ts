@@ -1,15 +1,19 @@
 import { DEFAULT_LANGUAGE, intlLocale, Languages, type Language } from './languages';
 import { English as EnglishSite } from './locales/en';
 import type { EnglishDashboard } from './locales/en/dashboardIndex';
+import type { EnglishGames } from './locales/en/gamesIndex';
 
 
-// the public site's strings (always loaded) and the dashboard's (loaded once someone opens it)
+// the public site's strings (always loaded), the dashboard's (loaded once someone opens it) and notsogames.com's (the
+// games and the editor's, which the game screens use, and the games site's own: loaded by its entry, src/games.tsx)
 export type SiteKey = keyof typeof EnglishSite;
 export type DashboardKey = keyof typeof EnglishDashboard;
-export type TranslationKey = SiteKey | DashboardKey;
+export type GamesKey = keyof typeof EnglishGames;
+export type TranslationKey = SiteKey | DashboardKey | GamesKey;
 // every language has every key, so a string added to English without its translation is a type error
 export type SiteTranslations = Readonly<Record<SiteKey, string>>;
 export type DashboardTranslations = Readonly<Record<DashboardKey, string>>;
+export type GamesTranslations = Readonly<Record<GamesKey, string>>;
 // a language's whole dictionary. Its dashboard keys are only there once the dashboard's text has loaded, which the
 // dashboard's route waits for, so nothing outside the dashboard may use them
 export type Translations = Readonly<Record<TranslationKey, string>>;
@@ -32,6 +36,12 @@ const DASHBOARD_LOADERS: Readonly<Record<Language, () => Promise<DashboardTransl
   [Languages.PORTUGUESE]: async () => (await import('./locales/pt/dashboardIndex')).PortugueseDashboard,
 });
 
+const GAMES_LOADERS: Readonly<Record<Language, () => Promise<GamesTranslations>>> = Object.freeze({
+  [Languages.ENGLISH]: async () => (await import('./locales/en/gamesIndex')).EnglishGames,
+  [Languages.SPANISH]: async () => (await import('./locales/es/gamesIndex')).SpanishGames,
+  [Languages.PORTUGUESE]: async () => (await import('./locales/pt/gamesIndex')).PortugueseGames,
+});
+
 // One object per language. The dashboard's strings are added to it in place, so the provider and every `t()` see
 // them without swapping dictionaries
 const dictionaries: Partial<Record<Language, Record<string, string>>> = {[Languages.ENGLISH]: {...EnglishSite}};
@@ -51,21 +61,33 @@ function once(key: string, load: () => Promise<void>): Promise<void> {
   return promise;
 }
 
-// set once the dashboard has been opened, from then on a language switch loads its dashboard strings too
+// set once the dashboard has been opened, from then on a language switch loads its dashboard strings too. The games
+// site's the same way (`loadGamesText`)
 let dashboardWanted = false;
+let gamesWanted = false;
 
-export async function loadDictionary(language: Language): Promise<Translations> {
+// `games`: notsogames.com's strings too whether or not they've been asked for, the worker's render of its pages
+export async function loadDictionary(language: Language, areas: {games?: boolean} = {}): Promise<Translations> {
   await once(`site:${language}`, async () => {
     if (!dictionaries[language]) {
       dictionaries[language] = {...await SITE_LOADERS[language as Exclude<Language, typeof Languages.ENGLISH>]()};
     }
   });
-  if (dashboardWanted) {
-    await once(`dashboard:${language}`, async () => {
+  await Promise.all([
+    (dashboardWanted) ? once(`dashboard:${language}`, async () => {
       Object.assign(dictionaries[language]!, await DASHBOARD_LOADERS[language]());
-    });
-  }
+    }) : null,
+    (gamesWanted || areas.games) ? once(`games:${language}`, async () => {
+      Object.assign(dictionaries[language]!, await GAMES_LOADERS[language]());
+    }) : null,
+  ]);
   return dictionaries[language] as Translations;
+}
+
+// notsogames.com's entry: every dictionary it loads from here on has its strings (every page of it uses them), its first
+// one included when this comes first
+export function wantGamesText(): void {
+  gamesWanted = true;
 }
 
 // the dashboard's route waits on this before it renders

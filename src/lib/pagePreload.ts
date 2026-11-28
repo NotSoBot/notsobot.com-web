@@ -7,7 +7,7 @@ import { PAGES } from '@/seo';
 
 
 // the guide pages (src/pages/guides), the index and each guide
-const GUIDE_HANDLES: ReadonlyArray<unknown> = [PAGES.GUIDES, PAGES.GUIDE_FLAG_GUESSER, PAGES.GUIDE_GAME_POINTS, PAGES.GUIDE_LETTER_TRAIL, PAGES.GUIDE_MEDIA_EDITOR];
+const GUIDE_HANDLES: ReadonlyArray<unknown> = [PAGES.GUIDES, PAGES.GUIDE_MEDIA_EDITOR];
 
 
 // What a page's first render needs that it would otherwise load after mounting (for now the tag docs' view, a chunk

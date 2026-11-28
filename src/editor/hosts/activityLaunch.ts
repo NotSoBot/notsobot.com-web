@@ -81,3 +81,24 @@ export function inviteScreen(kind: RoomInviteKind | null, errorCode: number | nu
   }
   return 'choice';
 }
+
+
+// The in-chat Flag Guesser they pressed Open in Activity on (the api's `launch.flag_game`): its difficulty, and whether
+// a flag was still up there, handed to the games half as its launch (src/activity/shell.ts `GamesLaunch` `carry`). The
+// flag itself is only an image from the api, its code (the answer) never comes here
+export interface CarriedFlagGame {
+  difficulty: 'easy' | 'medium' | 'hard',
+  has_flag: boolean,
+}
+
+export function carriedFlagGameOf(launch: Record<string, unknown> | null | undefined): CarriedFlagGame | null {
+  const value = launch?.flag_game;
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+  const { difficulty, has_flag } = value as Record<string, unknown>;
+  if (difficulty !== 'easy' && difficulty !== 'medium' && difficulty !== 'hard') {
+    return null;
+  }
+  return {difficulty, has_flag: has_flag === true};
+}

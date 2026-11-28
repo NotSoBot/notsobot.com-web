@@ -27,6 +27,7 @@ export const PAGES: Readonly<Record<keyof typeof Routes, PageMeta>> = Object.fre
   },
   AUTH_LOGIN: {title: 'Log In', description: 'Log in with Discord to manage your NotSoBot tags, servers and settings.'},
   AUTH_LOGIN_CALLBACK: {title: 'Log In', description: 'Finishing your Discord login.'},
+  AUTH_HANDOFF: {title: 'Sign In', description: 'Signing you in to NotSoGames with your NotSoBot login.'},
   AUTH_REDIRECT: {description: 'Thanks for adding NotSoBot to your server.'},
   CHANGELOG: {
     title: 'Changelog',
@@ -97,22 +98,7 @@ export const PAGES: Readonly<Record<keyof typeof Routes, PageMeta>> = Object.fre
   FOXBOT: {title: 'Foxbot', description: 'Foxbot on Discord.'},
   GUIDES: {
     title: 'Guides',
-    description: 'How to play Flag Guesser and Letter Trail, how game points work and how to use the media editor in NotSoBot\'s Discord Activity.',
-    index: true,
-  },
-  GUIDE_FLAG_GUESSER: {
-    title: 'Flag Guesser Guide',
-    description: 'How to play Flag Guesser in NotSoBot\'s Discord Activity and in chat: rooms, settings, hints and how points are scored.',
-    index: true,
-  },
-  GUIDE_GAME_POINTS: {
-    title: 'Game Points Guide',
-    description: 'How NotSoBot\'s game points work: earning them in chat and in the Activity, the daily limit, /games points and the leaderboards.',
-    index: true,
-  },
-  GUIDE_LETTER_TRAIL: {
-    title: 'Letter Trail Guide',
-    description: 'How to play Letter Trail in NotSoBot\'s Discord Activity: spelling words on a shared grid, scoring, only-you words, the ×2 tile and settings.',
+    description: 'How to use NotSoBot\'s media editor in its Discord Activity. The game guides are on notsogames.com.',
     index: true,
   },
   GUIDE_MEDIA_EDITOR: {

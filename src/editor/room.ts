@@ -159,6 +159,14 @@ function tell<Args extends Array<unknown>>(listeners: Set<(...args: Args) => voi
 }
 
 
+export interface EditorRoomOptions {
+  // more for the `hello` (never its `op` or `token`)
+  hello?: Record<string, unknown>,
+  // the socket's `ready` as the Activity's, null for one that can't be read (ignored, the connect timeout gives up on it)
+  readReady?: (message: Record<string, unknown>) => Extract<RoomEvent, {t: 'ready'}> | null,
+}
+
+
 export class EditorRoom {
   status: RoomStatus = 'connecting';
   you: string | null = null;
@@ -209,7 +217,9 @@ export class EditorRoom {
   moderator = false;
   private moderationWaiters = new Map<string, (result: ModerationResult) => void>();
 
-  constructor(private readonly url: string, private readonly token: string) {}
+  // `options`: notsogames.com's games socket (src/games/play/transport.ts) says more in its `hello` (the page's language)
+  // and answers it with its own `ready`, which `readReady` reads as this one's
+  constructor(private readonly url: string, private readonly token: string, private readonly options: EditorRoomOptions = {}) {}
 
   get isOpen(): boolean {
     return this.status === 'open' && this.socket?.readyState === WebSocket.OPEN;
@@ -545,7 +555,7 @@ export class EditorRoom {
     }, CONNECT_TIMEOUT);
     socket.addEventListener('open', () => {
       // a socket can't carry an authorization header, the token is the first message
-      socket.send(JSON.stringify({op: 'hello', token: this.token}));
+      socket.send(JSON.stringify({...this.options.hello, op: 'hello', token: this.token}));
       activityLog.add('socket', 'open, → hello (token not logged), waiting for ready');
     });
     socket.addEventListener('error', () => {
@@ -571,6 +581,13 @@ export class EditorRoom {
       if (typeof event?.t === 'string' && event.t.startsWith('game.')) {
         tell(this.gameListeners, event as RoomGameMessage);
         return;
+      }
+      if (event?.t === 'ready' && this.options.readReady) {
+        const ready = this.options.readReady(event as unknown as Record<string, unknown>);
+        if (!ready) {
+          return;
+        }
+        event = ready;
       }
       this.handle(event as RoomEvent);
     });

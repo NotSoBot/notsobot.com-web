@@ -5,36 +5,16 @@ import { FullPageMessage } from '@/components/ui/FullPageMessage';
 import { Spinner } from '@/components/ui/Spinner';
 import { Routes } from '@/config';
 import { useI18n } from '@/i18n';
-import { apiRequest, ApiRequestError } from '@/lib/api';
 
-import { createEditorApi, EditorErrorCodes, pathId, type EditorApiError, type EditorHost, type EditorRequest } from '../api';
+import { createEditorApi, EditorErrorCodes, pathId, type EditorHost } from '../api';
+import { webErrorOf, webRequest } from '../webRequest';
 import type { EditorTemplate } from '../types';
 import { EditorApp } from '../components/EditorApp';
 import { StartScreen } from '../components/StartScreen';
 import { useCatalogue } from '../useCatalogue';
 
 
-// notsobot.com/editor: the site's stored login token and api base (`apiRequest`), the document's id in the url
-const webRequest: EditorRequest = (path, options = {}) => apiRequest(path, {
-  method: options.method,
-  body: options.body,
-  headers: options.headers,
-  query: options.query,
-  timeout: options.timeout,
-  signal: options.signal,
-});
-
-function webErrorOf(error: unknown): EditorApiError | null {
-  if (error instanceof ApiRequestError) {
-    return {
-      status: error.status,
-      code: error.code,
-      message: error.message,
-      body: (error.body as Record<string, unknown> | null) ?? null,
-    };
-  }
-  return null;
-}
+// notsobot.com/editor: the site's stored login token and api base (../webRequest), the document's id in the url
 
 
 export function WebEditorPage() {

@@ -18,11 +18,12 @@ const LUCIDE_IMPORT = /import\s*\{([^}]*)\}\s*from\s*["']lucide-react["']/g;
 type ModuleGraph = (moduleId: string) => {code: string | null, importedIds: ReadonlyArray<string>} | null;
 
 // The icon files the Discord Activity's first load uses. They go in `icons-activity` instead of the site's
-// `icons-initial`: one `$initial` group for both entries made the Activity preload icons only the site's first load uses,
-// once the dashboard pages the Activity lazy loads moved some of the site's own icons into shared chunks.
+// `icons-initial`: one `$initial` group for every entry made the
+// Activity preload icons only the site's first load uses, once the dashboard pages the Activity lazy loads moved some of
+// the site's own icons into shared chunks.
 // Every icon's importer is lucide's barrel (which everything imports), so the graph can't answer it from the icon's side:
-// this walks the Activity's static imports from its entry and reads which icons each of its own modules imports by name
-function activityIconFiles(getModuleInfo: ModuleGraph): Set<string> {
+// this walks an entry's static imports and reads which icons each of its own modules imports by name
+function entryIconFiles(entry: string, getModuleInfo: ModuleGraph): Set<string> {
   const fileOf = new Map<string, string>();
   for (const [ , names, file ] of readFileSync(LUCIDE_BARREL, 'utf8').matchAll(/export \{([^}]*)\} from '\.\/icons\/([^']+)'/g)) {
     for (const [ , name ] of names.matchAll(/default as (\w+)/g)) {
@@ -30,8 +31,8 @@ function activityIconFiles(getModuleInfo: ModuleGraph): Set<string> {
     }
   }
   const files = new Set<string>();
-  const seen = new Set<string>([ACTIVITY_ENTRY]);
-  const queue = [ACTIVITY_ENTRY];
+  const seen = new Set<string>([entry]);
+  const queue = [entry];
   for (let moduleId = queue.pop(); moduleId !== undefined; moduleId = queue.pop()) {
     const info = getModuleInfo(moduleId);
     for (const [ , names ] of info?.code?.matchAll(LUCIDE_IMPORT) ?? []) {
@@ -61,7 +62,7 @@ export default defineConfig(({ command, mode }) => {
   // mean to). Without it, requests go straight to a local notsobot.api (API_PORT in its .env.example) with the
   // `/api` prefix stripped like its nginx does, so dev never touches production by accident.
   const apiProxyTarget = env.VITE_DEV_API_PROXY || `http://localhost:${env.VITE_DEV_API_PORT || 8080}`;
-  // `activityIconFiles`, worked out once per build (the module graph is complete by the time chunks are made)
+  // `entryIconFiles`, worked out once per build (the module graph is complete by the time chunks are made)
   let activityIcons: Set<string> | null = null;
   const stripApiPrefix = !env.VITE_DEV_API_PROXY;
 
@@ -97,6 +98,8 @@ export default defineConfig(({ command, mode }) => {
           target: apiProxyTarget,
           changeOrigin: true,
           secure: true,
+          // notsogames.com's games socket (`/api/games/socket`)
+          ws: true,
           rewrite: (stripApiPrefix) ? (path) => path.replace(/^\/api(?=[/?]|$)/, '').replace(/^(?!\/)/, '/') : undefined,
         },
       },
@@ -124,7 +127,8 @@ export default defineConfig(({ command, mode }) => {
       client: {
         build: {
           rolldownOptions: {
-            // the site, and the Discord Activity's page (the worker serves it under /activity)
+            // the site, the Discord Activity's page (the worker serves it under /activity) and notsogames.com's (the worker
+            // serves it for the games hosts)
             input: {
               main: fileURLToPath(new URL('./index.html', import.meta.url)),
               activity: fileURLToPath(new URL('./activity.html', import.meta.url)),
@@ -133,18 +137,19 @@ export default defineConfig(({ command, mode }) => {
               // an icon more than one page uses was a chunk of its own, a third of all the chunks at a few hundred
               // bytes each. they're two files now: the ones the first load already needed (shared with the entry),
               // and the ones only lazy pages share, which the first load still doesn't fetch. an icon one page uses
-              // stays in that page's chunk. the Activity's first load has its own (`activityIconFiles`), the site's
-              // first load fetches that one too for the icons both use
+              // stays in that page's chunk. the Activity's first load has its own (`entryIconFiles`), and so does
+              // notsogames.com's (an icon both use is the Activity's), the site's first load fetches those too for the
+              // icons they share
               codeSplitting: {
                 groups: [
                   {
                     name: (moduleId, ctx) => {
-                      activityIcons ??= activityIconFiles((id) => ctx.getModuleInfo(id));
+                      activityIcons ??= entryIconFiles(ACTIVITY_ENTRY, (id) => ctx.getModuleInfo(id));
                       return (activityIcons.has(moduleId.split(/[\\/]/).pop() ?? '')) ? 'icons-activity' : null;
                     },
                     test: LUCIDE_PATTERN,
                     minShareCount: 2,
-                    priority: 3,
+                    priority: 4,
                   },
                   {name: 'icons-initial', test: LUCIDE_PATTERN, tags: ['$initial'], minShareCount: 2, priority: 2},
                   {name: 'icons', test: LUCIDE_PATTERN, minShareCount: 2, priority: 1},

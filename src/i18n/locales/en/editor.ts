@@ -396,6 +396,8 @@ export const Editor = {
   'editor.invite.title_editor': 'Invite people to this room',
   'editor.invite.title_game': 'Invite people to this game',
   'editor.invite.description': 'The invite opens the activity straight into this room. It lets people into a password room without the password, but anyone removed from the room stays out.',
+  // notsogames.com's Invite: a link to copy or share, no post
+  'editor.invite.description_link': 'Anyone with the link can join this room for the next 24 hours, a password room too. Anyone removed from the room stays out.',
   'editor.invite.share': 'Share link',
   'editor.invite.post': 'Post in this channel',
   'editor.invite.creating': 'Making the invite…',

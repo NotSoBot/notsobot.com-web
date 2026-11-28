@@ -5,10 +5,9 @@ import { Link } from 'react-router';
 
 import { Spinner } from '@/components/ui/Spinner';
 import type { GuideLinkRenderer } from '@/components/guides/GuideBlocks';
-import { guidesQuery, parseGuideLink, type GuideSlug, type UpcomingGuideSlug } from '@/content/guides';
-import { useI18n } from '@/i18n';
-
-import { guidePath } from './guideRoutes';
+import { guidePath, guidesQuery, guideUrl, isGameGuide, parseGuideLink, type GuideSlug, type UpcomingGuideSlug } from '@/content/guides';
+import { languagePath, useI18n } from '@/i18n';
+import { SiteIds, siteOrigin, type SiteId } from '@/sites';
 
 
 export const GUIDE_ICONS: Readonly<Record<GuideSlug | UpcomingGuideSlug, LucideIcon>> = Object.freeze({
@@ -39,15 +38,23 @@ export function GuidesLoading() {
 
 const LINK_CLASS = 'font-medium text-brand-text underline-offset-4 hover:underline';
 
-// on the site a `guide:` link is that guide's page (with its section as the hash), a `/path` the site's page
-export const siteGuideLink: GuideLinkRenderer = (href: string, children: ReactNode) => {
-  const guide = parseGuideLink(href);
-  if (guide) {
-    const to = `${guidePath(guide.slug)}${(guide.section) ? `#${guide.section}` : ''}`;
-    return <Link to={to} className={LINK_CLASS}>{children}</Link>;
-  }
-  if (href.startsWith('/')) {
-    return <Link to={href} className={LINK_CLASS}>{children}</Link>;
-  }
-  return <a href={href} target='_blank' rel='noreferrer' className={LINK_CLASS}>{children}</a>;
-};
+// A guide's links on one of the sites (`site`): a `guide:` link is that guide's page (with its section as the hash), in
+// the app when it's this site's and on the other site when it isn't; a `/path` is notsobot.com's page
+export function useGuideLinkRenderer(site: SiteId): GuideLinkRenderer {
+  const { language } = useI18n();
+  return (href: string, children: ReactNode) => {
+    const guide = parseGuideLink(href);
+    const external = (url: string) => <a href={url} className={LINK_CLASS}>{children}</a>;
+    if (guide) {
+      const hash = (guide.section) ? `#${guide.section}` : '';
+      if (isGameGuide(guide.slug) === (site === SiteIds.GAMES)) {
+        return <Link to={`${guidePath(guide.slug)}${hash}`} className={LINK_CLASS}>{children}</Link>;
+      }
+      return external(`${guideUrl(guide.slug, language)}${hash}`);
+    }
+    if (href.startsWith('/')) {
+      return (site === SiteIds.NOTSOBOT) ? <Link to={href} className={LINK_CLASS}>{children}</Link> : external(`${siteOrigin(SiteIds.NOTSOBOT)}${languagePath(language, href)}`);
+    }
+    return <a href={href} target='_blank' rel='noreferrer' className={LINK_CLASS}>{children}</a>;
+  };
+}

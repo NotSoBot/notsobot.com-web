@@ -1,4 +1,5 @@
-// The guides' shape, shared by notsobot.com/guides (src/pages/guides) and the Activity's "How to play" sheet. Plain data,
+// The guides' shape, shared by notsobot.com/guides and notsogames.com/guides (src/pages/guides, src/games/pages) and the
+// Activity's "How to play" sheet. Plain data,
 // no React or browser code, so the worker's render and the Activity bundle can both take it in.
 //
 // Text in blocks and quick rules uses a tiny inline markup (rendered by src/components/guides/GuideBlocks.tsx):
@@ -9,6 +10,17 @@
 
 export const GUIDE_SLUGS = ['flag-guesser', 'letter-trail', 'game-points', 'media-editor'] as const;
 export type GuideSlug = typeof GUIDE_SLUGS[number];
+
+// where each guide's page is (notsogames-plan.md): the games' on notsogames.com, the media editor's on notsobot.com. Both
+// sites put a guide at `/guides/<slug>`
+export const GAME_GUIDE_SLUGS = ['flag-guesser', 'letter-trail', 'game-points'] as const satisfies ReadonlyArray<GuideSlug>;
+export type GameGuideSlug = typeof GAME_GUIDE_SLUGS[number];
+export const SITE_GUIDE_SLUGS = ['media-editor'] as const satisfies ReadonlyArray<GuideSlug>;
+export type SiteGuideSlug = typeof SITE_GUIDE_SLUGS[number];
+
+export function isGameGuide(slug: GuideSlug): slug is GameGuideSlug {
+  return (GAME_GUIDE_SLUGS as ReadonlyArray<string>).includes(slug);
+}
 
 // games with a card on the index but no guide yet (none right now, the next one goes here)
 export const UPCOMING_GUIDE_SLUGS = [] as const;

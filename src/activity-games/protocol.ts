@@ -150,6 +150,11 @@ export type LetterTrailState = GameStateOf<LetterTrailSettings, LetterTrailRound
 export type AnyGameState = GameState | LetterTrailState;
 export type AnyGameSettings = GameSettings | LetterTrailSettings;
 
+// a guest's player id on notsogames.com (`guest:<16 hex>`), never a Discord user's
+export function isGuestId(userId: string): boolean {
+  return userId.startsWith('guest:');
+}
+
 export function isLetterTrail(game: AnyGameState): game is LetterTrailState {
   return game.room.game === 'letter_trail';
 }
@@ -168,6 +173,8 @@ export type GameServerEvent =
   | {t: 'answered', user_id: string}
   // removed from the room (when it's you, a `closed` with 4005 follows)
   | {t: 'kicked', user_id: string}
+  // your `guest_block` went through (the `kicked` for them comes too)
+  | {t: 'guest_blocked', user_id: string}
   // the game's over for this socket (it stays open): a refused `game_join` or the end of one, `code` from GameCloseCodes
   | {t: 'closed', code: number, message?: string}
   // a refused op (`op` without the prefix)
@@ -192,6 +199,8 @@ export type GameClientMessage =
   // `visibility` only in the lobby (the api refuses it otherwise)
   | {op: 'room', name: string | null, mode: 'public' | 'password', password?: string, watch_only: boolean, visibility?: GameRoomVisibility}
   | {op: 'kick', user_id: string}
+  // NotSoBot's owners: a guest (`guest:<hex>`) in the room is kicked and their network can't play as a guest for a week
+  | {op: 'guest_block', user_id: string}
   | {op: 'close'}
   // Letter Trail: a word as the tiles it goes through (board indexes, row-major), and the host skipping a reveal
   | {op: 'word', path: Array<number>}

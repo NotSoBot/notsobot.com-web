@@ -19,7 +19,7 @@ type Outcome =
 
 // The room header's Invite (the editor's group rooms and the flag game's): one invite made when the dialog opens and
 // reused for both ways of sending it while it stays open. "Share link" is Discord's share sheet, "Post in this channel"
-// the bot's post with a Join button
+// the bot's post with a Join button. On notsogames.com (no `post`) the link is all there is
 export function RoomInviteDialog({ inviter, onClose }: {inviter: RoomInviter, onClose: () => void}) {
   const { t } = useI18n();
   const titleId = useId();
@@ -80,7 +80,7 @@ export function RoomInviteDialog({ inviter, onClose }: {inviter: RoomInviter, on
           setOutcome({kind: shared});
         }
       } else {
-        const result = await bound.post(code);
+        const result = await bound.post?.(code) ?? {posted: false};
         if (alive.current) {
           setOutcome((result.posted) ? {kind: 'posted'} : {kind: 'not_posted', reason: result.reason});
         }
@@ -104,7 +104,7 @@ export function RoomInviteDialog({ inviter, onClose }: {inviter: RoomInviter, on
           <h2 id={titleId} className='pr-10 text-lg font-semibold text-white'>
             {(bound.kind === 'game') ? t('editor.invite.title_game') : t('editor.invite.title_editor')}
           </h2>
-          <p className='mt-2 text-sm text-muted'>{t('editor.invite.description')}</p>
+          <p className='mt-2 text-sm text-muted'>{t((bound.post) ? 'editor.invite.description' : 'editor.invite.description_link')}</p>
         </div>
 
         <div className='flex flex-col gap-2 sm:flex-row'>
@@ -112,10 +112,12 @@ export function RoomInviteDialog({ inviter, onClose }: {inviter: RoomInviter, on
             {(pending === 'share') ? <Spinner className='size-4'/> : <Link2 aria-hidden className='size-4'/>}
             {t('editor.invite.share')}
           </button>
-          <button type='button' className='btn btn-primary flex-1' disabled={busy} onClick={() => void run('post')}>
-            {(pending === 'post') ? <Spinner className='size-4 border-white/40 border-t-white'/> : <MessageSquarePlus aria-hidden className='size-4'/>}
-            {t('editor.invite.post')}
-          </button>
+          {(bound.post) ? (
+            <button type='button' className='btn btn-primary flex-1' disabled={busy} onClick={() => void run('post')}>
+              {(pending === 'post') ? <Spinner className='size-4 border-white/40 border-t-white'/> : <MessageSquarePlus aria-hidden className='size-4'/>}
+              {t('editor.invite.post')}
+            </button>
+          ) : null}
         </div>
 
         <p className='flex items-center gap-1.5 text-xs text-subtle'>

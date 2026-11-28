@@ -12,13 +12,14 @@ function unsafePath(value: string): boolean {
 }
 
 // Only allow same-origin paths, never protocol-relative (`//evil.com`) or back-slash tricks,
-// and never the auth routes themselves (would loop). In any language (`/es/auth/login` too).
+// and never the auth routes themselves (would loop). In any language (`/es/auth/login` too). The one exception is
+// notsogames.com's handoff (`/auth/handoff?state=…`), which logs in first and then carries on
 export function sanitizeReturnTo(value: string | null | undefined): string | null {
   if (!value || unsafePath(value)) {
     return null;
   }
   const { path } = splitLanguagePath(value);
-  if (unsafePath(path) || path.startsWith('/auth/')) {
+  if (unsafePath(path) || (path.startsWith('/auth/') && !/^\/auth\/handoff(\?|$)/.test(path))) {
     return null;
   }
   return value;

@@ -13,12 +13,12 @@
   // the deployed version's id, part of every html response's ETag (pageEtag in the worker): a deploy that only changes
   // worker code would otherwise keep answering 304 for html the previous version rendered
   "version_metadata": {"binding": "CF_VERSION_METADATA"},
-  // every subdomain of notsobot.com, like nsb.gg: notsobot.com and www. are the site, anything else 404s (SITE_HOSTS in the
-  // worker). beta.notsobot.com's own route below is more specific, so it stays on the beta script, and notsobot.com/api/*
+  // every subdomain of notsobot.com, like nsb.gg: notsobot.com and www. are the site, anything else 404s (SITE_HOSTS in
+  // src/sites.ts). beta.notsobot.com's own route below is more specific, so it stays on the beta script, and notsobot.com/api/*
   // has a "no worker" route on the zone (see the readme)
   "routes": [
     {"pattern": "*notsobot.com/*", "zone_name": "notsobot.com"},
-    // notso.bot and www. redirect to notsobot.com with the path kept (REDIRECT_DOMAINS in the worker), any other
+    // notso.bot and www. redirect to notsobot.com with the path kept (REDIRECT_HOSTS in src/sites.ts), any other
     // subdomain 404s too. production only
     {"pattern": "*notso.bot/*", "zone_name": "notso.bot"}
   ],

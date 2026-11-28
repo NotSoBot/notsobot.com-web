@@ -9,10 +9,7 @@ const loading = (step: Step = 'sdk'): Phase => ({kind: 'loading', step});
 const failed = (): Phase => ({kind: 'failed', message: 'editor.activity.failed', detail: 'context: 500 boom'});
 const lobbies = (notice?: string): Phase => ({kind: 'lobbies', notice});
 const choice = (): Phase => ({kind: 'choice'});
-const gamesTab = (): Phase => ({kind: 'games_tab'});
-const games = (): Phase => ({kind: 'games', game: 'flag_guesser'});
-const game = (gameId = 'room1'): Phase => ({kind: 'game', gameId, watch: false, game: 'flag_guesser'});
-const flagCarry = (): Phase => ({kind: 'flag_carry', carry: {difficulty: 'medium', has_flag: true}});
+const gamesFrame = (): Phase => ({kind: 'games_frame', launch: {screen: 'tab'}});
 const start = (mode: 'solo' | 'public' | 'password' = 'public'): Phase => ({kind: 'start', mode});
 const editor = (documentId = 'doc1'): Phase => ({kind: 'editor', documentId, solo: false});
 const serverSettings = (): Phase => ({kind: 'server_settings', guildId: '100000000000000001'});
@@ -23,10 +20,7 @@ const BUILDERS: Record<Phase['kind'], () => Phase> = {
   failed,
   lobbies: () => lobbies(),
   choice,
-  games_tab: gamesTab,
-  games,
-  game: () => game(),
-  flag_carry: flagCarry,
+  games_frame: gamesFrame,
   start: () => start(),
   editor: () => editor(),
   server_settings: serverSettings,
@@ -149,10 +143,7 @@ describe('PHASE_SCREENS', () => {
     ['failed', null],
     ['lobbies', null],
     ['choice', null],
-    ['games_tab', 'games'],
-    ['games', 'games'],
-    ['game', 'games'],
-    ['flag_carry', 'games'],
+    ['games_frame', 'games'],
     ['start', 'editor'],
     ['editor', 'editor'],
     ['server_settings', null],

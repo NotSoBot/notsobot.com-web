@@ -5,8 +5,9 @@ import { Link, matchPath, NavLink, useLocation } from 'react-router';
 import logo from '@/assets/logos/NotSoLogo.svg';
 import { BotInviteLink } from '@/components/BotInviteLink';
 import { config, Routes } from '@/config';
-import { useI18n } from '@/i18n';
+import { languagePath, useI18n } from '@/i18n';
 import { cn } from '@/lib/utils';
+import { SiteIds, siteOrigin } from '@/sites';
 
 import { AuthControls } from './AuthControls';
 import { useNavLinks } from './navLinks';
@@ -45,7 +46,9 @@ function takeLogoEffect(previous?: string): string {
 
 
 export function Navbar() {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
+  // the games' own site (notsogames.com), in this page's language
+  const gamesUrl = `${siteOrigin(SiteIds.GAMES)}${languagePath(language, '/')}`;
   const links = useNavLinks();
   const [ mobileOpen, setMobileOpen ] = useState(false);
   const location = useLocation();
@@ -104,6 +107,7 @@ export function Navbar() {
                 </NavLink>
               </li>
             ))}
+            <li><a href={gamesUrl} className='text-sm text-muted transition-colors hover:text-white'>{t('nav.games')}</a></li>
           </ul>
           {config.authEnabled ? <AuthControls compact/> : null}
         </div>
@@ -125,6 +129,9 @@ export function Navbar() {
                 </NavLink>
               </li>
             ))}
+            <li>
+              <a href={gamesUrl} className='block rounded-md px-3 py-2.5 text-base text-muted transition-colors hover:bg-surface-2 hover:text-white'>{t('nav.games')}</a>
+            </li>
             <li className='pt-2'>
               <BotInviteLink source='navbar' className='btn btn-discord w-full'>{t('common.add_to_discord')}</BotInviteLink>
             </li>

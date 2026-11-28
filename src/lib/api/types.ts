@@ -605,6 +605,15 @@ export const ApiErrorCodes = {
   // our own rate limits (`app_limiter`), e.g. one listing upload per 2 seconds
   RATELIMITED: 30016,
   DISCORD_API_ERROR: 60012,
+  // notsogames.com (notsogames-plan.md "api deviations" has the numbers)
+  // a guest asked for a server's rooms (or `game_scope` with a server)
+  GAMES_GUESTS_GLOBAL_ONLY: 20007,
+  // `POST /auth/guest` while guests are turned off (`GAMES_GUESTS=false`)
+  GAMES_GUESTS_CLOSED: 20008,
+  // a guest's new room with a name or password
+  GAMES_GUEST_NO_TEXT: 50065,
+  // `POST /auth/handoff/redeem` with an unknown, used, expired or mismatched code
+  AUTH_HANDOFF_INVALID: 50066,
 } as const;
 
 
@@ -1821,6 +1830,8 @@ export interface AdminLegalHold {
   legal_hold_on?: string | null,
   // staff only, like a case reference or NCMEC report number
   legal_hold_reason?: string | null,
+  // when their "Delete my data" started, set while it runs or when it stopped partway: some of their data may be gone
+  data_deletion_started_at?: string | null,
 }
 
 export interface AdminUser extends AdminUserRef, AdminLegalHold {

@@ -2,6 +2,8 @@ export const Routes = Object.freeze({
   HOME: '/',
   AUTH_LOGIN: '/auth/login',
   AUTH_LOGIN_CALLBACK: '/auth/login/callback',
+  // notsogames.com's "Sign in with Discord" (src/sites.ts): logs in here if needed, then hands a one-time code back to it
+  AUTH_HANDOFF: '/auth/handoff',
   AUTH_REDIRECT: '/auth/redirect',
   CHANGELOG: '/changelog',
   COMMANDS: '/commands',
@@ -59,11 +61,8 @@ export const Routes = Object.freeze({
   EDITOR_TEMPLATE: '/editor/template/:templateCode',
   FAQ: '/faq',
   FOXBOT: '/foxbot',
-  // how-to guides for the Activity's games and the editor, one page each (src/content/guides has their content)
+  // how-to guides, one page each (src/content/guides has their content). The games' are on notsogames.com (src/games)
   GUIDES: '/guides',
-  GUIDE_FLAG_GUESSER: '/guides/flag-guesser',
-  GUIDE_GAME_POINTS: '/guides/game-points',
-  GUIDE_LETTER_TRAIL: '/guides/letter-trail',
   GUIDE_MEDIA_EDITOR: '/guides/media-editor',
   INVITE: '/invite',
   LEGAL_PRIVACY: '/legal/privacy',

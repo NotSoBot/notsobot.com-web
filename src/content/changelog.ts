@@ -29,7 +29,7 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: Array<ChangelogDay> = [
   {
     date: '2026-11-27',
-    title: 'Game records, settings in the Activity, Windows error boxes, a round of fixes',
+    title: 'notsogames.com, game records, settings in the Activity, Windows error boxes, a round of fixes',
     items: [
       {kind: 'new', text: 'Your settings and Server settings in the Activity, on the start screen: Your settings has your own dashboard pages (settings, reminders, tags, AI memory, fonts, voices, files and command history), and Server settings, shown when you can change something in the server, has every page of its dashboard, starting on Music. Pages you can\'t change show read-only with the permission they need, and Premium and downloading or deleting data open notsobot.com.'},
       {kind: 'new', text: 'An All rooms row on the Activity\'s Games tab opens the room list for every game, this server\'s rooms and global ones.'},
@@ -38,6 +38,7 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'new', text: 'Game records for Flag Guesser and Letter Trail rooms: wins, losses, ties, games left, win streaks and each game\'s best stats (flags named, fastest answer, words found, longest word). See them with `/games points` and in the Activity\'s Your points, and the final scores show who won, tied or left. Only games played to the end count.'},
       {kind: 'new', text: 'Your Discord status shows what you\'re doing in the Activity: the game or the Media Editor, the room\'s name (or Private room if it has a password), the round and how many people are in it.'},
       {kind: 'new', text: 'Jump in with someone: the Activity\'s first screen lists up to 3 people who are in an editor lobby or a game room, with a Join button that takes you straight to them. Pressing Join on someone\'s Mess Around message puts them first. A room with a password still asks for it.'},
+      {kind: 'new', text: 'notsogames.com, NotSoBot\'s games on their own website: play Flag Guesser and Letter Trail in your browser, in global rooms or your servers\' rooms, signed in with your NotSoBot account or as a guest. Players on the website and in the Activity share the same rooms. Guests play in global rooms only and don\'t earn points. notso.games takes you there too.'},
       {kind: 'improved', text: 'The Games tab\'s game cards have a How to play button, with their room counts on a line of their own.'},
       {kind: 'improved', text: 'A solo game in the Activity ends on your score and the points it added, instead of a podium with only you on it.'},
       {kind: 'improved', text: 'Letter Trail games are 1 round by default now, Play solo too. The host can still pick up to 5.'},
@@ -75,7 +76,10 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'fixed', text: 'A second Flag Guesser game being able to start in a channel after a NotSoBot update.'},
       {kind: 'fixed', text: 'Letter Trail skipping letters when you dragged the mouse quickly, which stopped the word there.'},
       {kind: 'fixed', text: 'Letter Trail refusing a few ordinary words, like dickens, because they start like a blocked one.'},
+      {kind: 'fixed', text: 'A broken avatar in the Activity\'s lobbies, room lists and leaderboards showing as a broken image. It shows Discord\'s default avatar instead, and names and avatars there catch up with your Discord profile when you open the Activity or sign in on notsogames.com.'},
+      {kind: 'fixed', text: 'A NotSoCode tag whose command failed saying "safety scan failed, try again" when the command left an empty or broken file behind. It shows the command\'s own error now.'},
       {kind: 'removed', text: 'Mashup isn\'t available in the media editor for now.'},
+      {kind: 'removed', text: 'The Flag Guesser, Letter Trail and game points guides on notsobot.com. They\'re on notsogames.com now.'},
     ],
   },
   {

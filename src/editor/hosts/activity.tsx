@@ -3,12 +3,9 @@ import { Component, Suspense, useCallback, useEffect, useMemo, useReducer, useRe
 
 import { ArrowLeft } from 'lucide-react';
 
-import { carriedFlagGameOf, FlagCarry, type CarriedFlagGame } from '@/activity-games/FlagCarry';
-import { ActivityFlagGame } from '@/activity-games/FlagGame';
-import { GameRooms } from '@/activity-games/GameRooms';
-import { GamesTab } from '@/activity-games/GamesTab';
 import { ModeChoice } from '@/activity-games/ModeChoice';
 import { createGameRoomsApi } from '@/activity-games/rooms';
+import { ACTIVITY_SHELL_VERSION, GAMES_HALF_PATH } from '@/activity/shell';
 import { tokenStorage } from '@/auth/tokenStorage';
 import { GuideLinksProvider, HowToPlayButton } from '@/components/guides/GuideSheet';
 import { FullPageMessage } from '@/components/ui/FullPageMessage';
@@ -20,7 +17,7 @@ import type { UserGuild } from '@/lib/api/types';
 import { createEditorApi, EditorErrorCodes, pathId, type EditorApiError, type EditorHost, type EditorRequest, type RoomSettings } from '../api';
 import { EditorApp } from '../components/EditorApp';
 import { activityLanguage, applyActivityLocales } from '../activityLanguage';
-import { activityLog } from '../activityLog';
+import { activityLog, rememberOwnerDevice } from '../activityLog';
 import { INVITE_CUSTOM_ID, type RoomInviteKind, type RoomInviter } from '../invites';
 import { ConnectionNotice } from '../components/ConnectionNotice';
 import { LobbyList } from '../components/LobbyList';
@@ -29,10 +26,12 @@ import { EditorRoom, type EditingResult, type RoomMember } from '../room';
 import { localizedSiteUrl } from '../siteLinks';
 import { remapAssets, usedAssets } from '../stack';
 import { PipView, useCompactLayout, usePipStatus, type LayoutSubscriber } from './pip';
-import { PresenceSender, presenceOf, presenceSession } from './presence';
+import { PresenceSender, presenceOf, presenceSession, type PresenceActivity } from './presence';
+import { traceIncoming, traceOutgoing, traceStart } from './sdkTrace';
+import { StartupLog } from '../components/StartupLog';
 import type { EditorDocument, EditorLobby, EditorTemplate } from '../types';
 import { useCatalogue } from '../useCatalogue';
-import { inviteScreen, launchInviteCode, launchScreen, launchTemplateCode, TEMPLATE_CUSTOM_ID, type ActivityLaunchScreen } from './activityLaunch';
+import { carriedFlagGameOf, inviteScreen, launchInviteCode, launchScreen, launchTemplateCode, TEMPLATE_CUSTOM_ID, type ActivityLaunchScreen, type CarriedFlagGame } from './activityLaunch';
 import { isSamePhase, nextPhase, PHASE_SCREENS, type Phase, type Step } from './activityPhase';
 
 
@@ -312,11 +311,11 @@ function screenPhase(screen: ActivityLaunchScreen, notice?: string): Phase {
     case 'start':
       return {kind: 'start', mode: 'public'};
     case 'games':
-      // `/games` opens on the Games tab, a game invite that couldn't be opened on its game's rooms (with why)
-      return (notice) ? {kind: 'games', notice} : {kind: 'games_tab'};
+      // `/games` opens the games half on its Games tab, a game invite that couldn't be opened on its rooms (with why)
+      return {kind: 'games_frame', launch: (notice) ? {screen: 'rooms', notice} : {screen: 'tab'}};
     case 'flag_guesser':
       // Open in Activity on the in-chat Flag Guesser: straight to its rooms
-      return {kind: 'games', notice, game: 'flag_guesser'};
+      return {kind: 'games_frame', launch: {screen: 'rooms', game: 'flag_guesser', notice}};
     case 'editor':
       return {kind: 'lobbies', notice};
     case 'choice':
@@ -333,7 +332,7 @@ function firstPhase(launch: {surface: string | null, launchedOn: boolean, carry:
   const screen = launchScreen(launch.surface, launch.launchedOn);
   // Open in Activity on the in-chat game the bot knew about: a room continuing it, offered before the room list
   if (screen === 'flag_guesser' && launch.carry) {
-    return {kind: 'flag_carry', carry: launch.carry};
+    return {kind: 'games_frame', launch: {screen: 'carry', carry: launch.carry}};
   }
   return screenPhase(screen);
 }
@@ -399,17 +398,6 @@ function ActivityScreens() {
   useEffect(() => {
     setup?.room.setScreen(roomScreen);
   }, [setup, roomScreen]);
-  // the in-chat game's flag for its prompt (./FlagCarry), an object url: the route wants the token, an <img> can't send it
-  const setupInstanceId = setup?.instanceId ?? null;
-  const loadCarriedFlag = useCallback(async (): Promise<string | null> => {
-    if (!setupInstanceId) {
-      return null;
-    }
-    const url = new URL(`${API_BASE}/activity/games/${pathId(setupInstanceId)}/carried/flag`, window.location.origin);
-    url.searchParams.set('width', '640');
-    const response = await fetch(url, {headers: {authorization: tokenRef.current ?? ''}, signal: timeoutSignal(15 * 1000)});
-    return (response.ok) ? URL.createObjectURL(await response.blob()) : null;
-  }, [setupInstanceId, tokenRef]);
   // the server as they see it on the dashboard, once it says they can change something there: the mode choice's Server
   // settings. Asked once after startup, the mode choice doesn't wait for it
   const setupGuildId = setup?.guildId ?? null;
@@ -435,6 +423,8 @@ function ActivityScreens() {
     let alive = true;
     let room: EditorRoom | null = null;
     let presence: PresenceSender | null = null;
+    // the SDK trace (./sdkTrace), stopped once startup is through
+    let stopTrace = () => {};
     const fail = (message: Extract<Phase, {kind: 'failed'}>['message'], detail?: string) => {
       if (alive) {
         setPhase({kind: 'failed', message, detail});
@@ -458,20 +448,33 @@ function ActivityScreens() {
     (async () => {
       const clientId = clientIdFromHost();
       let sdk: DiscordSDK;
+      // the SDK's traffic into the owners' log until startup is through (./sdkTrace), the failure screen shows it to
+      // owners. A start that fails keeps tracing: Discord's late answers are what's wanted then
+      traceStart(document.referrer);
+      stopTrace = traceIncoming();
       try {
         if (!clientId) {
           throw new Error('no client id');
         }
         // throws without the `frame_id` query Discord adds, the page was opened outside Discord
         sdk = new DiscordSDK(clientId);
-      } catch {
+        traceOutgoing(sdk);
+      } catch (error) {
+        activityLog.add('startup', `no SDK: ${String((error as Error)?.message ?? error)}`);
         return fail('editor.activity.not_in_discord');
       }
 
       try {
         enter('ready');
         // a handshake Discord never answers used to leave the loading screen up for good
-        await readyWithin(sdk, READY_WAIT);
+        const readyStarted = performance.now();
+        try {
+          await readyWithin(sdk, READY_WAIT);
+          activityLog.add('startup', `ready after ${Math.round(performance.now() - readyStarted)} ms`);
+        } catch (error) {
+          activityLog.add('startup', `ready failed after ${Math.round(performance.now() - readyStarted)} ms: ${String((error as Error)?.message ?? error)}`);
+          throw error;
+        }
         live();
         // media urls from the api (previews, tiles, renders) are cdn.nsb.gg's, the iframe can only load them through
         // the `/cdn` mapping. this rewrites them as they're set on img/video elements too
@@ -793,8 +796,9 @@ function ActivityScreens() {
           try {
             const target = await api.invites.redeem(code, instanceId);
             if (target.kind === 'game') {
-              // a password room now lets them in, a watch-only one makes them a watcher
-              return {kind: 'game', gameId: target.room_id, watch: false};
+              // into the games half, straight to its room: a password room now lets them in, a watch-only one makes
+              // them a watcher
+              return {kind: 'games_frame', launch: {screen: 'room', roomId: target.room_id}};
             }
             if (target.kind === 'editor') {
               const { result, message } = await enterLobby(target.room_id, undefined, false, code);
@@ -815,11 +819,51 @@ function ActivityScreens() {
         const surface = (typeof context.launch?.surface === 'string') ? context.launch.surface : null;
         const joinedUserId = (typeof context.launch?.joined_user_id === 'string') ? context.launch.joined_user_id : null;
         setSetup({instanceId, guildId: context.guild_id, room, group: groupHost, solo: soloHost, lobbies: context.lobbies, hasLobbies: () => lobbyIds.size > 0, mediaUrl, surface, joinedUserId, template, enterLobby, inviter, owner: context.owner});
+        // The games half's way into this page (src/activity/shell.ts, the contract with notsogames.com-web): it lives in
+        // an iframe at /games/ and uses this page's SDK, socket and token instead of a handshake of its own (Discord
+        // ignores a second page in the frame). Set before the first screen, which may be the games half already
+        const shellSdk = sdk;
+        const shellRoom = room;
+        const taken = new WeakSet<Phase>();
+        window.__nsbActivityShell = {
+          version: ACTIVITY_SHELL_VERSION,
+          sdk: shellSdk,
+          instanceId,
+          guildId: context.guild_id ?? null,
+          owner: context.owner,
+          locales: context.locales,
+          token: () => tokenRef.current,
+          room: shellRoom,
+          withSdkAuth,
+          openExternal: (url) => {
+            withSdkAuth(() => shellSdk.commands.openExternalLink({url})).catch((error) => console.warn('[editor activity] openExternalLink failed', error));
+          },
+          // this page's own profile line stops while the games half is on (PresenceSync isn't mounted then)
+          setPresence: ({ activity, session }) => {
+            presence?.update(activity as Omit<PresenceActivity, 'timestamps'> | null, session);
+          },
+          // the games half's launch, once per time it's opened
+          takeLaunch: () => {
+            const current = phaseRef.current;
+            if (current.kind !== 'games_frame' || taken.has(current)) {
+              return null;
+            }
+            taken.add(current);
+            return current.launch;
+          },
+          // the games half has already unmounted its screens (left its room, let go of the socket's listeners)
+          back: (notice) => setPhase({kind: 'choice', notice}),
+        };
+
         const inviteCode = launchInviteCode(sdk.customId, context.launch);
-        const first = (inviteCode) ? await openInvite(inviteCode) : firstPhase({surface, launchedOn: Boolean(mediaUrl || template), carry: carriedFlagGameOf(context.launch)});
+        const first = (inviteCode) ? await openInvite(inviteCode)
+          : firstPhase({surface, launchedOn: Boolean(mediaUrl || template), carry: carriedFlagGameOf(context.launch)});
         if (alive) {
           setPhase(first);
         }
+        // the failure screen's log for the next start that fails before sign-in, and the trace's done
+        rememberOwnerDevice(context.owner);
+        stopTrace();
       } catch (error) {
         // a run that's over has nothing to say, whatever it stopped on
         if (error === CANCELLED || !alive) {
@@ -846,6 +890,8 @@ function ActivityScreens() {
 
     return () => {
       alive = false;
+      stopTrace();
+      delete window.__nsbActivityShell;
       room?.close();
       presence?.close();
     };
@@ -870,6 +916,8 @@ function ActivityScreens() {
           {(phase.message === 'editor.activity.failed' || phase.message === 'editor.activity.denied') ? (
             <button type='button' className='btn btn-secondary' onClick={() => window.location.reload()}>{t('common.reload')}</button>
           ) : null}
+          {/* owners' devices only: what startup and the SDK did */}
+          <StartupLog/>
         </FullPageMessage>
       </div>
     );
@@ -894,13 +942,13 @@ function ActivityScreens() {
             notice={phase.notice}
             // the running lobbies when there are any right now, otherwise a new edit
             onEdit={() => setPhase((setup.hasLobbies()) ? {kind: 'lobbies'} : {kind: 'start', mode: 'public'})}
-            onGame={() => setPhase({kind: 'games_tab'})}
+            onGame={() => setPhase({kind: 'games_frame', launch: {screen: 'tab'}})}
             first={setup.joinedUserId}
             // someone's room here: a game room opens like it does from its list (a password one closes back to that
             // game's rooms saying so), a lobby is joined like from the lobby list and lands on it when that's refused
             onJoin={async (target) => {
               if (target.kind === 'game') {
-                setPhase({kind: 'game', gameId: target.gameId, watch: false, game: target.game}, phase);
+                setPhase({kind: 'games_frame', launch: {screen: 'room', roomId: target.gameId}}, phase);
                 return;
               }
               const { result, message } = await setup.enterLobby(target.documentId, undefined, false, undefined, phase);
@@ -938,55 +986,16 @@ function ActivityScreens() {
             )}
           </SettingsLoader>
         );
-      case 'games_tab':
+      case 'games_frame':
+        // the games half: notsogames.com's, through the URL mapping /games → notsogames.com/activity, with Discord's
+        // query (the instance, the platform). It finds this page's SDK and socket on window.parent (src/activity/shell.ts)
         return (
-          <GamesTab
-            api={gamesApi}
-            room={setup.room}
-            onGame={(game) => setPhase({kind: 'games', game: game ?? undefined})}
-            onBack={() => setPhase({kind: 'choice'})}
-          />
-        );
-      case 'games':
-        return (
-          <GameRooms
-            api={gamesApi}
-            room={setup.room}
-            errorOf={activityErrorOf}
-            notice={phase.notice}
-            game={phase.game}
-            // Quick play's room too, joined like any other. The list's filter goes with it, for the way back
-            onOpen={(gameId, watch) => setPhase({kind: 'game', gameId, watch, game: phase.game})}
-            onBack={() => setPhase({kind: 'games_tab'})}
-          />
-        );
-      case 'flag_carry':
-        return (
-          <FlagCarry
-            carry={phase.carry}
-            loadFlag={loadCarriedFlag}
-            onStart={async () => {
-              const created = await gamesApi.create({game: 'flag_guesser', name: null, watch_only: false, from_launch: true});
-              // its lobby, others join before its creator starts it (leaving it goes to Flag Guesser's rooms, like
-              // this screen's other button)
-              setPhase({kind: 'game', gameId: created.id, watch: false, game: 'flag_guesser'}, phase);
-            }}
-            onRooms={() => setPhase({kind: 'games', game: 'flag_guesser'})}
-          />
-        );
-      case 'game':
-        return (
-          <ActivityFlagGame
-            key={phase.gameId}
-            room={setup.room}
-            gameId={phase.gameId}
-            apiBase={API_BASE}
-            token={tokenRef.current ?? ''}
-            watch={phase.watch}
-            owner={setup.owner}
-            inviter={setup.inviter('game', phase.gameId)}
-            // back to the room list as it was filtered
-            onLeave={(notice) => setPhase({kind: 'games', notice, game: phase.game})}
+          <iframe
+            title='NotSoGames'
+            src={`${GAMES_HALF_PATH}${window.location.search}`}
+            // what this frame has, handed down (an iframe can only pass on what it's allowed itself)
+            allow='autoplay; gamepad'
+            className='block h-[var(--editor-height,100dvh)] w-full border-0 bg-bg'
           />
         );
       case 'lobbies':
@@ -1058,11 +1067,12 @@ function ActivityScreens() {
     <div className='contents' data-state={phase.kind}>
       <GuideLinksProvider openExternal={setup.group.openExternal}>
         {screen}
-        {/* the socket's gone and coming back: said on every screen but a game's, which has its own strip for it. Always
-            mounted, so it knows the socket was open before whichever screen they're on now */}
-        <ConnectionNotice room={setup.room} muted={phase.kind === 'game'}/>
-        {(presence) ? <PresenceSync sender={presence} phase={phase}/> : null}
-        {(compact) ? <PipView/> : null}
+        {/* the socket's gone and coming back: said on every screen but the games half's, which says it itself. Always
+            mounted, so it knows the socket was open before whichever screen they're on now. The games half also says
+            its own Discord profile line and small view, so this page's stay off while it's on */}
+        <ConnectionNotice room={setup.room} muted={phase.kind === 'games_frame'}/>
+        {(presence && phase.kind !== 'games_frame') ? <PresenceSync sender={presence} phase={phase}/> : null}
+        {(compact && phase.kind !== 'games_frame') ? <PipView/> : null}
       </GuideLinksProvider>
     </div>
   );
