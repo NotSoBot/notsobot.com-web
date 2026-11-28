@@ -14,7 +14,7 @@ export const Guides = {
   'guides.tip': 'Tip',
   // notsobot.com's guides index: the game guides' card, they're on notsogames.com
   'guides.games_title': 'Game guides',
-  'guides.games_description': 'Flag Guesser, Letter Trail and game points have their guides on NotSoGames, where you can play them in your browser too.',
+  'guides.games_description': 'Flag Guesser, Letter Trail, Hold the Line, Loose Ends and game points have their guides on NotSoGames, where you can play the games in your browser too.',
   'guides.games_open': 'Open on notsogames.com',
   // the Activity's "How to play" sheet (src/components/guides/GuideSheet.tsx)
   'guides.sheet.open_game': 'How to play',

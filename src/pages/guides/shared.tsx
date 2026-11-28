@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Flag, LetterText, Trophy, Wand2, type LucideIcon } from 'lucide-react';
+import { Flag, Gamepad2, LetterText, PenLine, Spool, Trophy, Wand2, type LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 
@@ -15,6 +15,9 @@ export const GUIDE_ICONS: Readonly<Record<GuideSlug | UpcomingGuideSlug, LucideI
   'game-points': Trophy,
   'media-editor': Wand2,
   'letter-trail': LetterText,
+  'hold-the-line': PenLine,
+  'loose-ends': Spool,
+  'retro': Gamepad2,
 });
 
 

@@ -8,6 +8,15 @@
 // - game points: notsobot.api `utilities/tools/game_points.py` (the daily cap, weeks), notsobot.ts `/games points` and
 //   `/games leaderboard`
 // - the editor: notsobot.api `utilities/tools/editor/` (rooms, templates, hub) and the editor's own strings
+// - Retro: notsogames.com-web `src/activity-games/retro/` (gameFile.ts `RETRO_SYSTEMS` is the one place the guide lists
+//   the consoles, controls.ts the default keys, storage.ts what's kept where) and notsogames.retro's player (touch
+//   controls, gamepads). rom-loader-plan.md's "The one rule": never name a commercial game, never suggest we provide
+//   games, and keep "only play games you have the right to use"
+// - Hold the Line: notsogames.com-web `src/activity-games/holdline/` (engine.ts hearts, hazards, bolts and stars,
+//   levels.ts the 12 levels, progress.ts what opens a level, HoldTheLine.tsx the keys)
+// - Loose Ends: notsogames.com-web `src/activity-games/looseends/` (board.ts threads, cuts, hints and stars,
+//   generate.ts sizes, levels.ts and difficulty.ts the ramp: easy to hard up to LEVELS_TO_HARD, hard after, the Daily
+//   medium-hard; progress.ts). The guide never says how many pairs a level has
 
 import type { GuideBook } from './types';
 
@@ -112,7 +121,7 @@ export const GUIDES_ENGLISH: GuideBook = {
             {kind: 'text', text: 'Only the host changes these, before a game starts or after one ends.'},
             {kind: 'facts', items: [
               {label: 'Answer by', value: '**Typing** (the default): type the country’s name. **Four choices**: pick one of four names, one try per flag.'},
-              {label: 'Difficulty', value: '**Easy**: flags most people know. **Medium** (the default): most of the world’s countries. **Hard**: every country, plus territories that fly their own flag.'},
+              {label: 'Difficulty', value: '**Easy** (the default): well-known flags that don’t look alike, with choices from anywhere. **Medium**: countries most people have heard of, with choices from the same region. **Hard**: small countries, territories and lookalike flags, with the lookalikes as choices. Each level has its own flags.'},
               {label: 'Flags', value: '5 to 20 a game, 10 by default.'},
               {label: 'Seconds each', value: '10 to 60 a flag, 20 by default.'},
             ]},
@@ -302,6 +311,228 @@ export const GUIDES_ENGLISH: GuideBook = {
       ],
     },
 
+    'hold-the-line': {
+      title: 'Hold the Line',
+      summary: 'Draw lines to keep Pip the frog safe from bees, bombs, boulders, spikes and lava until the clock runs out.',
+      quick: [
+        'Draw lines on the board, then press **Go**. Pip has to last until the clock runs out.',
+        'Lines use ink from the bar above the board. **Undo** takes the last line back, ink and all.',
+        'After Go your lines fall. A line on a bolt swings from it, and one with a bolt at each end stays put.',
+        'Pip has 3 hearts. A bee sting costs 1, and a bomb costs 2 unless something solid is in the way.',
+        'Spikes, mines, lava, a rolling boulder or falling off the board end the try right away.',
+        'Stars: one for lasting, one for losing no hearts, one for using half the ink or less.',
+        'Get a star on a level to open the next one. There are 12.',
+      ],
+      sections: [
+        {
+          id: 'starting',
+          title: 'Starting a level',
+          blocks: [
+            {kind: 'text', text: 'Hold the Line is a puzzle you play on your own. There are no rooms, and it doesn’t add to your [game points](guide:game-points).'},
+            {kind: 'list', items: [
+              '**On notsogames.com:** open **Hold the Line** on the home page, or go to `notsogames.com/hold-the-line`.',
+              '**In the Activity:** use `/games play` (or press **Mess Around** on NotSoBot in Discord’s app launcher and pick **Games**), then pick **Hold the Line** on the Games tab.',
+            ]},
+            {kind: 'text', text: 'Pick a level. There are 12, each made by hand. A level opens once you have a star on the one before it. When a level brings in something new, a tip above the board says what it does.'},
+          ],
+        },
+        {
+          id: 'drawing',
+          title: 'Drawing lines',
+          blocks: [
+            {kind: 'list', items: [
+              'Press on the board and drag to draw a line, with a mouse, a finger or a pen. Let go to finish it.',
+              'Draw as many lines as you like while the ink lasts. The bar above the board shows what’s left.',
+              'A line can’t go through the ground, another line or Pip. It stops where something is in the way.',
+              'You can draw over lava, but a line touching it burns away once you press Go.',
+              '**Undo** takes back the last line and gives its ink back. **Restart** clears the board and starts the level over.',
+            ]},
+            {kind: 'tip', text: 'On a keyboard, **Space** or **Enter** is Go, **Z** is Undo and **R** is Restart.'},
+          ],
+        },
+        {
+          id: 'go',
+          title: 'Pressing Go',
+          blocks: [
+            {kind: 'text', text: 'Nothing moves while you draw. **Go** starts the clock in the top right corner, and everything comes to life:'},
+            {kind: 'list', items: [
+              'Your lines turn solid and fall, unless a bolt holds them.',
+              'Bees pour out of their hive and fly straight at Pip.',
+              'Each bomb counts down the number on it, then blows up.',
+              'Boulders roll, some drop in from the top after a moment, and crates and loose mines tumble.',
+            ]},
+            {kind: 'text', text: 'Pip makes it by still having a heart when the clock reaches zero. After Go your lines are set: to change them, press **Restart**, or **Try again** once the try is over.'},
+          ],
+        },
+        {
+          id: 'bolts',
+          title: 'Bolts',
+          blocks: [
+            {kind: 'text', text: 'Some levels have bolts, small screws in the board.'},
+            {kind: 'list', items: [
+              'Start or end a line close to a bolt and it snaps onto it.',
+              'A line on one bolt swings around it but doesn’t fall.',
+              'A line with a bolt at each end is held at both, so it stays put: a bridge or a wall that doesn’t move.',
+              'A bolt can hold more than one line.',
+            ]},
+          ],
+        },
+        {
+          id: 'hearts',
+          title: 'Hearts',
+          blocks: [
+            {kind: 'text', text: 'Pip starts every try with 3 hearts, in the top left corner. Lose them all and the try is over.'},
+            {kind: 'facts', items: [
+              {label: 'Bee sting', value: '1 heart. Pip flashes for a moment after a hit and can’t be stung again until it stops.'},
+              {label: 'Bomb blast', value: '2 hearts, unless something solid is between the bomb and Pip, like a line. The dashed ring around a bomb shows how far it reaches.'},
+              {label: 'A hard knock', value: '1 heart, when a crate, a bomb or one of your lines lands on Pip fast.'},
+            ]},
+            {kind: 'text', text: 'A blast also pushes everything near it away, Pip too, just less from behind a line.'},
+          ],
+        },
+        {
+          id: 'dangers',
+          title: 'What ends a try',
+          blocks: [
+            {kind: 'text', text: 'These end the try straight away, however many hearts Pip has left:'},
+            {kind: 'list', items: [
+              'Touching spikes, or a spiked mine (they’re sharp on every side).',
+              'Falling into lava.',
+              'A rolling boulder. One that has stopped next to Pip is just a rock.',
+              'Falling off the bottom of the board.',
+            ]},
+            {kind: 'tip', text: 'Lava can help too: bees that fly into it are gone, boulders, crates and mines sink, and a bomb that falls in goes off on the spot.'},
+          ],
+        },
+        {
+          id: 'stars',
+          title: 'Stars',
+          blocks: [
+            {kind: 'facts', items: [
+              {label: 'Lasted', value: 'Pip still has a heart when the clock runs out.'},
+              {label: 'No hearts lost', value: 'Pip finishes with all 3 hearts.'},
+              {label: 'Half the ink or less', value: 'Your lines used half the level’s ink or less.'},
+            ]},
+            {kind: 'text', text: 'Your best stars on each level are kept, and the level list shows your total. One star is enough to open the next level, so you can come back for the others later.'},
+          ],
+        },
+        {
+          id: 'progress',
+          title: 'Where your progress is kept',
+          blocks: [
+            {kind: 'list', items: [
+              '**Signed in:** your stars are kept on your account, so they follow you to other devices and between notsogames.com and the Activity. In the Activity you’re always signed in.',
+              '**Not signed in:** they’re kept in this browser. Sign in on it later and they move onto your account.',
+            ]},
+          ],
+        },
+      ],
+    },
+
+    'loose-ends': {
+      title: 'Loose Ends',
+      summary: 'Join each pair of matching buttons with thread and cover every square. Endless boards, and a new Daily puzzle every day.',
+      quick: [
+        'Drag from a button to the other button of the same colour to stitch them together.',
+        'Threads go up, down, left and right, one square at a time, and never cross.',
+        'A puzzle is done when every pair is joined and every square has a thread through it.',
+        'Drawing over a thread cuts it. Pull back before you let go and it comes back.',
+        'Boards go from 5×5 to 9×9, each with endless levels that get harder as you go, plus an 8×8 Daily puzzle.',
+        'Stars: one for solving, one for no hints, one for drawing each thread in one go.',
+      ],
+      sections: [
+        {
+          id: 'starting',
+          title: 'Starting a puzzle',
+          blocks: [
+            {kind: 'text', text: 'Loose Ends is a puzzle you play on your own. There are no rooms, and it doesn’t add to your [game points](guide:game-points).'},
+            {kind: 'list', items: [
+              '**On notsogames.com:** open **Loose Ends** on the home page, or go to `notsogames.com/loose-ends`.',
+              '**In the Activity:** use `/games play` (or press **Mess Around** on NotSoBot in Discord’s app launcher and pick **Games**), then pick **Loose Ends** on the Games tab.',
+            ]},
+            {kind: 'text', text: 'Then play the **Daily puzzle**, or pick a board size under **Boards** to play its next level.'},
+          ],
+        },
+        {
+          id: 'threads',
+          title: 'Stitching threads',
+          blocks: [
+            {kind: 'list', items: [
+              'Press on a button and drag to the other button of the same colour. The thread follows you square by square: up, down, left or right, never diagonally.',
+              'A thread can’t go through a button of another colour, and it stops once it reaches its pair.',
+              'Drag back along a thread to make it shorter.',
+              'Press on a thread to carry on from that square. Drag from one of its buttons to draw it over from there, or just tap the button to clear it.',
+            ]},
+            {kind: 'text', text: 'The puzzle is solved when every pair is joined and every square has a thread through it. Most boards can be solved more than one way, and any of them counts. The text above the board shows how many pairs are joined and how much is covered.'},
+            {kind: 'tip', text: 'A button doesn’t cover its own square until its thread leaves it.'},
+          ],
+        },
+        {
+          id: 'crossing',
+          title: 'When threads meet',
+          blocks: [
+            {kind: 'text', text: 'Threads never cross. Drag one over another and the other is cut back to just before the spot you crossed.'},
+            {kind: 'text', text: 'Changed your mind? Pull back before you let go and the cut thread comes back. Once you let go, the cut stays.'},
+          ],
+        },
+        {
+          id: 'stars',
+          title: 'Stars',
+          blocks: [
+            {kind: 'facts', items: [
+              {label: 'Solved', value: 'Every pair joined and every square covered.'},
+              {label: 'No hints', value: 'Solved without pressing **Hint**.'},
+              {label: 'Each thread in one go', value: 'Draw a thread, then move on to the next. Fixing the one you just drew is fine, but going back to one you already left costs this star.'},
+            ]},
+            {kind: 'text', text: '**Restart** clears the board and gives you a fresh go at all three. Your best stars on each level are kept.'},
+          ],
+        },
+        {
+          id: 'hints',
+          title: 'Hints',
+          blocks: [
+            {kind: 'text', text: '**Hint** lays down one thread from the puzzle’s own answer, for the first pair that isn’t joined yet. Threads in its way are cut back, and since most boards have more than one answer, it may not match the one you’re building. Use as many as you need: any hint costs the no hints star for that try.'},
+          ],
+        },
+        {
+          id: 'boards',
+          title: 'Boards and levels',
+          blocks: [
+            {kind: 'list', items: [
+              'There are five board sizes, from 5×5 to 9×9.',
+              'Each size has its own levels, and they never run out. Its button opens the level after the highest one you’ve solved.',
+              'Every size starts easy, with lots of short threads, and gets harder up to about level 40. Harder boards have fewer, longer threads and fewer moves you’re forced into.',
+              'After level 40, every level stays hard, each in its own way.',
+              'There’s no time limit and no limit on moves, restarts or hints. A hint only costs the No hints star.',
+              'Every level is the same puzzle for everyone who plays it.',
+              'When you solve one, **Next level** takes you straight to the next.',
+            ]},
+          ],
+        },
+        {
+          id: 'daily',
+          title: 'The Daily puzzle',
+          blocks: [
+            {kind: 'list', items: [
+              'Every day there’s one 8×8 puzzle, medium-hard and the same for everyone.',
+              'A new one comes at midnight UTC.',
+              'Once you solve it, your stars show beside it, and **Play again** lets you go for more.',
+            ]},
+          ],
+        },
+        {
+          id: 'progress',
+          title: 'Where your progress is kept',
+          blocks: [
+            {kind: 'list', items: [
+              '**Signed in:** your levels, stars and Dailies are kept on your account, so they follow you to other devices and between notsogames.com and the Activity. In the Activity you’re always signed in.',
+              '**Not signed in:** they’re kept in this browser. Sign in on it later and they move onto your account.',
+            ]},
+          ],
+        },
+      ],
+    },
+
     'game-points': {
       title: 'Game points',
       summary: 'One points total for every NotSoBot game, with server and global leaderboards.',
@@ -353,6 +584,149 @@ export const GUIDES_ENGLISH: GuideBook = {
               '**Your points** sits at the top of the Games tab: your total, this week’s points and your rank in the server (your global rank in a DM).',
               'The **Leaderboard** under the games shows the server’s top players (everyone’s in a DM), for this week or all time.',
             ]},
+          ],
+        },
+      ],
+    },
+
+    'retro': {
+      title: 'Retro',
+      summary: 'Play classic console games from your own files, on your own, on notsogames.com or in the Activity.',
+      quick: [
+        'Choose or drop a game file of your own, or a .zip with one inside, and it starts.',
+        'Games you load stay in **Your games** on this device for next time.',
+        'Arrow keys move, X is A, Z is B and Enter is Start. Esc opens the menu.',
+        'Gamepads work too, and touch screens get buttons on screen.',
+        'The menu has 4 save state slots, your controls and the sound.',
+        'Your games and saves never leave your device. Nothing is uploaded.',
+        'Only play games you have the right to use.',
+      ],
+      sections: [
+        {
+          id: 'starting',
+          title: 'Opening Retro',
+          blocks: [
+            {kind: 'text', text: 'Retro plays games from files you already have, right in your browser. It’s just you and the game: there are no rooms, and it doesn’t add to your game points.'},
+            {kind: 'list', items: [
+              '**On notsogames.com:** open **Retro** on the home page, or go to `notsogames.com/retro`.',
+              '**In the Activity:** use `/games play` (or press **Mess Around** on NotSoBot in Discord’s app launcher and pick **Games**), then pick **Retro** on the Games tab.',
+            ]},
+            {kind: 'tip', text: 'Retro doesn’t come with any games, you bring your own. Only play games you have the right to use.'},
+          ],
+        },
+        {
+          id: 'loading',
+          title: 'Loading a game',
+          blocks: [
+            {kind: 'steps', items: [
+              'Press **Choose a game file**, or drop a file on the box under it.',
+              'The game starts right away, and is added to **Your games**.',
+            ]},
+            {kind: 'text', text: 'Retro plays NES, SNES, Game Boy, Game Boy Color and Game Boy Advance games.'},
+            {kind: 'list', items: [
+              'It reads the file itself to tell which console it’s for, so the name doesn’t matter.',
+              'A .zip works too: Retro opens it and plays the first game it finds inside.',
+              'A file that isn’t a game Retro plays is turned away, with a line saying why.',
+            ]},
+          ],
+        },
+        {
+          id: 'your-games',
+          title: 'Your games',
+          blocks: [
+            {kind: 'list', items: [
+              'Every game you load shows in **Your games**, with its console and size. Press one to play it again.',
+              'It keeps the file’s own name. The same file loaded twice is one game, whatever it’s called.',
+              '**Remove** (the bin beside a game) deletes it and all its saves from this device.',
+            ]},
+          ],
+        },
+        {
+          id: 'controls',
+          title: 'Controls',
+          blocks: [
+            {kind: 'text', text: 'With a keyboard, these are the keys to start with:'},
+            {kind: 'facts', items: [
+              {label: 'Move', value: 'Arrow keys'},
+              {label: 'A and B', value: '**X** and **Z**'},
+              {label: 'Start', value: '**Enter**'},
+              {label: 'Select', value: '**Right Shift** or **Backspace**'},
+              {label: 'Menu', value: '**Esc**'},
+            ]},
+            {kind: 'text', text: 'Consoles with more buttons, like L and R or X and Y, have keys for those too. The menu’s **Controls** lists every button the game’s console has, with its keys.'},
+            {kind: 'text', text: 'To change a key, open the menu, press **Change** beside a button, then press the new key. If another button had that key, it moves over. **Default keys** puts them all back. Esc can’t be changed: it always opens the menu. Your keys are kept on this device, for every game.'},
+            {kind: 'text', text: '**Gamepads** work too: connect one and press a button. Retro goes by where the buttons sit, so the bottom face button is B and the right one is A, with X and Y on the top and left ones for consoles that have them. The d-pad or left stick moves, the shoulder buttons are L and R, Start or Menu is Start, and Back or View is Select. Only keyboard keys can be changed.'},
+          ],
+        },
+        {
+          id: 'touch',
+          title: 'Touch controls',
+          blocks: [
+            {kind: 'text', text: 'On a touch screen, a d-pad and buttons show under the game.'},
+            {kind: 'list', items: [
+              'Press between two arrows on the d-pad to go diagonally.',
+              'Slide from one button to another without lifting your finger.',
+              'Extra buttons, like L and R, only show when the game’s console has them.',
+              'Hold your phone sideways and the controls move to the sides of the screen.',
+            ]},
+            {kind: 'text', text: 'In the menu, **Touch controls** is **Auto** (only on touch screens, the default), **On** or **Off**.'},
+          ],
+        },
+        {
+          id: 'menu',
+          title: 'The pause menu',
+          blocks: [
+            {kind: 'text', text: 'Press **Esc**, or the menu button at the top right, to pause. The game waits until you press **Resume**.'},
+            {kind: 'list', items: [
+              '**Save states:** save and load your 4 slots.',
+              '**Controls:** your keys, gamepad buttons and touch controls.',
+              '**Game saves:** export and import the game’s own save, on notsogames.com.',
+              '**Sound:** **Mute** and **Volume**, kept on this device.',
+              '**Restart game:** starts over. Anything since the game last saved is lost, your save states stay.',
+            ]},
+            {kind: 'tip', text: 'The X at the top left closes the game and takes you back to Your games. The game’s own save is kept first.'},
+          ],
+        },
+        {
+          id: 'saves',
+          title: 'Save states and game saves',
+          blocks: [
+            {kind: 'text', text: 'Retro keeps two kinds of saves, both on this device:'},
+            {kind: 'facts', items: [
+              {label: 'Save states', value: 'A snapshot of the game as it is right now, made from the menu. Each game has 4 slots, each with a picture of the screen and when it was saved. **Save** fills a slot (replacing what was in it), **Load** takes you back to it.'},
+              {label: 'Game saves', value: 'The saves the game makes itself, for games that can save. Retro keeps them on its own whenever the game saves, and they’re there the next time you start the game.'},
+            ]},
+            {kind: 'text', text: 'On notsogames.com, **Export save** downloads the game’s own save as a .sav file, and **Import save** loads one: the game restarts with it, and it replaces the one kept here. The Activity has no export or import.'},
+          ],
+        },
+        {
+          id: 'storage',
+          title: 'Where it’s kept',
+          blocks: [
+            {kind: 'text', text: 'Your games, saves, save states and settings are kept in this browser on this device. They’re never uploaded, so nobody sees them, us included.'},
+            {kind: 'list', items: [
+              'notsogames.com and the Activity each keep their own. A game loaded in one isn’t in the other.',
+              'Saves made in the Activity stay in Discord on that device. They can’t be moved to notsogames.com yet.',
+              'Another device or browser starts empty.',
+              'A private window forgets everything once it’s closed, and clearing the site’s data deletes it all. Retro says so when this browser isn’t keeping anything.',
+            ]},
+            {kind: 'tip', text: 'Want a copy of your progress? On notsogames.com, export the game’s save and keep the file.'},
+          ],
+        },
+        {
+          id: 'sound',
+          title: 'Sound',
+          blocks: [
+            {kind: 'text', text: 'Some phones and browsers only play sound after you touch the page. If a game starts quiet, tap it once.'},
+            {kind: 'text', text: '**Mute** and **Volume** are in the menu, under **Sound**.'},
+          ],
+        },
+        {
+          id: 'source',
+          title: 'Emulators and source',
+          blocks: [
+            {kind: 'text', text: 'Retro runs open-source emulators in your browser. **Emulators and source**, at the bottom of Retro, lists them with their licences.'},
+            {kind: 'text', text: 'The player’s source, with every change we made to the emulators, is on [GitHub](https://github.com/NotSoBot/notsogames.retro).'},
           ],
         },
       ],

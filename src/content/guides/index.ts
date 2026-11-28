@@ -6,6 +6,8 @@ export {
   GAME_GUIDE_SLUGS,
   GUIDE_SLUGS,
   isGameGuide,
+  listedGuides,
+  PRERELEASE_GUIDE_SLUGS,
   SITE_GUIDE_SLUGS,
   type GameGuideSlug,
   type SiteGuideSlug,

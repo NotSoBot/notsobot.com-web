@@ -9,8 +9,9 @@ import type { PipRoom, PipStatus } from './pip';
 // phase and from what the screen on show already says about itself for the small window (./pip), so the editor
 // doesn't publish anything new for it. The games half (notsogames.com's, in an iframe) says its own through the shell
 // (src/activity/shell.ts `setPresence`), this one stays quiet meanwhile.
-// No OAuth scope needed: Discord's client takes `SET_ACTIVITY` from an Activity's frame with the scope it has from the
-// start (`RPC_EMBEDDED_APP_SCOPE`, read from discord-webarchive 2026-11-27), unlike its docs' `rpc.activities.write`.
+// Sent without an OAuth scope: Discord's client takes `SET_ACTIVITY` with the scope an Activity's frame has from the
+// start (`RPC_EMBEDDED_APP_SCOPE`), but then looks the frame up and only finds it in some places (a server voice channel
+// in its app), answering 5012 everywhere else. Its docs' `rpc.activities.write` is the opt-in on top (./profileStatus).
 // Everyone who can see their profile reads it: a room's name is there only when anyone could find and join it, a
 // password room says it's private, a solo one that it's solo. Never a file name
 
@@ -107,6 +108,8 @@ export const PRESENCE_MIN_GAP = 4 * 1000;
 export class PresenceSender {
   private sentKey: string | null = null;
   private pending: Omit<PresenceActivity, 'timestamps'> | null = null;
+  // the newest line asked for, for `resend`
+  private latest: Omit<PresenceActivity, 'timestamps'> | null = null;
   private lastSentAt = -Infinity;
   private timer: ReturnType<typeof setTimeout> | null = null;
   private session: string | null = null;
@@ -127,6 +130,18 @@ export class PresenceSender {
       this.startedAt = this.now();
     }
     this.pending = activity;
+    this.latest = activity;
+    this.flush();
+  }
+
+  // the newest line once more, even one already sent (Discord took it without showing it, or turned it away): after
+  // the profile line's permission came through (./profileStatus). Same timer, same gap
+  resend(): void {
+    if (this.closed || !this.latest) {
+      return;
+    }
+    this.sentKey = null;
+    this.pending = this.pending ?? this.latest;
     this.flush();
   }
 

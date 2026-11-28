@@ -11,7 +11,7 @@ import { createContext, useContext, useEffect, useId, useRef, useState, useSyncE
 
 import { DialogError } from '@/components/ui/DialogError';
 import { Modal } from '@/components/ui/Modal';
-import { GUIDE_SLUGS, guideUrl, isGameGuide, loadedGuides, loadGuides, parseGuideLink, type GuideBook, type GuideSlug } from '@/content/guides';
+import { GUIDE_SLUGS, guideUrl, isGameGuide, listedGuides, loadedGuides, loadGuides, parseGuideLink, type GuideBook, type GuideSlug } from '@/content/guides';
 import { languagePath, useI18n, type Language } from '@/i18n';
 import { useActivityPrefs } from '@/lib/activityPrefs';
 import { cn } from '@/lib/utils';
@@ -35,15 +35,17 @@ const openInNewTab: OpenExternal = (url) => {
 };
 
 const OpenExternalContext = createContext<OpenExternal>(openInNewTab);
-// the guides the sheet's switcher offers: all of them in the Activity, the games' on notsogames.com
-const SlugsContext = createContext<ReadonlyArray<GuideSlug>>(GUIDE_SLUGS);
+// the guides the sheet's switcher offers: all of them in the Activity, the games' on notsogames.com. Never a prerelease
+// guide (Retro's, src/content/guides/types.ts) unless the host lists it
+const DEFAULT_SLUGS = listedGuides(GUIDE_SLUGS, false);
+const SlugsContext = createContext<ReadonlyArray<GuideSlug>>(DEFAULT_SLUGS);
 
 // how the sheets under it open the sites: the Activity passes Discord's openExternalLink, a plain link inside
 // Discord's iframe goes nowhere. `slugs`: the guides its switcher offers
 export function GuideLinksProvider({ openExternal, slugs, children }: {openExternal?: OpenExternal, slugs?: ReadonlyArray<GuideSlug>, children: ReactNode}) {
   return (
     <OpenExternalContext.Provider value={openExternal ?? openInNewTab}>
-      <SlugsContext.Provider value={slugs ?? GUIDE_SLUGS}>{children}</SlugsContext.Provider>
+      <SlugsContext.Provider value={slugs ?? DEFAULT_SLUGS}>{children}</SlugsContext.Provider>
     </OpenExternalContext.Provider>
   );
 }
@@ -204,7 +206,9 @@ export function HowToPlayButton({ guide, markUnseen = false, labelled = false, c
 export function GuideSheet({ guide: firstGuide, onClose }: {guide: GuideSlug, onClose: () => void}) {
   const { t, language } = useI18n();
   const openExternal = useContext(OpenExternalContext);
-  const slugs = useContext(SlugsContext);
+  const listed = useContext(SlugsContext);
+  // a guide that isn't listed (Retro's before it launches) still gets its chip when its own button opened the sheet
+  const slugs = (listed.includes(firstGuide)) ? listed : [firstGuide, ...listed];
   const titleId = useId();
   const idPrefix = useId();
   const headerRef = useRef<HTMLElement>(null);

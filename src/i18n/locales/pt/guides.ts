@@ -14,7 +14,7 @@ export const Guides: Record<keyof typeof English, string> = {
   'guides.more': 'Mais guias',
   'guides.tip': 'Dica',
   'guides.games_title': 'Guias dos jogos',
-  'guides.games_description': 'Flag Guesser, Letter Trail e os pontos de jogo têm os guias no NotSoGames, onde você também pode jogá-los no navegador.',
+  'guides.games_description': 'Flag Guesser, Letter Trail, Hold the Line, Loose Ends e os pontos de jogo têm os guias no NotSoGames, onde você também pode jogar os jogos no navegador.',
   'guides.games_open': 'Abrir em notsogames.com',
   'guides.sheet.open_game': 'Como jogar',
   'guides.sheet.open_editor': 'Como funciona',

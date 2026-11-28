@@ -29,9 +29,18 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: Array<ChangelogDay> = [
   {
     date: '2026-11-28',
-    title: 'Hold the Line, a design pass on the website',
+    title: 'Hold the Line, Loose Ends, a new Games tab, a design pass on the website',
     items: [
-      {kind: 'new', text: 'Hold the Line on notsogames.com: draw lines to keep Pip safe from bees, bombs, boulders, spikes and lava, then press Go and let them fall. 12 levels, bolts that pin a line in place, 3 hearts and up to 3 stars a level. It plays in your browser, and your stars are saved there.'},
+      {kind: 'new', text: 'Hold the Line on notsogames.com: draw lines to keep Pip safe from bees, bombs, boulders, spikes and lava, then press Go and let them fall. 12 levels, bolts that pin a line in place, 3 hearts and up to 3 stars a level. Play it on notsogames.com or from the Activity\'s Games tab.'},
+      {kind: 'new', text: 'Loose Ends on notsogames.com and the Activity\'s Games tab: stitch each pair of matching buttons together with thread until every square is filled. Five board sizes from 5×5 to 9×9 with endless levels that start easy and get harder up to about level 40, the same for everyone, plus a medium-hard Daily 8×8, hints and up to 3 stars.'},
+      {kind: 'new', text: 'Retro on notsogames.com and in the Activity: play NES, SNES, Game Boy, Game Boy Color and Game Boy Advance games from your own files. Your games and saves stay on your device and are never uploaded. Save states with pictures, keyboard, gamepad and touch controls, and keys you can change in the pause menu.'},
+      {kind: 'new', text: 'Guides for Hold the Line, Loose Ends and Retro on notsogames.com, also in the Activity behind each game\'s How to play button.'},
+      {kind: 'new', text: 'Show what I\'m doing on my Discord profile, in the Activity\'s settings. Discord only shows the Activity on your profile in some places, like a server voice channel. Turn this on, or allow it when Discord asks as you join a game, and it shows everywhere else too.'},
+      {kind: 'new', text: 'Your Hold the Line and Loose Ends progress is saved to your account when you\'re signed in, so your stars follow you between notsogames.com, the Activity and your devices.'},
+      {kind: 'improved', text: 'Flag Guesser\'s difficulties are rebalanced, in chat and in rooms. Each one now has its own flags: Easy is well-known flags with no lookalikes, Medium the countries most people have heard of, and Hard small countries, territories and lookalike flags. With choices, Hard offers the lookalikes as wrong answers. Rooms start on Easy now, like the chat game.'},
+      {kind: 'improved', text: 'The Activity\'s Games tab: a Play button on each game puts you in its fullest open room (or makes one), each game card shows who\'s playing, and every game has its own icon. The room list shows rooms as compact rows you can join with one tap.'},
+      {kind: 'improved', text: 'Play solo opens a sheet to pick the game and change its settings before you start, without the hints that only matter with other players.'},
+      {kind: 'improved', text: 'On notsogames.com, one Rooms in picker lists Global and your servers, with their icons and a search once you\'re in 8 or more.'},
       {kind: 'improved', text: 'A design pass across notsobot.com, the dashboard and the media editor: text with better contrast, shorter lines on the changelog, docs, legal and premium pages, headings and paragraphs that don\'t leave one word alone on a line, and flatter docs examples and dashboard tiles.'},
     ],
   },

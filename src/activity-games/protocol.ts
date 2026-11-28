@@ -273,7 +273,7 @@ export const GameCloseCodes = Object.freeze({
   FULL: 4011,
 });
 
-export const DEFAULT_SETTINGS: GameSettings = Object.freeze({mode: 'type', rounds: 10, difficulty: 'medium', seconds: 20});
+export const DEFAULT_SETTINGS: GameSettings = Object.freeze({mode: 'type', rounds: 10, difficulty: 'easy', seconds: 20});
 
 
 // Letter Trail (word-game-plan.md "Build contract"): everyone in a room plays the same grid of letters at once, a word is

@@ -36,6 +36,36 @@ export interface ShellPresence {
   session: string | null,
 }
 
+// Discord's permission for that line (the `rpc.activities.write` scope). Without it Discord only takes the line in
+// some places (a server voice channel in the app) and answers 5012 everywhere else; with it the line shows everywhere.
+// The shell keeps asking without it as before; this is only the opt-in on top
+export interface ProfileStatusSnapshot {
+  // their pick, saved on this device: `ask` (nothing yet: asked once, when a game room is joined while the line's
+  // turned away), `on`, `off` (closed or denied Discord's screen, or turned it off: never asked by itself again)
+  choice: 'ask' | 'on' | 'off',
+  // what the last line sent came to: `refused` is Discord turning it away for want of the permission
+  sends: 'unknown' | 'working' | 'refused',
+  // this launch's connection has the permission
+  granted: boolean,
+  // Discord's screen is up (or the sign-in after it is on its way)
+  asking: boolean,
+}
+
+// what asking came to. `reopen`: this launch's connection already signed in without it, and Discord takes one sign-in
+// a connection, so it's the next launch's. `failed`: something other than their answer (the api, the network)
+export type ProfileStatusAsk = 'granted' | 'declined' | 'reopen' | 'failed';
+
+export interface ProfileStatus {
+  // the same object until something changes
+  snapshot: () => ProfileStatusSnapshot,
+  subscribe: (listener: () => void) => () => void,
+  // a game room was entered: Discord's screen if the line's turned away and they haven't been asked yet
+  joined: () => void,
+  // the settings' switch
+  turnOn: () => Promise<ProfileStatusAsk>,
+  turnOff: () => void,
+}
+
 export interface ActivityShell {
   version: typeof ACTIVITY_SHELL_VERSION,
   // Discord's: the shell's one connection. Commands that may need the consent screen go through `withSdkAuth`
@@ -65,6 +95,8 @@ export interface ActivityShell {
   // the shell's own owners' log (its startup, the Discord SDK's traffic, every profile line it sent and Discord's
   // answer), shown beside the games half's in its Connection logs. Optional: added within version 1
   log?: () => ReadonlyArray<{at: number, source: string, text: string}>,
+  // the profile line's permission (above). Optional: added within version 1
+  profileStatus?: ProfileStatus,
 }
 
 declare global {
@@ -85,4 +117,12 @@ export function parentShell(): ActivityShell | null {
     // not same-origin: opened somewhere it shouldn't be
     return null;
   }
+}
+
+// either half's: the shell's own page has it on its window, the games half reads its parent's
+export function currentShell(): ActivityShell | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  return window.__nsbActivityShell ?? parentShell();
 }

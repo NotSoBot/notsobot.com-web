@@ -189,4 +189,24 @@ describe('PresenceSender', () => {
     sender.update({type: 0, details: 'Media Editor'});
     expect(sent).toHaveLength(1);
   });
+
+  it('resends the newest one with its timer, after the gap', () => {
+    sender.update({type: 0, details: 'Flag Guesser', state: 'In the lobby'});
+    advance(1_000);
+    sender.resend();
+    expect(sent).toHaveLength(1);
+    advance(PRESENCE_MIN_GAP);
+    expect(sent).toHaveLength(2);
+    expect(sent[1]).toEqual(sent[0]);
+  });
+
+  it('resends nothing before the first one or after close', () => {
+    sender.resend();
+    expect(sent).toHaveLength(0);
+    sender.update({type: 0, details: 'Flag Guesser'});
+    sender.close();
+    advance(PRESENCE_MIN_GAP);
+    sender.resend();
+    expect(sent).toHaveLength(1);
+  });
 });

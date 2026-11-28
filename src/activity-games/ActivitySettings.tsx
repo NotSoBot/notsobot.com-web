@@ -1,6 +1,7 @@
 import { Check, RotateCcw, Settings } from 'lucide-react';
-import { useId, useState } from 'react';
+import { useId, useState, useSyncExternalStore } from 'react';
 
+import { currentShell, type ProfileStatus, type ProfileStatusAsk } from '@/activity/shell';
 import { GuideInline } from '@/components/guides/GuideBlocks';
 import { forgetOpenedGuides } from '@/components/guides/GuideSheet';
 import { Modal } from '@/components/ui/Modal';
@@ -16,7 +17,9 @@ import { forgetPlayedGames } from './howTo';
 
 // The Activity's settings: a sheet from a gear on the start screen and the Games tab, per viewer (src/lib/activityPrefs.ts,
 // saved on this device). The language isn't picked here: it follows the bot's (your NotSoBot setting, your Discord app,
-// the server's setting, the server's Discord language), and the sheet says which one it came from and how to change it
+// the server's setting, the server's Discord language), and the sheet says which one it came from and how to change it.
+// The Discord profile switch is the shell's (src/activity/shell.ts `profileStatus`, also saved on this device): both
+// halves' sheets show the same one
 
 
 // a gear that opens the sheet
@@ -57,6 +60,8 @@ export function ActivitySettings({ onClose }: {onClose: () => void}) {
   const { language, source } = useActivityLanguage();
   // "Show tips again" says it worked until something else changes
   const [ reset, setReset ] = useState(false);
+  // the shell's, inside Discord only
+  const [ profileStatus ] = useState(() => currentShell()?.profileStatus ?? null);
 
   const rulesOptions: Array<{value: LobbyRulesPref, label: string}> = [
     {value: 'until_played', label: t('games.settings.rules_until_played')},
@@ -123,6 +128,8 @@ export function ActivitySettings({ onClose }: {onClose: () => void}) {
           </div>
         </section>
 
+        {(profileStatus) ? <ProfileStatusSection status={profileStatus} labelId={`${titleId}-profile`}/> : null}
+
         <section aria-labelledby={`${titleId}-motion`} className='flex flex-col gap-4'>
           <h3 id={`${titleId}-motion`} className='section-label'>{t('games.settings.motion')}</h3>
           <Toggle
@@ -137,5 +144,47 @@ export function ActivitySettings({ onClose }: {onClose: () => void}) {
         </section>
       </div>
     </Modal>
+  );
+}
+
+
+// what the switch says under it after a try: `reopen` (this launch already signed in without it, it's the next one's)
+// and `failed` (the api or the network, not their answer). Closing or denying Discord's screen says nothing
+const ASK_NOTES: Partial<Record<ProfileStatusAsk, 'games.settings.profile_status_reopen' | 'games.settings.profile_status_failed'>> = {
+  reopen: 'games.settings.profile_status_reopen',
+  failed: 'games.settings.profile_status_failed',
+};
+
+// "Show what I'm doing on my Discord profile": on asks Discord for the permission that makes it show everywhere (its
+// own screen), off stops asking. The line itself is sent either way, Discord shows it where it can
+function ProfileStatusSection({ status, labelId }: {status: ProfileStatus, labelId: string}) {
+  const { t } = useI18n();
+  const snapshot = useSyncExternalStore(status.subscribe, status.snapshot, status.snapshot);
+  const [ note, setNote ] = useState<ProfileStatusAsk | null>(null);
+  const on = snapshot.choice === 'on';
+  const noteKey = (note) ? ASK_NOTES[note] : undefined;
+  const hint = (snapshot.granted)
+    ? t((on) ? 'games.settings.profile_status_granted_hint' : 'games.settings.profile_status_off_granted_hint')
+    : t('games.settings.profile_status_hint');
+  return (
+    <section aria-labelledby={labelId} className='flex flex-col gap-2'>
+      <h3 id={labelId} className='section-label'>{t('games.settings.profile')}</h3>
+      <Toggle
+        checked={on}
+        busy={snapshot.asking}
+        disabled={snapshot.asking}
+        onChange={(value) => {
+          setNote(null);
+          if (!value) {
+            status.turnOff();
+            return;
+          }
+          status.turnOn().then(setNote, () => setNote('failed'));
+        }}
+        label={t('games.settings.profile_status')}
+        description={hint}
+      />
+      <p role='status' className='text-xs text-subtle'>{(noteKey) ? t(noteKey) : null}</p>
+    </section>
   );
 }

@@ -1,5 +1,6 @@
 // The Spanish guides, following en.ts (same section ids and facts). Button names match the Activity's and the bot's
-// Spanish strings, command names stay in English like the FAQ's. "Flag Guesser" and "Letter Trail" stay as names.
+// Spanish strings, command names stay in English like the FAQ's. "Flag Guesser", "Letter Trail", "Hold the Line",
+// "Loose Ends" and "Retro" stay as names.
 
 import type { GuideBook } from './types';
 
@@ -104,7 +105,7 @@ export const GUIDES_SPANISH: GuideBook = {
             {kind: 'text', text: 'Solo el anfitrión los cambia, antes de empezar una partida o cuando termina.'},
             {kind: 'facts', items: [
               {label: 'Responder', value: '**Escribiendo** (por defecto): escribe el nombre del país. **Cuatro opciones**: elige uno de cuatro nombres, un intento por bandera.'},
-              {label: 'Dificultad', value: '**Fácil**: banderas que casi todos conocen. **Media** (por defecto): la mayoría de los países del mundo. **Difícil**: todos los países, y también territorios con bandera propia.'},
+              {label: 'Dificultad', value: '**Fácil** (por defecto): banderas conocidas que no se parecen entre sí, con opciones de cualquier parte. **Media**: países de los que casi todos han oído hablar, con opciones de la misma región. **Difícil**: países pequeños, territorios y banderas que se parecen, y las opciones son las banderas parecidas. Cada nivel tiene sus propias banderas.'},
               {label: 'Banderas', value: 'De 5 a 20 por partida, 10 por defecto.'},
               {label: 'Segundos cada una', value: 'De 10 a 60 por bandera, 20 por defecto.'},
             ]},
@@ -294,6 +295,228 @@ export const GUIDES_SPANISH: GuideBook = {
       ],
     },
 
+    'hold-the-line': {
+      title: 'Hold the Line',
+      summary: 'Dibuja líneas para proteger a Pip, la rana, de abejas, bombas, rocas, pinchos y lava hasta que se acabe el tiempo.',
+      quick: [
+        'Dibuja líneas en el tablero y pulsa **Empezar**. Pip tiene que aguantar hasta que se acabe el tiempo.',
+        'Las líneas gastan la tinta de la barra que hay sobre el tablero. **Deshacer** quita la última línea y te devuelve su tinta.',
+        'Al empezar, tus líneas caen. Una línea en un perno se balancea en él, y una con un perno en cada punta no se mueve.',
+        'Pip tiene 3 corazones. Una picadura de abeja le quita 1 y una bomba 2, salvo que haya algo sólido en medio.',
+        'Los pinchos, las minas, la lava, una roca rodando o caerse del tablero acaban con el intento al momento.',
+        'Estrellas: una por aguantar, otra por no perder corazones y otra por usar la mitad de la tinta o menos.',
+        'Consigue una estrella en un nivel para abrir el siguiente. Hay 12.',
+      ],
+      sections: [
+        {
+          id: 'starting',
+          title: 'Empezar un nivel',
+          blocks: [
+            {kind: 'text', text: 'Hold the Line es un rompecabezas para jugar a solas. No hay salas y no suma a tus [puntos de juego](guide:game-points).'},
+            {kind: 'list', items: [
+              '**En notsogames.com:** abre **Hold the Line** en la página de inicio, o ve a `notsogames.com/hold-the-line`.',
+              '**En la Actividad:** usa `/games play` (o pulsa **Trastear** en NotSoBot en el lanzador de apps de Discord y elige **Juegos**) y elige **Hold the Line** en la pestaña Juegos.',
+            ]},
+            {kind: 'text', text: 'Elige un nivel. Hay 12, todos hechos a mano. Cada uno se abre cuando tienes una estrella en el anterior. Cuando un nivel trae algo nuevo, un consejo sobre el tablero te cuenta qué hace.'},
+          ],
+        },
+        {
+          id: 'drawing',
+          title: 'Dibujar líneas',
+          blocks: [
+            {kind: 'list', items: [
+              'Pulsa en el tablero y arrastra para dibujar una línea, con el ratón, el dedo o un lápiz. Suelta para terminarla.',
+              'Dibuja todas las líneas que quieras mientras te quede tinta. La barra sobre el tablero muestra cuánta queda.',
+              'Una línea no atraviesa el suelo, otra línea ni a Pip. Se para donde algo le corta el paso.',
+              'Puedes dibujar sobre la lava, pero una línea que la toca se quema en cuanto pulsas Empezar.',
+              '**Deshacer** quita la última línea y te devuelve su tinta. **Reiniciar** borra el tablero y empieza el nivel de nuevo.',
+            ]},
+            {kind: 'tip', text: 'Con teclado, **Espacio** o **Intro** es Empezar, **Z** es Deshacer y **R** es Reiniciar.'},
+          ],
+        },
+        {
+          id: 'go',
+          title: 'Pulsar Empezar',
+          blocks: [
+            {kind: 'text', text: 'Mientras dibujas, nada se mueve. **Empezar** pone en marcha el reloj de la esquina superior derecha y todo cobra vida:'},
+            {kind: 'list', items: [
+              'Tus líneas se vuelven sólidas y caen, salvo que las sujete un perno.',
+              'Las abejas salen de su colmena y van directas a por Pip.',
+              'Cada bomba hace la cuenta atrás del número que lleva y luego explota.',
+              'Las rocas ruedan, algunas caen desde arriba al rato, y las cajas y las minas sueltas se vienen abajo.',
+            ]},
+            {kind: 'text', text: 'Pip lo logra si le queda algún corazón cuando el reloj llega a cero. Después de Empezar, tus líneas ya no cambian: para rehacerlas, pulsa **Reiniciar**, o **Reintentar** cuando acabe el intento.'},
+          ],
+        },
+        {
+          id: 'bolts',
+          title: 'Pernos',
+          blocks: [
+            {kind: 'text', text: 'Algunos niveles tienen pernos, pequeños tornillos clavados en el tablero.'},
+            {kind: 'list', items: [
+              'Empieza o termina una línea cerca de un perno y se engancha a él.',
+              'Una línea en un perno gira alrededor de él, pero no cae.',
+              'Una línea con un perno en cada punta queda sujeta por los dos y no se mueve: un puente o una pared fija.',
+              'Un perno puede sujetar más de una línea.',
+            ]},
+          ],
+        },
+        {
+          id: 'hearts',
+          title: 'Corazones',
+          blocks: [
+            {kind: 'text', text: 'Pip empieza cada intento con 3 corazones, en la esquina superior izquierda. Si los pierde todos, se acaba el intento.'},
+            {kind: 'facts', items: [
+              {label: 'Picadura de abeja', value: '1 corazón. Después de un golpe, Pip parpadea un momento y mientras tanto no le pueden volver a picar.'},
+              {label: 'Explosión de bomba', value: '2 corazones, salvo que haya algo sólido entre la bomba y Pip, como una línea. El círculo discontinuo alrededor de una bomba muestra su alcance.'},
+              {label: 'Un golpe fuerte', value: '1 corazón, cuando una caja, una bomba o una de tus líneas cae rápido sobre Pip.'},
+            ]},
+            {kind: 'text', text: 'Una explosión también aparta todo lo que tiene cerca, Pip incluido, aunque menos si está detrás de una línea.'},
+          ],
+        },
+        {
+          id: 'dangers',
+          title: 'Qué acaba con un intento',
+          blocks: [
+            {kind: 'text', text: 'Esto acaba con el intento al momento, da igual cuántos corazones le queden a Pip:'},
+            {kind: 'list', items: [
+              'Tocar pinchos o una mina con pinchos (pinchan por todos lados).',
+              'Caer en la lava.',
+              'Una roca rodando. Una que ya se paró junto a Pip no hace daño.',
+              'Caerse por abajo del tablero.',
+            ]},
+            {kind: 'tip', text: 'La lava también ayuda: las abejas que entran en ella desaparecen, las rocas, las cajas y las minas se hunden, y una bomba que cae dentro explota ahí mismo.'},
+          ],
+        },
+        {
+          id: 'stars',
+          title: 'Estrellas',
+          blocks: [
+            {kind: 'facts', items: [
+              {label: 'Aguantó', value: 'A Pip le queda algún corazón cuando se acaba el tiempo.'},
+              {label: 'Sin perder corazones', value: 'Pip termina con los 3 corazones.'},
+              {label: 'La mitad de la tinta o menos', value: 'Tus líneas usaron la mitad de la tinta del nivel o menos.'},
+            ]},
+            {kind: 'text', text: 'Se guardan tus mejores estrellas de cada nivel, y la lista de niveles muestra tu total. Con una estrella basta para abrir el siguiente, así que puedes volver a por las demás más tarde.'},
+          ],
+        },
+        {
+          id: 'progress',
+          title: 'Dónde se guarda tu progreso',
+          blocks: [
+            {kind: 'list', items: [
+              '**Con la sesión iniciada:** tus estrellas se guardan en tu cuenta, así que te siguen a otros dispositivos y entre notsogames.com y la Actividad. En la Actividad siempre tienes la sesión iniciada.',
+              '**Sin iniciar sesión:** se guardan en este navegador. Si luego inicias sesión en él, pasan a tu cuenta.',
+            ]},
+          ],
+        },
+      ],
+    },
+
+    'loose-ends': {
+      title: 'Loose Ends',
+      summary: 'Une cada par de botones iguales con hilo y cubre todos los cuadros. Tableros sin fin y un puzle nuevo cada día.',
+      quick: [
+        'Arrastra desde un botón hasta el otro botón del mismo color para coserlos.',
+        'Los hilos van arriba, abajo, a la izquierda y a la derecha, cuadro a cuadro, y nunca se cruzan.',
+        'El puzle está resuelto cuando todos los pares están unidos y por cada cuadro pasa un hilo.',
+        'Si pasas por encima de un hilo, lo cortas. Si retrocedes antes de soltar, vuelve.',
+        'Hay tableros de 5×5 a 9×9, cada uno con niveles sin fin que se vuelven más difíciles, y un Puzle del día de 8×8.',
+        'Estrellas: una por resolverlo, otra por no usar pistas y otra por dibujar cada hilo de una vez.',
+      ],
+      sections: [
+        {
+          id: 'starting',
+          title: 'Empezar un puzle',
+          blocks: [
+            {kind: 'text', text: 'Loose Ends es un puzle para jugar a solas. No hay salas y no suma a tus [puntos de juego](guide:game-points).'},
+            {kind: 'list', items: [
+              '**En notsogames.com:** abre **Loose Ends** en la página de inicio, o ve a `notsogames.com/loose-ends`.',
+              '**En la Actividad:** usa `/games play` (o pulsa **Trastear** en NotSoBot en el lanzador de apps de Discord y elige **Juegos**) y elige **Loose Ends** en la pestaña Juegos.',
+            ]},
+            {kind: 'text', text: 'Después juega el **Puzle del día**, o elige un tamaño en **Tableros** para jugar su siguiente nivel.'},
+          ],
+        },
+        {
+          id: 'threads',
+          title: 'Coser hilos',
+          blocks: [
+            {kind: 'list', items: [
+              'Pulsa en un botón y arrastra hasta el otro botón del mismo color. El hilo te sigue cuadro a cuadro: arriba, abajo, a la izquierda o a la derecha, nunca en diagonal.',
+              'Un hilo no puede pasar por un botón de otro color, y se para al llegar a su pareja.',
+              'Arrastra hacia atrás por un hilo para acortarlo.',
+              'Pulsa en un hilo para seguir desde ese cuadro. Arrastra desde uno de sus botones para rehacerlo desde ahí, o toca el botón sin más para borrarlo.',
+            ]},
+            {kind: 'text', text: 'El puzle se resuelve cuando todos los pares están unidos y por cada cuadro pasa un hilo. Casi todos los tableros tienen más de una solución, y vale cualquiera. El texto sobre el tablero muestra cuántos pares están unidos y cuánto está cubierto.'},
+            {kind: 'tip', text: 'Un botón no cubre su propio cuadro hasta que su hilo sale de él.'},
+          ],
+        },
+        {
+          id: 'crossing',
+          title: 'Cuando los hilos se encuentran',
+          blocks: [
+            {kind: 'text', text: 'Los hilos nunca se cruzan. Pasa uno por encima de otro y el otro se corta justo antes del punto por donde lo cruzaste.'},
+            {kind: 'text', text: '¿Cambiaste de idea? Retrocede antes de soltar y el hilo cortado vuelve. Una vez que sueltas, el corte se queda.'},
+          ],
+        },
+        {
+          id: 'stars',
+          title: 'Estrellas',
+          blocks: [
+            {kind: 'facts', items: [
+              {label: 'Resuelto', value: 'Todos los pares unidos y todos los cuadros cubiertos.'},
+              {label: 'Sin pistas', value: 'Resuelto sin pulsar **Pista**.'},
+              {label: 'Cada hilo de una vez', value: 'Dibuja un hilo y pasa al siguiente. Corregir el que acabas de dibujar está bien, pero volver a uno que ya dejaste te quita esta estrella.'},
+            ]},
+            {kind: 'text', text: '**Reiniciar** borra el tablero y te da otra oportunidad de conseguir las tres. Se guardan tus mejores estrellas de cada nivel.'},
+          ],
+        },
+        {
+          id: 'hints',
+          title: 'Pistas',
+          blocks: [
+            {kind: 'text', text: '**Pista** coloca un hilo de la solución del propio puzle, el del primer par que aún no está unido. Los hilos que estorban se cortan, y como casi todos los tableros tienen más de una solución, puede que no coincida con la que estás armando. Usa todas las que necesites: cualquier pista te quita la estrella de sin pistas en ese intento.'},
+          ],
+        },
+        {
+          id: 'boards',
+          title: 'Tableros y niveles',
+          blocks: [
+            {kind: 'list', items: [
+              'Hay cinco tamaños de tablero, de 5×5 a 9×9.',
+              'Cada tamaño tiene sus propios niveles, y nunca se acaban. Su botón abre el nivel siguiente al más alto que hayas resuelto.',
+              'Cada tamaño empieza fácil, con muchos hilos cortos, y se vuelve más difícil hasta más o menos el nivel 40. Los tableros difíciles tienen menos hilos, más largos, y menos jugadas obligadas.',
+              'A partir del nivel 40, todos los niveles siguen siendo difíciles, cada uno a su manera.',
+              'No hay límite de tiempo ni de movimientos, reinicios o pistas. Una pista solo cuesta la estrella Sin pistas.',
+              'Cada nivel es el mismo puzle para todos los que lo juegan.',
+              'Cuando resuelves uno, **Siguiente nivel** te lleva directo al próximo.',
+            ]},
+          ],
+        },
+        {
+          id: 'daily',
+          title: 'El Puzle del día',
+          blocks: [
+            {kind: 'list', items: [
+              'Cada día hay un puzle de 8×8, más bien difícil y el mismo para todos.',
+              'Llega uno nuevo a medianoche UTC.',
+              'Cuando lo resuelves, tus estrellas aparecen a su lado, y **Jugar otra vez** te deja ir a por más.',
+            ]},
+          ],
+        },
+        {
+          id: 'progress',
+          title: 'Dónde se guarda tu progreso',
+          blocks: [
+            {kind: 'list', items: [
+              '**Con la sesión iniciada:** tus niveles, estrellas y puzles del día se guardan en tu cuenta, así que te siguen a otros dispositivos y entre notsogames.com y la Actividad. En la Actividad siempre tienes la sesión iniciada.',
+              '**Sin iniciar sesión:** se guardan en este navegador. Si luego inicias sesión en él, pasan a tu cuenta.',
+            ]},
+          ],
+        },
+      ],
+    },
+
     'game-points': {
       title: 'Puntos de juego',
       summary: 'Un solo total de puntos para todos los juegos de NotSoBot, con clasificaciones del servidor y globales.',
@@ -345,6 +568,149 @@ export const GUIDES_SPANISH: GuideBook = {
               '**Tus puntos** está arriba en la pestaña Juegos: tu total, los puntos de esta semana y tu puesto en el servidor (tu puesto global en un MD).',
               'La **Clasificación** bajo los juegos muestra los mejores jugadores del servidor (de todos en un MD), de esta semana o de siempre.',
             ]},
+          ],
+        },
+      ],
+    },
+
+    'retro': {
+      title: 'Retro',
+      summary: 'Juega a clásicos de consola con tus propios archivos, a solas, en notsogames.com o en la Actividad.',
+      quick: [
+        'Elige o suelta un archivo de juego tuyo, o un .zip que lo tenga dentro, y empieza.',
+        'Los juegos que cargas se quedan en **Tus juegos** en este dispositivo para la próxima vez.',
+        'Las flechas mueven, X es A, Z es B e Intro es Start. Esc abre el menú.',
+        'También funcionan los mandos, y las pantallas táctiles tienen botones en pantalla.',
+        'El menú tiene 4 espacios de estados guardados, tus controles y el sonido.',
+        'Tus juegos y partidas nunca salen de tu dispositivo. No se sube nada.',
+        'Juega solo a juegos que tengas derecho a usar.',
+      ],
+      sections: [
+        {
+          id: 'starting',
+          title: 'Abrir Retro',
+          blocks: [
+            {kind: 'text', text: 'Retro carga juegos desde archivos que ya tienes, directamente en tu navegador. Juegas a solas: no hay salas y no suma a tus puntos de juego.'},
+            {kind: 'list', items: [
+              '**En notsogames.com:** abre **Retro** en la página de inicio, o ve a `notsogames.com/retro`.',
+              '**En la Actividad:** usa `/games play` (o pulsa **Trastear** en NotSoBot en el lanzador de apps de Discord y elige **Juegos**) y elige **Retro** en la pestaña Juegos.',
+            ]},
+            {kind: 'tip', text: 'Retro no trae ningún juego, los pones tú. Juega solo a juegos que tengas derecho a usar.'},
+          ],
+        },
+        {
+          id: 'loading',
+          title: 'Cargar un juego',
+          blocks: [
+            {kind: 'steps', items: [
+              'Pulsa **Elige un archivo de juego**, o suelta un archivo en el recuadro de debajo.',
+              'El juego empieza al momento y se añade a **Tus juegos**.',
+            ]},
+            {kind: 'text', text: 'Retro admite juegos de NES, SNES, Game Boy, Game Boy Color y Game Boy Advance.'},
+            {kind: 'list', items: [
+              'Lee el propio archivo para saber de qué consola es, así que el nombre da igual.',
+              'Un .zip también vale: Retro lo abre y carga el primer juego que encuentra dentro.',
+              'Si un archivo no es un juego que Retro pueda abrir, se rechaza con una línea que explica por qué.',
+            ]},
+          ],
+        },
+        {
+          id: 'your-games',
+          title: 'Tus juegos',
+          blocks: [
+            {kind: 'list', items: [
+              'Cada juego que cargas aparece en **Tus juegos**, con su consola y su tamaño. Pulsa uno para volver a jugarlo.',
+              'Conserva el nombre del propio archivo. El mismo archivo cargado dos veces es un solo juego, se llame como se llame.',
+              '**Quitar** (la papelera junto a un juego) lo borra de este dispositivo con todas sus partidas.',
+            ]},
+          ],
+        },
+        {
+          id: 'controls',
+          title: 'Controles',
+          blocks: [
+            {kind: 'text', text: 'Con teclado, estas son las teclas por defecto:'},
+            {kind: 'facts', items: [
+              {label: 'Moverse', value: 'Flechas'},
+              {label: 'A y B', value: '**X** y **Z**'},
+              {label: 'Start', value: '**Intro**'},
+              {label: 'Select', value: '**Mayús derecha** o **Retroceso**'},
+              {label: 'Menú', value: '**Esc**'},
+            ]},
+            {kind: 'text', text: 'Las consolas con más botones, como L y R o X e Y, también tienen teclas para ellos. **Controles**, en el menú, muestra cada botón de la consola del juego con sus teclas.'},
+            {kind: 'text', text: 'Para cambiar una tecla, abre el menú, pulsa **Cambiar** junto a un botón y luego la tecla nueva. Si otro botón tenía esa tecla, pasa a este. **Teclas por defecto** las restablece todas. Esc no se puede cambiar: siempre abre el menú. Tus teclas se guardan en este dispositivo, para todos los juegos.'},
+            {kind: 'text', text: 'Los **mandos** también funcionan: conecta uno y pulsa un botón. Retro se guía por dónde está cada botón, así que el botón frontal inferior es B y el derecho es A, con X e Y en el superior y el izquierdo en las consolas que los tienen. La cruceta o el stick izquierdo mueven, los botones superiores son L y R, Start o Menú es Start, y Back o Vista es Select. Solo se pueden cambiar las teclas del teclado.'},
+          ],
+        },
+        {
+          id: 'touch',
+          title: 'Controles táctiles',
+          blocks: [
+            {kind: 'text', text: 'En una pantalla táctil, una cruceta y unos botones aparecen bajo el juego.'},
+            {kind: 'list', items: [
+              'Pulsa entre dos flechas de la cruceta para ir en diagonal.',
+              'Desliza de un botón a otro sin levantar el dedo.',
+              'Los botones extra, como L y R, solo aparecen cuando la consola del juego los tiene.',
+              'Pon el móvil en horizontal y los controles pasan a los lados de la pantalla.',
+            ]},
+            {kind: 'text', text: 'En el menú, **Controles táctiles** puede ser **Auto** (solo en pantallas táctiles, por defecto), **Sí** o **No**.'},
+          ],
+        },
+        {
+          id: 'menu',
+          title: 'El menú de pausa',
+          blocks: [
+            {kind: 'text', text: 'Pulsa **Esc**, o el botón de menú arriba a la derecha, para pausar. El juego espera hasta que pulses **Seguir**.'},
+            {kind: 'list', items: [
+              '**Estados guardados:** guarda y carga tus 4 espacios.',
+              '**Controles:** tus teclas, los botones del mando y los controles táctiles.',
+              '**Partidas del juego:** exporta e importa la partida del propio juego, en notsogames.com.',
+              '**Sonido:** **Silenciar** y **Volumen**, guardados en este dispositivo.',
+              '**Reiniciar juego:** empieza de nuevo. Se pierde todo lo que hayas hecho desde la última vez que el juego guardó; tus estados guardados se mantienen.',
+            ]},
+            {kind: 'tip', text: 'La X de arriba a la izquierda cierra el juego y te lleva a Tus juegos. Antes guarda la partida del propio juego.'},
+          ],
+        },
+        {
+          id: 'saves',
+          title: 'Estados guardados y partidas del juego',
+          blocks: [
+            {kind: 'text', text: 'Retro guarda dos tipos de partidas, las dos en este dispositivo:'},
+            {kind: 'facts', items: [
+              {label: 'Estados guardados', value: 'Una instantánea del juego tal como está ahora, hecha desde el menú. Cada juego tiene 4 espacios, cada uno con una imagen de la pantalla y cuándo se guardó. **Guardar** llena un espacio (y sustituye lo que tenía), **Cargar** te devuelve a él.'},
+              {label: 'Partidas del juego', value: 'Las partidas que guarda el propio juego, en los juegos que pueden guardar. Retro las guarda automáticamente cada vez que el juego guarda, y siguen ahí la próxima vez que empiezas el juego.'},
+            ]},
+            {kind: 'text', text: 'En notsogames.com, **Exportar partida** descarga la partida del propio juego como un archivo .sav, e **Importar partida** carga una: el juego se reinicia con ella, y sustituye a la que había aquí. La Actividad no tiene exportar ni importar.'},
+          ],
+        },
+        {
+          id: 'storage',
+          title: 'Dónde se guarda',
+          blocks: [
+            {kind: 'text', text: 'Tus juegos, partidas, estados guardados y ajustes se guardan en este navegador, en este dispositivo. Nunca se suben, así que nadie los ve, ni siquiera nosotros.'},
+            {kind: 'list', items: [
+              'notsogames.com y la Actividad guardan cada uno lo suyo. Un juego cargado en uno no está en el otro.',
+              'Las partidas hechas en la Actividad se quedan en Discord, en ese dispositivo. Aún no se pueden pasar a notsogames.com.',
+              'Otro dispositivo u otro navegador empieza vacío.',
+              'Una ventana privada lo olvida todo al cerrarse, y borrar los datos del sitio lo elimina todo. Retro te avisa cuando este navegador no guarda nada.',
+            ]},
+            {kind: 'tip', text: '¿Quieres una copia de tu progreso? En notsogames.com, exporta la partida del juego y guarda el archivo.'},
+          ],
+        },
+        {
+          id: 'sound',
+          title: 'Sonido',
+          blocks: [
+            {kind: 'text', text: 'Algunos móviles y navegadores solo reproducen sonido después de que toques la página. Si un juego empieza sin sonido, tócalo una vez.'},
+            {kind: 'text', text: '**Silenciar** y **Volumen** están en el menú, en **Sonido**.'},
+          ],
+        },
+        {
+          id: 'source',
+          title: 'Emuladores y código',
+          blocks: [
+            {kind: 'text', text: 'Retro usa emuladores de código abierto en tu navegador. **Emuladores y código**, abajo del todo en Retro, los muestra con sus licencias.'},
+            {kind: 'text', text: 'El código del reproductor, con cada cambio que les hicimos a los emuladores, está en [GitHub](https://github.com/NotSoBot/notsogames.retro).'},
           ],
         },
       ],

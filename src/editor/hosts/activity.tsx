@@ -8,6 +8,7 @@ import { createGameRoomsApi } from '@/activity-games/rooms';
 import { ACTIVITY_SHELL_VERSION, GAMES_HALF_PATH } from '@/activity/shell';
 import { tokenStorage } from '@/auth/tokenStorage';
 import { GuideLinksProvider, HowToPlayButton } from '@/components/guides/GuideSheet';
+import { GUIDE_SLUGS } from '@/content/guides';
 import { FullPageMessage } from '@/components/ui/FullPageMessage';
 import { Spinner } from '@/components/ui/Spinner';
 import { anySignal, timeoutSignal } from '@/lib/abort';
@@ -27,6 +28,7 @@ import { localizedSiteUrl } from '../siteLinks';
 import { remapAssets, usedAssets } from '../stack';
 import { PipView, useCompactLayout, usePipStatus, type LayoutSubscriber } from './pip';
 import { PresenceSender, presenceOf, presenceSession, type PresenceActivity } from './presence';
+import { PROFILE_STATUS_SCOPE, ProfileStatusController } from './profileStatus';
 import { traceIncoming, traceOutgoing, traceStart } from './sdkTrace';
 import { StartupLog } from '../components/StartupLog';
 import type { EditorDocument, EditorLobby, EditorTemplate } from '../types';
@@ -54,8 +56,10 @@ const SITE_URL = 'https://notsobot.com';
 
 const PREMIUM_URL = `${SITE_URL}/premium`;
 // only who they are (Discord's "Access your username, avatar and banner"): the api checks the instance and the server
-// with the bot's token, nothing needs their server list
+// with the bot's token, nothing needs their server list. Plus their profile line's permission once they've turned it
+// on (./profileStatus): the api's code exchange only checks `identify` is among what was granted
 const SCOPES: Array<'identify'> = ['identify'];
+const STATUS_SCOPES: Array<'identify' | typeof PROFILE_STATUS_SCOPE> = [...SCOPES, PROFILE_STATUS_SCOPE];
 
 
 // The server's dashboard pages (the mode choice's Server settings) and your own (Your settings), only downloaded when
@@ -423,6 +427,7 @@ function ActivityScreens() {
     let alive = true;
     let room: EditorRoom | null = null;
     let presence: PresenceSender | null = null;
+    let profileStatus: ProfileStatusController | null = null;
     // the SDK trace (./sdkTrace), stopped once startup is through
     let stopTrace = () => {};
     const fail = (message: Extract<Phase, {kind: 'failed'}>['message'], detail?: string) => {
@@ -485,8 +490,28 @@ function ActivityScreens() {
         // `authenticate`, once: what startup always did before the header sign-in, now only when that sign-in fails or
         // something needs an authenticated sdk (Discord's access token for the share upload, a command answering
         // "not authenticated"). One that fails is forgotten, the next try asks again
-        let sdkAuth: Promise<Required<ActivityLogin>> | null = null;
-        const ensureSdkAuth = (): Promise<Required<ActivityLogin>> => {
+        // Discord takes one sign-in a connection: whichever comes first (with the profile line's scope or without) is
+        // the launch's, and a second `authorize` or `authenticate` answers "Already authenticated" (discord-webarchive)
+        let sdkAuth: Promise<Required<ActivityLogin> & {scopes: ReadonlyArray<string>}> | null = null;
+        // what it was authenticated with, once it was
+        let sdkScopes: ReadonlyArray<string> | null = null;
+        // their profile line's permission (./profileStatus, src/activity/shell.ts `profileStatus`): asks with
+        // `ensureSdkAuth(true)` and sends the line again (`presence`, made below) once it's there
+        const status = new ProfileStatusController({
+          authorize: async () => (await ensureSdkAuth(true)).scopes,
+          authenticated: () => sdkScopes,
+          resend: () => presence?.resend(),
+          log: (text) => activityLog.add('sdk', text),
+          storage: (() => {
+            try {
+              return window.localStorage;
+            } catch {
+              return null;
+            }
+          })(),
+        });
+        profileStatus = status;
+        const ensureSdkAuth = (withProfileStatus: boolean = false): Promise<Required<ActivityLogin> & {scopes: ReadonlyArray<string>}> => {
           if (!sdkAuth) {
             const pending = (async () => {
               enter('authorize');
@@ -494,8 +519,9 @@ function ActivityScreens() {
                 client_id: clientId,
                 response_type: 'code',
                 state: '',
+                // no screen when everything asked for was granted before (Discord's modal accepts by itself then)
                 prompt: 'none',
-                scope: SCOPES,
+                scope: (withProfileStatus || status.wanted) ? STATUS_SCOPES : SCOPES,
               });
               enter('login');
               const auth = await login<ActivityLogin>('/auth/activity', {method: 'POST', body: {code}});
@@ -503,8 +529,11 @@ function ActivityScreens() {
                 throw new Error('no access token');
               }
               enter('authenticate');
-              await sdk.commands.authenticate({access_token: auth.access_token});
-              return {token: auth.token, access_token: auth.access_token};
+              const { scopes } = await sdk.commands.authenticate({access_token: auth.access_token});
+              const granted = scopes.filter((scope): scope is Exclude<typeof scope, -1> => scope !== -1);
+              sdkScopes = granted;
+              status.noteAuthenticated(granted);
+              return {token: auth.token, access_token: auth.access_token, scopes: granted};
             })();
             sdkAuth = pending;
             pending.catch(() => {
@@ -558,17 +587,21 @@ function ActivityScreens() {
             layoutSdk.unsubscribe('ACTIVITY_LAYOUT_MODE_UPDATE', handler).catch(() => undefined);
           };
         });
-        // the profile's line: what's on screen from here on (nothing needs `authenticate`, see ./presence)
+        // the profile's line: what's on screen from here on, sent without `authenticate` (./presence; the permission
+        // that makes Discord show it everywhere is the opt-in in ./profileStatus)
         // every send and Discord's answer in the owners' log: a profile line that never shows says nothing otherwise
         presence = new PresenceSender(async (activity) => {
           activityLog.add('sdk', `→ SET_ACTIVITY details=${activity.details} state=${activity.state ?? '(none)'}${(activity.party) ? ` party=${activity.party.size.join('/')}` : ''}`);
           try {
             const answer = await layoutSdk.commands.setActivity({activity});
             activityLog.add('sdk', `← SET_ACTIVITY ok ${JSON.stringify(answer ?? null).slice(0, 160)}`);
+            status.noteSend();
             return answer;
           } catch (error) {
             const raw = error as {code?: unknown, message?: unknown} | null;
             activityLog.add('sdk', `← SET_ACTIVITY failed code=${String(raw?.code ?? '?')} ${String(raw?.message ?? error).slice(0, 200)}`);
+            // turned away for want of the permission: what offers it (a game room's join, or by itself once turned on)
+            status.noteSend(error ?? new Error('failed'));
             throw error;
           }
         });
@@ -867,6 +900,8 @@ function ActivityScreens() {
           // the games half has already unmounted its screens (left its room, let go of the socket's listeners)
           back: (notice) => setPhase({kind: 'choice', notice}),
           log: () => activityLog.getSnapshot(),
+          // the games half's room joins and both halves' settings switch
+          profileStatus: status,
         };
 
         const inviteCode = launchInviteCode(sdk.customId, context.launch);
@@ -908,6 +943,7 @@ function ActivityScreens() {
       delete window.__nsbActivityShell;
       room?.close();
       presence?.close();
+      profileStatus?.close();
     };
   }, [api, tokenRef, phaseRef, setPhase]);
 
@@ -1079,7 +1115,9 @@ function ActivityScreens() {
   })();
   return (
     <div className='contents' data-state={phase.kind}>
-      <GuideLinksProvider openExternal={setup.group.openExternal}>
+      {/* every guide in the How to play sheets' switcher, Retro's too: it's out for everyone (notsogames.com-web's
+          src/activity-games/retro/access.ts), like the games half's sheets list it */}
+      <GuideLinksProvider openExternal={setup.group.openExternal} slugs={GUIDE_SLUGS}>
         {screen}
         {/* the socket's gone and coming back: said on every screen but the games half's, which says it itself. Always
             mounted, so it knows the socket was open before whichever screen they're on now. The games half also says

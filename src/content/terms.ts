@@ -3,8 +3,8 @@ import type { LegalDocument } from './legal';
 export const TERMS_OF_SERVICE: LegalDocument = {
   title: "Terms of Service",
   effective: "November 12, 2026",
-  lastUpdated: "November 27, 2026",
-  intro: "Please read these Terms of Service carefully before using NotSoBot. They explain what you can and can't do with the Service, what we store when you use it, and how to reach us.",
+  lastUpdated: "November 28, 2026",
+  intro: "Please read these Terms of Service carefully before using NotSoBot. They explain what you can and can't do with the Service, what we store when you use it, and how to reach us. Changed on November 28, 2026: the Service now includes the games website at notsogames.com and Retro, Retro has its own rules for the game files You load, and Section 11 names Our copyright agent and how to send a copyright notice. Changes that limit what You can do take effect on December 28, 2026.",
   sections: [
     {
       title: "Section 1 - Definitions",
@@ -12,7 +12,7 @@ export const TERMS_OF_SERVICE: LegalDocument = {
         {type: 'paragraph', text: "For the purposes of these Terms:"},
         {type: 'list', items: [
           "\"Company\", \"We\", \"Us\" or \"Our\" refers to Not So LLC (doing business as NotSoCompany), a Delaware limited liability company, 254 Chapman Rd, Ste 208 #8692 Newark, Delaware 19702.",
-          "\"Service\" refers to NotSoBot, including the NotSoBot Discord application (its slash commands, prefixed commands, context menu commands and user-installed commands), the website at notsobot.com, and the NotSoBot API.",
+          "\"Service\" refers to NotSoBot, including the NotSoBot Discord application (its slash commands, prefixed commands, context menu commands and user-installed commands), the website at notsobot.com, the games website at notsogames.com, and the NotSoBot API.",
           "\"Discord\" refers to Discord Inc. and the Discord platform through which most of the Service is used.",
           "\"Your Content\" means anything You provide to the Service, including command text, prompts, attachments, URLs, tags, reminders, reports and audio samples.",
           "\"Output\" means anything the Service generates in response to Your Content, including edited media, AI-generated text, images and audio.",
@@ -41,6 +41,7 @@ export const TERMS_OF_SERVICE: LegalDocument = {
           "promote violence, violent extremism, self-harm, or any illegal activity",
           "post NSFW content outside of age-restricted channels",
           "infringe anyone's copyright, trademark or other rights",
+          "load a game file into Retro, the retro console player on notsogames.com and in NotSoBot's Discord Activity, unless You have the right to use it, for example because You own a legitimate copy of the game and the law where You live allows it, or because its rights holder licenses it for this, or use Retro to share, distribute or obtain games You don't have the right to",
           "spam, automate or abuse commands, get around rate limits, premium restrictions or blocks, or interfere with the Service's operation or security",
           "scrape, mine or bulk-collect data through the Service, or use the Service to collect information about other Discord users",
           "violate the Discord Terms of Service, Discord Community Guidelines or any applicable law",
@@ -86,6 +87,7 @@ export const TERMS_OF_SERVICE: LegalDocument = {
           "Purchases: premium entitlements and subscription status received from Discord. Payments are processed by Discord, and We never see your payment details.",
           "Website and API use: if You log in to notsobot.com, a Discord OAuth2 access and refresh token with the scopes You approved, your login sessions and their browser user agent, and request logs including the IP address, user agent, path and response time. The Discord Activity logs You in from the signed note Discord adds to its requests instead of a Discord login, and saves the session the same way.",
           "Safety records: information about content flagged by Our automated safety systems, described in Section 7.",
+          "Retro: nothing. The game files You load into Retro, their saves (including save states and their small screenshots) and your Retro control and sound settings are stored only in your browser on your device, and never reach Our servers. What's kept on notsogames.com and in the Discord Activity is kept separately, and clearing your browser's site data or using a private window can lose it.",
         ]},
         {type: 'paragraph', text: "We do not read or store messages that aren't directed at NotSoBot. NotSoBot only reads other messages when a command You run needs them. Recent messages read to find an image or build a word cloud are only used to complete that command and are not saved. Messages You reply to with the ai command are sent to the AI provider and stored as part of that AI request."},
         {type: 'paragraph', text: "We never sell, rent or license data from the Service. We don't share it with data brokers, advertising networks or other monetization services, and We don't use it to profile Discord users, track their relationships, or make eligibility decisions about anyone. We only use aggregated or de-identified data, such as total command counts, to improve the Service."},
@@ -127,6 +129,7 @@ export const TERMS_OF_SERVICE: LegalDocument = {
       title: "Section 9 - Third-party Services",
       blocks: [
         {type: 'paragraph', text: "The Service depends on Third-party Services, including Discord, AI providers, search and media sources, and infrastructure and error-monitoring providers. Content You request from websites such as YouTube, Reddit, Google or TikTok is fetched only to complete your command. Each Third-party Service has its own terms and privacy policy, and We are not responsible for their content, policies or practices."},
+        {type: 'paragraph', text: "Retro's emulators, FCEUmm (GPL-2.0) and mGBA (MPL-2.0), are third-party open-source software under their own licenses, and run in a separate player page whose source is available at https://github.com/NotSoBot/notsogames.retro. Those licenses only apply to the emulators, and don't change these Terms for the rest of the Service."},
       ],
     },
     {
@@ -140,6 +143,16 @@ export const TERMS_OF_SERVICE: LegalDocument = {
       title: "Section 11 - Reporting Problems",
       blocks: [
         {type: 'paragraph', text: "If You find a bug, a security problem, or someone using NotSoBot in a way that breaks these Terms, the Discord Terms of Service or the Discord Community Guidelines, report it with the report command or by email at privacy@notsocompany.com. We review reports and take action where appropriate, which may include removing content and blocking users or servers. You can also report problems to Discord directly."},
+        {type: 'paragraph', text: "Copyright complaints (DMCA): We respond to notices of claimed copyright infringement under the U.S. Digital Millennium Copyright Act. Our designated agent to receive them, registered with the U.S. Copyright Office (DMCA-1087707), is:"},
+        {type: 'list', items: [
+          "Copyright Agent, Not So LLC",
+          "254 Chapman Rd, Ste 208 #8692, Newark, Delaware 19702, United States",
+          "Phone: +1 302-314-5805",
+          "Email: copyright@notsocompany.com",
+        ]},
+        {type: 'paragraph', text: "To be effective, a notice must be in writing and include: (1) a physical or electronic signature of a person authorized to act for the owner of the copyright; (2) identification of the copyrighted work claimed to be infringed, or a representative list if there are several; (3) identification of the material claimed to be infringing and information reasonably sufficient for Us to locate it, such as a link, a message link, or the server, channel or command involved; (4) your name, address, telephone number and, if available, email address; (5) a statement that You have a good faith belief that the use complained of isn't authorized by the copyright owner, its agent or the law; and (6) a statement that the information in the notice is accurate and, under penalty of perjury, that You're authorized to act for the copyright owner. We may share a notice with the person who provided the material."},
+        {type: 'paragraph', text: "If material You provided was removed or disabled because of a notice and You believe that was a mistake or a misidentification, You can send Our designated agent a counter-notice containing: (1) your physical or electronic signature; (2) identification of the material that was removed or disabled and where it appeared before; (3) a statement under penalty of perjury that You have a good faith belief the material was removed or disabled as a result of mistake or misidentification; and (4) your name, address and telephone number, and a statement that You consent to the jurisdiction of the federal district court for the judicial district where your address is (or, if your address is outside the United States, any judicial district in which We may be found), and that You'll accept service of process from the person who sent the notice or their agent. Unless the person who sent the notice tells Us they've filed a court action to restrain You, We may restore the material 10 to 14 business days after receiving a valid counter-notice."},
+        {type: 'paragraph', text: "Where appropriate, We disable access to the Service for users who repeatedly infringe others' copyrights. Game files loaded into Retro never reach Our servers, so there's no hosted copy of anyone's game for Us to remove, but We act on notices about anything We do host. Sending a notice or counter-notice that knowingly misrepresents infringement can make You liable for damages."},
       ],
     },
     {

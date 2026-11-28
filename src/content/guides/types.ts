@@ -8,18 +8,29 @@
 // Each language is a whole book (en.ts, es.ts, pt.ts), so a guide or section missing in one is a type error.
 
 
-export const GUIDE_SLUGS = ['flag-guesser', 'letter-trail', 'game-points', 'media-editor'] as const;
+export const GUIDE_SLUGS = ['flag-guesser', 'letter-trail', 'hold-the-line', 'loose-ends', 'game-points', 'retro', 'media-editor'] as const;
 export type GuideSlug = typeof GUIDE_SLUGS[number];
 
 // where each guide's page is (notsogames-plan.md): the games' on notsogames.com, the media editor's on notsobot.com. Both
 // sites put a guide at `/guides/<slug>`
-export const GAME_GUIDE_SLUGS = ['flag-guesser', 'letter-trail', 'game-points'] as const satisfies ReadonlyArray<GuideSlug>;
+export const GAME_GUIDE_SLUGS = ['flag-guesser', 'letter-trail', 'hold-the-line', 'loose-ends', 'game-points', 'retro'] as const satisfies ReadonlyArray<GuideSlug>;
 export type GameGuideSlug = typeof GAME_GUIDE_SLUGS[number];
 export const SITE_GUIDE_SLUGS = ['media-editor'] as const satisfies ReadonlyArray<GuideSlug>;
 export type SiteGuideSlug = typeof SITE_GUIDE_SLUGS[number];
 
 export function isGameGuide(slug: GuideSlug): slug is GameGuideSlug {
   return (GAME_GUIDE_SLUGS as ReadonlyArray<string>).includes(slug);
+}
+
+// Guides for a game behind a switch: Retro's, by notsogames.com-web's `src/activity-games/retro/access.ts` RETRO_PUBLIC
+// (on, Retro launched 2026-11-28). A list of guides (the sheet's switcher, the guides index, "more guides") leaves them
+// out unless its host says they're open; their own page and button are gated by the host. notsobot.com-web has no
+// switch of its own: the editor's sheet lists every guide while Retro's out (src/editor/hosts/activity.tsx)
+export const PRERELEASE_GUIDE_SLUGS = ['retro'] as const satisfies ReadonlyArray<GuideSlug>;
+
+// `slugs` as a list shows them: without the prerelease guides unless `open`
+export function listedGuides<Slug extends GuideSlug>(slugs: ReadonlyArray<Slug>, open: boolean): Array<Slug> {
+  return (open) ? [...slugs] : slugs.filter((slug) => !(PRERELEASE_GUIDE_SLUGS as ReadonlyArray<GuideSlug>).includes(slug));
 }
 
 // games with a card on the index but no guide yet (none right now, the next one goes here)
@@ -31,7 +42,10 @@ export type UpcomingGuideSlug = typeof UPCOMING_GUIDE_SLUGS[number];
 export interface GuideSectionIds {
   'flag-guesser': 'starting' | 'solo' | 'rooms' | 'host' | 'settings' | 'scoring' | 'hints' | 'watching' | 'invites' | 'chat',
   'letter-trail': 'starting' | 'playing' | 'scoring' | 'only-you' | 'bonus' | 'settings' | 'solo' | 'rooms',
+  'hold-the-line': 'starting' | 'drawing' | 'go' | 'bolts' | 'hearts' | 'dangers' | 'stars' | 'progress',
+  'loose-ends': 'starting' | 'threads' | 'crossing' | 'stars' | 'hints' | 'boards' | 'daily' | 'progress',
   'game-points': 'earning' | 'daily-limit' | 'commands' | 'activity',
+  'retro': 'starting' | 'loading' | 'your-games' | 'controls' | 'touch' | 'menu' | 'saves' | 'storage' | 'sound' | 'source',
   'media-editor': 'opening' | 'start-screen' | 'who' | 'together' | 'watch-only' | 'managing' | 'invites' | 'templates' | 'posting' | 'premium',
 }
 

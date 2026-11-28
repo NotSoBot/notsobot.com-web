@@ -56,6 +56,14 @@ export const Games = {
   'games.settings.motion': 'Motion',
   'games.settings.less_motion': 'Less motion',
   'games.settings.less_motion_hint': 'Turns off animations like the countdown, word pops and slides. Your device’s reduce motion setting always applies.',
+  // the Discord profile switch (ProfileStatusSection): the permission for the profile line, the shell's (src/activity/shell.ts `profileStatus`)
+  'games.settings.profile': 'Discord profile',
+  'games.settings.profile_status': 'Show what I’m doing on my Discord profile',
+  'games.settings.profile_status_hint': 'Asks Discord for permission to set your status, so it shows in DMs and text channels too. Without it, Discord only shows it in some voice channels.',
+  'games.settings.profile_status_granted_hint': 'Your status shows everywhere. To take the permission back, remove NotSoBot in Discord’s Settings → Authorized Apps.',
+  'games.settings.profile_status_off_granted_hint': 'Discord already gave the permission for this visit. To take it back, remove NotSoBot in Discord’s Settings → Authorized Apps.',
+  'games.settings.profile_status_reopen': 'Saved. Close the activity and open it again to finish: it already signed in with Discord this time.',
+  'games.settings.profile_status_failed': 'Couldn’t reach Discord. Try again in a moment.',
 
   'games.flag.title': 'Flag Guesser',
   'games.flag.joining': 'Joining the game…',
@@ -210,7 +218,7 @@ export const Games = {
   'games.letters.found_title': 'Your words',
   'games.letters.found_none': 'Nothing yet. Words you find show up here.',
   'games.letters.counts': 'Words so far',
-  'games.letters.only_you': 'only you',
+  'games.letters.only_you': 'nobody else',
   'games.letters.reveal_title': 'Time’s up',
   'games.letters.reveal_total_one': 'This board had {count} word',
   'games.letters.reveal_total_other': 'This board had {count} words',
