@@ -85,7 +85,7 @@ export function ContentFlagTiles({ flags, flagsPath }: {flags: AdminUserContentF
         <StatTile label='Flagged' to={flagsPath('all')} value={flags.flagged.toLocaleString()} hint={FLAGGED_TITLE}/>
         <StatTile label='Borderline' value={(flags.total - flags.flagged).toLocaleString()} hint={BORDERLINE_TITLE}/>
         <DateTile className='col-span-2 sm:col-span-3' label='Last flagged' value={flags.last_flagged_at}/>
-        <StatTile label='Pending' to={flagsPath('0')} value={flags.pending.toLocaleString()} tone='text-warning' hint={FLAG_STATUS_TITLES['0']}/>
+        <StatTile label='Pending' to={flagsPath('0')} value={flags.pending.toLocaleString()} tone='text-warning-text' hint={FLAG_STATUS_TITLES['0']}/>
         <StatTile label='Unsure' to={flagsPath('4')} value={flags.unsure.toLocaleString()} tone='text-[#f47fbf]' hint={FLAG_STATUS_TITLES['4']}/>
         <StatTile label='Confirmed' to={flagsPath('1')} value={flags.confirmed.toLocaleString()} tone='text-danger-text' hint={FLAG_STATUS_TITLES['1']}/>
         <StatTile label='Dismissed' to={flagsPath('2')} value={flags.dismissed.toLocaleString()} tone='text-muted' hint={FLAG_STATUS_TITLES['2']}/>

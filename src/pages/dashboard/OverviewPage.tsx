@@ -190,7 +190,7 @@ export function OverviewPage() {
         <div className='relative flex flex-col gap-4 pt-6 sm:flex-row sm:items-end'>
           <UserAvatar user={user} size={128} className='size-20 rounded-full border-4 border-surface bg-surface-3'/>
           <div className='min-w-0 flex-1'>
-            <h1 className='truncate text-2xl font-bold text-white sm:text-3xl'>{userDisplayTag(user)}</h1>
+            <h1 className='truncate text-2xl font-semibold text-white sm:text-3xl'>{userDisplayTag(user)}</h1>
             <p className='mt-0.5 truncate font-mono text-xs text-subtle'>{user.id}</p>
           </div>
           {/* their tier, and the settings most people change (language and timezone) */}
@@ -200,7 +200,7 @@ export function OverviewPage() {
               title={t('overview.premium_title')}
               className={cn(
                 'flex w-fit max-w-full min-w-0 items-center gap-2 rounded-full border px-3 py-1 text-sm font-medium transition-colors',
-                premium ? 'border-warning/50 bg-warning/10 text-warning hover:bg-warning/20' : 'border-line-strong bg-surface-2 text-muted hover:text-white',
+                premium ? 'border-warning/50 bg-warning/10 text-warning-text hover:bg-warning/20' : 'border-line-strong bg-surface-2 text-muted hover:text-white',
               )}
             >
               <Crown aria-hidden className='size-4 shrink-0'/>

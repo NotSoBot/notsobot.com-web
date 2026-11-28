@@ -92,7 +92,7 @@ export function LinkedItemModal({ noun, notFoundMessage, query, onClose }: {
       ) : (
         <div className='px-6 py-16 text-center'>
           <AlertTriangle aria-hidden className='mx-auto mb-4 size-14 text-danger-text'/>
-          <h2 id={LINKED_TITLE_ID} className='mb-3 text-2xl font-bold text-white'>
+          <h2 id={LINKED_TITLE_ID} className='mb-3 text-2xl font-semibold text-white'>
             {(notFound) ? t('linked.not_found', {noun: `${noun[0].toUpperCase()}${noun.slice(1)}`}) : t('linked.load_error', {noun})}
           </h2>
           <p className='mb-6 text-muted'>{(notFound) ? notFoundMessage : errorMessage(error)}</p>

@@ -1,4 +1,4 @@
-import { ArrowRight, RefreshCw, Sparkles, Upload, Wand2, type LucideIcon } from 'lucide-react';
+import { ArrowRight, RefreshCw, Reply, SquareTerminal, Upload, type LucideIcon } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
 
@@ -26,8 +26,8 @@ const FEATURES = ['ai', 'audio', 'conversion', 'moderation', 'music', 'search', 
 // `home.steps.<key>.title` / `.description`
 const STEPS: Array<{icon: LucideIcon, key: 'post' | 'run' | 'result'}> = [
   {icon: Upload, key: 'post'},
-  {icon: Wand2, key: 'run'},
-  {icon: Sparkles, key: 'result'},
+  {icon: SquareTerminal, key: 'run'},
+  {icon: Reply, key: 'result'},
 ];
 
 const GALLERY_SIZE = 8;
@@ -180,7 +180,7 @@ export function HomePage() {
         <ol className='grid gap-6 md:grid-cols-3'>
           {STEPS.map(({ icon: Icon, key }, index) => (
             <li key={key} className='flex gap-4'>
-              <div className='flex size-10 shrink-0 items-center justify-center rounded-full border border-brand/30 bg-brand/10 font-semibold text-brand-text tabular-nums'>
+              <div className='flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-3 font-semibold text-fg tabular-nums'>
                 {index + 1}
               </div>
               <div>

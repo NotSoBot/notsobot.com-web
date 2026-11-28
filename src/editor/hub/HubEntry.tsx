@@ -21,7 +21,7 @@ function HubPanel({ host, onPick, onClose }: {host: EditorHost, onPick: (templat
     <Modal labelledBy={titleId} onClose={onClose} className='max-w-5xl' stickyClose>
       <div className='flex flex-col gap-4 p-4 sm:p-6'>
         <div>
-          <h2 id={titleId} className='pr-10 font-display text-2xl font-bold text-white'>{t('hub.title')}</h2>
+          <h2 id={titleId} className='pr-10 font-display text-2xl font-semibold text-white'>{t('hub.title')}</h2>
           <p className='mt-1 text-sm text-muted'>{t('hub.description')}</p>
         </div>
         <HubBrowser
@@ -51,7 +51,7 @@ export function HubEntry({ host, picked, onPick, onUnpick, disabled = false }: {
   return (
     <section className='flex flex-col gap-2 rounded-xl border border-line-strong bg-surface p-3 sm:flex-row sm:items-center sm:gap-3'>
       <div className='flex min-w-0 flex-1 items-center gap-3'>
-        <Compass aria-hidden className='size-6 shrink-0 text-brand-text'/>
+        <Compass aria-hidden className='size-6 shrink-0 text-muted'/>
         <div className='min-w-0'>
           <p className='font-semibold text-white'>{t('hub.title')}</p>
           <p className='text-sm text-muted'>

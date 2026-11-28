@@ -229,7 +229,7 @@ function SaveTemplateDialog({ host, state, documentId, exampleUrl, onClose }: {
             <div className='mt-4'>
               <AskForInputs candidates={candidates} value={asked} onChange={setAsks}/>
             </div>
-            {(blocked) ? <p role='alert' className='mt-4 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-warning'>{t('editor.template.heavy_ai', {name: blocked.name})}</p> : null}
+            {(blocked) ? <p role='alert' className='mt-4 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-warning-text'>{t('editor.template.heavy_ai', {name: blocked.name})}</p> : null}
           </>
         )}
 

@@ -109,7 +109,7 @@ export function HiddenContentSection({ item, access }: {item: TagDirectoryItem, 
     <section>
       <h3 className='section-label mb-2'>{t('tags.detail.content')}</h3>
       <p className='mb-2 flex gap-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-fg'>
-        <EyeOff aria-hidden className='mt-0.5 size-4 shrink-0 text-warning'/>
+        <EyeOff aria-hidden className='mt-0.5 size-4 shrink-0 text-warning-text'/>
         <span>
           {(access.owner) ? (
             t('tags.listing.hidden_owner')
@@ -267,7 +267,7 @@ function TagServersList({ item }: {item: TagDirectoryItem}) {
                     {(named) ? (
                       <button
                         type='button'
-                        className='flex max-w-32 shrink-0 cursor-pointer items-center gap-1 rounded bg-surface-3 px-1.5 py-0.5 text-[11px] text-muted transition-colors hover:text-white sm:max-w-48'
+                        className='flex max-w-32 shrink-0 cursor-pointer items-center gap-1 rounded bg-surface-3 px-1.5 py-0.5 text-xs text-muted transition-colors hover:text-white sm:max-w-48'
                         title={(server.names.length > 1) ? `Added under ${server.names.length.toLocaleString()} names, click to see them` : `Added as ${shown}`}
                         onClick={() => setNamesOf(server)}
                       >
@@ -712,7 +712,7 @@ export function ListingEditForm({ item, access, media, onDone, onDirtyChange, on
 
       <div className='flex flex-col-reverse gap-3 border-t border-line pt-4 sm:flex-row sm:items-center sm:justify-between'>
         <div aria-live='polite' className='min-h-5 text-sm'>
-          {(dirty && !saving) ? <span className='text-warning'>{t('tags.listing.unsaved')}</span> : null}
+          {(dirty && !saving) ? <span className='text-warning-text'>{t('tags.listing.unsaved')}</span> : null}
         </div>
         <div className='flex flex-wrap gap-2 sm:justify-end'>
           <button type='button' className='btn btn-ghost' disabled={saving} onClick={onDone}>{t('common.cancel')}</button>

@@ -409,7 +409,7 @@ function IdentitiesTab({ data, now, onShowProxies }: {data: AdminIdentities, now
         <button type='button' className='btn btn-secondary shrink-0' onClick={() => setDialog('cookies')} title='Cookie files for many identities at once, like the ones waiting for theirs'>
           <Upload className='size-4'/>
           <span className='max-sm:sr-only'>Upload cookies</span>
-          {(pendingCount) ? <span className='rounded bg-warning/20 px-1.5 text-xs text-warning tabular-nums'>{pendingCount}</span> : null}
+          {(pendingCount) ? <span className='rounded bg-warning/10 px-1.5 text-xs text-warning-text tabular-nums'>{pendingCount}</span> : null}
         </button>
         <button type='button' className='btn btn-secondary shrink-0' onClick={() => setDialog('logins')} title='Many accounts at once from a pasted list of logins, each on the next free proxy'>
           <ListPlus className='size-4'/>
@@ -469,7 +469,7 @@ function IdentitiesTab({ data, now, onShowProxies }: {data: AdminIdentities, now
                 onChange={() => setSelected((allSelected) ? new Set() : new Set(identities.map((identity) => identity.id)))}
               />
             </label>
-            <div className={cn(ROW_GRID, 'py-2.5 pr-4 pl-2 font-medium uppercase sm:pr-5')}>
+            <div className={cn(ROW_GRID, 'py-2.5 pr-4 pl-2 font-medium sm:pr-5')}>
               <span className='flex min-w-0 items-center gap-1.5'>
                 <SortHeader column='name' sort={sort} onSort={(value) => update({sort: value})}>Name</SortHeader>
                 <span className='font-normal normal-case tabular-nums'>{identities.length.toLocaleString()}</span>
@@ -591,7 +591,7 @@ function ServiceCard({ service, selected, onSelect }: {service: IdentityService,
   return (
     <section
       className={cn(
-        'card cursor-pointer p-4 transition-colors hover:border-brand/60 sm:p-5',
+        'card cursor-pointer p-4 transition-colors hover:border-subtle/50 sm:p-5',
         selected && 'border-brand ring-1 ring-brand',
       )}
       aria-label={`${service.service} identities`}
@@ -649,7 +649,7 @@ function ServiceCard({ service, selected, onSelect }: {service: IdentityService,
           </div>
           <p className='mt-3 text-xs text-subtle'>
             {SHARED_TEXT[service.service] ?? 'Every request for it picks one of these at random, no cooldown or rate limit.'}
-            {(!service.pool) ? <span className='text-warning'> {(service.service === 'strict') ? 'Empty, so those sites use global.' : 'Empty, so those requests are refused.'}</span> : null}
+            {(!service.pool) ? <span className='text-warning-text'> {(service.service === 'strict') ? 'Empty, so those sites use global.' : 'Empty, so those requests are refused.'}</span> : null}
           </p>
         </>
       ) : (
@@ -658,7 +658,7 @@ function ServiceCard({ service, selected, onSelect }: {service: IdentityService,
         <Tile text='Can be used this second: in the rotation, not in use and not resting'><StatTile className={TILE} label='Ready' value={service.available.toLocaleString()} tone='text-[#6fd391]'/></Tile>
         <Tile text='Active identities on a working proxy, ready or resting between uses'><StatTile className={TILE} label='In rotation' value={service.pool.toLocaleString()}/></Tile>
         {(needsCookies(service)) ? (
-          <Tile text='Waiting for an account’s cookies: assigned to the service but not used until Upload cookies gives them theirs'><StatTile className={TILE} label='No cookies' value={service.counts.pending.toLocaleString()} tone='text-warning'/></Tile>
+          <Tile text='Waiting for an account’s cookies: assigned to the service but not used until Upload cookies gives them theirs'><StatTile className={TILE} label='No cookies' value={service.counts.pending.toLocaleString()} tone='text-warning-text'/></Tile>
         ) : (
           <Tile text='Flagged too often to be used, they need new cookies'><StatTile className={TILE} label='Dead' value={service.counts.dead.toLocaleString()} tone='text-[#ff8a8c]'/></Tile>
         )}
@@ -690,7 +690,7 @@ function SortHeader({ column, sort, onSort, children }: {
   return (
     <button
       type='button'
-      className={cn('inline-flex cursor-pointer items-center gap-1 uppercase transition-colors hover:text-fg', active && 'text-fg')}
+      className={cn('inline-flex cursor-pointer items-center gap-1 transition-colors hover:text-fg', active && 'text-fg')}
       aria-label={`Sort by ${String(children).toLowerCase()}${(active === 'first') ? ', reversed' : (active === 'second') ? ', back to the default' : ''}`}
       onClick={() => onSort((active === 'first') ? second : (active === 'second') ? null : first)}
     >
@@ -808,7 +808,7 @@ function IdentityModal({ identity, data, now, onClose }: {identity: Identity, da
             )],
             (identity.service !== 'global') && ['IP flags in a row', (
               <span className='inline-flex items-center gap-1.5'>
-                <span className={cn('tabular-nums', (identity.streak) ? 'text-warning' : '')}>{identity.streak.toLocaleString()}</span>
+                <span className={cn('tabular-nums', (identity.streak) ? 'text-warning-text' : '')}>{identity.streak.toLocaleString()}</span>
                 <span className='text-subtle'>
                   {(policy && identity.streak) ? `benched ${formatSpan(policy.backoff[Math.min(identity.streak - 1, policy.backoff.length - 1)] * 1000)} last time` : 'none since its last success'}
                 </span>
@@ -817,7 +817,7 @@ function IdentityModal({ identity, data, now, onClose }: {identity: Identity, da
             )],
             (needsCookies(policy)) && ['Account failures', (
               <span className='inline-flex items-center gap-1.5'>
-                <span className={cn('tabular-nums', (identity.strikes) ? 'text-warning' : '')}>{identity.strikes.toLocaleString()} of {(policy?.cookie_strikes ?? 3).toLocaleString()}</span>
+                <span className={cn('tabular-nums', (identity.strikes) ? 'text-warning-text' : '')}>{identity.strikes.toLocaleString()} of {(policy?.cookie_strikes ?? 3).toLocaleString()}</span>
                 <InfoTip text={`Times in a row the account itself looked signed out (no formats, “content isn’t available”). At ${policy?.cookie_strikes ?? 3} it’s marked dead and needs new cookies. A success resets it.`}/>
               </span>
             )],
@@ -1543,7 +1543,7 @@ function UploadCookiesDialog({ data, onClose }: {data: AdminIdentities, onClose:
           <>
             <p className='mt-4 text-sm text-fg'>
               {pairs.length.toLocaleString()} file{(pairs.length === 1) ? '' : 's'} to {pairs.length.toLocaleString()} identit{(pairs.length === 1) ? 'y' : 'ies'}
-              {(targets.length < files.length) ? <span className='text-warning'>, {(files.length - targets.length).toLocaleString()} more files than identities (left out)</span> : null}
+              {(targets.length < files.length) ? <span className='text-warning-text'>, {(files.length - targets.length).toLocaleString()} more files than identities (left out)</span> : null}
               {(files.length < targets.length) ? <span className='text-subtle'>, {(targets.length - files.length).toLocaleString()} identities get none</span> : null}
             </p>
             <ul className='mt-2 max-h-64 divide-y divide-line overflow-y-auto rounded-md border border-line bg-deep text-xs'>

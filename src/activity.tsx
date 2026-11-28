@@ -15,7 +15,43 @@ import { loadDashboardText, loadDictionary, setActiveLanguage } from '@/i18n/tra
 import { applyActivityMotion } from '@/lib/activityPrefs';
 
 
+// This page inside the Activity's own games iframe (src/activity/shell.ts `GAMES_HALF_PATH`): the developer portal has
+// no URL mapping `/games` → `notsogames.com/activity`, so Discord's `/` mapping served notsobot.com's page at /games/
+// instead of the games half. Started anyway it would only send Discord a handshake of its own, which Discord ignores
+// from a second page, and time out (seen 2026-11-27). Says what's missing instead
+function insideOwnShell(): boolean {
+  try {
+    return window.parent !== window && Boolean(window.parent.__nsbActivityShell);
+  } catch {
+    // a parent on another origin isn't this Activity's page
+    return false;
+  }
+}
+
+function showMissingGamesMapping(): void {
+  console.warn('[editor activity] notsobot.com\'s page loaded as the games half: the URL mapping /games → notsogames.com/activity is missing');
+  const root = document.getElementById('root');
+  if (!root) {
+    return;
+  }
+  const box = document.createElement('div');
+  box.className = 'flex min-h-screen flex-col items-center justify-center gap-3 p-6 text-center';
+  const title = document.createElement('p');
+  title.className = 'text-lg font-semibold text-white';
+  title.textContent = 'The games couldn’t load.';
+  const detail = document.createElement('p');
+  detail.className = 'max-w-md font-mono text-xs text-subtle';
+  detail.textContent = 'This Activity’s URL mapping /games → notsogames.com/activity is missing (Discord Developer Portal → Activities → URL Mappings).';
+  box.append(title, detail);
+  root.replaceChildren(box);
+}
+
+
 async function start(): Promise<void> {
+  if (insideOwnShell()) {
+    showMissingGamesMapping();
+    return;
+  }
   // the site's api client (the Server and Your settings' dashboard pages) through Discord's proxy, like the Activity's own
   // requests
   setApiBase(API_BASE);

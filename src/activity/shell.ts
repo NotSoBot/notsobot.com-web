@@ -62,6 +62,9 @@ export interface ActivityShell {
   takeLaunch: () => GamesLaunch | null,
   // back to the shell's mode choice (the games half is hidden, it may be kept loaded)
   back: (notice?: string) => void,
+  // the shell's own owners' log (its startup, the Discord SDK's traffic, every profile line it sent and Discord's
+  // answer), shown beside the games half's in its Connection logs. Optional: added within version 1
+  log?: () => ReadonlyArray<{at: number, source: string, text: string}>,
 }
 
 declare global {

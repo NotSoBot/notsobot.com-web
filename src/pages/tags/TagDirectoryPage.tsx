@@ -218,7 +218,7 @@ export function TagDirectoryPage() {
 
         {(status.value !== TagDirectoryVerificationStates.VERIFIED) ? (
           <p role='alert' className='mt-4 flex gap-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-fg'>
-            <TriangleAlert aria-hidden className='mt-0.5 size-4 shrink-0 text-warning'/>
+            <TriangleAlert aria-hidden className='mt-0.5 size-4 shrink-0 text-warning-text'/>
             <span>{t('tags.directory.unverified_warning')}</span>
           </p>
         ) : null}
@@ -292,7 +292,7 @@ function TagCard({ item, search, period }: {item: TagDirectoryItem, search: stri
   const [ hovered, setHovered ] = useState(false);
   return (
     <li
-      className='group relative flex flex-col rounded-lg border border-line bg-surface transition-colors hover:border-brand'
+      className='group relative flex flex-col rounded-lg border border-line bg-surface transition-colors hover:border-subtle/50'
       onPointerEnter={(event) => {
         preloadTagDetail();
         if (event.pointerType === 'mouse') {
@@ -373,7 +373,7 @@ function CategoryFilter({ value, onChange }: {value: string | null, onChange: (p
             onClick={() => onChange(option.param)}
             className={cn(
               'shrink-0 cursor-pointer rounded-full border px-3 py-1 text-sm transition-colors',
-              (selected) ? 'border-brand bg-brand text-white' : 'border-line bg-deep text-muted hover:border-brand hover:text-white',
+              (selected) ? 'border-brand bg-brand text-white' : 'border-line bg-deep text-muted hover:border-subtle/50 hover:text-white',
             )}
           >
             {t(option.label)}

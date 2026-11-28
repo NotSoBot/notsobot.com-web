@@ -407,7 +407,7 @@ function MediaManager({ assets, selected, selectedIndex, manage, onUploaded, chi
             type='button'
             disabled={busy}
             onClick={() => input.current?.click()}
-            className='flex w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-line-strong bg-deep px-4 py-8 text-center text-muted transition-colors hover:border-brand hover:text-white disabled:cursor-default'
+            className='flex w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-line-strong bg-deep px-4 py-8 text-center text-muted transition-colors hover:border-subtle/50 hover:text-white disabled:cursor-default'
           >
             {(uploading) ? <Spinner className='size-5'/> : <ImagePlus aria-hidden className='size-6'/>}
             <span className='text-sm font-medium'>{t((uploading) ? 'tag_media.uploading' : 'tag_media.add_first')}</span>

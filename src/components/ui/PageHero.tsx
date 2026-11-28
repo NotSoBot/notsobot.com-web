@@ -21,10 +21,10 @@ export function PageHero({ badge, title, description, descriptionClassName, lead
 }) {
   const heading = (
     <>
-      {(badge) ? <div className='mb-3 flex items-center gap-2 text-sm font-medium text-brand-text'>{badge}</div> : null}
-      <h1 className='mb-2 text-3xl font-bold text-white sm:text-4xl'>{title}</h1>
+      {(badge) ? <div className='mb-3 flex items-center gap-2 text-sm font-medium text-muted'>{badge}</div> : null}
+      <h1 className='mb-2 text-3xl font-semibold text-white sm:text-4xl'>{title}</h1>
       {(description) ? (
-        <p className={cn(descriptionClassName ?? ((children) ? 'mb-6' : null), 'max-w-2xl text-muted')}>{description}</p>
+        <p className={cn(descriptionClassName ?? ((children) ? 'mb-6' : null), 'max-w-prose text-muted')}>{description}</p>
       ) : null}
     </>
   );

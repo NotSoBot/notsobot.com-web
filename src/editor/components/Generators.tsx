@@ -1,4 +1,4 @@
-import { FileUp, Sparkles, X } from 'lucide-react';
+import { FileUp, ImagePlus, X } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 
 import { ColorPicker } from '@/components/ui/ColorPicker';
@@ -32,13 +32,13 @@ export function GeneratorGrid({ generators, disabled, onPick }: {
             disabled={disabled}
             onClick={() => onPick(generator)}
             aria-label={t('editor.generate.pick', {name: generator.name})}
-            className='flex w-full flex-col gap-1.5 rounded-lg border border-line-strong bg-surface p-1.5 text-left transition-colors hover:border-brand hover:bg-surface-3 disabled:cursor-not-allowed disabled:opacity-60'
+            className='flex w-full flex-col gap-1.5 rounded-lg border border-line-strong bg-surface p-1.5 text-left transition-colors hover:border-subtle/50 hover:bg-surface-3 disabled:cursor-not-allowed disabled:opacity-60'
           >
             <span className='flex aspect-square w-full items-center justify-center overflow-hidden rounded-md bg-deep'>
               {(generator.thumbnail && generator.thumbnail.mimetype.startsWith('image/')) ? (
                 <img src={generator.thumbnail.url} alt='' loading='lazy' className='size-full object-cover'/>
               ) : (
-                <Sparkles aria-hidden className='size-6 text-brand-text'/>
+                <ImagePlus aria-hidden className='size-6 text-muted'/>
               )}
             </span>
             <span className='truncate px-0.5 text-xs font-semibold text-fg'>{generator.name}</span>

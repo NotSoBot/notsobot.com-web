@@ -161,7 +161,7 @@ function BlobsForm({ tag, scope, blobs, readOnly, onDirtyChange }: {
           <Panel
             key={meta.type}
             headingLevel={3}
-            title={<>{meta.label}{(changed) ? <span className='ml-1 text-xs font-normal text-warning'>{t('dtags.blobs.edited')}</span> : null}</>}
+            title={<>{meta.label}{(changed) ? <span className='ml-1 text-xs font-normal text-warning-text'>{t('dtags.blobs.edited')}</span> : null}</>}
             accent={meta.color}
             description={(storageId && storageId !== '0') ? <>{meta.description} <span className='font-mono text-subtle'>{storageId}</span></> : meta.description}
           >

@@ -133,7 +133,7 @@ export function ApplicationTokenDialog({ application, heading, onClose }: {
         </p>
 
         <p className='mt-3 flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-fg'>
-          <TriangleAlert aria-hidden className='mt-0.5 size-4 shrink-0 text-warning'/>
+          <TriangleAlert aria-hidden className='mt-0.5 size-4 shrink-0 text-warning-text'/>
           {t('apps.token_warning')}
         </p>
 

@@ -317,7 +317,7 @@ function ApplicationDetails({ application, navigation, onFilterOwner, onDeleted 
               <StatTile
                 label='Errors'
                 value={usage.errors.toLocaleString()}
-                tone='text-warning'
+                tone='text-warning-text'
                 hint={(usage.requests) ? `${((usage.errors / usage.requests) * 100).toFixed(1)}% of its requests failed (status 400 or above)` : 'Requests that failed (status 400 or above)'}
               />
               <DateTile label='First request' value={usage.first_request_at} empty='None' title='Its first request in that time'/>

@@ -96,7 +96,7 @@ export function GuideArticle({ slug, slugs, site, indexPath, badge, title }: {
                     return (
                       <li key={other} className='flex'>
                         <Link to={guidePath(other)} className='card card-hover group flex w-full items-center gap-3 p-4 hover:bg-surface-2/60'>
-                          <OtherIcon aria-hidden className='size-5 shrink-0 text-brand-text'/>
+                          <OtherIcon aria-hidden className='size-5 shrink-0 text-muted'/>
                           <span className='min-w-0 flex-1'>
                             <span className='block font-medium text-white'>{book.guides[other].title}</span>
                             <span className='line-clamp-2 block text-sm text-muted'>{book.guides[other].summary}</span>

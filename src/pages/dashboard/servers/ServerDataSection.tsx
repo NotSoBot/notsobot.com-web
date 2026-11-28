@@ -74,7 +74,7 @@ export function ServerDataSection({ guild }: {guild: UserGuild}) {
         </div>
 
         <p className='flex items-start gap-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-fg'>
-          <ShieldAlert aria-hidden className='mt-0.5 size-4 shrink-0 text-warning'/>
+          <ShieldAlert aria-hidden className='mt-0.5 size-4 shrink-0 text-warning-text'/>
           <span>{t('sdata.export_note')}</span>
         </p>
 

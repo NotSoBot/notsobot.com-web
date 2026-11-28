@@ -125,7 +125,7 @@ export function StepList({ state }: {state: EditorDocumentState}) {
               </span>
               {(summary) ? <span className='truncate font-mono text-xs text-muted'>{summary}</span> : null}
               {(failed && stepError) ? <span className='text-xs text-danger-text'>{t('editor.step.error', {message: stepError.message})}</span> : null}
-              {(lockedBy) ? <span className='text-xs text-warning'>{t('editor.room.adjusting', {name: lockedBy.username})}</span> : null}
+              {(lockedBy) ? <span className='text-xs text-warning-text'>{t('editor.room.adjusting', {name: lockedBy.username})}</span> : null}
             </button>
             <StepCursors stepId={step.id}/>
             <button

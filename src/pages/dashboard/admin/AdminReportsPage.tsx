@@ -81,7 +81,7 @@ const ACTION_SLOTS: Array<ReportStatus> = [ReportStatuses.RESOLVED, ReportStatus
 
 // the footer's status buttons, by the status they set
 const STATUS_BUTTON_CLASSES: Record<number, string> = {
-  [ReportStatuses.OPEN]: 'border border-warning/40 bg-warning/15 text-warning hover:bg-warning/25',
+  [ReportStatuses.OPEN]: 'border border-warning/40 bg-warning/15 text-warning-text hover:bg-warning/25',
   [ReportStatuses.RESOLVED]: 'btn-primary',
   [ReportStatuses.DISMISSED]: 'btn-secondary',
 };
@@ -326,7 +326,7 @@ function ReportRow({ report, onOpen }: {report: Report, onOpen: (id: string) => 
         <span className='col-span-2 row-start-3 flex min-w-0 items-center gap-2 text-sm text-muted'>
           {(report.replies) ? (
             <span
-              className={cn('inline-flex shrink-0 items-center gap-1 text-xs', (awaitingReply(report)) ? 'font-medium text-warning' : 'text-subtle')}
+              className={cn('inline-flex shrink-0 items-center gap-1 text-xs', (awaitingReply(report)) ? 'font-medium text-warning-text' : 'text-subtle')}
               title={(awaitingReply(report)) ? 'The reporter replied last, waiting on staff' : `${report.replies} ${(report.replies === 1) ? 'reply' : 'replies'}`}
             >
               <MessagesSquare aria-hidden className='size-3.5'/>

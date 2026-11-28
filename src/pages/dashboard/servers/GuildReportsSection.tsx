@@ -104,7 +104,7 @@ interface WaitingVerdict {
 const ACTION_SLOTS: Array<ReportStatus> = [ReportStatuses.RESOLVED, ReportStatuses.DISMISSED];
 
 const STATUS_BUTTON_CLASSES: Record<number, string> = {
-  [ReportStatuses.OPEN]: 'border border-warning/40 bg-warning/15 text-warning hover:bg-warning/25',
+  [ReportStatuses.OPEN]: 'border border-warning/40 bg-warning/15 text-warning-text hover:bg-warning/25',
   [ReportStatuses.RESOLVED]: 'btn-primary',
   [ReportStatuses.DISMISSED]: 'btn-secondary',
 };
@@ -355,7 +355,7 @@ function ReportRow({ report, users, onOpen }: {report: GuildReport, users: Repor
         <span className='col-span-2 row-start-3 flex min-w-0 items-center gap-2 text-sm text-muted'>
           {(report.replies) ? (
             <span
-              className={cn('inline-flex shrink-0 items-center gap-1 text-xs', (awaiting) ? 'font-medium text-warning' : 'text-subtle')}
+              className={cn('inline-flex shrink-0 items-center gap-1 text-xs', (awaiting) ? 'font-medium text-warning-text' : 'text-subtle')}
               title={(awaiting) ? t('greports.reporter_replied') : plural('reports.replies', report.replies)}
             >
               <MessagesSquare aria-hidden className='size-3.5'/>

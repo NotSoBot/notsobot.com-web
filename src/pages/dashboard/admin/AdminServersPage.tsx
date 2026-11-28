@@ -205,7 +205,7 @@ function ServerCounts({ counts, className }: {counts: AdminGuildSummary['counts'
             text={text}
             className={cn(
               'inline-flex items-center gap-1 sm:min-w-12',
-              (!value) ? 'text-subtle/60' : (alert) ? 'text-warning' : 'text-muted',
+              (!value) ? 'text-subtle/60' : (alert) ? 'text-warning-text' : 'text-muted',
             )}
           >
             <Icon className='size-3.5 shrink-0'/>

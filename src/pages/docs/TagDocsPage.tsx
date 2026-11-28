@@ -297,7 +297,7 @@ function TagDocsContent({ docs, ready }: {docs: TagDocs, ready: boolean}) {
               </div>
             ) : null}
 
-            <aside className='flex flex-col items-start justify-between gap-4 rounded-lg border border-line border-l-[3px] border-l-brand bg-surface p-6 sm:flex-row sm:items-center'>
+            <aside className='flex flex-col items-start justify-between gap-4 rounded-lg border border-brand/30 bg-brand/5 p-6 sm:flex-row sm:items-center'>
               <div>
                 <h2 className='mb-1 text-lg font-semibold text-white'>{t('tag_docs.inspiration_title')}</h2>
                 <p className='text-sm text-muted'>{t('tag_docs.inspiration_description')}</p>
@@ -385,9 +385,9 @@ const GuideSection = memo(function GuideSection({ anchor, section, highlight }: 
       </h2>
       <Prose text={section.body} highlight={highlight}/>
       {(section.table) ? (
-        <div className='mt-4 overflow-x-auto rounded-md border border-line'>
+        <div className='mt-4 overflow-x-auto border-y border-line'>
           <table className='w-full text-left text-sm'>
-            <thead className='bg-deep text-xs tracking-wide text-subtle uppercase'>
+            <thead className='bg-deep text-sm text-subtle'>
               <tr>{section.table.columns.map((column) => <th key={column} className='px-3 py-2 font-semibold'>{column}</th>)}</tr>
             </thead>
             <tbody>
@@ -404,7 +404,7 @@ const GuideSection = memo(function GuideSection({ anchor, section, highlight }: 
           </table>
         </div>
       ) : null}
-      {(section.examples?.length) ? <Examples examples={section.examples}/> : null}
+      {(section.examples?.length) ? <Examples examples={section.examples} level='h3'/> : null}
     </section>
   );
 });
@@ -446,7 +446,7 @@ const FunctionCard = memo(function FunctionCard({ fn, highlight }: {fn: TagDocFu
                 {arg.name}
                 {(arg.optional) ? <span className='ml-1.5 font-sans text-xs text-subtle'>{t('tag_docs.optional')}</span> : null}
               </dt>
-              <dd className='text-muted'><Inline text={arg.description} highlight=''/></dd>
+              <dd className='max-w-prose text-muted'><Inline text={arg.description} highlight=''/></dd>
             </div>
           ))}
         </dl>
@@ -500,7 +500,7 @@ const MediaScriptCard = memo(function MediaScriptCard({ command, highlight }: {c
                 {(arg.rest) ? '...' : null}{arg.name}
                 {(arg.default !== undefined) ? <span className='ml-1.5 text-xs text-subtle'>= {arg.default}</span> : null}
               </dt>
-              <dd className='text-muted'>
+              <dd className='max-w-prose text-muted'>
                 {(arg.description) ? <Inline text={arg.description} highlight=''/> : null}
                 {(arg.range) ? (
                   <span className={cn('text-xs text-subtle', arg.description && 'ml-2')}>
@@ -530,16 +530,17 @@ const MediaScriptCard = memo(function MediaScriptCard({ command, highlight }: {c
 });
 
 
-function Examples({ examples }: {examples: Array<TagDocExample>}) {
+// `level`: h3 under a guide section's h2, h4 under a function's or command's h3
+function Examples({ examples, level: Heading = 'h4' }: {examples: Array<TagDocExample>, level?: 'h3' | 'h4'}) {
   const { t } = useI18n();
   return (
     <div className='mt-4 space-y-3'>
-      <h4 className='section-label'>{(examples.length === 1) ? t('tag_docs.example') : t('tag_docs.examples')}</h4>
+      <Heading className='section-label'>{(examples.length === 1) ? t('tag_docs.example') : t('tag_docs.examples')}</Heading>
       {examples.map((example, i) => (
-        <div key={i} className='overflow-hidden rounded-md border border-line'>
+        <div key={i} className='overflow-hidden rounded-md bg-deep'>
           <CodeBlock code={example.code} bare/>
           {(example.result) ? (
-            <div className='border-t border-line bg-surface-2 px-3 py-2 text-sm text-muted'>
+            <div className='border-t border-line px-3 py-2 text-sm wrap-anywhere text-muted'>
               <span className='mr-2 text-subtle select-none'>→</span>
               <Inline text={example.result} highlight=''/>
             </div>
@@ -590,7 +591,7 @@ function AnchorLink({ id }: {id: string}) {
 
 function Prose({ text, highlight }: {text: string, highlight: string}) {
   return (
-    <div className='space-y-3 leading-relaxed text-fg'>
+    <div className='space-y-3 leading-relaxed text-fg [&>p]:max-w-prose'>
       {text.split('\n\n').map((block, i) => {
         const lines = block.split('\n');
         if (lines.every((line) => line.startsWith('- '))) {

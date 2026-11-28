@@ -3,7 +3,7 @@
 // `TagLimitDefaults` (credits are in `lib/credits.ts`), keep them in sync. NotSoAI's copy of this page is
 // notsobot.api's `prompts/sections/premium.txt`, update it too when perks change.
 
-import { ArrowRight, Bot, Check, Clock, Coins, Crown, FileUp, Link2, Minus, Music, Server, Sparkles, type LucideIcon } from 'lucide-react';
+import { ArrowRight, Bot, Check, Clock, Coins, Crown, FileUp, Link2, Minus, Music, Server, Store, type LucideIcon } from 'lucide-react';
 import { useEffect, useMemo, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router';
 
@@ -301,7 +301,7 @@ export function PremiumPage() {
       <PageHero
         title={(
           <span className='flex items-center gap-3'>
-            <Crown className='size-8 text-warning' aria-hidden/>
+            <Crown className='size-8 text-warning-text' aria-hidden/>
             NotSoPremium
           </span>
         )}
@@ -323,15 +323,14 @@ export function PremiumPage() {
         <section id='premium-servers' aria-labelledby='premium-servers-title' className='mb-16 scroll-mt-24'>
           {/* how slots work, what they give a server is the comparison table at the bottom */}
           <div className='card p-6 md:p-8'>
-            <div className='mb-4 flex size-12 items-center justify-center rounded-lg bg-brand/10'>
-              <Server className='size-6 text-brand-text'/>
-            </div>
-            <h2 id='premium-servers-title' className='mb-2 text-2xl text-white'>{t('premium.servers.title')}</h2>
+            <h2 id='premium-servers-title' className='mb-2 flex items-center gap-3 text-2xl text-white'>
+              <Server aria-hidden className='size-6 shrink-0 text-muted'/>{t('premium.servers.title')}
+            </h2>
             <div className='max-w-3xl'>
-              <p className='text-muted'>
+              <p className='max-w-prose text-muted'>
                 {rich('premium.servers.description', {code: (chunk) => <code className='text-code'>{chunk}</code>})}
               </p>
-              <p className='mt-3 text-muted'>{t('premium.servers.stacking', variables)}</p>
+              <p className='mt-3 max-w-prose text-muted'>{t('premium.servers.stacking', variables)}</p>
               <p className='mt-3 text-sm text-subtle'>{t('premium.servers.owning')}</p>
             </div>
             <a href='#premium-compare-servers' className='mt-5 inline-flex items-center gap-1.5 text-sm font-medium text-brand-text hover:underline'>
@@ -346,7 +345,7 @@ export function PremiumPage() {
         <section id='premium-compare' aria-labelledby='premium-compare-title' className='scroll-mt-24'>
           <AnchorHeading id='premium-compare-title' sectionId='premium-compare'>{t('premium.compare')}</AnchorHeading>
           <ComparisonTable columns={TIER_TABLE_COLUMNS} groups={COMPARISON} current={current} variables={variables}/>
-          <p className='mt-3 text-xs text-subtle'>{t('premium.compare_credits_note')}</p>
+          <p className='mt-3 max-w-prose text-xs text-subtle'>{t('premium.compare_credits_note')}</p>
           <p className='mt-1 text-xs text-subtle'>
             {rich('premium.compare_note', {terms: (chunk) => <Link to={Routes.LEGAL_TERMS_OF_SERVICE} className='underline hover:text-muted'>{chunk}</Link>})}
           </p>
@@ -355,7 +354,7 @@ export function PremiumPage() {
         <section id='premium-compare-servers' aria-labelledby='premium-compare-servers-title' className='mt-12 scroll-mt-24'>
           <AnchorHeading id='premium-compare-servers-title' sectionId='premium-compare-servers'>{t('premium.compare_servers')}</AnchorHeading>
           <ComparisonTable columns={SERVER_TABLE_COLUMNS} groups={SERVER_COMPARISON} current={null} variables={variables}/>
-          <p className='mt-3 text-xs text-subtle'>{t('premium.compare_servers_note', variables)}</p>
+          <p className='mt-3 max-w-prose text-xs text-subtle'>{t('premium.compare_servers_note', variables)}</p>
           <p className='mt-1 text-xs text-subtle'>{t('premium.compare_credits_note')}</p>
         </section>
       </div>
@@ -391,7 +390,7 @@ function HowToSubscribe({ signedIn }: {signedIn: boolean}) {
     <div className='flex flex-col gap-4 sm:flex-row sm:items-center'>
       {/* the hint wraps instead of the buttons, which keep their text on one line */}
       <div className='flex min-w-0 items-center gap-3 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm'>
-        <Sparkles className='size-5 shrink-0 text-warning' aria-hidden/>
+        <Store className='size-5 shrink-0 text-warning-text' aria-hidden/>
         <span className='text-fg'>
           {rich('premium.how.store', {b: (chunk) => <span className='font-semibold text-white'>{chunk}</span>})}
         </span>
@@ -427,7 +426,7 @@ function TierCard({ tier, current, variables }: {tier: Tier, current: boolean, v
     >
       <div className='mb-1 flex items-center justify-between gap-2'>
         <h3 className='text-xl font-semibold text-white'>{tier.name}</h3>
-        {(current) ? <span className='chip bg-warning/15 text-xs text-warning'>{t('premium.tier.yours')}</span> : null}
+        {(current) ? <span className='chip bg-warning/15 text-xs text-warning-text'>{t('premium.tier.yours')}</span> : null}
       </div>
       <p className='mb-5 text-muted'>{t(`premium.${tier.id}.tagline`)}</p>
       {(tier.includes) ? (
@@ -461,10 +460,9 @@ function CreditsSection({ variables }: {variables: CreditVariables}) {
     <section id='premium-credits' aria-labelledby='premium-credits-title' className='mb-16 scroll-mt-24'>
       <div className='card grid gap-6 p-6 md:p-8 lg:grid-cols-[1fr_1.4fr]'>
         <div>
-          <div className='mb-4 flex size-12 items-center justify-center rounded-lg bg-brand/10'>
-            <Coins className='size-6 text-brand-text'/>
-          </div>
-          <h2 id='premium-credits-title' className='mb-2 text-2xl text-white'>{t('premium.credits.title')}</h2>
+          <h2 id='premium-credits-title' className='mb-2 flex items-center gap-3 text-2xl text-white'>
+            <Coins aria-hidden className='size-6 shrink-0 text-muted'/>{t('premium.credits.title')}
+          </h2>
           <p className='text-muted'>{t('premium.credits.description', variables)}</p>
           <p className='mt-3 text-muted'>{t('premium.credits.packs')}</p>
           <ul className='mt-2 grid gap-2'>
@@ -492,7 +490,7 @@ function CreditPackCard({ pack }: {pack: CreditPack}) {
       <div className='mb-3 flex items-start justify-between gap-2'>
         <h3 className='font-semibold text-white'>{t('premium.credits.pack_name', {amount: creditsLabel(pack.credits)})}</h3>
         {(pack.bonus) ? (
-          <span className='chip shrink-0 bg-warning/15 text-xs text-warning'>{t('premium.credits.bonus', {percent: pack.bonus})}</span>
+          <span className='chip shrink-0 bg-warning/15 text-xs text-warning-text'>{t('premium.credits.bonus', {percent: pack.bonus})}</span>
         ) : null}
       </div>
       <ul className='mb-4 grid gap-2'>
@@ -545,7 +543,7 @@ function ComparisonTable({ columns, groups, current, variables }: {
               <th
                 key={column.id}
                 scope='col'
-                className={cn('px-4 py-3 text-center font-semibold', (current === column.id) ? 'text-warning' : 'text-white')}
+                className={cn('px-4 py-3 text-center font-semibold', (current === column.id) ? 'text-warning-text' : 'text-white')}
               >
                 {t(column.label)}
                 {(current === column.id) ? <span className='block text-xs font-normal'>{t('premium.column.you')}</span> : null}

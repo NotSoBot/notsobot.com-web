@@ -403,7 +403,7 @@ function ReportDetails({ report, navigation, onDraftChange }: {
         {(closed) ? (
           <button
             type='button'
-            className='btn min-w-0 flex-1 border border-warning/40 bg-warning/15 px-2 text-warning hover:bg-warning/25 sm:flex-none sm:px-3'
+            className='btn min-w-0 flex-1 border border-warning/40 bg-warning/15 px-2 text-warning-text hover:bg-warning/25 sm:flex-none sm:px-3'
             disabled={reopen.isPending}
             onClick={() => reopen.mutate(undefined, {
               onSuccess: () => toast(translate('reports.reopened', {id: report.id})),

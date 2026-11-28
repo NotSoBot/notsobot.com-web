@@ -117,7 +117,7 @@ export function PreviewStage({ state, pen, maxStrokes, maxPoints, maxTextLength 
           className={cn(
             // one line, it changes on every edit and mustn't change the row's height (the preview under it would jump)
             'inline-flex items-center gap-1.5 text-[13px] whitespace-nowrap',
-            (statusTone === 'success') ? 'text-success-text' : (statusTone === 'danger') ? 'text-danger-text' : (statusTone === 'warning') ? 'text-warning' : 'text-muted',
+            (statusTone === 'success') ? 'text-success-text' : (statusTone === 'danger') ? 'text-danger-text' : (statusTone === 'warning') ? 'text-warning-text' : 'text-muted',
           )}
         >
           {(statusTone === 'busy') ? <Spinner className='size-3'/> : <span aria-hidden className={cn('size-2 rounded-full', (statusTone === 'success') ? 'bg-success' : (statusTone === 'danger') ? 'bg-danger' : 'bg-warning')}/>}

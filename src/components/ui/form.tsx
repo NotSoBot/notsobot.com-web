@@ -38,7 +38,7 @@ export function Field({ label, hint, error, counter, children, className }: {
 
 export function CharCounter({ length, max }: {length: number, max: number}) {
   return (
-    <span className={cn(max < length ? 'text-danger-text' : (max * 0.9 < length) ? 'text-warning' : undefined)}>
+    <span className={cn(max < length ? 'text-danger-text' : (max * 0.9 < length) ? 'text-warning-text' : undefined)}>
       {formatNumber(length)} / {formatNumber(max)}
     </span>
   );

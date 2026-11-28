@@ -227,7 +227,7 @@ const FLAG_ACTIONS: Record<string, {label: string, icon: LucideIcon, className: 
   logged: {
     label: 'logged',
     icon: Eye,
-    className: 'bg-warning/20 text-warning',
+    className: 'bg-warning/20 text-warning-text',
     description: 'Logged: it went through to the user, and was only logged for a review.',
   },
 };
@@ -249,7 +249,7 @@ function ActionChip({ action }: {action: string}) {
 // the modal's status buttons: confirm is the strong red, mark pending the pending chip's light yellow, and unsure and
 // reporting outlines in their chips' colours so they don't read as verdicts
 const STATUS_BUTTON_CLASSES: Record<number, string> = {
-  [ContentFlagStatuses.PENDING]: 'border border-warning/40 bg-warning/15 text-warning hover:bg-warning/25',
+  [ContentFlagStatuses.PENDING]: 'border border-warning/40 bg-warning/15 text-warning-text hover:bg-warning/25',
   [ContentFlagStatuses.CONFIRMED]: 'btn-danger',
   [ContentFlagStatuses.DISMISSED]: 'btn-secondary',
   [ContentFlagStatuses.REPORTED]: 'border border-brand/50 bg-transparent text-[#aab2ff] hover:bg-brand/15',
@@ -1056,7 +1056,7 @@ function ContentFlagDetails({ flag, onReport, navigation }: {
                       (tone === 'danger') ? 'border-danger/40 bg-danger/10' : (tone === 'warning') ? 'border-warning/40 bg-warning/10' : 'border-transparent bg-deep')}
                     title={(tone === 'danger') ? 'Flagged' : (tone === 'warning') ? 'Flagged for review' : undefined}
                   >
-                    <dt className={(tone === 'danger') ? 'text-danger-text' : (tone === 'warning') ? 'text-warning' : 'text-subtle'}>{key}</dt>
+                    <dt className={(tone === 'danger') ? 'text-danger-text' : (tone === 'warning') ? 'text-warning-text' : 'text-subtle'}>{key}</dt>
                     <dd className='font-mono text-fg tabular-nums'>{formatScore(value)}</dd>
                   </div>
                 );
@@ -1500,7 +1500,7 @@ function MediaDialog({ flag, onClose }: {flag: ContentFlag, onClose: () => void}
 
         {(state.status === 'ready' && state.sameFile === false) ? (
           <p role='alert' className='mt-3 flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-fg'>
-            <AlertTriangle aria-hidden className='mt-0.5 size-4 shrink-0 text-warning'/>
+            <AlertTriangle aria-hidden className='mt-0.5 size-4 shrink-0 text-warning-text'/>
             <span>
               This isn’t the exact file that was flagged (its SHA-256 doesn’t match). The source may have changed, it may
               have been converted while fetching, or the flag is on a command’s output rather than this input.
@@ -1631,7 +1631,7 @@ function KeptFramesDialog({ flag, onClose }: {flag: ContentFlag, onClose: () => 
 
         {(state.status === 'ready' && !state.exact) ? (
           <p role='alert' className='mt-3 flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-fg'>
-            <AlertTriangle aria-hidden className='mt-0.5 size-4 shrink-0 text-warning'/>
+            <AlertTriangle aria-hidden className='mt-0.5 size-4 shrink-0 text-warning-text'/>
             <span>
               The scores are from the command’s input, which was blocked through the output. These frames are spread over
               the output, not the ones that were flagged; a filter like invert or a hue shift may hide what the scanner saw.

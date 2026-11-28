@@ -50,7 +50,7 @@ function TileThumbnail({ effect, active }: {effect: EditorEffect, active: boolea
   if (!thumbnail) {
     return (
       <div className='flex aspect-video flex-col items-center justify-center gap-0.5 rounded-md border border-dashed border-[#4f545c] bg-deep px-2 text-center'>
-        <span className='font-display text-[15px] font-bold text-fg'>{effect.name}</span>
+        <span className='font-display text-[15px] font-semibold text-fg'>{effect.name}</span>
         <span className='text-[11px] text-subtle'>{t('editor.tile.no_preview')}</span>
       </div>
     );
@@ -60,8 +60,8 @@ function TileThumbnail({ effect, active }: {effect: EditorEffect, active: boolea
   if (isAudioMimetype(thumbnail.mimetype)) {
     return (
       <div className='flex aspect-video flex-col items-center justify-center gap-1 rounded-md bg-deep px-2 text-center'>
-        <Music aria-hidden className='size-6 text-brand-text'/>
-        <span className='font-display text-[13px] font-bold text-fg'>{effect.name}</span>
+        <Music aria-hidden className='size-6 text-muted'/>
+        <span className='font-display text-[13px] font-semibold text-fg'>{effect.name}</span>
       </div>
     );
   }
@@ -95,13 +95,13 @@ function EffectTile({ effect, tab, onAdd }: {effect: EditorEffect, tab: string, 
       onBlur={() => setActive(false)}
       {...tilePointer(sendCursor, tab, effect.id)}
       aria-label={t('editor.tile.add', {name: (animated) ? t('editor.tile.animated', {name: effect.name}) : effect.name})}
-      className='relative flex flex-col gap-1.5 rounded-[10px] border border-line-strong bg-bg p-1.5 text-left transition-colors hover:border-brand focus-visible:border-brand'
+      className='relative flex flex-col gap-1.5 rounded-[10px] border border-line-strong bg-bg p-1.5 text-left transition-colors hover:border-subtle/50 focus-visible:border-brand'
     >
       <TileThumbnail effect={effect} active={active}/>
       <span className='flex items-center gap-1.5 px-0.5 pb-0.5 text-[13px] font-semibold text-fg'>
         <span className='min-w-0 truncate'>{effect.name}</span>
         {(effect.ml) ? (
-          <span className='inline-flex shrink-0 items-center gap-0.5 rounded bg-surface-3 px-1 text-[10px] font-bold text-brand-text'>
+          <span className='inline-flex shrink-0 items-center gap-0.5 rounded bg-surface-3 px-1 text-[11px] font-semibold text-brand-text'>
             <Sparkles aria-hidden className='size-2.5'/>{t('editor.tile.ml')}
           </span>
         ) : null}

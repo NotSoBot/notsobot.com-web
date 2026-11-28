@@ -139,7 +139,7 @@ export function TagLocationChip({ location, to }: {location: TagLocation, to?: s
       {(location.id) ? (
         <>
           <span aria-hidden className='h-3 w-px shrink-0 bg-line-strong'/>
-          <span className='min-w-0 shrink-[2] truncate font-mono text-[11px] text-subtle'>{location.id}</span>
+          <span className='min-w-0 shrink-[2] truncate font-mono text-xs text-subtle'>{location.id}</span>
         </>
       ) : null}
     </>
@@ -150,7 +150,7 @@ export function TagLocationChip({ location, to }: {location: TagLocation, to?: s
     return (
       <Link
         to={to}
-        className={`group/location relative z-10 ${className} transition-colors hover:border-brand hover:bg-surface-3`}
+        className={`group/location relative z-10 ${className} transition-colors hover:border-subtle/50 hover:bg-surface-3`}
         title={t('dtags.open_location', {name: location.label, id: location.id})}
       >
         {content}
@@ -169,9 +169,9 @@ export function TagStatusBadges({ tag }: {tag: StatusTag}) {
   return (
     <>
       <DirectoryStatusBadge tag={tag}/>
-      {(tag.is_command) ? <span className='rounded bg-brand/20 px-1.5 py-0.5 text-[11px] font-medium text-[#a5acff]'>{t('dtags.badge.command')}</span> : null}
+      {(tag.is_command) ? <span className='rounded bg-brand/20 px-1.5 py-0.5 text-xs font-medium text-[#a5acff]'>{t('dtags.badge.command')}</span> : null}
       {(tag.locked) ? (
-        <span className='inline-flex items-center gap-1 rounded bg-warning/15 px-1.5 py-0.5 text-[11px] font-medium text-warning'>
+        <span className='inline-flex items-center gap-1 rounded bg-warning/15 px-1.5 py-0.5 text-xs font-medium text-warning-text'>
           <Lock aria-hidden className='size-3'/> {t('dtags.badge.locked')}
         </span>
       ) : null}
@@ -184,16 +184,16 @@ export function TagStatusBadges({ tag }: {tag: StatusTag}) {
 function DirectoryStatusBadge({ tag }: {tag: StatusTag}) {
   const { t } = useI18n();
   if (tag.directory === undefined) {
-    return (tag.is_on_directory) ? <span className='rounded bg-success/15 px-1.5 py-0.5 text-[11px] font-medium text-success-text'>{t('dtags.badge.directory')}</span> : null;
+    return (tag.is_on_directory) ? <span className='rounded bg-success/15 px-1.5 py-0.5 text-xs font-medium text-success-text'>{t('dtags.badge.directory')}</span> : null;
   }
   if (!tag.directory) {
     return null;
   }
   const [ label, className ] = (tag.directory.verified === TagDirectoryVerificationStates.VERIFIED) ? [t('tags.verified'), 'bg-success/15 text-success-text']
-    : (tag.directory.verified === TagDirectoryVerificationStates.PENDING_VERIFICATION) ? [t('tags.pending_short'), 'bg-warning/15 text-warning']
+    : (tag.directory.verified === TagDirectoryVerificationStates.PENDING_VERIFICATION) ? [t('tags.pending_short'), 'bg-warning/15 text-warning-text']
     : [t('tags.unverified'), 'bg-surface-3 text-muted'];
   return (
-    <span className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${className}`} title={t('dtags.badge.directory_title', {state: label.toLowerCase()})}>
+    <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${className}`} title={t('dtags.badge.directory_title', {state: label.toLowerCase()})}>
       {t('dtags.badge.directory_state', {state: label})}
     </span>
   );

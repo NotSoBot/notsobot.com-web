@@ -114,13 +114,13 @@ function CurrentTier({ premiumType, items }: {premiumType: number, items: Array<
     <section className='card flex flex-wrap items-center gap-4 p-5'>
       <span
         aria-hidden
-        className={cn('flex size-12 shrink-0 items-center justify-center rounded-lg', premium ? 'bg-warning/15 text-warning' : 'bg-surface-3 text-subtle')}
+        className={cn('flex size-12 shrink-0 items-center justify-center rounded-lg', premium ? 'bg-warning/15 text-warning-text' : 'bg-surface-3 text-subtle')}
       >
         <Crown className='size-6'/>
       </span>
       <div className='min-w-0 flex-1'>
         <div className='text-sm text-muted'>{t('dpremium.current')}</div>
-        <div className={cn('text-xl font-bold', premium ? 'text-warning' : 'text-white')}>{premiumLabel(premiumType)}</div>
+        <div className={cn('text-xl font-bold', premium ? 'text-warning-text' : 'text-white')}>{premiumLabel(premiumType)}</div>
         {(detail) ? <div className='mt-0.5 text-sm text-subtle'>{detail}</div> : null}
       </div>
       {(!premium) ? (
@@ -153,7 +153,7 @@ function CreditsCard() {
     <section className='card mt-4 p-5'>
       <div className='mb-4 flex items-center justify-between gap-3'>
         <h2 className='flex items-center gap-2 text-lg font-semibold text-white'>
-          <Coins className='size-5 text-brand-text' aria-hidden/>
+          <Coins className='size-5 text-muted' aria-hidden/>
           {t('dcredits.title')}
         </h2>
         <Link to={`${Routes.PREMIUM}#premium-credits`} className='btn btn-sm btn-ghost'>{t('dcredits.get_more')}</Link>
@@ -275,7 +275,7 @@ function EntitlementRow({ entitlement, guildNames }: {entitlement: Entitlement, 
     <li className='flex items-start gap-3 px-4 py-3'>
       <span
         aria-hidden
-        className={cn('flex size-9 shrink-0 items-center justify-center rounded-md', entitlement.active ? 'bg-warning/15 text-warning' : 'bg-surface-3 text-subtle')}
+        className={cn('flex size-9 shrink-0 items-center justify-center rounded-md', entitlement.active ? 'bg-warning/15 text-warning-text' : 'bg-surface-3 text-subtle')}
       >
         <Crown className='size-5'/>
       </span>

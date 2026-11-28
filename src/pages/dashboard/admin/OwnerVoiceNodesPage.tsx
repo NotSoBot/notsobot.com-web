@@ -79,7 +79,7 @@ export function OwnerVoiceNodesPage() {
             {(statsData) ?
               `${totals.playing.toLocaleString()} playing • ${totals.paused.toLocaleString()} paused • ${totals.players.toLocaleString()} players` :
               'The music nodes the bot plays music through.'}
-            {(statsStale) ? <span className='text-warning tabular-nums'>{statsStale}</span> : null}
+            {(statsStale) ? <span className='text-warning-text tabular-nums'>{statsStale}</span> : null}
             <InfoTip text='Each server’s music goes on the enabled node with the fewest servers. Disabling a node drains it: its servers move to an enabled node when their next song starts, delete it once it shows 0 players.'/>
           </span>
         }
@@ -161,10 +161,10 @@ export function OwnerVoiceNodesPage() {
 // the delete confirm's first line: how many servers are on the node, in the warning color while there are any
 function DeletingCounts({ stats, stale }: {stats: VoiceNodeStats | null, stale: string | null}) {
   if (!stats) {
-    return <span className='mb-2 block text-warning'>Couldn’t check how many are playing on it right now.</span>;
+    return <span className='mb-2 block text-warning-text'>Couldn’t check how many are playing on it right now.</span>;
   }
   return (
-    <span className={cn('mb-2 block tabular-nums', (stats.players) ? 'font-medium text-warning' : 'text-fg')}>
+    <span className={cn('mb-2 block tabular-nums', (stats.players) ? 'font-medium text-warning-text' : 'text-fg')}>
       {stats.playing.toLocaleString()} playing right now • {stats.players.toLocaleString()} {(stats.players === 1) ? 'player' : 'players'} on it
       {(stale) ? ` (${stale})` : null}
     </span>

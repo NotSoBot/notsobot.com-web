@@ -232,7 +232,7 @@ export function ProxiesTab({ data }: {data: AdminIdentities}) {
               </ul>
               <div className='card hidden overflow-x-auto sm:block'>
                 <table className='w-full min-w-[720px] text-left text-sm'>
-                  <thead className='border-b border-line text-xs text-subtle uppercase'>
+                  <thead className='border-b border-line text-sm text-subtle'>
                     <tr>
                       <th scope='col' className='w-10 px-4 py-2.5'>
                         <input

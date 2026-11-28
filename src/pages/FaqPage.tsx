@@ -158,7 +158,7 @@ export function FaqPage() {
                         'hover:bg-surface-2 hover:text-white disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent lg:border-transparent',
                       )}
                     >
-                      <Icon className='size-4 shrink-0 text-brand-text'/>
+                      <Icon className='size-4 shrink-0 text-muted'/>
                       <span className='min-w-0 truncate'>{section.title}</span>
                       <span className='ml-auto shrink-0 pl-2 text-xs text-subtle tabular-nums'>{count}</span>
                     </button>
@@ -178,8 +178,8 @@ export function FaqPage() {
               return (
                 <section key={section.id} id={sectionAnchor(section.id)} aria-labelledby={`${sectionAnchor(section.id)}-title`} className='scroll-mt-24'>
                   <header className='mb-4 flex items-center gap-3'>
-                    <span className='flex size-10 shrink-0 items-center justify-center rounded-lg bg-brand/15'>
-                      <Icon className='size-5 text-brand-text'/>
+                    <span className='flex size-10 shrink-0 items-center justify-center rounded-lg bg-surface-3'>
+                      <Icon className='size-5 text-fg'/>
                     </span>
                     <div>
                       <h2 id={`${sectionAnchor(section.id)}-title`} className='text-xl font-semibold text-white'>{section.title}</h2>
@@ -209,7 +209,7 @@ export function FaqPage() {
               </div>
             ) : null}
 
-            <aside className='flex flex-col items-start justify-between gap-4 rounded-lg border border-line border-l-[3px] border-l-brand bg-surface p-6 sm:flex-row sm:items-center'>
+            <aside className='flex flex-col items-start justify-between gap-4 rounded-lg border border-brand/30 bg-brand/5 p-6 sm:flex-row sm:items-center'>
               <div>
                 <h2 className='mb-1 text-lg font-semibold text-white'>{t('faq.stuck_title')}</h2>
                 <p className='text-sm text-muted'>{t('faq.stuck_description')}</p>
@@ -244,8 +244,8 @@ function QuestionItem({ question, open, highlight, divider, onToggle }: {
           aria-controls={panelId}
           onClick={onToggle}
           className={cn(
-            'flex w-full cursor-pointer items-center justify-between gap-4 border-l-[3px] px-5 py-4 text-left transition-colors hover:bg-surface-2',
-            open ? 'border-l-brand bg-surface-2/60' : 'border-l-transparent',
+            'flex w-full cursor-pointer items-center justify-between gap-4 px-5 py-4 text-left transition-colors hover:bg-surface-2',
+            open && 'bg-surface-2/60',
           )}
         >
           <span className='font-medium text-white'><Highlight text={question.question} query={highlight}/></span>
@@ -257,7 +257,7 @@ function QuestionItem({ question, open, highlight, divider, onToggle }: {
         id={panelId}
         role='region'
         aria-label={question.question}
-        className={cn('grid border-l-[3px] transition-[grid-template-rows] duration-200 ease-out', open ? 'grid-rows-[1fr] border-l-brand bg-surface-2/60' : 'grid-rows-[0fr] border-l-transparent')}
+        className={cn('grid transition-[grid-template-rows] duration-200 ease-out', open ? 'grid-rows-[1fr] bg-surface-2/60' : 'grid-rows-[0fr]')}
       >
         <div className='overflow-hidden' inert={!open}>
           <div className='px-5 pb-4'>

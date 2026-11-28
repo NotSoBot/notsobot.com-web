@@ -18,8 +18,8 @@ export function LegalPage({ document, icon: Icon }: {document: LegalDocument, ic
     <div className='mx-auto max-w-4xl px-4 py-8 sm:px-6'>
       <header className='card mb-6 p-8'>
         <div className='mb-4 flex items-center gap-3'>
-          <Icon className='size-10 shrink-0 text-brand-text'/>
-          <h1 className='text-3xl font-bold text-white sm:text-4xl'>{document.title}</h1>
+          <Icon className='size-10 shrink-0 text-muted'/>
+          <h1 className='text-3xl font-semibold text-white sm:text-4xl'>{document.title}</h1>
         </div>
         <div className='flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted'>
           <span className='flex items-center gap-2'><Calendar className='size-4'/>{t('legal.effective', {date: document.effective})}</span>
@@ -44,7 +44,7 @@ export function LegalPage({ document, icon: Icon }: {document: LegalDocument, ic
       <div className='space-y-6' lang={DEFAULT_LANGUAGE}>
         {document.sections.map((section) => (
           <section key={section.title} id={slugify(section.title)} className='card scroll-mt-24 p-6'>
-            <h2 className='mb-4 text-2xl font-bold text-white'>{section.title}</h2>
+            <h2 className='mb-4 text-2xl font-semibold text-white'>{section.title}</h2>
             <div className='prose-legal'>
               {section.blocks.map((block, i) => (
                 (block.type === 'paragraph') ? (
@@ -60,8 +60,8 @@ export function LegalPage({ document, icon: Icon }: {document: LegalDocument, ic
         ))}
       </div>
 
-      <div className='mt-6 flex items-center gap-3 rounded-lg border border-brand/30 bg-brand/10 p-6'>
-        <Mail className='size-5 shrink-0 text-brand-text'/>
+      <div className='mt-6 flex items-center gap-3 rounded-lg border border-line bg-surface p-6'>
+        <Mail className='size-5 shrink-0 text-muted'/>
         <p className='text-sm'>
           {rich('legal.questions', {email: (chunk) => <a href={`mailto:${chunk}`} className='text-brand-text hover:underline'>{chunk}</a>}, {email: Urls.CONTACT_EMAIL})}
         </p>

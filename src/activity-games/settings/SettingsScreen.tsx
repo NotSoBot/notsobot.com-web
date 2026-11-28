@@ -227,7 +227,7 @@ export function SettingsTitle({ media, title, subtitle, heading }: {media: React
     <header className='flex min-w-0 items-center gap-3'>
       {media}
       <div className='min-w-0'>
-        <Title className='truncate font-display text-2xl font-bold text-white' title={title}>{title}</Title>
+        <Title className='truncate font-display text-2xl font-semibold text-white' title={title}>{title}</Title>
         <p className='text-sm text-muted'>{subtitle}</p>
       </div>
     </header>

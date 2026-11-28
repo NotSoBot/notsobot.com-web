@@ -287,7 +287,7 @@ export function GuideSheet({ guide: firstGuide, onClose }: {guide: GuideSlug, on
       <div className='flex flex-col gap-4 p-4 sm:p-6'>
         <header ref={headerRef} className='flex scroll-mt-12 flex-col gap-1 pr-10'>
           <p className='section-label'>{t('guides.sheet.guide')}</p>
-          <h2 id={titleId} tabIndex={-1} className='font-display text-xl font-bold text-white outline-none'>{guide?.title ?? t(openLabel(shown.slug))}</h2>
+          <h2 id={titleId} tabIndex={-1} className='font-display text-xl font-semibold text-white outline-none'>{guide?.title ?? t(openLabel(shown.slug))}</h2>
           {/* a line's height kept while loading, so the switcher below doesn't move when it comes */}
           <p className='min-h-5 text-sm text-muted'>{guide?.summary ?? ' '}</p>
         </header>
@@ -420,7 +420,7 @@ export function HowToPlayCard({ guide: slug, rules, open, onToggle, className }:
           onClick={onToggle}
           className='flex min-h-12 w-full items-center gap-2.5 rounded-xl px-4 py-2.5 text-left text-sm font-semibold text-white transition-colors hover:bg-surface-2'
         >
-          <CircleHelp aria-hidden className='size-4 shrink-0 text-brand-text'/>
+          <CircleHelp aria-hidden className='size-4 shrink-0 text-muted'/>
           <span className='min-w-0 flex-1'>{t(openLabel(slug))}</span>
           <ChevronDown aria-hidden className={cn('size-4 shrink-0 text-muted transition-transform', open && 'rotate-180')}/>
         </button>
@@ -431,7 +431,7 @@ export function HowToPlayCard({ guide: slug, rules, open, onToggle, className }:
             <ol className='flex flex-col gap-2 text-sm leading-relaxed text-fg'>
               {shown.map((rule, index) => (
                 <li key={index} className='flex gap-2.5'>
-                  <span aria-hidden className='mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-brand/20 text-[0.7rem] font-semibold text-brand-text tabular-nums'>{index + 1}</span>
+                  <span aria-hidden className='mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-surface-3 text-[0.7rem] font-semibold text-fg tabular-nums'>{index + 1}</span>
                   <span className='min-w-0'><GuideInline text={rule} renderLink={renderLink}/></span>
                 </li>
               ))}

@@ -559,7 +559,19 @@ function ActivityScreens() {
           };
         });
         // the profile's line: what's on screen from here on (nothing needs `authenticate`, see ./presence)
-        presence = new PresenceSender((activity) => layoutSdk.commands.setActivity({activity}));
+        // every send and Discord's answer in the owners' log: a profile line that never shows says nothing otherwise
+        presence = new PresenceSender(async (activity) => {
+          activityLog.add('sdk', `→ SET_ACTIVITY details=${activity.details} state=${activity.state ?? '(none)'}${(activity.party) ? ` party=${activity.party.size.join('/')}` : ''}`);
+          try {
+            const answer = await layoutSdk.commands.setActivity({activity});
+            activityLog.add('sdk', `← SET_ACTIVITY ok ${JSON.stringify(answer ?? null).slice(0, 160)}`);
+            return answer;
+          } catch (error) {
+            const raw = error as {code?: unknown, message?: unknown} | null;
+            activityLog.add('sdk', `← SET_ACTIVITY failed code=${String(raw?.code ?? '?')} ${String(raw?.message ?? error).slice(0, 200)}`);
+            throw error;
+          }
+        });
         setPresence(presence);
 
         enter('context');
@@ -840,7 +852,8 @@ function ActivityScreens() {
           },
           // this page's own profile line stops while the games half is on (PresenceSync isn't mounted then)
           setPresence: ({ activity, session }) => {
-            presence?.update(activity as Omit<PresenceActivity, 'timestamps'> | null, session);
+            // no session: the sender's own default (the first line), `null` would keep one timer forever
+            presence?.update(activity as Omit<PresenceActivity, 'timestamps'> | null, session ?? undefined);
           },
           // the games half's launch, once per time it's opened
           takeLaunch: () => {
@@ -853,6 +866,7 @@ function ActivityScreens() {
           },
           // the games half has already unmounted its screens (left its room, let go of the socket's listeners)
           back: (notice) => setPhase({kind: 'choice', notice}),
+          log: () => activityLog.getSnapshot(),
         };
 
         const inviteCode = launchInviteCode(sdk.customId, context.launch);

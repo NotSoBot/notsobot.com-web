@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
 @theme {
+  /* a reading measure of ~70 characters: Figtree's letters run narrower than the 0 that `ch` measures, so 65ch held ~92 */
+  --max-width-prose: 50ch;
   /* the fontsource packages' names (imported in main.tsx) */
   --font-sans: "Figtree Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-display: "Bricolage Grotesque Variable", var(--font-sans);
@@ -30,8 +32,11 @@
   --color-blurple-hover: #4752c4;
   --color-success: #3ba55c;
   --color-success-text: #5fd085;
+  --color-success-strong: #248046;
   --color-warning: #faa81a;
+  --color-warning-text: #fcbd52;
   --color-danger: #ed4245;
+  --color-danger-strong: #da373c;
   --color-danger-text: #ff9496;
 
   /* gateway shard states */
@@ -118,6 +123,14 @@
     @apply font-display;
   }
 
+  /* balanced headings, and no lone word on a paragraph's last line */
+  h1, h2, h3 {
+    text-wrap: balance;
+  }
+  p, li, dd, figcaption, blockquote {
+    text-wrap: pretty;
+  }
+
   ::selection {
     background: color-mix(in srgb, var(--color-brand) 40%, transparent);
   }
@@ -165,7 +178,7 @@
     @apply text-muted hover:bg-surface-2 hover:text-fg;
   }
   .btn-danger {
-    @apply bg-danger text-white hover:bg-[#c03537];
+    @apply bg-danger-strong text-white hover:bg-[#c03537];
   }
   /* 36px tall on phones, where it's pressed with a finger */
   .btn-sm {
@@ -199,7 +212,7 @@
   }
 
   .section-label {
-    @apply font-sans text-xs tracking-wider text-muted uppercase;
+    @apply font-sans text-sm font-medium text-muted;
   }
 
   .code-block {
@@ -208,6 +221,10 @@
 
   .prose-legal {
     @apply leading-relaxed text-fg;
+  }
+  .prose-legal p,
+  .prose-legal ul {
+    @apply max-w-prose;
   }
   .prose-legal p + p,
   .prose-legal ul + p {

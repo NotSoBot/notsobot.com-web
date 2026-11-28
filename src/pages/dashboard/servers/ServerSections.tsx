@@ -130,7 +130,7 @@ function AddRow({ onSubmit, children, pending, disabled, label }: {
 function LockNote({ children }: {children: ReactNode}) {
   return (
     <span className='mt-1 flex items-start gap-1.5'>
-      <Lock aria-hidden className='mt-0.5 size-3 shrink-0 text-warning'/>
+      <Lock aria-hidden className='mt-0.5 size-3 shrink-0 text-warning-text'/>
       <span>{children}</span>
     </span>
   );
@@ -141,7 +141,7 @@ function LockNote({ children }: {children: ReactNode}) {
 function PrefixSunsetLine({ className }: {className?: string}) {
   const { t } = useI18n();
   return (
-    <p className={cn('text-xs text-warning', className)}>
+    <p className={cn('text-xs text-warning-text', className)}>
       {t((prefixCommandsEnded()) ? 'prefixes.sunset_ended' : 'prefixes.sunset', {date: formatPrefixCommandsEnd()})}
     </p>
   );
@@ -637,7 +637,7 @@ export function RulesSection({ guild }: {guild: UserGuild}) {
               <li key={rule.id} className='flex flex-wrap items-center gap-x-3 gap-y-1.5 px-3 py-2'>
                 <span
                   className={cn(
-                    'shrink-0 rounded px-1.5 py-0.5 text-xs font-semibold uppercase',
+                    'shrink-0 rounded px-1.5 py-0.5 text-xs font-semibold',
                     (rule.value.allow) ? 'bg-success/15 text-success-text' : 'bg-danger/15 text-danger-text',
                   )}
                 >

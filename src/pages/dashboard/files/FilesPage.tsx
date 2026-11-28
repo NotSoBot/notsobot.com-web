@@ -482,7 +482,7 @@ function FilesTable({ files, selected, onSelectedChange, onDelete, onDeleteSelec
       </div>
       <div className='card overflow-x-auto'>
         <table className='w-full min-w-[760px] table-fixed text-left text-sm'>
-          <thead className='border-b border-line text-xs text-subtle uppercase'>
+          <thead className='border-b border-line text-sm text-subtle'>
             <tr>
               <th scope='col' className='w-11 py-2.5 pl-4'>
                 <input

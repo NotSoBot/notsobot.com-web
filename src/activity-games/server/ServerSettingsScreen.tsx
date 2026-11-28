@@ -143,7 +143,7 @@ function SettingsLoadError({ error, onRetry, retrying }: {error: Error | null, o
   return (
     <div className='card px-6 py-12 text-center'>
       <AlertTriangle aria-hidden className='mx-auto mb-4 size-12 text-danger-text'/>
-      <h1 className='mb-3 text-xl font-bold text-white'>{t((notFound) ? 'server.not_found' : 'server.load_error')}</h1>
+      <h1 className='mb-3 text-xl font-semibold text-white'>{t((notFound) ? 'server.not_found' : 'server.load_error')}</h1>
       <p className='mb-6 text-muted'>{(notFound) ? t('server.not_found_description') : errorMessage(error)}</p>
       {(notFound) ? null : <button type='button' className='btn btn-secondary' disabled={retrying} onClick={onRetry}>{t('common.retry')}</button>}
     </div>

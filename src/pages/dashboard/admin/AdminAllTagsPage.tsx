@@ -213,7 +213,7 @@ function TagCard({ item, onOpen, onDelete }: {item: AdminTagItem, onOpen: (id: s
     : {...location, label: LOCATION_LABELS[location.kind]};
 
   return (
-    <li className='group relative flex min-w-0 flex-col rounded-lg border border-line bg-surface p-4 transition-colors hover:border-brand'>
+    <li className='group relative flex min-w-0 flex-col rounded-lg border border-line bg-surface p-4 transition-colors hover:border-subtle/50'>
       <div className='mb-3 flex items-start justify-between gap-3'>
         <div className='min-w-0 flex-1'>
           <div className='flex items-center gap-2'>

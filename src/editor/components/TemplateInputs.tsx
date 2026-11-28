@@ -103,7 +103,7 @@ export function AskForInputs({ candidates, value, onChange }: {
   return (
     <details className='rounded-lg border border-line-strong' open={open} onToggle={(event) => setOpen(event.currentTarget.open)}>
       <summary className='flex cursor-pointer items-center gap-2 px-3 py-2.5 text-sm font-semibold text-fg'>
-        <MessageCircleQuestion aria-hidden className='size-4 text-brand-text'/>
+        <MessageCircleQuestion aria-hidden className='size-4 text-muted'/>
         <span className='flex-1'>{t('editor.inputs.ask_title')}</span>
         <span className='text-xs font-normal text-subtle'>{count}/{MAX_TEMPLATE_INPUTS}</span>
       </summary>

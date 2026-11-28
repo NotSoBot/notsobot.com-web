@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Flag, LetterText, Trophy, WandSparkles, type LucideIcon } from 'lucide-react';
+import { Flag, LetterText, Trophy, Wand2, type LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 
@@ -13,7 +13,7 @@ import { SiteIds, siteOrigin, type SiteId } from '@/sites';
 export const GUIDE_ICONS: Readonly<Record<GuideSlug | UpcomingGuideSlug, LucideIcon>> = Object.freeze({
   'flag-guesser': Flag,
   'game-points': Trophy,
-  'media-editor': WandSparkles,
+  'media-editor': Wand2,
   'letter-trail': LetterText,
 });
 

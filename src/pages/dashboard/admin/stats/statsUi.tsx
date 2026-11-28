@@ -187,7 +187,7 @@ export function Metric({ className, label, value, detail, color, title, to, tone
   tone?: 'warning' | 'danger',
 }) {
   return (
-    <div className={cn('relative min-w-0 rounded-md border border-line bg-deep px-3 py-2.5', to && 'group/metric transition-colors hover:border-brand', className)}>
+    <div className={cn('relative min-w-0 rounded-md px-3 py-2.5', to && 'group/metric transition-colors hover:bg-surface-2', className)}>
       {(to) ? <Link to={to} aria-label={label} className='absolute inset-0 rounded-md'/> : null}
       <p className='flex items-center gap-1.5 text-xs text-subtle'>
         {(color) ? <span aria-hidden className='size-2 shrink-0 rounded-full' style={{background: color}}/> : null}
@@ -196,7 +196,7 @@ export function Metric({ className, label, value, detail, color, title, to, tone
       </p>
       <p className={cn(
         'mt-1 text-xl font-semibold tabular-nums',
-        (tone === 'warning') ? 'text-warning' : (tone === 'danger') ? 'text-danger-text' : 'text-white',
+        (tone === 'warning') ? 'text-warning-text' : (tone === 'danger') ? 'text-danger-text' : 'text-white',
         to && 'group-hover/metric:underline',
       )}>
         {value}
@@ -309,7 +309,7 @@ export function RankedList({ items, empty = 'Nothing yet.' }: {items: Array<Rank
     return <p className='rounded-md border border-line bg-deep px-3 py-4 text-center text-sm text-subtle'>{empty}</p>;
   }
   return (
-    <ol className='divide-y divide-line overflow-hidden rounded-md border border-line bg-deep'>
+    <ol className='divide-y divide-line border-y border-line'>
       {items.map((item) => (
         <li key={item.key} className='relative px-3 py-2'>
           <span

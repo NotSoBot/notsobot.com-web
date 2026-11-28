@@ -51,17 +51,17 @@ export function ModeChoice({ api, room, onEdit, onGame, onJoin, first, onYourSet
       <header className='flex flex-col gap-2'>
         {/* the settings' gear sits on the title's line, out of the way of the two choices */}
         <div className='flex items-start justify-between gap-3'>
-          <h1 className='font-display text-3xl font-bold text-white sm:text-4xl'>{t('games.choice.title')}</h1>
+          <h1 className='font-display text-3xl font-semibold text-white sm:text-4xl'>{t('games.choice.title')}</h1>
           <SettingsButton className='-mr-2 shrink-0'/>
         </div>
         <p className='text-muted'>{t('games.choice.description')}</p>
       </header>
-      {(notice) ? <p role='status' className='rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning'>{notice}</p> : null}
+      {(notice) ? <p role='status' className='rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning-text'>{notice}</p> : null}
       {(onJoin && targets.length) ? <JoinRows targets={targets} onJoin={onJoin}/> : null}
       <div className='grid gap-3 sm:grid-cols-2'>
         <ChoiceCard
           icon={Wand2}
-          accent='bg-brand/20 text-brand-text'
+          accent='bg-surface-3 text-fg'
           title={t('games.choice.edit_title')}
           description={t('games.choice.edit_description')}
           status={(editing === null) ? null : (editing) ? plural('games.choice.editing', editing) : t('games.choice.editing_none')}
@@ -70,7 +70,7 @@ export function ModeChoice({ api, room, onEdit, onGame, onJoin, first, onYourSet
         />
         <ChoiceCard
           icon={Gamepad2}
-          accent='bg-success/20 text-success-text'
+          accent='bg-surface-3 text-fg'
           title={t('games.choice.games_title')}
           description={t('games.choice.games_description')}
           status={(games === null) ? null : (games.playing) ? plural('games.choice.playing', games.playing) : t('games.choice.playing_none')}
@@ -83,7 +83,7 @@ export function ModeChoice({ api, room, onEdit, onGame, onJoin, first, onYourSet
         {(onYourSettings) ? (
           <SettingsRow
             media={(
-              <span className='flex size-10 shrink-0 items-center justify-center rounded-xl bg-surface-3 text-brand-text'>
+              <span className='flex size-10 shrink-0 items-center justify-center rounded-xl bg-surface-3 text-fg'>
                 <UserCog aria-hidden className='size-5'/>
               </span>
             )}
@@ -121,13 +121,13 @@ function ChoiceCard({ icon: Icon, accent, title, description, status, live, onCl
     <button
       type='button'
       onClick={onClick}
-      className='group flex min-h-32 w-full items-center gap-4 rounded-2xl border border-line-strong bg-surface p-5 text-left transition-colors hover:border-brand hover:bg-surface-2 active:bg-surface-3 sm:min-h-44 sm:flex-col sm:items-start'
+      className='group flex min-h-32 w-full items-center gap-4 rounded-2xl border border-line-strong bg-surface p-5 text-left transition-colors hover:border-subtle/50 hover:bg-surface-2 active:bg-surface-3 sm:min-h-44 sm:flex-col sm:items-start'
     >
       <span className={cn('flex size-14 shrink-0 items-center justify-center rounded-xl', accent)}>
         <Icon aria-hidden className='size-7'/>
       </span>
       <span className='flex min-w-0 flex-1 flex-col gap-1'>
-        <span className='font-display text-xl font-bold text-white'>{title}</span>
+        <span className='font-display text-xl font-semibold text-white'>{title}</span>
         <span className='text-sm text-muted'>{description}</span>
         {/* always there (blank until the count comes) so the card doesn't grow and shift its text when it does */}
         <span className='flex min-h-5 min-w-0 items-center gap-1.5 truncate text-xs font-medium text-subtle'>
@@ -169,7 +169,7 @@ function JoinRows({ targets, onJoin }: {targets: Array<JoinTarget>, onJoin: (tar
   };
   return (
     <section aria-labelledby='mode-choice-join' className='flex flex-col gap-2'>
-      <h2 id='mode-choice-join' className='text-xs font-semibold uppercase tracking-wide text-subtle'>{t('games.choice.join_title')}</h2>
+      <h2 id='mode-choice-join' className='text-sm font-semibold text-muted'>{t('games.choice.join_title')}</h2>
       <ul className='flex flex-col gap-2'>
         {targets.map((target) => {
           const key = joinTargetKey(target);
@@ -186,7 +186,7 @@ function JoinRows({ targets, onJoin }: {targets: Array<JoinTarget>, onJoin: (tar
                 onClick={() => join(target)}
                 disabled={joining !== null}
                 aria-label={t('games.choice.join_label', {name: target.member.username})}
-                className='btn btn-primary shrink-0'
+                className='btn btn-secondary shrink-0'
               >
                 {(joining === key) ? <Spinner className='size-4 border-white/40 border-t-white'/> : null}{t('games.choice.join')}
               </button>
@@ -205,7 +205,7 @@ function SettingsRow({ media, title, description, onClick }: {media: ReactNode, 
     <button
       type='button'
       onClick={onClick}
-      className='group flex w-full items-center gap-3 rounded-2xl border border-line-strong bg-surface p-3 text-left transition-colors hover:border-brand hover:bg-surface-2 active:bg-surface-3'
+      className='group flex w-full items-center gap-3 rounded-2xl border border-line-strong bg-surface p-3 text-left transition-colors hover:border-subtle/50 hover:bg-surface-2 active:bg-surface-3'
     >
       {media}
       <span className='flex min-w-0 flex-1 flex-col'>

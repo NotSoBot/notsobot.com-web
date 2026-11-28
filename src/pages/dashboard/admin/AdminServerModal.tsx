@@ -1,4 +1,4 @@
-import { AlertTriangle, Ban, ExternalLink, ShieldCheck, Sparkles } from 'lucide-react';
+import { AlertTriangle, Ban, ExternalLink, ShieldCheck, SlidersHorizontal } from 'lucide-react';
 import { useEffect, useId, useState, type KeyboardEvent, type ReactNode } from 'react';
 
 import { isOwner, useAuth } from '@/auth';
@@ -152,7 +152,7 @@ function ServerLoadError({ error, onRetry, retrying }: {error: Error | null, onR
   return (
     <div className='px-6 py-16 text-center'>
       <AlertTriangle className='mx-auto mb-4 size-14 text-danger-text'/>
-      <h2 id={TITLE_ID} className='mb-3 text-2xl font-bold text-white'>{(notFound) ? 'Server not found' : 'Couldn’t load this server'}</h2>
+      <h2 id={TITLE_ID} className='mb-3 text-2xl font-semibold text-white'>{(notFound) ? 'Server not found' : 'Couldn’t load this server'}</h2>
       <p className='mb-6 text-muted'>{(notFound) ? 'NotSoBot isn’t in this server and has nothing saved for it.' : errorMessage(error)}</p>
       {(notFound) ? null : <button type='button' className='btn btn-secondary' disabled={retrying} onClick={onRetry}>Retry</button>}
     </div>
@@ -308,7 +308,7 @@ function ServerDetails({ guild, navigation, onDirtyChange }: {guild: AdminGuild,
                     label='Staff reports'
                     to={adminListPath(Routes.DASHBOARD_ADMIN_REPORTS, {q: `server:${guild.id}`, status: 'all'})}
                     value={(counts?.reports ?? 0).toLocaleString()}
-                    tone='text-warning'
+                    tone='text-warning-text'
                     hint='Reports to NotSoBot’s staff sent from this server, or about it. Its members’ reports to its own moderators are in the Reports tab'
                   />
                   <DateTile
@@ -406,7 +406,7 @@ function ServerDetails({ guild, navigation, onDirtyChange }: {guild: AdminGuild,
         {(viewerIsOwner) ? (
           <>
             <button type='button' className='btn btn-secondary min-w-0 flex-1 px-2 sm:flex-none sm:px-3' onClick={() => setEditingFeatures(true)}>
-              <Sparkles aria-hidden className='hidden size-4 shrink-0 sm:block'/>
+              <SlidersHorizontal aria-hidden className='hidden size-4 shrink-0 sm:block'/>
               <span className='truncate sm:hidden'>Features</span>
               <span className='hidden sm:inline'>Edit features</span>
             </button>

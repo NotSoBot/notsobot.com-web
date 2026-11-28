@@ -93,7 +93,7 @@ export function HubMedia({ preview, detail = false, className }: {preview: HubPr
   }
   if (preview.mimetype.startsWith('audio/')) {
     return (
-      <span className={cn('flex size-full flex-col items-center justify-center gap-3 p-4 text-brand-text', className)}>
+      <span className={cn('flex size-full flex-col items-center justify-center gap-3 p-4 text-muted', className)}>
         <Music aria-hidden className='size-10'/>
         {(detail) ? (
           <audio src={preview.url} controls preload='none' aria-label={t('hub.audio_preview')} className='w-full max-w-sm'/>

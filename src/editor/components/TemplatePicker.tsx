@@ -130,7 +130,7 @@ function TemplatePickerDialog({ host, state, onLoad, onClose }: {
                       }
                       onLoad(template);
                     }}
-                    className='flex min-h-14 w-full min-w-0 flex-1 items-center gap-3 rounded-lg border border-line-strong bg-bg px-3 py-2 text-left hover:border-brand disabled:cursor-not-allowed disabled:opacity-50'
+                    className='flex min-h-14 w-full min-w-0 flex-1 items-center gap-3 rounded-lg border border-line-strong bg-bg px-3 py-2 text-left hover:border-subtle/50 disabled:cursor-not-allowed disabled:opacity-50'
                   >
                     {(loading === template.code) ? <Spinner className='size-5 shrink-0'/> : <LayoutTemplate aria-hidden className='size-5 shrink-0 text-muted'/>}
                     <span className='flex min-w-0 flex-1 flex-col'>

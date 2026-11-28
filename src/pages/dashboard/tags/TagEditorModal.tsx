@@ -55,7 +55,7 @@ export function TagEditorModal({ tagId, onBack, onClose }: {tagId: string, onBac
       ) : (
         <div className='px-6 py-16 text-center'>
           <AlertTriangle className='mx-auto mb-4 size-14 text-danger-text'/>
-          <h2 id={TITLE_ID} className='mb-3 text-2xl font-bold text-white'>{t((notFound) ? 'dtags.modal.not_found' : 'dtags.modal.load_error')}</h2>
+          <h2 id={TITLE_ID} className='mb-3 text-2xl font-semibold text-white'>{t((notFound) ? 'dtags.modal.not_found' : 'dtags.modal.load_error')}</h2>
           <p className='mb-6 text-muted'>{(notFound) ? t('dtags.editor.not_found') : errorMessage(error)}</p>
           {(isError && !notFound) ? <button type='button' className='btn btn-secondary' disabled={isRefetching} onClick={() => refetch()}>{t('common.retry')}</button> : null}
         </div>

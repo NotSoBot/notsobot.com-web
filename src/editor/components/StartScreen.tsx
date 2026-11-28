@@ -343,7 +343,7 @@ export function StartScreen({ host, onOpen, suggestedUrl, launchSurface = null, 
             {headerAside}
           </div>
         ) : null}
-        <h1 className='font-display text-3xl font-bold text-white sm:text-4xl'>{t('editor.title')}</h1>
+        <h1 className='font-display text-3xl font-semibold text-white sm:text-4xl'>{t('editor.title')}</h1>
         <p className='text-muted'>{t('editor.start.description')}</p>
       </header>
 
@@ -378,7 +378,7 @@ export function StartScreen({ host, onOpen, suggestedUrl, launchSurface = null, 
       ) : null}
 
       {/* a locked template waits for its password, a file picked before then would start without its steps */}
-      {(waitingForPassword) ? <p className='-mt-4 text-sm text-warning'>{t('editor.template.unlock_first')}</p> : null}
+      {(waitingForPassword) ? <p className='-mt-4 text-sm text-warning-text'>{t('editor.template.unlock_first')}</p> : null}
       <fieldset disabled={blockedBy !== null} className={cn('flex flex-col gap-8', blockedBy && 'pointer-events-none opacity-50')}>
       <div
         onDragOver={(event) => {
@@ -400,7 +400,7 @@ export function StartScreen({ host, onOpen, suggestedUrl, launchSurface = null, 
           </>
         ) : (
           <>
-            <FileUp aria-hidden className='size-8 text-brand-text'/>
+            <FileUp aria-hidden className='size-8 text-muted'/>
             <p className='font-semibold text-white'>{t('editor.start.drop')}</p>
             <input
               ref={fileRef}
@@ -448,7 +448,7 @@ export function StartScreen({ host, onOpen, suggestedUrl, launchSurface = null, 
       {(generators.length) ? (
         <section className='flex flex-col gap-3'>
           <div className='flex flex-col gap-1'>
-            <h2 className='font-display text-lg font-bold text-white'>{t('editor.generate.title')}</h2>
+            <h2 className='font-display text-lg font-semibold text-white'>{t('editor.generate.title')}</h2>
             <p className='text-sm text-muted'>{t('editor.generate.description')}</p>
           </div>
           <GeneratorGrid generators={generators} disabled={uploading || blockedBy !== null} onPick={setGenerating}/>
@@ -495,7 +495,7 @@ export function StartScreen({ host, onOpen, suggestedUrl, launchSurface = null, 
 
       {(!instanceId) ? (
       <section className='flex flex-col gap-3'>
-        <h2 className='font-display text-lg font-bold text-white'>{t('editor.start.recent')}</h2>
+        <h2 className='font-display text-lg font-semibold text-white'>{t('editor.start.recent')}</h2>
         {(recent === null) ? (
           <Spinner/>
         ) : (!recent.length) ? (

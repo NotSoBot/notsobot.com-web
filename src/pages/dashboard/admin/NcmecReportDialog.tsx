@@ -210,7 +210,7 @@ export function NcmecReportLine({ report, className }: {report: NcmecReportSumma
   const test = report.environment !== 'production';
   if (report.status === 'draft') {
     return (
-      <div className={cn('flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-warning', className)}>
+      <div className={cn('flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-warning-text', className)}>
         <span>NCMEC report drafted, not sent: file it on NCMEC’s website</span>
         <button type='button' className='text-white underline' onClick={() => setViewing(true)}>View report</button>
         {(viewing) ? <NcmecDraftDialog reportId={report.id} onClose={() => setViewing(false)}/> : null}

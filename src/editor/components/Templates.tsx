@@ -83,7 +83,7 @@ export function TemplateBanner({ host, template, effectNames, onUnlocked }: {
     return (
       <section className='flex flex-col gap-3 rounded-xl border border-warning/50 bg-warning/10 p-4'>
         <p className='flex flex-wrap items-baseline gap-x-2 text-white'>
-          <Lock aria-hidden className='size-4 shrink-0 self-center text-warning'/>
+          <Lock aria-hidden className='size-4 shrink-0 self-center text-warning-text'/>
           <span className='font-semibold'>{t('editor.template.locked_title', {name: template.name})}</span>
           <span className='text-sm text-muted'>{t('editor.template.by', {user: template.user.username})}</span>
         </p>
@@ -244,7 +244,7 @@ export function TemplateList({ host }: {host: EditorHost}) {
 
   return (
     <section data-state={list.status} className='flex flex-col gap-3'>
-      <h2 className='font-display text-lg font-bold text-white'>{t('editor.template.yours')}</h2>
+      <h2 className='font-display text-lg font-semibold text-white'>{t('editor.template.yours')}</h2>
       {(list.status === 'loading') ? (
         <Spinner/>
       ) : (list.status === 'error') ? (
@@ -259,9 +259,9 @@ export function TemplateList({ host }: {host: EditorHost}) {
           {templates.map((template) => (
             <li key={template.code} className='flex flex-wrap items-center gap-2 rounded-lg border border-line-strong bg-surface p-2 pl-3'>
               {(template.locked) ? (
-                <Lock aria-label={t('editor.template.locked')} className='size-4 shrink-0 text-warning'/>
+                <Lock aria-label={t('editor.template.locked')} className='size-4 shrink-0 text-warning-text'/>
               ) : (
-                <Layers aria-hidden className='size-4 shrink-0 text-brand-text'/>
+                <Layers aria-hidden className='size-4 shrink-0 text-muted'/>
               )}
               <span className='flex min-w-0 flex-1 flex-col max-sm:basis-[calc(100%-1.5rem)]'>
                 <span className='flex min-w-0 items-center gap-2'>

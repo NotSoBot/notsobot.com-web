@@ -19,7 +19,7 @@ export function Chip({ children, className, tone = 'neutral', title }: {children
         className={cn(
           'inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium whitespace-nowrap',
           (tone === 'danger') ? 'bg-danger/20 text-[#ff8a8c]'
-            : (tone === 'warning') ? 'bg-warning/20 text-warning'
+            : (tone === 'warning') ? 'bg-warning/20 text-warning-text'
             : (tone === 'success') ? 'bg-success/20 text-[#6fd391]'
             : (tone === 'brand') ? 'bg-brand/25 text-[#aab2ff]'
             : (tone === 'fuchsia') ? 'bg-[#eb459e]/20 text-[#f47fbf]'

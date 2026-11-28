@@ -51,7 +51,7 @@ export function TagDetail({ titleId, item, editing, onEditingChange, onDirtyChan
       <header className='rounded-t-xl border-b border-line bg-surface px-6 pt-6 pb-5 sm:pr-14'>
         {/* clear of the close button; on wider screens the whole header is */}
         <div className='flex flex-wrap items-center gap-2 pr-8 sm:pr-0'>
-          <h2 id={titleId} className='text-2xl font-bold break-words text-white sm:text-3xl'>{tag.name}</h2>
+          <h2 id={titleId} className='text-2xl font-semibold break-words text-white sm:text-3xl'>{tag.name}</h2>
           {(tag.nsfw) ? <NsfwBadge/> : null}
         </div>
         {(item.title) ? <p className='mt-1 text-muted'>{item.title}</p> : null}
@@ -63,7 +63,7 @@ export function TagDetail({ titleId, item, editing, onEditingChange, onDirtyChan
             className={cn(
               'inline-flex items-center gap-1.5 font-medium',
               (item.verified === TagDirectoryVerificationStates.VERIFIED) ?
-                'rounded-full bg-success px-2.5 py-0.5 text-white shadow-sm' :
+                'rounded-full bg-success-strong px-2.5 py-0.5 text-white shadow-sm' :
                 verification.textClassName,
             )}
           >

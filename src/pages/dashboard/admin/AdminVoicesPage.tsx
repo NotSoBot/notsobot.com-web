@@ -161,7 +161,7 @@ export function AdminVoicesPage() {
               escapes the clipping and makes the whole page scroll sideways */}
           <div className={cn('card relative hidden overflow-x-auto transition-opacity sm:block', isPlaceholderData && 'opacity-60')}>
             <table className='w-full min-w-[980px] text-left text-sm'>
-              <thead className='border-b border-line text-xs text-subtle uppercase'>
+              <thead className='border-b border-line text-sm text-subtle'>
                 <tr>
                   <th scope='col' className='px-4 py-2.5 font-medium'>Voice</th>
                   <th scope='col' className='px-4 py-2.5 font-medium'>Owner</th>

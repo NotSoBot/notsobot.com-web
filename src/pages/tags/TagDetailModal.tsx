@@ -176,7 +176,7 @@ function TagMessage({ title, description, children }: {title: string, descriptio
   return (
     <div className='px-6 py-16 text-center'>
       <AlertTriangle className='mx-auto mb-4 size-14 text-danger-text'/>
-      <h2 id={TITLE_ID} className='mb-3 text-2xl font-bold text-white'>{title}</h2>
+      <h2 id={TITLE_ID} className='mb-3 text-2xl font-semibold text-white'>{title}</h2>
       <p className='mb-6 text-muted'>{description}</p>
       {children}
     </div>

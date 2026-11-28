@@ -200,7 +200,7 @@ export function verificationInfo(verified: number): Verification {
         shortLabel: translate('tags.verified'),
         description: translate('tags.verified_description'),
         icon: Shield,
-        className: 'bg-success',
+        className: 'bg-success-strong text-white',
         textClassName: 'text-success-text',
       };
     case TagDirectoryVerificationStates.PENDING_VERIFICATION:
@@ -209,8 +209,8 @@ export function verificationInfo(verified: number): Verification {
         shortLabel: translate('tags.pending_short'),
         description: translate('tags.pending_description'),
         icon: Check,
-        className: 'bg-warning',
-        textClassName: 'text-warning',
+        className: 'bg-warning text-deep',
+        textClassName: 'text-warning-text',
       };
     default:
       return {
@@ -218,7 +218,7 @@ export function verificationInfo(verified: number): Verification {
         shortLabel: translate('tags.unverified'),
         description: translate('tags.unverified_description'),
         icon: AlertTriangle,
-        className: 'bg-subtle',
+        className: 'bg-subtle text-deep',
         textClassName: 'text-subtle',
       };
   }
@@ -241,7 +241,7 @@ export function VerificationBadge({ verified, size = 'sm', hideUnverified = fals
     <span
       title={info.description}
       className={cn(
-        'inline-flex shrink-0 items-center text-white',
+        'inline-flex shrink-0 items-center',
         info.className,
         (size === 'lg') ? 'gap-2 rounded-lg px-3 py-1.5 font-medium' : 'gap-1 rounded px-2 py-0.5 text-xs',
       )}
@@ -257,8 +257,8 @@ export function NsfwBadge({ size = 'sm' }: {size?: 'sm' | 'lg'}) {
   const { t } = useI18n();
   return (
     <span className={cn(
-      'rounded bg-danger font-medium text-white',
-      (size === 'lg') ? 'px-2 py-1 text-sm' : 'px-1.5 py-0.5 text-[10px]',
+      'rounded bg-danger-strong font-medium text-white',
+      (size === 'lg') ? 'px-2 py-1 text-sm' : 'px-1.5 text-xs leading-5',
     )}>
       {t('tags.nsfw')}
     </span>

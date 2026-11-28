@@ -92,7 +92,7 @@ export function ApplicationsPage() {
 
       {(data && !canCreate) ? (
         <div role='alert' className='mb-4 flex items-start gap-3 rounded-md border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-fg'>
-          <TriangleAlert aria-hidden className='mt-0.5 size-5 shrink-0 text-warning'/>
+          <TriangleAlert aria-hidden className='mt-0.5 size-5 shrink-0 text-warning-text'/>
           <div>
             <div className='font-semibold text-white'>{t('apps.no_access')}</div>
             <p className='mt-1'>

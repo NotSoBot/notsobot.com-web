@@ -65,7 +65,7 @@ export function MyLimitsCard() {
   return (
     <section className='card mt-4 p-5'>
       <h2 className='mb-1 flex items-center gap-2 text-lg font-semibold text-white'>
-        <Gauge className='size-5 text-brand-text' aria-hidden/>
+        <Gauge className='size-5 text-muted' aria-hidden/>
         {t('dlimits.title')}
       </h2>
       <p className='mb-4 text-xs text-subtle'>{t('dlimits.description')}</p>

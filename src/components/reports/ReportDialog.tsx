@@ -157,7 +157,7 @@ export function ReportDialog({ subject, onClose }: {subject: ReportSubject, onCl
 
           {/* reports are for NotSoBot being abused, spamming them gets you blocked */}
           <p className='mt-4 flex gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-fg'>
-            <TriangleAlert aria-hidden className='mt-0.5 size-4 shrink-0 text-warning'/>
+            <TriangleAlert aria-hidden className='mt-0.5 size-4 shrink-0 text-warning-text'/>
             <span>{t('report.spam_warning')}</span>
           </p>
 
@@ -196,7 +196,7 @@ export function ReportDialog({ subject, onClose }: {subject: ReportSubject, onCl
                 <label htmlFor={detailsId} className='text-sm text-muted'>
                   {t((isTag) ? 'report.details' : 'report.what_happened')}
                   {(!isTag) ? null : (needsDetails) ? (
-                    <span className='text-warning'>{t('report.required')}</span>
+                    <span className='text-warning-text'>{t('report.required')}</span>
                   ) : (
                     <span className='text-subtle'>{t('report.optional')}</span>
                   )}

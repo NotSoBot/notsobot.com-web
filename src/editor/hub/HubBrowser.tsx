@@ -251,7 +251,7 @@ export function HubBrowser({ host, loggedIn, onTry, onLogin, openCode, onOpenCod
         <div id={filtersId} hidden={!filtersOpen} className='mt-3 rounded-lg border border-line bg-deep/60 p-4'>
           <div className='flex flex-col gap-4'>
             <div className='flex flex-col gap-1.5'>
-              <span className='text-xs font-semibold tracking-wide text-subtle uppercase'>{t('hub.sort')}</span>
+              <span className='text-sm font-medium text-subtle'>{t('hub.sort')}</span>
               <div className='w-fit max-w-full overflow-x-auto'>
                 <Segmented
                   label={t('hub.sort')}
@@ -262,7 +262,7 @@ export function HubBrowser({ host, loggedIn, onTry, onLogin, openCode, onOpenCod
               </div>
             </div>
             <div className='flex flex-col gap-1.5'>
-              <span className='text-xs font-semibold tracking-wide text-subtle uppercase'>{t('hub.filter_kind')}</span>
+              <span className='text-sm font-medium text-subtle'>{t('hub.filter_kind')}</span>
               {/* chips that wrap: five kinds don't fit a phone's width as one bar */}
               <div role='group' aria-label={t('hub.filter_kind')} className='flex flex-wrap gap-2'>
                 {(['all', ...HUB_KINDS] as const).map((value) => (
@@ -272,7 +272,7 @@ export function HubBrowser({ host, loggedIn, onTry, onLogin, openCode, onOpenCod
             </div>
             <div className='flex flex-wrap items-end gap-3'>
               <label className='flex flex-col gap-1.5'>
-                <span className='text-xs font-semibold tracking-wide text-subtle uppercase'>{t('hub.filter_group')}</span>
+                <span className='text-sm font-medium text-subtle'>{t('hub.filter_group')}</span>
                 <select value={group} onChange={(event) => setGroup(event.target.value as EditorGroup | 'all')} className='input w-auto py-2'>
                   <option value='all'>{t('hub.group.all')}</option>
                   {groups.map((value) => <option key={value} value={value}>{t(`hub.group.${value}`)}</option>)}

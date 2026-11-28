@@ -204,7 +204,7 @@ function VariableRow({ tagId, scope, storageType, storageId, name, value, readOn
         <div className='min-w-0 flex-1'>
           <div className='flex flex-wrap items-center gap-2'>
             <span className='font-mono text-sm break-all text-white'>{name}</span>
-            {(json) ? <span className='inline-flex items-center gap-1 rounded bg-surface-3 px-1.5 py-0.5 text-[11px] text-muted'><Braces aria-hidden className='size-3'/>JSON</span> : null}
+            {(json) ? <span className='inline-flex items-center gap-1 rounded bg-surface-3 px-1.5 py-0.5 text-xs text-muted'><Braces aria-hidden className='size-3'/>JSON</span> : null}
           </div>
           <pre className='mt-1.5 max-h-40 overflow-auto rounded bg-deep px-2.5 py-1.5 font-mono text-xs break-all whitespace-pre-wrap text-code'>{(json) ? formatJson(value) ?? value : value}</pre>
         </div>

@@ -114,7 +114,7 @@ export function AddTagDialog({ tag, verified, onClose }: {tag: Pick<Tag, 'id' | 
 
           {(verified !== TagDirectoryVerificationStates.VERIFIED) ? (
             <p role='alert' className='mt-4 flex gap-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-fg'>
-              <TriangleAlert aria-hidden className='mt-0.5 size-4 shrink-0 text-warning'/>
+              <TriangleAlert aria-hidden className='mt-0.5 size-4 shrink-0 text-warning-text'/>
               <span>
                 <span className='font-medium text-white'>
                   {t((verified === TagDirectoryVerificationStates.PENDING_VERIFICATION) ? 'tags.add.pending_warning' : 'tags.add.unverified_warning')}
@@ -151,7 +151,7 @@ export function AddTagDialog({ tag, verified, onClose }: {tag: Pick<Tag, 'id' | 
                 ) : null}
               </select>
               {(guilds.isPending) ? null : (guildsError) ? (
-                <p className='mt-1.5 text-xs text-warning'>
+                <p className='mt-1.5 text-xs text-warning-text'>
                   {guildsError}
                   {(needsServerList) ? (
                     <>

@@ -20,13 +20,13 @@ export function StaffWarningsNotice({ className }: {className?: string}) {
 
   return (
     <div role='alert' className={cn('flex items-start gap-3 rounded-md border border-warning/40 bg-warning/10 px-4 py-3 text-left text-sm text-fg', className)}>
-      <MessageSquareWarning aria-hidden className='mt-0.5 size-5 shrink-0 text-warning'/>
+      <MessageSquareWarning aria-hidden className='mt-0.5 size-5 shrink-0 text-warning-text'/>
       <div className='min-w-0 flex-1'>
         <p className='font-semibold text-white'>{plural('ui.staff_warning', pending.length)}</p>
         <ul className='mt-2 space-y-2'>
           {pending.map((warning) => (
             <li key={warning.id}>
-              <p className={cn('rounded border-l-2 border-warning/60 pl-2 whitespace-pre-wrap break-words', !warning.reason && 'text-subtle italic')}>{warning.reason || t('warnings.no_reason')}</p>
+              <p className={cn('rounded bg-warning/10 px-2 py-1 whitespace-pre-wrap break-words', !warning.reason && 'text-subtle italic')}>{warning.reason || t('warnings.no_reason')}</p>
               <p className='mt-0.5 pl-2.5 text-xs text-subtle' title={formatExactDateTime(warning.created)}>{formatDateTime(warning.created)}</p>
             </li>
           ))}

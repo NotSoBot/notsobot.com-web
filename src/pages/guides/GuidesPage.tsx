@@ -23,8 +23,8 @@ export function GuideCards({ book, slugs, children }: {book: GuideBook, slugs: R
         return (
           <li key={slug} className='flex'>
             <Link to={guidePath(slug)} className='card card-hover group flex w-full flex-col gap-3 p-5 hover:bg-surface-2/60'>
-              <span className='flex size-10 items-center justify-center rounded-lg bg-brand/15'>
-                <Icon aria-hidden className='size-5 text-brand-text'/>
+              <span className='flex size-10 items-center justify-center rounded-lg bg-surface-3'>
+                <Icon aria-hidden className='size-5 text-fg'/>
               </span>
               <span>
                 <span className='mb-1 block text-lg font-semibold text-white'>{guide.title}</span>
@@ -71,8 +71,8 @@ export function OpeningCard({ book, site }: {book: GuideBook, site: SiteId}) {
   return (
     <section aria-labelledby='opening-title' className='card p-5 sm:p-6'>
       <header className='mb-4 flex items-center gap-3'>
-        <span className='flex size-10 shrink-0 items-center justify-center rounded-lg bg-brand/15'>
-          <Rocket aria-hidden className='size-5 text-brand-text'/>
+        <span className='flex size-10 shrink-0 items-center justify-center rounded-lg bg-surface-3'>
+          <Rocket aria-hidden className='size-5 text-fg'/>
         </span>
         <h2 id='opening-title' className='text-xl font-semibold text-white'>{book.opening.title}</h2>
       </header>
@@ -100,8 +100,8 @@ export function GuidesPage() {
           <GuideCards book={book} slugs={SITE_GUIDE_SLUGS}>
             <li className='flex'>
               <a href={`${siteOrigin(SiteIds.GAMES)}${languagePath(language, '/guides')}`} className='card card-hover group flex w-full flex-col gap-3 p-5 hover:bg-surface-2/60'>
-                <span className='flex size-10 items-center justify-center rounded-lg bg-success/15'>
-                  <Gamepad2 aria-hidden className='size-5 text-success-text'/>
+                <span className='flex size-10 items-center justify-center rounded-lg bg-surface-3'>
+                  <Gamepad2 aria-hidden className='size-5 text-fg'/>
                 </span>
                 <span>
                   <span className='mb-1 block text-lg font-semibold text-white'>{t('guides.games_title')}</span>

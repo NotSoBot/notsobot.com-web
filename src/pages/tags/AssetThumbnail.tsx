@@ -44,7 +44,7 @@ export function AssetThumbnail({ assets, thumbnail, nsfw, playing }: {
           <img src={thumbnail.urls.cdn} alt='' loading='lazy' decoding='async' className='size-full object-cover'/>
         )}
         {(assets.length) ? (
-          <span className='pointer-events-none absolute right-1 bottom-1 rounded bg-black/70 px-1 text-[10px] leading-4 font-medium text-white tabular-nums'>
+          <span className='pointer-events-none absolute right-1 bottom-1 rounded bg-black/70 px-1 text-[11px] leading-4 font-medium text-white tabular-nums'>
             +{assets.length}
           </span>
         ) : null}
@@ -82,7 +82,7 @@ export function AssetThumbnail({ assets, thumbnail, nsfw, playing }: {
         </span>
       ) : null}
       {(1 < assets.length) ? (
-        <span className='pointer-events-none absolute right-1 bottom-1 rounded bg-black/70 px-1 text-[10px] leading-4 font-medium text-white tabular-nums'>
+        <span className='pointer-events-none absolute right-1 bottom-1 rounded bg-black/70 px-1 text-[11px] leading-4 font-medium text-white tabular-nums'>
           +{assets.length - 1}
         </span>
       ) : null}

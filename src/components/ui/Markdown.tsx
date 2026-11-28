@@ -43,7 +43,7 @@ const LIST_PATTERN = /^( *)([-*]|\d{1,9}\.) +(.*)$/;
 const QUOTE_PATTERN = /^ *> ?(.*)$/;
 const QUOTE_REST_PATTERN = /^ *>>> ?(.*)$/;
 
-const HEADING_CLASSES = ['text-xl font-bold', 'text-lg font-bold', 'text-base font-semibold'];
+const HEADING_CLASSES = ['text-xl font-semibold', 'text-lg font-semibold', 'text-base font-semibold'];
 
 function renderBlocks(text: string): Array<ReactNode> {
   const lines = text.replace(/\r\n?/g, '\n').split('\n');
@@ -52,7 +52,7 @@ function renderBlocks(text: string): Array<ReactNode> {
 
   const flushParagraph = () => {
     if (paragraph.length) {
-      blocks.push(<p key={blocks.length} className='whitespace-pre-wrap'>{renderInline(paragraph.join('\n'))}</p>);
+      blocks.push(<p key={blocks.length} className='max-w-prose whitespace-pre-wrap'>{renderInline(paragraph.join('\n'))}</p>);
       paragraph = [];
     }
   };

@@ -33,7 +33,7 @@ interface HubStatusView {
 
 const HUB_STATUS: Record<HubStatus, HubStatusView> = {
   none: {tone: 'neutral', listed: false, button: 'text-muted hover:text-fg'},
-  review: {tone: 'warning', listed: true, button: 'text-warning'},
+  review: {tone: 'warning', listed: true, button: 'text-warning-text'},
   published: {tone: 'success', listed: true, button: 'text-success-text'},
   hidden: {tone: 'neutral', listed: true, button: 'text-muted hover:text-fg'},
   rejected: {tone: 'danger', listed: false, button: 'text-danger-text'},
@@ -73,7 +73,7 @@ function StatusResult({ host, template }: {host: EditorHost, template: EditorTem
     case 'review':
       icon = <Clock aria-hidden className='size-5 shrink-0'/>;
       text = t('hub.result.review');
-      tone = 'border-warning/40 bg-warning/10 text-warning';
+      tone = 'border-warning/40 bg-warning/10 text-warning-text';
       break;
     case 'rejected':
       icon = <XCircle aria-hidden className='size-5 shrink-0'/>;
@@ -181,7 +181,7 @@ export function PublishDialog({ host, template, onChange, onClose }: {
         {(unpublished && status === 'none') ? <p role='status' className='text-sm text-muted'>{t('hub.publish.unpublished')}</p> : null}
 
         {(template.locked) ? (
-          <p className='flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2.5 text-sm text-warning'>
+          <p className='flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2.5 text-sm text-warning-text'>
             <Lock aria-hidden className='mt-0.5 size-4 shrink-0'/>{t('hub.publish.locked')}
           </p>
         ) : (
@@ -201,7 +201,7 @@ export function PublishDialog({ host, template, onChange, onClose }: {
             />
             <div className='flex items-start justify-between gap-3 text-xs'>
               <p className='text-muted'>{t('hub.publish.check')}</p>
-              <span id={countId} className={cn('shrink-0 tabular-nums', (description.length >= HUB_DESCRIPTION_MAX) ? 'text-warning' : 'text-subtle')}>
+              <span id={countId} className={cn('shrink-0 tabular-nums', (description.length >= HUB_DESCRIPTION_MAX) ? 'text-warning-text' : 'text-subtle')}>
                 {t('hub.publish.description_count', {count: description.length, max: HUB_DESCRIPTION_MAX})}
               </span>
             </div>

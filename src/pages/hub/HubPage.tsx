@@ -73,6 +73,8 @@ export function HubPage() {
         description={t('hub.description')}
       />
       <div className='container-page py-8 sm:py-10'>
+        {/* the cards' titles are h3s, like in the editor's hub dialog under its h2 */}
+        <h2 className='sr-only'>{t('hub.badge')}</h2>
         <HubBrowser
           host={host}
           loggedIn={status === 'authenticated'}

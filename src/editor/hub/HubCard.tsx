@@ -124,7 +124,7 @@ export function HubCard({ template, effectNames, trying, tryDisabled, tryError, 
   const { t } = useI18n();
   const names = hubEffectIds(template).map((id) => effectNames.get(id) ?? id);
   return (
-    <article data-state={(trying) ? 'trying' : (tryError) ? 'error' : 'idle'} className='flex min-w-0 flex-col overflow-hidden rounded-xl border border-line-strong bg-surface transition-colors hover:border-brand/60'>
+    <article data-state={(trying) ? 'trying' : (tryError) ? 'error' : 'idle'} className='flex min-w-0 flex-col overflow-hidden rounded-xl border border-line-strong bg-surface transition-colors hover:border-subtle/50'>
       {/* the title's button is the keyboard's way in, this one is for pointers */}
       <button type='button' tabIndex={-1} aria-hidden onClick={onOpen} className='block aspect-[4/3] w-full cursor-pointer overflow-hidden bg-deep'>
         <HubMedia preview={template.preview}/>
@@ -144,7 +144,7 @@ export function HubCard({ template, effectNames, trying, tryDisabled, tryError, 
         {(names.length) ? <EffectChips names={names} limit={SHOWN_EFFECTS}/> : null}
         <AsksChips template={template}/>
         <div className='mt-auto flex gap-2 pt-1'>
-          <button type='button' className='btn btn-primary min-w-0 flex-1' onClick={onTry} disabled={tryDisabled}>
+          <button type='button' className='btn btn-secondary min-w-0 flex-1' onClick={onTry} disabled={tryDisabled}>
             {(trying) ? <Spinner className='size-4 border-white/40 border-t-white'/> : <Wand2 aria-hidden className='size-4'/>}
             {t('hub.try')}
           </button>

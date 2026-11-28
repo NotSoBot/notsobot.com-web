@@ -230,7 +230,7 @@ export function EditorApp({ host, documentId, catalogue, addEffectId = null, ask
       </div>
 
       {(state.renderLocked) ? (
-        <p role='status' className='border-b border-warning/40 bg-warning/10 px-5 py-2 text-sm text-warning'>
+        <p role='status' className='border-b border-warning/40 bg-warning/10 px-5 py-2 text-sm text-warning-text'>
           {t('editor.room.rendering', {name: state.renderingMember?.username ?? t('editor.room.someone')})}
         </p>
       ) : null}
@@ -244,7 +244,7 @@ export function EditorApp({ host, documentId, catalogue, addEffectId = null, ask
       ) : null}
 
       {(state.reloaded) ? (
-        <p role='status' className='border-b border-warning/40 bg-warning/10 px-5 py-2 text-sm text-warning'>{t('editor.reloaded')}</p>
+        <p role='status' className='border-b border-warning/40 bg-warning/10 px-5 py-2 text-sm text-warning-text'>{t('editor.reloaded')}</p>
       ) : null}
 
       {/* another person's final render locks the stack for everyone in the activity until it's done: the picker and the
@@ -266,7 +266,7 @@ export function EditorApp({ host, documentId, catalogue, addEffectId = null, ask
           <div className='flex flex-col gap-3 lg:min-h-0 lg:flex-1 lg:overflow-y-auto'>
           <fieldset disabled={editLock !== null} className='contents'>
           <div className='flex items-baseline justify-between'>
-            <h2 className='font-display text-lg font-bold text-white'>{t('editor.edits')}</h2>
+            <h2 className='font-display text-lg font-semibold text-white'>{t('editor.edits')}</h2>
             <span className='font-mono text-xs text-muted'>{state.steps.length}</span>
           </div>
           <StepList state={state}/>

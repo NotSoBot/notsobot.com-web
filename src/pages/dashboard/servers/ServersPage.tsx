@@ -180,14 +180,14 @@ function ServerCard({ guild, pinned, onTogglePin }: {guild: UserGuildSummary, pi
         to={dashboardServerPath(guild.id)}
         className={cn(
           'group card card-hover flex h-full items-center gap-3 p-4',
-          (guild.can_manage) ? 'hover:border-brand' : 'hover:border-line-strong',
+          (guild.can_manage) ? 'hover:border-subtle/50' : 'hover:border-line-strong',
         )}
       >
         <GuildIcon guild={guild} size={48} className='size-12 text-sm'/>
         <div className='min-w-0 flex-1'>
           <div className='flex items-center gap-1.5'>
             <span className='truncate font-medium text-white' title={guild.name}>{guild.name}</span>
-            {(guild.owner) ? <Crown aria-label={t('servers.owner')} className='size-3.5 shrink-0 text-warning'/> : null}
+            {(guild.owner) ? <Crown aria-label={t('servers.owner')} className='size-3.5 shrink-0 text-warning-text'/> : null}
           </div>
           <div className='mt-0.5 text-xs text-subtle'>{t((guild.owner) ? 'dash.role.owner' : (guild.can_manage) ? 'dash.role.manager' : 'dash.role.member')}</div>
         </div>
@@ -234,7 +234,7 @@ function AddServerCard({ guild }: {guild: UserGuildSummary}) {
         <div className='min-w-0 flex-1'>
           <div className='flex items-center gap-1.5'>
             <span className='truncate font-medium text-muted group-hover:text-white' title={guild.name}>{guild.name}</span>
-            {(guild.owner) ? <Crown aria-label={t('servers.owner')} className='size-3.5 shrink-0 text-warning'/> : null}
+            {(guild.owner) ? <Crown aria-label={t('servers.owner')} className='size-3.5 shrink-0 text-warning-text'/> : null}
           </div>
           <div className='mt-0.5 text-xs text-subtle'>{t((guild.owner) ? 'dash.role.owner' : 'dash.role.manager')}</div>
         </div>
@@ -284,8 +284,8 @@ export function ScopeMismatchCard({ reason = 'scope' }: {reason?: 'scope' | 'gra
   const { t } = useI18n();
   return (
     <div className='card flex flex-col items-center gap-4 p-8 text-center sm:p-10'>
-      <span className='flex size-12 items-center justify-center rounded-full bg-brand/20'>
-        <KeyRound aria-hidden className='size-6 text-brand-text'/>
+      <span className='flex size-12 items-center justify-center rounded-full bg-surface-3'>
+        <KeyRound aria-hidden className='size-6 text-fg'/>
       </span>
       <div className='max-w-md'>
         <h2 className='text-lg font-semibold text-white'>{t((reason === 'grant') ? 'servers.grant_title' : 'servers.scope_title')}</h2>

@@ -25,7 +25,7 @@ const FILTER_OPTIONS: Array<{value: KindFilter, label: TranslationKey}> = [
 const KIND_CLASSES: Record<ChangeKind, string> = {
   new: 'bg-brand/15 text-brand-text',
   improved: 'bg-success/15 text-success-text',
-  fixed: 'bg-warning/15 text-warning',
+  fixed: 'bg-warning/15 text-warning-text',
   removed: 'bg-danger/15 text-danger-text',
 };
 
@@ -193,7 +193,7 @@ export function ChangelogPage() {
           </div>
         ) : null}
 
-        <aside className='mt-12 flex flex-col items-start justify-between gap-4 rounded-lg border border-line border-l-[3px] border-l-brand bg-surface p-6 sm:flex-row sm:items-center'>
+        <aside className='mt-12 flex flex-col items-start justify-between gap-4 rounded-lg border border-brand/30 bg-brand/5 p-6 sm:flex-row sm:items-center'>
           <div>
             <h2 className='mb-1 text-lg font-semibold text-white'>{t('changelog.idea_title')}</h2>
             <p className='text-sm text-muted'>{rich('changelog.idea_description', {code: (chunk) => <code className='rounded bg-deep px-1.5 py-0.5 font-mono text-[0.85em] text-code'>{chunk}</code>})}</p>

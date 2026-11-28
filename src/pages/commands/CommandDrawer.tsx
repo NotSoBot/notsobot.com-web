@@ -121,11 +121,11 @@ export function CommandDrawer({ entry, type, siblings, entries, totalRanked, sta
             ) : null}
             {(metadata.premium) ? (
               <div className='mt-3 flex items-start gap-2.5 rounded-md border border-warning/30 bg-warning/10 px-3 py-2.5 text-sm'>
-                <Crown aria-hidden className='mt-0.5 size-4 shrink-0 text-warning'/>
+                <Crown aria-hidden className='mt-0.5 size-4 shrink-0 text-warning-text'/>
                 <p className='text-muted'>
                   <span className='font-medium text-white'>{t(premiumMeta(metadata.premium).label)}.</span>{' '}
                   {t(premiumMeta(metadata.premium).description)}{' '}
-                  <Link to={Routes.PREMIUM} className='font-medium text-warning hover:underline'>{t('commands.drawer.see_premium')}</Link>
+                  <Link to={Routes.PREMIUM} className='font-medium text-warning-text hover:underline'>{t('commands.drawer.see_premium')}</Link>
                 </p>
               </div>
             ) : null}
@@ -181,7 +181,7 @@ export function CommandDrawer({ entry, type, siblings, entries, totalRanked, sta
                       {(arg.aliases.length) ? (
                         <span className='ml-2 font-mono text-xs text-subtle'>({arg.aliases.map((alias) => `${arg.prefix}${alias}`).join(', ')})</span>
                       ) : null}
-                      {(arg.required) ? <span className='ml-2 rounded bg-warning/15 px-1.5 py-0.5 text-xs font-medium text-warning'>{t('commands.drawer.required')}</span> : null}
+                      {(arg.required) ? <span className='ml-2 rounded bg-warning/15 px-1.5 py-0.5 text-xs font-medium text-warning-text'>{t('commands.drawer.required')}</span> : null}
                       {(arg.description) ? <p className='mt-1 text-sm text-muted'>{arg.description}</p> : null}
                       {(arg.choices?.length) ? <ArgChoices choices={arg.choices}/> : null}
                     </div>
@@ -306,7 +306,7 @@ function PrefixEndingNote({ entry, name, onSelect }: {entry: Entry, name: string
   const code = (chunk: string) => <code className='font-mono text-code'>{chunk}</code>;
   return (
     <div className='mt-3 flex items-start gap-2.5 rounded-md border border-warning/30 bg-warning/10 px-3 py-2.5 text-sm'>
-      <TriangleAlert aria-hidden className='mt-0.5 size-4 shrink-0 text-warning'/>
+      <TriangleAlert aria-hidden className='mt-0.5 size-4 shrink-0 text-warning-text'/>
       <p className='text-muted'>
         <span className='font-medium text-white'>{t((prefixCommandsEnded()) ? 'ui.prefix_sunset.title_ended' : 'ui.prefix_sunset.title', {date})}.</span>{' '}
         {(slash) ? rich('commands.drawer.prefix_instead', {

@@ -22,7 +22,7 @@ export function YourDataSection() {
   const { t, rich } = useI18n();
   return (
     <section id={YOUR_DATA_ANCHOR} aria-labelledby={`${YOUR_DATA_ANCHOR}-title`} className='mt-10 scroll-mt-24'>
-      <h2 id={`${YOUR_DATA_ANCHOR}-title`} className='text-xl font-bold text-white'>{t('data.title')}</h2>
+      <h2 id={`${YOUR_DATA_ANCHOR}-title`} className='text-xl font-semibold text-white'>{t('data.title')}</h2>
       <p className='mt-1 mb-4 text-muted'>
         {rich('data.description', {link: (chunk) => <Link to={Routes.LEGAL_PRIVACY} className='text-code hover:underline'>{chunk}</Link>})}
       </p>
@@ -82,7 +82,7 @@ function ExportPanel() {
 
   return (
     <Panel headingLevel={3} title={t('data.export.title')} accent='#5865f2' description={t('data.export.description')}>
-      <ul className='list-disc space-y-1 pl-5 text-sm text-muted'>
+      <ul className='max-w-prose list-disc space-y-1 pl-5 text-sm text-muted'>
         <li>{t('data.export.item_1')}</li>
         <li>{t('data.export.item_2')}</li>
         <li>{t('data.export.item_3')}</li>
@@ -113,7 +113,7 @@ function DeletePanel() {
 
   return (
     <Panel headingLevel={3} title={t('data.delete.title')} accent='#ed4245' description={t('data.delete.description')}>
-      <ul className='list-disc space-y-1 pl-5 text-sm text-muted'>
+      <ul className='max-w-prose list-disc space-y-1 pl-5 text-sm text-muted'>
         <li>{t('data.delete.item_1')}</li>
         <li>{t('data.delete.item_2')}</li>
         <li>{t('data.delete.item_3')}</li>

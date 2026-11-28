@@ -55,12 +55,12 @@ export function GuideQuickRules({ rules, renderLink, compact = false, className 
 }) {
   const { t } = useI18n();
   return (
-    <section aria-label={t('guides.quick_rules')} className={cn('rounded-lg border border-line border-l-[3px] border-l-brand bg-surface', (compact) ? 'p-4' : 'p-5 sm:p-6', className)}>
+    <section aria-label={t('guides.quick_rules')} className={cn('rounded-lg border border-brand/30 bg-brand/5', (compact) ? 'p-4' : 'p-5 sm:p-6', className)}>
       <h2 className='section-label mb-3'>{t('guides.quick_rules')}</h2>
       <ol className='space-y-2.5'>
         {rules.map((rule, i) => (
           <li key={i} className='flex gap-3 leading-relaxed text-fg'>
-            <span aria-hidden className='mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-brand/20 text-xs font-semibold text-brand-text tabular-nums'>{i + 1}</span>
+            <span aria-hidden className='mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-surface-3 text-xs font-semibold text-fg tabular-nums'>{i + 1}</span>
             <span className='min-w-0'><GuideInline text={rule} renderLink={renderLink}/></span>
           </li>
         ))}
@@ -73,7 +73,7 @@ export function GuideQuickRules({ rules, renderLink, compact = false, className 
 export function GuideBlocks({ blocks, renderLink }: {blocks: ReadonlyArray<GuideBlock>, renderLink?: GuideLinkRenderer}) {
   const { t } = useI18n();
   return (
-    <div className='space-y-4 leading-relaxed text-fg'>
+    <div className='space-y-4 leading-relaxed text-fg [&>p]:max-w-prose'>
       {blocks.map((block, i) => {
         switch (block.kind) {
           case 'text':
@@ -114,8 +114,8 @@ export function GuideBlocks({ blocks, renderLink }: {blocks: ReadonlyArray<Guide
             );
           case 'tip':
             return (
-              <aside key={i} className='flex gap-3 rounded-lg border border-line-strong bg-surface-2/60 p-4 text-sm'>
-                <Lightbulb aria-hidden className='mt-0.5 size-4 shrink-0 text-warning'/>
+              <aside key={i} className='flex gap-3 rounded-lg bg-warning/10 p-4 text-sm'>
+                <Lightbulb aria-hidden className='mt-0.5 size-4 shrink-0 text-warning-text'/>
                 <p className='min-w-0'>
                   <span className='sr-only'>{t('guides.tip')}: </span>
                   <GuideInline text={block.text} renderLink={renderLink}/>

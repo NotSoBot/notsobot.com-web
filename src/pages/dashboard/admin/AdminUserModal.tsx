@@ -171,7 +171,7 @@ function UserDetails({ entry, navigation }: {entry: AdminUserEntry, navigation?:
             <div className='grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-2'>
               <StatTile label='Commands run' value={entry.commands.toLocaleString()} hint='Commands they’ve run, ever'/>
               <DateTile label='First seen' value={entry.first_seen} empty='Never' title='When they ran their first command'/>
-              <StatTile label='Reports about' to={adminReportsPath({q: `target:${user.id}`, status: 'all'})} value={entry.reports.toLocaleString()} tone='text-warning'/>
+              <StatTile label='Reports about' to={adminReportsPath({q: `target:${user.id}`, status: 'all'})} value={entry.reports.toLocaleString()} tone='text-warning-text'/>
               <StatTile label='Reports sent' to={adminReportsPath({q: `user:${user.id}`, status: 'all'})} value={entry.reports_sent.toLocaleString()}/>
             </div>
           </section>
@@ -230,7 +230,7 @@ function UserDetails({ entry, navigation }: {entry: AdminUserEntry, navigation?:
         </button>
         <button
           type='button'
-          className={cn(ACTION, 'btn-secondary', user.legal_hold && 'text-warning')}
+          className={cn(ACTION, 'btn-secondary', user.legal_hold && 'text-warning-text')}
           disabled={!canToggleLegalHold(user, viewerIsOwner)}
           title={legalHoldTitle(user, viewerIsOwner)}
           onClick={() => setHolding(true)}
@@ -306,7 +306,7 @@ function StrikeCard({ strike, users }: {strike: AdminCopyrightStrike, users: Adm
         {(strike.asset_ids.length) ? <Chip>{strike.asset_ids.length.toLocaleString()} {(strike.asset_ids.length === 1) ? 'file' : 'files'}</Chip> : null}
       </div>
       {(strike.notice) ? (
-        <p className='mt-1.5 rounded border-l-2 border-line-strong pl-2 text-xs break-words whitespace-pre-wrap text-muted'>{strike.notice}</p>
+        <p className='mt-1.5 rounded bg-surface-2 px-2 py-1 text-xs break-words whitespace-pre-wrap text-muted'>{strike.notice}</p>
       ) : (
         <p className='mt-1.5 text-xs text-subtle italic'>No notice given</p>
       )}
@@ -328,7 +328,7 @@ function StrikeCard({ strike, users }: {strike: AdminCopyrightStrike, users: Adm
 function DataDeletionNotice({ startedAt }: {startedAt: string}) {
   return (
     <div className='w-72 rounded-md border border-line bg-surface-2 px-3 py-2'>
-      <p className='flex items-center gap-1.5 text-xs font-bold tracking-wide text-muted uppercase'>
+      <p className='flex items-center gap-1.5 text-sm font-semibold text-muted'>
         <Trash2 aria-hidden className='size-3.5 shrink-0'/>
         Data deletion
       </p>
@@ -359,7 +359,7 @@ function BlockedNotice({ reason, until }: {reason: string | null, until: string 
 
   return (
     <div className='w-72 rounded-md border border-danger/40 bg-danger/15 px-3 py-2'>
-      <p className='flex items-center gap-1.5 text-xs font-bold tracking-wide text-[#ff8a8c] uppercase'>
+      <p className='flex items-center gap-1.5 text-sm font-semibold text-[#ff8a8c]'>
         <Ban aria-hidden className='size-3.5 shrink-0'/>
         Blocked
       </p>

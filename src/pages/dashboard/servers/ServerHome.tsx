@@ -78,7 +78,7 @@ export function ServerHome({ guild, onOpen }: {guild: UserGuild, onOpen?: (tab: 
     moderation: [
       // what's waiting on a moderator comes first
       (moderator) ? <HomeRow key='reports' label={t('shome.reports')} value={count(reports.data?.count, reports.isError)} tone='text-danger-text' {...open('reports')}/> : null,
-      (moderator) ? <HomeRow key='warnings' label={t('shome.warnings')} value={count(warnings.data?.active, warnings.isError)} tone='text-warning' {...open('warnings')}/> : null,
+      (moderator) ? <HomeRow key='warnings' label={t('shome.warnings')} value={count(warnings.data?.active, warnings.isError)} tone='text-warning-text' {...open('warnings')}/> : null,
       (seesModeration) ? <HomeRow key='block' label={t('shome.block_rules')} value={count(blockRules)} {...open('rules')}/> : null,
       (seesModeration) ? <HomeRow key='allow' label={t('shome.allow_rules')} value={count(allowRules)} {...open('rules')}/> : null,
     ],

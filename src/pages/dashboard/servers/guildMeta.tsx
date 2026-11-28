@@ -152,7 +152,7 @@ export const ENTRY_TYPE_LABELS: Record<string, string> = {
 export function EntryMention({ type, id, guildId }: {type: string, id: string, guildId?: string}) {
   const { t } = useI18n();
   const Icon = (type === 'channel') ? Hash : (type === 'role') ? Shield : (type === 'guild') ? Server : AtSign;
-  const color = (type === 'channel') ? 'text-code' : (type === 'role') ? 'text-warning' : (type === 'guild') ? 'text-success-text' : 'text-[#a5acff]';
+  const color = (type === 'channel') ? 'text-code' : (type === 'role') ? 'text-warning-text' : (type === 'guild') ? 'text-success-text' : 'text-[#a5acff]';
   const url = (!guildId) ? null : (type === 'channel') ? discordChannelUrl(guildId, id) : (type === 'guild') ? discordGuildUrl(guildId) : null;
   const content = (
     <>

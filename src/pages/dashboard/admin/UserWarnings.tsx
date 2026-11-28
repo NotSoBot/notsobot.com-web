@@ -55,7 +55,7 @@ export function UserWarningsSection({ user, cantWarnReason, viewerIsOwner }: {
         <StatTile
           label='Warnings'
           value={value}
-          tone='text-warning'
+          tone='text-warning-text'
           hint={(query.isError) ? errorMessage(query.error, 'Couldn’t load their warnings.') : 'Warnings NotSoBot staff gave them'}
           // what clicking it does, only while there are any to show
           title={(items.length) ? `${(open) ? 'Hide' : 'Show'} their warnings` : undefined}
@@ -117,7 +117,7 @@ function WarningCard({ warning, users, userId, canDelete }: {
         ) : null}
       </div>
       {(warning.reason) ? (
-        <p className='mt-1.5 rounded border-l-2 border-line-strong pl-2 text-xs break-words whitespace-pre-wrap text-muted'>{warning.reason}</p>
+        <p className='mt-1.5 rounded bg-surface-2 px-2 py-1 text-xs break-words whitespace-pre-wrap text-muted'>{warning.reason}</p>
       ) : (
         <p className='mt-1.5 text-xs text-subtle italic'>No reason given</p>
       )}

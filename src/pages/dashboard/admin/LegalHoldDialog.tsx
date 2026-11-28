@@ -37,7 +37,7 @@ export function legalHoldTitle(user: {flags: number} & AdminLegalHold, viewerIsO
 export function LegalHoldNotice({ hold }: {hold: AdminLegalHold}) {
   return (
     <div className='w-72 rounded-md border border-warning/40 bg-warning/15 px-3 py-2'>
-      <p className='flex items-center gap-1.5 text-xs font-bold tracking-wide text-warning uppercase'>
+      <p className='flex items-center gap-1.5 text-sm font-semibold text-warning-text'>
         <Lock aria-hidden className='size-3.5 shrink-0'/>
         Legal hold
       </p>

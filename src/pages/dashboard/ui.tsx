@@ -17,7 +17,7 @@ export function DashboardHeader({ title, description, children }: {title: ReactN
   return (
     <header className='mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between'>
       <div className='min-w-0'>
-        <h1 className='text-2xl font-bold break-words text-white sm:text-3xl'>{title}</h1>
+        <h1 className='text-2xl font-semibold break-words text-white sm:text-3xl'>{title}</h1>
         {(description) ? <div className='mt-1.5 text-muted'>{description}</div> : null}
       </div>
       {(children) ? <div className='flex shrink-0 flex-wrap items-center gap-2'>{children}</div> : null}
@@ -54,7 +54,7 @@ export function Panel({ title, description, help, accent, actions, className, ch
             {(accent) ? <span aria-hidden className='h-4 w-1 shrink-0 rounded-full' style={{background: accent}}/> : null}
             {title}
             {(readOnly) ? (
-              <span className='inline-flex items-center gap-1 rounded-full bg-warning/15 px-2 py-0.5 text-xs font-medium text-warning'>
+              <span className='inline-flex items-center gap-1 rounded-full bg-warning/15 px-2 py-0.5 text-xs font-medium text-warning-text'>
                 <Lock aria-hidden className='size-3'/>
                 {t('dash.view_only')}
               </span>
@@ -75,7 +75,7 @@ export function Panel({ title, description, help, accent, actions, className, ch
 export function ReadOnlyNote({ children }: {children: ReactNode}) {
   return (
     <p className='mb-4 flex items-start gap-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-fg'>
-      <Lock aria-hidden className='mt-0.5 size-4 shrink-0 text-warning'/>
+      <Lock aria-hidden className='mt-0.5 size-4 shrink-0 text-warning-text'/>
       <span>{children}</span>
     </p>
   );
@@ -158,7 +158,7 @@ export function SaveBar({ dirty, pending, onDiscard, saveLabel, disabled = false
         )}
       >
         <div aria-live='polite' className='min-h-5 text-sm'>
-          {(status) ? status : (dirty) ? <span className='text-warning'>{t('dash.unsaved')}</span> : null}
+          {(status) ? status : (dirty) ? <span className='text-warning-text'>{t('dash.unsaved')}</span> : null}
         </div>
         <div className='flex flex-wrap gap-2 sm:justify-end'>
           {(onDiscard) ? (

@@ -68,7 +68,7 @@ export function ActivitySettings({ onClose }: {onClose: () => void}) {
     <Modal anchor='top' labelledBy={titleId} onClose={onClose} className='max-w-lg'>
       <div className='flex flex-col gap-6 p-4 sm:p-6'>
         <header className='flex flex-col gap-1 pr-10'>
-          <h2 id={titleId} className='font-display text-xl font-bold text-white'>{t('games.settings.title')}</h2>
+          <h2 id={titleId} className='font-display text-xl font-semibold text-white'>{t('games.settings.title')}</h2>
           <p className='text-sm text-muted'>{t('games.settings.description')}</p>
         </header>
 

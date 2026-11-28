@@ -184,14 +184,14 @@ export function StatusPage() {
         ) : (lookup?.kind === 'invalid') ? (
           <p id='lookup-hint' className='mt-2 text-sm text-danger-text'>{lookup.message}</p>
         ) : (lookup && !target) ? (
-          <p id='lookup-hint' className='mt-2 text-sm text-warning'>{t('status.lookup_not_reported')}</p>
+          <p id='lookup-hint' className='mt-2 text-sm text-warning-text'>{t('status.lookup_not_reported')}</p>
         ) : null}
 
         {(target && data) ? <LookupResult lookup={target.lookup} cluster={target.cluster} shard={target.shard} now={now}/> : null}
       </div>
 
       {(isError && data) ? (
-        <div className='mb-6 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-warning'>
+        <div className='mb-6 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-warning-text'>
           {t('status.stale')}
         </div>
       ) : null}
@@ -380,7 +380,7 @@ const ClusterBlock = memo(function ClusterBlock({ cluster, dead, highlightShardI
             <span className='font-medium text-danger-text'>{t('status.not_responding')}</span>
           ) : (
             <>
-              <span className={(healthy === total) ? 'text-success-text' : 'text-warning'}>{healthy}/{total}</span>
+              <span className={(healthy === total) ? 'text-success-text' : 'text-warning-text'}>{healthy}/{total}</span>
               {' • '}{formatMemory(cluster.ram_usage, 2)}
             </>
           )}
@@ -607,7 +607,7 @@ function LookupResult({ lookup, cluster, shard, now }: {
               {(dead) ? (
                 <span className='font-medium text-danger-text'>{t('status.cluster_not_responding')}</span>
               ) : (
-                rich('status.shards_ready', {b: (chunk) => <span className={(healthy === total) ? 'text-success-text' : 'text-warning'}>{chunk}</span>}, {healthy, total})
+                rich('status.shards_ready', {b: (chunk) => <span className={(healthy === total) ? 'text-success-text' : 'text-warning-text'}>{chunk}</span>}, {healthy, total})
               )}
             </ResultFact>
             <ResultFact icon={Layers}>{t('status.shard_range', {first: firstShard, last: lastShard})}</ResultFact>

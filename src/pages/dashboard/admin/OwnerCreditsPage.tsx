@@ -157,7 +157,7 @@ export function OwnerCreditsPage() {
             aria-label='Filter by server id'
           />
         </div>
-        {(badId) ? <p className='text-xs text-warning'>Enter an id (numbers only).</p> : null}
+        {(badId) ? <p className='text-xs text-warning-text'>Enter an id (numbers only).</p> : null}
         <label className='flex items-center gap-2 text-sm text-muted'>
           Type
           <select
@@ -201,7 +201,7 @@ export function OwnerCreditsPage() {
               escapes the clipping and makes the whole page scroll sideways */}
           <div className={cn('card relative hidden overflow-x-auto transition-opacity sm:block', isPlaceholderData && 'opacity-60')}>
             <table className='w-full min-w-[820px] text-left text-sm'>
-              <thead className='border-b border-line text-xs text-subtle uppercase'>
+              <thead className='border-b border-line text-sm text-subtle'>
                 <tr>
                   <th scope='col' className='px-4 py-2.5 font-medium'>User</th>
                   <th scope='col' className='px-4 py-2.5 font-medium'>Type</th>
@@ -435,7 +435,7 @@ function GrantUser({ userId }: {userId: string}) {
       {(isPending) ? (
         <span className='text-sm text-subtle'>Looking up <span className='font-mono'>{userId}</span>…</span>
       ) : (isError && data === undefined) ? (
-        <span className='text-sm text-warning'>Couldn’t check who <span className='font-mono'>{userId}</span> is</span>
+        <span className='text-sm text-warning-text'>Couldn’t check who <span className='font-mono'>{userId}</span> is</span>
       ) : (
         <UserCell user={data?.user ?? null} fallbackId={userId}/>
       )}

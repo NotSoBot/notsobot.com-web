@@ -28,7 +28,7 @@ export function StatTile({ className, label, value, to, onClick, tone = 'text-wh
   // the count stays in the name, it's what tabbing to the tile reads out
   const name = (action) ? `${label}: ${value}, ${action}` : `${label}: ${value}`;
   return (
-    <div className={cn('relative rounded-md border border-line bg-deep px-3 py-2', interactive && 'group/stat transition-colors hover:border-brand', className)}>
+    <div className={cn('relative rounded-md px-3 py-2', interactive && 'group/stat transition-colors hover:bg-surface-2', className)}>
       <p className={cn('text-xs text-subtle', tip && 'flex items-center gap-1.5')}>
         {label}
         {(tip) ? <InfoTip text={tip} className='relative z-10'/> : null}

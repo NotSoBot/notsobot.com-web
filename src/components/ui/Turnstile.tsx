@@ -128,7 +128,7 @@ export function Turnstile({ siteKey, onToken, resetKey = 0, className }: {
     <div className={className} data-state={state}>
       <div ref={container}/>
       {(state === 'unavailable') ? (
-        <p className='text-xs text-warning'>{t('ui.captcha_error')}</p>
+        <p className='text-xs text-warning-text'>{t('ui.captcha_error')}</p>
       ) : null}
     </div>
   );

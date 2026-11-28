@@ -160,7 +160,7 @@ function MergeSummary({ summary }: {summary: AdminTagMergeSummary}) {
     rows.push(
       <>
         Its directory listing (media, verification and edit requests included)
-        {(summary.directory_moves_target) ? <span className='text-warning'>; it moves to its owner’s personal tags, an alias keeps its name where it is</span> : null}
+        {(summary.directory_moves_target) ? <span className='text-warning-text'>; it moves to its owner’s personal tags, an alias keeps its name where it is</span> : null}
       </>,
     );
   }
@@ -172,7 +172,7 @@ function MergeSummary({ summary }: {summary: AdminTagMergeSummary}) {
       rows.push(
         <>
           {plural(counts.moved, label)}
-          {(counts.dropped) ? <span className='text-warning'> ({plural(counts.dropped, label)} dropped, it already has its own there)</span> : null}
+          {(counts.dropped) ? <span className='text-warning-text'> ({plural(counts.dropped, label)} dropped, it already has its own there)</span> : null}
         </>,
       );
     }
@@ -191,7 +191,7 @@ function MergeSummary({ summary }: {summary: AdminTagMergeSummary}) {
           {rows.map((row, i) => <li key={i}>{row}</li>)}
         </ul>
         {(summary.directory === 'dropped') ? (
-          <p className='mt-2 text-sm text-warning'>Its directory listing is deleted with it, the target keeps its own.</p>
+          <p className='mt-2 text-sm text-warning-text'>Its directory listing is deleted with it, the target keeps its own.</p>
         ) : null}
       </div>
     </div>

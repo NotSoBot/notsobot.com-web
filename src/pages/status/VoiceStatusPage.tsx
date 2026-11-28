@@ -15,7 +15,7 @@ type NodeStatus = 'online' | 'draining' | 'offline';
 // labels are `voice_status.<status>`, hints `voice_status.<status>_hint`
 const NODE_STATUS_STYLES: Record<NodeStatus, {dot: string, text: string}> = {
   online: {dot: 'bg-success', text: 'text-success-text'},
-  draining: {dot: 'bg-warning', text: 'text-warning'},
+  draining: {dot: 'bg-warning', text: 'text-warning-text'},
   offline: {dot: 'bg-danger', text: 'text-danger-text'},
 };
 
@@ -47,7 +47,7 @@ export function VoiceStatusPage() {
       <StatusSwitcher/>
 
       {(isError && data) ? (
-        <div className='mb-6 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-warning'>
+        <div className='mb-6 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-warning-text'>
           {t('status.stale')}
         </div>
       ) : null}
@@ -57,7 +57,7 @@ export function VoiceStatusPage() {
         <div className='grid gap-4 sm:grid-cols-2'>
           <StatTile
             label={t('voice_status.nodes_online')}
-            className={(totals && totals.online < nodes.length) ? 'text-warning' : 'text-success-text'}
+            className={(totals && totals.online < nodes.length) ? 'text-warning-text' : 'text-success-text'}
             value={(totals) ? `${formatNumber(totals.online)}/${formatNumber(nodes.length)}` : null}
           />
           <PlayerCounts counts={totals} large/>
@@ -119,7 +119,7 @@ function NodeCard({ node }: {node: InfoVoiceNode}) {
           <div className='mt-4'>
             <div className='mb-1 flex justify-between text-xs text-muted tabular-nums'>
               <span>CPU</span>
-              <span className={cn(100 <= load ? 'text-danger-text' : 75 <= load ? 'text-warning' : null)}>{load}%</span>
+              <span className={cn(100 <= load ? 'text-danger-text' : 75 <= load ? 'text-warning-text' : null)}>{load}%</span>
             </div>
             <div className='h-1.5 overflow-hidden rounded-full bg-surface-3'>
               <div

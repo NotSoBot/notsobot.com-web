@@ -114,7 +114,7 @@ function ActionCard({ entries, users, ownerId }: {entries: Array<TagAuditEntry>,
         {(reason) ? <Chip tone={reason.tone}>{reason.label}</Chip> : null}
       </div>
       {(removal?.notice) ? (
-        <p className='mt-1.5 rounded border-l-2 border-line-strong pl-2 text-xs break-words whitespace-pre-wrap text-muted'>{removal.notice}</p>
+        <p className='mt-1.5 rounded bg-surface-2 px-2 py-1 text-xs break-words whitespace-pre-wrap text-muted'>{removal.notice}</p>
       ) : null}
       <ul className='mt-1.5 space-y-1.5'>
         {entries.map((entry) => <EntryLine key={entry.id} entry={entry} ownerId={ownerId}/>)}

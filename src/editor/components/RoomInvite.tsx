@@ -10,6 +10,20 @@ import { cn } from '@/lib/utils';
 import type { RoomInvite, RoomInviter } from '../invites';
 
 
+// why the bot couldn't post the invite (notsobot.api's editor/sharing.py `PostCheck.reason`) as a sentence: a raw `dm`
+// used to show in the message
+const NOT_POSTED_KEYS = {
+  dm: 'editor.invite.not_posted_dm',
+  private: 'editor.invite.not_posted_private',
+  permissions: 'editor.invite.not_posted_permissions',
+  discord: 'editor.invite.not_posted_discord',
+} as const;
+
+function notPostedKey(reason: string | undefined) {
+  return (reason && reason in NOT_POSTED_KEYS) ? NOT_POSTED_KEYS[reason as keyof typeof NOT_POSTED_KEYS] : 'editor.invite.not_posted';
+}
+
+
 type Outcome =
   | {kind: 'posted'}
   | {kind: 'not_posted', reason?: string}
@@ -129,13 +143,12 @@ export function RoomInviteDialog({ inviter, onClose }: {inviter: RoomInviter, on
         </p>
 
         {(outcome) ? (
-          <p role='status' className={cn('flex gap-1.5 text-sm', (outcome.kind === 'not_posted') ? 'text-warning' : 'text-success-text')}>
+          <p role='status' className={cn('flex gap-1.5 text-sm', (outcome.kind === 'not_posted') ? 'text-warning-text' : 'text-success-text')}>
             {(outcome.kind !== 'not_posted') ? <Check aria-hidden className='mt-0.5 size-4 shrink-0'/> : null}
             {(outcome.kind === 'posted') ? t('editor.invite.posted')
               : (outcome.kind === 'sent') ? t('editor.invite.sent')
               : (outcome.kind === 'copied') ? t('editor.invite.copied')
-              : (outcome.reason) ? t('editor.invite.not_posted_reason', {reason: outcome.reason})
-              : t('editor.invite.not_posted')}
+              : t(notPostedKey(outcome.reason))}
           </p>
         ) : null}
         {(error) ? <DialogError>{error}</DialogError> : null}

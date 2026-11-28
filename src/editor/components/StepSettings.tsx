@@ -167,7 +167,7 @@ function DrawControls({ strokes, onChange, pen, setPen, maxStrokes }: {
           ))}
         </div>
       </div>
-      {(maxStrokes <= strokes.length) ? <p className='text-xs text-warning'>{t('editor.settings.strokes_limit')}</p> : null}
+      {(maxStrokes <= strokes.length) ? <p className='text-xs text-warning-text'>{t('editor.settings.strokes_limit')}</p> : null}
       <div className='flex flex-wrap gap-2'>
         <button
           type='button'
@@ -219,8 +219,8 @@ export function StepSettings({ state, effect, step, pen, setPen, maxStrokes, dur
       data-locked={locked}
       className='flex flex-col gap-3 rounded-[10px] border border-line-strong bg-bg p-3.5'
     >
-      <h3 className='text-sm font-bold text-white'>{effect.name}</h3>
-      {(lockedBy) ? <p role='status' className='text-xs text-warning'>{t('editor.room.adjusting', {name: lockedBy.username})}</p> : null}
+      <h3 className='text-sm font-semibold text-white'>{effect.name}</h3>
+      {(lockedBy) ? <p role='status' className='text-xs text-warning-text'>{t('editor.room.adjusting', {name: lockedBy.username})}</p> : null}
       {/* someone else is dragging it in the activity: their soft lock, it's theirs until they let go */}
       <fieldset disabled={Boolean(lockedBy)} className='contents'>
       {(effect.temporal) ? (

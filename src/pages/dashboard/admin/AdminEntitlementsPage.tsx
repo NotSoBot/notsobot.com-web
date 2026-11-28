@@ -71,7 +71,7 @@ export function AdminEntitlementsPage() {
           placeholder='Filter by user id...'
           aria-label='Filter by user id'
         />
-        {(debouncedUserId && !validUserId) ? <p className='text-xs text-warning'>Enter a user id (numbers only).</p> : null}
+        {(debouncedUserId && !validUserId) ? <p className='text-xs text-warning-text'>Enter a user id (numbers only).</p> : null}
         <div className='flex flex-wrap items-center gap-3'>
           <label className='flex items-center gap-2 text-sm text-muted'>
             Status
@@ -124,7 +124,7 @@ export function AdminEntitlementsPage() {
           </ul>
           <div className={cn('card hidden overflow-x-auto transition-opacity sm:block', isPlaceholderData && 'opacity-60')}>
             <table className='w-full min-w-[860px] text-left text-sm'>
-              <thead className='border-b border-line text-xs text-subtle uppercase'>
+              <thead className='border-b border-line text-sm text-subtle'>
                 <tr>
                   <th scope='col' className='px-4 py-2.5 font-medium'>User</th>
                   <th scope='col' className='px-4 py-2.5 font-medium'>Tier</th>

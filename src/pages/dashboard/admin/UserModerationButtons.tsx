@@ -52,7 +52,7 @@ export function UserModerationButtons({ user, defaultReason = '', className }: {
       </button>
       <button
         type='button'
-        className={cn('btn btn-sm px-2', (user.legal_hold) ? 'btn-secondary text-warning' : 'btn-secondary')}
+        className={cn('btn btn-sm px-2', (user.legal_hold) ? 'btn-secondary text-warning-text' : 'btn-secondary')}
         disabled={!canToggleLegalHold(user, viewerIsOwner)}
         title={legalHoldTitle(user, viewerIsOwner)}
         onClick={() => setDialog('hold')}

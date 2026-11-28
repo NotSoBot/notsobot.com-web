@@ -64,7 +64,7 @@ export function ConnectionNotice({ room, muted = false }: {room: EditorRoom, mut
     <p
       role='status'
       data-state='reconnecting'
-      className='pointer-events-none fixed top-[calc(0.5rem+var(--sait,0px))] left-1/2 z-50 flex max-w-[calc(100vw-2rem)] -translate-x-1/2 items-center gap-2 rounded-full border border-warning/50 bg-surface px-3 py-1.5 text-sm text-warning shadow-lg'
+      className='pointer-events-none fixed top-[calc(0.5rem+var(--sait,0px))] left-1/2 z-50 flex max-w-[calc(100vw-2rem)] -translate-x-1/2 items-center gap-2 rounded-full border border-warning/50 bg-surface px-3 py-1.5 text-sm text-warning-text shadow-lg'
     >
       <WifiOff aria-hidden className='size-4 shrink-0'/>
       <span className='truncate'>{t('editor.activity.reconnecting')}</span>

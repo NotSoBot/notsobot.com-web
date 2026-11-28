@@ -28,6 +28,14 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 
 export const CHANGELOG: Array<ChangelogDay> = [
   {
+    date: '2026-11-28',
+    title: 'Hold the Line, a design pass on the website',
+    items: [
+      {kind: 'new', text: 'Hold the Line on notsogames.com: draw lines to keep Pip safe from bees, bombs, boulders, spikes and lava, then press Go and let them fall. 12 levels, bolts that pin a line in place, 3 hearts and up to 3 stars a level. It plays in your browser, and your stars are saved there.'},
+      {kind: 'improved', text: 'A design pass across notsobot.com, the dashboard and the media editor: text with better contrast, shorter lines on the changelog, docs, legal and premium pages, headings and paragraphs that don\'t leave one word alone on a line, and flatter docs examples and dashboard tiles.'},
+    ],
+  },
+  {
     date: '2026-11-27',
     title: 'notsogames.com, game records, settings in the Activity, Windows error boxes, a round of fixes',
     items: [
@@ -78,6 +86,7 @@ export const CHANGELOG: Array<ChangelogDay> = [
       {kind: 'fixed', text: 'Letter Trail refusing a few ordinary words, like dickens, because they start like a blocked one.'},
       {kind: 'fixed', text: 'A broken avatar in the Activity\'s lobbies, room lists and leaderboards showing as a broken image. It shows Discord\'s default avatar instead, and names and avatars there catch up with your Discord profile when you open the Activity or sign in on notsogames.com.'},
       {kind: 'fixed', text: 'A NotSoCode tag whose command failed saying "safety scan failed, try again" when the command left an empty or broken file behind. It shows the command\'s own error now.'},
+      {kind: 'fixed', text: '`.url` and media commands sometimes picking a much older image from the channel, usually after you replied to a message without media. Recently edited old messages counted as the newest.'},
       {kind: 'removed', text: 'Mashup isn\'t available in the media editor for now.'},
       {kind: 'removed', text: 'The Flag Guesser, Letter Trail and game points guides on notsobot.com. They\'re on notsogames.com now.'},
     ],

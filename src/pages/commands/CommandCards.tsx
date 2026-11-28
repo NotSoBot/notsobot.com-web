@@ -57,7 +57,7 @@ export function PremiumBadge({ premium, className }: {premium?: CommandPremium |
   return (
     <span
       title={t(meta.label)}
-      className={cn('inline-flex shrink-0 items-center gap-1 rounded bg-warning/15 px-1.5 py-0.5 text-xs font-medium whitespace-nowrap text-warning', className)}
+      className={cn('inline-flex shrink-0 items-center gap-1 rounded bg-warning/15 px-1.5 py-0.5 text-xs font-medium whitespace-nowrap text-warning-text', className)}
     >
       <Crown aria-hidden className='size-3'/>
       {t(meta.badge)}
@@ -78,7 +78,7 @@ export function CategoryBadge({ category, className }: {category: string, classN
       style={categoryStyle(category)}
       className={cn(
         'inline-flex shrink-0 items-center gap-1 rounded px-2 py-0.5 text-xs font-medium whitespace-nowrap',
-        'bg-[color-mix(in_srgb,var(--cat)_16%,transparent)] text-[color-mix(in_srgb,var(--cat)_75%,white)]',
+        'bg-[color-mix(in_srgb,var(--cat)_16%,transparent)] text-[color-mix(in_srgb,var(--cat)_55%,white)]',
         className,
       )}
     >

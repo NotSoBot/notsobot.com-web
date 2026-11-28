@@ -252,7 +252,7 @@ export function CommandsPage() {
         {((isPending || entries.length) && statsState !== 'failed') ? (
           <section aria-labelledby='trending-heading' className='mb-10'>
             <h2 id='trending-heading' className='mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-xl text-white'>
-              <Flame className='size-5 text-warning'/>
+              <Flame className='size-5 text-warning-text'/>
               {t('commands.trending')}
               {(category || typeOption.types) ? (
                 <span className='text-sm text-subtle'>
@@ -440,7 +440,7 @@ function CategoryButton({ active, count, color, onClick, children }: {
       )}
     >
       {children}
-      <span className='ml-auto shrink-0 pl-2 text-xs text-subtle tabular-nums'>{count}</span>
+      <span className='ml-auto shrink-0 pl-2 text-xs text-muted tabular-nums'>{count}</span>
     </button>
   );
 }
